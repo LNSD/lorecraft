@@ -1,3 +1,5 @@
 """Lorewright: checks for a repository's agent-facing documentation."""
 
-__version__ = '0.1.0'
+from ._metadata import __version__
+
+__all__: list[str] = ['__version__']

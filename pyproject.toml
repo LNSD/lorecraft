@@ -1,7 +1,5 @@
 [project]
 name = "lorewright"
-# The version has one home: `__version__` in src/lorewright/__init__.py. hatch reads it
-# from there, so a release bumps one line and the two can never disagree.
 dynamic = ["version"]
 description = "Toolkit for the agent-facing documentation of a repository: rule documents, feature docs, skills and the format specifications that govern them"
 readme = "README.md"
@@ -11,8 +9,12 @@ authors = [
     { name = "Lorenzo Delgado", email = "lnsdev@proton.me" },
 ]
 requires-python = ">=3.12"
-# Nothing is implemented yet, so there is no runtime dependency to justify.
-dependencies = []
+dependencies = [
+    "typer>=0.27.2",
+]
+
+[project.scripts]
+lorewright = "lorewright.cli:main"
 
 [dependency-groups]
 dev = [
@@ -24,11 +26,21 @@ dev = [
 ]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
+# The version has one home and it is the git tag: hatch-vcs runs `git describe` at build time, so
+# releasing is `git tag v1.2.3` and no file in the tree holds a literal that could disagree with it.
+# Building needs git and real history; a shallow clone without tags produces a version derived from
+# whatever it can see, so CI checks out with fetch-depth: 0.
 [tool.hatch.version]
-path = "src/lorewright/__init__.py"
+source = "vcs"
+
+# node-and-date is setuptools-scm's default local scheme: an untagged commit builds as
+# `0.2.dev3+g93b1ed1fb`, and a dirty tree appends `.d20260923`. An artifact built from uncommitted
+# work therefore cannot be mistaken for one built from a clean checkout, which is the whole point.
+[tool.hatch.version.raw-options]
+local_scheme = "node-and-date"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/lorewright"]
@@ -62,6 +74,8 @@ addopts = [
 # and its description together.
 markers = [
     "unit: Unit tests (fast, no external dependencies)",
+    "it: Integration tests (the package's own modules wired together, in process)",
+    "e2e: End-to-end tests (the installed console script, in a subprocess)",
 ]
 
 [tool.ruff]
