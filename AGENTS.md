@@ -7,10 +7,15 @@ section outlines against a structure spec, prose against a length budget, skills
 specification — so a repository declares the rules it wants and runs one checker, instead of carrying a
 standalone script per check. It is a Python project managed with `uv`.
 
-**The library is not written yet; the checks are.** The checks run today as vendored scripts under
+**The checks are not in the library yet.** They run today as vendored scripts under
 `.agents/skills/*/scripts/`, wired to `just check-docs` and `just check-skills` and gated in CI.
-`src/lorewright/` holds only `__init__.py` and `tests/unit/` is empty, so the package those scripts migrate
-into does not exist. Do not infer structure that is not on disk.
+`src/lorewright/` holds the version, the `lorewright` CLI under `cli/` and nothing else, so the modules those
+scripts migrate into do not exist. Do not infer structure that is not on disk.
+
+The CLI is a router: `cli/_app.py` declares the root application and the global options, and every subcommand
+lives in its own module under `cli/commands/`, joining by calling `@register(<name>)` beside its handler.
+`cli/_registry.py` walks that package and mounts what registered itself, so a new subcommand is a new file —
+no dispatcher, no import list, no edit to the root application. `version` is the only one today.
 
 ## Quick Start
 
@@ -62,8 +67,9 @@ a bare checkout with nothing but `uv`. They are also the migration target — ea
 | `docs/__meta__/` | Format specs: a prose `.md` plus its JSON halves | 5 specs, 15 JSON files |
 | `docs/feat/` | Feature docs for this repository | Exists and empty, by design — nothing is implemented to document |
 | `.github/` | `workflows/ci.yml`, the pre-commit config (off the default root path), and `renovate.json5` | Exists |
-| `src/lorewright/` | The checker package | Exists, holds only `__init__.py` |
-| `tests/unit/` | Unit test tier | Directory exists, no tests yet |
+| `src/lorewright/` | The checker package | Exists: `__init__.py`, `_metadata.py`, `__main__.py` and `cli/` |
+| `src/lorewright/cli/` | Root application, command registry and the `commands/` package | 1 subcommand: `version` |
+| `tests/` | Three tiers: `unit/` pure logic, `it/` the modules wired together, `e2e/` the installed script | 12 tests, all on the CLI |
 
 ## Skill Routing
 
@@ -78,8 +84,8 @@ operation it covers. A user-level skill of the same name may exist; the reposito
 | `code-review` | Reviewing the working branch: rule compliance, bugs, regressions, security, soundness |
 | `code-format` | Formatting Python with `ruff format`, through `just fmt` |
 | `code-check` | Linting Python with `ruff check`, through `just check`, auto-fixing the mechanical findings first |
-| `code-test` | Running the pytest tiers through `just test-unit` and `just test` |
-| `code-release` | Bumping the version, building the artifacts and verifying what they contain before tagging |
+| `code-test` | Running the pytest tiers through `just test-unit`, `just test-it`, `just test-e2e` and `just test` |
+| `code-release` | Tagging a release, building the artifacts from that tag, and verifying what they contain |
 | `docs-rules` | Writing or editing anything under `docs/` — picks the corpus and the specification that governs it |
 | `docs-rules-check` | Checking a document under `docs/` against its spec; runs the three `check_*.py` |
 | `skills-check` | Writing or checking a skill — **also the skill-authoring guide**; read before any `SKILL.md` edit |
@@ -106,7 +112,9 @@ empty corpus rather than an error.
 | `just check-docs` | the three document checks over this repo's own `docs/`; stops at the first that reports |
 | `just check-skills` | the skill check over this repository's own `.agents/skills/` |
 | `just test-unit` | the unit tier — `pytest -m unit` |
-| `just test` | the whole suite — `pytest` |
+| `just test-it` | the integration tier — `pytest -m it` |
+| `just test-e2e` | the end-to-end tier — `pytest -m e2e` |
+| `just test` | every tier — `pytest` |
 | `just build` | `uv build` — source distribution and wheel |
 | `just clean` | remove build, test and cache artifacts |
 | `just install-git-hooks` | install the pre-commit hooks; `just remove-git-hooks` undoes it |
@@ -126,7 +134,7 @@ The pre-commit config is not at the default root path, so every `pre-commit` com
    explicitly rather than inventing it silently.
 3. Implement the smallest correct change. Prefer clear, typed, obvious code over clever abstractions.
 4. Format and lint with `just fmt` then `just check`; fix every finding, never a bare `# noqa`.
-5. Run the relevant tests with `just test-unit`, once the suite has something to run.
+5. Run the relevant tests: `just test-unit` always, and the tier the change reaches — `just test-it` for a module seam, `just test-e2e` for packaging or the console script.
 6. Run `just check-docs` and `just check-skills` when the change touches `docs/` or `.agents/skills/`.
 7. Close by stating what was skipped and any residual risk.
 
@@ -146,7 +154,7 @@ selection misses them.
 | Format | `just fmt` after edits and before linting; `just fmt-check` verifies without writing |
 | Lint | `just check`; every finding fixed, none silenced with a bare `# noqa`. `just check-fix` first |
 | Types | `just typecheck`; clean, with no finding silenced by widening an annotation to `Any` |
-| Tests | `just test-unit` after lint is clean; `just test` only when the change earns the whole suite |
+| Tests | `just test-unit` after lint is clean, then the tier the change touches — `just test-it`, `just test-e2e` — and `just test` when it earns the whole suite |
 | Documents | `just check-docs`; every document under `docs/` passes the header, structure and budget checks |
 | Skills | `just check-skills`; every skill passes the Agent Skills specification |
 
@@ -191,16 +199,23 @@ selects the files that govern it.
 
 ## Testing Strategy
 
-`tests/unit/` exists and is empty: the library is not implemented, so nothing is tested. The harness is real —
-`pytest` is a dev dependency, `testpaths` is `tests/`, and the `unit` marker is declared in `pyproject.toml`.
-The vendored check scripts have no tests of their own; `just check-docs` and `just check-skills` over this
-repository's own corpus are what exercises them.
+The suite is the CLI and nothing else, because nothing else in the library is implemented. It is spread over
+the three tiers [test-organization](docs/code/test-organization.md) defines: `tests/unit/test_version.py` for
+the version strings, `tests/it/test_cli.py` for the application and its command routing through Typer's
+`CliRunner`, and `tests/e2e/test_cli.py` for the installed console script in a subprocess — the only tier that
+can observe the `git describe` probe behind `version --verbose`. The vendored check scripts have no tests of
+their own; `just check-docs` and `just check-skills` over this repository's own corpus are what exercises
+them.
 
-- Run the suite through `just test-unit` or `just test`, never a bare `pytest`. `test-unit` selects `-m unit`,
-  so a unit test must carry the `unit` marker to run in that tier.
+- Run the suite through `just test-unit`, `just test-it`, `just test-e2e` or `just test`, never a bare
+  `pytest`. Tier recipes select on markers, so an unmarked test is missed by those recipes; the unfiltered
+  `just test` suite still collects it. CI runs `just test`, which runs all three tiers.
 - Unit tests cover pure logic — parsing, frontmatter handling, document validation — and do not mock their
   subject or patch module internals. Fixtures for document-shaped inputs are checked in as real files, so a
   test reads the same thing an agent would.
+- Every test body is divided by the `#: Given`, `#: When` and `#: Then` markers, with exactly one call
+  under `When`. [test-functions](docs/code/test-functions.md) §2 owns the rule and the pytest idioms that
+  are awkward to place.
 - `--strict-markers` is on. Every marker used must be declared in `pyproject.toml`, with its description.
 
 ## Commits
@@ -219,6 +234,9 @@ cannot be relaxed:
 ## Essential Conventions
 
 - Keep docs and code in sync in the same change.
+- **No file holds a version.** `hatch-vcs` derives it from the git tag at build time and the package
+  reads it back with `importlib.metadata`; the `code-release` skill owns the release flow. Adding a
+  version literal anywhere is a defect, not a convenience.
 - Do not add a dependency without a stated reason; this is a small toolkit, and the standard library is
   preferred until it is genuinely insufficient.
 - Keep this guide honest: a section describing something that does not exist must say so.
