@@ -326,13 +326,14 @@ narrated diff, pointed the other way.
 
 ## Scope Rules
 
-**MANDATORY**: the scope names the area the change belongs to.
+Use a scope when it adds useful information about the area the change belongs to. Omit it when the
+scope only repeats the type or names no narrower area; the conventional format allows `type: description`.
 
 **Process**:
 1. Check `git status` and `git diff`
 2. Identify which module under `src/lorewright/`, or which non-code area, contains the changes
 3. Choose the one with the most significant architectural impact
-4. Use its name as the scope
+4. Add its name as the scope when it distinguishes the change's area
 
 **Code scopes**: the module or subsystem name under `src/lorewright/`, without the `.py` extension and
 without the package prefix. A package directory scopes as the directory name, not as the file inside
@@ -346,10 +347,10 @@ checker's modules land, a change to the package itself scopes to `lorewright`.
 
 | Scope | Covers |
 |---|---|
-| `code` | the rule corpus under `docs/code/` |
-| `meta` | the format specifications under `docs/__meta__/` |
-| `feat` | the feature docs under `docs/feat/` |
-| `docs` | anything else under `docs/`, and `README.md` |
+| `docs(code)` | code rule documents under `docs/code/` |
+| `docs(meta)` | format specifications under `docs/__meta__/` |
+| `docs(feat)` | feature documents under `docs/feat/` |
+| `docs` | documentation outside those named corpora when a narrower scope adds useful information |
 | `skills` | `.agents/skills/`, its `scripts/`, and the `.claude/skills` symlink |
 | `agents` | `AGENTS.md` and the `CLAUDE.md` pointer |
 | `build` | packaging and release metadata in `pyproject.toml` |
@@ -359,6 +360,8 @@ checker's modules land, a change to the package itself scopes to `lorewright`.
 **Special cases**:
 - Dependencies: `chore(deps): ...`
 - Tests that are not about one module: `test(unit): ...`
+- A document directly under `docs/`, such as `docs/glossary.md`: `docs: ...`; `docs(docs): ...` repeats the type and scope
+- A root `README.md`: `docs: ...` unless a more specific scope adds useful information
 - Root config with no natural scope: `chore: ...` (no scope)
 
 ## Examples
