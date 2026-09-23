@@ -63,7 +63,7 @@ a bare checkout with nothing but `uv`. They are also the migration target — ea
 | `.claude/skills/` | Compatibility symlink to `.agents/skills/` | Exists |
 | `pyproject.toml` | Package metadata, dependencies, `ruff`, `ty` and `pytest` config | Exists |
 | `justfile` | Task runner recipes; wraps `uv` | Exists |
-| `docs/code/` | Code rules for this repository | 17 rule documents |
+| `docs/code/` | Code rules for this repository | 18 rule documents |
 | `docs/__meta__/` | Format specs: a prose `.md` plus its JSON halves | 5 specs, 15 JSON files |
 | `docs/feat/` | Feature docs for this repository | Exists and empty, by design — nothing is implemented to document |
 | `.github/` | `workflows/ci.yml`, the pre-commit config (off the default root path), and `renovate.json5` | Exists |

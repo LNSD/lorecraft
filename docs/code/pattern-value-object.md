@@ -1,6 +1,6 @@
 ---
 name: "pattern-value-object"
-description: "Value objects for identity, invariants, and units: a frozen one-field dataclass whose only validator is parse(). Load when a domain value is a bare str or int, when two same-typed parameters sit side by side, or when a docstring states a constraint the type could have stated"
+description: "Runtime-validated value objects: a frozen one-field dataclass whose only validator is parse(). Load when a domain value needs parsing, a runtime invariant, or behavior of its own"
 type: "core"
 scope: "global"
 ---
@@ -10,15 +10,11 @@ scope: "global"
 ## Rule
 
 A domain value carried as a bare `str` or `int` makes every reader remember an invariant the code could have
-remembered for them. When the value has an **identity**, an **invariant**, or a **unit**, declare it as a value
-object — a small frozen class wrapping one field — so that a transposed argument is a visible type mismatch and
-the constraint lives in one place.
+remembered for them. When a value needs **runtime validation**, a **unit**, or behavior of its own, declare it
+as a value object — a small frozen class wrapping one field — so that the constraint lives in one place. For a
+pure static distinction between values with no runtime invariant, use [`typing.NewType`](pattern-newtype.md).
 
-**Do not reach for `typing.NewType`.** It is erased at runtime: `NewType('CorpusName', str)` produces a
-callable that returns its argument unchanged, so nothing is validated, nothing is enforced, and two distinct
-`NewType`s over `str` are the same object at runtime. It buys a distinction only when a static type checker
-runs. **This repository runs none** — `just check` is `ruff check`, and ruff lints rather than type-checks;
-there is no mypy and no pyright in the toolchain. A `NewType` here is a comment that costs an import.
+`NewType` provides only a static distinction; it does not validate or wrap its input at runtime.
 
 The mechanism that actually holds at runtime:
 
@@ -34,9 +30,9 @@ same check rather than trusting the file.
 
 A value earns a value object when it does at least one of three jobs:
 
-1. **Identity** — same-typed values that must never be swapped: a corpus name, a document name, the fully
-   qualified document reference built from them, and the name of the format specification the document is
-   checked against, all meeting in one signature.
+1. **Identity with a runtime contract** — same-typed values that must never be swapped and also need parsing or
+   behavior: a corpus name validated against its allowed spelling, or a fully qualified document reference
+   with separately checked parts.
 2. **Invariant** — a constraint established once, at the edge, and never re-checked: a non-empty heading, a
    lowercase corpus name, a positive word budget.
 3. **Unit** — a unit, base, or convention a bare primitive cannot state: line number versus section index,
@@ -286,8 +282,8 @@ class DocumentRef:
 
 **The type remembers, so the reader does not.** "The first argument is the corpus"; "this span is half-open";
 "this string is a reference, not a bare name" — each is a fact a maintainer holds in their head at every call
-site, and forgets exactly once. In a repository with no static type checker, the compensating mechanism has to
-be a real runtime object, not an annotation.
+site, and forgets exactly once. When the fact needs runtime validation, the value object carries the check with
+the value instead of relying on a static distinction.
 
 **The failures this prevents are the quiet ones.** A transposed identifier files a well-formed finding against
 the wrong document; a dropped `- 1` folds one heading into the section above it. Neither raises, neither fails a
@@ -329,8 +325,8 @@ indistinguishable from an oversight, and the next reader will treat it as one.
 
 ## Checklist
 
-- [ ] Every domain value with an invariant, a unit or base, or a confusable same-typed sibling is a value object
-- [ ] `typing.NewType` is not used to make the distinction — nothing in this repository would enforce it
+- [ ] Every domain value with a runtime invariant, a unit or base, or behavior of its own is a value object
+- [ ] A pure static distinction without a runtime invariant uses `typing.NewType` ([pattern-newtype](pattern-newtype.md))
 - [ ] The wrapper is `@dataclass(frozen=True, slots=True)` with exactly one meaningful field
 - [ ] The validator is a classmethod named `parse`, and it is the only validator
 - [ ] The value object is constructed at the boundary the value enters through, and nowhere else
@@ -344,6 +340,7 @@ indistinguishable from an oversight, and the next reader will treat it as one.
 ## References
 
 - [principle-least-surprise](principle-least-surprise.md) - Foundation: A signature saying `str` twice surprises the caller who transposes them
+- [pattern-newtype](pattern-newtype.md) - Related: Static-only distinctions for values without runtime invariants
 - [pattern-registry](pattern-registry.md) - Related: Registry keys are exactly the kind of identity that earns a value object
 - [pattern-resource-lifecycle](pattern-resource-lifecycle.md) - Related: A lifecycle is one state value, not several booleans
 
