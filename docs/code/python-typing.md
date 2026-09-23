@@ -50,8 +50,8 @@ def load_documents(
     ...
 ```
 
-`typing` is still imported for what the builtins do not provide: `Any`, `TypeVar`, `Generic`, `Protocol`,
-`TYPE_CHECKING`, `ClassVar`, `Callable`, `Iterator`.
+`typing` is still imported for what the builtins do not provide: `Any`, `NewType`, `TypeVar`, `Generic`,
+`Protocol`, `TYPE_CHECKING`, `ClassVar`, `Callable`, `Iterator`.
 
 **Enforcement:** ruff `UP` (UP006, UP007, UP035, UP045) — not currently enabled; see the checklist.
 
