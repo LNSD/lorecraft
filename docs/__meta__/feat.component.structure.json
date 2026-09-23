@@ -1,0 +1,9 @@
+{
+  "spec": "feat.md §4",
+  "description": "Narrows feat.structure.json for a document with type: component, which is applied as well. The prose authority is docs/__meta__/feat.md section 4. A component document documents an internal building block, so it MUST carry an Implementation section naming its source files; where that section sits is feat.structure.json's business.",
+  "outline": [
+    { "any": true },
+    { "section": "Implementation" },
+    { "any": true }
+  ]
+}

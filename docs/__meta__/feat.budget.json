@@ -1,0 +1,15 @@
+{
+  "spec": "feat.md §6",
+  "description": "Prose budgets for a feature document, in words. The prose authority is docs/__meta__/feat.md section 6; this file is its machine-checkable half. A budget counts prose words only: fenced code blocks and table rows are free, since examples and reference tables are what a feature document is for. `sections` keys are H2 titles and cover their H3 children; `default` covers any other H2; `exempt` sections are not counted against a section budget but do count toward `document`.",
+  "document": 1200,
+  "sections": {
+    "Summary": 80,
+    "Key Concepts": 200,
+    "Architecture": 400,
+    "Usage": 400,
+    "Implementation": 150,
+    "Limitations": 200
+  },
+  "default": 300,
+  "exempt": ["Table of Contents", "References"]
+}

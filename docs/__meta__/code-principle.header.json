@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "code-principle.header.json",
+  "title": "principle-* frontmatter",
+  "description": "Narrows code.header.json for docs/code/principle-*.md. The prose authority is docs/__meta__/code-principle.md.",
+  "type": "object",
+  "properties": {
+    "type": { "const": "principle" },
+    "scope": { "const": "global" }
+  }
+}
