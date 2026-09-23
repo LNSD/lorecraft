@@ -1,0 +1,52 @@
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    'config:recommended',
+    ':semanticCommits',
+    ':semanticCommitTypeAll(chore)',
+    'helpers:pinGitHubActionDigests',
+  ],
+  schedule: [
+    // At 05:00AM on day-of-month 1 and 15
+    '* 5 1,15 * *',
+  ],
+  configMigration: true,
+  rebaseWhen: 'behind-base-branch',
+  lockFileMaintenance: {
+    enabled: true,
+    automerge: true,
+    automergeType: 'branch',
+  },
+  enabledManagers: [
+    // pyproject.toml and uv.lock
+    'pep621',
+    // .github/workflows/*.yml
+    'github-actions',
+    // .github/pre-commit-config.yaml
+    'pre-commit',
+    // PEP 723 inline metadata in the skill scripts
+    'pep723',
+  ],
+  // The pre-commit manager is opt-in, and this repository keeps its config under
+  // .github/ instead of the repository root, so both have to be stated.
+  'pre-commit': {
+    enabled: true,
+    managerFilePatterns: [
+      '/^\\.github/pre-commit-config\\.ya?ml$/',
+    ],
+  },
+  // The pep723 manager matches nothing by default: it has to be pointed at the
+  // files that carry an inline dependency block. Here that is the skill scripts,
+  // each run through `uv run --script`.
+  pep723: {
+    managerFilePatterns: [
+      '/^\\.agents/skills/[^/]+/scripts/.*\\.py$/',
+    ],
+  },
+  ignoreDeps: [
+    // Ignore python: pep621 reads `requires-python` as a dependency, but the
+    // >=3.12 floor is a deliberate support decision, not something to bump on a
+    // release of the interpreter.
+    'python',
+  ],
+}

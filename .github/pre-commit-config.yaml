@@ -1,0 +1,58 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+# This config lives outside the default root path, so every pre-commit command
+# needs `--config .github/pre-commit-config.yaml`, installation included.
+# `just install-git-hooks` wraps exactly this:
+#   pre-commit install --config .github/pre-commit-config.yaml --hook-type pre-commit --hook-type pre-push
+repos:
+- repo: local
+  hooks:
+  ## Python hooks
+  - id: fmt
+    name: Format Python code
+    language: system
+    entry: just fmt
+    types_or: [python]
+    stages: [pre-commit, pre-merge-commit, manual]
+    pass_filenames: false
+    require_serial: true
+  - id: fmt-check
+    name: Check Python code formatting
+    language: system
+    entry: just fmt-check
+    types_or: [python]
+    stages: [pre-push, manual]
+    pass_filenames: false
+    require_serial: true
+  - id: check
+    name: Lint Python code with ruff
+    language: system
+    entry: just check
+    types_or: [python]
+    stages: [pre-push, manual]
+    pass_filenames: false
+    require_serial: true
+  - id: typecheck
+    name: Type-check the package
+    language: system
+    entry: just typecheck
+    types_or: [python]
+    stages: [pre-push, manual]
+    pass_filenames: false
+    require_serial: true
+  ## Document hooks
+  - id: check-docs
+    name: Check the document corpus
+    language: system
+    entry: just check-docs
+    types_or: [markdown]
+    files: ^docs/
+    stages: [pre-push, manual]
+    pass_filenames: false
+  - id: check-skills
+    name: Check the skills against the Agent Skills specification
+    language: system
+    entry: just check-skills
+    files: ^\.agents/skills/
+    stages: [pre-push, manual]
+    pass_filenames: false

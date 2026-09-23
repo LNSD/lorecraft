@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "code-pattern.header.json",
+  "title": "pattern-* frontmatter",
+  "description": "Narrows code.header.json for docs/code/pattern-*.md. The prose authority is docs/__meta__/code-pattern.md.",
+  "type": "object",
+  "properties": {
+    "type": { "const": "core" },
+    "scope": { "const": "global" }
+  }
+}

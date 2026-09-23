@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "code-python.header.json",
+  "title": "python-* frontmatter",
+  "description": "Narrows code.header.json for docs/code/python-*.md. The prose authority is docs/__meta__/code-python.md.",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "core",
+      "$comment": "A python-* document says how Python source is written, which is always core. A rule about packaging, distribution shape, or build configuration governs where code lives instead, and belongs under a prefix that names that subject."
+    },
+    "scope": { "const": "global" }
+  }
+}
