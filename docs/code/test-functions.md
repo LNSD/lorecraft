@@ -1,6 +1,6 @@
 ---
 name: "test-functions"
-description: "Inside the test function: Test<Subject> classes and test_<unit>_<condition>_<expectation> names, one behaviour per test, assertion messages, fixture scope, pytest.raises on the class, parametrize over loops, and the sleep/network/order-dependence bans. Load when writing or reviewing a test function, naming a test, or adding a fixture"
+description: "Inside the test function: Test<Subject> classes and test_<unit>_<condition>_<expectation> names, the mandatory Given/When/Then markers, one behaviour per test, assertion messages, fixture scope, pytest.raises on the class, parametrize over loops, and the sleep/network/order-dependence bans. Load when writing or reviewing a test function, naming a test, or adding a fixture"
 type: "core"
 scope: "global"
 ---
@@ -12,7 +12,7 @@ has not opened the file. Everything in this document serves the moment that line
 broke, the assertion message says how, and the test's narrowness says where. Which tier a test belongs to,
 which directory it lives in, and which markers select it are owned by
 [test-organization](test-organization.md). This document owns what happens between `def` and the last
-assertion.
+assertion, starting with the three markers ([§2](#2-given-when-then-with-markers)) that divide it.
 
 ## 1. `Test<Subject>` Classes, `test_<unit>_<condition>_<expectation>` Functions
 
@@ -47,7 +47,113 @@ class TestOutlineChecker:
     def test_check_with_headings_out_of_order_raises_value_error(self) -> None: ...
 ```
 
-## 2. One Behaviour Per Test
+## 2. Given, When, Then, With Markers
+
+Every test body is three labelled parts in order, marked `#: Given`, `#: When` and `#: Then`. The markers
+are keyword-only: nothing follows the keyword on that line, and prose goes on the next line as an ordinary
+comment.
+
+**The form is chosen for grep and for tooling, not for decoration.** Keyword-only means one pattern matches
+every marker and nothing else, and `#:` survives `ruff format` — which inserts a space after `#` unless the
+next character is one of `" !:#'"` — while containing no regex metacharacter, so the pattern needs no
+escaping:
+
+```
+^\s*#: (Given|When|Then)$
+```
+
+`#:` is also Sphinx's attribute-documentation comment, which is harmless here and worth knowing the shape
+of: Sphinx reads a `#:` comment only above a module-level or class-level assignment, or above a `self.x`
+assignment in a method. A marker above a local inside a test function is never one of those, and this
+repository has no documentation toolchain at all. Keep the markers to test bodies and the two conventions
+never meet.
+
+| Marker | Holds |
+|---|---|
+| `#: Given` | Preconditions: locals bound from fixtures, constructed inputs, the literals the case turns on |
+| `#: When` | **Exactly one** call — the thing under test, and nothing else |
+| `#: Then` | Assertions, and the reads that observe a side effect of that call |
+
+All three appear in every test, without exception. A test that constructs nothing still has a precondition, so
+`#: Given` binds it to a named local: the empty string, the id, the value the case turns on. Naming it is what
+leaves `#: When` holding the call alone, and what makes the scenario in the test's name findable in its body.
+
+A second call under `#: When` means a failure names neither call. Logic under `#: Then` hides what is being
+verified: a value transformed before it is asserted on is either setup, and belongs in `#: Given`, or evidence
+that the test covers two behaviours ([§3](#3-one-behaviour-per-test)).
+
+Three pytest idioms and where they fall:
+
+- **`pytest.raises` straddles the split.** The `with pytest.raises(...) as exc_info:` block is the `When`,
+  because the call under test sits inside it. Assertions about `exc_info.value` are `Then`.
+- **`@pytest.mark.parametrize` is `Given` arriving through the signature.** The marker still appears in the
+  body, over whatever the case binds locally.
+- **A fixture argument is `Given` that already happened.** `#: Given` covers the locals derived from it, not
+  the fixture's own setup.
+
+```python
+# ✅ Good — one call under When, and Then only asserts
+def test_detailed_version_with_a_commit_reports_it_under_the_short_line(self) -> None:
+    #: Given
+    # a description as `git describe` returns it on a dirty tree
+    commit = 'v0.1.0-2-g93b1ed1-dirty'
+
+    #: When
+    text = detailed_version(commit)
+
+    #: Then
+    assert text.splitlines()[1] == 'Commit:   v0.1.0-2-g93b1ed1-dirty'
+```
+
+```python
+# ✅ Good — nothing to construct, so Given names the literal the case turns on
+def test_register_with_a_name_already_taken_raises_duplicate_command_error(self) -> None:
+    #: Given
+    name = 'version'
+
+    #: When
+    with pytest.raises(DuplicateCommandError) as exc_info:
+        register(name)(_other_handler)
+
+    #: Then
+    assert name in str(exc_info.value)
+```
+
+```python
+# ❌ Bad — no markers, so setup, action and assertion are one undifferentiated block
+def test_mount_adds_the_version_command(self) -> None:
+    app = build_app()
+    result = CliRunner().invoke(app, ['--help'])
+    assert 'version' in result.output
+
+
+# ❌ Bad — two calls under When, so a failure names neither of them
+def test_version_command_matches_the_option(self) -> None:
+    #: Given
+    app = build_app()
+
+    #: When
+    from_option = runner.invoke(app, ['--version'])
+    from_command = runner.invoke(app, ['version'])
+
+    #: Then
+    assert from_option.output == from_command.output
+
+
+# ❌ Bad — the transformation under Then is setup, and it hides what is asserted
+def test_detailed_version_reports_the_install_path(self) -> None:
+    #: Given
+    commit = None
+
+    #: When
+    text = detailed_version(commit)
+
+    #: Then
+    install_line = next(line for line in text.splitlines() if line.startswith('Install:'))
+    assert install_line.split(':', 1)[1].strip().endswith('lorewright')
+```
+
+## 3. One Behaviour Per Test
 
 A test exercises one behaviour and asserts on it. Several assertions about that one behaviour are fine — a
 returned report's finding count, its per-document breakdown, and its exit status are one outcome seen from
@@ -84,7 +190,7 @@ class TestReportWriterLifecycle:
         assert written == 10, f'expected 10 findings written, got {written}'
 ```
 
-## 3. Assertions Carry a Message
+## 4. Assertions Carry a Message
 
 Every `assert` carries a message saying what should have held. Where the actual value is small and not already
 in the expression, the message interpolates it.
@@ -106,7 +212,7 @@ assert index.has_section('Checklist'), 'the outline index should carry every H2 
 assert finding.line == 42, f'the finding should point at the offending heading, got line {finding.line}'
 ```
 
-## 4. Fixtures Declare Their Scope
+## 5. Fixtures Declare Their Scope
 
 Every `@pytest.fixture` states its scope explicitly, including `scope='function'`. A fixture that parses the
 checked-in fixture corpus, compiles a JSON Schema, or builds a spec registry is `scope='session'` or
@@ -117,7 +223,7 @@ Writing the default out loud is what makes the choice visible in review. The two
 and both expensive: a corpus fixture left at function scope re-parses every fixture document once per test and
 turns a two-second suite into two minutes, while a mutable fixture promoted to session scope leaks state
 between tests and produces the order-dependent failures
-[§7](#7-forbidden--sleeping-real-network-order-dependence) bans.
+[§8](#8-forbidden--sleeping-real-network-order-dependence) bans.
 
 A session-scoped fixture yields something **immutable or externally reset**: the parsed corpus is shared, but
 each test writes its own document under its own temp directory.
@@ -150,7 +256,7 @@ def draft_document(tmp_path: Path) -> Iterator[Path]:
     path.unlink()
 ```
 
-## 5. `pytest.raises` Matches the Exception Class, Not the Message
+## 6. `pytest.raises` Matches the Exception Class, Not the Message
 
 A test asserting a failure matches the exception **class**. `match=` is used only for a value the contract
 actually promises — a field the exception is required to name, a bound it is required to report — and never
@@ -182,7 +288,7 @@ with pytest.raises(FrontmatterSchemaError, match='scope'):
     check_frontmatter(document, schema)
 ```
 
-## 6. Parametrize Instead of Looping
+## 7. Parametrize Instead of Looping
 
 A test covering several inputs uses `@pytest.mark.parametrize`. A `for` loop over cases inside a test body is
 not written.
@@ -220,7 +326,7 @@ def test_split_sections_with_varied_documents_returns_expected_section_count(
     assert len(sections) == expected_sections, f'expected {expected_sections} sections, got {len(sections)}'
 ```
 
-## 7. Forbidden — Sleeping, Real Network, Order Dependence
+## 8. Forbidden — Sleeping, Real Network, Order Dependence
 
 Three things are never written in a test, in any tier.
 

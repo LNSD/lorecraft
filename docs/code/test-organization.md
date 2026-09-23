@@ -15,14 +15,21 @@ a test function — its name, its structure, its assertions, its fixtures — is
 
 ## 1. One Tier, One Directory
 
-| Directory | Needs to run | Typical duration | Purpose |
-|---|---|---|---|
-| `tests/unit/` | Nothing beyond the interpreter | Milliseconds | Pure logic: frontmatter parsing, outline matching, length budgets, spec loading |
+| Directory | Marker | Needs to run | Typical duration | Purpose |
+|---|---|---|---|---|
+| `tests/unit/` | `unit` | Nothing beyond the interpreter | Milliseconds | Pure logic: frontmatter parsing, outline matching, length budgets, version formatting |
+| `tests/it/` | `it` | The package importable, nothing outside the process | Tens of milliseconds | The package's own modules wired together: a CLI driven through Typer's `CliRunner`, a checker over a fixture tree |
+| `tests/e2e/` | `e2e` | The package installed, and a subprocess | Up to seconds | The product as a user runs it: the console script, its exit codes, and what it does with the machine it finds |
 
-**There is exactly one tier today**, and `just test-unit` is what selects it. A test that needs a network
-service, a subprocess, or a writable path outside a temp directory has no directory to live in yet, and
-putting it under `tests/unit/` does not give it one — it gives the unit suite a failure nobody can reproduce
-without the missing dependency.
+**Three tiers, selected by `just test-unit`, `just test-it` and `just test-e2e`.** A test that needs a
+network service has no directory to live in yet, and putting it in one of these does not give it one — it
+gives that suite a failure nobody can reproduce without the missing dependency.
+
+The line between `unit` and `it` is the process boundary in the *design*, not in the runtime: both run in
+one interpreter, and what separates them is whether the test exercises one unit's logic or the seam between
+several. The line between `it` and `e2e` is the real boundary: `e2e` spawns the command and may touch git,
+the filesystem and the installed metadata, so it is the only tier that can observe what only a real
+invocation does.
 
 A tier is not free. It needs a directory, a marker declared in `[tool.pytest.ini_options]`, and a gate that
 runs it, and all three land in the same change or the tier is a directory nothing executes. Add one when a
@@ -36,24 +43,24 @@ HTTP endpoint is not, and the fix is the seam, not the tier.
 
 ## 2. Every Test Carries Exactly One Tier Marker
 
-Every test function or test class carries exactly one tier marker — today that is `@pytest.mark.unit` — and it
-matches the directory the test lives in.
+Every test function or test class carries exactly one tier marker — `@pytest.mark.unit`, `@pytest.mark.it` or
+`@pytest.mark.e2e` — and it matches the directory the test lives in.
 
-Directory placement alone selects nothing: `just test-unit` and CI jobs select on markers, so an unmarked test
-is a test that runs in no gate and fails in none. A second tier marker is worse than none: today it names a
-tier that does not exist, so `--strict-markers` aborts the whole run at collection; once a second tier does
-exist, the test runs in both suites and the cheaper one fails for want of what it cannot provide.
+Directory placement alone selects nothing: tier recipes select on markers, so an unmarked test is missed by
+its tier recipe. The unfiltered `just test` suite still collects it. A second tier marker is worse than none:
+the test runs in both suites, and the cheaper one fails for want of what it cannot provide — an `e2e` marker
+added beside a `unit` one means `just test-unit` now spawns a subprocess it promised not to.
 
 ```python
-# ❌ Bad — no tier marker, so this runs only when someone happens to invoke the file by path
+# ❌ Bad — no tier marker, so this is missed by every tier recipe
 class TestSectionSplitting:
     def test_split_sections_at_h2_yields_one_span_per_heading(self) -> None: ...
 ```
 
 ```python
-# ❌ Bad — a second tier marker naming a tier this project does not have; collection aborts
+# ❌ Bad — two tier markers; `just test-unit` now collects a test that needs the installed script
 @pytest.mark.unit
-@pytest.mark.integration
+@pytest.mark.e2e
 def test_outline_checker_reads_spec_from_disk() -> None: ...
 ```
 
@@ -93,7 +100,9 @@ markers = [
 
 A unit test touches no network, no database, no subprocess, and no filesystem beyond a temp directory and the
 checked-in fixture documents. It also does not mock the thing it is testing, and does not patch module
-internals to reach its assertion.
+internals to reach its assertion. An integration test is held to the same list, minus the mocking clause:
+`tests/it/` exists to wire real collaborators together, so a fake there defeats the tier. Only `tests/e2e/`
+may spawn a process.
 
 **This narrows the blanket rule, deliberately.** A standing instruction that unit tests must not mock at all
 is easy to state and easy to break, and a rule broken a third of the time is worse than no rule: it stops
@@ -185,13 +194,12 @@ A requirement marker names what the test needs — the checked-in corpus, a part
 on top of the tier marker rather than replacing it. A test can be selected by tier, by requirement, or by
 both, and the two axes never collide.
 
-This is what lets a contributor narrow a run at all: the tier marker answers "how expensive is this", the
-requirement marker answers "what must be present", and only their intersection has to be satisfiable. A
-requirement marker used **instead of** a tier marker removes the test from every tier gate, and it stops
-running in CI without anyone noticing, because the requirement suite that does select it is often conditional.
+The tier marker answers "how expensive is this", and the requirement marker answers "what must be present".
+A requirement marker used **instead of** a tier marker removes the test from every tier-specific gate. The
+unfiltered suite still runs it, but the focused recipes cannot select it by its cost or process boundary.
 
 ```python
-# ❌ Bad — requirement marker only; `just test-unit` does not select this, and nothing else does
+# ❌ Bad — requirement marker only; no tier-specific recipe selects this test
 @pytest.mark.corpus
 def test_check_corpus_over_fixture_tree_reports_one_finding_per_document() -> None: ...
 ```
@@ -207,15 +215,16 @@ def test_check_corpus_over_fixture_tree_reports_one_finding_per_document() -> No
 
 Before committing code, verify:
 
-- [ ] Every new test file is under `tests/unit/`, or under a tier directory introduced in the same change as
-      its marker and its gate
-- [ ] Each test's directory matches what it actually needs: no network, no subprocess, and no writable path
-      outside a temp directory under `tests/unit/`
-- [ ] Every new test carries exactly one tier marker — `@pytest.mark.unit` today
+- [ ] Every new test file is under `tests/unit/`, `tests/it/` or `tests/e2e/`, matching what it needs, or
+      under a tier directory introduced in the same change as its marker and its gate
+- [ ] Each test's directory matches what it actually needs: no network anywhere, and no subprocess outside
+      `tests/e2e/`
+- [ ] Every new test carries exactly one tier marker — `unit`, `it` or `e2e`
 - [ ] Every marker used in the diff appears in the `markers` list under `[tool.pytest.ini_options]`
 - [ ] Every `-m` expression added to a `just` recipe or CI job names only declared markers — an undeclared one
       is a collection error, not a skip
-- [ ] No test under `tests/unit/` opens a socket, spawns a subprocess, or writes outside a temp directory
+- [ ] No test under `tests/unit/` or `tests/it/` opens a socket, spawns a subprocess, or writes outside a
+      temp directory
 - [ ] No unit test patches its own subject or a module-internal symbol
 - [ ] No unit test passes a bare `Mock()` or `MagicMock()` as a collaborator; a hand-written fake class is
       used instead

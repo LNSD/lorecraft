@@ -103,18 +103,23 @@ build:
 
 alias test-all := test
 
-# pytest exits 5 when it collects no tests. That is not a failure while the
-# suite is still empty, so the guard below keeps this recipe green.
-
 # Run the whole test suite (pytest)
 [group: 'test']
 test *EXTRA_FLAGS:
-    @echo "🎯 Running all tests..."
-    uv run pytest {{EXTRA_FLAGS}} || test $? -eq 5
+    @echo "🎯 Running tests..."
+    uv run pytest {{EXTRA_FLAGS}}
 
 # Run unit tests (fast, no external dependencies)
 [group: 'test']
 test-unit *EXTRA_FLAGS: (test "-m" "unit" EXTRA_FLAGS)
+
+# Run integration tests (the package's own modules wired together, in process)
+[group: 'test']
+test-it *EXTRA_FLAGS: (test "-m" "it" EXTRA_FLAGS)
+
+# Run end-to-end tests (the installed console script, in a subprocess)
+[group: 'test']
+test-e2e *EXTRA_FLAGS: (test "-m" "e2e" EXTRA_FLAGS)
 
 
 ## Misc
