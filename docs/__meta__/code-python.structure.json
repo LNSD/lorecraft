@@ -1,0 +1,9 @@
+{
+  "spec": "code-python.md Footer",
+  "description": "Narrows code.structure.json for docs/code/python-*.md, which is applied as well. The prose authority is docs/__meta__/code-python.md; a python document's rule sections are named by their rules, so this file adds only that References is not optional here. Where References sits is code.structure.json's business.",
+  "outline": [
+    { "any": true },
+    { "section": "References" },
+    { "any": true }
+  ]
+}

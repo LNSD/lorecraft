@@ -1,0 +1,12 @@
+{
+  "spec": "code.md §5",
+  "description": "Section structure for a rule document in docs/code/. The prose authority is docs/__meta__/code.md section 5; this file is its machine-checkable half. The order is: the document's own rule sections, then the Checklist, then the two reference sections, adjacent, with nothing after them.",
+  "title": { "count": 1, "first": true },
+  "empty_sections": "forbidden",
+  "outline": [
+    { "any": true },
+    { "section": "Checklist" },
+    { "section": "References", "optional": true },
+    { "section": "External References", "optional": true }
+  ]
+}

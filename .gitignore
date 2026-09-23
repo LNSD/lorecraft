@@ -1,0 +1,79 @@
+### Editors, IDEs and Agents
+.idea
+.vscode/
+
+# Claude Code
+/.claude/*
+!/.claude/skills
+
+# Agents (Codex)
+/.agents/*
+!/.agents/skills
+
+### OS
+.DS_Store
+**/*.DS_STORE
+Thumbs.db
+
+### Environment
+.env
+.envrc
+.direnv
+
+### Python
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[codz]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+build/
+dist/
+wheels/
+*.egg-info/
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+coverage.xml
+*.cover
+*.py.cover
+*.lcov
+.hypothesis/
+.pytest_cache/
+cover/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Ruff
+.ruff_cache/
+
+# Environments
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# uv
+#   uv.lock is committed on purpose. Do not ignore it.
+
+### Project specific
+#   Nothing yet.

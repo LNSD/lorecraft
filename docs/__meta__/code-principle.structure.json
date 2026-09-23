@@ -1,0 +1,11 @@
+{
+  "spec": "code-principle.md Template",
+  "description": "Narrows code.structure.json for docs/code/principle-*.md, which is applied as well. The prose authority is docs/__meta__/code-principle.md. The four rule sections open the document, in this order; what closes it is code.structure.json's business.",
+  "outline": [
+    { "section": "Rule" },
+    { "section": "Examples" },
+    { "section": "Why It Matters" },
+    { "section": "Pragmatism Caveat" },
+    { "any": true }
+  ]
+}

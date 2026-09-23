@@ -1,0 +1,5 @@
+{
+  "spec": "feat.md §4",
+  "description": "Narrows feat.structure.json for a document with type: meta, which is applied as well. The prose authority is docs/__meta__/feat.md section 4. A meta document groups a feature area and gives it terminology; concrete usage and source-file references live in its children, so it carries neither section.",
+  "forbidden": ["Usage", "Implementation"]
+}

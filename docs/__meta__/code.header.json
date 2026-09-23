@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "code.header.json",
+  "title": "Rule document frontmatter",
+  "description": "Frontmatter for a rule document in docs/code/. The prose authority is docs/__meta__/code.md section 2; this schema is its machine-checkable half.",
+  "type": "object",
+  "required": ["name", "description", "type", "scope"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "description": "Kebab-case. Must match the filename minus .md, which the checker verifies separately."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "allOf": [
+        {
+          "pattern": "Load when",
+          "$comment": "The trigger clause naming the situations this document governs."
+        },
+        {
+          "not": { "pattern": "\\.\\s*$" },
+          "$comment": "No trailing period."
+        }
+      ]
+    },
+    "type": {
+      "enum": ["principle", "core", "arch", "pkg", "meta"],
+      "description": "The kind of rule. meta is reserved for the format specifications in docs/__meta__/."
+    },
+    "scope": {
+      "type": "string",
+      "pattern": "^(?:global|pkg:[a-z_][a-z0-9_]*(?:\\.[a-z_][a-z0-9_]*)*)$",
+      "description": "global, or pkg:<name> naming a package directory under src/lorewright/ as Python spells it: snake_case, dotted for nesting."
+    }
+  }
+}

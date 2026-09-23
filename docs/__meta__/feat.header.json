@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "feat.header.json",
+  "title": "Feature document frontmatter",
+  "description": "Frontmatter for a feature document in docs/feat/. The prose authority is docs/__meta__/feat.md section 2; this schema is its machine-checkable half. Change both in the same commit.",
+  "type": "object",
+  "required": ["name", "description", "type", "status", "components"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "description": "Kebab-case. Must match the filename minus .md, which the checker verifies separately."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "allOf": [
+        {
+          "pattern": "Load when",
+          "$comment": "The trigger clause naming the questions this document answers."
+        },
+        {
+          "not": { "pattern": "\\.\\s*$" },
+          "$comment": "No trailing period."
+        }
+      ]
+    },
+    "type": {
+      "enum": ["meta", "feature", "component"],
+      "description": "meta groups a feature area, feature documents a user-facing capability, component documents an internal building block. The type also selects a feat.<type>.structure.json layer."
+    },
+    "status": {
+      "enum": ["stable", "experimental", "unstable", "development"],
+      "description": "Feature maturity. States where the feature stands today; never a version number."
+    },
+    "components": {
+      "type": "string",
+      "pattern": "^\\s*(?:module|skill|spec):[a-z0-9_]+(?:[-._][a-z0-9_]+)*(?:\\s*,\\s*(?:module|skill|spec):[a-z0-9_]+(?:[-._][a-z0-9_]+)*)*\\s*$",
+      "description": "Comma-separated, each entry prefixed module: (a module under src/lorewright/, snake_case and dotted), skill: (a directory under .agents/skills/, kebab-case), or spec: (a file stem under docs/__meta__/, kebab-case and dotted for a layer). The pattern fixes the prefix vocabulary and the character set; which separator each prefix uses is stated in feat.md section 2 and verified by reading, because one regular expression covering all three at once is less readable than the rule it encodes."
+    }
+  }
+}

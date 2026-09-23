@@ -1,0 +1,9 @@
+{
+  "spec": "feat.md §4",
+  "description": "Narrows feat.structure.json for a document with type: feature, which is applied as well. The prose authority is docs/__meta__/feat.md section 4. A feature document documents a user-facing capability, so it MUST carry a Usage section; where that section sits is feat.structure.json's business.",
+  "outline": [
+    { "any": true },
+    { "section": "Usage" },
+    { "any": true }
+  ]
+}

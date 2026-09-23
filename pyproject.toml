@@ -1,0 +1,93 @@
+[project]
+name = "lorewright"
+# The version has one home: `__version__` in src/lorewright/__init__.py. hatch reads it
+# from there, so a release bumps one line and the two can never disagree.
+dynamic = ["version"]
+description = "Toolkit for the agent-facing documentation of a repository: rule documents, feature docs, skills and the format specifications that govern them"
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
+authors = [
+    { name = "Lorenzo Delgado", email = "lnsdev@proton.me" },
+]
+requires-python = ">=3.12"
+# Nothing is implemented yet, so there is no runtime dependency to justify.
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "ruff>=0.16.0",     # Formatting and linting
+    "pytest>=9.0.3",    # Test runner
+    # ty is pre-1.0: its CLI and its diagnostics still change between patch
+    # releases, so the upper bound is deliberate.
+    "ty>=0.0.83,<0.1",  # Type checker
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/lorewright/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lorewright"]
+
+# Without an explicit include list hatchling ships the whole tracked tree in the
+# source distribution. docs/, .agents/ and .github/ are repository material: they are
+# read from a checkout by the agents and the CI that work on this project, never from
+# an installed copy of the package. Shipping them would put a rule corpus on PyPI.
+[tool.hatch.build.targets.sdist]
+# The leading slash anchors each pattern to the project root. Without it these are
+# gitignore-style patterns that match at any depth, and docs/__meta__/README.md ships too.
+# tests/ is deliberately absent. Downstream packagers build from an sdist and run its
+# test suite, which is the usual reason to ship one, but nothing packages this project
+# today. Add "/tests" back the day a packager needs it.
+include = [
+    "/src/lorewright",
+    "/README.md",
+    "/LICENSE-MIT",
+    "/LICENSE-APACHE",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+]
+
+# --strict-markers rejects any marker that is not listed here, so add a marker
+# and its description together.
+markers = [
+    "unit: Unit tests (fast, no external dependencies)",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+force-exclude = true
+
+# ruff formats Python code blocks inside Markdown. The documents under docs/ are
+# this project's subject matter: their examples are written to illustrate a rule,
+# including examples that are deliberately mis-shaped, so the formatter must not
+# rewrite them.
+extend-exclude = ["*.md"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+]
+
+[tool.ruff.format]
+quote-style = "single"
+
+# ty is the type checker. `root` is the import root for this src layout, so
+# `lorewright` resolves the same way it does at runtime.
+[tool.ty.environment]
+root = ["src"]
+python-version = "3.12"

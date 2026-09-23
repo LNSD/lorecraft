@@ -1,0 +1,11 @@
+{
+  "spec": "code.md §1 Avoid Context Bloat",
+  "description": "Prose budgets for a rule document, in words. The prose authority is docs/__meta__/code.md, which states the rule — keep a rule document focused and concise — without fixing a number; the caps here are that rule made decidable, set from the corpus as it stands. Prose words only: fenced code blocks and table rows are free, so an example costs nothing and the marker clause above it costs one line. Every rule section falls under `default`; Rule and Checklist have their own caps because each restates the whole document once — Rule before the examples, the Checklist after them; the reference sections are navigation and are not capped.",
+  "document": 1800,
+  "sections": {
+    "Rule": 700,
+    "Checklist": 250
+  },
+  "default": 350,
+  "exempt": ["References", "External References"]
+}

@@ -1,0 +1,18 @@
+{
+  "spec": "feat.md §4",
+  "description": "Section structure for a feature document in docs/feat/. The prose authority is docs/__meta__/feat.md section 4; this file is its machine-checkable half. It states what every feature document carries whatever its type: Summary, Table of Contents and Key Concepts open it, the optional sections keep their relative order, sections the document invents for itself follow them, and References closes it. A rule that depends on the document's type lives in the feat.<type>.structure.json layer beside this file, never as a condition here.",
+  "title": { "count": 1, "first": true },
+  "empty_sections": "forbidden",
+  "outline": [
+    { "section": "Summary" },
+    { "section": "Table of Contents" },
+    { "section": "Key Concepts" },
+    { "section": "Architecture", "optional": true },
+    { "section": "Configuration", "optional": true },
+    { "section": "Usage", "optional": true },
+    { "section": "Implementation", "optional": true },
+    { "section": "Limitations", "optional": true },
+    { "any": true },
+    { "section": "References", "optional": true }
+  ]
+}
