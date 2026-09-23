@@ -1,8 +1,8 @@
 ---
 name: code-test
-description: Run targeted tests after format and lint are green. Defaults to the unit tier; widens to the whole suite only on explicit signals. Use after editing Python code under src/ or tests/, or when the user asks to run tests. No tier here needs a container, an external service, or credentials.
+description: Run targeted tests after format and lint are green. Defaults to the unit tier; widens to the integration, end-to-end or whole suite only on explicit signals. Use after editing Python code under src/ or tests/, or when the user asks to run tests. No tier here needs a container, an external service, or credentials.
 compatibility: Requires the just task runner and uv. pytest is invoked through the project environment rather than a system install. Nothing else is needed — this repository has no container-backed, networked or credentialed tests.
-allowed-tools: Bash(just test-unit *) Bash(just test *) Bash(uv run pytest tests/unit/*)
+allowed-tools: Bash(just test-unit *) Bash(just test-it *) Bash(just test-e2e *) Bash(just test *) Bash(uv run pytest tests/*)
 ---
 
 # Code Testing Skill
@@ -25,6 +25,8 @@ outward.
 |---|---|
 | None (docs, comments, rule documents only) | Skip; state why |
 | Pure logic — a dataclass, a helper, one check, one parser | `just test-unit` |
+| A CLI command, a module seam, wiring several units together | `just test-unit` then `just test-it` |
+| Packaging, the console script, the entry point, anything the installed artifact exposes | `just test-e2e` |
 | Shared types, a base class, the registry, an `__init__.py` that re-exports | `just test` |
 
 **Signals that push the radius outward, from "pure logic" to wider:**
@@ -32,7 +34,8 @@ outward.
   finding, a check result, a parsed document.
 - Changed a shared type under `src/lorewright/` that more than one check depends on.
 - Changed a registry, discovery of checks, or an `__init__.py` that re-exports.
-- Changed `pyproject.toml` — dependency groups, pytest configuration, or the marker list.
+- Changed `pyproject.toml` — dependency groups, pytest configuration, the marker list, the console
+  script, or how the version is derived. The last two reach `tests/e2e/` and nothing below it.
 
 If none fire, unit tests are enough.
 
@@ -43,8 +46,8 @@ you filter:
 
 - **An undeclared marker is a collection error, not a skip.** Adding `@pytest.mark.slow` without a
   matching entry in `[tool.pytest.ini_options] markers` fails the whole run at collection, and a
-  command selecting `-m slow` fails before a single test executes. `unit` is the only marker
-  declared today; adding another means editing `pyproject.toml` in the same change.
+  command selecting `-m slow` fails before a single test executes. `unit`, `it` and `e2e` are the
+  markers declared today; adding another means editing `pyproject.toml` in the same change.
 - **`just test-unit` filters on the marker, not on the directory.** A test placed in `tests/unit/`
   without `@pytest.mark.unit` is invisible to `just test-unit` and runs only under `just test`. If a
   new test never seems to execute, check its marker before you doubt the assertion.
@@ -53,28 +56,29 @@ you filter:
 
 | Command | Purpose |
 |---|---|
-| `just test-unit` | **Default.** Marker `unit`. Fast, no external dependencies. |
-| `just test` | The whole suite, no marker filter. Alias: `just test-all`. |
+| `just test-unit` | **Default.** Marker `unit`. Pure logic, nothing beyond the interpreter. |
+| `just test-it` | Marker `it`. The package's own modules wired together, in process. |
+| `just test-e2e` | Marker `e2e`. The installed console script, in a subprocess. |
+| `just test` | Every tier, no marker filter. Alias: `just test-all`. |
 
-Both recipes take extra flags, passed through to pytest — `just test-unit` is implemented as a
-dependency on `test`, so it runs `uv run pytest -m unit` with your flags appended. For a single file
-or a single test — which no recipe covers — call pytest directly:
+Every recipe takes extra flags, passed through to pytest — each tier recipe is implemented as a
+dependency on `test`, so `just test-unit` runs `uv run pytest -m unit` with your flags appended. For a
+single file or a single test — which no recipe covers — call pytest directly:
 
 ```bash
-uv run pytest tests/unit/test_<module>.py -v
-uv run pytest tests/unit/test_<module>.py::Test<Subject>::test_<case> -v
+uv run pytest tests/<tier>/test_<module>.py -v
+uv run pytest tests/<tier>/test_<module>.py::Test<Subject>::test_<case> -v
 ```
 
 ## Notes
 
-No test is written yet — there is nothing implemented to test — so `just test-unit` and `just test`
-currently select the same empty set. That is a fact about today's tree, not a reason to reach for
-`just test` by default: keep the narrower command as the habit so it stays meaningful once the suite
-and a second marker exist.
+The suite covers the CLI and nothing else, because nothing else is implemented: version formatting in
+`tests/unit/`, the application and its command routing in `tests/it/`, the installed script in
+`tests/e2e/`. `tests/e2e/` is the slowest by an order of magnitude and the only tier that spawns a
+process, which is the reason the default stays narrow.
 
-pytest exits 5 when it collects nothing. The `test` recipe turns that exit code into success, so an
-empty or fully filtered-out selection reports "no tests ran" and still exits 0. Read the collection
-line before trusting a green run: zero collected tests is a green exit that proves nothing.
+pytest exits 5 when it collects nothing, and the `test` recipe preserves that failure. A tier with
+no collected tests therefore fails instead of reporting a misleading green run.
 
 Collection is confined to `tests/` by `testpaths`. Document-shaped fixtures are checked in as real
 files, so a test reads the same thing an agent would; adding a fixture file changes no configuration,
@@ -84,6 +88,8 @@ but the test that consumes it still needs its marker.
 
 - Running tests before `/code-check` is green.
 - Reaching for `just test` when the change is pure logic — use `just test-unit`.
+- Putting a test that spawns a process, or one that needs the package installed, anywhere but
+  `tests/e2e/`. [test-organization](../../../docs/code/test-organization.md) owns the tier boundaries.
 - Introducing a marker without declaring it in `pyproject.toml`.
 - Calling `pytest` outside `uv run` — it is not installed in a system interpreter.
 - Reading a zero-collected run as a passing run.
@@ -91,9 +97,9 @@ but the test that consumes it still needs its marker.
 
 ## Pre-approved commands
 
-Runnable without asking: `just test-unit`, `just test`, and `uv run pytest tests/unit/...` for a
-single file or test. Nothing in this suite starts a service or spends credentials, so there is no
-tier that needs confirmation first.
+Runnable without asking: `just test-unit`, `just test-it`, `just test-e2e`, `just test`, and
+`uv run pytest tests/...` for a single file or test. Nothing in this suite starts a service or spends
+credentials, so there is no tier that needs confirmation first.
 
 ## Debugging
 

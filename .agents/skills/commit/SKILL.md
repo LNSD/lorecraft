@@ -37,7 +37,8 @@ build: add sdist include list to pyproject.toml
 
 Add an `include` key under `[tool.hatch.build.targets.sdist]`.
 
-- Add `/src/lorewright`, `/tests`, `/README.md` and the two licence files to `include`
+- Add `/src/lorewright`, `/tests`, `/README.md` and the two licence files
+  to `include`
 - Prefix each pattern with a leading slash
 - Add an explanatory comment above the table
 ```
@@ -47,11 +48,16 @@ Intent:
 ```
 fix(build): stop publishing the rule corpus to the package index
 
-hatchling ships the whole tracked tree by default, so every source distribution carried `docs/`, `.agents/` and `.github/`, repository material that only makes sense in a checkout, out to whoever downloaded the package.
+hatchling ships the whole tracked tree by default, so every source distribution
+carried `docs/`, `.agents/` and `.github/` to package users despite only making
+sense in a checkout.
 
-- Restrict the sdist to the package, the tests, the README and the licences, so an installed copy holds only what an installed copy can use
-- Anchor every pattern with a leading slash: unanchored patterns are gitignore-style and match at any depth, which quietly readmitted `docs/__meta__/README.md`
-- Leave the wheel untouched; it was already package-only, so the defect was sdist-specific
+- Restrict the sdist to the package, tests, README and licences, so an
+  installed copy holds only what it can use
+- Anchor each pattern, because unanchored patterns match at any depth and
+  quietly readmitted `docs/__meta__/README.md`
+- Leave the wheel untouched; it was already package-only, so the defect
+  affected source distributions alone
 ```
 
 Same diff. The second one tells a reader what the project no longer does, and why the fix is shaped the
@@ -161,7 +167,7 @@ the new shape makes true rather than what was reshaped.
 | `{{type}}`        | Commit type, chosen from the consequence                  | See Title       |
 | `{{scope}}`       | Principal module or area                                  | See Scope Rules |
 | `{{description}}` | The effect on the project, imperative                     | Title ≤72 chars |
-| `{{summary}}`     | Why the change exists and what is different now           | ~160 chars      |
+| `{{summary}}`     | Why the change exists and what is different now           | No character limit |
 | `{{detail}}`      | One behavioural, architectural or policy consequence      | 2-5 bullets     |
 
 ### Title
@@ -217,15 +223,14 @@ The title states what became possible for the code; the summary names the featur
 
 ### Summary
 
-**~160 characters**: why the change exists and what is different now.
+Why the change exists and what is different now. The character limit applies only to the title.
 
 State the problem, the pressure, or the decision that produced this change: what was wrong, what was
 missing, what could not be done before and can be now. The diff already says what changed; do not
 restate it here in prose.
 
-Write it as one paragraph on a single unwrapped line. The 72-character limit applies to the title only,
-and a body of several wrapped prose paragraphs is not this format: the reasoning goes in the summary,
-everything else goes in the bullets below.
+Write the summary as one physical line. Do not hard-wrap it or add blank lines
+inside it. The title limit does not apply to the body.
 
 ### Bullets
 
@@ -238,7 +243,8 @@ matters**.
   cannot reconstruct and the part most likely to be undone by accident.
 - Use backticks for `code references` where they carry meaning: function names, classes, config keys,
   module paths, document names, marker names.
-- One bullet per line, unwrapped; a hard-wrapped bullet renders as a ragged line break on GitHub.
+- Keep each bullet on one physical line. Do not hard-wrap it; GitHub will wrap
+  it to fit the display.
 
 ### When there is no body
 
@@ -299,15 +305,19 @@ worth protecting from a well-meaning future edit.
 Before:
 
 ```
-- Move `check_header.py`, `check_structure.py` and `check_budget.py` into `.agents/skills/docs-rules-check/scripts/`
+- Move `check_header.py`, `check_structure.py` and `check_budget.py` into
+  `.agents/skills/docs-rules-check/scripts/`
 - Add a `check-docs` recipe to the `justfile`
 ```
 
 After:
 
 ```
-- Vendor a check script per skill instead of extracting a shared library now: the checker's interface is still unwritten, and a premature abstraction costs more to unpick than three duplicated scripts
-- Put the gate behind `just check-docs`, so the justfile, CI and the skills all name one entry point and cannot drift apart
+- Vendor a check script per skill instead of extracting a shared library
+  now: the checker's interface is still unwritten, and a premature
+  abstraction costs more to unpick than three duplicated scripts
+- Put the gate behind `just check-docs`, so the justfile, CI and the skills
+  all name one entry point and cannot drift apart
 ```
 
 ## Mechanical Changes
@@ -364,31 +374,8 @@ checker's modules land, a change to the package itself scopes to `lorewright`.
 - A root `README.md`: `docs: ...` unless a more specific scope adds useful information
 - Root config with no natural scope: `chore: ...` (no scope)
 
-## Examples
-
-```
-feat(lorewright): fail a malformed rule document at the parse boundary
-
-A missing frontmatter key currently surfaces as a `KeyError` from inside whichever check happened to read it first, so the report blames the check instead of the document.
-
-- Parse frontmatter into a frozen record up front, so a document is either well-formed or rejected before any check sees it
-- Report the offending key and the document path together, which is what the author needs to fix it
-- Treat a `name` disagreeing with the filename stem as malformed, closing the one way two documents could claim the same identity
-```
-
-```
-docs(code): let a typing task load the typing rules alone
-
-The annotation rules lived inside the module-layout document, so every agent that needed them also loaded layout rules it had no use for, against a fixed context budget.
-
-- Give typing its own document, addressable on its own from `/code-rules`
-- Narrow the module document to layout, imports and `__init__.py` contents, so neither document answers questions about the other
-- Cross-link both, so arriving at either one still leads to the rule actually wanted
-```
-
-```
-chore(deps): bump ruff floor to 0.16.0
-```
+Full-message examples with unwrapped summaries and bullets are in
+[references/before-and-after.md](references/before-and-after.md).
 
 ## Sign-off
 
