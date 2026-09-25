@@ -7,11 +7,11 @@ default:
 
 alias setup := sync
 
-# Sync the development environment (uv sync --all-groups)
+# Sync the development environment: every workspace member and every group (uv sync --all-packages --all-groups)
 [group: 'workspace']
 sync:
     @echo "🚀 Setting up development environment..."
-    uv sync --all-groups
+    uv sync --all-packages --all-groups
 
 # Remove build, test and cache artifacts
 [group: 'workspace']
@@ -65,7 +65,7 @@ alias check-types := typecheck
 [group: 'check']
 typecheck *EXTRA_FLAGS:
     @echo "🔍 Type-checking code..."
-    uv run ty check src/lorecraft {{EXTRA_FLAGS}}
+    uv run ty check packages/lorecraft/src {{EXTRA_FLAGS}}
 
 
 ## Docs
@@ -92,11 +92,11 @@ check-skills *EXTRA_FLAGS:
 
 ## Build
 
-# Build source distributions and wheels (uv build)
+# Build the source distribution and wheel of every package (uv build --all-packages)
 [group: 'build']
 build:
     @echo "📦 Building"
-    uv build
+    uv build --all-packages
 
 
 ## Test

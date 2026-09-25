@@ -80,7 +80,7 @@ A `+`-suffixed local version is a development build. It is legitimate to hand so
 refuse it, which is the intended safety net.
 
 At runtime the package reports what it was built with, via `importlib.metadata` in
-`src/lorecraft/_metadata.py`. `lorecraft version --verbose` additionally runs
+`packages/lorecraft/src/lorecraft/metadata.py`. `lorecraft version --verbose` additionally runs
 `git describe --tags --always --dirty` when it is running from a checkout, so a developer's install
 shows the working tree it is actually sitting on rather than the version frozen at install time.
 

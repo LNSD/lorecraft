@@ -1,6 +1,6 @@
 ---
 name: code-test
-description: Run targeted tests after format and lint are green. Defaults to the unit tier; widens to the integration, end-to-end or whole suite only on explicit signals. Use after editing Python code under src/ or tests/, or when the user asks to run tests. No tier here needs a container, an external service, or credentials.
+description: Run targeted tests after format and lint are green. Defaults to the unit tier; widens to the integration, end-to-end or whole suite only on explicit signals. Use after editing Python code under packages/ or tests/, or when the user asks to run tests. No tier here needs a container, an external service, or credentials.
 compatibility: Requires the just task runner and uv. pytest is invoked through the project environment rather than a system install. Nothing else is needed — this repository has no container-backed, networked or credentialed tests.
 allowed-tools: Bash(just test-unit *) Bash(just test-it *) Bash(just test-e2e *) Bash(just test *) Bash(uv run pytest tests/*)
 ---
@@ -32,7 +32,7 @@ outward.
 **Signals that push the radius outward, from "pure logic" to wider:**
 - Changed a signature, an attribute, or the semantics of a type that other modules import — a
   finding, a check result, a parsed document.
-- Changed a shared type under `src/lorecraft/` that more than one check depends on.
+- Changed a shared type under `packages/lorecraft/src/lorecraft/` that more than one check depends on.
 - Changed a registry, discovery of checks, or an `__init__.py` that re-exports.
 - Changed `pyproject.toml` — dependency groups, pytest configuration, the marker list, the console
   script, or how the version is derived. The last two reach `tests/e2e/` and nothing below it.
@@ -48,8 +48,8 @@ you filter:
   matching entry in `[tool.pytest.ini_options] markers` fails the whole run at collection, and a
   command selecting `-m slow` fails before a single test executes. `unit`, `it` and `e2e` are the
   markers declared today; adding another means editing `pyproject.toml` in the same change.
-- **`just test-unit` filters on the marker, not on the directory.** A test placed in `tests/unit/`
-  without `@pytest.mark.unit` is invisible to `just test-unit` and runs only under `just test`. If a
+- **`just test-unit` filters on the marker, not on the directory.** A test placed in a unit `tests/`
+  subpackage without `@pytest.mark.unit` is invisible to `just test-unit` and runs only under `just test`. If a
   new test never seems to execute, check its marker before you doubt the assertion.
 
 ## Commands
@@ -67,14 +67,14 @@ single file or a single test — which no recipe covers — call pytest directly
 
 ```bash
 uv run pytest tests/<tier>/test_<module>.py -v
-uv run pytest tests/<tier>/test_<module>.py::Test<Subject>::test_<case> -v
+uv run pytest <test-directory>/test_<module>.py::Test<Subject>::test_<case> -v
 ```
 
 ## Notes
 
 The suite covers the CLI and nothing else, because nothing else is implemented: version formatting in
-`tests/unit/`, the application and its command routing in `tests/it/`, the installed script in
-`tests/e2e/`. `tests/e2e/` is the slowest by an order of magnitude and the only tier that spawns a
+`packages/lorecraft/src/lorecraft/cli/tests/`, the application and its command routing in
+`packages/lorecraft/tests/`, the installed script in `tests/e2e/`. `tests/e2e/` is the slowest by an order of magnitude and the only tier that spawns a
 process, which is the reason the default stays narrow.
 
 pytest exits 5 when it collects nothing, and the `test` recipe preserves that failure. A tier with

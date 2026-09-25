@@ -50,7 +50,7 @@ groups, and the governing documents are usually already in context from `/code-r
 task — reading them again in a subagent would cost more than checking here.
 
 **Escalate to a fan-out when the selection exceeds roughly four rule groups**, or when the diff spans several
-packages under `src/lorecraft/`. Then spawn one agent per group, all in a single message, each given its
+packages under `packages/lorecraft/src/lorecraft/`. Then spawn one agent per group, all in a single message, each given its
 group's document paths, the diff command, the instruction to apply those documents' `## Checklist` items, and
 the report format from §4. Collect and deduplicate — two groups may flag one line under different rules, which
 is reported once citing both.
@@ -65,7 +65,7 @@ Clean:
 
 Violations, most severe first, one per line, with the fix:
 
-> `src/lorecraft/<module>.py:118` — **python-errors-handling**: this `except Exception` neither
+> `packages/lorecraft/src/lorecraft/<module>.py:118` — **python-errors-handling**: this `except Exception` neither
 > logs nor re-raises, so a document that failed to parse is indistinguishable from one with no frontmatter.
 > Log it, or raise a `FrontmatterError` from it.
 

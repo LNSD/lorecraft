@@ -1,23 +1,24 @@
-[project]
-name = "lorecraft"
-dynamic = ["version"]
-description = "Toolkit for the agent-facing documentation of a repository: rule documents, feature docs, skills and the format specifications that govern them"
-readme = "README.md"
-license = "MIT OR Apache-2.0"
-license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
-authors = [
-    { name = "Lorenzo Delgado", email = "lnsdev@proton.me" },
-]
-requires-python = ">=3.12"
-dependencies = [
-    "typer>=0.27.2",
-]
+# The workspace root is virtual: it has no [project] table and is never built or published. It holds the
+# development groups and the tool configuration every package shares, and it installs the package into the
+# one environment `just sync` builds.
+#
+#   packages/lorecraft  the command line (import `lorecraft`, console script `lorecraft`)
+#   tests               the end-to-end suites and their helper library: a private member, never built
+#
+# The version has one home and it is the git tag: the package's hatch-vcs runs `git describe` against this
+# checkout at build time, so releasing is `git tag v1.2.3`. Building needs git and real history; a shallow
+# clone without tags produces a version derived from whatever it can see, so CI checks out with
+# fetch-depth: 0. The build settings live in the package's pyproject.toml.
+[tool.uv.workspace]
+members = ["packages/*", "tests"]
 
-[project.scripts]
-lorecraft = "lorecraft.cli:main"
+[tool.uv.sources]
+lorecraft = { workspace = true }
 
 [dependency-groups]
 dev = [
+    # The workspace's own package, so a plain `uv sync` installs it, editable.
+    "lorecraft",
     "ruff>=0.16.0",     # Formatting and linting
     "pytest>=9.0.3",    # Test runner
     # ty is pre-1.0: its CLI and its diagnostics still change between patch
@@ -25,49 +26,28 @@ dev = [
     "ty>=0.0.83,<0.1",  # Type checker
 ]
 
-[build-system]
-requires = ["hatchling", "hatch-vcs"]
-build-backend = "hatchling.build"
-
-# The version has one home and it is the git tag: hatch-vcs runs `git describe` at build time, so
-# releasing is `git tag v1.2.3` and no file in the tree holds a literal that could disagree with it.
-# Building needs git and real history; a shallow clone without tags produces a version derived from
-# whatever it can see, so CI checks out with fetch-depth: 0.
-[tool.hatch.version]
-source = "vcs"
-
-# node-and-date is setuptools-scm's default local scheme: an untagged commit builds as
-# `0.2.dev3+g93b1ed1fb`, and a dirty tree appends `.d20260923`. An artifact built from uncommitted
-# work therefore cannot be mistaken for one built from a clean checkout, which is the whole point.
-[tool.hatch.version.raw-options]
-local_scheme = "node-and-date"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/lorecraft"]
-
-# Without an explicit include list hatchling ships the whole tracked tree in the
-# source distribution. docs/, .agents/ and .github/ are repository material: they are
-# read from a checkout by the agents and the CI that work on this project, never from
-# an installed copy of the package. Shipping them would put a rule corpus on PyPI.
-[tool.hatch.build.targets.sdist]
-# The leading slash anchors each pattern to the project root. Without it these are
-# gitignore-style patterns that match at any depth, and docs/__meta__/README.md ships too.
-# tests/ is deliberately absent. Downstream packagers build from an sdist and run its
-# test suite, which is the usual reason to ship one, but nothing packages this project
-# today. Add "/tests" back the day a packager needs it.
-include = [
-    "/src/lorecraft",
-    "/README.md",
-    "/LICENSE-MIT",
-    "/LICENSE-APACHE",
-]
-
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+# Three tiers, three locations. Unit tests sit in a `tests/` subpackage beside the module they test, under
+# each package's src/, and are never shipped. Each package's integration tier sits flat in its own tests/. The
+# end-to-end tier drives the installed `lorecraft` console script, so it tests the product rather than the
+# package and is its own workspace member.
+testpaths = [
+    "packages/lorecraft/src",
+    "packages/lorecraft/tests",
+    "tests/e2e",
+]
+# The end-to-end helper library, tests/lib/, imports as `lib`: its member is never built or installed.
+pythonpath = ["tests"]
 addopts = [
     "-v",
     "--tb=short",
     "--strict-markers",
+    # Two kinds of test directory, and importlib mode handles both. A unit `tests/` subpackage under src/
+    # has an `__init__.py`, so pytest walks up to src/ and imports each file under its real dotted name,
+    # `lorecraft.cli.tests.test_version`, which is what lets its relative imports resolve. The `it` and `e2e`
+    # directories carry no `__init__.py`, and one file name recurs across them (packages/lorecraft/tests/test_cli.py
+    # and tests/e2e/test_cli.py); importlib mode imports those by path, so two of the same name never collide.
+    "--import-mode=importlib",
 ]
 
 # --strict-markers rejects any marker that is not listed here, so add a marker
@@ -81,6 +61,8 @@ markers = [
 [tool.ruff]
 line-length = 120
 target-version = "py312"
+# Each import root, so isort sorts `lorecraft` and the test library `lib` as first-party.
+src = ["packages/*/src", "tests"]
 force-exclude = true
 
 # ruff formats Python code blocks inside Markdown. The documents under docs/ are
@@ -100,8 +82,8 @@ select = [
 [tool.ruff.format]
 quote-style = "single"
 
-# ty is the type checker. `root` is the import root for this src layout, so
-# `lorecraft` resolves the same way it does at runtime.
+# ty is the type checker. `root` lists each package's import root, so `lorecraft`
+# resolves the same way it does at runtime.
 [tool.ty.environment]
-root = ["src"]
+root = ["packages/lorecraft/src"]
 python-version = "3.12"
