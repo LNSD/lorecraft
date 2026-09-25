@@ -11,9 +11,9 @@ from pathlib import Path
 
 import pytest
 
-from lorewright import __version__
+from lorecraft import __version__
 
-_CONSOLE_SCRIPT_NAME: str = 'lorewright.exe' if sys.platform == 'win32' else 'lorewright'
+_CONSOLE_SCRIPT_NAME: str = 'lorecraft.exe' if sys.platform == 'win32' else 'lorecraft'
 _COMMAND: tuple[str, ...] = (str(Path(sys.executable).parent / _CONSOLE_SCRIPT_NAME),)
 
 
@@ -33,7 +33,7 @@ class TestInstalledCommandLine:
 
         #: Then
         assert result.returncode == 0, result.stderr
-        assert result.stdout.strip() == f'lorewright {__version__}', 'the process reports its own metadata'
+        assert result.stdout.strip() == f'lorecraft {__version__}', 'the process reports its own metadata'
 
     def test_version_command_with_verbose_reports_the_checkout_commit_and_environment(self) -> None:
         #: Given
@@ -44,7 +44,7 @@ class TestInstalledCommandLine:
 
         #: Then
         assert result.returncode == 0, result.stderr
-        assert result.stdout.startswith(f'lorewright {__version__}'), 'the short version leads the block'
+        assert result.stdout.startswith(f'lorecraft {__version__}'), 'the short version leads the block'
         assert 'Commit:' in result.stdout, 'the checkout description is present'
         assert 'Python:' in result.stdout, 'the detailed block survived a real invocation'
         assert 'Platform:' in result.stdout, 'and so did the platform line'

@@ -29,7 +29,7 @@ Keep each summary and bullet on one physical line. Do not hard-wrap the body; th
 limit and GitHub wraps text to fit the display.
 
 ```
-feat(lorewright): fail a malformed rule document at the parse boundary
+feat(lorecraft): fail a malformed rule document at the parse boundary
 
 A missing frontmatter key surfaces as a `KeyError` inside the first check
 that reads it, so the report blames the check instead of the document.

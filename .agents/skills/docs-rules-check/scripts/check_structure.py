@@ -11,7 +11,7 @@
 # ///
 """Check docs/ section structure against the structure specs in docs/__meta__/.
 
-This is a vendored copy, kept as-is until the lorewright library implements the check and
+This is a vendored copy, kept as-is until the lorecraft library implements the check and
 the skill calls that instead.
 
 Covers the mechanical half of a specification's Document Structure section: which

@@ -1,6 +1,6 @@
 # Glossary
 
-A glossary of documentation framework terminology used throughout Lorewright.
+A glossary of documentation framework terminology used throughout Lorecraft.
 
 ## Documents and collections
 

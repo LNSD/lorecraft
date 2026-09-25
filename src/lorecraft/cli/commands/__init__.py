@@ -1,4 +1,4 @@
-"""Subcommands of the `lorewright` CLI, one per module.
+"""Subcommands of the `lorecraft` CLI, one per module.
 
 Every module here is imported by the registry's discovery walk, so a new subcommand is a new file
 in this package with a `@register(<name>)` handler in it. This `__init__.py` deliberately imports

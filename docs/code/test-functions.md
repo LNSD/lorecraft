@@ -150,7 +150,7 @@ def test_detailed_version_reports_the_install_path(self) -> None:
 
     #: Then
     install_line = next(line for line in text.splitlines() if line.startswith('Install:'))
-    assert install_line.split(':', 1)[1].strip().endswith('lorewright')
+    assert install_line.split(':', 1)[1].strip().endswith('lorecraft')
 ```
 
 ## 3. One Behaviour Per Test
