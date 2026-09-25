@@ -37,7 +37,7 @@ The corpus in `docs/code/` is **the code rules**, also called the code guideline
 
 ### Rules Describe This Codebase
 
-Rule documents describe conventions that **exist in `src/lorecraft/`**, not conventions imported from other ecosystems or aspirational ones.
+Rule documents describe conventions that **exist in `packages/*/src/`**, not conventions imported from other ecosystems or aspirational ones.
 
 - Before writing a rule, find the code that already demonstrates it — then write the example from scratch, without citing that code ([§6](#6-content-guidelines))
 - Do not document tooling the repository does not use
@@ -88,9 +88,9 @@ Rules must be **independent of project status** — anything true only of today'
 | Dependency versions, pins, beta/release status      | Changes on every upgrade                         | Commit message or PR description |
 | Benchmark figures and measured timings              | Measured once, on one machine, never re-measured | Commit message or PR description |
 | Whether a tool is installed, or its install command | Setup state, not a coding rule                   | Commit message or PR description |
-| An inventory of every site a rule applies to        | Must be edited whenever a site is added          | Cite one example              |
+| An inventory of every site a rule applies to        | Must be edited whenever a site is added          | One fabricated example        |
 
-Citing a file that **demonstrates** a convention is required (above) and remains so. **Enumerating every instance** of it is an inventory, and an inventory is a maintenance burden that a rule document does not need: cite the clearest example and state the test the reader applies to their own case.
+**Enumerating every instance** of a convention is an inventory, and an inventory is a maintenance burden that a rule document does not need: show one fabricated example and state the test the reader applies to their own case.
 
 Linking to an external source (a paper, a spec, a canonical blog post) is fine — see the `External References` section in the `principle-*` docs. Linking to a dependency's release notes, migration map, or install instructions is status.
 
@@ -99,18 +99,21 @@ Linking to an external source (a paper, a spec, a canonical blog post) is fine �
 Nothing registers a rule document with a specification: the document's own path resolves it.
 
 - A document at `docs/<corpus>/<name>.md` is governed by `docs/__meta__/<corpus>.md`, the **corpus
-  specification**, which applies to every document in that directory however deeply nested.
-- It is **additionally** governed by `docs/__meta__/<corpus>-<prefix>.md`, where `<prefix>` is the document's
-  filename up to its first hyphen, whenever such a file exists. So `docs/code/principle-least-surprise.md`
-  answers to `code.md` and to `code-principle.md`.
-- **The two layer.** The corpus specification is a whole rule set applied on its own; the prefix
-  specification states only what it adds or narrows, and it cannot release a document from what the corpus
-  specification already said. That is what a prefix specification is for: a rule that holds for a group but
-  not for the corpus goes there, and stays out of the corpus file rather than becoming a condition inside it.
-- **A prefix is a group only once a specification names it.** Documents whose prefix has no
-  `code-<prefix>.md` — `test-*` and the unprefixed `logging` today — are governed by `code.md` alone. That is
-  the normal case, not a gap to fill. Add a prefix specification when a group's members genuinely share rules
-  the rest of the corpus does not.
+  specification**, which applies to every document directly in that directory; the checks ignore a
+  subdirectory, and §3 forbids one.
+- It is **additionally** governed by every `docs/__meta__/<corpus>-<namespace>.md` whose namespace equals the
+  document's name or is a hyphen-delimited prefix of it; `code-python-errors.md`, if it existed, would govern
+  `python-errors.md` and `python-errors-*.md`. So `docs/code/principle-least-surprise.md` answers to `code.md`
+  and to `code-principle.md`.
+- **The layers stack, broad to narrow.** The corpus specification is a whole rule set applied on its own; the
+  namespace specification states only what it adds or narrows, and it cannot release a document from what the
+  corpus specification already said. That is what a namespace specification is for: a rule that holds for a
+  group but not for the corpus goes there, and stays out of the corpus file rather than becoming a condition
+  inside it.
+- **A namespace is a group only once a specification names it.** Documents no `code-<namespace>.md` matches,
+  `test-*` and the unprefixed `logging` today, are governed by `code.md` alone. That is the normal case, not a
+  gap to fill. Add a namespace specification when a group's members genuinely share rules the rest of the
+  corpus does not.
 - **Matching is by name and nothing else.** A specification starts governing the moment its name resolves, and
   a group renamed under `docs/code/` stops matching the specification it used to — rename both in the same
   change.
@@ -118,8 +121,8 @@ Nothing registers a rule document with a specification: the document's own path 
 Read the relationship in either direction from the shell:
 
 ```bash
-ls docs/code/<prefix>-*.md   # from a specification, the documents it governs
-ls docs/__meta__/code*       # from a document, the specifications that govern it
+ls docs/code/<namespace>.md docs/code/<namespace>-*.md   # from a specification, the documents it governs
+ls docs/__meta__/code*                                    # from a document, the specifications that govern it
 ```
 
 ### Discoverability Through Frontmatter
@@ -144,10 +147,10 @@ Keep rule documents focused and concise. Agent entrypoint docs should NOT hardco
 ## 2. Frontmatter Requirements
 
 This section is the operative rule, and [code.header.json](code.header.json) beside it is the same rule in a
-form a script applies — `check_header.py` validates every document's frontmatter against it, and
+form a checker applies — `lorecraft check header` validates every document's frontmatter against it, and
 `just check-docs` runs that over this corpus. A `principle-*`, `pattern-*`, or `python-*` document is additionally
-narrowed by the `code-<prefix>.md` specification for its prefix ([§1](#1-core-principles)); the narrowing
-adds to what this section requires and never relaxes it.
+narrowed by every `code-<namespace>.md` specification whose namespace matches its name
+([§1](#1-core-principles)); the narrowing adds to what this section requires and never relaxes it.
 
 **CRITICAL**: Every rule document MUST begin with valid YAML frontmatter:
 
@@ -203,19 +206,19 @@ High-level organizational and structural rules — the shape of the distribution
 written.
 
 **`arch` is reserved and currently unused.** No document in the corpus carries it; the first one would govern
-`pyproject.toml` and the layout under `src/lorecraft/`.
+the workspace's `pyproject.toml` files and the layout under `packages/`.
 
 #### `pkg` - Package-Specific Rules
 
-Rules scoped to individual packages, using the `pkg-` prefix followed by the package's directory name under
-`src/lorecraft/`. The distribution's top-level package is `lorecraft`, so repeating it in the document name
-says nothing: a doc governing `src/lorecraft/checkers/` is `pkg-checkers`. A security companion takes the
-same name plus `-security`, and the `scope` field uses the same directory name (`pkg:checkers`).
+Rules scoped to individual packages, using the `pkg-` prefix followed by the package's full import path. The
+workspace has two import packages, `lorecraft_core` and `lorecraft`, and both can hold a subpackage of the same
+name, so the import package is always part of the name: a doc governing `lorecraft_core/checks/` is scoped
+`pkg:lorecraft_core.checks`. A security companion takes the same name plus `-security`.
 
-`scope` carries the directory name exactly as Python spells it — **snake_case**, dotted for nesting, because
-it reads as an import path: `pkg:checkers.frontmatter` for a `frontmatter` subpackage of `checkers`. The
-**filename** cannot carry an underscore, so it converts `_` to `-`: a doc scoped `pkg:rule_docs` is named
-`pkg-rule-docs.md`.
+`scope` carries the import path exactly as Python spells it — **snake_case**, dotted for nesting:
+`pkg:lorecraft_core.checks.frontmatter` for a `frontmatter` subpackage of `checks`. The **filename** cannot
+carry an underscore or a dot, so it converts both to `-`: a doc scoped `pkg:lorecraft_core.checks` is named
+`pkg-lorecraft-core-checks.md`.
 
 A document governing a family of sibling subpackages names the family, not one member.
 
@@ -252,7 +255,7 @@ Write descriptions optimized for dynamic discovery. Unlike skills (which are exe
 - No ending period
 
 **Examples:**
-- ✅ `"Module organization under src/lorecraft. Load when creating modules or organizing Python packages"`
+- ✅ `"Module organization under packages/*/src. Load when creating modules or organizing Python packages"`
 - ✅ `"Exception handling patterns, bare-except prohibition. Load when raising or catching exceptions"`
 - ✅ `"Frozen dataclass defaults and field ordering. Load when declaring a dataclass"`
 - ❌ `"Module organization patterns"` (missing "Load when" trigger)
@@ -318,8 +321,8 @@ content, never a router to its children.
 3. **Progressively specific** - Add specificity per segment
 4. **Match filename** - `name` in frontmatter MUST match filename (minus `.md`)
 5. **Flat directory** - All files at `docs/code/` root (no subdirectories)
-6. **Package patterns** - Use the `pkg-` prefix followed by the directory name under `src/lorecraft/`, with
-   underscores converted to hyphens
+6. **Package patterns** - Use the `pkg-` prefix followed by the package's full import path, with
+   underscores and dots converted to hyphens
 
 ### Benefits
 
@@ -339,8 +342,8 @@ Rule documents may reference other rule documents to establish relationships. Cr
 | Type | Meaning | Example |
 |---|---|---|
 | `Related` | Sibling in same prefix group | test-organization <-> test-functions |
-| `Foundation` | Core rule a pkg/arch rule builds on | pkg-checkers -> python-exceptions |
-| `Companion` | Paired doc for same package | pkg-checkers <-> pkg-checkers-security |
+| `Foundation` | Core rule a pkg/arch rule builds on | pkg-lorecraft-core-checks -> python-exceptions |
+| `Companion` | Paired doc for same package | pkg-lorecraft-core-checks <-> pkg-lorecraft-core-checks-security |
 | `Extends` | Specializes/refines another rule document | python-errors-handling -> python-exceptions |
 
 ### Direction Rules
@@ -366,19 +369,19 @@ Rule documents may reference other rule documents to establish relationships. Cr
 ## References
 - [python-exceptions](python-exceptions.md) - Extends: Exception type declaration
 - [python-modules](python-modules.md) - Foundation: Module organization
-- [pkg-checkers-security](pkg-checkers-security.md) - Companion: Security checklist
+- [pkg-lorecraft-core-checks-security](pkg-lorecraft-core-checks-security.md) - Companion: Security checklist
 ```
 
 ### Examples
 
 - ✅ `python-errors-handling` -> `python-exceptions` (Extends: core to core)
-- ✅ `pkg-checkers` -> `python-exceptions` (Foundation: pkg to core)
-- ✅ `pkg-checkers-frontmatter` -> `pkg-checkers` (Extends: pkg to pkg)
-- ✅ `pkg-checkers` <-> `pkg-checkers-security` (Companion: bidirectional)
+- ✅ `pkg-lorecraft-core-checks` -> `python-exceptions` (Foundation: pkg to core)
+- ✅ `pkg-lorecraft-core-checks-frontmatter` -> `pkg-lorecraft-core-checks` (Extends: pkg to pkg)
+- ✅ `pkg-lorecraft-core-checks` <-> `pkg-lorecraft-core-checks-security` (Companion: bidirectional)
 - ✅ an `arch` doc governing `pyproject.toml` -> `python-modules` (Foundation: arch to core)
 - ✅ `test-organization` <-> `test-functions` (Related: core siblings)
 - ❌ `code` -> `python-modules` (meta rules only reference other meta rules)
-- ❌ `python-modules` -> `pkg-checkers` (core cannot reference pkg rules)
+- ❌ `python-modules` -> `pkg-lorecraft-core-checks` (core cannot reference pkg rules)
 
 ---
 
@@ -388,9 +391,10 @@ Rule documents may reference other rule documents to establish relationships. Cr
 
 [code.structure.json](code.structure.json) beside this file holds the outline below in machine-checkable
 form, and `check_structure.py` applies it. A
-`principle-*`, `pattern-*`, or `python-*` document takes its section outline from the `code-<prefix>.md`
-specification for its prefix instead of the general shape below; the general shape governs every document
-whose prefix has no specification of its own — `test-*` and `logging` today ([§1](#1-core-principles)).
+`principle-*`, `pattern-*`, or `python-*` document takes its section outline from the narrowest
+`code-<namespace>.md` specification that matches its name instead of the general shape below; the general
+shape governs every document no namespace specification matches, `test-*` and `logging` today
+([§1](#1-core-principles)).
 
 Every rule document should follow this general structure:
 
@@ -421,7 +425,7 @@ subset of packages, a decision point:
 
 ```markdown
 ✅ Governs something `scope` cannot express
-**MANDATORY for ALL test modules under `tests/unit/`**
+**MANDATORY for ALL test modules under `packages/*/tests/it/`**
 **MANDATORY for ALL `pyproject.toml` files in the project**
 **MANDATORY for ALL dataclasses declared in the project**
 
@@ -454,7 +458,7 @@ Include when relevant:
 rule the doc states — the least code that carries the convention, invented for the purpose, standing
 on its own.
 
-This is deliberate, and it is the opposite of what a citation buys. A `# ✅ Good — src/lorecraft/x/y.py`
+This is deliberate, and it is the opposite of what a citation buys. A `# ✅ Good — lorecraft_core/x/y.py`
 attribution makes a doc feel checkable, but it is a **copy of a module living in a second file**, and
 it rots exactly like any other copy: the package is renamed, the helper moves, the signature grows an
 argument, the code the doc quotes is deleted — and now the rule document is wrong about the repository
@@ -468,7 +472,7 @@ So:
 
 - **Never write a file path into an example**, in the `# ✅ Good —` comment or anywhere else. The
   comment says _why_ the example is good or bad, never _where_ it came from.
-- **Never assert, in prose, that a named module does the thing.** "`src/lorecraft/checkers/base.py`
+- **Never assert, in prose, that a named module does the thing.** "`lorecraft_core/checks/base.py`
   states X" is a citation wearing a sentence, and it rots on the next rename. State the rule.
 - **Invent the names.** Illustrative subjects (`parse_frontmatter`, `OutlineSpec`, `load_corpus`) are
   preferred precisely because they are obviously not an inventory of the project.
@@ -483,8 +487,8 @@ Three things stay exact, because they are what the doc is teaching rather than e
 
 - **Third-party and stdlib APIs**: `pathlib.Path`, `dataclasses.dataclass`, `logging`, `re`, `tomllib`.
   A doc that gets these wrong teaches the wrong thing.
-- **The names of packages and subpackages.** `lorecraft` and the subpackages declared under
-  `src/lorecraft/` — written as they really are, never disguised. These are the project's vocabulary,
+- **The names of packages and subpackages.** `lorecraft_core`, `lorecraft` and the subpackages declared
+  under them — written as they really are, never disguised. These are the project's vocabulary,
   and a reader who cannot map an example onto the package it concerns has to translate before they can
   apply the rule, which is the same cost a toy domain imposes. Invented substitutes are at their worst
   in a doc whose subject **is** naming, where the fabrication defeats the lesson. What must not follow
@@ -498,7 +502,7 @@ A fabricated example is still written in this project's stack and style: it pass
 configuration, and it never demonstrates tooling the repository does not use.
 
 Naming a **path pattern** is not a citation and stays allowed, because it is the convention itself:
-`src/lorecraft/<pkg>/`, `tests/unit/*.py`, `__init__.py`. What is banned is pointing at one real module
+`packages/*/src/<import package>/<pkg>/`, `packages/*/src/<import package>/<pkg>/tests/test_*.py`, `__init__.py`. What is banned is pointing at one real module
 as evidence.
 
 The `Good` / `Bad` pair still carries the argument. A **Bad** example is the mistake the rule exists
@@ -506,7 +510,7 @@ to prevent, and it is at its strongest when it names the cost concretely — "th
 document with an empty frontmatter block and no test noticed" teaches more than a bare `foo`. Invent
 the war story if you must, but keep it specific: the point is the failure mode, not the provenance.
 
-**A convention must still exist in `src/lorecraft/` to be documented** ([§1](#1-core-principles)) — that
+**A convention must still exist in `packages/*/src/` to be documented** ([§1](#1-core-principles)) — that
 requirement is unchanged, and it is on the _author_ to have verified it. What changed is that the doc
 no longer proves it by quoting a file, because that proof expires.
 
@@ -535,7 +539,7 @@ must contain is governed above: the failure mode and what it cost, never where t
 - Include code snippets showing correct and incorrect usage, in Python
 - Fabricate every example: the least invented code that carries the convention
 - Verify a real module demonstrates the convention before documenting it — then write the example from scratch
-- Name path patterns (`src/lorecraft/<pkg>/`, `tests/unit/*.py`) where the convention is about layout
+- Name path patterns (`packages/*/src/<import package>/<pkg>/`, `packages/*/src/<import package>/<pkg>/tests/test_*.py`) where the convention is about layout
 - Use consistent terminology throughout
 - Include a verification checklist at the end
 - Explain the reasoning behind rules
@@ -547,12 +551,12 @@ must contain is governed above: the failure mode and what it cost, never where t
 - Restate a single module's contract (document it in that module instead)
 - Cite a module in an example, or point at one in prose as evidence (it is a copy, and it drifts on the next rename)
 - Transcribe real code into an example, verbatim or lightly edited
-- Document a convention no package in `src/lorecraft/` demonstrates (a convention nothing demonstrates is not one)
+- Document a convention no package in `packages/*/src/` demonstrates (a convention nothing demonstrates is not one)
 - File a rule under a prefix whose subject it is not
 - Cover more than one responsibility in a doc, or add a doc that only routes to its siblings
 - Narrate a migration, or argue the case for a decision already made
 - Record dependency versions, release/beta status, benchmark figures, or tool install state
-- Inventory every site a rule applies to (cite the clearest example instead)
+- Inventory every site a rule applies to (show one fabricated example instead)
 - Include project-specific business logic
 - Hardcode paths that may change frequently
 - Add speculative or planned rules
@@ -667,14 +671,14 @@ Before committing a rule document:
 
 ### Content
 
-- [ ] Every convention documented is demonstrated by code in `src/lorecraft/` (the author checked; the doc does not cite it)
+- [ ] Every convention documented is demonstrated by code in `packages/*/src/` (the author checked; the doc does not cite it)
 - [ ] Code examples are Python and pass the project's Ruff configuration
 - [ ] Every example is fabricated — no example cites a module, and no prose points at one as evidence
 - [ ] Every example is labelled `# ✅ Good —`, `# ❌ Bad —`, or `# 🔶 Acceptable —`, with the reason after the dash
-- [ ] No example is a transcription of real code, and a rename anywhere in `src/lorecraft/` could not falsify the doc
+- [ ] No example is a transcription of real code, and a rename anywhere in `packages/*/src/` could not falsify the doc
 - [ ] Examples use this project's domain vocabulary and idioms, not toy domains a reader must translate
 - [ ] The doc states rules and shows shapes; it does not enumerate the documents that exist
-- [ ] Path patterns (`src/lorecraft/<pkg>/`, `tests/unit/*.py`) appear only where the convention is about layout
+- [ ] Path patterns (`packages/*/src/<import package>/<pkg>/`, `packages/*/src/<import package>/<pkg>/tests/test_*.py`) appear only where the convention is about layout
 - [ ] No rule assumes tooling the project does not have
 
 ### Responsibility and Durability
@@ -686,7 +690,7 @@ Before committing a rule document:
 - [ ] The doc carries rule content (it is not a routing index for its group)
 - [ ] Rules are stated in the imperative present, not as migration narrative or as the case for a past decision
 - [ ] No dependency version, beta/release status, benchmark figure, or tool install state appears
-- [ ] Conventions cite an example rather than enumerating every site they apply to
+- [ ] Conventions show one example rather than enumerating every site they apply to
 
 ### Discovery
 
@@ -696,5 +700,5 @@ Before committing a rule document:
 
 ### Review
 
-There is no automated validator in this repository. Read this checklist against the document by hand before
-committing it, together with the `code-<prefix>.md` specification for the document's prefix.
+`just check-docs` decides the frontmatter, section and length items; read the rest of this checklist by hand,
+together with every `code-<namespace>.md` specification that matches the document's name.

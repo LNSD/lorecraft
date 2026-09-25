@@ -28,13 +28,10 @@ The corpus in `docs/feat/` is **the feature documentation**; a single member of 
 A feature document describes something this toolkit provides — a check, a specification dialect, a corpus, a
 command surface — at the level a reader needs to use it, not at the level a reader needs to modify it.
 
-### The Corpus Starts Empty
+### The Corpus Grows With Features
 
-`docs/feat/` holds no documents today, and that is deliberate. This repository documents its own features
-there as it builds them: the first feature document lands in the same change as the first check that ships.
-A `.gitkeep` keeps the directory in the tree so the corpus has a home before it has members, and so this
-specification and its three machine-readable companions can be read, reviewed and applied on the day the
-first document arrives rather than written in a hurry alongside it.
+`docs/feat/` may begin empty, but each implemented feature is documented there in the change that ships it.
+The corpus describes existing behavior; it does not reserve names for planned features.
 
 Do not seed the corpus with documents for features that do not exist. A feature document describing
 unimplemented behaviour is indistinguishable from a feature document describing broken behaviour.
@@ -100,16 +97,19 @@ A document at `docs/feat/<name>.md` is governed by four files in `docs/__meta__/
 | File                  | Governs                                    | Read by                                    |
 |-----------------------|--------------------------------------------|--------------------------------------------|
 | `feat.md`             | Everything. This document is the authority | A person, and an agent before it writes    |
-| `feat.header.json`    | Frontmatter fields, vocabularies, patterns | `check_header.py`                          |
+| `feat.header.json`    | Frontmatter fields, vocabularies, patterns | `lorecraft check header`                  |
 | `feat.structure.json` | The section outline and its order          | `check_structure.py`                       |
 | `feat.budget.json`    | Prose length, per document and per section | `check_budget.py`                          |
 
-Two kinds of narrowing layer onto that base, and both are additive — a layer states only what it adds, and
-none can release a document from what the base already said:
+Two kinds of narrowing layer onto that base, and both are additive. A layer states only what it adds, none
+can release a document from what the base already said, and they apply broad to narrow:
 
-- **A filename prefix layer**, `feat-<prefix>.header.json`, `feat-<prefix>.structure.json` or
-  `feat-<prefix>.budget.json`, where `<prefix>` is the filename up to its first hyphen. None exist today;
-  add one when a naming group genuinely shares rules the rest of the corpus does not.
+- **A namespace layer**, `feat-<namespace>.header.json`, `feat-<namespace>.structure.json` or
+  `feat-<namespace>.budget.json`, applied when the namespace equals the document's name or is a
+  hyphen-delimited prefix of it. A namespace may span several segments: `feat-cli-check` would govern
+  `cli-check.md` and `cli-check-*.md`. The `cli` namespace narrows CLI feature names and content in
+  [feat-cli.md](feat-cli.md); add another namespace layer when a naming group genuinely shares rules the rest
+  of the corpus does not.
 - **A type layer**, `feat.<type>.structure.json`, selected by the document's `type` field. All three exist:
   `feat.feature.structure.json`, `feat.component.structure.json` and `feat.meta.structure.json`. This is
   where a per-type section rule lives — never as a condition inside `feat.structure.json`, which asks no
@@ -234,16 +234,17 @@ these three prefixes:
 
 | Prefix    | Names                                                       | Spelling                        | Example                       |
 |-----------|-------------------------------------------------------------|---------------------------------|-------------------------------|
-| `module:` | A module or subpackage under `src/lorecraft/`              | snake_case, dotted for nesting  | `module:checkers.structure`   |
+| `module:` | A module or subpackage, by its full import path             | snake_case, dotted for nesting  | `module:lorecraft_core.checks`|
 | `skill:`  | A skill directory under `.agents/skills/`                   | kebab-case                      | `skill:docs-rules-check`      |
 | `spec:`   | A specification file stem under `docs/__meta__/`            | kebab-case, dotted for a layer  | `spec:feat.feature`           |
 
-The distribution's top-level package is `lorecraft`, so a `module:` entry never repeats it:
-`src/lorecraft/checkers/structure.py` is `module:checkers.structure`, not `module:lorecraft.checkers.structure`.
+A `module:` entry always starts with its import package, `lorecraft_core` for the library or `lorecraft` for
+the command line, because both have a `watch` subpackage and a shorter name would not say which:
+`packages/lorecraft-core/src/lorecraft_core/checks/header.py` is `module:lorecraft_core.checks.header`.
 
 **Example:**
 ```yaml
-components: "module:checkers.structure,spec:feat,skill:docs-rules-check"
+components: "module:lorecraft_core.checks.header,spec:feat,skill:docs-rules-check"
 ```
 
 The schema enforces the prefix vocabulary and the character set of each entry. Which separator a given prefix
@@ -288,20 +289,16 @@ Feature names follow a hierarchical pattern from broad domain to specific featur
 
 **Pattern:** `<domain>-<subdomain>-<variant>`
 
-The first kebab-case segment is the **domain**, and it is what a prefix layer in `docs/__meta__/` would match
-([§1](#1-core-principles)). Files sharing a domain sort together and are found by one glob.
+The first kebab-case segment is the **domain**. A namespace layer in `docs/__meta__/` matches the domain, or
+any longer leading run of segments ([§1](#1-core-principles)). Files sharing a domain sort together and are
+found by one glob.
 
 ### Examples by Domain
 
-**Check features:**
+**CLI check features:**
 ```
-check                             # Meta: what the toolkit checks, and how a document selects its specs
-├── check-header                  # Frontmatter against a JSON Schema
-├── check-structure               # Section outlines against a structure spec
-│   ├── check-structure-outline   # Outline matching and the free-run entry
-│   └── check-structure-layers    # Corpus, prefix and type layering
-├── check-budget                  # Prose length against a word budget
-└── check-skill                   # Skill directories against the Agent Skills specification
+cli-check                         # Meta: the documentation check command namespace
+└── cli-check-header              # Frontmatter validation against repository schemas
 ```
 
 **Specification features:**
@@ -334,7 +331,8 @@ cli                               # Meta: the command surface the toolkit expose
 4. **Match filename** - The `name` field must match the filename (minus .md)
 5. **Alphabetical grouping** - Related features sort together
 6. **Flat directory** - Every document lives at the root of `docs/feat/`; the hierarchy is in the name, not
-   in subdirectories, because the specification layers resolve on the filename
+   in subdirectories, because the specification layers resolve on the filename, and the checks ignore a file
+   placed in a subdirectory rather than report it
 
 ### Benefits
 
@@ -404,9 +402,9 @@ Use a simple list, with the relationship named before the description:
 ```markdown
 ## References
 
-- [check-structure](check-structure.md) - Dependency: outline matching
-- [spec-structure](spec-structure.md) - Related: the dialect this check reads
-- [check](check.md) - Base: the check family this belongs to
+- [cli-check-header](cli-check-header.md) - Dependency: frontmatter validation
+- [spec-header](spec-header.md) - Related: the dialect this check reads
+- [cli-check](cli-check.md) - Base: the CLI namespace this check belongs to
 ```
 
 **Relationship types:** `Dependency`, `Alternative`, `Related`, `Extended by`, `Base`
@@ -437,10 +435,10 @@ burden whenever a child is added, removed or renamed; it couples a stable docume
 it invites circular references between documents.
 
 **Examples:**
-- ✅ `check-structure.md` (component) → `check.md` (meta) — child to parent
+- ✅ `cli-check-header.md` (feature) → `cli-check.md` (meta) — child to parent
 - ✅ `check-structure.md` (component) → `spec-structure.md` (feature) — component to the feature it serves
 - ✅ `cli-output.md` (feature) → `cli.md` (meta) — feature to parent meta
-- ❌ `check.md` (meta) → `check-structure.md` (component) — FORBIDDEN: meta to child
+- ❌ `cli-check.md` (meta) → `cli-check-header.md` (feature) — FORBIDDEN: meta to child
 - ❌ `spec.md` (meta) → lists `spec-budget.md` (feature) — FORBIDDEN: meta to child
 
 Direction is a judgment the checker does not make. It is on the author, and on review.
@@ -577,7 +575,7 @@ self-explanatory.}}
 
 ### Source Files
 
-- `src/lorecraft/{{path/to/module.py}}` - How this file relates to the feature
+- `packages/{{package}}/src/{{import_package}}/{{path/to/module.py}}` - How this file relates to the feature
 
 ## Limitations {{OPTIONAL}}
 
@@ -606,7 +604,7 @@ Before committing a feature document:
 - [ ] `status` reflects where the feature stands today, and names no version
 - [ ] `description` says what it covers and includes a "Load when" clause (no ending period)
 - [ ] `components` entries all use `module:`, `skill:` or `spec:`, spelled as [§2](#2-frontmatter-requirements) requires
-- [ ] No `module:` entry repeats the `lorecraft` top-level package
+- [ ] Every `module:` entry starts with its import package, `lorecraft_core` or `lorecraft`
 
 ### Structure
 

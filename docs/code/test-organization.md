@@ -1,6 +1,6 @@
 ---
 name: "test-organization"
-description: "Test tiers and their directories, the one mandatory tier marker per test, marker declaration under --strict-markers, what a unit test may not depend on or mock, and the shared contract suite a new checker passes first. Load when adding a test file, choosing where a test belongs, introducing a marker, or adding a new checker"
+description: "Test tiers and their directories, unit tests co-located in a `tests/` subpackage beside their module, the one mandatory tier marker per test, marker declaration under --strict-markers, what a unit test may not depend on or mock, and the shared contract suite a new checker passes first. Load when adding a test file, choosing where a test belongs, introducing a marker, or adding a new checker"
 type: "core"
 scope: "global"
 ---
@@ -17,9 +17,15 @@ a test function — its name, its structure, its assertions, its fixtures — is
 
 | Directory | Marker | Needs to run | Typical duration | Purpose |
 |---|---|---|---|---|
-| `tests/unit/` | `unit` | Nothing beyond the interpreter | Milliseconds | Pure logic: frontmatter parsing, outline matching, length budgets, version formatting |
-| `tests/it/` | `it` | The package importable, nothing outside the process | Tens of milliseconds | The package's own modules wired together: a CLI driven through Typer's `CliRunner`, a checker over a fixture tree |
-| `tests/e2e/` | `e2e` | The package installed, and a subprocess | Up to seconds | The product as a user runs it: the console script, its exit codes, and what it does with the machine it finds |
+| `tests/` beside the module, under `packages/*/src/` | `unit` | Nothing beyond the interpreter | Milliseconds | Pure logic: frontmatter parsing, outline matching, length budgets, version formatting |
+| `packages/*/tests/it/` | `it` | The package importable, nothing outside the process | Tens of milliseconds | The package's own modules wired together: a CLI driven through Typer's `CliRunner`, a checker over a fixture tree |
+| `tests/e2e/`, at the root | `e2e` | The package installed, and a subprocess | Up to seconds | The product as a user runs it: the console script, its exit codes, and what it does with the machine it finds |
+
+`unit` lives in the source tree, in a `tests/` subpackage beside the module it tests ([§2](#2-a-unit-test-sits-beside-the-module-it-tests)).
+`it` lives in each package's own `tests/` directory. `e2e` lives at the repository root and covers
+the command line only, because it tests the product rather than either package; its shared helpers sit in
+`tests/lib/`, imported as `lib` and never built or installed. The library has no `e2e` tier:
+its end-to-end surface is its public API, which its `it` tier already exercises.
 
 **Three tiers, selected by `just test-unit`, `just test-it` and `just test-e2e`.** A test that needs a
 network service has no directory to live in yet, and putting it in one of these does not give it one — it
@@ -38,10 +44,44 @@ tier.
 
 Choose the cheapest tier that can actually observe the behaviour, and push logic down into a shape a unit test
 can reach rather than reaching up for a tier that can test it as written. A checker that takes a parsed
-document and returns findings is reachable from `tests/unit/`; the same checker reading its input from a live
+document and returns findings is reachable from a unit test; the same checker reading its input from a live
 HTTP endpoint is not, and the fix is the seam, not the tier.
 
-## 2. Every Test Carries Exactly One Tier Marker
+## 2. A Unit Test Sits Beside the Module It Tests
+
+The unit tests for `<pkg>/<module>.py` live in `<pkg>/tests/test_<module>.py`. That is a `tests/`
+subpackage, with its own `__init__.py`, in the same directory as the module. The test belongs to the package
+it tests, moves with it, and changes in the same diff.
+
+**Belonging to the package is what gives the test its reach.** A co-located test imports its subject from
+the module itself, by the rule the package's own code follows ([python-modules](python-modules.md) §3):
+relatively inside a top-level package, absolutely for a module directly in the import package. It can
+therefore reach names the package's `__all__` does not re-export. The `it` and `e2e` tiers stay outside
+`src/`, because their job is to exercise the surface a user imports.
+
+The directory is named `tests`, never `_tests` or `__tests__`. [python-modules](python-modules.md) §2 bans a
+leading underscore, and PEP 8 reserves double-underscore names for Python itself. The `__init__.py` gives
+each test module a real dotted name, so pytest's `importlib` import mode loads it under that name and its
+relative imports resolve.
+
+**No `tests/` subpackage ships.** Each package's wheel and source distribution excludes it. That exclusion is
+what lets a test module import `pytest` at the top without making pytest a runtime dependency.
+
+```
+# ❌ Bad — the test sits in a separate tree and has to name the subject from outside the package
+packages/lorecraft-core/tests/unit/test_outline.py     # from lorecraft_core.checks import split_sections
+```
+
+```
+# ✅ Good — the test sits beside its subject and imports it from inside the package
+packages/lorecraft-core/src/lorecraft_core/checks/
+    outline.py
+    tests/
+        __init__.py
+        test_outline.py                                # from ..outline import split_sections
+```
+
+## 3. Every Test Carries Exactly One Tier Marker
 
 Every test function or test class carries exactly one tier marker — `@pytest.mark.unit`, `@pytest.mark.it` or
 `@pytest.mark.e2e` — and it matches the directory the test lives in.
@@ -65,13 +105,13 @@ def test_outline_checker_reads_spec_from_disk() -> None: ...
 ```
 
 ```python
-# ✅ Good — one marker, on the class, matching `tests/unit/`
+# ✅ Good — one marker, on the class, matching a `tests/` subpackage under `packages/*/src/`
 @pytest.mark.unit
 class TestSectionSplitting:
     def test_split_sections_at_h2_yields_one_span_per_heading(self) -> None: ...
 ```
 
-## 3. Every Marker Used Is Declared
+## 4. Every Marker Used Is Declared
 
 Every marker a test carries appears in the `markers` list under `[tool.pytest.ini_options]`, with a
 description saying what it selects. `--strict-markers` is enabled for this project.
@@ -96,12 +136,12 @@ markers = [
 ]
 ```
 
-## 4. A Unit Test Has No External Dependency and Does Not Mock Its Subject
+## 5. A Unit Test Has No External Dependency and Does Not Mock Its Subject
 
 A unit test touches no network, no database, no subprocess, and no filesystem beyond a temp directory and the
 checked-in fixture documents. It also does not mock the thing it is testing, and does not patch module
 internals to reach its assertion. An integration test is held to the same list, minus the mocking clause:
-`tests/it/` exists to wire real collaborators together, so a fake there defeats the tier. Only `tests/e2e/`
+the `it` tier exists to wire real collaborators together, so a fake there defeats the tier. Only `tests/e2e/`
 may spawn a process.
 
 **This narrows the blanket rule, deliberately.** A standing instruction that unit tests must not mock at all
@@ -154,7 +194,7 @@ def test_check_corpus_forwards_every_document_to_the_checker() -> None:
     assert len(checker.documents) == 3, 'every document should reach the checker'
 ```
 
-## 5. A New Checker Gets the Shared Suite Before It Gets Bespoke Tests
+## 6. A New Checker Gets the Shared Suite Before It Gets Bespoke Tests
 
 A new checker's first test file subclasses the shared checker suites and supplies the checker's test
 configuration — the conforming document, the violating document, the spec it reads, the findings it is
@@ -188,7 +228,7 @@ class TestOutlineCheckerReporting(BaseReportingTests):
     config = OutlineCheckerTestConfig()
 ```
 
-## 6. Requirement Markers Are Additive and Independent of Tier
+## 7. Requirement Markers Are Additive and Independent of Tier
 
 A requirement marker names what the test needs — the checked-in corpus, a particular fixture tree — and stacks
 on top of the tier marker rather than replacing it. A test can be selected by tier, by requirement, or by
@@ -215,15 +255,18 @@ def test_check_corpus_over_fixture_tree_reports_one_finding_per_document() -> No
 
 Before committing code, verify:
 
-- [ ] Every new test file is under `tests/unit/`, `tests/it/` or `tests/e2e/`, matching what it needs, or
-      under a tier directory introduced in the same change as its marker and its gate
+- [ ] Every new unit test file is `tests/test_<module>.py` beside its subject under `packages/*/src/`; every
+      other test file is under `packages/*/tests/it/`, the root `tests/e2e/`, or a tier directory introduced
+      in the same change as its marker and its gate
+- [ ] Every `tests/` subpackage under `packages/*/src/` has an `__init__.py`, holds only `unit` tests, and
+      is excluded from the package's wheel and source distribution
 - [ ] Each test's directory matches what it actually needs: no network anywhere, and no subprocess outside
       `tests/e2e/`
 - [ ] Every new test carries exactly one tier marker — `unit`, `it` or `e2e`
 - [ ] Every marker used in the diff appears in the `markers` list under `[tool.pytest.ini_options]`
 - [ ] Every `-m` expression added to a `just` recipe or CI job names only declared markers — an undeclared one
       is a collection error, not a skip
-- [ ] No test under `tests/unit/` or `tests/it/` opens a socket, spawns a subprocess, or writes outside a
+- [ ] No `unit` or `it` test opens a socket, spawns a subprocess, or writes outside a
       temp directory
 - [ ] No unit test patches its own subject or a module-internal symbol
 - [ ] No unit test passes a bare `Mock()` or `MagicMock()` as a collaborator; a hand-written fake class is
@@ -234,9 +277,9 @@ Before committing code, verify:
 ## References
 
 - [test-functions](test-functions.md) - Related: Owns everything inside the test function — naming, one behaviour per test, assertions, fixtures, parametrization
-- [pattern-registry](pattern-registry.md) - Related: Owns the checker registry whose every entry the shared suite is run against
 - [pattern-resource-lifecycle](pattern-resource-lifecycle.md) - Related: Owns the acquire/release contract a scoped fixture drives
 - [logging](logging.md) - Related: Owns the log lines a failing test is read through
+- [python-modules](python-modules.md) - Related: Owns the import form a co-located unit test uses and the ban on underscored package names
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One tier per test, because one test answers one kind of question
 
 ## External References
@@ -244,3 +287,8 @@ Before committing code, verify:
 - [pytest — Working with custom markers](https://docs.pytest.org/en/stable/example/markers.html)
 - [pytest — `--strict-markers`](https://docs.pytest.org/en/stable/how-to/mark.html)
 - [Martin Fowler — Test Double](https://martinfowler.com/bliki/TestDouble.html)
+- [pytest — Tests as part of application code](https://docs.pytest.org/en/stable/explanation/goodpractices.html#tests-as-part-of-application-code)
+- [pytest — Import mechanisms and `sys.path`](https://docs.pytest.org/en/stable/explanation/pythonpath.html)
+- [Hatch — Build configuration: file selection](https://hatch.pypa.io/latest/config/build/#file-selection)
+- [PEP 8 — Descriptive naming styles](https://peps.python.org/pep-0008/#descriptive-naming-styles)
+- [The Rust Book — Test organization](https://doc.rust-lang.org/book/ch11-03-test-organization.html)
