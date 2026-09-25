@@ -15,7 +15,7 @@ use the skill, whether content belongs in SKILL.md or a reference file, whether 
 reference chain runs too deep.
 
 This is a vendored standalone copy; the checks it implements are destined for the
-lorewright library, which will run them from one checker instead of a script per skill.
+lorecraft library, which will run them from one checker instead of a script per skill.
 
 A skill's location decides which rules apply:
 

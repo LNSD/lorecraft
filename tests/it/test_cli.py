@@ -8,9 +8,9 @@ root application, registry, command module, version strings — without needing 
 import pytest
 from typer.testing import CliRunner
 
-from lorewright import __version__
-from lorewright.cli import build_app
-from lorewright.cli._registry import DuplicateCommandError, register
+from lorecraft import __version__
+from lorecraft.cli import build_app
+from lorecraft.cli._registry import DuplicateCommandError, register
 
 runner = CliRunner()
 
@@ -30,7 +30,7 @@ class TestVersionOption:
 
         #: Then
         assert result.exit_code == 0, result.output
-        assert result.output.strip() == f'lorewright {__version__}', 'the option prints the short version'
+        assert result.output.strip() == f'lorecraft {__version__}', 'the option prints the short version'
 
     def test_version_option_with_short_form_exits_successfully_and_prints_the_version(self) -> None:
         #: Given
@@ -41,7 +41,7 @@ class TestVersionOption:
 
         #: Then
         assert result.exit_code == 0, result.output
-        assert result.output.strip() == f'lorewright {__version__}', '-V prints the short version'
+        assert result.output.strip() == f'lorecraft {__version__}', '-V prints the short version'
 
 
 @pytest.mark.it
@@ -55,7 +55,7 @@ class TestVersionCommand:
 
         #: Then
         assert result.exit_code == 0, result.output
-        assert result.output.strip() == f'lorewright {__version__}', 'the plain command prints one line'
+        assert result.output.strip() == f'lorecraft {__version__}', 'the plain command prints one line'
 
 
 @pytest.mark.it

@@ -11,7 +11,7 @@ from importlib.metadata import PackageNotFoundError, version
 logger = logging.getLogger(__name__)
 
 # Distribution name as declared in pyproject.toml, which is what importlib.metadata keys on.
-_DISTRIBUTION_NAME: str = 'lorewright'
+_DISTRIBUTION_NAME: str = 'lorecraft'
 
 # Reported when the package is imported from a source tree that was never installed: running
 # `git describe` here would report a version no artifact carries, so the CLI says plainly that it

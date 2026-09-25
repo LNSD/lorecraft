@@ -1,4 +1,4 @@
-"""Command-line interface for lorewright.
+"""Command-line interface for lorecraft.
 
 The root application carries the global options; every subcommand lives under `commands/` and
 joins by registering its name. See `_registry` for what adding one involves.

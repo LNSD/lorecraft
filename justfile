@@ -65,7 +65,7 @@ alias check-types := typecheck
 [group: 'check']
 typecheck *EXTRA_FLAGS:
     @echo "🔍 Type-checking code..."
-    uv run ty check src/lorewright {{EXTRA_FLAGS}}
+    uv run ty check src/lorecraft {{EXTRA_FLAGS}}
 
 
 ## Docs

@@ -134,7 +134,7 @@ quotes are not stylistic; they are what makes the guard safe.
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from lorewright.registry import SpecRegistry
+    from lorecraft.registry import SpecRegistry
 
 
 @dataclass
@@ -147,7 +147,7 @@ class CorpusCheck:
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from lorewright.registry import SpecRegistry
+    from lorecraft.registry import SpecRegistry
 
 
 @dataclass

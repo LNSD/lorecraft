@@ -7,7 +7,7 @@
 # ///
 """Check docs/ prose length against the budget specs in docs/__meta__/.
 
-This is a vendored copy, kept as-is until the lorewright library implements the check and
+This is a vendored copy, kept as-is until the lorecraft library implements the check and
 the skill calls that instead.
 
 Feature and rule documents are loaded into an agent's context on demand, so every word

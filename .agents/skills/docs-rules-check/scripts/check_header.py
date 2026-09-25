@@ -9,7 +9,7 @@
 # ///
 """Check docs/ frontmatter against the JSON Schemas in docs/__meta__/.
 
-This is a vendored copy, kept as-is until the lorewright library implements the check and
+This is a vendored copy, kept as-is until the lorecraft library implements the check and
 the skill calls that instead.
 
 Covers the mechanical half of /docs-rules-check: required fields, vocabularies,

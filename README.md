@@ -1,13 +1,13 @@
 <div align="center">
 
-<img src="docs/assets/logo-light.png#gh-light-mode-only" alt="lorewright" width="120" />
-<img src="docs/assets/logo-dark.png#gh-dark-mode-only" alt="lorewright" width="120" />
+<img src="docs/assets/logo-light.png#gh-light-mode-only" alt="lorecraft" width="120" />
+<img src="docs/assets/logo-dark.png#gh-dark-mode-only" alt="lorecraft" width="120" />
 
-# lorewright
+# lorecraft
 
-[Read the Docs](docs/) · [Report Bug](https://github.com/lnsd/lorewright/issues/new?labels=bug) · [Request Feature](https://github.com/lnsd/lorewright/issues/new?labels=enhancement)
+[Read the Docs](docs/) · [Report Bug](https://github.com/lnsd/lorecraft/issues/new?labels=bug) · [Request Feature](https://github.com/lnsd/lorecraft/issues/new?labels=enhancement)
 
-[![CI](https://img.shields.io/github/actions/workflow/status/lnsd/lorewright/ci.yml?branch=main&label=CI)](https://github.com/lnsd/lorewright/actions/workflows/ci.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/lnsd/lorecraft/ci.yml?branch=main&label=CI)](https://github.com/lnsd/lorecraft/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE-MIT)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE-APACHE)
 
