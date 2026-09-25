@@ -10,7 +10,7 @@ from typer.testing import CliRunner
 
 from lorecraft import __version__
 from lorecraft.cli import build_app
-from lorecraft.cli._registry import DuplicateCommandError, register
+from lorecraft.cli.registry import DuplicateCommandError, register
 
 runner = CliRunner()
 

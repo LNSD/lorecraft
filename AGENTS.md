@@ -5,16 +5,22 @@ feature docs (specs, plans, status), the agent skills it carries, and the format
 all three. It implements the mechanical half of reviewing those documents — frontmatter against a schema,
 section outlines against a structure spec, prose against a length budget, skills against the Agent Skills
 specification — so a repository declares the rules it wants and runs one checker, instead of carrying a
-standalone script per check. It is a Python project managed with `uv`.
+standalone script per check. It is a Python project managed with `uv`, as a workspace of one releasable
+package and one private test member:
+
+- `packages/lorecraft/` is the command line, distribution `lorecraft`, import package `lorecraft`, console
+  script `lorecraft`.
+- `tests/` is the end-to-end tier, a virtual member that is never built: the suites in `tests/e2e/` and their
+  helper library in `tests/lib/`.
 
 **The checks are not in the library yet.** They run today as vendored scripts under
 `.agents/skills/*/scripts/`, wired to `just check-docs` and `just check-skills` and gated in CI.
-`src/lorecraft/` holds the version, the `lorecraft` CLI under `cli/` and nothing else, so the modules those
+`packages/lorecraft/src/lorecraft/` holds the version, the `lorecraft` CLI under `cli/` and nothing else, so the modules those
 scripts migrate into do not exist. Do not infer structure that is not on disk.
 
-The CLI is a router: `cli/_app.py` declares the root application and the global options, and every subcommand
+The CLI is a router: `cli/app.py` declares the root application and the global options, and every subcommand
 lives in its own module under `cli/commands/`, joining by calling `@register(<name>)` beside its handler.
-`cli/_registry.py` walks that package and mounts what registered itself, so a new subcommand is a new file —
+`cli/registry.py` walks that package and mounts what registered itself, so a new subcommand is a new file —
 no dispatcher, no import list, no edit to the root application. `version` is the only one today.
 
 ## Quick Start
@@ -51,7 +57,7 @@ document or fix the check — never loosen a schema, raise a budget, or narrow a
 
 The scripts under `.agents/skills/*/scripts/` are **vendored copies, deliberately**: a skill stays runnable from
 a bare checkout with nothing but `uv`. They are also the migration target — each becomes a module under
-`src/lorecraft/`, and the skill then calls the library instead of carrying the code.
+`packages/lorecraft/src/lorecraft/`, and the skill then calls the library instead of carrying the code.
 
 ## Canonical Resources
 
@@ -61,15 +67,17 @@ a bare checkout with nothing but `uv`. They are also the migration target — ea
 | `CLAUDE.md` | Single-line pointer to `AGENTS.md` | Exists |
 | `.agents/skills/` | Canonical skill definitions, plus the vendored check scripts | 14 skills |
 | `.claude/skills/` | Compatibility symlink to `.agents/skills/` | Exists |
-| `pyproject.toml` | Package metadata, dependencies, `ruff`, `ty` and `pytest` config | Exists |
+| `pyproject.toml` | Virtual workspace root: the members, the dev group, `ruff`, `ty` and `pytest` config | Exists; each member has its own `pyproject.toml` |
 | `justfile` | Task runner recipes; wraps `uv` | Exists |
 | `docs/code/` | Code rules for this repository | 38 rule documents |
 | `docs/__meta__/` | Format specs: a prose `.md` plus its JSON halves | 5 specs, 15 JSON files |
 | `docs/feat/` | Feature docs for this repository | Exists and empty, by design — nothing is implemented to document |
 | `.github/` | `workflows/ci.yml`, the pre-commit config (off the default root path), and `renovate.json5` | Exists |
-| `src/lorecraft/` | The checker package | Exists: `__init__.py`, `_metadata.py`, `__main__.py` and `cli/` |
-| `src/lorecraft/cli/` | Root application, command registry and the `commands/` package | 1 subcommand: `version` |
-| `tests/` | Three tiers: `unit/` pure logic, `it/` the modules wired together, `e2e/` the installed script | 12 tests, all on the CLI |
+| `packages/lorecraft/src/lorecraft/` | The checker package | Exists: `__init__.py`, `metadata.py`, `__main__.py` and `cli/` |
+| `packages/lorecraft/src/lorecraft/cli/` | Root application, command registry and the `commands/` package | 1 subcommand: `version` |
+| `packages/lorecraft/src/**/tests/` | The unit tier: a `tests/` subpackage beside the module it tests, never shipped | The version strings |
+| `packages/lorecraft/tests/` | The integration tier, flat | The application and its command routing |
+| `tests/` | The private end-to-end member: `e2e/` suites over the installed script, `lib/` their helpers | The console script in a subprocess |
 
 ## Skill Routing
 
@@ -103,19 +111,19 @@ empty corpus rather than an error.
 
 | Recipe | What it runs |
 |---|---|
-| `just sync` | `uv sync --all-groups` — install or refresh the development environment |
+| `just sync` | `uv sync --all-packages --all-groups` — install or refresh the development environment |
 | `just fmt` | `ruff format` |
 | `just fmt-check` | `ruff format --check`, writing nothing |
 | `just check` | `ruff check` |
 | `just check-fix` | `ruff check --fix`, applying the mechanical fixes |
-| `just typecheck` | `ty check src/lorecraft` |
+| `just typecheck` | `ty check packages/lorecraft/src` |
 | `just check-docs` | the three document checks over this repo's own `docs/`; stops at the first that reports |
 | `just check-skills` | the skill check over this repository's own `.agents/skills/` |
 | `just test-unit` | the unit tier — `pytest -m unit` |
 | `just test-it` | the integration tier — `pytest -m it` |
 | `just test-e2e` | the end-to-end tier — `pytest -m e2e` |
 | `just test` | every tier — `pytest` |
-| `just build` | `uv build` — source distribution and wheel |
+| `just build` | `uv build --all-packages` — a source distribution and a wheel per releasable package |
 | `just clean` | remove build, test and cache artifacts |
 | `just install-git-hooks` | install the pre-commit hooks; `just remove-git-hooks` undoes it |
 
@@ -200,8 +208,8 @@ selects the files that govern it.
 ## Testing Strategy
 
 The suite is the CLI and nothing else, because nothing else in the library is implemented. It is spread over
-the three tiers [test-organization](docs/code/test-organization.md) defines: `tests/unit/test_version.py` for
-the version strings, `tests/it/test_cli.py` for the application and its command routing through Typer's
+the three tiers [test-organization](docs/code/test-organization.md) defines: `packages/lorecraft/src/lorecraft/cli/tests/test_version.py`
+for the version strings, `packages/lorecraft/tests/test_cli.py` for the application and its command routing through Typer's
 `CliRunner`, and `tests/e2e/test_cli.py` for the installed console script in a subprocess — the only tier that
 can observe the `git describe` probe behind `version --verbose`. The vendored check scripts have no tests of
 their own; `just check-docs` and `just check-skills` over this repository's own corpus are what exercises
@@ -216,7 +224,7 @@ them.
 - Every test body is divided by the `#: Given`, `#: When` and `#: Then` markers, with exactly one call
   under `When`. [test-functions](docs/code/test-functions.md) §2 owns the rule and the pytest idioms that
   are awkward to place.
-- `--strict-markers` is on. Every marker used must be declared in `pyproject.toml`, with its description.
+- `--strict-markers` is on. Every marker used must be declared in the root `pyproject.toml`, with its description.
 
 ## Commits
 

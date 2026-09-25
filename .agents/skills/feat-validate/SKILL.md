@@ -1,7 +1,7 @@
 ---
 name: feat-validate
 description: Verify feature doc alignment with implementation. Use when asking about feature implementation status, or to check that documented functionality exists in code and has test coverage
-compatibility: Requires the feature corpus in docs/feat/ and the checker sources in src/lorecraft/. Reads code and tests; runs only the repository's own gates through just.
+compatibility: Requires the feature corpus in docs/feat/ and the checker sources in packages/lorecraft/src/lorecraft/. Reads code and tests; runs only the repository's own gates through just.
 allowed-tools: Read Grep Glob Bash(just typecheck *) Bash(just test-unit *) Bash(just test *)
 ---
 
@@ -60,7 +60,7 @@ Each capability described in the doc MUST exist in production code:
 
 ### 3. Test Coverage Review
 
-- Search `tests/unit/` for tests covering documented functionality
+- Search the unit `tests/` subpackages under `packages/*/src/` for tests covering documented functionality
 - Search for tests that exercise a documented end-to-end scenario against a checked-in fixture document
 - Assess if existing tests cover happy path and critical corner cases
 - Suggest specific test enhancements when gaps are found
@@ -154,7 +154,7 @@ existing tests pass; only reading the implementation proves it does what the doc
 
 Search the codebase for tests that exercise documented functionality:
 
-1. **Unit tests**: Search `tests/unit/` for the module, function and finding names the doc uses
+1. **Unit tests**: Search the unit `tests/` subpackages under `packages/*/src/` for the module, function and finding names the doc uses
 2. **Fixture-backed tests**: Search for tests that feed a checked-in document fixture through the documented
    check and assert on the findings
 3. **Scenario tests**: Search for tests that exercise the documented flow end to end
@@ -223,7 +223,7 @@ Produce a structured report listing:
 Depends on the type of documented capability:
 
 1. **Components & modules**
-   - Does the module exist in the documented location under `src/lorecraft/`?
+   - Does the module exist in the documented location under `packages/lorecraft/src/lorecraft/`?
    - Are documented entry points implemented?
    - Do component interactions match documentation?
 
@@ -305,7 +305,7 @@ These tools/commands can run without user permission:
    - Run `just typecheck` to catch a documented signature the code no longer has
 
 3. **Search for tests** - Check coverage:
-   - Grep `tests/unit/` for the function and finding names
+   - Grep the unit `tests/` subpackages under `packages/*/src/` for the function and finding names
    - Check which documented rules have a fixture-backed test
    - Run `just test-unit` to confirm those tests pass
 

@@ -93,14 +93,16 @@ def git_description() -> str | None:
 def _checkout_root() -> Path | None:
     """Return the checkout this module was loaded from, or `None` for an installed copy.
 
-    Only the repository's own `src/` layout counts. A virtual environment often sits inside some
+    Only the repository's own workspace layout counts. A virtual environment often sits inside some
     other project's checkout, so running `git describe` from an installed copy's directory would
     happily describe a repository that has nothing to do with this package.
     """
-    # .../src/lorecraft/cli/_version.py -> parents[0] cli, [1] lorecraft, [2] src
+    # <checkout>/packages/lorecraft/src/lorecraft/cli/version.py
+    #   -> parents[0] cli, [1] lorecraft, [2] src, [3] the lorecraft package, [4] packages, [5] the checkout
     source_root = Path(__file__).resolve().parents[2]
-    if source_root.name != 'src':
+    packages_dir = source_root.parents[1]
+    if source_root.name != 'src' or packages_dir.name != 'packages':
         return None
 
-    checkout_root = source_root.parent
+    checkout_root = packages_dir.parent
     return checkout_root if (checkout_root / '.git').exists() else None

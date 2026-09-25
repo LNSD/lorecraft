@@ -341,16 +341,16 @@ scope only repeats the type or names no narrower area; the conventional format a
 
 **Process**:
 1. Check `git status` and `git diff`
-2. Identify which module under `src/lorecraft/`, or which non-code area, contains the changes
+2. Identify which module under `packages/lorecraft/src/lorecraft/`, or which non-code area, contains the changes
 3. Choose the one with the most significant architectural impact
 4. Add its name as the scope when it distinguishes the change's area
 
-**Code scopes**: the module or subsystem name under `src/lorecraft/`, without the `.py` extension and
+**Code scopes**: the module or subsystem name under `packages/lorecraft/src/lorecraft/`, without the `.py` extension and
 without the package prefix. A package directory scopes as the directory name, not as the file inside
 it: a change confined to one check module under a `checks/` package still scopes to `checks`, and the
 individual check is named in the description or a bullet.
 
-`src/lorecraft/` currently holds only `__init__.py`, so there are no module scopes yet. Until the
+`packages/lorecraft/src/lorecraft/` currently holds only `__init__.py`, so there are no module scopes yet. Until the
 checker's modules land, a change to the package itself scopes to `lorecraft`.
 
 **Non-code scopes**: the area, named for the directory or artifact it lives in.

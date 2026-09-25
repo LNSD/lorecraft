@@ -9,8 +9,8 @@ from typing import Annotated
 
 import typer
 
-from ._registry import mount
-from ._version import short_version
+from .registry import mount
+from .version import short_version
 
 _HELP: str = "Check a repository's agent-facing documentation: rule documents, feature docs and skills."
 

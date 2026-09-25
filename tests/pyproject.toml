@@ -1,0 +1,24 @@
+# The end-to-end tests: a private workspace member, never built and never released.
+#
+#   e2e/  the suites, which drive the installed `lorecraft` console script in a subprocess
+#   lib/  the helpers those suites share, imported as `lib` (pytest's `pythonpath` in the root pyproject.toml)
+#
+# The tier tests the product rather than either package, so it lives outside packages/. `package = false` makes
+# this a virtual member: uv installs its dependencies into the workspace environment and builds nothing from it,
+# so it cannot reach an index.
+[project]
+name = "lorecraft-e2e"
+# A placeholder, not a release version: [project] requires one, and a dynamic version would make uv build this
+# member to resolve it. Nothing is ever built from here, so no artifact can carry it.
+version = "0"
+description = "End-to-end tests for the lorecraft command line, and their helper library"
+requires-python = ">=3.12"
+dependencies = [
+    "lorecraft",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+lorecraft = { workspace = true }

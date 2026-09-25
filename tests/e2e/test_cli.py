@@ -5,21 +5,10 @@ at all. This suite runs from the checkout, so the verbose command must report it
 well as the installed version and environment.
 """
 
-import subprocess
-import sys
-from pathlib import Path
-
 import pytest
 
+from lib.cli import run_cli
 from lorecraft import __version__
-
-_CONSOLE_SCRIPT_NAME: str = 'lorecraft.exe' if sys.platform == 'win32' else 'lorecraft'
-_COMMAND: tuple[str, ...] = (str(Path(sys.executable).parent / _CONSOLE_SCRIPT_NAME),)
-
-
-def _run(*arguments: str) -> subprocess.CompletedProcess[str]:
-    """Run the installed CLI in a subprocess and capture what it wrote."""
-    return subprocess.run([*_COMMAND, *arguments], capture_output=True, text=True, timeout=30)
 
 
 @pytest.mark.e2e
@@ -29,7 +18,7 @@ class TestInstalledCommandLine:
         arguments = ('--version',)
 
         #: When
-        result = _run(*arguments)
+        result = run_cli(*arguments)
 
         #: Then
         assert result.returncode == 0, result.stderr
@@ -40,7 +29,7 @@ class TestInstalledCommandLine:
         arguments = ('version', '--verbose')
 
         #: When
-        result = _run(*arguments)
+        result = run_cli(*arguments)
 
         #: Then
         assert result.returncode == 0, result.stderr
@@ -55,7 +44,7 @@ class TestInstalledCommandLine:
         arguments: tuple[str, ...] = ()
 
         #: When
-        result = _run(*arguments)
+        result = run_cli(*arguments)
 
         #: Then
         assert result.returncode != 0, 'a bare invocation is a usage error, not a success'
