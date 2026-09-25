@@ -48,13 +48,13 @@ Includes guidance on how to recognize situations where the pattern is needed.
 #### Examples (required)
 
 Bad/Good code pairs (at least one, recommended not more than 5) in Python.
-Patterns documented here MUST already be used in `src/lorewright/` — verify that before writing, then write the example from scratch.
+Patterns documented here MUST already be used in `src/lorecraft/` — verify that before writing, then write the example from scratch.
 Do not document patterns borrowed from other languages or ecosystems that this project does not use.
 Each example has a brief description providing context, followed by the Bad/Good code pair.
 When more than one example is provided, present them as a numbered list.
 Always show Bad first, then Good.
 Use comments to explain why each is bad or good.
-Examples are fabricated: show the least invented code that carries the pattern, cite no module, and never transcribe real code — no rename anywhere in `src/lorewright/` may be able to falsify the doc ([code](code.md) §6).
+Examples are fabricated: show the least invented code that carries the pattern, cite no module, and never transcribe real code — no rename anywhere in `src/lorecraft/` may be able to falsify the doc ([code](code.md) §6).
 
 **Note:** The templates below use `\`` to represent backticks.
 Do not escape backticks in the actual document — use literal code block fences.

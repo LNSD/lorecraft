@@ -1,4 +1,4 @@
-"""The root `lorewright` application: the global options, and nothing about any subcommand.
+"""The root `lorecraft` application: the global options, and nothing about any subcommand.
 
 This module is closed to modification. It declares what is true of every invocation — the program
 name, the help text, `--version` — and delegates the rest to the registry, so a new subcommand
@@ -23,7 +23,7 @@ def build_app() -> typer.Typer:
         without inheriting state from another.
     """
     app = typer.Typer(
-        name='lorewright',
+        name='lorecraft',
         help=_HELP,
         no_args_is_help=True,
         add_completion=False,
@@ -34,7 +34,7 @@ def build_app() -> typer.Typer:
 
 
 def main() -> None:
-    """Run the CLI. This is the `lorewright` console script."""
+    """Run the CLI. This is the `lorecraft` console script."""
     build_app()()
 
 

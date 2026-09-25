@@ -1,6 +1,6 @@
-# Lorewright - Agent Guide
+# Lorecraft - Agent Guide
 
-Lorewright is a toolkit for the agent-facing documentation of a repository: its coding-rule documents, its
+Lorecraft is a toolkit for the agent-facing documentation of a repository: its coding-rule documents, its
 feature docs (specs, plans, status), the agent skills it carries, and the format specifications that govern
 all three. It implements the mechanical half of reviewing those documents — frontmatter against a schema,
 section outlines against a structure spec, prose against a length budget, skills against the Agent Skills
@@ -9,7 +9,7 @@ standalone script per check. It is a Python project managed with `uv`.
 
 **The checks are not in the library yet.** They run today as vendored scripts under
 `.agents/skills/*/scripts/`, wired to `just check-docs` and `just check-skills` and gated in CI.
-`src/lorewright/` holds the version, the `lorewright` CLI under `cli/` and nothing else, so the modules those
+`src/lorecraft/` holds the version, the `lorecraft` CLI under `cli/` and nothing else, so the modules those
 scripts migrate into do not exist. Do not infer structure that is not on disk.
 
 The CLI is a router: `cli/_app.py` declares the root application and the global options, and every subcommand
@@ -51,7 +51,7 @@ document or fix the check — never loosen a schema, raise a budget, or narrow a
 
 The scripts under `.agents/skills/*/scripts/` are **vendored copies, deliberately**: a skill stays runnable from
 a bare checkout with nothing but `uv`. They are also the migration target — each becomes a module under
-`src/lorewright/`, and the skill then calls the library instead of carrying the code.
+`src/lorecraft/`, and the skill then calls the library instead of carrying the code.
 
 ## Canonical Resources
 
@@ -67,8 +67,8 @@ a bare checkout with nothing but `uv`. They are also the migration target — ea
 | `docs/__meta__/` | Format specs: a prose `.md` plus its JSON halves | 5 specs, 15 JSON files |
 | `docs/feat/` | Feature docs for this repository | Exists and empty, by design — nothing is implemented to document |
 | `.github/` | `workflows/ci.yml`, the pre-commit config (off the default root path), and `renovate.json5` | Exists |
-| `src/lorewright/` | The checker package | Exists: `__init__.py`, `_metadata.py`, `__main__.py` and `cli/` |
-| `src/lorewright/cli/` | Root application, command registry and the `commands/` package | 1 subcommand: `version` |
+| `src/lorecraft/` | The checker package | Exists: `__init__.py`, `_metadata.py`, `__main__.py` and `cli/` |
+| `src/lorecraft/cli/` | Root application, command registry and the `commands/` package | 1 subcommand: `version` |
 | `tests/` | Three tiers: `unit/` pure logic, `it/` the modules wired together, `e2e/` the installed script | 12 tests, all on the CLI |
 
 ## Skill Routing
@@ -108,7 +108,7 @@ empty corpus rather than an error.
 | `just fmt-check` | `ruff format --check`, writing nothing |
 | `just check` | `ruff check` |
 | `just check-fix` | `ruff check --fix`, applying the mechanical fixes |
-| `just typecheck` | `ty check src/lorewright` |
+| `just typecheck` | `ty check src/lorecraft` |
 | `just check-docs` | the three document checks over this repo's own `docs/`; stops at the first that reports |
 | `just check-skills` | the skill check over this repository's own `.agents/skills/` |
 | `just test-unit` | the unit tier — `pytest -m unit` |

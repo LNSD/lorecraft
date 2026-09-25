@@ -32,7 +32,7 @@ outward.
 **Signals that push the radius outward, from "pure logic" to wider:**
 - Changed a signature, an attribute, or the semantics of a type that other modules import — a
   finding, a check result, a parsed document.
-- Changed a shared type under `src/lorewright/` that more than one check depends on.
+- Changed a shared type under `src/lorecraft/` that more than one check depends on.
 - Changed a registry, discovery of checks, or an `__init__.py` that re-exports.
 - Changed `pyproject.toml` — dependency groups, pytest configuration, the marker list, the console
   script, or how the version is derived. The last two reach `tests/e2e/` and nothing below it.

@@ -8,7 +8,7 @@ grouped by maturity level (stable, experimental, unstable, development, unknown)
 This is the one script in this repository that sits off the script convention -- a
 plain python3 script with its own frontmatter parser and its own table renderer,
 rather than a PEP 723 script run through uv -- and it is first in line to be
-replaced by the lorewright library.
+replaced by the lorecraft library.
 """
 
 import re

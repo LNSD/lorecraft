@@ -234,12 +234,12 @@ these three prefixes:
 
 | Prefix    | Names                                                       | Spelling                        | Example                       |
 |-----------|-------------------------------------------------------------|---------------------------------|-------------------------------|
-| `module:` | A module or subpackage under `src/lorewright/`              | snake_case, dotted for nesting  | `module:checkers.structure`   |
+| `module:` | A module or subpackage under `src/lorecraft/`              | snake_case, dotted for nesting  | `module:checkers.structure`   |
 | `skill:`  | A skill directory under `.agents/skills/`                   | kebab-case                      | `skill:docs-rules-check`      |
 | `spec:`   | A specification file stem under `docs/__meta__/`            | kebab-case, dotted for a layer  | `spec:feat.feature`           |
 
-The distribution's top-level package is `lorewright`, so a `module:` entry never repeats it:
-`src/lorewright/checkers/structure.py` is `module:checkers.structure`, not `module:lorewright.checkers.structure`.
+The distribution's top-level package is `lorecraft`, so a `module:` entry never repeats it:
+`src/lorecraft/checkers/structure.py` is `module:checkers.structure`, not `module:lorecraft.checkers.structure`.
 
 **Example:**
 ```yaml
@@ -577,7 +577,7 @@ self-explanatory.}}
 
 ### Source Files
 
-- `src/lorewright/{{path/to/module.py}}` - How this file relates to the feature
+- `src/lorecraft/{{path/to/module.py}}` - How this file relates to the feature
 
 ## Limitations {{OPTIONAL}}
 
@@ -606,7 +606,7 @@ Before committing a feature document:
 - [ ] `status` reflects where the feature stands today, and names no version
 - [ ] `description` says what it covers and includes a "Load when" clause (no ending period)
 - [ ] `components` entries all use `module:`, `skill:` or `spec:`, spelled as [§2](#2-frontmatter-requirements) requires
-- [ ] No `module:` entry repeats the `lorewright` top-level package
+- [ ] No `module:` entry repeats the `lorecraft` top-level package
 
 ### Structure
 

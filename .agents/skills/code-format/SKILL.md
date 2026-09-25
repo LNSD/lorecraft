@@ -58,12 +58,12 @@ that the linter already reported on.
 ### Example workflows
 
 **Single file edit**
-1. Edit one module under `src/lorewright/`.
+1. Edit one module under `src/lorecraft/`.
 2. Run `just fmt`.
 3. Move on to `/code-check`.
 
 **Several files across packages**
-1. Edit files in more than one package under `src/lorewright/`.
+1. Edit files in more than one package under `src/lorecraft/`.
 2. Run `just fmt` once — it covers the repository, so there is no per-package variant to choose.
 3. Move on to `/code-check`.
 
