@@ -1,6 +1,6 @@
 ---
 name: "logging"
-description: "Log lines in a library: module-level `getLogger(__name__)`, level by operational significance, brief past-tense messages, `logger.exception` in handlers, and the ban on `print` and `basicConfig`. Load when adding a log line, choosing a level, wiring a logger onto a class, or reaching for `print` in library code"
+description: "Structured logging and tracing: module loggers, event fields, nested spans, CLI output layers, and exception records. Load when adding a log event or span, choosing a level, or configuring trace output"
 type: "core"
 scope: "global"
 ---
@@ -8,19 +8,15 @@ scope: "global"
 # Logging
 
 **The logger's name is the only handle an operator has on this library.** A logger named for the module it
-lives in (`lorecraft.checks.frontmatter`) sits inside the package hierarchy, so a single
-`logging.getLogger('lorecraft').setLevel(logging.DEBUG)` reaches it and everything under it. A logger named
-any other way does not, and no amount of correct level choice or message wording repairs that. Sections 2
-through 6 are downstream of section 1.
+lives in (`lorecraft_core.checks.frontmatter`) sits inside the package hierarchy, so a single
+`logging.getLogger('lorecraft_core').setLevel(logging.DEBUG)` reaches it and everything under it. A logger
+named any other way does not, and no amount of correct level choice or message wording repairs that. The
+library logs under `lorecraft_core` and the command line under `lorecraft`: two roots, neither inside the
+other. Sections 2 through 6 are downstream of section 1.
 
-**This document defines no structured-field taxonomy, deliberately.** A log line here is a message and a
-level, not a set of key-value fields: the stdlib's nearest equivalent, `logger.info('...', extra={...})`, is
-not part of this convention, and writing a taxonomy nothing demonstrates would be inventing a convention
-rather than recording one. What this document covers is naming, levels, wording, and exception handling.
-
-**On interpolation, log calls interpolate with f-strings, and this document codifies them** rather than lazy
-`%s` arguments — see [§7](#7-f-strings-are-the-recorded-choice-and-what-it-costs) for the tradeoff and why it
-is not worth re-opening. Errors and their types are owned by
+**Events carry named fields; spans carry duration and parentage.** The library emits them, and the CLI's
+opt-in `--trace` configures independent JSON event and span output layers on stderr, on both logger roots.
+Errors and their types are owned by
 [python-exceptions](python-exceptions.md); what to do with a caught exception beyond logging it is
 owned by [python-errors-handling](python-errors-handling.md).
 
@@ -31,11 +27,11 @@ Every module that logs declares exactly one module-level logger, immediately aft
 string, not stored on an instance.
 
 `__name__` is what places the logger inside the package's own tree. A logger built from a class name is a
-**root-level** logger: `getLogger('FrontmatterChecker')` is a sibling of `lorecraft`, not a descendant of it,
-so `getLogger('lorecraft').setLevel(logging.DEBUG)` does not reach it and neither does
-`getLogger('lorecraft.checks')`. When the base class every checker inherits from does this, every checker's
+**root-level** logger: `getLogger('FrontmatterChecker')` is a sibling of `lorecraft_core`, not a descendant of
+it, so `getLogger('lorecraft_core').setLevel(logging.DEBUG)` does not reach it and neither does
+`getLogger('lorecraft_core.checks')`. When the base class every checker inherits from does this, every checker's
 logger lands outside the hierarchy at once, and the most operationally interesting part of the library becomes
-unreachable by hierarchical configuration — the operator can raise the level for `lorecraft` and see nothing
+unreachable by hierarchical configuration — the operator can raise the level for `lorecraft_core` and see nothing
 change. That is a defect, not a style preference.
 
 A per-instance `self.logger` attribute is a milder problem: `getLogger` returns a process-global singleton per
@@ -43,8 +39,8 @@ name, so storing it per instance stores N references to one object. It is redund
 goes for symmetry — one way to reach a logger, everywhere.
 
 ```python
-# ❌ Bad — the logger's name is the class, so it sits outside `lorecraft` entirely and no
-# `getLogger('lorecraft.checks').setLevel(...)` will ever reach it
+# ❌ Bad — the logger's name is the class, so it sits outside `lorecraft_core` entirely and no
+# `getLogger('lorecraft_core.checks').setLevel(...)` will ever reach it
 class CorpusSession:
     def __init__(self, root: Path) -> None:
         self.root = root
@@ -65,7 +61,7 @@ class CorpusSession:
         self.root = root
 
     def open(self) -> None:
-        logger.info(f'opened corpus at {self.root}')
+        logger.info('corpus opened', extra={'fields': {'root': str(self.root)}})
 ```
 
 ## 2. The Level Matches Operational Significance
@@ -92,8 +88,8 @@ logger.debug(f'document {document.path} could not be parsed and was skipped')
 
 ```python
 # ✅ Good — significance, not enthusiasm
-logger.debug(f'checking {document.path} against {spec.name}')
-logger.error(f'document {document.path} could not be parsed and was skipped')
+logger.debug('document checked', extra={'fields': {'document': str(document.path), 'spec': spec.name}})
+logger.error('document skipped', extra={'fields': {'document': str(document.path)}})
 ```
 
 ## 3. Messages Are Brief, Past Tense, and Unpunctuated
@@ -112,9 +108,9 @@ logger.info('Successfully finished checking everything!')
 ```
 
 ```python
-# ✅ Good — what happened, and the values that identify it
-logger.info(f'check started for corpus {corpus_name} over {document_count} documents')
-logger.info(f'check finished for corpus {corpus_name}, {finding_count} findings reported')
+# ✅ Good — stable event names, with changing values in named fields
+logger.info('check started', extra={'fields': {'corpus': corpus_name, 'documents': document_count}})
+logger.info('check completed', extra={'fields': {'corpus': corpus_name, 'findings': finding_count}})
 ```
 
 ## 4. `logger.exception` Inside a Handler
@@ -143,14 +139,14 @@ except CheckerError as exc:
 try:
     checker.check_document(document)
 except CheckerError:
-    logger.exception(f'check failed for {document.path}')
+    logger.exception('check failed', extra={'fields': {'document': str(document.path)}})
     raise
 ```
 
 ```python
 # 🔶 Acceptable — a retry is degraded, not failed, so the level drops but the traceback stays
 except TransientSpecLoadError:
-    logger.warning(f'spec reload scheduled for {spec_name}, attempt {attempt}', exc_info=True)
+    logger.warning('spec reload scheduled', exc_info=True, extra={'fields': {'spec': spec_name, 'attempt': attempt}})
 ```
 
 ## 5. Library Code Never Calls `print`
@@ -186,7 +182,10 @@ def check_corpus(self, documents: Iterable[RuleDocument]) -> list[Finding]:
 def check_corpus(self, documents: Iterable[RuleDocument]) -> list[Finding]:
     findings: list[Finding] = []
     for document in documents:
-        logger.debug(f'checked {document.path} against {self.spec.name}')
+        logger.debug(
+            'document checked',
+            extra={'fields': {'document': str(document.path), 'spec': self.spec.name}},
+        )
         findings.extend(self.check_document(document))
     return findings
 ```
@@ -211,7 +210,7 @@ level — and the host's own careful configuration loses or duplicates depending
 shows up as duplicated lines or a mysteriously changed format in an application that never asked, and it is
 diagnosed only by someone who thinks to suspect an import.
 
-The one legitimate defensive call is `logging.getLogger('lorecraft').addHandler(logging.NullHandler())` at
+The one legitimate defensive call is `logging.getLogger('lorecraft_core').addHandler(logging.NullHandler())` at
 the package root, which suppresses the "no handlers could be found" warning without configuring anything.
 Entry points — a command-line `main`, a one-off script, a test fixture — configure freely; they are the
 application.
@@ -228,24 +227,32 @@ logger = logging.getLogger(__name__)
 logger = logging.getLogger(__name__)
 ```
 
-## 7. F-Strings Are the Recorded Choice, and What It Costs
+## 7. Keep Event Names Stable and Put Values in Fields
 
-Log calls interpolate with f-strings: `logger.info(f'checked {document.path}')`, not
-`logger.info('checked %s', document.path)`. This is the convention, it is what the code does, and new code
-follows it. There is no `%s` rule in this document.
+New log calls use a brief, stable message for the event and put variable values in `extra={'fields': {...}}`.
+The CLI JSON formatter preserves these fields and attaches the active trace and span IDs. Stable messages can
+be grouped across documents; named fields can be filtered without parsing prose. Keep field values JSON
+serializable so the stderr formatter can encode every event. Existing interpolated messages can be migrated
+when their call sites change.
 
-It is recorded here with its cost, so that nobody re-litigates it by accident on a Tuesday:
+```python
+# ✅ Good — the event name stays stable and document details remain queryable
+logger.debug('document checked', extra={'fields': {'document': path, 'findings': count}})
+```
 
-- **The string is formatted whether or not the level is enabled.** A `logger.debug(f'...')` inside a
-  per-document loop pays its formatting cost in production, where debug is off and the record is discarded
-  immediately after. With `%s` arguments the formatting happens only if a handler takes the record.
-- **Every line becomes a unique string.** A log aggregator groups on the message template; with f-strings there
-  is no template, so `checked docs/code/logging.md` and `checked docs/code/python-typing.md` are two distinct
-  messages and no count, rate, or alert can be built over the pair.
+## 8. Nest Spans Around Operations With Meaningful Duration
 
-Both are real, both are accepted. The practical mitigation is the one already in section 2: keep per-document
-and per-section narration at `debug`, and keep the hot inner loop — the one walking a document's lines — free
-of log calls entirely rather than trying to make them cheap.
+Use OpenTelemetry spans for a check run and its per-document work. Give spans stable operation names and add
+small scalar attributes such as the document path and finding count. A nested span gives the work a parent,
+duration, and trace identity without coupling library code to an exporter. The application owns span export
+and log handlers, so an importing process remains free to configure its own output layers.
+
+```python
+# ✅ Good — the child span records duration and links its event to the parent run
+with tracer.start_as_current_span('check.header.document') as span:
+    span.set_attribute('document.path', path)
+    logger.debug('document checked', extra={'fields': {'document': path}})
+```
 
 ## Checklist
 
@@ -264,6 +271,9 @@ Before committing code, verify:
 - [ ] No `basicConfig`, `addHandler`, or root-logger `setLevel` outside an entry point — `NullHandler` at the
       package root excepted
 - [ ] No log call sits in a per-line loop, whatever its level
+- [ ] New events use stable messages and JSON-serializable values under `extra={'fields': {...}}`
+- [ ] Operation spans have stable names, scalar attributes, and a parent where the operation is nested
+- [ ] Library modules do not configure a tracer provider, exporter, or log handler
 
 ## References
 
@@ -278,3 +288,5 @@ Before committing code, verify:
 - [Python docs — Logging HOWTO: Configuring Logging for a Library](https://docs.python.org/3/howto/logging.html#configuring-logging-for-a-library)
 - [Python docs — `logging.Logger.exception`](https://docs.python.org/3/library/logging.html#logging.Logger.exception)
 - [Python docs — Logging Cookbook](https://docs.python.org/3/howto/logging-cookbook.html)
+- [OpenTelemetry Python — Instrumentation](https://opentelemetry.io/docs/languages/python/instrumentation/)
+- [Rust tracing — spans, events, and subscribers](https://docs.rs/tracing/latest/tracing/)

@@ -107,21 +107,23 @@ class FrontmatterCode1044Error(Exception):
 ```
 
 ```python
-# ✅ Good — the hierarchy represents the choices available to callers
-class CheckerError(Exception):
-    """Base class for failures produced by a document check."""
+# ✅ Good — callers can handle either invalid-name case together or respond to each one
+class CorpusNameError(Exception):
+    """Base class for corpus-name validation failures."""
 
 
-class SchemaUnavailableError(CheckerError):
-    """Raised when a corpus schema cannot be loaded, so no document in it can be checked."""
+class EmptyCorpusNameError(CorpusNameError):
+    """Raised when a corpus name is empty."""
 
 
-class DocumentUnreadableError(CheckerError):
-    """Raised when one document cannot be read and the run may skip it."""
+class InvalidCorpusNameCharacterError(CorpusNameError):
+    """Raised when a corpus name contains a character outside its format."""
 ```
 
-Keep a validator's error code as structured data on the relevant exception when it remains useful for
-diagnostics. It does not automatically deserve another level in the class hierarchy.
+Give each subtype its own name and context when callers can distinguish the cases. Different messages alone do not
+justify subtypes when callers handle the failures identically; distinct validation outcomes with different structured
+context or caller responses belong in separate subtypes. Keep a validator's error code as structured data when it
+remains useful for diagnostics; a numeric code alone does not automatically deserve another class.
 
 ## 4. Exceptions Carry the Context a Handler Needs
 
@@ -147,29 +149,50 @@ class BudgetExceededError(CheckerError):
 Store only context safe to expose through logs and tracebacks. Credentials, tokens, and credential-bearing
 URLs never become exception attributes or message text.
 
-## 5. Preserve Foreign Exceptions Until a Domain Boundary Adds Meaning
+## 5. Add an Error Layer Only When It Adds Context
 
-Do not wrap an exception merely because it came from a dependency. Let it propagate when its existing type is
-already part of the function's contract. Translate it at a public boundary when the dependency type is an
-implementation detail or when the domain can add a recovery decision.
+Wrap a lower-level error when the current operation adds useful context, such as which larger value or workflow
+could not be built. Each layer names the operation attempted and stores the context a caller needs; chain the
+lower-level error with `raise ... from exc` so its type, attributes, and traceback remain available. Catch the
+narrow lower-level type that the operation can raise. When the lower-level type already describes the failure
+and this layer adds no context or recovery decision, let it propagate unchanged.
 
 ```python
-# ❌ Bad — this translation loses the precise filesystem category and adds no domain meaning
-try:
-    return document_path.read_text(encoding='utf-8')
-except OSError as exc:
-    raise CheckerError(str(exc)) from exc
+# ❌ Bad — the caller learns which segment failed, but not that the complete manifest name was invalid
+def parse_manifest_name(raw: str) -> ManifestName:
+    return ManifestName.parse(raw)
 ```
 
 ```python
-# ✅ Good — the domain type states which operation failed and preserves the original cause
-try:
-    schema = json.loads(schema_text)
-except json.JSONDecodeError as exc:
-    raise SchemaUnavailableError(corpus_name) from exc
+# ✅ Good — this layer identifies the failed operation and retains the segment error as its cause
+class InvalidManifestNameError(Exception):
+    """Raised when a manifest name cannot be parsed."""
+
+    def __init__(self, manifest_name: str) -> None:
+        self.manifest_name = manifest_name
+        super().__init__(f'invalid manifest name {manifest_name!r}')
+
+
+def parse_manifest_name(raw: str) -> ManifestName:
+    try:
+        return ManifestName.parse(raw)
+    except ManifestSegmentError as exc:
+        raise InvalidManifestNameError(raw) from exc
 ```
 
-The translated exception carries safe domain context; the chained cause retains the dependency traceback.
+Do not catch an error only to repeat its message in a new exception. A wrapper that adds no operation context
+discards the lower type without giving callers or operators a new fact.
+
+```python
+# ❌ Bad — a new type adds no context, while stringifying loses structured error details
+try:
+    return ManifestName.parse(raw)
+except ManifestSegmentError as exc:
+    raise InvalidManifestNameError(str(exc)) from exc
+```
+
+The outer exception's message describes its own layer, not the source's message. Python's exception chain carries
+the lower-level diagnosis, just as a source field does in a Rust error type.
 
 ## Checklist
 
@@ -184,7 +207,7 @@ Before committing code, verify:
 - [ ] Validator codes are structured attributes where useful, not automatically distinct exception classes
 - [ ] Stable handler inputs are attributes; no caller must parse `str(exc)`
 - [ ] Exception attributes and messages contain no secrets or credential-bearing URLs
-- [ ] A translated dependency exception adds domain meaning and preserves its cause
+- [ ] A wrapped lower-level error adds operation context and preserves its cause with `raise ... from exc`
 
 ## References
 
@@ -197,4 +220,6 @@ Before committing code, verify:
 ## External References
 
 - [Python documentation — Built-in Exceptions](https://docs.python.org/3.12/library/exceptions.html)
+- [Real Python — Python's Built-in Exceptions](https://realpython.com/python-built-in-exceptions/)
 - [Python tutorial — User-defined Exceptions](https://docs.python.org/3.12/tutorial/errors.html#user-defined-exceptions)
+- [Real Python — Effectively Raising Exceptions](https://realpython.com/python-raise-exception/)

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "feat-cli.header.json",
+  "title": "CLI feature document frontmatter",
+  "description": "Narrows feat.header.json for docs/feat/cli.md and docs/feat/cli-*.md. The prose authority is docs/__meta__/feat-cli.md.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^cli(?:-[a-z0-9]+)*$",
+      "description": "The cli namespace alone or followed by the command hierarchy in kebab-case."
+    }
+  }
+}
