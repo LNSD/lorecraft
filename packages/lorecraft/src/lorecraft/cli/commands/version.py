@@ -4,8 +4,8 @@ from typing import Annotated
 
 import typer
 
-from .._registry import register
-from .._version import detailed_version, git_description, short_version
+from ..registry import register
+from ..version import detailed_version, git_description, short_version
 
 
 @register('version')
