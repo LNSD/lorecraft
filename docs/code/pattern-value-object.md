@@ -1,6 +1,6 @@
 ---
 name: "pattern-value-object"
-description: "Runtime-validated value objects: a frozen one-field dataclass whose only validator is parse(). Load when a domain value needs parsing, a runtime invariant, or behavior of its own"
+description: "Runtime-validated value objects with documented invariants and a parse() boundary. Load when a domain value needs parsing, a runtime invariant, or behavior of its own"
 type: "core"
 scope: "global"
 ---
@@ -21,12 +21,23 @@ The mechanism that actually holds at runtime:
 ```python
 @dataclass(frozen=True, slots=True)     # exactly one field
 @classmethod
-def parse(cls, raw: str) -> 'Self': ... # the only validator
+def parse(cls, raw: str) -> 'Self': ... # named input boundary
+def __post_init__(self) -> None: ...    # guard direct construction when needed
 def __str__(self) -> str: ...           # as convenient as the str it replaces
 ```
 
 plus the same `parse` in the loader that builds a record out of parsed frontmatter, so deserialization runs the
 same check rather than trusting the file.
+
+State the complete value format in the class docstring, beside the field whose value carries it. Name accepted
+characters, excluded forms, bounds, case handling and normalization where they apply. The class docstring tells
+a caller what can be constructed before they have an invalid input.
+
+A failed parse raises a value-specific error declared beside the value object, under the package's domain error
+hierarchy. The error owns the rejected value and useful failure context, such as the invalid character and its
+position, and builds the message. `parse` or a direct-construction guard selects the failure and raises the
+error without composing its text. [python-exceptions](python-exceptions.md) owns the hierarchy and
+structured-context rules.
 
 A value earns a value object when it does at least one of three jobs:
 
@@ -46,15 +57,14 @@ Three signals a value object is missing, all visible in a diff:
 
 **The one guarantee Python cannot give.** In a language with enforced privacy, a wrapper type's invariant
 rests on a **private field**: construction outside the validating constructor is a compile error. Python has no
-privacy — a leading
-underscore is a convention, and `CorpusName('NOT VALID')` calls the generated `__init__` and succeeds. A reader
-arriving from a language with real privacy will look for the private field; it is not there and cannot be. The
-replacement guarantee is two-part and weaker by design:
+enforced privacy. A leading underscore is a convention, and a caller can deliberately bypass construction. The
+ordinary constructor can still uphold the invariant: when direct construction must be safe, check the field in
+`__post_init__` and let `parse` delegate to `cls(raw)`. The practical guarantee has two parts:
 
-- **Constructed at the boundary only.** Every value object is built by `parse` where the value enters the
-  process — CLI argument, format specification load, parsed frontmatter, a path walked off disk — and passed
-  onward thereafter. A value object constructed all over the domain is a value object whose invariant nobody
-  can locate.
+- **Constructed at the boundary only.** Call `parse` where the value enters the process — CLI argument, format
+  specification load, parsed frontmatter, a path walked off disk — and pass the object onward thereafter. A
+  value object constructed all over the domain is a value object whose invariant nobody can locate. The
+  `__post_init__` guard prevents an ordinary direct constructor call from bypassing validation.
 - **`frozen=True`, so nothing mutates past the check.** The invariant is verified once and cannot be
   invalidated afterwards, which is the half of that guarantee Python *can* give.
 
@@ -63,9 +73,10 @@ Two further rules this pattern absorbs:
 - **A conversion is a named classmethod, not a second `__init__`.** `DocumentRef.from_parts(corpus, name)`
   states what it converts. An `__init__` that accepts several shapes and sniffs which one it got hides the
   conversion inside the constructor and makes the invariant untraceable.
-- **Parsing lives in one place, named the same everywhere.** The validator is `parse` on every value object in
-  the codebase. Not `from_str` on one and `validate` on the next: a reader looking for where a value is checked
-  must be able to guess the name.
+- **Parsing has one public name.** The input boundary is `parse` on every value object in the codebase. Not
+  `from_str` on one and `validate` on the next: a reader looking for where a value is checked must be able to
+  guess the name. If `__post_init__` enforces direct construction, `parse` delegates to it rather than
+  duplicating the check.
 
 ## Examples
 
@@ -85,9 +96,49 @@ def record_finding(corpus: str, document: str, finding: Finding) -> None:
 ```python
 # ✅ Good — two types, so a transposition is visible at the call site and the constraint is
 # checked once, where the value entered.
+class CorpusNameError(Error):
+    """Base class for corpus-name validation failures."""
+
+
+class EmptyCorpusNameError(CorpusNameError):
+    """A corpus name is empty."""
+
+    def __init__(self) -> None:
+        self.name = ''
+        super().__init__('corpus name cannot be empty')
+
+
+class InvalidCorpusNameCharacterError(CorpusNameError):
+    """A corpus name contains a character outside its required format.
+
+    Attributes:
+        name: The rejected corpus name.
+        position: Zero-based position of the invalid character.
+        character: The invalid character.
+    """
+
+    def __init__(self, name: str, position: int) -> None:
+        self.name = name
+        self.position = position
+        self.character = name[position]
+        super().__init__(f'invalid character {self.character!r} in corpus name {name!r}')
+
+
 @dataclass(frozen=True, slots=True)
 class CorpusName:
-    """A corpus name: lowercase ASCII, hyphens and underscores."""
+    """A validated corpus name.
+
+    A valid name matches ``[a-z_][a-z0-9_]*``:
+
+    - Is not empty.
+    - Starts with a lowercase ASCII letter or underscore.
+    - Continues with only lowercase ASCII letters, digits or underscores.
+
+    Parsing preserves the spelling.
+
+    Attributes:
+        value: The validated name, exactly as supplied.
+    """
 
     value: str
 
@@ -102,10 +153,15 @@ class CorpusName:
             The validated corpus name.
 
         Raises:
-            InvalidCorpusNameError: If the name is empty or not lowercase ASCII.
+            CorpusNameError: If the name is not lowercase snake case.
         """
-        if not _CORPUS_RE.fullmatch(raw):
-            raise InvalidCorpusNameError(f'corpus name must be lowercase ASCII: {raw!r}')
+        if not raw:
+            raise EmptyCorpusNameError()
+        if raw[0] not in ascii_lowercase + '_':
+            raise InvalidCorpusNameCharacterError(raw, 0)
+        for position, character in enumerate(raw[1:], start=1):
+            if character not in ascii_lowercase + digits + '_':
+                raise InvalidCorpusNameCharacterError(raw, position)
         return cls(raw)
 
     def __str__(self) -> str:
@@ -114,7 +170,7 @@ class CorpusName:
 
 @dataclass(frozen=True, slots=True)
 class DocumentName:
-    """The name of a document within a corpus: its filename without `.md`."""
+    """A document's non-empty filename stem, without `.md`."""
 
     value: str
 
@@ -290,7 +346,7 @@ the wrong document; a dropped `- 1` folds one heading into the section above it.
 test, and both read as correct code in review. A distinct type makes the first jump out of a diff and makes the
 second a missing method call.
 
-**An invariant checked at the edge stays checked.** A `CorpusName` that exists has been through `parse`, so
+**An invariant checked at the edge stays checked.** A `CorpusName` built through `parse` has been checked, so
 nothing downstream re-validates it, defends against it, or trusts a docstring — the check at the edge is
 carried by the type rather than by discipline.
 
@@ -314,7 +370,7 @@ and nothing to check is ceremony, and ceremony is what makes the next reader sto
 - **A value object is not a validator for external state.** "Does this document exist on disk?", "is this
   schema still the one its corpus declares?" depend on the world, not on the value. Those stay runtime checks
   in the domain.
-- **Keep validation off hot paths.** `parse` runs on every construction: right once per document loaded, wrong
+- **Keep validation off hot paths.** Validation runs on every construction: right once per document loaded, wrong
   per line inside a section scan. Wrap the document's identity, not each line of its prose.
 - **If wrapping forces callers to unwrap immediately**, the boundary is in the wrong place. Move `parse` to the
   edge the value actually enters through, and give the type the method the caller was reaching for.
@@ -328,7 +384,10 @@ indistinguishable from an oversight, and the next reader will treat it as one.
 - [ ] Every domain value with a runtime invariant, a unit or base, or behavior of its own is a value object
 - [ ] A pure static distinction without a runtime invariant uses `typing.NewType` ([pattern-newtype](pattern-newtype.md))
 - [ ] The wrapper is `@dataclass(frozen=True, slots=True)` with exactly one meaningful field
-- [ ] The validator is a classmethod named `parse`, and it is the only validator
+- [ ] The class docstring states the complete value format and whether parsing normalizes the input
+- [ ] The input boundary is a classmethod named `parse`; a direct-construction guard in `__post_init__` shares its check
+- [ ] Rejection raises a value-specific domain error declared beside the value object; the error owns the
+      rejected value, useful context and message
 - [ ] The value object is constructed at the boundary the value enters through, and nowhere else
 - [ ] A conversion is a named classmethod (`from_parts`), never a second branch inside `__init__`
 - [ ] Deserialization validates through the same `parse`, rather than storing the bare primitive
@@ -341,6 +400,7 @@ indistinguishable from an oversight, and the next reader will treat it as one.
 
 - [principle-least-surprise](principle-least-surprise.md) - Foundation: A signature saying `str` twice surprises the caller who transposes them
 - [pattern-newtype](pattern-newtype.md) - Related: Static-only distinctions for values without runtime invariants
+- [python-exceptions](python-exceptions.md) - Related: Domain error hierarchy and structured failure context
 - [pattern-registry](pattern-registry.md) - Related: Registry keys are exactly the kind of identity that earns a value object
 - [pattern-resource-lifecycle](pattern-resource-lifecycle.md) - Related: A lifecycle is one state value, not several booleans
 

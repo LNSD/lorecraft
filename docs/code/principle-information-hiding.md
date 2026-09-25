@@ -1,6 +1,6 @@
 ---
 name: "principle-information-hiding"
-description: "Information Hiding — reveal as little as possible: a leading underscore is the default for every name and every helper module, a package's `__all__` is its whole public surface and the only widening that counts, reaching into another subpackage's underscored module is a violation even though nothing prevents it, and every re-export into `__init__.py` needs a reason, because widening is cheap and retracting is not. Load when adding a name to a package's surface, deciding what an `__init__.py` re-exports, or reviewing what a subpackage reveals"
+description: "Information Hiding — reveal as little as possible: a leading underscore is the default for every name while a module is kept internal by its package rather than its file name, a package's `__all__` is its whole public surface and the only widening that counts, reaching into another subpackage's underscored name is a violation even though nothing prevents it, and every re-export into `__init__.py` needs a reason, because widening is cheap and retracting is not. Load when adding a name to a package's surface, deciding what an `__init__.py` re-exports, or reviewing what a subpackage reveals"
 type: "principle"
 scope: "global"
 ---
@@ -21,12 +21,12 @@ Operationally, in Python:
 2. **A package's `__all__` is its surface.** The `__all__` in a package's `__init__.py` is the list of names the
    package supports, and adding to it is the only widening that counts. Everything reachable by a longer import
    path is reachable the way a screwdriver reaches the inside of a radio.
-3. **Reaching into another subpackage's underscored module is the violation.** Nothing raises, nothing warns,
+3. **Reaching into another subpackage's underscored name is the violation.** Nothing raises, nothing warns,
    the import simply succeeds — which is exactly why the convention has to carry the weight. An underscore is a
    request, and a request that is honoured only when enforced is not a convention at all.
-4. **A module-private helper module takes a leading underscore in its name.** A helper module named
-   `_heading_parsing` announces at every import site that it belongs to its package; one named
-   `heading_parsing` reads as part of the surface whether or not anyone meant it to.
+4. **A module's privacy is its package's decision, not its file name.** A module whose names the package's
+   `__all__` does not re-export is internal whatever it is called. An underscore on the file name adds nothing
+   to that, and it makes every import of the module from inside its own package read like a breach.
 5. **Re-exporting a name into `__init__.py` is a decision with a reason**, not a convenience for shortening an
    import in one call site. Each re-export is a name the package now supports forever.
 
@@ -106,7 +106,7 @@ class SectionIndex:
 # package rewrote `_validate_against_schema` to take a compiled schema instead of a schema
 # mapping, its own tests passed, and the skill checker broke in a release nobody connected
 # to that change.
-from ..frontmatter._schema import _validate_against_schema
+from lorecraft.frontmatter.schema import _validate_against_schema
 
 
 def check_skill(document: Document) -> list[Finding]:
@@ -117,7 +117,7 @@ def check_skill(document: Document) -> list[Finding]:
 # ✅ Good — the dependency goes through a supported name. If the frontmatter package wants
 # that helper reusable, it publishes it deliberately and owns it; until then, the skill
 # checker asks for the operation rather than the internals that implement it.
-from ..frontmatter import FrontmatterChecker
+from lorecraft.frontmatter import FrontmatterChecker
 
 
 def check_skill(checker: FrontmatterChecker, document: Document) -> list[Finding]:
@@ -169,8 +169,9 @@ Before committing code, verify:
 - [ ] Every new name starts with an underscore unless a caller outside its module needs it
 - [ ] Each package's `__init__.py` declares an explicit `__all__`; no `import *` builds the surface
 - [ ] Every name added to `__all__` has a caller that needs it and an owner willing to support it
-- [ ] No module imports an underscored name or module from another subpackage
-- [ ] Helper modules that belong to one package are named with a leading underscore
+- [ ] No module imports an underscored name from another subpackage
+- [ ] A module is kept internal by leaving its names out of its package's `__all__`, not by an underscore on
+      its file name
 - [ ] A class's public surface is the questions callers ask, not a mirror of its representation
 - [ ] No name was made public solely so a test could reach it
 - [ ] Public attributes appear only on records with no invariant to protect

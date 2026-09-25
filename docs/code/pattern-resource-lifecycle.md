@@ -21,6 +21,11 @@ pair. The pair names the phases and is callable directly where a `with` block do
 the release automatic and exception-safe where it does. Both exist on every acquiring type — they are not
 alternatives.
 
+`with` is Python's scope-bound cleanup mechanism: when `__enter__` succeeds, `__exit__` runs as the block
+leaves, including when its body raises. This provides the useful cleanup property of RAII without Rust's
+ownership guarantee. A reference can escape the block, so operations on a released resource still need a
+runtime guard where misuse is possible. A type annotation alone cannot make that reference unusable.
+
 Six rules:
 
 1. **Acquisition names what it acquires; release is its inverse.** `connect` and `disconnect`, not `setup` and
@@ -283,7 +288,6 @@ undocumented deviation is always wrong** — a release call outside a `finally`,
 
 - [principle-least-surprise](principle-least-surprise.md) - Foundation: A caller expects `with` to release on the failing path
 - [pattern-value-object](pattern-value-object.md) - Related: The lifecycle state is a value, not a pile of flags
-- [pattern-registry](pattern-registry.md) - Related: Registered checkers are constructed by callers who then own their lifecycle
 
 ## External References
 

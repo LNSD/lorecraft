@@ -1,6 +1,6 @@
 ---
 name: "python-typing"
-description: "Annotation spelling and honesty: builtin generics, `X | None`, annotated public signatures, justified `Any`, `TYPE_CHECKING` cycle imports, and the checker as a floor rather than a ceiling. Load when writing or reviewing a type annotation, adding a generic base, or declaring a protocol"
+description: "Annotation spelling and honesty: builtin generics, `X | None`, `type` aliases, `Self`, justified `Any`, and static checking. Load when writing or reviewing a type annotation, alias, or alternative constructor"
 type: "core"
 scope: "global"
 ---
@@ -50,8 +50,8 @@ def load_documents(
     ...
 ```
 
-`typing` is still imported for what the builtins do not provide: `Any`, `NewType`, `TypeVar`, `Generic`,
-`Protocol`, `TYPE_CHECKING`, `ClassVar`, `Callable`, `Iterator`.
+`typing` is still imported for what the builtins do not provide: `Any`, `NewType`, `Self`, `TYPE_CHECKING`,
+`ClassVar`, `Final`, `Callable`, `Iterator`.
 
 **Enforcement:** ruff `UP` (UP006, UP007, UP035, UP045) — not currently enabled; see the checklist.
 
@@ -159,84 +159,77 @@ The guard is for cycles, not for import cost. An import with no cycle is written
 the guard means the module can no longer use the name in an `isinstance` check or a default, and the next
 person to need it there writes a second, unguarded import of the same thing.
 
-## 5. `TypeVar` and `Generic` for a Parameterized Base, `Protocol` for a Seam You Do Not Own
+## 5. Declare Structural Aliases With `type`
 
-Use `TypeVar` + `Generic[T]` when a base class is genuinely parameterized by a type its subclasses pick — a
-checker base parameterized by its configuration record is the archetype. Use `Protocol` when you need to
-describe the shape of something you did not define and cannot make inherit from you: a third-party parser, a
-callback the caller supplies, a sink object passed in from outside.
-
-Reaching for `Protocol` where a real base class exists loses the shared implementation; reaching for
-inheritance across a boundary you do not own is not available at all.
+Use the Python 3.12 `type` statement to name a reusable type expression. A plain assignment looks like a
+runtime value, while `type` tells the reader and checker that the name is an alias. `TypeAlias` is the older
+spelling and is unnecessary for this project's minimum Python version.
 
 ```python
-# ❌ Bad — the config type is erased, so every subclass re-states in a docstring what
-# the signature could have carried, and a subclass handed the wrong config record
-# fails somewhere inside `run` instead of at the call
-class Checker:
-    def __init__(self, config: Any) -> None:
-        self.config = config
+# ❌ Bad — the assignment does not make the alias declaration explicit
+SchemaKey = tuple[str, str]
 ```
 
 ```python
-# ✅ Good — the parameter travels with the class, so the subclass's config type is
-# visible at its declaration
-TConfig = TypeVar('TConfig')
+# ✅ Good — the declaration marks the name as a type alias
+type SchemaKey = tuple[str, str]
+```
 
+`type` creates a `TypeAliasType`, whose value is evaluated lazily. Code that needs an actual runtime type
+expression uses that expression directly rather than assuming the alias itself is one.
 
-class Checker(Generic[TConfig]):
-    def __init__(self, config: TConfig) -> None:
-        self.config = config
+## 6. Return `Self` From an Alternative Constructor
 
+Annotate a classmethod that constructs `cls` with `Self`. A hard-coded class return type hides the fact that
+the same method called on a subclass returns that subclass. Use the concrete class name when the method
+deliberately constructs that class regardless of which subclass calls it.
 
-class OutlineChecker(Checker[OutlineCheckConfig]):
-    ...
+```python
+# ❌ Bad — a subclass call is annotated as returning only the base class
+class CorpusLabel:
+    @classmethod
+    def parse(cls, raw: str) -> 'CorpusLabel':
+        return cls(raw)
 ```
 
 ```python
-# ✅ Good — a Protocol for a seam the caller fills; nothing here can be made to inherit
-class FindingSink(Protocol):
-    def report(self, finding: Finding) -> None: ...
+# ✅ Good — the return type follows the class on which parse was called
+class CorpusLabel:
+    @classmethod
+    def parse(cls, raw: str) -> Self:
+        return cls(raw)
 ```
 
-A `Protocol` used only in one annotation, with one implementation, in one module, is a base class written the
-long way. Delete it and annotate the concrete type.
+## 7. Review the Claims That `ty` Cannot Prove
 
-## 6. Nothing Checks These Annotations, So a Reviewer Must
-
-There is no `mypy` or `pyright` run in this repository. An annotation is therefore unverified prose that looks
-like a guarantee, and a wrong one is **worse than none**: a missing annotation prompts the reader to check the
-body, while a lying one persuades them not to.
+`just typecheck` runs `ty` over the package. A clean check catches many mismatches, but it cannot prove that
+an annotation expresses the intended contract: `Any` can hide a mismatch, and `str` can admit values whose
+domain meaning has not been checked. A reviewer checks the claim against the body and its callers even when
+`ty` passes.
 
 A reviewer reads every annotation in a diff against the body that backs it, and asks three questions:
 
 | Question | The defect it catches |
 |----------|-----------------------|
-| Can this function return `None` on any path? | `-> FormatSpec` on a body with a bare `return` or an early `return None` |
-| Does every declared parameter type match what callers actually pass? | `document: str` on a method that is also called with a `RuleDocumentRef` |
-| Did the return type survive the last edit? | A function that grew a `raise`/`return` pair and kept the old annotation |
+| Can this function return `None` on any path? | A branch hidden by `Any` or an ignored diagnostic can leave `-> FormatSpec` on a body that returns `None` |
+| Does the declared parameter type express what callers may pass? | `str` can admit arbitrary text where the caller must supply a validated document name |
+| Did the return type survive the last edit? | A widened `Any` can make an outdated return annotation pass the checker |
 
 ```python
-# ❌ Bad — annotated as total, but the early exit returns None. Every caller writes
-# `spec.schema` and the ones that hit the unspecified-corpus path get an
-# AttributeError at a line the annotation said was safe
+# ❌ Bad — Any hides the absent result from the checker and the return annotation
 def spec_for(self, corpus: str) -> FormatSpec:
-    if corpus not in self._specs:
-        return None
-    return self._specs[corpus]
+    value: Any = self._specs.get(corpus)
+    return value
 ```
 
 ```python
-# ✅ Good — the annotation matches every path, so the caller is told to handle absence
+# ✅ Good — the source's optional result remains visible to the caller and checker
 def spec_for(self, corpus: str) -> FormatSpec | None:
-    if corpus not in self._specs:
-        return None
-    return self._specs[corpus]
+    return self._specs.get(corpus)
 ```
 
-The corollary is that an annotation is not a validation. A function that must reject a bad value validates it
-in the body and raises; the annotation documents the intent, and nothing enforces it at the call. Where the
-value crosses a boundary, that check is owed.
+An annotation is not runtime validation. A function that must reject a bad value validates it at the boundary
+and raises; the annotation documents the intent, while `ty` checks statically known calls.
 
 ## Checklist
 
@@ -249,10 +242,11 @@ Before committing code, verify:
 - [ ] Each `Any` is either an opaque third-party value, a `**kwargs` passthrough, or unvalidated input, and
       the reason is stated
 - [ ] Every import under `if TYPE_CHECKING:` exists to break a cycle, and each annotation using it is quoted
-- [ ] A parameterized base uses `TypeVar`/`Generic`; `Protocol` appears only for a type this project does not
-      define
+- [ ] A new structural alias uses `type`, and code that needs a runtime type expression does not use the alias
+      object as that expression
+- [ ] An alternative constructor that constructs `cls` returns `Self`, preserving the subclass result
 - [ ] Every changed signature was read against its body: no path returns `None` under a non-optional return
-      type, and no annotation was left behind by the edit
+      type, no `Any` hides a mismatch, and no annotation was left behind by the edit; `just typecheck` passes
 
 ## References
 
@@ -261,6 +255,7 @@ Before committing code, verify:
 - [python-naming](python-naming.md) - Related: What the annotated functions and attributes are called
 - [python-docstrings](python-docstrings.md) - Related: The `Args:`/`Returns:` prose that accompanies a
   signature
+- [python-constants](python-constants.md) - Related: When a module-level name is annotated `Final[...]`
 - [python-modules](python-modules.md) - Related: Import placement and ordering, including the
   `TYPE_CHECKING` block
 
@@ -268,4 +263,5 @@ Before committing code, verify:
 
 - [PEP 604 - Allow writing union types as X | Y](https://peps.python.org/pep-0604/)
 - [PEP 585 - Type Hinting Generics In Standard Collections](https://peps.python.org/pep-0585/)
-- [PEP 544 - Protocols: Structural subtyping](https://peps.python.org/pep-0544/)
+- [PEP 695 - Type Parameter Syntax](https://peps.python.org/pep-0695/)
+- [PEP 673 - Self Type](https://peps.python.org/pep-0673/)
