@@ -425,7 +425,7 @@ subset of packages, a decision point:
 
 ```markdown
 ✅ Governs something `scope` cannot express
-**MANDATORY for ALL test modules under `packages/*/tests/it/`**
+**MANDATORY for ALL test modules under `packages/*/tests/`**
 **MANDATORY for ALL `pyproject.toml` files in the project**
 **MANDATORY for ALL dataclasses declared in the project**
 

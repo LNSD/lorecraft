@@ -18,7 +18,7 @@ a test function — its name, its structure, its assertions, its fixtures — is
 | Directory | Marker | Needs to run | Typical duration | Purpose |
 |---|---|---|---|---|
 | `tests/` beside the module, under `packages/*/src/` | `unit` | Nothing beyond the interpreter | Milliseconds | Pure logic: frontmatter parsing, outline matching, length budgets, version formatting |
-| `packages/*/tests/it/` | `it` | The package importable, nothing outside the process | Tens of milliseconds | The package's own modules wired together: a CLI driven through Typer's `CliRunner`, a checker over a fixture tree |
+| `packages/*/tests/` | `it` | The package importable, nothing outside the process | Tens of milliseconds | The package's own modules wired together: a CLI driven through Typer's `CliRunner`, a checker over a fixture tree |
 | `tests/e2e/`, at the root | `e2e` | The package installed, and a subprocess | Up to seconds | The product as a user runs it: the console script, its exit codes, and what it does with the machine it finds |
 
 `unit` lives in the source tree, in a `tests/` subpackage beside the module it tests ([§2](#2-a-unit-test-sits-beside-the-module-it-tests)).
@@ -256,7 +256,7 @@ def test_check_corpus_over_fixture_tree_reports_one_finding_per_document() -> No
 Before committing code, verify:
 
 - [ ] Every new unit test file is `tests/test_<module>.py` beside its subject under `packages/*/src/`; every
-      other test file is under `packages/*/tests/it/`, the root `tests/e2e/`, or a tier directory introduced
+      other test file is directly in `packages/*/tests/`, the root `tests/e2e/`, or a tier directory introduced
       in the same change as its marker and its gate
 - [ ] Every `tests/` subpackage under `packages/*/src/` has an `__init__.py`, holds only `unit` tests, and
       is excluded from the package's wheel and source distribution

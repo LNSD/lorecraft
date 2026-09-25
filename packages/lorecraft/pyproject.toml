@@ -1,0 +1,48 @@
+[project]
+name = "lorecraft"
+dynamic = ["version"]
+description = "Toolkit for the agent-facing documentation of a repository: rule documents, feature docs, skills and the format specifications that govern them"
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
+authors = [
+    { name = "Lorenzo Delgado", email = "lnsdev@proton.me" },
+]
+requires-python = ">=3.12"
+dependencies = [
+    "typer>=0.27.2",
+]
+
+[project.scripts]
+lorecraft = "lorecraft.cli:main"
+
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+# The version's home is the git tag, shared by every package in the workspace: see the root pyproject.toml.
+[tool.hatch.version]
+source = "vcs"
+
+# The git checkout is two levels up; hatch-vcs looks for it here, not in the package directory.
+[tool.hatch.version.raw-options]
+root = "../.."
+local_scheme = "node-and-date"
+
+# Unit tests sit in a `tests/` subpackage beside the module they test, inside src/. None of them ships:
+# `tests/` is a gitignore-style pattern that matches such a directory at any depth, so both targets drop
+# every one of them. Keeping them out is what lets a test import pytest without making it a dependency.
+[tool.hatch.build.targets.wheel]
+packages = ["src/lorecraft"]
+exclude = ["tests/"]
+
+# The include list keeps the sdist to the package source and its metadata files; without it hatchling ships
+# the whole package directory, the integration tier in tests/ included.
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src/lorecraft",
+    "/README.md",
+    "/LICENSE-MIT",
+    "/LICENSE-APACHE",
+]
+exclude = ["tests/"]

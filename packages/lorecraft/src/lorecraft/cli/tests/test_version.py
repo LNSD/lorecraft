@@ -3,7 +3,7 @@
 import pytest
 
 from lorecraft import __version__
-from lorecraft.cli._version import detailed_version, short_version
+from lorecraft.cli.version import detailed_version, short_version
 
 
 @pytest.mark.unit
