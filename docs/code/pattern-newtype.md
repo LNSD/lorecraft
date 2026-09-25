@@ -13,7 +13,7 @@ Use `typing.NewType` when two values share a runtime representation but mean dif
 needs runtime validation or behavior. The type checker then rejects accidental substitutions while values
 remain their original primitive at runtime.
 
-`NewType` is not a wrapper or validator. Calling `CorpusName(raw)` returns `raw` unchanged; it does not check
+`NewType` is not a wrapper or validator. Calling `ReportTitle(raw)` returns `raw` unchanged; it does not check
 the string, create a distinct runtime object, or protect against untyped callers. Validate external data at
 the boundary. When a value needs a runtime invariant or its own behavior, use a frozen value object instead
 ([pattern-value-object](pattern-value-object.md)).
@@ -24,33 +24,33 @@ Use one alias for each meaning; do not create a `NewType` when the distinction c
 
 ## Examples
 
-Two names may both be strings but occupy distinct roles in a signature. Keep those roles visible to the type
-checker:
+Two pieces of report text may both be strings but occupy distinct roles in a signature. Keep those roles
+visible to the type checker:
 
 ```python
-# ❌ Bad — both arguments are strings, so swapping corpus and document compiles.
-def schema_path(corpus: str, document: str) -> str:
-    return f'docs/__meta__/{corpus}-{document}.header.json'
+# ❌ Bad — both arguments are strings, so swapping the title and message compiles.
+def report_line(title: str, message: str) -> str:
+    return f'{title}: {message}'
 
 
-schema_path('code', 'python-guide')
+report_line('Header check', 'Missing frontmatter')
 ```
 
 ```python
 # ✅ Good — the arguments carry distinct static types, so a swap is a type error.
 from typing import NewType
 
-CorpusName = NewType('CorpusName', str)
-DocumentName = NewType('DocumentName', str)
+ReportTitle = NewType('ReportTitle', str)
+FindingMessage = NewType('FindingMessage', str)
 
 
-def schema_path(corpus: CorpusName, document: DocumentName) -> str:
-    return f'docs/__meta__/{corpus}-{document}.header.json'
+def report_line(title: ReportTitle, message: FindingMessage) -> str:
+    return f'{title}: {message}'
 
 
-corpus = CorpusName('code')
-document = DocumentName('python-guide')
-schema_path(corpus, document)
+title = ReportTitle('Header check')
+message = FindingMessage('Missing frontmatter')
+report_line(title, message)
 ```
 
 ## Why It Matters

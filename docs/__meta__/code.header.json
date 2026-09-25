@@ -33,7 +33,7 @@
     "scope": {
       "type": "string",
       "pattern": "^(?:global|pkg:[a-z_][a-z0-9_]*(?:\\.[a-z_][a-z0-9_]*)*)$",
-      "description": "global, or pkg:<name> naming a package directory under src/lorecraft/ as Python spells it: snake_case, dotted for nesting."
+      "description": "global, or pkg:<name> naming a package by its full import path, starting lorecraft_core or lorecraft: snake_case, dotted for nesting."
     }
   }
 }

@@ -37,7 +37,7 @@
     "components": {
       "type": "string",
       "pattern": "^\\s*(?:module|skill|spec):[a-z0-9_]+(?:[-._][a-z0-9_]+)*(?:\\s*,\\s*(?:module|skill|spec):[a-z0-9_]+(?:[-._][a-z0-9_]+)*)*\\s*$",
-      "description": "Comma-separated, each entry prefixed module: (a module under src/lorecraft/, snake_case and dotted), skill: (a directory under .agents/skills/, kebab-case), or spec: (a file stem under docs/__meta__/, kebab-case and dotted for a layer). The pattern fixes the prefix vocabulary and the character set; which separator each prefix uses is stated in feat.md section 2 and verified by reading, because one regular expression covering all three at once is less readable than the rule it encodes."
+      "description": "Comma-separated, each entry prefixed module: (a module by its full import path, starting lorecraft_core or lorecraft, snake_case and dotted), skill: (a directory under .agents/skills/, kebab-case), or spec: (a file stem under docs/__meta__/, kebab-case and dotted for a layer). The pattern fixes the prefix vocabulary and the character set; which separator each prefix uses is stated in feat.md section 2 and verified by reading, because one regular expression covering all three at once is less readable than the rule it encodes."
     }
   }
 }

@@ -55,7 +55,7 @@ Each example has a brief description providing context, followed by the Bad/Good
 When more than one example is provided, present them as a numbered list.
 Always show Bad first, then Good.
 Use comments to explain why each is bad or good.
-Examples show the least invented code that carries the principle, cite no module, and never transcribe real code — no rename anywhere in `src/lorecraft/` may be able to falsify the doc ([code](code.md) §6).
+Examples show the least invented code that carries the principle, cite no module, and never transcribe real code — no rename anywhere in `packages/*/src/` may be able to falsify the doc ([code](code.md) §6).
 
 **Note:** The templates below use `\`` to represent backticks.
 Do not escape backticks in the actual document — use literal code block fences.
