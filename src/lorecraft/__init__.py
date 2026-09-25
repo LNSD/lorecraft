@@ -1,4 +1,4 @@
-"""Lorewright: checks for a repository's agent-facing documentation."""
+"""Lorecraft: checks for a repository's agent-facing documentation."""
 
 from ._metadata import __version__
 

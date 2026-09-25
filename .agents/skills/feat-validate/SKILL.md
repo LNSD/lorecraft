@@ -1,7 +1,7 @@
 ---
 name: feat-validate
 description: Verify feature doc alignment with implementation. Use when asking about feature implementation status, or to check that documented functionality exists in code and has test coverage
-compatibility: Requires the feature corpus in docs/feat/ and the checker sources in src/lorewright/. Reads code and tests; runs only the repository's own gates through just.
+compatibility: Requires the feature corpus in docs/feat/ and the checker sources in src/lorecraft/. Reads code and tests; runs only the repository's own gates through just.
 allowed-tools: Read Grep Glob Bash(just typecheck *) Bash(just test-unit *) Bash(just test *)
 ---
 
@@ -223,7 +223,7 @@ Produce a structured report listing:
 Depends on the type of documented capability:
 
 1. **Components & modules**
-   - Does the module exist in the documented location under `src/lorewright/`?
+   - Does the module exist in the documented location under `src/lorecraft/`?
    - Are documented entry points implemented?
    - Do component interactions match documentation?
 

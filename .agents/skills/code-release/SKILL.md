@@ -80,7 +80,7 @@ A `+`-suffixed local version is a development build. It is legitimate to hand so
 refuse it, which is the intended safety net.
 
 At runtime the package reports what it was built with, via `importlib.metadata` in
-`src/lorewright/_metadata.py`. `lorewright version --verbose` additionally runs
+`src/lorecraft/_metadata.py`. `lorecraft version --verbose` additionally runs
 `git describe --tags --always --dirty` when it is running from a checkout, so a developer's install
 shows the working tree it is actually sitting on rather than the version frozen at install time.
 
@@ -117,8 +117,8 @@ ls -la dist/
 Two files should appear, and only two:
 
 ```
-dist/lorewright-<version>.tar.gz            source distribution
-dist/lorewright-<version>-py3-none-any.whl  wheel
+dist/lorecraft-<version>.tar.gz            source distribution
+dist/lorecraft-<version>-py3-none-any.whl  wheel
 ```
 
 ## Verify the artifacts
@@ -134,8 +134,8 @@ python3 -c "import zipfile,sys;[print(n) for n in zipfile.ZipFile(sys.argv[1]).n
 
 It must contain, and contain nothing beyond:
 
-- `lorewright/` and everything under it, and no other top-level package
-- `lorewright-<version>.dist-info/licenses/LICENSE-MIT` and `LICENSE-APACHE`, because the project is
+- `lorecraft/` and everything under it, and no other top-level package
+- `lorecraft-<version>.dist-info/licenses/LICENSE-MIT` and `LICENSE-APACHE`, because the project is
   dual licensed and `license-files` in `pyproject.toml` puts both in the artifact
 - `METADATA`, `WHEEL`, `RECORD`
 
@@ -156,7 +156,7 @@ or `.d<date>` suffix means the build did not happen on the tagged commit, or hap
 tar tzf dist/*.tar.gz | sed 's|^[^/]*/||' | cut -d/ -f1 | sort -u
 ```
 
-The sdist carries only what is needed to build the package from source: `src/lorewright/`,
+The sdist carries only what is needed to build the package from source: `src/lorecraft/`,
 `pyproject.toml`, `README.md` and the two licence files. Everything else in the repository, `docs/`,
 `tests/`, `.agents/`, `.github/`, `justfile` and `uv.lock`, is repository material rather than package
 material, and is excluded by the `include` list in `[tool.hatch.build.targets.sdist]`.

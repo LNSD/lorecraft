@@ -30,7 +30,7 @@ def register(name: str) -> Callable[[CommandHandler], CommandHandler]:
     """Register the decorated function as the `name` subcommand.
 
     Args:
-        name: Subcommand as typed on the command line, so `'version'` for `lorewright version`.
+        name: Subcommand as typed on the command line, so `'version'` for `lorecraft version`.
 
     Returns:
         A decorator that records the handler and returns it unchanged, so the function is still

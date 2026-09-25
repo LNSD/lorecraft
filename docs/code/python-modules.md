@@ -23,13 +23,13 @@ alongside a package `outline/` in the same parent.
 When both exist, the package wins import resolution unconditionally. The module is unreachable — but it is
 still a file in the tree that a reader finds, a grep hits, and a reviewer edits, and its imports are still
 scanned by tooling. It is dead code wearing a live name, and the usual signal for dead code (nothing imports
-it) is absent, because `from lorewright.outline import X` looks exactly like an import of it.
+it) is absent, because `from lorecraft.outline import X` looks exactly like an import of it.
 
 ```
-# ❌ Bad — outline.py is unreachable; `from lorewright.checks.outline import OutlineReport`
+# ❌ Bad — outline.py is unreachable; `from lorecraft.checks.outline import OutlineReport`
 # resolves into the package, so edits to the module change nothing and the failure
 # is a confusing ImportError naming a symbol that is plainly right there
-lorewright/checks/
+lorecraft/checks/
     outline.py
     outline/
         __init__.py
@@ -38,7 +38,7 @@ lorewright/checks/
 
 ```
 # ✅ Good — one name, one location
-lorewright/checks/
+lorecraft/checks/
     outline/
         __init__.py
         parser.py
@@ -52,7 +52,7 @@ Promoting a module to a package means moving it in: `outline.py` becomes `outlin
 
 Inside `src/`, a module importing from its own package or a sibling package uses a relative import:
 `from .report import OutlineReport`, `from ..schema.loader import SchemaLoader`. Test modules import the
-library absolutely: `from lorewright.checks.outline import OutlineReport`.
+library absolutely: `from lorecraft.checks.outline import OutlineReport`.
 
 The two forms are answering different questions. Inside the package, the relative form says "this is our own
 code" at a glance and survives the package being renamed or vendored. In tests, the absolute form exercises the
@@ -63,8 +63,8 @@ around.
 # ❌ Bad — inside the library. The package's own name is baked into every file, so the
 # name cannot change without touching all of them, and nothing distinguishes an
 # internal import from a third-party one at a glance
-from lorewright.checks.outline.report import OutlineReport
-from lorewright.schema.loader import SchemaLoader
+from lorecraft.checks.outline.report import OutlineReport
+from lorecraft.schema.loader import SchemaLoader
 ```
 
 ```python
@@ -75,7 +75,7 @@ from .report import OutlineReport
 
 ```python
 # ✅ Good — in a test, importing the way a user would
-from lorewright.checks.outline import OutlineReport
+from lorecraft.checks.outline import OutlineReport
 ```
 
 ## 3. Three Dots Means the Module Is in the Wrong Place
@@ -111,7 +111,7 @@ in the diff: deleting a public name shows up as a line removed from `__all__`, n
 longer importable.
 
 ```python
-# ❌ Bad — `from lorewright.checks.outline import *` now also exports `parser`, `report`,
+# ❌ Bad — `from lorecraft.checks.outline import *` now also exports `parser`, `report`,
 # `logging`, and every name those modules re-exported. A later refactor that stops
 # importing `logging` here is a breaking change nobody noticed making
 from .parser import OutlineParser, split_heading
@@ -249,7 +249,7 @@ not restate isort's rules here.
 Before committing code, verify:
 
 - [ ] No `x.py` sits beside an `x/` package in the same directory
-- [ ] Imports inside `src/` of the library's own code are relative; imports in `tests/` name `lorewright.`
+- [ ] Imports inside `src/` of the library's own code are relative; imports in `tests/` name `lorecraft.`
       absolutely
 - [ ] No relative import uses three or more dots
 - [ ] Every package `__init__.py` that re-exports declares `__all__` as a list of string literals matching

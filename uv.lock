@@ -30,7 +30,7 @@ wheels = [
 ]
 
 [[package]]
-name = "lorewright"
+name = "lorecraft"
 source = { editable = "." }
 dependencies = [
     { name = "typer" },

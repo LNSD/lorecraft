@@ -2,15 +2,15 @@
 
 import pytest
 
-from lorewright import __version__
-from lorewright.cli._version import detailed_version, short_version
+from lorecraft import __version__
+from lorecraft.cli._version import detailed_version, short_version
 
 
 @pytest.mark.unit
 class TestShortVersion:
     def test_short_version_when_called_returns_the_program_name_and_installed_version(self) -> None:
         #: Given
-        expected = f'lorewright {__version__}'
+        expected = f'lorecraft {__version__}'
 
         #: When
         text = short_version()
@@ -32,7 +32,7 @@ class TestDetailedVersion:
         text = detailed_version(commit)
 
         #: Then
-        assert text.splitlines()[0] == f'lorewright {__version__}', 'the short version stays the first line'
+        assert text.splitlines()[0] == f'lorecraft {__version__}', 'the short version stays the first line'
         assert text.splitlines()[1] == f'Commit:   {commit}', 'the commit is reported directly under it'
 
     def test_detailed_version_without_a_commit_omits_the_commit_line(self) -> None:

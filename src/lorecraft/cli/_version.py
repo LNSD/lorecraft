@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 # The name the CLI is invoked by, and the name under which the package is distributed. They are
 # the same string today; keeping one constant means a rename touches one line.
-_PROGRAM_NAME: str = 'lorewright'
+_PROGRAM_NAME: str = 'lorecraft'
 
 # --tags so an annotated or lightweight tag both count, --always so a checkout with no tag still
 # reports its commit, --dirty so uncommitted work is visible rather than implied.
@@ -32,7 +32,7 @@ _GIT_TIMEOUT_SECONDS: float = 5.0
 
 
 def short_version() -> str:
-    """Return the one-line version, as `lorewright <version>`."""
+    """Return the one-line version, as `lorecraft <version>`."""
     return f'{_PROGRAM_NAME} {__version__}'
 
 
@@ -97,7 +97,7 @@ def _checkout_root() -> Path | None:
     other project's checkout, so running `git describe` from an installed copy's directory would
     happily describe a repository that has nothing to do with this package.
     """
-    # .../src/lorewright/cli/_version.py -> parents[0] cli, [1] lorewright, [2] src
+    # .../src/lorecraft/cli/_version.py -> parents[0] cli, [1] lorecraft, [2] src
     source_root = Path(__file__).resolve().parents[2]
     if source_root.name != 'src':
         return None

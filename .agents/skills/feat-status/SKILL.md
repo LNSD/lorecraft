@@ -194,4 +194,4 @@ After generating a status report:
 
 `report.py` is the only script in this repository that is not a PEP 723 script run through `uv`: it is a
 plain `python3` script carrying its own frontmatter parser and its own table renderer. Invoke it exactly as
-written above, and expect it to be replaced by the lorewright library.
+written above, and expect it to be replaced by the lorecraft library.
