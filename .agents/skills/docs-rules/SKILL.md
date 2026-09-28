@@ -2,7 +2,7 @@
 name: docs-rules
 description: Load the documentation rules that govern a document under docs/ - its format specification and content requirements. Use before creating or editing anything under docs/, when choosing which corpus a document belongs in, when adding a frontmatter field, or when fixing findings from /docs-rules-check
 compatibility: Requires uv to run the checks in /docs-rules-check
-allowed-tools: Bash(uv run lorecraft check header*), Bash(.agents/skills/docs-rules-check/scripts/check_structure.py*), Bash(.agents/skills/docs-rules-check/scripts/check_budget.py*), Bash(just check-docs*), Bash(grep *), Bash(ls docs/*), Bash(awk *)
+allowed-tools: Bash(uv run lorecraft check*), Bash(.agents/skills/docs-rules-check/scripts/check_structure.py*), Bash(.agents/skills/docs-rules-check/scripts/check_budget.py*), Bash(just check-docs*), Bash(grep *), Bash(ls docs/*), Bash(awk *)
 ---
 
 # Doc Rules
@@ -170,7 +170,7 @@ frontmatter schemas set `additionalProperties: false`, so an undeclared key is a
 
 These run without user permission:
 
-- `uv run lorecraft check header` with any flags — read-only, no side effects
+- `uv run lorecraft check` and `uv run lorecraft check header` with any flags — read-only, no side effects
 - `.agents/skills/docs-rules-check/scripts/check_structure.py` and `check_budget.py` with any flags — read-only, no side effects
 - `just check-docs`, which runs those three checks over the whole corpus
 - Reading any file under `docs/` or `.agents/skills/`

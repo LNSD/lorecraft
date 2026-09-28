@@ -14,15 +14,17 @@ standalone script per check. It is a Python project managed with `uv`, as a work
 - `tests/` is the end-to-end tier, a virtual member that is never built: the suites in `tests/e2e/` and their
   helper library in `tests/lib/`.
 
-**One check has moved into the command line so far: `lorecraft check header`.** The rest run as vendored
-scripts under `.agents/skills/*/scripts/`. Both are wired to `just check-docs` and `just check-skills` and
+**One check has moved into the command line so far: `lorecraft check header`.** A bare `lorecraft check`
+runs every check the command line carries, over one snapshot. The rest run as vendored scripts under
+`.agents/skills/*/scripts/`. Both are wired to `just check-docs` and `just check-skills` and
 gated in CI. Do not infer structure that is not on disk.
 
 The CLI is a router: `cli/app.py` declares the root application and the global options, and every subcommand
 lives in its own module under `cli/commands/`, joining by calling `@register(<name>)` beside its handler.
 `cli/registry.py` walks that package and mounts what registered itself, so a new subcommand is a new file —
 no dispatcher, no import list, no edit to the root application. A command group is a subpackage there:
-`cli/commands/check/` calls `register_group('check', app)`, and each check is a module beside it.
+`cli/commands/check/` calls `register_group('check', app)`, and each check is a module beside it that also
+calls `register_check` from `cli/check_run.py`, which is how a bare `lorecraft check` finds it.
 
 ## Quick Start
 

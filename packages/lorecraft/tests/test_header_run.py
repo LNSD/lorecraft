@@ -9,7 +9,7 @@ from typing import Final
 
 import pytest
 
-from lorecraft.checks import Database, HeaderRun, run_header
+from lorecraft.checks import CheckRun, Database, run_header
 from lorecraft_project.layout import SNAPSHOT_SCOPE
 from lorecraft_vfs import RootRelativePath, take_snapshot
 
@@ -27,7 +27,7 @@ def _write(root: Path, relative: str, data: bytes = b'') -> Path:
     return path
 
 
-def _run_every_document(database: Database) -> HeaderRun:
+def _run_every_document(database: Database) -> CheckRun:
     """Check every document the database's model lists."""
     return run_header(database, database.model().documents())
 
@@ -83,7 +83,7 @@ class TestRunHeader:
         run = _run_every_document(database)
 
         #: Then
-        ungoverned = [report.ref.path for report in run.reports if not report.aspects]
+        ungoverned = [report.ref.path for report in run.reports if not report.governed]
         assert ungoverned == [RootRelativePath.parse('docs/feat/overview.md')], (
             'the feat corpus has a spec but no header schema, so its one document is ungoverned'
         )
