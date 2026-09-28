@@ -14,14 +14,15 @@ standalone script per check. It is a Python project managed with `uv`, as a work
 - `tests/` is the end-to-end tier, a virtual member that is never built: the suites in `tests/e2e/` and their
   helper library in `tests/lib/`.
 
-**The checks are not in the library yet.** They run today as vendored scripts under
-`.agents/skills/*/scripts/`, wired to `just check-docs` and `just check-skills` and gated in CI. Do not
-infer structure that is not on disk.
+**One check has moved into the command line so far: `lorecraft check header`.** The rest run as vendored
+scripts under `.agents/skills/*/scripts/`. Both are wired to `just check-docs` and `just check-skills` and
+gated in CI. Do not infer structure that is not on disk.
 
 The CLI is a router: `cli/app.py` declares the root application and the global options, and every subcommand
 lives in its own module under `cli/commands/`, joining by calling `@register(<name>)` beside its handler.
 `cli/registry.py` walks that package and mounts what registered itself, so a new subcommand is a new file —
-no dispatcher, no import list, no edit to the root application.
+no dispatcher, no import list, no edit to the root application. A command group is a subpackage there:
+`cli/commands/check/` calls `register_group('check', app)`, and each check is a module beside it.
 
 ## Quick Start
 
@@ -94,7 +95,7 @@ operation it covers. A user-level skill of the same name may exist; the reposito
 | `code-test` | Running the pytest tiers through `just test-unit`, `just test-it`, `just test-e2e` and `just test` |
 | `code-release` | Tagging a release, building the artifacts from that tag, and verifying what they contain |
 | `docs-rules` | Writing or editing anything under `docs/` — picks the corpus and the specification that governs it |
-| `docs-rules-check` | Checking a document under `docs/` against its spec; runs the three `check_*.py` |
+| `docs-rules-check` | Checking a document under `docs/` against its spec; runs `lorecraft check header` and the two `check_*.py` |
 | `skills-check` | Writing or checking a skill — **also the skill-authoring guide**; read before any `SKILL.md` edit |
 | `feat-discovery` | Answering what a part of the toolkit is or does, from `docs/feat/` |
 | `feat-status` | Reporting the maturity each feature doc declares, and which docs are missing a `status` |
@@ -213,9 +214,9 @@ package's unit tier sits in a `tests/` subpackage beside the module it tests, un
 tier sits flat in `packages/<package>/tests/`, wiring its modules together in process, against a real tree
 under `tmp_path` where the disk is the subject. A library package has no end-to-end tier: its public API is
 what the integration tier covers. `tests/e2e/` drives the installed console script in a subprocess — the only
-tier that can observe the `git describe` probe behind `version --verbose`. The vendored check scripts have no tests of
-their own; `just check-docs` and `just check-skills` over this repository's own corpus are what exercises
-them.
+tier that can observe the `git describe` probe behind `version --verbose`. The vendored check scripts have no
+tests of their own; `just check-docs` and `just check-skills` over this repository's own corpus are what
+exercises them.
 
 - Run the suite through `just test-unit`, `just test-it`, `just test-e2e` or `just test`, never a bare
   `pytest`. Tier recipes select on markers, so an unmarked test is missed by those recipes; the unfiltered
