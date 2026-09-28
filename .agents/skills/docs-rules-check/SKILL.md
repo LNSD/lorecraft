@@ -1,8 +1,8 @@
 ---
 name: docs-rules-check
 description: Check a document under docs/ against the format specification that governs it in docs/__meta__/. Use when reviewing PRs, after editing anything under docs/, or before commits
-compatibility: Requires uv to run the scripts in scripts/
-allowed-tools: Bash(.agents/skills/docs-rules-check/scripts/check_header.py*), Bash(.agents/skills/docs-rules-check/scripts/check_structure.py*), Bash(.agents/skills/docs-rules-check/scripts/check_budget.py*), Bash(git diff*), Bash(git status*), Bash(git merge-base*), Bash(grep *), Bash(ls docs/*), Bash(awk *)
+compatibility: Requires uv to run the header command and the scripts in scripts/
+allowed-tools: Bash(uv run lorecraft check header*), Bash(.agents/skills/docs-rules-check/scripts/check_structure.py*), Bash(.agents/skills/docs-rules-check/scripts/check_budget.py*), Bash(git diff*), Bash(git status*), Bash(git merge-base*), Bash(grep *), Bash(ls docs/*), Bash(awk *)
 ---
 
 # Doc Rules Check
@@ -52,32 +52,34 @@ say — resolves by exactly the same rule, and until `docs/__meta__/feat.md` exi
 
 Each specification is paired with three machine-checkable files at the same stem: `<stem>.header.json` holds
 its frontmatter rules, `<stem>.structure.json` its section structure, `<stem>.budget.json` its length. The
-scripts in §3 and §4 resolve and apply those; you read the prose.
+header command in §3 and the scripts in §4 resolve and apply those; you read the prose.
 
 Read the specification **before** the document, so the checklist is in hand while reading. Where step 2 finds
 no specification, the document's format is ungoverned: report it as unvalidated rather than inventing rules or
 borrowing another corpus's.
 
-## 3. Frontmatter: run the script
+## 3. Frontmatter: run the command
 
-**`scripts/check_header.py`** — validates the frontmatter of any document under `docs/` against the JSON
-Schemas in `docs/__meta__/`. It decides every frontmatter rule mechanically — required fields, vocabularies,
-naming patterns, the `Load when` trigger clause, `name` against the filename — so do not check those by hand.
+**`lorecraft check header`** — validates the frontmatter of every Markdown file directly inside a corpus
+under `docs/` against the JSON Schemas in `docs/__meta__/`; pass files to check only those. It decides every
+frontmatter rule mechanically — required fields, vocabularies, naming patterns, the `Load when` trigger
+clause, `name` against the filename — so do not check those by hand.
 
-It is executable and declares its own dependencies, so run it directly; `uv` resolves them on the first run.
-It finds the repository root by walking up, so the working directory does not matter. Paths below are from the
-repository root, which is where this repository's agents run:
+It finds the repository root by walking up to the nearest directory holding `docs/__meta__/`; `--root`
+selects another. Document paths resolve from the working directory. Paths below are from the repository
+root, which is where this repository's agents run:
 
 ```bash
-.agents/skills/docs-rules-check/scripts/check_header.py                            # every corpus
-.agents/skills/docs-rules-check/scripts/check_header.py docs/code/python-typing.md # named files
-.agents/skills/docs-rules-check/scripts/check_header.py --format json              # machine-readable
-.agents/skills/docs-rules-check/scripts/check_header.py --help                     # flags and exit codes
+uv run lorecraft check header                                          # every corpus
+uv run lorecraft check header docs/code/python-typing.md               # named files
+uv run lorecraft check header --root /path/to/repository --format json # machine-readable
+uv run lorecraft check header --help                                   # flags and exit codes
 ```
 
-Findings print to stdout as `path:line: [rule] message`, each naming the schema behind it; the file count goes
-to stderr. Exit 0 means no findings, 1 means findings, 2 means bad usage. A `corpus.ungoverned` line means no
-schema governs that corpus — report it as unvalidated, not as a failure.
+Text findings print to stdout as `path:line: [rule] message`, each naming the schema behind it; the file count
+goes to stderr. JSON output is one object with `checked`, `findings` and `ungoverned` keys. Exit 0 means no
+findings, 1 means findings, 2 means bad usage or a header schema in `docs/__meta__/` that cannot be loaded. A
+`corpus.ungoverned` line means no schema governs that corpus — report it as unvalidated, not as a failure.
 
 Where `uv` is unavailable, extract the frontmatter with the Grep tool (pattern `^---\n[\s\S]*?\n---`,
 `multiline: true`, `output_mode: content`) or `awk '/^---$/{p=!p; print; next} p' <path>`, and work the
@@ -115,7 +117,7 @@ section the change did not touch is pre-existing: report it as such and leave it
 The fix for an overage is to move or cut, never to compress; the corpus specification's content guidelines
 say where each kind of overflow belongs.
 
-`just check-docs` runs all three over the whole corpus, which is what CI gates on. Use it to confirm the
+`just check-docs` runs the header command and both scripts over the whole corpus, which is what CI gates on. Use it to confirm the
 repository is clean; use the per-file invocations above while working a changeset.
 
 ## 5. Body: walk the checklist
@@ -124,9 +126,10 @@ repository is clean; use the per-file invocations above while working a changese
 as verifiable statements. Walk each item against the document, plus the structure template's own checklist
 where one applies.
 
-The three scripts have settled the frontmatter, the section structure and the length, so what is left here is
-what needs judgment: whether a section says what the specification asks of it, cross-reference direction, and
-whether a `description` is genuinely discovery-optimized rather than merely well-formed.
+The command and the two scripts have settled the frontmatter, the section structure and the length, so what
+is left here is what needs judgment: whether a section says what the specification asks of it,
+cross-reference direction, and whether a `description` is genuinely discovery-optimized rather than merely
+well-formed.
 
 Check only what the diff touches — an unchanged document that breaks a rule is not this changeset's finding.
 The one exception is §6.
@@ -198,8 +201,9 @@ and §4 catch everything down to the blank line; the rest need reading.
 
 These run without user permission:
 
-- `.agents/skills/docs-rules-check/scripts/check_header.py`, `check_structure.py`, and `check_budget.py` with any flags — read-only, no side effects
-- `just check-docs`, which runs the three of them over the whole corpus
+- `uv run lorecraft check header` with any flags — read-only, no side effects
+- `.agents/skills/docs-rules-check/scripts/check_structure.py` and `check_budget.py` with any flags — read-only, no side effects
+- `just check-docs`, which runs the three checks over the whole corpus
 - Frontmatter extraction (Grep tool or the `awk` fallback) on any file under `docs/`
 - `ls` on any directory under `docs/`, to check a list against what is actually there
 - All `git diff`, `git log`, and `git status` read-only commands

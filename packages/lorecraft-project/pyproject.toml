@@ -1,7 +1,7 @@
 [project]
 name = "lorecraft-project"
 dynamic = ["version"]
-description = "The workspace model behind lorecraft: the corpora, specifications and documents a repository declares"
+description = "The workspace model behind lorecraft: the corpora, specifications and documents a repository declares, and each document's parse tree"
 readme = "README.md"
 license = "MIT OR Apache-2.0"
 license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
@@ -10,11 +10,11 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    # The header aspect compiles each header schema with a Draft 2020-12 validator when the model loads, so a
-    # malformed schema fails the load rather than every check that later uses it.
     "jsonschema>=4.21,<5",
     "lorecraft-core",
     "lorecraft-vfs",
+    "pyyaml>=6.0,<7",
+    "wenmode>=0.15.1,<0.16",
 ]
 
 [tool.uv.sources]
