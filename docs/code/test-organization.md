@@ -276,7 +276,7 @@ Before committing code, verify:
 
 ## References
 
-- [test-functions](test-functions.md) - Related: Owns everything inside the test function — naming, one behaviour per test, assertions, fixtures, parametrization
+- [test-functions](test-functions.md) - Related: Owns everything inside the test function — naming, one behaviour and one case per test, assertions, fixtures
 - [pattern-resource-lifecycle](pattern-resource-lifecycle.md) - Related: Owns the acquire/release contract a scoped fixture drives
 - [logging](logging.md) - Related: Owns the log lines a failing test is read through
 - [python-modules](python-modules.md) - Related: Owns the import form a co-located unit test uses and the ban on underscored package names
