@@ -123,6 +123,8 @@ empty corpus rather than an error.
 | `just test-it` | the integration tier — `pytest -m it` |
 | `just test-e2e` | the end-to-end tier — `pytest -m e2e` |
 | `just test` | every tier — `pytest` |
+| `just snapshot-update` | every tier with `--snapshot-update` — write, refresh and prune the syrupy snapshots |
+| `just snapshot-review` | the snapshot files changed since the last commit, and their diff |
 | `just build` | `uv build --all-packages` — a source distribution and a wheel per releasable package |
 | `just clean` | remove build, test and cache artifacts |
 | `just install-git-hooks` | install the pre-commit hooks; `just remove-git-hooks` undoes it |
@@ -225,6 +227,9 @@ them.
   under `When`. [test-functions](docs/code/test-functions.md) §2 owns the rule and the pytest idioms that
   are awkward to place.
 - `--strict-markers` is on. Every marker used must be declared in the root `pyproject.toml`, with its description.
+- Command output is pinned with syrupy snapshots, one plain-text file per snapshot under `__snapshots__/`,
+  with whatever varies per build or machine swapped for a placeholder. A changed snapshot is reviewed and
+  committed with the change that altered the output; the `code-test` skill owns the recipes.
 
 ## Commits
 
