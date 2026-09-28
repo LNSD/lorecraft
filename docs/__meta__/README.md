@@ -13,7 +13,6 @@ of documents inside it. A directory under `docs/` is a corpus only when a file a
 |---|---|---|
 | `<corpus>` | The directory `docs/<corpus>/` and every document directly in it; a subdirectory inside a corpus is ignored, not checked | A corpus is a flat directory that a stem here names |
 | `<corpus>-<namespace>` | The documents `docs/<corpus>/<namespace>.md` and `docs/<corpus>/<namespace>-*.md` | A namespace matches a name that equals it or continues it with a hyphen; it may span several hyphenated words, so `code-python-errors` matches `python-errors.md` and `python-errors-*.md` but not `python-errorsx.md` |
-| `<corpus>.<type>` | The documents in `docs/<corpus>/` whose frontmatter `type` is `<type>` | The type is a field the document itself declares |
 
 So `code` matches all of `docs/code/`, and `code-principle` matches the subset named `principle.md` or
 `principle-*.md`, `docs/code/principle-least-surprise.md` among them. A document is governed by its corpus
@@ -63,7 +62,7 @@ ls .agents/skills/docs-rules-check/scripts/
 ```
 
 An aspect's file is written in whatever dialect its own check reads: the header aspect is JSON Schema,
-documented in `lorecraft_core/schemas/header.py`; a script's dialect lives in its module docstring. A frontmatter
+documented in `lorecraft_project/schemas/header.py`; a script's dialect lives in its module docstring. A frontmatter
 rule and a section-order rule are not the same shape of thing, and forcing them into one notation costs more
 than it saves.
 
@@ -82,8 +81,8 @@ Four rules hold for every aspect, whatever it checks:
 - **An absent file leaves that aspect unchecked**, and its documents are reported as unvalidated rather than
   as failures. A corpus is governed one aspect at a time. A file that is present but cannot be decoded is not
   a finding: the checker loads every specification in this directory before it reads a document, and one
-  broken file stops the whole run. This README is not a specification; a listing of the workspace records it
-  as skipped, which is expected.
+  broken file stops the whole run. This README is not a specification, so the workspace model leaves it
+  out.
 
 ## Discovering What Is Here
 

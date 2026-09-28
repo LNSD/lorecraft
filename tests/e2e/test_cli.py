@@ -2,21 +2,28 @@
 
 `version --verbose` shells out to `git describe`, so this is the only tier that can observe the probe
 at all. This suite runs from the checkout, so the verbose command must report its Git description as
-well as the installed version and environment. Every version output is compared to a reviewed snapshot
-file under `__snapshots__/`.
+well as the installed version and environment. Every version output, and `inspect` over a checked-in
+workspace fixture, is compared to a reviewed snapshot file under `__snapshots__/`.
 """
 
+from pathlib import Path
 from typing import Final
 
 import pytest
 from syrupy.assertion import SnapshotAssertion
 
 from lib.cli import run_cli
-from lib.snapshot import TextSnapshotExtension
+from lib.snapshot import JsonTextSnapshotExtension, TextSnapshotExtension
 from lorecraft import __version__
 
 # The labelled lines of `version --verbose` whose values differ per checkout, interpreter, machine and install.
 _VARYING_FIELDS: Final[tuple[str, ...]] = ('Commit', 'Python', 'Platform', 'Install')
+
+# A checked-in workspace root holding each part of the model `inspect` draws: a corpus with a header schema
+# and a namespace spec, a document each governs, and a README beside the specifications that is not one.
+# Resolved, because the CLI prints the resolved root and the tests swap exactly that string for a placeholder.
+WORKSPACE_FIXTURE: Final[Path] = (Path(__file__).parent / 'fixtures' / 'workspace').resolve()
+_ROOT_PLACEHOLDER: Final[str] = '<workspace>'
 
 
 def _redact(output: str) -> str:
@@ -104,4 +111,42 @@ class TestVersionSnapshots:
         assert result.returncode == 0, result.stderr
         assert _redact(result.stdout) == expected, (
             'run from the checkout, the block carries the commit line as well as the environment'
+        )
+
+
+@pytest.mark.e2e
+class TestInspectSnapshots:
+    # The CLI prints the resolved root, which differs per checkout, so each test swaps it for a placeholder
+    # before comparing, the way an insta filter would; everything else is compared byte for byte.
+
+    def test_inspect_without_a_root_in_the_workspace_fixture_prints_the_model_tree(
+        self, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('inspect',)
+
+        #: When
+        result = run_cli(*arguments, cwd=WORKSPACE_FIXTURE)
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.replace(str(WORKSPACE_FIXTURE), _ROOT_PLACEHOLDER) == expected, (
+            'the tree drawn from the working directory matches the reviewed snapshot'
+        )
+
+    def test_inspect_with_json_over_the_workspace_fixture_prints_the_model_document(
+        self, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(JsonTextSnapshotExtension)
+        arguments = ('inspect', str(WORKSPACE_FIXTURE), '--json')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.replace(str(WORKSPACE_FIXTURE), _ROOT_PLACEHOLDER) == expected, (
+            'the JSON document matches the reviewed snapshot'
         )

@@ -1,0 +1,39 @@
+{
+  "root": "<workspace>",
+  "corpora": [
+    {
+      "name": "code",
+      "directory": "docs/code",
+      "specs": [
+        {
+          "stem": "code",
+          "files": [
+            "docs/__meta__/code.header.json",
+            "docs/__meta__/code.md"
+          ]
+        },
+        {
+          "stem": "code-python",
+          "files": [
+            "docs/__meta__/code-python.md"
+          ]
+        }
+      ],
+      "documents": [
+        {
+          "path": "docs/code/logging.md",
+          "governed_by": [
+            "code"
+          ]
+        },
+        {
+          "path": "docs/code/python-typing.md",
+          "governed_by": [
+            "code",
+            "code-python"
+          ]
+        }
+      ]
+    }
+  ]
+}
