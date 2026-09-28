@@ -1,8 +1,9 @@
 """Validate one document's frontmatter against the header schemas that govern it.
 
-The check is pure: it takes the document's parse tree, its ref and the already decoded, already validated
-header schemas, and returns findings. Reading and parsing the document, choosing the schemas and deciding what
-a decode failure means all happen above it, in ``checks.run`` and the database.
+The check is pure: it takes the document's frontmatter node, its ref and the already decoded, already validated
+header schemas, and returns findings. It reads the frontmatter and nothing else, so it is handed that node
+rather than the whole parse tree. Reading and parsing the document, choosing the schemas and deciding what a
+decode failure means all happen above it, in ``checks.run`` and the database.
 """
 
 from dataclasses import dataclass
@@ -15,11 +16,11 @@ from lorecraft_project.document import DocumentRef
 from lorecraft_project.schemas import HeaderAspect
 from lorecraft_project.syntax import (
     Frontmatter,
+    FrontmatterNode,
     InvalidYamlFrontmatter,
     LineNumber,
     MissingFrontmatter,
     NonMappingFrontmatter,
-    ParsedDocument,
 )
 
 from .reporting import Finding
@@ -39,8 +40,10 @@ class HeaderCheckResult:
     findings: tuple[Finding, ...]
 
 
-def validate_header(document: ParsedDocument, ref: DocumentRef, schemas: tuple[HeaderAspect, ...]) -> HeaderCheckResult:
-    """Check one document's parse tree against the header schemas that govern it.
+def validate_header(
+    frontmatter: FrontmatterNode, ref: DocumentRef, schemas: tuple[HeaderAspect, ...]
+) -> HeaderCheckResult:
+    """Check one document's frontmatter against the header schemas that govern it.
 
     The report path of every finding is ``ref.path``, schema rule identifiers are namespaced by
     ``str(ref.corpus)``, and the frontmatter ``name`` must equal ``str(ref.filename)`` (rule
@@ -53,7 +56,6 @@ def validate_header(document: ParsedDocument, ref: DocumentRef, schemas: tuple[H
     if not schemas:
         return HeaderCheckResult(findings=())
 
-    frontmatter = document.frontmatter
     if isinstance(frontmatter, MissingFrontmatter):
         return _one_finding(ref, 'frontmatter.missing', 'no `---` delimited frontmatter block')
     if isinstance(frontmatter, InvalidYamlFrontmatter):

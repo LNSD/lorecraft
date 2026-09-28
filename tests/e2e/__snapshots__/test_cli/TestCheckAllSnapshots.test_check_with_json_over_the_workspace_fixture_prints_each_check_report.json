@@ -1,0 +1,1 @@
+{"checks": {"header": {"checked": 2, "findings": [{"file": "docs/code/logging.md", "line": 1, "rule": "frontmatter.missing", "message": "no `---` delimited frontmatter block"}, {"file": "docs/code/python-typing.md", "line": 1, "rule": "frontmatter.missing", "message": "no `---` delimited frontmatter block"}], "ungoverned": []}}}

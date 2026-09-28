@@ -2,8 +2,8 @@
 
 `version --verbose` shells out to `git describe`, so this is the only tier that can observe the probe
 at all. This suite runs from the checkout, so the verbose command must report its Git description as
-well as the installed version and environment. Every version output, and `inspect` and `check header` over
-a checked-in workspace fixture, is compared to a reviewed snapshot file under `__snapshots__/`.
+well as the installed version and environment. Every version output, and `inspect`, `check` and `check header`
+over a checked-in workspace fixture, is compared to a reviewed snapshot file under `__snapshots__/`.
 """
 
 from pathlib import Path
@@ -184,3 +184,36 @@ class TestCheckHeaderSnapshots:
         #: Then
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the JSON report matches the reviewed snapshot'
+
+
+@pytest.mark.e2e
+class TestCheckAllSnapshots:
+    # A bare `check` runs every registered check over the fixture, so its output grows by one block per check.
+
+    def test_check_without_a_root_in_the_workspace_fixture_prints_every_check_findings(
+        self, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('check',)
+
+        #: When
+        result = run_cli(*arguments, cwd=WORKSPACE_FIXTURE)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, 'every check finding from the working directory matches the snapshot'
+
+    def test_check_with_json_over_the_workspace_fixture_prints_each_check_report(
+        self, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(JsonTextSnapshotExtension)
+        arguments = ('check', '--root', str(WORKSPACE_FIXTURE), '--format', 'json')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, 'the JSON report of every check matches the reviewed snapshot'

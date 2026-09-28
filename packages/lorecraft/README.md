@@ -8,6 +8,7 @@ This package is the `lorecraft` command line:
 ```sh
 uv tool install lorecraft
 lorecraft version --verbose
+lorecraft check           # run every check over every document
 lorecraft check header    # validate every document's frontmatter against the repository's schemas
 ```
 
