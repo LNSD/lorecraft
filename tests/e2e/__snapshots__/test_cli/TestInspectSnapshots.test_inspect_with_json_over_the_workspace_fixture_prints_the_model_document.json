@@ -36,5 +36,73 @@
         }
       ]
     }
+  ],
+  "agent_skills_dirs": [
+    {
+      "agent": "codex",
+      "path": ".agents/skills",
+      "resolves_to": ".agents/skills"
+    },
+    {
+      "agent": "antigravity",
+      "path": ".agents/skills",
+      "resolves_to": ".agents/skills"
+    },
+    {
+      "agent": "opencode",
+      "path": ".agents/skills",
+      "resolves_to": ".agents/skills"
+    },
+    {
+      "agent": "claude-code",
+      "path": ".claude/skills",
+      "resolves_to": ".agents/skills"
+    }
+  ],
+  "skills": [
+    {
+      "name": "alpha",
+      "path": ".agents/skills/alpha",
+      "agents": [
+        "codex",
+        "antigravity",
+        "opencode",
+        "claude-code"
+      ],
+      "sightings": [
+        {
+          "path": ".agents/skills/alpha",
+          "target": ".agents/skills/alpha",
+          "agents": [
+            "codex",
+            "antigravity",
+            "opencode",
+            "claude-code"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "beta",
+      "path": ".agents/skills/alpha",
+      "agents": [
+        "codex",
+        "antigravity",
+        "opencode",
+        "claude-code"
+      ],
+      "sightings": [
+        {
+          "path": ".agents/skills/beta",
+          "target": ".agents/skills/alpha",
+          "agents": [
+            "codex",
+            "antigravity",
+            "opencode",
+            "claude-code"
+          ]
+        }
+      ]
+    }
   ]
 }

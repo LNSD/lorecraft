@@ -1,7 +1,7 @@
 [project]
 name = "lorecraft-project"
 dynamic = ["version"]
-description = "The workspace model behind lorecraft: the corpora, specifications and documents a repository declares"
+description = "The workspace model behind lorecraft: the corpora, specifications, documents and skills a repository declares"
 readme = "README.md"
 license = "MIT OR Apache-2.0"
 license-files = ["LICENSE-MIT", "LICENSE-APACHE"]

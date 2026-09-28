@@ -1,9 +1,19 @@
 <workspace>
-└── corpora (1)
-    └── code (docs/code)
-        ├── specs (2)
-        │   ├── code: code.header.json, code.md
-        │   └── code-python: code-python.md
-        └── documents (2)
-            ├── logging.md [code]
-            └── python-typing.md [code, code-python]
+├── corpora (1)
+│   └── code (docs/code)
+│       ├── specs (2)
+│       │   ├── code: code.header.json, code.md
+│       │   └── code-python: code-python.md
+│       └── documents (2)
+│           ├── logging.md [code]
+│           └── python-typing.md [code, code-python]
+├── agent skills directories (4)
+│   ├── codex: .agents/skills
+│   ├── antigravity: .agents/skills
+│   ├── opencode: .agents/skills
+│   └── claude-code: .claude/skills -> .agents/skills
+└── skills (2)
+    ├── alpha
+    │   └── .agents/skills/alpha [codex, antigravity, opencode, claude-code]
+    └── beta
+        └── .agents/skills/beta -> .agents/skills/alpha [codex, antigravity, opencode, claude-code]

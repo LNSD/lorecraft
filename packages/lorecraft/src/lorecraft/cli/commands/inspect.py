@@ -30,7 +30,7 @@ def inspect(
         typer.Option('--json', help='Print the model as JSON instead of drawing it.'),
     ] = False,
 ) -> None:
-    """Show the workspace model of a root: its corpora, specs and documents.
+    """Show the workspace model of a root: its corpora, specs, documents and skills.
 
     The root is scanned once and the model is loaded from that snapshot, so what is printed is one moment of
     the tree even while files change under it.

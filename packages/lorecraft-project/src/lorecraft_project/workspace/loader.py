@@ -1,11 +1,12 @@
-"""Build the workspace model from the specification directory and the corpus directories.
+"""Build the workspace model from the specification directory, the corpus directories and the skills directories.
 
 Discovery is spec-first: a directory under ``docs/`` is a corpus only when ``docs/__meta__/`` holds a file at
 its stem. The loader lists the specification directory, parses each filename once with ``parse_spec_file``,
 sorts the parsed files into corpus stems, namespace stems and type selectors, keeps the corpora whose
 ``docs/<corpus>/`` is a regular directory, lists the Markdown files directly inside each, and builds a
-``HeaderAspect`` from every header schema, which proves it well-formed, before any document is read. An entry
-that does not fit the layout is left out of the model; nothing it leaves out fails the run.
+``HeaderAspect`` from every header schema, which proves it well-formed, before any document is read. It then
+discovers the skills through ``load_skills``, without reading any SKILL.md. An entry that does not fit the
+layout is left out of the model; nothing it leaves out fails the run.
 
 Nothing here logs and nothing here catches broadly: a repository or schema error names its path already, so
 it propagates unchanged to the command that loads the model, which reports it.
@@ -28,9 +29,11 @@ from lorecraft_project.schemas.spec_file import (
     TypeSelectorFile,
     parse_spec_file,
 )
+from lorecraft_project.skill.repo import Repository as SkillRepository
 from lorecraft_vfs import EntryKind, FileSystem, RootRelativePath
 
 from .model import Corpus, Spec, TypeSelector, WorkspaceModel, namespace_order_key
+from .skill_loader import load_skills
 
 
 @dataclass(slots=True)
@@ -48,9 +51,10 @@ class _CorpusFiles:
     selectors: dict[AspectName, list[TypeSelectorFile]] = field(default_factory=dict)
 
 
-def load_workspace(schemas: SchemaRepository, documents: DocumentRepository) -> WorkspaceModel:
+def load_workspace(schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository) -> WorkspaceModel:
     """Build the snapshot: parse the spec filenames, keep corpus stems whose docs/<corpus>/ is a directory, list
-    the Markdown files directly inside each, and build a header aspect from every header schema.
+    the Markdown files directly inside each, build a header aspect from every header schema; then ``load_skills`` over
+    the canonical and agent directories, without reading any SKILL.md.
 
     Raises:
         ListSpecsError: If the specification directory cannot be listed.
@@ -58,6 +62,9 @@ def load_workspace(schemas: SchemaRepository, documents: DocumentRepository) -> 
         ListDocumentsError: If a corpus directory cannot be listed.
         GetHeaderSchemaError: If any header schema cannot be read or decoded.
         InvalidHeaderSchemaError: If any header schema is not a well-formed JSON Schema.
+        ListSkillEntriesError: If a skills directory cannot be listed.
+        ResolveSkillDirectoryError: If a skills path cannot be resolved.
+        ProbeSkillMdError: If a skill directory cannot be listed for its SKILL.md.
     """
     spec_paths = schemas.list_spec_paths()
     directories = documents.list_corpus_directories()
@@ -82,11 +89,12 @@ def load_workspace(schemas: SchemaRepository, documents: DocumentRepository) -> 
         refs = _list_document_refs(documents, corpus_name)
         corpora.append(_load_corpus(schemas, corpus_name, files, refs))
 
-    return WorkspaceModel(corpora=tuple(corpora))
+    skill_set = load_skills(skills)
+    return WorkspaceModel(corpora=tuple(corpora), skills=skill_set)
 
 
 def load_model(fs: FileSystem) -> WorkspaceModel:
-    """Wire one filesystem view into the two repositories and load the workspace model through them.
+    """Wire one filesystem view into the three repositories and load the workspace model through them.
 
     The view decides where the model comes from: a ``DiskFileSystem`` reads the disk as it is at each call,
     and a ``VirtualFileSystem`` answers from one snapshot, so the model reflects a single moment.
@@ -97,10 +105,14 @@ def load_model(fs: FileSystem) -> WorkspaceModel:
         ListDocumentsError: If a corpus directory cannot be listed.
         GetHeaderSchemaError: If any header schema cannot be read or decoded.
         InvalidHeaderSchemaError: If any header schema is not a well-formed JSON Schema.
+        ListSkillEntriesError: If a skills directory cannot be listed.
+        ResolveSkillDirectoryError: If a skills path cannot be resolved.
+        ProbeSkillMdError: If a skill directory cannot be listed for its SKILL.md.
     """
     schemas = SchemaRepository(fs, SPECS_DIR)
     documents = DocumentRepository(fs)
-    return load_workspace(schemas, documents)
+    skills = SkillRepository(fs)
+    return load_workspace(schemas, documents, skills)
 
 
 def _group_spec_files(spec_paths: list[RootRelativePath]) -> dict[CorpusName, _CorpusFiles]:

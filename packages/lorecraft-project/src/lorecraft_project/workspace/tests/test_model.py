@@ -1,6 +1,6 @@
 """Workspace model queries and invariants over hand-built in-memory models.
 
-Nothing here touches the disk: every spec, corpus and ref is constructed directly, with the
+Nothing here touches the disk: every spec, corpus, ref and skill record is constructed directly, with the
 header schema paths standing in for the files the loader would have read.
 """
 
@@ -13,9 +13,18 @@ from lorecraft_project.corpus import CorpusName
 from lorecraft_project.document.ref import DocumentRef
 from lorecraft_project.layout import SPECS_DIR
 from lorecraft_project.schemas import HeaderAspect, HeaderSchema, parse_schema_name, schema_name_stem
+from lorecraft_project.skill import AgentName, Sighting, Skill, SkillName
 from lorecraft_vfs import RootRelativePath
 
-from ..model import Corpus, Governance, Spec, WorkspaceModel, namespace_order_key
+from ..model import (
+    AgentSkillsDir,
+    Corpus,
+    Governance,
+    SkillSet,
+    Spec,
+    WorkspaceModel,
+    namespace_order_key,
+)
 
 CODE: Final[CorpusName] = CorpusName.parse('code')
 FEAT: Final[CorpusName] = CorpusName.parse('feat')
@@ -44,7 +53,7 @@ def _code_model(specs: tuple[Spec, ...], filenames: tuple[str, ...]) -> Workspac
         type_selectors=(),
         documents=tuple(_ref('code', filename) for filename in filenames),
     )
-    return WorkspaceModel(corpora=(corpus,))
+    return WorkspaceModel(corpora=(corpus,), skills=SkillSet((), ()))
 
 
 @pytest.mark.unit
@@ -420,7 +429,7 @@ def two_corpora_model() -> WorkspaceModel:
         type_selectors=(),
         documents=(_ref('feat', 'cli-check'),),
     )
-    return WorkspaceModel(corpora=(code, feat))
+    return WorkspaceModel(corpora=(code, feat), skills=SkillSet((), ()))
 
 
 @pytest.mark.unit
@@ -493,3 +502,141 @@ class TestDocumentRef:
         assert path == RootRelativePath.parse('docs/code/python-errors-handling.md'), (
             'the path is root-relative docs/<corpus>/<filename>.md'
         )
+
+
+CANONICAL_SKILLS: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills')
+CLAUDE_SKILLS: Final[RootRelativePath] = RootRelativePath.parse('.claude/skills')
+UNIVERSAL_AGENTS: Final[tuple[AgentName, ...]] = (AgentName('codex'), AgentName('antigravity'), AgentName('opencode'))
+CLAUDE_CODE: Final[AgentName] = AgentName('claude-code')
+
+
+def _canonical_skill(name: str, agents: tuple[AgentName, ...]) -> Skill:
+    """A skill seen once, under the canonical directory, by the given agents."""
+    path = CANONICAL_SKILLS / name
+    return Skill(SkillName.parse(name), path, agents, (Sighting(path, path, agents),))
+
+
+def _agent_dirs(with_claude_code: bool) -> tuple[AgentSkillsDir, ...]:
+    """The universal agents over the canonical directory, plus a real ``.claude/skills`` when asked."""
+    dirs = [AgentSkillsDir(agent, CANONICAL_SKILLS, CANONICAL_SKILLS) for agent in UNIVERSAL_AGENTS]
+    if with_claude_code:
+        dirs.append(AgentSkillsDir(CLAUDE_CODE, CLAUDE_SKILLS, CLAUDE_SKILLS))
+    return tuple(dirs)
+
+
+@pytest.mark.unit
+class TestSkill:
+    def test_skill_md_with_a_canonical_skill_returns_its_root_relative_skill_md(self) -> None:
+        #: Given
+        skill = _canonical_skill('deploy', UNIVERSAL_AGENTS)
+
+        #: When
+        skill_md = skill.skill_md
+
+        #: Then
+        assert skill_md == RootRelativePath.parse('.agents/skills/deploy/SKILL.md'), 'SKILL.md sits in the skill path'
+
+    def test_is_linked_with_an_exposing_agent_returns_true(self) -> None:
+        #: Given
+        skill = _canonical_skill('deploy', UNIVERSAL_AGENTS)
+
+        #: When
+        linked = skill.is_linked
+
+        #: Then
+        assert linked is True, 'a skill that at least one agent exposes is linked'
+
+    def test_is_linked_with_no_exposing_agent_returns_false(self) -> None:
+        #: Given
+        skill = _canonical_skill('deploy', ())
+
+        #: When
+        linked = skill.is_linked
+
+        #: Then
+        assert linked is False, 'a skill no agent exposes is not linked, as in vercel'
+
+
+@pytest.mark.unit
+class TestSkillSet:
+    def test_skill_with_a_listed_name_returns_that_skill(self) -> None:
+        #: Given
+        deploy = _canonical_skill('deploy', UNIVERSAL_AGENTS)
+        skill_set = SkillSet(_agent_dirs(with_claude_code=False), (deploy,))
+
+        #: When
+        found = skill_set.skill(SkillName.parse('deploy'))
+
+        #: Then
+        assert found == deploy, 'the skill is found by name'
+
+    def test_skill_with_an_unlisted_name_returns_none(self) -> None:
+        #: Given
+        skill_set = SkillSet(_agent_dirs(with_claude_code=False), (_canonical_skill('deploy', UNIVERSAL_AGENTS),))
+
+        #: When
+        found = skill_set.skill(SkillName.parse('review'))
+
+        #: Then
+        assert found is None, 'a name the set does not list has no skill'
+
+    def test_missing_agents_with_a_present_claude_directory_not_exposing_it_returns_claude_code(self) -> None:
+        #: Given
+        review = _canonical_skill('review', UNIVERSAL_AGENTS)
+        skill_set = SkillSet(_agent_dirs(with_claude_code=True), (review,))
+
+        #: When
+        missing = skill_set.missing_agents(review)
+
+        #: Then
+        assert missing == (CLAUDE_CODE,), 'a present agent directory without the skill reports its agent'
+
+    def test_missing_agents_with_every_present_agent_exposing_it_returns_empty(self) -> None:
+        #: Given
+        deploy = _canonical_skill('deploy', (*UNIVERSAL_AGENTS, CLAUDE_CODE))
+        skill_set = SkillSet(_agent_dirs(with_claude_code=True), (deploy,))
+
+        #: When
+        missing = skill_set.missing_agents(deploy)
+
+        #: Then
+        assert missing == (), 'no present agent lacks a skill every present agent exposes'
+
+    def test_missing_agents_with_an_absent_claude_directory_returns_empty(self) -> None:
+        #: Given
+        review = _canonical_skill('review', UNIVERSAL_AGENTS)
+        skill_set = SkillSet(_agent_dirs(with_claude_code=False), (review,))
+
+        #: When
+        missing = skill_set.missing_agents(review)
+
+        #: Then
+        assert missing == (), 'an agent whose skills directory is absent is never reported as missing the skill'
+
+    def test_construct_with_skills_out_of_name_order_raises_value_error(self) -> None:
+        #: Given
+        unsorted_skills = (
+            _canonical_skill('review', UNIVERSAL_AGENTS),
+            _canonical_skill('deploy', UNIVERSAL_AGENTS),
+        )
+
+        #: When
+        with pytest.raises(ValueError):
+            SkillSet(_agent_dirs(with_claude_code=False), unsorted_skills)
+
+        #: Then
+        assert str(unsorted_skills[0].name) > str(unsorted_skills[1].name), 'the rejected skills are not by name'
+
+    def test_construct_with_a_repeated_skill_name_raises_value_error(self) -> None:
+        #: Given
+        repeated = (
+            _canonical_skill('deploy', UNIVERSAL_AGENTS),
+            _canonical_skill('deploy', (CLAUDE_CODE,)),
+        )
+
+        #: When
+        with pytest.raises(ValueError):
+            SkillSet(_agent_dirs(with_claude_code=True), repeated)
+
+        #: Then
+        assert repeated[0].name == repeated[1].name, 'the rejected skills share one name'

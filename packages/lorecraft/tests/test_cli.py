@@ -23,11 +23,15 @@ runner = CliRunner()
 
 @pytest.fixture(scope='function')
 def workspace(tmp_path: Path) -> Path:
-    """A workspace root with a `code` corpus of one document."""
+    """A workspace root with a `code` corpus of one document and one skill, linked from `.claude/skills`."""
     (tmp_path / 'docs' / '__meta__').mkdir(parents=True)
     (tmp_path / 'docs' / '__meta__' / 'code.md').write_text('# Code\n')
     (tmp_path / 'docs' / 'code').mkdir()
     (tmp_path / 'docs' / 'code' / 'logging.md').write_text('# Logging\n')
+    (tmp_path / '.agents' / 'skills' / 'alpha').mkdir(parents=True)
+    (tmp_path / '.agents' / 'skills' / 'alpha' / 'SKILL.md').write_text('---\n')
+    (tmp_path / '.claude').mkdir()
+    (tmp_path / '.claude' / 'skills').symlink_to('../.agents/skills')
     return tmp_path
 
 
@@ -105,7 +109,10 @@ class TestInspectCommand:
         assert result.exit_code == 0, result.output
         lines = result.output.splitlines()
         assert lines[0] == str(workspace.resolve()), 'the tree is headed by the resolved root'
-        assert '            └── logging.md [code]' in lines, 'a rule document sits under its corpus, with its spec'
+        assert '│           └── logging.md [code]' in lines, 'a rule document sits under its corpus, with its spec'
+        assert '│   └── claude-code: .claude/skills -> .agents/skills' in lines, (
+            'the linked agent skills directory shows where it leads'
+        )
 
     def test_inspect_with_json_prints_the_model_as_one_json_document(self, workspace: Path) -> None:
         #: Given
@@ -120,6 +127,7 @@ class TestInspectCommand:
         document = json.loads(result.output)
         assert document['root'] == str(workspace.resolve()), 'the root is reported resolved'
         assert [corpus['name'] for corpus in document['corpora']] == ['code'], 'the one spec-backed corpus is found'
+        assert [skill['name'] for skill in document['skills']] == ['alpha'], 'the one skill is found'
 
     def test_inspect_with_a_malformed_header_schema_exits_one_and_names_it(
         self, malformed_schema_workspace: Path

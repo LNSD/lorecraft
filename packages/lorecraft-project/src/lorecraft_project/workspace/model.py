@@ -8,6 +8,9 @@ Governance is the one computation the model owns. A document is governed by its 
 every namespace spec whose namespace matches its filename, broad to narrow. A namespace spec narrows a
 base; it never supplies one, so a corpus spec without a header aspect leaves the document ungoverned for the
 header aspect whatever the namespace specs carry.
+
+The skill records describe which skills the repository carries and which agents see them: names, real paths
+and agent names, never the content of a SKILL.md.
 """
 
 from dataclasses import dataclass
@@ -17,6 +20,9 @@ from lorecraft_project.corpus import CorpusName
 from lorecraft_project.document.ref import DocumentRef
 from lorecraft_project.schemas.header import HeaderAspect
 from lorecraft_project.schemas.name import SchemaName
+from lorecraft_project.skill.agent import AgentName
+from lorecraft_project.skill.name import SkillName
+from lorecraft_project.skill.ref import Skill
 from lorecraft_vfs import RootRelativePath
 
 
@@ -174,14 +180,76 @@ class Corpus:
 
 
 @dataclass(frozen=True, slots=True)
+class AgentSkillsDir:
+    """A registered agent's project skills directory that exists under the root.
+
+    Attributes:
+        agent: The registry name.
+        path: ``Agent.skills_dir`` as declared, unresolved.
+        resolves_to: The real root-relative directory; the canonical directory's real path when the agent
+            directory aliases it (``.claude/skills -> ../.agents/skills``, or ``.claude -> .agents``).
+    """
+
+    agent: AgentName
+    path: RootRelativePath
+    resolves_to: RootRelativePath
+
+
+@dataclass(frozen=True, slots=True)
+class SkillSet:
+    """Every project-scope skill and the agent directories present. Structure only, no content.
+
+    Attributes:
+        agent_dirs: One per registered agent whose skills directory resolves to a directory, registry order.
+        skills: Sorted by name; names unique.
+    """
+
+    agent_dirs: tuple[AgentSkillsDir, ...]
+    skills: tuple[Skill, ...]
+
+    def __post_init__(self) -> None:
+        """Reject a skill list the loader could not have built.
+
+        Raises:
+            ValueError: If ``skills`` is not sorted by name, or a name repeats.
+        """
+        names = [str(skill.name) for skill in self.skills]
+        if names != sorted(names):
+            raise ValueError(f'skills must be sorted by name, got {names}')
+        if len(set(names)) != len(names):
+            raise ValueError(f'skill names must be unique, got {names}')
+
+    def skill(self, name: SkillName) -> Skill | None:
+        """The skill with this name, or None when the set has none."""
+        for skill in self.skills:
+            if skill.name == name:
+                return skill
+        return None
+
+    def missing_agents(self, skill: Skill) -> tuple[AgentName, ...]:
+        """Present agents whose directory does not expose the skill, registry order.
+
+        The per-agent form of vercel's "not linked". An agent whose skills directory is absent is never
+        reported: it is not present, so it cannot be missing the skill.
+        """
+        missing: list[AgentName] = []
+        for agent_dir in self.agent_dirs:
+            if agent_dir.agent not in skill.agents:
+                missing.append(agent_dir.agent)
+        return tuple(missing)
+
+
+@dataclass(frozen=True, slots=True)
 class WorkspaceModel:
     """Immutable snapshot of structure and config; holds no root path and no document content.
 
     Attributes:
         corpora: Every corpus, sorted by name.
+        skills: The skills the repository carries and the agent skills directories present.
     """
 
     corpora: tuple[Corpus, ...]
+    skills: SkillSet
 
     def corpus(self, name: CorpusName) -> Corpus | None:
         """The corpus with this name, or None when the model has none."""

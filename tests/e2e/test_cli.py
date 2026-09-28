@@ -20,8 +20,9 @@ from lorecraft import __version__
 _VARYING_FIELDS: Final[tuple[str, ...]] = ('Commit', 'Python', 'Platform', 'Install')
 
 # A checked-in workspace root holding each part of the model `inspect` draws: a corpus with a header schema
-# and a namespace spec, a document each governs, and a README beside the specifications that is not one.
-# Resolved, because the CLI prints the resolved root and the tests swap exactly that string for a placeholder.
+# and a namespace spec, a document each governs, a skill and a skill linked to it, the `.claude/skills` link,
+# and a README beside the specifications that is not one. Resolved, because the CLI prints the resolved root
+# and the tests swap exactly that string for a placeholder.
 WORKSPACE_FIXTURE: Final[Path] = (Path(__file__).parent / 'fixtures' / 'workspace').resolve()
 _ROOT_PLACEHOLDER: Final[str] = '<workspace>'
 
