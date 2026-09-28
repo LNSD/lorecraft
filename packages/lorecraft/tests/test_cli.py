@@ -377,6 +377,82 @@ class TestCheckHeaderCommand:
 
 
 @pytest.mark.it
+class TestCheckAllCommand:
+    def test_check_with_a_clean_corpus_exits_zero_and_counts_the_documents_and_checks(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.header.json', ACCEPT_ANY_HEADER_SCHEMA)
+        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(tmp_path)])
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stdout == '', 'a clean run prints no finding lines'
+        assert result.stderr == 'checked 1 file(s) with 1 check(s), 0 finding(s)\n', (
+            'one summary line covers every check the run made'
+        )
+
+    def test_check_with_a_header_finding_exits_one_and_prints_it(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.header.json', ACCEPT_ANY_HEADER_SCHEMA)
+        _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(tmp_path)])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert result.stdout == 'docs/code/guide.md:1: [frontmatter.missing] no `---` delimited frontmatter block\n', (
+            "the bare run prints each check's findings as the check itself would"
+        )
+
+    def test_check_with_json_format_reports_each_check_under_its_name(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.header.json', ACCEPT_ANY_HEADER_SCHEMA)
+        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == {
+            'checks': {'header': {'checked': 1, 'findings': [], 'ungoverned': []}},
+        }, f'each check keeps the report its own subcommand prints, got {result.stdout!r}'
+
+    def test_check_with_a_malformed_header_schema_exits_as_invalid_input(
+        self, malformed_schema_workspace: Path
+    ) -> None:
+        #: Given
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(malformed_schema_workspace)])
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stdout == '', 'after an error nothing is printed but the error'
+
+    def test_check_with_an_option_before_a_named_check_exits_as_a_usage_error(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.header.json', ACCEPT_ANY_HEADER_SCHEMA)
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(tmp_path), 'header'])
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert 'give it after the check name' in result.output, (
+            'an option the named check would never see is refused, not silently dropped'
+        )
+
+
+@pytest.mark.it
 class TestCommandRouting:
     def test_build_app_when_called_mounts_every_discovered_subcommand(self) -> None:
         #: Given

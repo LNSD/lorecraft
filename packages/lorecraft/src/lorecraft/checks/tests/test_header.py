@@ -1,4 +1,4 @@
-"""Header validation over a document's parse tree.
+"""Header validation over a document's frontmatter node.
 
 ``validate_header`` is pure, so every case here is a text literal parsed in memory, a ref and an in-memory
 header schema; no document and no schema file is read.
@@ -13,7 +13,7 @@ from lorecraft_project.corpus import CorpusName
 from lorecraft_project.document import DocumentRef
 from lorecraft_project.layout import SPECS_DIR
 from lorecraft_project.schemas import HeaderAspect, HeaderSchema
-from lorecraft_project.syntax import LineNumber, parse_document
+from lorecraft_project.syntax import LineNumber, parse_frontmatter
 from lorecraft_vfs import RootRelativePath
 
 from ..header import validate_header
@@ -30,33 +30,33 @@ def _code_header(schema: dict[str, object]) -> HeaderAspect:
 class TestValidateHeader:
     def test_validate_header_with_conforming_frontmatter_returns_no_findings(self) -> None:
         #: Given
-        document = parse_document('---\nname: guide\ntype: rule\n---\n# Guide\n')
+        frontmatter = parse_frontmatter('---\nname: guide\ntype: rule\n---\n# Guide\n')
         schemas = (_code_header({'type': 'object', 'required': ['type']}),)
 
         #: When
-        result = validate_header(document, GUIDE, schemas)
+        result = validate_header(frontmatter, GUIDE, schemas)
 
         #: Then
         assert result.findings == (), 'a document matching its name and schema is clean'
 
     def test_validate_header_with_empty_schemas_returns_no_findings(self) -> None:
         #: Given
-        document = parse_document('no frontmatter at all\n')
+        frontmatter = parse_frontmatter('no frontmatter at all\n')
         schemas: tuple[HeaderAspect, ...] = ()
 
         #: When
-        result = validate_header(document, GUIDE, schemas)
+        result = validate_header(frontmatter, GUIDE, schemas)
 
         #: Then
         assert result.findings == (), 'an ungoverned document is never checked, whatever its text'
 
     def test_validate_header_with_name_mismatch_reports_name_rule_on_the_name_line(self) -> None:
         #: Given
-        document = parse_document('---\ntype: rule\nname: other\n---\n')
+        frontmatter = parse_frontmatter('---\ntype: rule\nname: other\n---\n')
         schemas = (_code_header({'type': 'object'}),)
 
         #: When
-        result = validate_header(document, GUIDE, schemas)
+        result = validate_header(frontmatter, GUIDE, schemas)
 
         #: Then
         assert [finding.rule for finding in result.findings] == ['frontmatter.name-matches-filename'], (
@@ -71,11 +71,11 @@ class TestValidateHeader:
 
     def test_validate_header_without_frontmatter_block_reports_missing(self) -> None:
         #: Given
-        document = parse_document('# Guide\n\nname: guide\n')
+        frontmatter = parse_frontmatter('# Guide\n\nname: guide\n')
         schemas = (_code_header({'type': 'object'}),)
 
         #: When
-        result = validate_header(document, GUIDE, schemas)
+        result = validate_header(frontmatter, GUIDE, schemas)
 
         #: Then
         assert [finding.rule for finding in result.findings] == ['frontmatter.missing'], (
@@ -85,11 +85,11 @@ class TestValidateHeader:
 
     def test_validate_header_with_invalid_yaml_reports_unparseable(self) -> None:
         #: Given
-        document = parse_document('---\nname: [unclosed\n---\n')
+        frontmatter = parse_frontmatter('---\nname: [unclosed\n---\n')
         schemas = (_code_header({'type': 'object'}),)
 
         #: When
-        result = validate_header(document, GUIDE, schemas)
+        result = validate_header(frontmatter, GUIDE, schemas)
 
         #: Then
         assert [finding.rule for finding in result.findings] == ['frontmatter.unparseable'], (
@@ -99,11 +99,11 @@ class TestValidateHeader:
 
     def test_validate_header_with_non_mapping_yaml_reports_unparseable(self) -> None:
         #: Given
-        document = parse_document('---\n- guide\n---\n')
+        frontmatter = parse_frontmatter('---\n- guide\n---\n')
         schemas = (_code_header({'type': 'object'}),)
 
         #: When
-        result = validate_header(document, GUIDE, schemas)
+        result = validate_header(frontmatter, GUIDE, schemas)
 
         #: Then
         assert [finding.rule for finding in result.findings] == ['frontmatter.unparseable'], (
@@ -113,11 +113,11 @@ class TestValidateHeader:
 
     def test_validate_header_with_missing_required_field_reports_it_under_the_corpus_with_the_schema(self) -> None:
         #: Given
-        document = parse_document('---\nname: guide\n---\n')
+        frontmatter = parse_frontmatter('---\nname: guide\n---\n')
         schemas = (_code_header({'type': 'object', 'required': ['type']}),)
 
         #: When
-        result = validate_header(document, GUIDE, schemas)
+        result = validate_header(frontmatter, GUIDE, schemas)
 
         #: Then
         assert [finding.rule for finding in result.findings] == ['code.type'], (

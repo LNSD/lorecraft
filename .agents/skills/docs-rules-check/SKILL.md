@@ -2,7 +2,7 @@
 name: docs-rules-check
 description: Check a document under docs/ against the format specification that governs it in docs/__meta__/. Use when reviewing PRs, after editing anything under docs/, or before commits
 compatibility: Requires uv to run the header command and the scripts in scripts/
-allowed-tools: Bash(uv run lorecraft check header*), Bash(.agents/skills/docs-rules-check/scripts/check_structure.py*), Bash(.agents/skills/docs-rules-check/scripts/check_budget.py*), Bash(git diff*), Bash(git status*), Bash(git merge-base*), Bash(grep *), Bash(ls docs/*), Bash(awk *)
+allowed-tools: Bash(uv run lorecraft check*), Bash(.agents/skills/docs-rules-check/scripts/check_structure.py*), Bash(.agents/skills/docs-rules-check/scripts/check_budget.py*), Bash(git diff*), Bash(git status*), Bash(git merge-base*), Bash(grep *), Bash(ls docs/*), Bash(awk *)
 ---
 
 # Doc Rules Check
@@ -79,7 +79,13 @@ uv run lorecraft check header --help                                   # flags a
 Text findings print to stdout as `path:line: [rule] message`, each naming the schema behind it; the file count
 goes to stderr. JSON output is one object with `checked`, `findings` and `ungoverned` keys. Exit 0 means no
 findings, 1 means findings, 2 means bad usage or a header schema in `docs/__meta__/` that cannot be loaded. A
-`corpus.ungoverned` line means no schema governs that corpus — report it as unvalidated, not as a failure.
+`<corpus>.ungoverned` line means no schema governs that corpus — report it as unvalidated, not as a failure.
+
+**`lorecraft check`**, with no check named, runs every check the command line carries — the header check
+today, and each one that migrates from `scripts/` as it lands — over every document, reading the tree once.
+It takes `--root` and `--format` but no paths. Its text output is each check's lines in turn and one summary
+on stderr; its JSON output is `{"checks": {<name>: <that check's report>}}`, and its exit codes are the
+same. It is how `just check-docs` runs them.
 
 Where `uv` is unavailable, extract the frontmatter with the Grep tool (pattern `^---\n[\s\S]*?\n---`,
 `multiline: true`, `output_mode: content`) or `awk '/^---$/{p=!p; print; next} p' <path>`, and work the
@@ -117,7 +123,7 @@ section the change did not touch is pre-existing: report it as such and leave it
 The fix for an overage is to move or cut, never to compress; the corpus specification's content guidelines
 say where each kind of overflow belongs.
 
-`just check-docs` runs the header command and both scripts over the whole corpus, which is what CI gates on. Use it to confirm the
+`just check-docs` runs `lorecraft check` and both scripts over the whole corpus, which is what CI gates on. Use it to confirm the
 repository is clean; use the per-file invocations above while working a changeset.
 
 ## 5. Body: walk the checklist
@@ -201,7 +207,7 @@ and §4 catch everything down to the blank line; the rest need reading.
 
 These run without user permission:
 
-- `uv run lorecraft check header` with any flags — read-only, no side effects
+- `uv run lorecraft check` and `uv run lorecraft check header` with any flags — read-only, no side effects
 - `.agents/skills/docs-rules-check/scripts/check_structure.py` and `check_budget.py` with any flags — read-only, no side effects
 - `just check-docs`, which runs the three checks over the whole corpus
 - Frontmatter extraction (Grep tool or the `awk` fallback) on any file under `docs/`

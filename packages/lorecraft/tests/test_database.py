@@ -1,4 +1,4 @@
-"""The database over a hand-built snapshot: the model and each parse tree are computed from the snapshot, once.
+"""The database over a hand-built snapshot: the model, each frontmatter and each parse tree are computed once.
 
 Every snapshot here is built in memory with ``Snapshot.of_files``, so no case reads the disk: the database is
 what wires the virtual view, the model loader and the parser together.
@@ -51,6 +51,39 @@ class TestDatabase:
 
         #: Then
         assert second is first, 'the model is loaded once per database, then cached'
+
+    def test_frontmatter_of_a_listed_document_returns_its_decoded_block(self) -> None:
+        #: Given
+        database = Database(_snapshot(b'---\nname: "guide"\n---\n'))
+
+        #: When
+        frontmatter = database.frontmatter(GUIDE)
+
+        #: Then
+        assert isinstance(frontmatter, Frontmatter), 'the snapshot bytes decode into a frontmatter node'
+        assert frontmatter.data == {'name': 'guide'}, 'the frontmatter holds the snapshot content'
+
+    def test_frontmatter_called_twice_returns_the_first_answer(self) -> None:
+        #: Given
+        database = Database(_snapshot(b'---\nname: "guide"\n---\n'))
+        first = database.frontmatter(GUIDE)
+
+        #: When
+        second = database.frontmatter(GUIDE)
+
+        #: Then
+        assert second is first, 'a document frontmatter is decoded once per database, then shared by every check'
+
+    def test_frontmatter_of_a_document_that_is_not_utf8_raises_document_decode_error(self) -> None:
+        #: Given
+        database = Database(_snapshot(b'---\nname: "gu\xffide"\n---\n'))
+
+        #: When
+        with pytest.raises(DocumentDecodeError) as exc_info:
+            database.frontmatter(GUIDE)
+
+        #: Then
+        assert exc_info.value.ref == GUIDE, 'the error names the document that could not be decoded'
 
     def test_parse_of_a_listed_document_returns_its_frontmatter(self) -> None:
         #: Given

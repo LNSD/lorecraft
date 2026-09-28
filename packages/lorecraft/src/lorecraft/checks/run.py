@@ -1,57 +1,60 @@
-"""Run the header check over documents of one database.
+"""Run a check over documents of one database.
 
-The run asks the database for everything it reads: the model decides which schemas govern each document, and
-the parse tree is what the pure check validates. Selecting which documents to check is the caller's business:
-the run checks the refs it is handed, in the order given, and parses only the governed ones.
+A run asks the database for everything it reads: the model decides which aspects govern each document, and
+the part of the document the check reads is what the pure check validates: the frontmatter, for the header
+check. Selecting which documents to check is the caller's business:
+a run checks the refs it is handed, in the order given, and parses only the governed ones. Every check reports
+in the same shape, so the ``check`` commands print every run the same way.
 """
 
 from dataclasses import dataclass
 
 from lorecraft_project.document import DocumentDecodeError, DocumentRef
-from lorecraft_project.schemas import HeaderAspect
-from lorecraft_project.syntax import LineNumber
+from lorecraft_project.syntax import FrontmatterNode, LineNumber
 
 from .database import Database
-from .header import HeaderCheckResult, validate_header
+from .header import validate_header
 from .reporting import Finding
 
 
 @dataclass(frozen=True, slots=True)
-class HeaderReport:
+class DocumentReport:
     """The outcome of checking one selected document.
 
     Attributes:
         ref: The document the report is about; its path is the report path.
-        aspects: The header schemas governing the document; ``()`` means ungoverned, and the document was
-            never parsed.
-        result: The check's findings; empty for an ungoverned document.
+        governed: False when no specification governs the document for the check's aspect; the document was
+            then never parsed.
+        findings: The check's findings; empty for an ungoverned document.
     """
 
     ref: DocumentRef
-    aspects: tuple[HeaderAspect, ...]
-    result: HeaderCheckResult
+    governed: bool
+    findings: tuple[Finding, ...]
 
 
 @dataclass(frozen=True, slots=True)
-class HeaderRun:
-    """One pass over the selected documents: what the text and JSON printers consume.
+class CheckRun:
+    """One pass of one check over the selected documents: what the text and JSON printers consume.
 
     Attributes:
         reports: One per selected document, in the order the refs were given.
     """
 
-    reports: tuple[HeaderReport, ...]
+    reports: tuple[DocumentReport, ...]
 
     def findings(self) -> tuple[Finding, ...]:
         """Every finding of every report, in report order; empty exactly when the run is clean."""
         findings: list[Finding] = []
         for report in self.reports:
-            findings.extend(report.result.findings)
+            findings.extend(report.findings)
         return tuple(findings)
 
 
-def run_header(database: Database, refs: tuple[DocumentRef, ...]) -> HeaderRun:
+def run_header(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
     """Check each ref against the header schemas that govern it, in the order given.
+
+    A governed document that is not UTF-8 carries the single finding ``frontmatter.undecodable`` at line 1.
 
     Args:
         database: The snapshot state the refs come from; its model decides which schemas govern each document.
@@ -65,33 +68,43 @@ def run_header(database: Database, refs: tuple[DocumentRef, ...]) -> HeaderRun:
         GetHeaderSchemaError: If the model is not loaded yet and a header schema cannot be read or decoded.
         InvalidHeaderSchemaError: If the model is not loaded yet and a header schema is malformed.
     """
-    reports: list[HeaderReport] = []
+    reports: list[DocumentReport] = []
     for ref in refs:
-        reports.append(_check_document(database, ref))
-    return HeaderRun(reports=tuple(reports))
+        aspects = database.model().governance(ref).header_schemas()
+        if not aspects:
+            reports.append(DocumentReport(ref, governed=False, findings=()))
+            continue
+        frontmatter = _frontmatter(database, ref)
+        if frontmatter is None:
+            reports.append(DocumentReport(ref, governed=True, findings=(_undecodable(ref, 'frontmatter'),)))
+            continue
+        findings = validate_header(frontmatter, ref, aspects).findings
+        reports.append(DocumentReport(ref, governed=True, findings=findings))
+    return CheckRun(reports=tuple(reports))
 
 
-def _check_document(database: Database, ref: DocumentRef) -> HeaderReport:
-    """Select the document's header schemas, parse it if any govern it, and run the check.
+def _frontmatter(database: Database, ref: DocumentRef) -> FrontmatterNode | None:
+    """The document's frontmatter node, or ``None`` when its bytes are not UTF-8.
 
     Returns:
-        The report. An ungoverned document is never parsed and carries no findings. A governed document that
-        is not UTF-8 carries the single finding ``frontmatter.undecodable`` at line 1 instead of the check's.
+        The frontmatter node. ``None`` is the degraded return for bytes that are present but not UTF-8: those
+        are on the same side of the line as invalid YAML, since the document is wrong, so the caller reports a
+        finding rather than taking the exit-2 path an unreadable file takes.
 
     Raises:
-        GetDocumentError: If a governed document is missing from the snapshot; a decode failure is not raised.
+        GetDocumentError: If the document is missing from the snapshot; a decode failure is not raised.
     """
-    aspects = database.model().governance(ref).header_schemas()
-    if not aspects:
-        return HeaderReport(ref, aspects, HeaderCheckResult(findings=()))
     try:
-        document = database.parse(ref)
-    except DocumentDecodeError as exc:
-        # Bytes that are present but not UTF-8 are on the same side of the line as invalid YAML: the
-        # document is wrong, so the outcome is a finding (the degraded return documented above) rather
-        # than the exit-2 path an unreadable file takes.
-        finding = Finding(
-            path=exc.ref.path, line=LineNumber(1), rule='frontmatter.undecodable', message='document is not valid UTF-8'
-        )
-        return HeaderReport(ref, aspects, HeaderCheckResult(findings=(finding,)))
-    return HeaderReport(ref, aspects, validate_header(document, ref, aspects))
+        return database.frontmatter(ref)
+    except DocumentDecodeError:
+        return None
+
+
+def _undecodable(ref: DocumentRef, rule_namespace: str) -> Finding:
+    """The finding a governed document that is not UTF-8 carries instead of the check's own."""
+    return Finding(
+        path=ref.path,
+        line=LineNumber(1),
+        rule=f'{rule_namespace}.undecodable',
+        message='document is not valid UTF-8',
+    )

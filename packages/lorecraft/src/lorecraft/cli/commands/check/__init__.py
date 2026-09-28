@@ -1,20 +1,84 @@
 """The `check` command group: one subcommand per documentation check, each in its own module here.
 
 Importing this package registers the group and imports every module beside this one, so each check joins
-the group the same way a top-level command joins the root: by being a file in the package.
+the group the same way a top-level command joins the root: by being a file in the package. Each check module
+also registers its check, and a bare ``lorecraft check`` runs every registered one over one snapshot, so a new
+check joins that run without this module naming it.
 """
 
 import importlib
 import pkgutil
+from pathlib import Path
+from typing import Annotated, Literal
 
 import typer
 
+from lorecraft.checks import CheckRun
+from lorecraft.cli.check_run import DocumentCheck, print_runs, registered_checks, select_documents
 from lorecraft.cli.registry import register_group
+from lorecraft_core.error import Error
 
-app: typer.Typer = typer.Typer(help='Run a check against repository documentation.', no_args_is_help=True)
+app: typer.Typer = typer.Typer(
+    help='Run the documentation checks: every check when no check is named, or the one named.',
+    invoke_without_command=True,
+)
 register_group('check', app)
 
 __all__ = ['app']
+
+
+@app.callback()
+def check_all(
+    context: typer.Context,
+    root: Annotated[
+        Path | None,
+        typer.Option('--root', help='Repository root. Defaults to the nearest parent containing docs/__meta__.'),
+    ] = None,
+    output_format: Annotated[
+        Literal['text', 'json'] | None,
+        typer.Option('--format', help='Output format: text or json. Defaults to text.'),
+    ] = None,
+) -> None:
+    """Run every check over every document, when no check is named.
+
+    Each check reads the same snapshot, through one database, so a document is read and parsed once however
+    many checks read it. Exit 0 when clean, 1 when any check finds something, and 2 for invalid input or
+    specifications; after an error nothing is printed but the error.
+
+    Raises:
+        typer.BadParameter: If ``--root`` or ``--format`` is given before a named check, which takes its own.
+        typer.Exit: With the documented status code for findings or invalid input.
+    """
+    if context.invoked_subcommand is not None:
+        # The options belong to the bare run. Before a check's name they would be read and then ignored, so
+        # they are refused rather than dropped: the check takes its own `--root` and `--format`. Both default to
+        # `None` for this reason alone, so that a given option can be told from an absent one.
+        if root is not None or output_format is not None:
+            raise typer.BadParameter(
+                f'give it after the check name, as `lorecraft check {context.invoked_subcommand} --root ...`',
+                param_hint="'--root' / '--format'",
+            )
+        return
+
+    try:
+        database, refs = select_documents(root, None)
+        runs: list[tuple[DocumentCheck, CheckRun]] = []
+        for check in registered_checks():
+            runs.append((check, check.run(database, refs)))
+    except Error as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+    except OSError as exc:
+        # As in each check command: what is left is Python 3.12's Path.is_dir, which re-raises a
+        # PermissionError from find_root and resolve_root where 3.13 and later answer False.
+        typer.echo(f'cannot read input: {exc}', err=True)
+        raise typer.Exit(code=2) from exc
+
+    print_runs(tuple(runs), output_format or 'text')
+    for _check, run in runs:
+        if run.findings():
+            raise typer.Exit(code=1)
+
 
 # Each check lives in its own module and joins this group when imported. The group must exist before the
 # imports, because every check module attaches its command to `app`.
