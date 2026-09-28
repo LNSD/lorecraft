@@ -28,7 +28,7 @@
     },
     "type": {
       "enum": ["meta", "feature", "component"],
-      "description": "meta groups a feature area, feature documents a user-facing capability, component documents an internal building block. The type also selects a feat.<type>.structure.json layer."
+      "description": "meta groups a feature area, feature documents a user-facing capability, component documents an internal building block."
     },
     "status": {
       "enum": ["stable", "experimental", "unstable", "development"],
