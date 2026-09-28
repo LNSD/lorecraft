@@ -15,7 +15,7 @@ This is a vendored copy, kept as-is until the lorecraft library implements the c
 the skill calls that instead.
 
 Covers the mechanical half of a specification's Document Structure section: which
-sections a document must carry, which its type forbids, the order of the ones whose
+sections a document must carry, which the spec forbids, the order of the ones whose
 order is fixed, and whether any section was left empty. Judgment calls stay with
 /docs-rules-check - whether a section says what it should, whether a cross-reference
 points in an allowed direction.
@@ -82,16 +82,15 @@ happened to be checked first.
 ## Layering
 
 A spec states rules; it asks no questions about the document it is applied to. Where a
-corpus's documents answer differently - a `principle` document carries External
-References, a `meta` document must not - that is **another spec layered on this one**,
-never a condition inside it.
+group of a corpus's documents answers differently - a `principle` document carries
+External References - that is **another spec layered on this one**, never a condition
+inside it.
 
-A document's own path and `type` name the layers that govern it:
+A document's own path names the layers that govern it:
 
-    docs/<corpus>/<prefix>-<rest>.md, type: <type>
+    docs/<corpus>/<prefix>-<rest>.md
       -> docs/__meta__/<corpus>.structure.json          (required; else the corpus is ungoverned)
       -> docs/__meta__/<corpus>-<prefix>.structure.json (optional, for that filename prefix)
-      -> docs/__meta__/<corpus>.<type>.structure.json   (optional, for that frontmatter type)
 
 Each layer is a whole spec and each is applied on its own, so a layer states only what it
 adds, no layer has to restate what a broader one already said, and none can escape one
@@ -247,21 +246,20 @@ def parse(text: str) -> tuple[dict[str, Any], list[Heading]]:
     return frontmatter, headings
 
 
-def spec_paths(root: Path, doc: Path, doc_type: str) -> list[Path]:
-    """Resolve the specs that govern a document: the corpus file, then the layers on it.
+def spec_paths(root: Path, doc: Path) -> list[Path]:
+    """Resolve the specs that govern a document: the corpus file, then the prefix layer on it.
 
-    The corpus file comes first and the rest narrow it. Each layer is optional, and an
+    The corpus file comes first and the layer narrows it. The layer is optional, and an
     absent one simply adds nothing.
     """
     corpus = doc.relative_to(root / DOCS_DIR).parts[0]
     prefix = doc.stem.split('-')[0]
 
     base = root / META_DIR / f'{corpus}.structure.json'
-    layers = [
-        root / META_DIR / f'{corpus}-{prefix}.structure.json',
-        root / META_DIR / f'{corpus}.{doc_type}.structure.json' if doc_type else None,
-    ]
-    return [base, *(path for path in layers if path is not None and path.exists())]
+    layer = root / META_DIR / f'{corpus}-{prefix}.structure.json'
+    if layer.exists():
+        return [base, layer]
+    return [base]
 
 
 class MalformedSpec(Exception):
@@ -369,11 +367,10 @@ def validate(root: Path, doc: Path) -> tuple[list[Finding], bool]:
     if not doc.is_relative_to(root / DOCS_DIR):
         return [], False
 
-    frontmatter, headings = parse(doc.read_text(encoding='utf-8'))
-    doc_type = str(frontmatter.get('type', ''))
+    _, headings = parse(doc.read_text(encoding='utf-8'))
     sections = [h for h in headings if h.level == SECTION_LEVEL]
 
-    paths = spec_paths(root, doc, doc_type)
+    paths = spec_paths(root, doc)
     if not paths[0].exists():
         return [], False
 
