@@ -1,58 +1,47 @@
-# The workspace root is virtual: it has no [project] table and is never built or published. It holds the
-# development groups and the tool configuration every package shares, and it installs the package into the
-# one environment `just sync` builds.
+# Virtual workspace root: never built.
 #
-#   packages/lorecraft  the command line (import `lorecraft`, console script `lorecraft`)
-#   tests               the end-to-end suites and their helper library: a private member, never built
+#   packages/lorecraft-core  the base package: the shared error class (import `lorecraft_core`)
+#   packages/lorecraft       the command line (import `lorecraft`, console script `lorecraft`)
+#   tests                    the end-to-end suites and their helpers: private, never built
 #
-# The version has one home and it is the git tag: the package's hatch-vcs runs `git describe` against this
-# checkout at build time, so releasing is `git tag v1.2.3`. Building needs git and real history; a shallow
-# clone without tags produces a version derived from whatever it can see, so CI checks out with
-# fetch-depth: 0. The build settings live in the package's pyproject.toml.
+# The version comes from the git tag (hatch-vcs), shared by every package, so CI needs full history.
 [tool.uv.workspace]
-members = ["packages/*", "tests"]
+members = [
+    "packages/*",
+    "tests",
+]
 
 [tool.uv.sources]
 lorecraft = { workspace = true }
+lorecraft-core = { workspace = true }
 
 [dependency-groups]
 dev = [
-    # The workspace's own package, so a plain `uv sync` installs it, editable.
     "lorecraft",
-    "ruff>=0.16.0",     # Formatting and linting
-    "pytest>=9.0.3",    # Test runner
-    "syrupy>=6.1.1",    # Snapshot assertions: the end-to-end tier compares command output to checked-in files
-    # ty is pre-1.0: its CLI and its diagnostics still change between patch
-    # releases, so the upper bound is deliberate.
-    "ty>=0.0.83,<0.1",  # Type checker
+    "lorecraft-core",
+    "ruff>=0.16.0",
+    "pytest>=9.0.3",
+    "syrupy>=6.1.1",
+    "ty>=0.0.83,<0.1",
 ]
 
 [tool.pytest.ini_options]
-# Three tiers, three locations. Unit tests sit in a `tests/` subpackage beside the module they test, under
-# each package's src/, and are never shipped. Each package's integration tier sits flat in its own tests/. The
-# end-to-end tier drives the installed `lorecraft` console script, so it tests the product rather than the
-# package and is its own workspace member.
+# Unit tests sit beside their module under src/, integration tests in each package's tests/.
 testpaths = [
-    "packages/lorecraft/src",
-    "packages/lorecraft/tests",
+    "packages/*/src",
+    "packages/*/tests",
     "tests/e2e",
 ]
-# The end-to-end helper library, tests/lib/, imports as `lib`: its member is never built or installed.
+# The end-to-end helpers in tests/lib/ import as `lib`.
 pythonpath = ["tests"]
 addopts = [
     "-v",
     "--tb=short",
     "--strict-markers",
-    # Two kinds of test directory, and importlib mode handles both. A unit `tests/` subpackage under src/
-    # has an `__init__.py`, so pytest walks up to src/ and imports each file under its real dotted name,
-    # `lorecraft.cli.tests.test_version`, which is what lets its relative imports resolve. The `it` and `e2e`
-    # directories carry no `__init__.py`, and one file name recurs across them (packages/lorecraft/tests/test_cli.py
-    # and tests/e2e/test_cli.py); importlib mode imports those by path, so two of the same name never collide.
+    # Unit test packages import under their real dotted name, so relative imports resolve; test files with
+    # the same name in different integration and end-to-end directories never collide.
     "--import-mode=importlib",
 ]
-
-# --strict-markers rejects any marker that is not listed here, so add a marker
-# and its description together.
 markers = [
     "unit: Unit tests (fast, no external dependencies)",
     "it: Integration tests (the package's own modules wired together, in process)",
@@ -62,14 +51,12 @@ markers = [
 [tool.ruff]
 line-length = 120
 target-version = "py312"
-# Each import root, so isort sorts `lorecraft` and the test library `lib` as first-party.
-src = ["packages/*/src", "tests"]
+src = [
+    "packages/*/src",
+    "tests",
+]
 force-exclude = true
-
-# ruff formats Python code blocks inside Markdown. The documents under docs/ are
-# this project's subject matter: their examples are written to illustrate a rule,
-# including examples that are deliberately mis-shaped, so the formatter must not
-# rewrite them.
+# The Markdown examples under docs/ are deliberately shaped to illustrate rules; never reformat them.
 extend-exclude = ["*.md"]
 
 [tool.ruff.lint]
@@ -83,8 +70,9 @@ select = [
 [tool.ruff.format]
 quote-style = "single"
 
-# ty is the type checker. `root` lists each package's import root, so `lorecraft`
-# resolves the same way it does at runtime.
 [tool.ty.environment]
-root = ["packages/lorecraft/src"]
+root = [
+    "packages/lorecraft-core/src",
+    "packages/lorecraft/src",
+]
 python-version = "3.12"

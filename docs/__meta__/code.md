@@ -210,15 +210,15 @@ the workspace's `pyproject.toml` files and the layout under `packages/`.
 
 #### `pkg` - Package-Specific Rules
 
-Rules scoped to individual packages, using the `pkg-` prefix followed by the package's full import path. The
-workspace has two import packages, `lorecraft_core` and `lorecraft`, and both can hold a subpackage of the same
-name, so the import package is always part of the name: a doc governing `lorecraft_core/checks/` is scoped
-`pkg:lorecraft_core.checks`. A security companion takes the same name plus `-security`.
+Rules scoped to individual packages, using the `pkg-` prefix followed by the package's full import path. Each
+workspace package under `packages/` is its own import package, and two of them can hold a subpackage of the
+same name, so the import package is always part of the name: a doc governing `lorecraft_project/checks/` is scoped
+`pkg:lorecraft_project.checks`. A security companion takes the same name plus `-security`.
 
 `scope` carries the import path exactly as Python spells it — **snake_case**, dotted for nesting:
-`pkg:lorecraft_core.checks.frontmatter` for a `frontmatter` subpackage of `checks`. The **filename** cannot
-carry an underscore or a dot, so it converts both to `-`: a doc scoped `pkg:lorecraft_core.checks` is named
-`pkg-lorecraft-core-checks.md`.
+`pkg:lorecraft_project.checks.frontmatter` for a `frontmatter` subpackage of `checks`. The **filename** cannot
+carry an underscore or a dot, so it converts both to `-`: a doc scoped `pkg:lorecraft_project.checks` is named
+`pkg-lorecraft-project-checks.md`.
 
 A document governing a family of sibling subpackages names the family, not one member.
 
@@ -342,8 +342,8 @@ Rule documents may reference other rule documents to establish relationships. Cr
 | Type | Meaning | Example |
 |---|---|---|
 | `Related` | Sibling in same prefix group | test-organization <-> test-functions |
-| `Foundation` | Core rule a pkg/arch rule builds on | pkg-lorecraft-core-checks -> python-exceptions |
-| `Companion` | Paired doc for same package | pkg-lorecraft-core-checks <-> pkg-lorecraft-core-checks-security |
+| `Foundation` | Core rule a pkg/arch rule builds on | pkg-lorecraft-project-checks -> python-exceptions |
+| `Companion` | Paired doc for same package | pkg-lorecraft-project-checks <-> pkg-lorecraft-project-checks-security |
 | `Extends` | Specializes/refines another rule document | python-errors-handling -> python-exceptions |
 
 ### Direction Rules
@@ -369,19 +369,19 @@ Rule documents may reference other rule documents to establish relationships. Cr
 ## References
 - [python-exceptions](python-exceptions.md) - Extends: Exception type declaration
 - [python-modules](python-modules.md) - Foundation: Module organization
-- [pkg-lorecraft-core-checks-security](pkg-lorecraft-core-checks-security.md) - Companion: Security checklist
+- [pkg-lorecraft-project-checks-security](pkg-lorecraft-project-checks-security.md) - Companion: Security checklist
 ```
 
 ### Examples
 
 - ✅ `python-errors-handling` -> `python-exceptions` (Extends: core to core)
-- ✅ `pkg-lorecraft-core-checks` -> `python-exceptions` (Foundation: pkg to core)
-- ✅ `pkg-lorecraft-core-checks-frontmatter` -> `pkg-lorecraft-core-checks` (Extends: pkg to pkg)
-- ✅ `pkg-lorecraft-core-checks` <-> `pkg-lorecraft-core-checks-security` (Companion: bidirectional)
+- ✅ `pkg-lorecraft-project-checks` -> `python-exceptions` (Foundation: pkg to core)
+- ✅ `pkg-lorecraft-project-checks-frontmatter` -> `pkg-lorecraft-project-checks` (Extends: pkg to pkg)
+- ✅ `pkg-lorecraft-project-checks` <-> `pkg-lorecraft-project-checks-security` (Companion: bidirectional)
 - ✅ an `arch` doc governing `pyproject.toml` -> `python-modules` (Foundation: arch to core)
 - ✅ `test-organization` <-> `test-functions` (Related: core siblings)
 - ❌ `code` -> `python-modules` (meta rules only reference other meta rules)
-- ❌ `python-modules` -> `pkg-lorecraft-core-checks` (core cannot reference pkg rules)
+- ❌ `python-modules` -> `pkg-lorecraft-project-checks` (core cannot reference pkg rules)
 
 ---
 
@@ -458,7 +458,7 @@ Include when relevant:
 rule the doc states — the least code that carries the convention, invented for the purpose, standing
 on its own.
 
-This is deliberate, and it is the opposite of what a citation buys. A `# ✅ Good — lorecraft_core/x/y.py`
+This is deliberate, and it is the opposite of what a citation buys. A `# ✅ Good — lorecraft_project/x/y.py`
 attribution makes a doc feel checkable, but it is a **copy of a module living in a second file**, and
 it rots exactly like any other copy: the package is renamed, the helper moves, the signature grows an
 argument, the code the doc quotes is deleted — and now the rule document is wrong about the repository
@@ -472,7 +472,7 @@ So:
 
 - **Never write a file path into an example**, in the `# ✅ Good —` comment or anywhere else. The
   comment says _why_ the example is good or bad, never _where_ it came from.
-- **Never assert, in prose, that a named module does the thing.** "`lorecraft_core/checks/base.py`
+- **Never assert, in prose, that a named module does the thing.** "`lorecraft_project/checks/base.py`
   states X" is a citation wearing a sentence, and it rots on the next rename. State the rule.
 - **Invent the names.** Illustrative subjects (`parse_frontmatter`, `OutlineSpec`, `load_corpus`) are
   preferred precisely because they are obviously not an inventory of the project.
@@ -487,7 +487,7 @@ Three things stay exact, because they are what the doc is teaching rather than e
 
 - **Third-party and stdlib APIs**: `pathlib.Path`, `dataclasses.dataclass`, `logging`, `re`, `tomllib`.
   A doc that gets these wrong teaches the wrong thing.
-- **The names of packages and subpackages.** `lorecraft_core`, `lorecraft` and the subpackages declared
+- **The names of packages and subpackages.** The workspace's import packages and the subpackages declared
   under them — written as they really are, never disguised. These are the project's vocabulary,
   and a reader who cannot map an example onto the package it concerns has to translate before they can
   apply the rule, which is the same cost a toy domain imposes. Invented substitutes are at their worst
