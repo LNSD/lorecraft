@@ -63,3 +63,13 @@ A script that validates one aspect of documentation against a machine-checkable 
 ### Prose budget
 
 The maximum prose length allowed for a document or one of its sections, as defined by a budget specification.
+
+## Toolkit internals
+
+### Snapshot
+
+What one scan of a repository saw: every listing, every regular file's bytes and every symlink's target under `docs/` and the skills directories, down to a fixed depth. A snapshot is replaced whole by the next scan, never patched, and two snapshots are equal exactly when nothing they cover changed. The virtual view answers the filesystem boundary's operations from one snapshot without touching the disk.
+
+### Change set
+
+The difference of two snapshots, one entry per path: added, modified or deleted. An entry whose kind changed, such as a directory turned into a symlink, counts as deleted. It is computed from the two states, never from the filesystem events between them, so a save that leaves the bytes unchanged is no change.

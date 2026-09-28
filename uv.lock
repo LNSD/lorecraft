@@ -6,6 +6,7 @@ requires-python = ">=3.12"
 members = [
     "lorecraft",
     "lorecraft-core",
+    "lorecraft-vfs",
     "tests",
 ]
 
@@ -13,6 +14,7 @@ members = [
 dev = [
     { name = "lorecraft", editable = "packages/lorecraft" },
     { name = "lorecraft-core", editable = "packages/lorecraft-core" },
+    { name = "lorecraft-vfs", editable = "packages/lorecraft-vfs" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "ruff", specifier = ">=0.16.0" },
     { name = "syrupy", specifier = ">=6.1.1" },
@@ -59,6 +61,16 @@ requires-dist = [{ name = "typer", specifier = ">=0.27.2" }]
 [[package]]
 name = "lorecraft-core"
 source = { editable = "packages/lorecraft-core" }
+
+[[package]]
+name = "lorecraft-vfs"
+source = { editable = "packages/lorecraft-vfs" }
+dependencies = [
+    { name = "lorecraft-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "lorecraft-core", editable = "packages/lorecraft-core" }]
 
 [[package]]
 name = "markdown-it-py"
