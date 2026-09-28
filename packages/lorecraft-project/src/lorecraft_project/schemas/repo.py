@@ -1,0 +1,188 @@
+"""Read specification files from one directory through the filesystem boundary.
+
+Every path the repository takes or returns is root-relative: the specification directory is joined to the
+workspace root only inside ``FileSystem``. The repository reads and decodes; the JSON it returns is typed as
+decoded and nothing more. Whether a decoded header schema is well-formed is proved by building a
+``HeaderAspect`` from it, and which documents a specification governs is decided above the repository.
+
+Nothing here logs: the command that loads the model catches every ``Error`` that escapes it and reports it,
+so every handler below re-raises without logging.
+"""
+
+import json
+
+from lorecraft_core.error import Error
+from lorecraft_project.corpus import CorpusName
+from lorecraft_vfs import EntryKind, FileSystem, ListDirError, ReadTextError, RootRelativePath
+
+from .budget import BudgetSchema
+from .header import HeaderSchema
+from .name import SchemaName, TypeSelectorName
+from .spec_file import (
+    SpecAspect,
+    SpecFile,
+    SpecFilenameError,
+    TypeSelectorFile,
+    parse_spec_file,
+    schema_filename,
+    type_selector_filename,
+)
+from .structure import StructureSchema
+
+
+class ListSchemasError(Error):
+    """The specification directory cannot be listed."""
+
+
+class ListSpecsError(Error):
+    """The specification directory cannot be listed."""
+
+
+class ListCorpusSchemasError(Error):
+    """Schemas for a corpus cannot be listed."""
+
+
+class GetHeaderSchemaError(Error):
+    """A requested header schema cannot be loaded."""
+
+
+class GetStructureSchemaError(Error):
+    """A requested structure schema cannot be loaded."""
+
+
+class GetBudgetSchemaError(Error):
+    """A requested budget schema cannot be loaded."""
+
+
+class Repository:
+    """Expose specification files under one directory by schema name."""
+
+    def __init__(self, fs: FileSystem, specs_dir: RootRelativePath) -> None:
+        """Remember the seam and the root-relative directory; performs no I/O."""
+        self._fs = fs
+        self._specs_dir = specs_dir
+
+    def list_spec_paths(self) -> list[RootRelativePath]:
+        """List the root-relative path of every regular file in the directory, sorted by name.
+
+        Nothing is parsed here: the caller parses each path with ``parse_spec_file``, and decides what to do
+        with a file whose name is not a specification filename. A missing directory lists as nothing.
+
+        Raises:
+            ListSpecsError: If the directory exists but cannot be listed.
+        """
+        try:
+            entries = self._fs.list_dir(self._specs_dir)
+        except ListDirError as exc:
+            raise ListSpecsError(f'cannot list specifications in {self._specs_dir}: {exc.detail}') from exc
+        return [self._specs_dir / entry.name for entry in entries if entry.kind is EntryKind.FILE]
+
+    def list_schemas(self) -> list[SpecFile | TypeSelectorFile]:
+        """List the JSON schema files, every aspect and stem form, in stable name order.
+
+        A file whose name does not parse is left out; the loader is what records why. A missing directory
+        lists as nothing.
+
+        Raises:
+            ListSchemasError: If the directory exists but cannot be listed.
+        """
+        try:
+            return self._schema_files()
+        except ListDirError as exc:
+            raise ListSchemasError(f'cannot list schemas in {self._specs_dir}: {exc.detail}') from exc
+
+    def list_schemas_by_corpus(self, corpus: CorpusName) -> list[SpecFile | TypeSelectorFile]:
+        """List the JSON schema files whose stem belongs to one corpus, in stable name order.
+
+        A missing directory lists as nothing.
+
+        Raises:
+            ListCorpusSchemasError: If the directory exists but cannot be listed.
+        """
+        try:
+            files = self._schema_files()
+        except ListDirError as exc:
+            raise ListCorpusSchemasError(
+                f'cannot list schemas for {corpus} in {self._specs_dir}: {exc.detail}'
+            ) from exc
+        return [schema for schema in files if schema.corpus == corpus]
+
+    def get_header_schema(self, name: SchemaName) -> HeaderSchema:
+        """Read and JSON-decode one header schema; ``HeaderAspect`` is what proves it well-formed.
+
+        Raises:
+            GetHeaderSchemaError: If the file cannot be read, is not JSON, or is not a JSON object.
+        """
+        path = self._specs_dir / schema_filename(name, SpecAspect.HEADER)
+        try:
+            text = self._fs.read_text(path)
+        except ReadTextError as exc:
+            raise GetHeaderSchemaError(f'cannot read schema {path}: {exc.detail}') from exc
+        try:
+            definition: object = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise GetHeaderSchemaError(f'invalid JSON in schema {path}: {exc.msg}') from exc
+        if not isinstance(definition, dict):
+            raise GetHeaderSchemaError(f'expected a JSON object in schema {path}')
+        return HeaderSchema(definition)
+
+    def get_structure_schema(self, name: SchemaName | TypeSelectorName) -> StructureSchema:
+        """Read and JSON-decode a corpus, namespace or type-selector structure schema; nothing validates it yet.
+
+        Raises:
+            GetStructureSchemaError: If the file cannot be read, is not JSON, or is not a JSON object.
+        """
+        if isinstance(name, TypeSelectorName):
+            filename = type_selector_filename(name)
+        else:
+            filename = schema_filename(name, SpecAspect.STRUCTURE)
+        path = self._specs_dir / filename
+        try:
+            text = self._fs.read_text(path)
+        except ReadTextError as exc:
+            raise GetStructureSchemaError(f'cannot read schema {path}: {exc.detail}') from exc
+        try:
+            definition: object = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise GetStructureSchemaError(f'invalid JSON in schema {path}: {exc.msg}') from exc
+        if not isinstance(definition, dict):
+            raise GetStructureSchemaError(f'expected a JSON object in schema {path}')
+        return StructureSchema(definition)
+
+    def get_budget_schema(self, name: SchemaName) -> BudgetSchema:
+        """Read and JSON-decode one budget schema; nothing validates it yet.
+
+        Raises:
+            GetBudgetSchemaError: If the file cannot be read, is not JSON, or is not a JSON object.
+        """
+        path = self._specs_dir / schema_filename(name, SpecAspect.BUDGET)
+        try:
+            text = self._fs.read_text(path)
+        except ReadTextError as exc:
+            raise GetBudgetSchemaError(f'cannot read schema {path}: {exc.detail}') from exc
+        try:
+            definition: object = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise GetBudgetSchemaError(f'invalid JSON in schema {path}: {exc.msg}') from exc
+        if not isinstance(definition, dict):
+            raise GetBudgetSchemaError(f'expected a JSON object in schema {path}')
+        return BudgetSchema(definition)
+
+    def _schema_files(self) -> list[SpecFile | TypeSelectorFile]:
+        """Parse the JSON schema files in name order; the seam already sorts its entries.
+
+        Raises:
+            ListDirError: If the directory exists but cannot be listed.
+        """
+        schemas: list[SpecFile | TypeSelectorFile] = []
+        for entry in self._fs.list_dir(self._specs_dir):
+            if entry.kind is not EntryKind.FILE:
+                continue
+            try:
+                spec_file = parse_spec_file(self._specs_dir / entry.name)
+            except SpecFilenameError:
+                # Not a specification filename: a listing leaves it out, and the loader records why.
+                continue
+            if isinstance(spec_file, TypeSelectorFile) or spec_file.aspect is not None:
+                schemas.append(spec_file)
+        return schemas

@@ -1,0 +1,9 @@
+<workspace>
+└── corpora (1)
+    └── code (docs/code)
+        ├── specs (2)
+        │   ├── code: code.header.json, code.md
+        │   └── code-python: code-python.md
+        └── documents (2)
+            ├── logging.md [code]
+            └── python-typing.md [code, code-python]
