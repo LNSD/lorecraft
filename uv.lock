@@ -5,12 +5,14 @@ requires-python = ">=3.12"
 [manifest]
 members = [
     "lorecraft",
-    "lorecraft-e2e",
+    "lorecraft-core",
+    "tests",
 ]
 
 [manifest.dependency-groups]
 dev = [
     { name = "lorecraft", editable = "packages/lorecraft" },
+    { name = "lorecraft-core", editable = "packages/lorecraft-core" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "ruff", specifier = ">=0.16.0" },
     { name = "syrupy", specifier = ">=6.1.1" },
@@ -55,15 +57,8 @@ dependencies = [
 requires-dist = [{ name = "typer", specifier = ">=0.27.2" }]
 
 [[package]]
-name = "lorecraft-e2e"
-version = "0"
-source = { virtual = "tests" }
-dependencies = [
-    { name = "lorecraft" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "lorecraft", editable = "packages/lorecraft" }]
+name = "lorecraft-core"
+source = { editable = "packages/lorecraft-core" }
 
 [[package]]
 name = "markdown-it-py"
@@ -187,6 +182,17 @@ sdist = { url = "https://files.pythonhosted.org/packages/74/2c/8ffc1414d1951895d
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2c/b5/bf2a8a335a6a813869dd482cedbcde252f582b5afbfe50eb78ec09962800/syrupy-6.1.1-py3-none-any.whl", hash = "sha256:6ac9ac6a42d70ae44156f5f157a9563b9bb8cc96dcf9364327f330463bff889a", size = 63436, upload-time = "2026-09-13T20:25:20.294Z" },
 ]
+
+[[package]]
+name = "tests"
+version = "0"
+source = { virtual = "tests" }
+dependencies = [
+    { name = "lorecraft" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "lorecraft", editable = "packages/lorecraft" }]
 
 [[package]]
 name = "ty"
