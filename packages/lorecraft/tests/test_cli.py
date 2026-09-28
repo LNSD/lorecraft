@@ -2,8 +2,8 @@
 
 These run the command line in process through Typer's `CliRunner`, so they cross module boundaries —
 root application, registry, command module, version strings, the scan and the model load behind `inspect`,
-the header check behind `check header` — without needing the console script that `tests/e2e/` exercises.
-`inspect` and `check header` read a real tree under `tmp_path`.
+the checks behind `check header` and `check structure` — without needing the console script that `tests/e2e/`
+exercises. `inspect` and the checks read a real tree under `tmp_path`.
 """
 
 import json
@@ -24,6 +24,9 @@ runner = CliRunner()
 
 # A well-formed Draft 2020-12 schema that accepts any frontmatter; the cases below turn on the tree, not the schema.
 ACCEPT_ANY_HEADER_SCHEMA: Final[str] = '{"type": "object"}'
+
+# A structure specification requiring a Checklist after the document's own sections.
+CHECKLIST_STRUCTURE_SPEC: Final[str] = '{"spec": "code.md §5", "outline": [{"any": true}, {"section": "Checklist"}]}'
 
 
 @pytest.fixture(scope='function')
@@ -377,11 +380,96 @@ class TestCheckHeaderCommand:
 
 
 @pytest.mark.it
+class TestCheckStructureCommand:
+    def test_check_structure_with_a_clean_corpus_exits_zero_and_counts_the_documents(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_STRUCTURE_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '## Rule\n\ntext\n\n## Checklist\n\n- [ ] item\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'structure', '--root', str(tmp_path)])
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stdout == '', 'a clean run prints no finding lines'
+        assert result.stderr == 'checked 1 file(s), 0 finding(s)\n', 'the summary goes to stderr'
+
+    def test_check_structure_with_a_missing_section_exits_one_and_prints_the_finding(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_STRUCTURE_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '## Rule\n\ntext\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'structure', '--root', str(tmp_path)])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert result.stdout == (
+            'docs/code/guide.md:1: [structure.outline] missing required section `Checklist` (per code.md §5)\n'
+        ), 'the finding prints root-relative, quoting the prose the specification checks'
+
+    def test_check_structure_with_a_corpus_without_a_structure_spec_reports_it_ungoverned(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/feat.md', '# Feat\n')
+        _write(tmp_path, 'docs/feat/overview.md', '## Empty\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'structure', '--root', str(tmp_path)])
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stdout == (
+            'docs/feat/overview.md:1: [feat.ungoverned] no structure spec for this corpus; structure unvalidated\n'
+        ), 'an ungoverned document is reported as unvalidated, not as a finding'
+
+    def test_check_structure_with_a_malformed_structure_spec_exits_as_invalid_input(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', '{"spec": "code.md §5"}')
+        _write(tmp_path, 'docs/code/guide.md', '## Rule\n\ntext\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'structure', '--root', str(tmp_path)])
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert 'invalid structure schema docs/__meta__/code.structure.json' in result.stderr, (
+            'the failure names the specification the load rejected'
+        )
+
+    def test_check_structure_with_a_finding_and_json_format_reports_the_file_as_text_and_the_line_as_a_number(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_STRUCTURE_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '## Checklist\n\n- [ ] item\n\n## Appendix\n\ntext\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'structure', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout)['findings'] == [
+            {
+                'file': 'docs/code/guide.md',
+                'line': 5,
+                'rule': 'structure.outline',
+                'message': 'unexpected section `Appendix`; the outline ends before it (per code.md §5)',
+            }
+        ], f'a finding serialises as the root-relative path and the line number, got {result.stdout!r}'
+
+
+@pytest.mark.it
 class TestCheckAllCommand:
     def test_check_with_a_clean_corpus_exits_zero_and_counts_the_documents_and_checks(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.header.json', ACCEPT_ANY_HEADER_SCHEMA)
-        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n')
+        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_STRUCTURE_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n## Checklist\n\n- [ ] item\n')
         app = build_app()
 
         #: When
@@ -390,13 +478,14 @@ class TestCheckAllCommand:
         #: Then
         assert result.exit_code == 0, result.output
         assert result.stdout == '', 'a clean run prints no finding lines'
-        assert result.stderr == 'checked 1 file(s) with 1 check(s), 0 finding(s)\n', (
+        assert result.stderr == 'checked 1 file(s) with 2 check(s), 0 finding(s)\n', (
             'one summary line covers every check the run made'
         )
 
-    def test_check_with_a_header_finding_exits_one_and_prints_it(self, tmp_path: Path) -> None:
+    def test_check_with_findings_from_two_checks_exits_one_and_prints_them_check_by_check(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.header.json', ACCEPT_ANY_HEADER_SCHEMA)
+        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_STRUCTURE_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
         app = build_app()
 
@@ -405,9 +494,10 @@ class TestCheckAllCommand:
 
         #: Then
         assert result.exit_code == 1, result.output
-        assert result.stdout == 'docs/code/guide.md:1: [frontmatter.missing] no `---` delimited frontmatter block\n', (
-            "the bare run prints each check's findings as the check itself would"
-        )
+        assert result.stdout == (
+            'docs/code/guide.md:1: [frontmatter.missing] no `---` delimited frontmatter block\n'
+            'docs/code/guide.md:1: [structure.outline] missing required section `Checklist` (per code.md §5)\n'
+        ), "the bare run prints each check's findings as the check itself would, in check name order"
 
     def test_check_with_json_format_reports_each_check_under_its_name(self, tmp_path: Path) -> None:
         #: Given
@@ -421,7 +511,10 @@ class TestCheckAllCommand:
         #: Then
         assert result.exit_code == 0, result.output
         assert json.loads(result.stdout) == {
-            'checks': {'header': {'checked': 1, 'findings': [], 'ungoverned': []}},
+            'checks': {
+                'header': {'checked': 1, 'findings': [], 'ungoverned': []},
+                'structure': {'checked': 1, 'findings': [], 'ungoverned': ['docs/code/guide.md']},
+            },
         }, f'each check keeps the report its own subcommand prints, got {result.stdout!r}'
 
     def test_check_with_a_malformed_header_schema_exits_as_invalid_input(
@@ -510,3 +603,14 @@ class TestCommandRouting:
         #: Then
         assert result.exit_code == 0, result.output
         assert 'header' in result.output, 'the check group lists the header check discovered beside it'
+
+    def test_build_app_when_called_mounts_the_check_group_with_its_structure_command(self) -> None:
+        #: Given
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--help'])
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert 'structure' in result.output, 'the check group lists the structure check discovered beside it'

@@ -2,8 +2,8 @@
 
 The budget check still runs as a vendored script, so nothing in the library gives this JSON a meaning yet,
 and nothing here claims it has one. When that check migrates, its budgets are decoded at load into a
-``BudgetAspect`` whose construction validates them, the way ``HeaderAspect`` validates a header schema, and
-this type stays what the repository returns before that step.
+``BudgetAspect`` whose construction validates them, the way ``StructureAspect`` validates a structure
+specification, and this type stays what the repository returns before that step.
 """
 
 from typing import NewType

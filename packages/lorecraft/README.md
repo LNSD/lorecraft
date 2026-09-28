@@ -10,6 +10,7 @@ uv tool install lorecraft
 lorecraft version --verbose
 lorecraft check           # run every check over every document
 lorecraft check header    # validate every document's frontmatter against the repository's schemas
+lorecraft check structure # validate every document's section outline against the structure specifications
 ```
 
 See the [repository](https://github.com/lnsd/lorecraft) for the documentation.
