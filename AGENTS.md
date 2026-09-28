@@ -5,18 +5,19 @@ feature docs (specs, plans, status), the agent skills it carries, and the format
 all three. It implements the mechanical half of reviewing those documents — frontmatter against a schema,
 section outlines against a structure spec, prose against a length budget, skills against the Agent Skills
 specification — so a repository declares the rules it wants and runs one checker, instead of carrying a
-standalone script per check. It is a Python project managed with `uv`, as a workspace of one releasable
-package and one private test member:
+standalone script per check. It is a Python project managed with `uv`, as a workspace:
 
-- `packages/lorecraft/` is the command line, distribution `lorecraft`, import package `lorecraft`, console
-  script `lorecraft`.
+- `packages/<package>/` is a releasable package, each with its own `pyproject.toml`, `src/` and `tests/`.
+  The root `pyproject.toml` lists the members and says what each one is; read it rather than assuming a set.
+  A library package prints nothing; the command line package owns the `lorecraft` console script and the
+  output.
 - `tests/` is the end-to-end tier, a virtual member that is never built: the suites in `tests/e2e/` and their
   helper library in `tests/lib/`.
 
 **The checks are not in the library yet.** They run today as vendored scripts under
-`.agents/skills/*/scripts/`, wired to `just check-docs` and `just check-skills` and gated in CI.
-`packages/lorecraft/src/lorecraft/` holds the version, the `lorecraft` CLI under `cli/` and nothing else, so the modules those
-scripts migrate into do not exist. Do not infer structure that is not on disk.
+`.agents/skills/*/scripts/`, wired to `just check-docs` and `just check-skills` and gated in CI. The library
+holds only the shared error class every package's failures derive from, so the modules those scripts migrate
+into do not exist. Do not infer structure that is not on disk.
 
 The CLI is a router: `cli/app.py` declares the root application and the global options, and every subcommand
 lives in its own module under `cli/commands/`, joining by calling `@register(<name>)` beside its handler.
@@ -28,9 +29,9 @@ no dispatcher, no import list, no edit to the root application. `version` is the
 If you are an AI agent working on this repository, follow these rules first:
 
 1. Read this file, then look at what exists on disk. The toolchain, the document format and the checks are
-   fixed; the library and its tests are not written yet.
+   fixed; the library is being written.
 2. Ask a concise question when a task needs a convention this guide does not fix. Decisions this repository
-   has not made — the library's module layout, the first feature doc — belong to the owner.
+   has not made — where each check lands in the library, the first feature doc — belong to the owner.
 3. Run everything Python through `uv run`. Never install into a system interpreter, never use bare `pip`.
 4. Keep changes small and readable. Readability over cleverness, always.
 5. Update this guide in the same change that makes one of its statements untrue.
@@ -56,8 +57,8 @@ that recipe. **A check that cannot pass this repository does not ship.** When a 
 document or fix the check — never loosen a schema, raise a budget, or narrow a recipe's scope to make it green.
 
 The scripts under `.agents/skills/*/scripts/` are **vendored copies, deliberately**: a skill stays runnable from
-a bare checkout with nothing but `uv`. They are also the migration target — each becomes a module under
-`packages/lorecraft/src/lorecraft/`, and the skill then calls the library instead of carrying the code.
+a bare checkout with nothing but `uv`. They are also the migration target — each becomes a module in a
+library package, and the skill then calls the command line instead of carrying the code.
 
 ## Canonical Resources
 
@@ -73,10 +74,9 @@ a bare checkout with nothing but `uv`. They are also the migration target — ea
 | `docs/__meta__/` | Format specs: a prose `.md` plus its JSON halves | 5 specs, 15 JSON files |
 | `docs/feat/` | Feature docs for this repository | Exists and empty, by design — nothing is implemented to document |
 | `.github/` | `workflows/ci.yml`, the pre-commit config (off the default root path), and `renovate.json5` | Exists |
-| `packages/lorecraft/src/lorecraft/` | The checker package | Exists: `__init__.py`, `metadata.py`, `__main__.py` and `cli/` |
-| `packages/lorecraft/src/lorecraft/cli/` | Root application, command registry and the `commands/` package | 1 subcommand: `version` |
-| `packages/lorecraft/src/**/tests/` | The unit tier: a `tests/` subpackage beside the module it tests, never shipped | The version strings |
-| `packages/lorecraft/tests/` | The integration tier, flat | The application and its command routing |
+| `packages/` | The releasable packages, one directory each | Listed in the root `pyproject.toml` |
+| `packages/*/src/**/tests/` | The unit tier: a `tests/` subpackage beside the module it tests, never shipped | Exists |
+| `packages/*/tests/` | The integration tier, flat, one directory per package | Exists |
 | `tests/` | The private end-to-end member: `e2e/` suites over the installed script, `lib/` their helpers | The console script in a subprocess |
 
 ## Skill Routing
@@ -116,7 +116,7 @@ empty corpus rather than an error.
 | `just fmt-check` | `ruff format --check`, writing nothing |
 | `just check` | `ruff check` |
 | `just check-fix` | `ruff check --fix`, applying the mechanical fixes |
-| `just typecheck` | `ty check packages/lorecraft/src` |
+| `just typecheck` | `ty check` over every package's `src/` |
 | `just check-docs` | the three document checks over this repo's own `docs/`; stops at the first that reports |
 | `just check-skills` | the skill check over this repository's own `.agents/skills/` |
 | `just test-unit` | the unit tier — `pytest -m unit` |
@@ -209,11 +209,12 @@ selects the files that govern it.
 
 ## Testing Strategy
 
-The suite is the CLI and nothing else, because nothing else in the library is implemented. It is spread over
-the three tiers [test-organization](docs/code/test-organization.md) defines: `packages/lorecraft/src/lorecraft/cli/tests/test_version.py`
-for the version strings, `packages/lorecraft/tests/test_cli.py` for the application and its command routing through Typer's
-`CliRunner`, and `tests/e2e/test_cli.py` for the installed console script in a subprocess — the only tier that
-can observe the `git describe` probe behind `version --verbose`. The vendored check scripts have no tests of
+The suite is spread over the three tiers [test-organization](docs/code/test-organization.md) defines. Each
+package's unit tier sits in a `tests/` subpackage beside the module it tests, under `src/`; its integration
+tier sits flat in `packages/<package>/tests/`, wiring its modules together in process, against a real tree
+under `tmp_path` where the disk is the subject. A library package has no end-to-end tier: its public API is
+what the integration tier covers. `tests/e2e/` drives the installed console script in a subprocess — the only
+tier that can observe the `git describe` probe behind `version --verbose`. The vendored check scripts have no tests of
 their own; `just check-docs` and `just check-skills` over this repository's own corpus are what exercises
 them.
 
@@ -247,9 +248,10 @@ cannot be relaxed:
 ## Essential Conventions
 
 - Keep docs and code in sync in the same change.
-- **No file holds a version.** `hatch-vcs` derives it from the git tag at build time and the package
-  reads it back with `importlib.metadata`; the `code-release` skill owns the release flow. Adding a
-  version literal anywhere is a defect, not a convenience.
+- **No file holds a version.** `hatch-vcs` derives it from the git tag at build time, so every package
+  releases together with one version, and the command line alone reads it back with `importlib.metadata`;
+  the `code-release` skill owns the release flow. Adding a version literal anywhere is a defect, not a
+  convenience.
 - Do not add a dependency without a stated reason; this is a small toolkit, and the standard library is
   preferred until it is genuinely insufficient.
 - Keep this guide honest: a section describing something that does not exist must say so.

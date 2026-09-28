@@ -7,7 +7,7 @@
 # this a virtual member: uv installs its dependencies into the workspace environment and builds nothing from it,
 # so it cannot reach an index.
 [project]
-name = "lorecraft-e2e"
+name = "tests"
 # A placeholder, not a release version: [project] requires one, and a dynamic version would make uv build this
 # member to resolve it. Nothing is ever built from here, so no artifact can carry it.
 version = "0"
