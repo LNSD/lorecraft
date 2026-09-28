@@ -61,11 +61,11 @@ check-fix *EXTRA_FLAGS:
 
 alias check-types := typecheck
 
-# Type-check the package (ty check)
+# Type-check every package (ty check)
 [group: 'check']
 typecheck *EXTRA_FLAGS:
     @echo "🔍 Type-checking code..."
-    uv run ty check packages/lorecraft/src {{EXTRA_FLAGS}}
+    uv run ty check packages/*/src {{EXTRA_FLAGS}}
 
 
 ## Docs

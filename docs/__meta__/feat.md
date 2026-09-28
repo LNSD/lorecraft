@@ -234,17 +234,17 @@ these three prefixes:
 
 | Prefix    | Names                                                       | Spelling                        | Example                       |
 |-----------|-------------------------------------------------------------|---------------------------------|-------------------------------|
-| `module:` | A module or subpackage, by its full import path             | snake_case, dotted for nesting  | `module:lorecraft_core.checks`|
+| `module:` | A module or subpackage, by its full import path             | snake_case, dotted for nesting  | `module:lorecraft_project.checks`|
 | `skill:`  | A skill directory under `.agents/skills/`                   | kebab-case                      | `skill:docs-rules-check`      |
 | `spec:`   | A specification file stem under `docs/__meta__/`            | kebab-case, dotted for a layer  | `spec:feat.feature`           |
 
-A `module:` entry always starts with its import package, `lorecraft_core` for the library or `lorecraft` for
-the command line, because both have a `watch` subpackage and a shorter name would not say which:
-`packages/lorecraft-core/src/lorecraft_core/checks/header.py` is `module:lorecraft_core.checks.header`.
+A `module:` entry always starts with its import package, one of the workspace's packages under `packages/`,
+because two of them can hold a subpackage of the same name and a shorter name would not say which:
+`packages/lorecraft-project/src/lorecraft_project/checks/header.py` is `module:lorecraft_project.checks.header`.
 
 **Example:**
 ```yaml
-components: "module:lorecraft_core.checks.header,spec:feat,skill:docs-rules-check"
+components: "module:lorecraft_project.checks.header,spec:feat,skill:docs-rules-check"
 ```
 
 The schema enforces the prefix vocabulary and the character set of each entry. Which separator a given prefix
@@ -604,7 +604,7 @@ Before committing a feature document:
 - [ ] `status` reflects where the feature stands today, and names no version
 - [ ] `description` says what it covers and includes a "Load when" clause (no ending period)
 - [ ] `components` entries all use `module:`, `skill:` or `spec:`, spelled as [§2](#2-frontmatter-requirements) requires
-- [ ] Every `module:` entry starts with its import package, `lorecraft_core` or `lorecraft`
+- [ ] Every `module:` entry starts with its import package, one of the workspace's packages
 
 ### Structure
 

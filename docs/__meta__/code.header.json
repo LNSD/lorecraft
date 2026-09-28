@@ -33,7 +33,7 @@
     "scope": {
       "type": "string",
       "pattern": "^(?:global|pkg:[a-z_][a-z0-9_]*(?:\\.[a-z_][a-z0-9_]*)*)$",
-      "description": "global, or pkg:<name> naming a package by its full import path, starting lorecraft_core or lorecraft: snake_case, dotted for nesting."
+      "description": "global, or pkg:<name> naming a package by its full import path, starting with a workspace import package such as lorecraft_project: snake_case, dotted for nesting."
     }
   }
 }
