@@ -4,13 +4,18 @@ A parse tree is a pure function of the text, so a document is parsed once and ev
 The Markdown parser is wenmode, and this module is the only place it is used: its nodes are mutable and its API
 is pre-1.0, so what leaves here is always this package's own frozen nodes, never a wenmode type. Only the
 frontmatter is kept so far; the headings and their sections join as sibling fields when a check needs them.
+
+A check that reads nothing but the frontmatter does not need the tree: ``parse_frontmatter`` finds and decodes
+the same block for a fraction of the cost, so it is the cheap path, and ``parse_document`` the full one.
 """
 
 from dataclasses import dataclass
 from typing import Final
 
 from wenmode import Wenmode
+from wenmode.nodes import Root
 from wenmode.plugins import frontmatter
+from wenmode.plugins.frontmatter import FrontmatterPlugin
 
 from .frontmatter import FrontmatterNode, MissingFrontmatter, decode_frontmatter
 
@@ -41,10 +46,31 @@ def parse_document(text: str) -> ParsedDocument:
     """
     # A parser is built per call rather than shared: wenmode parsers are mutable, and one costs a small fraction
     # of what parsing a document does.
-    markdown = Wenmode(plugins=[frontmatter.configure(load=decode_frontmatter, data_key=_FRONTMATTER_KEY)])
-    root = markdown.parse(text)
+    markdown = Wenmode(plugins=[_frontmatter_plugin()])
+    return ParsedDocument(frontmatter=_frontmatter(markdown.parse(text)))
+
+
+def parse_frontmatter(text: str) -> FrontmatterNode:
+    """Parse only the frontmatter block of one document's text. Pure: raises nothing.
+
+    Equal to ``parse_document(text).frontmatter`` for every text. The block is found by the same wenmode plugin,
+    and the plugin only ever claims the document's first line, where it is tried before every Markdown rule, so
+    what it finds does not depend on the rules. This parser loads none of them: the rest of the text is read as
+    plain paragraphs, which costs a small fraction of the full parse.
+    """
+    markdown = Wenmode(rules=(), plugins=[_frontmatter_plugin()])
+    return _frontmatter(markdown.parse(text))
+
+
+def _frontmatter_plugin() -> FrontmatterPlugin:
+    """wenmode's frontmatter plugin, decoding the block with ``decode_frontmatter`` into the root's data."""
+    return frontmatter.configure(load=decode_frontmatter, data_key=_FRONTMATTER_KEY)
+
+
+def _frontmatter(root: Root) -> FrontmatterNode:
+    """The frontmatter node the plugin left on a parsed root, or ``MissingFrontmatter`` when it found no block."""
     if root.data is None or _FRONTMATTER_KEY not in root.data:
-        return ParsedDocument(frontmatter=MissingFrontmatter())
+        return MissingFrontmatter()
     # The plugin stores whatever its loader returned, and the loader is `decode_frontmatter`.
     decoded: FrontmatterNode = root.data[_FRONTMATTER_KEY]
-    return ParsedDocument(frontmatter=decoded)
+    return decoded
