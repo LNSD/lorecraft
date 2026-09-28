@@ -21,6 +21,7 @@ dev = [
     "lorecraft",
     "ruff>=0.16.0",     # Formatting and linting
     "pytest>=9.0.3",    # Test runner
+    "syrupy>=6.1.1",    # Snapshot assertions: the end-to-end tier compares command output to checked-in files
     # ty is pre-1.0: its CLI and its diagnostics still change between patch
     # releases, so the upper bound is deliberate.
     "ty>=0.0.83,<0.1",  # Type checker

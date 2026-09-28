@@ -1,0 +1,5 @@
+lorecraft <version>
+Commit:   <commit>
+Python:   <python>
+Platform: <platform>
+Install:  <install>
