@@ -90,7 +90,7 @@ A feature document describes behaviour that **exists in this repository**, not b
 
 ### A Document's Path Selects Its Specifications
 
-Nothing registers a feature document with a specification: the document's own path and `type` resolve them.
+Nothing registers a feature document with a specification: the document's own path resolves them.
 
 A document at `docs/feat/<name>.md` is governed by four files in `docs/__meta__/`:
 
@@ -101,19 +101,17 @@ A document at `docs/feat/<name>.md` is governed by four files in `docs/__meta__/
 | `feat.structure.json` | The section outline and its order          | `check_structure.py`                       |
 | `feat.budget.json`    | Prose length, per document and per section | `check_budget.py`                          |
 
-Two kinds of narrowing layer onto that base, and both are additive. A layer states only what it adds, none
-can release a document from what the base already said, and they apply broad to narrow:
+A **namespace layer** narrows that base: `feat-<namespace>.header.json`, `feat-<namespace>.structure.json` or
+`feat-<namespace>.budget.json`, applied when the namespace equals the document's name or is a
+hyphen-delimited prefix of it. A layer is additive: it states only what it adds, cannot release a document
+from what the base already said, and several apply broad to narrow. A namespace may span several segments:
+`feat-cli-check` would govern `cli-check.md` and `cli-check-*.md`. The `cli` namespace narrows CLI feature
+names and content in [feat-cli.md](feat-cli.md); add another namespace layer when a naming group genuinely
+shares rules the rest of the corpus does not.
 
-- **A namespace layer**, `feat-<namespace>.header.json`, `feat-<namespace>.structure.json` or
-  `feat-<namespace>.budget.json`, applied when the namespace equals the document's name or is a
-  hyphen-delimited prefix of it. A namespace may span several segments: `feat-cli-check` would govern
-  `cli-check.md` and `cli-check-*.md`. The `cli` namespace narrows CLI feature names and content in
-  [feat-cli.md](feat-cli.md); add another namespace layer when a naming group genuinely shares rules the rest
-  of the corpus does not.
-- **A type layer**, `feat.<type>.structure.json`, selected by the document's `type` field. All three exist:
-  `feat.feature.structure.json`, `feat.component.structure.json` and `feat.meta.structure.json`. This is
-  where a per-type section rule lives — never as a condition inside `feat.structure.json`, which asks no
-  questions about the document it is applied to ([§4](#4-document-structure)).
+The per-type section rules in [§4](#4-document-structure) have no machine-checkable layer: a specification
+file is selected by the document's path, never by its `type`, and `feat.structure.json` asks no questions
+about the document it is applied to. They are checked by review against the [checklist](#8-checklist).
 
 The three checks run together as `just check-docs`. Read the relationship in either direction from the shell:
 
@@ -267,7 +265,7 @@ loaded to answer questions and to navigate the repository. Your description must
 - No ending period
 
 **Examples:**
-- ✅ `"Outline matching, the any run, and corpus/prefix/type layering. Load when writing or debugging a structure spec"`
+- ✅ `"Outline matching, the any run, and corpus/namespace layering. Load when writing or debugging a structure spec"`
 - ✅ `"Word counting rules and the per-section caps a budget sets. Load when a document is reported over budget"`
 - ✅ `"Exit codes and the text and JSON finding formats. Load when wiring a check into CI or a pre-commit hook"`
 - ❌ `"Overview of the structure checker"` (vague, no trigger)
@@ -313,7 +311,7 @@ spec                              # Meta: the specification files under docs/__m
 ```
 corpus                            # Meta: what makes a directory under docs/ a governed corpus
 ├── corpus-code                   # The rule corpus and its prefix groups
-└── corpus-feat                   # The feature corpus and its type layers
+└── corpus-feat                   # The feature corpus and its namespace layers
 ```
 
 **Command features:**
@@ -345,9 +343,9 @@ cli                               # Meta: the command surface the toolkit expose
 
 ## 4. Document Structure
 
-The rules in this section are held in machine-checkable form in
-[feat.structure.json](feat.structure.json) and the three type layers beside it
-([§1](#1-core-principles)).
+The section order below is held in machine-checkable form in [feat.structure.json](feat.structure.json)
+([§1](#1-core-principles)). Which sections each type requires or forbids is not: review checks it against
+the [checklist](#8-checklist).
 
 ### Required Sections by Type
 
