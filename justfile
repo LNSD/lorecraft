@@ -121,6 +121,20 @@ test-it *EXTRA_FLAGS: (test "-m" "it" EXTRA_FLAGS)
 [group: 'test']
 test-e2e *EXTRA_FLAGS: (test "-m" "e2e" EXTRA_FLAGS)
 
+# Snapshot tests compare output to checked-in files under `__snapshots__/`; every `test` recipe fails on a
+# mismatch and on a snapshot no test reads any more. Update over the whole suite, never one tier: a snapshot
+# of a deselected test would read as unused.
+
+# Write or refresh every snapshot and delete the unused ones (pytest --snapshot-update)
+[group: 'test']
+snapshot-update *EXTRA_FLAGS: (test "--snapshot-update" EXTRA_FLAGS)
+
+# Show what the snapshots changed since the last commit: the review before committing them
+[group: 'test']
+snapshot-review:
+    @git status --short -- ':(glob)**/__snapshots__/**'
+    @git diff -- ':(glob)**/__snapshots__/**'
+
 
 ## Misc
 

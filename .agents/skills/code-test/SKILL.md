@@ -2,7 +2,7 @@
 name: code-test
 description: Run targeted tests after format and lint are green. Defaults to the unit tier; widens to the integration, end-to-end or whole suite only on explicit signals. Use after editing Python code under packages/ or tests/, or when the user asks to run tests. No tier here needs a container, an external service, or credentials.
 compatibility: Requires the just task runner and uv. pytest is invoked through the project environment rather than a system install. Nothing else is needed — this repository has no container-backed, networked or credentialed tests.
-allowed-tools: Bash(just test-unit *) Bash(just test-it *) Bash(just test-e2e *) Bash(just test *) Bash(uv run pytest tests/*)
+allowed-tools: Bash(just test-unit *) Bash(just test-it *) Bash(just test-e2e *) Bash(just test *) Bash(just snapshot-review) Bash(uv run pytest tests/*)
 ---
 
 # Code Testing Skill
@@ -70,6 +70,22 @@ uv run pytest tests/<tier>/test_<module>.py -v
 uv run pytest <test-directory>/test_<module>.py::Test<Subject>::test_<case> -v
 ```
 
+### Snapshots
+
+A snapshot test, through syrupy's `snapshot` fixture, compares output to a file checked in under
+`__snapshots__/` beside its test module; `tests/lib/snapshot.py` stores each one as plain text. Every recipe
+above fails on a mismatch, and on a snapshot no test reads any more.
+
+| Command | Purpose |
+|---|---|
+| `just snapshot-update` | Write or refresh every snapshot and delete the unused ones. Runs the whole suite. |
+| `just snapshot-review` | Show which snapshot files changed and their diff since the last commit. |
+
+A failing snapshot is a finding, not a chore: when output changed on purpose, run `just snapshot-update`,
+read `just snapshot-review`, and commit the snapshot with the change. Never update to turn a run green
+without reading the diff. Updating one tier alone reads the other tiers' snapshots as unused, so the recipe
+never filters.
+
 ## Notes
 
 The suite covers the CLI and nothing else, because nothing else is implemented: version formatting in
@@ -97,9 +113,10 @@ but the test that consumes it still needs its marker.
 
 ## Pre-approved commands
 
-Runnable without asking: `just test-unit`, `just test-it`, `just test-e2e`, `just test`, and
+Runnable without asking: `just test-unit`, `just test-it`, `just test-e2e`, `just test`, `just snapshot-review`, and
 `uv run pytest tests/...` for a single file or test. Nothing in this suite starts a service or spends
-credentials, so there is no tier that needs confirmation first.
+credentials, so there is no tier that needs confirmation first. `just snapshot-update` rewrites checked-in
+files, so it runs only when the change is meant to alter output.
 
 ## Debugging
 
