@@ -2,7 +2,8 @@
 #
 #   packages/lorecraft-core     the base package: the shared error class (import `lorecraft_core`)
 #   packages/lorecraft-vfs      the filesystem boundary: paths, views, scan, snapshot (import `lorecraft_vfs`)
-#   packages/lorecraft-project  the workspace model on the filesystem boundary (import `lorecraft_project`)
+#   packages/lorecraft-project  the workspace model and the parse trees, on the filesystem boundary
+#                               (import `lorecraft_project`)
 #   packages/lorecraft          the command line (import `lorecraft`, console script `lorecraft`)
 #   tests                       the end-to-end suites and their helpers: private, never built
 #

@@ -70,16 +70,15 @@ typecheck *EXTRA_FLAGS:
 
 ## Docs
 
-# The check scripts exit 0 when clean and 1 when they report findings. just runs
-# each line in its own shell and stops at the first non-zero exit, so a findings
-# exit fails the recipe; fix what the first script reports, then rerun for the
-# rest.
+# Each check exits 0 when clean and 1 when it reports findings. just runs each
+# line in its own shell and stops at the first non-zero exit, so a findings exit
+# fails the recipe; fix what the first check reports, then rerun for the rest.
 
-# Check this repository's own documents (check_header, check_structure, check_budget)
+# Check this repository's own documents (check header, check_structure, check_budget)
 [group: 'docs']
 check-docs *EXTRA_FLAGS:
     @echo "📚 Checking documents..."
-    .agents/skills/docs-rules-check/scripts/check_header.py {{EXTRA_FLAGS}}
+    uv run lorecraft check header {{EXTRA_FLAGS}}
     .agents/skills/docs-rules-check/scripts/check_structure.py {{EXTRA_FLAGS}}
     .agents/skills/docs-rules-check/scripts/check_budget.py {{EXTRA_FLAGS}}
 
