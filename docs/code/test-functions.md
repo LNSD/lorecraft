@@ -1,6 +1,6 @@
 ---
 name: "test-functions"
-description: "Inside the test function: Test<Subject> classes and test_<unit>_<condition>_<expectation> names, the mandatory Given/When/Then markers, one behaviour per test, assertion messages, fixture scope, pytest.raises on the class, parametrize over loops, and the sleep/network/order-dependence bans. Load when writing or reviewing a test function, naming a test, or adding a fixture"
+description: "Inside the test function: Test<Subject> classes and test_<unit>_<condition>_<expectation> names, the mandatory Given/When/Then markers, one behaviour per test, assertion messages, fixture scope, pytest.raises on the class, one test per case, and the sleep/network/order-dependence bans. Load when writing or reviewing a test function, naming a test, or adding a fixture"
 type: "core"
 scope: "global"
 ---
@@ -82,12 +82,10 @@ A second call under `#: When` means a failure names neither call. Logic under `#
 verified: a value transformed before it is asserted on is either setup, and belongs in `#: Given`, or evidence
 that the test covers two behaviours ([§3](#3-one-behaviour-per-test)).
 
-Three pytest idioms and where they fall:
+Two pytest idioms and where they fall:
 
 - **`pytest.raises` straddles the split.** The `with pytest.raises(...) as exc_info:` block is the `When`,
   because the call under test sits inside it. Assertions about `exc_info.value` are `Then`.
-- **`@pytest.mark.parametrize` is `Given` arriving through the signature.** The marker still appears in the
-  body, over whatever the case binds locally.
 - **A fixture argument is `Given` that already happened.** `#: Given` covers the locals derived from it, not
   the fixture's own setup.
 
@@ -288,17 +286,23 @@ with pytest.raises(FrontmatterSchemaError, match='scope'):
     check_frontmatter(document, schema)
 ```
 
-## 7. Parametrize Instead of Looping
+## 7. One Test Per Case
 
-A test covering several inputs uses `@pytest.mark.parametrize`. A `for` loop over cases inside a test body is
-not written.
+Each case is its own test function, named for its condition. Neither a `for` loop over cases nor
+`@pytest.mark.parametrize` is written.
 
 A loop collapses N cases into one test. It stops at the first failing case, so a run reports one failure when
-five are broken and reveals the remaining four only after four more fix-and-rerun cycles. The CI line names
-the test, not the case, so nobody knows which input failed without reading the traceback. Parametrized cases
-are N independent tests: all five fail, each names its own input, and `-k` can select one.
+five are broken, and the CI line names the test, not the case. Parametrization fixes the counting but not the
+reading. The case table sits above the function, away from the body that uses it, so a reader matches
+tuple positions to parameter names to learn what one case is. The function name cannot carry the condition,
+because it is shared by every row: it degrades to `with_varied_documents`, and the case's meaning moves into
+an `id` string [§1](#1-testsubject-classes-test_unit_condition_expectation-functions) does not govern. One
+assertion message has to fit every row, so it states nothing a specific row promised.
 
-Give each case an `id` when the values do not read clearly on their own.
+A test per case keeps all three in the open: the name states the condition, `#: Given` states the input
+plainly, and the message states what that one input should produce. The repetition is the point: each input
+is bound under `#: Given` where the test uses it, and setup too heavy to repeat goes into a fixture, never into
+a table.
 
 ```python
 # ❌ Bad — one test, first failure hides the rest, and the CI line names no input
@@ -309,14 +313,14 @@ def test_section_counts_are_correct() -> None:
 ```
 
 ```python
-# ✅ Good — three independent tests, each naming its own case in the CI line
+# ❌ Bad — the name cannot say which case failed, the case lives in a table the body never mentions, and
+# one message has to fit every row
 @pytest.mark.unit
 @pytest.mark.parametrize(
     ('document_text', 'heading_depth', 'expected_sections'),
     [
         pytest.param(THREE_SECTIONS, 2, 3, id='three-top-level-sections'),
         pytest.param(NO_HEADINGS, 2, 0, id='document-without-headings'),
-        pytest.param(NESTED_SECTIONS, 3, 5, id='nested-subsections'),
     ],
 )
 def test_split_sections_with_varied_documents_returns_expected_section_count(
@@ -324,6 +328,33 @@ def test_split_sections_with_varied_documents_returns_expected_section_count(
 ) -> None:
     sections = split_sections(document_text, heading_depth)
     assert len(sections) == expected_sections, f'expected {expected_sections} sections, got {len(sections)}'
+```
+
+```python
+# ✅ Good — each case is a test whose name states the condition and whose message states its promise
+@pytest.mark.unit
+class TestSplitSections:
+    def test_split_sections_with_three_top_level_headings_returns_three_sections(self) -> None:
+        #: Given
+        document_text = '## One\n\n## Two\n\n## Three\n'
+        heading_depth = 2
+
+        #: When
+        sections = split_sections(document_text, heading_depth)
+
+        #: Then
+        assert len(sections) == 3, f'each top-level heading opens a section, got {len(sections)}'
+
+    def test_split_sections_without_headings_returns_no_sections(self) -> None:
+        #: Given
+        document_text = 'Plain prose with no heading at all.\n'
+        heading_depth = 2
+
+        #: When
+        sections = split_sections(document_text, heading_depth)
+
+        #: Then
+        assert sections == [], 'a document without headings has no sections to split'
 ```
 
 ## 8. Forbidden — Sleeping, Real Network, Order Dependence
@@ -378,7 +409,7 @@ Before committing code, verify:
 - [ ] No session- or module-scoped fixture yields mutable per-test state
 - [ ] Every `pytest.raises` matches an exception class
 - [ ] No `match=` asserts on message wording — only on a value the contract promises
-- [ ] No `for` loop over test cases inside a test body; `@pytest.mark.parametrize` is used
+- [ ] No `for` loop over test cases and no `@pytest.mark.parametrize`; each case is its own named test
 - [ ] No `time.sleep` is used to wait for anything
 - [ ] No test calls a network service it did not start, or that a fixture did not provision
 - [ ] Every test creates the documents, fixture directories, and registry entries it needs and cleans them up
@@ -394,6 +425,5 @@ Before committing code, verify:
 
 ## External References
 
-- [pytest — How to parametrize fixtures and test functions](https://docs.pytest.org/en/stable/how-to/parametrize.html)
 - [pytest — Fixture scopes](https://docs.pytest.org/en/stable/how-to/fixtures.html#scope-sharing-fixtures-across-classes-modules-packages-or-session)
 - [pytest — Assertions about expected exceptions](https://docs.pytest.org/en/stable/how-to/assert.html#assertions-about-expected-exceptions)
