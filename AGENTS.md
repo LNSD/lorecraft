@@ -15,14 +15,13 @@ standalone script per check. It is a Python project managed with `uv`, as a work
   helper library in `tests/lib/`.
 
 **The checks are not in the library yet.** They run today as vendored scripts under
-`.agents/skills/*/scripts/`, wired to `just check-docs` and `just check-skills` and gated in CI. The library
-holds only the shared error class every package's failures derive from, so the modules those scripts migrate
-into do not exist. Do not infer structure that is not on disk.
+`.agents/skills/*/scripts/`, wired to `just check-docs` and `just check-skills` and gated in CI. Do not
+infer structure that is not on disk.
 
 The CLI is a router: `cli/app.py` declares the root application and the global options, and every subcommand
 lives in its own module under `cli/commands/`, joining by calling `@register(<name>)` beside its handler.
 `cli/registry.py` walks that package and mounts what registered itself, so a new subcommand is a new file —
-no dispatcher, no import list, no edit to the root application. `version` is the only one today.
+no dispatcher, no import list, no edit to the root application.
 
 ## Quick Start
 
@@ -72,7 +71,7 @@ library package, and the skill then calls the command line instead of carrying t
 | `justfile` | Task runner recipes; wraps `uv` | Exists |
 | `docs/code/` | Code rules for this repository | 38 rule documents |
 | `docs/__meta__/` | Format specs: a prose `.md` plus its JSON halves | 5 specs, 15 JSON files |
-| `docs/feat/` | Feature docs for this repository | Exists and empty, by design — nothing is implemented to document |
+| `docs/feat/` | Feature docs for this repository | Exists |
 | `.github/` | `workflows/ci.yml`, the pre-commit config (off the default root path), and `renovate.json5` | Exists |
 | `packages/` | The releasable packages, one directory each | Listed in the root `pyproject.toml` |
 | `packages/*/src/**/tests/` | The unit tier: a `tests/` subpackage beside the module it tests, never shipped | Exists |

@@ -1,6 +1,7 @@
 # Virtual workspace root: never built.
 #
 #   packages/lorecraft-core  the base package: the shared error class (import `lorecraft_core`)
+#   packages/lorecraft-vfs   the filesystem boundary: paths, views, scan, snapshot (import `lorecraft_vfs`)
 #   packages/lorecraft       the command line (import `lorecraft`, console script `lorecraft`)
 #   tests                    the end-to-end suites and their helpers: private, never built
 #
@@ -14,11 +15,13 @@ members = [
 [tool.uv.sources]
 lorecraft = { workspace = true }
 lorecraft-core = { workspace = true }
+lorecraft-vfs = { workspace = true }
 
 [dependency-groups]
 dev = [
     "lorecraft",
     "lorecraft-core",
+    "lorecraft-vfs",
     "ruff>=0.16.0",
     "pytest>=9.0.3",
     "syrupy>=6.1.1",
@@ -73,6 +76,7 @@ quote-style = "single"
 [tool.ty.environment]
 root = [
     "packages/lorecraft-core/src",
+    "packages/lorecraft-vfs/src",
     "packages/lorecraft/src",
 ]
 python-version = "3.12"
