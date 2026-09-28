@@ -1,0 +1,2 @@
+docs/code/logging.md:1: [frontmatter.missing] no `---` delimited frontmatter block
+docs/code/python-typing.md:1: [frontmatter.missing] no `---` delimited frontmatter block

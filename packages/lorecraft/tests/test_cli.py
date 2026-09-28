@@ -1,24 +1,29 @@
 """The CLI assembled: the root application, its global options, and the registry that mounts onto it.
 
 These run the command line in process through Typer's `CliRunner`, so they cross module boundaries —
-root application, registry, command module, version strings, the scan and the model load behind `inspect`
-— without needing the console script that `tests/e2e/` exercises. `inspect` reads a real tree under
-`tmp_path`.
+root application, registry, command module, version strings, the scan and the model load behind `inspect`,
+the header check behind `check header` — without needing the console script that `tests/e2e/` exercises.
+`inspect` and `check header` read a real tree under `tmp_path`.
 """
 
 import json
 import os
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Final
 
 import pytest
+import typer
 from typer.testing import CliRunner
 
 from lorecraft import __version__
 from lorecraft.cli import build_app
-from lorecraft.cli.registry import DuplicateCommandError, register
+from lorecraft.cli.registry import DuplicateCommandError, register, register_group
 
 runner = CliRunner()
+
+# A well-formed Draft 2020-12 schema that accepts any frontmatter; the cases below turn on the tree, not the schema.
+ACCEPT_ANY_HEADER_SCHEMA: Final[str] = '{"type": "object"}'
 
 
 @pytest.fixture(scope='function')
@@ -50,6 +55,14 @@ def unreadable_workspace(tmp_path: Path) -> Iterator[Path]:
 
 def _unused_handler() -> None:
     """Stand-in handler for a registration that must be rejected before it is ever mounted."""
+
+
+def _write(root: Path, relative: str, text: str = '') -> Path:
+    """Write one file under the root, creating its parents, and return its path."""
+    path = root / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding='utf-8')
+    return path
 
 
 @pytest.mark.it
@@ -178,6 +191,192 @@ class TestInspectCommand:
 
 
 @pytest.mark.it
+class TestCheckHeaderCommand:
+    def test_check_header_with_a_clean_corpus_exits_zero_and_counts_the_documents(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.header.json', ACCEPT_ANY_HEADER_SCHEMA)
+        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'header', '--root', str(tmp_path)])
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stdout == '', 'a clean run prints no finding lines'
+        assert result.stderr == 'checked 1 file(s), 0 finding(s)\n', 'the summary goes to stderr'
+
+    def test_check_header_without_a_root_finds_the_nearest_parent_with_docs_meta(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.header.json', ACCEPT_ANY_HEADER_SCHEMA)
+        _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
+        nested = tmp_path / 'src' / 'nested'
+        nested.mkdir(parents=True)
+        monkeypatch.chdir(nested)
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'header'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert result.stdout == 'docs/code/guide.md:1: [frontmatter.missing] no `---` delimited frontmatter block\n', (
+            'the root is discovered upward from the working directory, and findings print root-relative'
+        )
+
+    def test_check_header_with_a_corpus_without_a_header_schema_reports_it_ungoverned(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/feat.md', '# Feat\n')
+        _write(tmp_path, 'docs/feat/overview.md', '# No frontmatter\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'header', '--root', str(tmp_path)])
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stdout == (
+            'docs/feat/overview.md:1: [feat.ungoverned] no header schema for this corpus; frontmatter unvalidated\n'
+        ), 'an ungoverned document is reported as unvalidated, not as a finding'
+
+    def test_check_header_with_invalid_corpus_name_exits_as_invalid_input(self, tmp_path: Path) -> None:
+        #: Given
+        document = _write(tmp_path, 'docs/bad-name/guide.md', '---\nname: "guide"\n---\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'header', '--root', str(tmp_path), str(document)])
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert "invalid character '-' in corpus name 'bad-name'" in result.output, 'the CLI reports the invalid name'
+
+    def test_check_header_with_a_path_in_a_corpus_subdirectory_exits_as_invalid_input(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.md')
+        document = _write(tmp_path, 'docs/code/sub/guide.md', '---\nname: "guide"\n---\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'header', '--root', str(tmp_path), str(document)])
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert 'corpora are flat' in result.output, 'the CLI reports that a nested file is not a document'
+
+    def test_check_header_with_a_path_in_a_directory_without_a_spec_exits_as_invalid_input(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.md')
+        document = _write(tmp_path, 'docs/blog/post.md', '---\nname: "post"\n---\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'header', '--root', str(tmp_path), str(document)])
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert 'not a corpus' in result.output, 'the CLI reports that the directory has no specification'
+
+    def test_check_header_with_a_malformed_header_schema_exits_as_invalid_input(
+        self, malformed_schema_workspace: Path
+    ) -> None:
+        #: Given
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'header', '--root', str(malformed_schema_workspace)])
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert 'invalid schema docs/__meta__/code.header.json' in result.stderr, (
+            'the failure names the schema the load rejected'
+        )
+
+    def test_check_header_with_a_non_utf8_governed_document_exits_with_an_undecodable_finding(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.header.json', ACCEPT_ANY_HEADER_SCHEMA)
+        document = tmp_path / 'docs' / 'code' / 'guide.md'
+        document.parent.mkdir(parents=True)
+        document.write_bytes(b'---\nname: "gu\xffide"\n---\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'header', '--root', str(tmp_path)])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert 'docs/code/guide.md:1: [frontmatter.undecodable]' in result.stdout, (
+            'a document that is not UTF-8 is a finding, not an invalid-input failure'
+        )
+
+    def test_check_header_with_a_spec_less_directory_beside_a_corpus_reports_only_the_corpus(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.header.json', ACCEPT_ANY_HEADER_SCHEMA)
+        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n')
+        _write(tmp_path, 'docs/blog/post.md', '---\nname: "post"\n---\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'header', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        report = json.loads(result.stdout)
+        assert report == {'checked': 1, 'findings': [], 'ungoverned': []}, (
+            'only the corpus named in docs/__meta__/ is checked; the spec-less directory is not mentioned'
+        )
+
+    def test_check_header_with_a_finding_and_json_format_reports_the_file_as_text_and_the_line_as_a_number(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.header.json', ACCEPT_ANY_HEADER_SCHEMA)
+        _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'header', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout)['findings'] == [
+            {
+                'file': 'docs/code/guide.md',
+                'line': 1,
+                'rule': 'frontmatter.missing',
+                'message': 'no `---` delimited frontmatter block',
+            }
+        ], f'a finding serialises as the root-relative path and the line number, got {result.stdout!r}'
+
+    def test_check_header_from_a_deleted_working_directory_exits_with_a_working_directory_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        #: Given
+        deleted = tmp_path / 'deleted'
+        deleted.mkdir()
+        monkeypatch.chdir(deleted)
+        deleted.rmdir()
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'header'])
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stderr.startswith('cannot read the current directory:'), (
+            f'an unreadable working directory is the reported failure, got {result.stderr!r}'
+        )
+
+
+@pytest.mark.it
 class TestCommandRouting:
     def test_build_app_when_called_mounts_every_discovered_subcommand(self) -> None:
         #: Given
@@ -200,3 +399,38 @@ class TestCommandRouting:
 
         #: Then
         assert name in str(exc_info.value), 'the error names the subcommand that was already registered'
+
+    def test_register_with_a_group_name_raises_duplicate_command_error(self) -> None:
+        #: Given
+        build_app()
+        name = 'check'
+
+        #: When
+        with pytest.raises(DuplicateCommandError) as exc_info:
+            register(name)(_unused_handler)
+
+        #: Then
+        assert 'group' in str(exc_info.value), 'the error says the name is held by a command group'
+
+    def test_register_group_with_a_command_name_raises_duplicate_command_error(self) -> None:
+        #: Given
+        build_app()
+        group = typer.Typer()
+
+        #: When
+        with pytest.raises(DuplicateCommandError) as exc_info:
+            register_group('version', group)
+
+        #: Then
+        assert 'command' in str(exc_info.value), 'the error says the name is held by a plain command'
+
+    def test_build_app_when_called_mounts_the_check_group_with_its_header_command(self) -> None:
+        #: Given
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--help'])
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert 'header' in result.output, 'the check group lists the header check discovered beside it'

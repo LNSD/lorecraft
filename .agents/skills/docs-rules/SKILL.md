@@ -2,7 +2,7 @@
 name: docs-rules
 description: Load the documentation rules that govern a document under docs/ - its format specification and content requirements. Use before creating or editing anything under docs/, when choosing which corpus a document belongs in, when adding a frontmatter field, or when fixing findings from /docs-rules-check
 compatibility: Requires uv to run the checks in /docs-rules-check
-allowed-tools: Bash(.agents/skills/docs-rules-check/scripts/check_header.py*), Bash(.agents/skills/docs-rules-check/scripts/check_structure.py*), Bash(.agents/skills/docs-rules-check/scripts/check_budget.py*), Bash(just check-docs*), Bash(grep *), Bash(ls docs/*), Bash(awk *)
+allowed-tools: Bash(uv run lorecraft check header*), Bash(.agents/skills/docs-rules-check/scripts/check_structure.py*), Bash(.agents/skills/docs-rules-check/scripts/check_budget.py*), Bash(just check-docs*), Bash(grep *), Bash(ls docs/*), Bash(awk *)
 ---
 
 # Doc Rules
@@ -77,7 +77,7 @@ live at the `docs/` root, and agent workflow in `AGENTS.md` or a skill.
    body is drafted:
 
    ```bash
-   .agents/skills/docs-rules-check/scripts/check_header.py <the files you wrote>
+   uv run lorecraft check header <the files you wrote>
    .agents/skills/docs-rules-check/scripts/check_structure.py <the files you wrote>
    .agents/skills/docs-rules-check/scripts/check_budget.py <the files you wrote>
    ```
@@ -170,8 +170,9 @@ frontmatter schemas set `additionalProperties: false`, so an undeclared key is a
 
 These run without user permission:
 
-- `.agents/skills/docs-rules-check/scripts/check_header.py`, `check_structure.py`, and `check_budget.py` with any flags — read-only, no side effects
-- `just check-docs`, which runs those three over the whole corpus
+- `uv run lorecraft check header` with any flags — read-only, no side effects
+- `.agents/skills/docs-rules-check/scripts/check_structure.py` and `check_budget.py` with any flags — read-only, no side effects
+- `just check-docs`, which runs those three checks over the whole corpus
 - Reading any file under `docs/` or `.agents/skills/`
 - Frontmatter extraction: `awk '/^---$/{p=!p; print; next} p' <path>`
 - `ls` on any directory under `docs/`
