@@ -32,8 +32,8 @@ class TestStructureAspectParse:
                   "title": {"count": 1, "first": true},
                   "empty_sections": "forbidden",
                   "outline": [
-                    {"any": true},
-                    {"section": "Checklist"},
+                    {"any": true, "words": 350},
+                    {"section": "Checklist", "words": 250},
                     {"section": "References", "optional": true}
                   ],
                   "forbidden": ["Changelog"]
@@ -51,12 +51,68 @@ class TestStructureAspectParse:
             title=TitleRule(count=1, first=True),
             forbid_empty_sections=True,
             outline=(
-                AnySections(),
-                SectionEntry(name='Checklist', optional=False),
+                AnySections(words=350),
+                SectionEntry(name='Checklist', words=250),
                 SectionEntry(name='References', optional=True),
             ),
             forbidden=('Changelog',),
-        ), 'every field is read into its typed rule'
+        ), 'every field is read into its typed rule, and an entry without `words` has no cap'
+
+    def test_parse_with_a_document_word_cap_raises_invalid_structure_schema_error(self) -> None:
+        #: Given
+        # words are capped per section only, never for the document as a whole
+        schema = StructureSchema('{"words": 1800}')
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'a top-level `words` is not a field, so it is refused, not ignored'
+
+    def test_parse_with_a_section_word_cap_of_zero_raises_invalid_structure_schema_error(self) -> None:
+        #: Given
+        schema = StructureSchema('{"outline": [{"section": "Checklist", "words": 0}]}')
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'no section satisfies a cap of 0 words'
+
+    def test_parse_with_an_any_word_cap_of_zero_raises_invalid_structure_schema_error(self) -> None:
+        #: Given
+        schema = StructureSchema('{"outline": [{"any": true, "words": 0}]}')
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'no section in a run satisfies a cap of 0 words'
+
+    def test_parse_with_a_string_word_cap_raises_invalid_structure_schema_error(self) -> None:
+        #: Given
+        schema = StructureSchema('{"outline": [{"section": "Checklist", "words": "250"}]}')
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'the file is read strictly, so a string is not a word cap'
+
+    def test_parse_with_a_boolean_section_word_cap_raises_invalid_structure_schema_error(self) -> None:
+        #: Given
+        schema = StructureSchema('{"outline": [{"section": "Checklist", "words": true}]}')
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'a JSON boolean is not a word cap, though Python treats it as one'
 
     def test_parse_with_a_schema_reference_returns_the_rules_without_it(self) -> None:
         #: Given
@@ -307,7 +363,7 @@ class TestStructureAspectConstruction:
     def test_construction_with_a_section_named_twice_raises_invalid_structure_schema_error(self) -> None:
         #: Given
         outline = (
-            SectionEntry(name='Checklist', optional=False),
+            SectionEntry(name='Checklist'),
             SectionEntry(name='Checklist', optional=True),
         )
 
@@ -346,7 +402,7 @@ class TestStructureAspectConstruction:
         outline = (
             AnySections(),
             AnySections(),
-            SectionEntry(name='Checklist', optional=False),
+            SectionEntry(name='Checklist'),
         )
 
         #: When
@@ -361,6 +417,40 @@ class TestStructureAspectConstruction:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'two runs side by side match as one, so the outline misleads'
+
+    def test_construction_with_a_section_word_cap_of_zero_raises_invalid_structure_schema_error(self) -> None:
+        #: Given
+        outline = (SectionEntry(name='Checklist', words=0),)
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            StructureAspect(
+                path=SPEC_PATH,
+                title=None,
+                forbid_empty_sections=False,
+                outline=outline,
+                forbidden=(),
+            )
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'a section cap of 0 words is one no section with prose can meet'
+
+    def test_construction_with_a_negative_any_word_cap_raises_invalid_structure_schema_error(self) -> None:
+        #: Given
+        outline = (AnySections(words=-1),)
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            StructureAspect(
+                path=SPEC_PATH,
+                title=None,
+                forbid_empty_sections=False,
+                outline=outline,
+                forbidden=(),
+            )
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'a run cap below 1 word is one no section with prose can meet'
 
 
 @pytest.mark.unit

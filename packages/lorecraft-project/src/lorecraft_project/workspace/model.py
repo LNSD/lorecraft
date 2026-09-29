@@ -26,7 +26,6 @@ class Spec:
     """One specification stem in docs/__meta__ and the aspects decoded from it.
 
     Not hashable: ``HeaderAspect`` holds a dict, so instances must not be put in a set or used as a key.
-    The budget aspect slots in as a sibling field when its check migrates: ``budget: BudgetAspect | None``.
 
     Attributes:
         name: The stem, parsed.

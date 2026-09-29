@@ -1,4 +1,4 @@
-"""Structure validation over a document's headings.
+"""Structure validation over a document's headings, with each section's prose words.
 
 ``validate_structure`` is pure, so every case here is a text literal parsed in memory and an in-memory
 structure aspect; no document and no specification file is read.
@@ -17,7 +17,7 @@ from ..structure import validate_structure
 # The outline of a rule document: its own sections, then the Checklist, then an optional References.
 RULE_OUTLINE: Final[tuple[OutlineEntry, ...]] = (
     AnySections(),
-    SectionEntry(name='Checklist', optional=False),
+    SectionEntry(name='Checklist'),
     SectionEntry(name='References', optional=True),
 )
 
@@ -145,8 +145,8 @@ class TestValidateStructure:
         aspects = (
             _aspect(
                 outline=(
-                    SectionEntry(name='Summary', optional=False),
-                    SectionEntry(name='Usage', optional=False),
+                    SectionEntry(name='Summary'),
+                    SectionEntry(name='Usage'),
                 )
             ),
         )
@@ -225,7 +225,7 @@ class TestValidateStructure:
         namespace = _aspect(
             outline=(
                 AnySections(),
-                SectionEntry(name='References', optional=False),
+                SectionEntry(name='References'),
                 AnySections(),
             ),
             stem='code-python',
@@ -254,3 +254,97 @@ class TestValidateStructure:
             (1, 'structure.outline'),
             (5, 'structure.empty'),
         ], 'violations are ordered by line, then by rule'
+
+    def test_validate_structure_with_a_named_section_over_its_cap_reports_it_on_its_line(self) -> None:
+        #: Given
+        text = '## Rule\n\ntext\n\n## Checklist\n\none two three\n'
+        document = parse_document(text)
+        outline = (AnySections(), SectionEntry(name='Checklist', words=2))
+        aspects = (_aspect(outline=outline),)
+
+        #: When
+        result = validate_structure(aspects, headings=document.headings)
+
+        #: Then
+        assert [(violation.line, violation.rule, violation.message) for violation in result.violations] == [
+            (
+                LineNumber(5),
+                'structure.words.section',
+                'section `Checklist` is 3 prose words; the cap is 2 (per code.md)',
+            )
+        ], 'a named section takes the cap of the entry naming it'
+
+    def test_validate_structure_with_an_unnamed_section_over_the_any_cap_reports_it(self) -> None:
+        #: Given
+        text = '## Rule\n\none two three\n\n## Checklist\n\ntext\n'
+        document = parse_document(text)
+        outline = (AnySections(words=2), SectionEntry(name='Checklist'))
+        aspects = (_aspect(outline=outline),)
+
+        #: When
+        result = validate_structure(aspects, headings=document.headings)
+
+        #: Then
+        assert [(violation.line, violation.message) for violation in result.violations] == [
+            (LineNumber(1), 'section `Rule` is 3 prose words; the cap is 2 (per code.md)')
+        ], 'a section the outline does not name takes the cap of the `any` run it falls in'
+
+    def test_validate_structure_with_an_uncapped_named_entry_does_not_apply_the_any_cap(self) -> None:
+        #: Given
+        text = '## Rule\n\none\n\n## Checklist\n\none two three\n'
+        document = parse_document(text)
+        outline = (AnySections(words=1), SectionEntry(name='Checklist'))
+        aspects = (_aspect(outline=outline),)
+
+        #: When
+        result = validate_structure(aspects, headings=document.headings)
+
+        #: Then
+        assert result.violations == (), 'a named entry without a cap leaves its section uncapped'
+
+    def test_validate_structure_with_two_any_runs_applies_each_run_its_own_cap(self) -> None:
+        #: Given
+        text = '## Intro\n\none\n\n## Middle\n\ntext\n\n## Detail\n\none two three\n'
+        document = parse_document(text)
+        outline = (
+            AnySections(words=1),
+            SectionEntry(name='Middle'),
+            AnySections(words=5),
+        )
+        aspects = (_aspect(outline=outline),)
+
+        #: When
+        result = validate_structure(aspects, headings=document.headings)
+
+        #: Then
+        assert result.violations == (), 'a section after `Middle` falls in the second run, capped at 5, not 1'
+
+    def test_validate_structure_with_a_subsection_counts_its_words_into_its_section(self) -> None:
+        #: Given
+        text = '## Rule\n\none two\n\n### Detail\n\nthree four\n\n## Checklist\n\ntext\n'
+        document = parse_document(text)
+        outline = (AnySections(words=3), SectionEntry(name='Checklist'))
+        aspects = (_aspect(outline=outline),)
+
+        #: When
+        result = validate_structure(aspects, headings=document.headings)
+
+        #: Then
+        assert [(violation.line, violation.message) for violation in result.violations] == [
+            (LineNumber(1), 'section `Rule` is 4 prose words; the cap is 3 (per code.md)')
+        ], 'an H3 is part of the section above it, so its words count against that section'
+
+    def test_validate_structure_with_two_layers_applies_each_layer_its_own_caps(self) -> None:
+        #: Given
+        text = '## Rule\n\none two three\n\n## Checklist\n\ntext\n'
+        document = parse_document(text)
+        corpus = _aspect(outline=(AnySections(words=5), SectionEntry(name='Checklist')))
+        namespace = _aspect(outline=(AnySections(words=2),), stem='code-python')
+
+        #: When
+        result = validate_structure((corpus, namespace), headings=document.headings)
+
+        #: Then
+        assert [violation.message for violation in result.violations] == [
+            'section `Rule` is 3 prose words; the cap is 2 (per code-python.md)',
+        ], 'the namespace layer tightens the corpus cap, and the violation quotes the layer that set it'

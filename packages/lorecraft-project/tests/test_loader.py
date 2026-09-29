@@ -83,9 +83,7 @@ def _amp_tree(root: Path) -> None:
         schemas=(
             'code.header.json',
             'code.structure.json',
-            'code.budget.json',
             'code-crate.header.json',
-            'code-crate.budget.json',
             'code-pattern.header.json',
             'code-pattern.structure.json',
             'code-principle.header.json',
@@ -93,7 +91,6 @@ def _amp_tree(root: Path) -> None:
             'code-rust.header.json',
             'code-rust.structure.json',
             'feat.header.json',
-            'feat.budget.json',
         ),
         documents=(
             'code/crates.md',
@@ -147,7 +144,6 @@ def _lorecraft_tree(root: Path) -> None:
         schemas=(
             'code.header.json',
             'code.structure.json',
-            'code.budget.json',
             'code-pattern.header.json',
             'code-pattern.structure.json',
             'code-principle.header.json',
@@ -156,7 +152,6 @@ def _lorecraft_tree(root: Path) -> None:
             'code-python.structure.json',
             'feat.header.json',
             'feat.structure.json',
-            'feat.budget.json',
             'feat-cli.header.json',
         ),
         documents=('code/logging.md', 'code/python-typing.md', 'feat/cli-check.md', 'feat/cli-check-header.md'),
@@ -228,7 +223,7 @@ class TestLoadWorkspaceAmp:
         code = model.corpus(CODE)
         assert code is not None, 'the model lists the code corpus'
         crate = code.namespace_specs[0]
-        assert crate.files == (SPECS_DIR / 'code-crate.budget.json', SPECS_DIR / 'code-crate.header.json'), (
+        assert crate.files == (SPECS_DIR / 'code-crate.header.json',), (
             'a namespace spec with JSON files and no prose still loads'
         )
         assert crate.header is not None, 'the header aspect is decoded'
