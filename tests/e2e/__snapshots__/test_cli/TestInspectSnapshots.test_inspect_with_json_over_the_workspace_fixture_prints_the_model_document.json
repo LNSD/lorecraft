@@ -9,13 +9,15 @@
           "stem": "code",
           "files": [
             "docs/__meta__/code.header.json",
-            "docs/__meta__/code.md"
+            "docs/__meta__/code.md",
+            "docs/__meta__/code.structure.json"
           ]
         },
         {
           "stem": "code-python",
           "files": [
-            "docs/__meta__/code-python.md"
+            "docs/__meta__/code-python.md",
+            "docs/__meta__/code-python.structure.json"
           ]
         }
       ],

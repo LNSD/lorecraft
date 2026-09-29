@@ -2,7 +2,7 @@
 name: docs-rules
 description: Load the documentation rules that govern a document under docs/ - its format specification and content requirements. Use before creating or editing anything under docs/, when choosing which corpus a document belongs in, when adding a frontmatter field, or when fixing findings from /docs-rules-check
 compatibility: Requires uv to run the checks in /docs-rules-check
-allowed-tools: Bash(uv run lorecraft check*), Bash(.agents/skills/docs-rules-check/scripts/check_structure.py*), Bash(.agents/skills/docs-rules-check/scripts/check_budget.py*), Bash(just check-docs*), Bash(grep *), Bash(ls docs/*), Bash(awk *)
+allowed-tools: Bash(uv run lorecraft check*), Bash(.agents/skills/docs-rules-check/scripts/check_budget.py*), Bash(just check-docs*), Bash(grep *), Bash(ls docs/*), Bash(awk *)
 ---
 
 # Doc Rules
@@ -78,7 +78,7 @@ live at the `docs/` root, and agent workflow in `AGENTS.md` or a skill.
 
    ```bash
    uv run lorecraft check header <the files you wrote>
-   .agents/skills/docs-rules-check/scripts/check_structure.py <the files you wrote>
+   uv run lorecraft check structure <the files you wrote>
    .agents/skills/docs-rules-check/scripts/check_budget.py <the files you wrote>
    ```
 
@@ -89,7 +89,7 @@ live at the `docs/` root, and agent workflow in `AGENTS.md` or a skill.
    `just check-docs` runs all three over the whole corpus. Run it before handing the change over — a new
    document can break a neighbor's cross-reference, and the per-file run will not see that.
 
-6. **Check the whole document** with `/docs-rules-check`, which covers everything the scripts cannot decide.
+6. **Check the whole document** with `/docs-rules-check`, which covers everything the checks cannot decide.
 
 Work findings back through this skill rather than patching them one at a time. A finding usually means a
 specification was not read, not that a line was mistyped.
@@ -138,7 +138,7 @@ A new corpus is a new immediate subdirectory of `docs/` and needs these before i
 2. One `docs/__meta__/<corpus>.<aspect>.json` **for every aspect that already exists** in that directory,
    each holding the matching section of the new specification in the form its check reads. Copy the shape from
    another corpus's file for the same aspect; `ls docs/__meta__/*.json` says which aspects there are, and
-   `/docs-rules-check` says which script reads each one. An aspect you skip is unchecked for the whole corpus.
+   `/docs-rules-check` says which check reads each one. An aspect you skip is unchecked for the whole corpus.
 3. A row in `AGENTS.md` under Canonical Resources, and a rank under Authority Order — a corpus that does not
    say whether it governs anything will be treated as though it does.
 4. Structure templates at `docs/__meta__/<corpus>-<prefix>.md` for any filename prefix whose members need a
@@ -170,8 +170,8 @@ frontmatter schemas set `additionalProperties: false`, so an undeclared key is a
 
 These run without user permission:
 
-- `uv run lorecraft check` and `uv run lorecraft check header` with any flags — read-only, no side effects
-- `.agents/skills/docs-rules-check/scripts/check_structure.py` and `check_budget.py` with any flags — read-only, no side effects
+- `uv run lorecraft check`, `uv run lorecraft check header` and `uv run lorecraft check structure` with any flags — read-only, no side effects
+- `.agents/skills/docs-rules-check/scripts/check_budget.py` with any flags — read-only, no side effects
 - `just check-docs`, which runs those three checks over the whole corpus
 - Reading any file under `docs/` or `.agents/skills/`
 - Frontmatter extraction: `awk '/^---$/{p=!p; print; next} p' <path>`

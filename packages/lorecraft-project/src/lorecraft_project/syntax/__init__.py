@@ -1,4 +1,4 @@
-"""A document's parse tree: the frontmatter node and the line positions every check reports against."""
+"""A document's parse tree: the frontmatter node, the headings, and the line positions every check reports against."""
 
 from .document import ParsedDocument, parse_document, parse_frontmatter
 from .frontmatter import (
@@ -9,6 +9,7 @@ from .frontmatter import (
     MissingFrontmatter,
     NonMappingFrontmatter,
 )
+from .heading import Heading
 from .position import InvalidLineNumberError, LineNumber
 
 __all__ = [
@@ -21,6 +22,7 @@ __all__ = [
     'MissingFrontmatter',
     'InvalidYamlFrontmatter',
     'NonMappingFrontmatter',
+    'Heading',
     'LineNumber',
     'InvalidLineNumberError',
 ]

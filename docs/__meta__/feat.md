@@ -98,7 +98,7 @@ A document at `docs/feat/<name>.md` is governed by four files in `docs/__meta__/
 |-----------------------|--------------------------------------------|--------------------------------------------|
 | `feat.md`             | Everything. This document is the authority | A person, and an agent before it writes    |
 | `feat.header.json`    | Frontmatter fields, vocabularies, patterns | `lorecraft check header`                  |
-| `feat.structure.json` | The section outline and its order          | `check_structure.py`                       |
+| `feat.structure.json` | The section outline and its order          | `lorecraft check structure`                |
 | `feat.budget.json`    | Prose length, per document and per section | `check_budget.py`                          |
 
 A **namespace layer** narrows that base: `feat-<namespace>.header.json`, `feat-<namespace>.structure.json` or

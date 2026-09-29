@@ -12,7 +12,13 @@ from lorecraft_project.aspect import AspectFilename, AspectNamespace
 from lorecraft_project.corpus import CorpusName
 from lorecraft_project.document.ref import DocumentRef
 from lorecraft_project.layout import SPECS_DIR
-from lorecraft_project.schemas import HeaderAspect, HeaderSchema, parse_schema_name, schema_name_stem
+from lorecraft_project.schemas import (
+    HeaderAspect,
+    HeaderSchema,
+    StructureAspect,
+    parse_schema_name,
+    schema_name_stem,
+)
 from lorecraft_vfs import RootRelativePath
 
 from ..model import Corpus, Governance, Spec, WorkspaceModel, namespace_order_key
@@ -21,14 +27,31 @@ CODE: Final[CorpusName] = CorpusName.parse('code')
 FEAT: Final[CorpusName] = CorpusName.parse('feat')
 
 
-def _spec(stem: str, header: bool = True) -> Spec:
-    """A spec at ``docs/__meta__/<stem>.md``, with ``<stem>.header.json`` beside it when ``header`` is set."""
-    prose = SPECS_DIR / f'{stem}.md'
-    if not header:
-        return Spec(name=parse_schema_name(stem), files=(prose,), header=None)
-    header_path = SPECS_DIR / f'{stem}.header.json'
-    aspect = HeaderAspect(path=header_path, schema=HeaderSchema({}))
-    return Spec(name=parse_schema_name(stem), files=(header_path, prose), header=aspect)
+def _spec(stem: str, header: bool = True, structure: bool = False) -> Spec:
+    """A spec at ``docs/__meta__/<stem>.md``, with ``<stem>.header.json`` beside it when ``header`` is set and
+    ``<stem>.structure.json`` when ``structure`` is."""
+    files = [SPECS_DIR / f'{stem}.md']
+    header_aspect: HeaderAspect | None = None
+    if header:
+        header_aspect = HeaderAspect(path=SPECS_DIR / f'{stem}.header.json', schema=HeaderSchema({}))
+        files.append(header_aspect.path)
+    structure_aspect: StructureAspect | None = None
+    if structure:
+        structure_aspect = StructureAspect(
+            path=SPECS_DIR / f'{stem}.structure.json',
+            authority=f'{stem}.md',
+            title=None,
+            forbid_empty_sections=True,
+            outline=(),
+            forbidden=(),
+        )
+        files.append(structure_aspect.path)
+    return Spec(
+        name=parse_schema_name(stem),
+        files=tuple(sorted(files, key=str)),
+        header=header_aspect,
+        structure=structure_aspect,
+    )
 
 
 def _ref(corpus: str, filename: str) -> DocumentRef:
@@ -237,6 +260,52 @@ class TestGovernance:
         #: Then
         assert tuple(aspect.path for aspect in aspects) == (SPECS_DIR / 'code.header.json',), (
             'a prose-only namespace adds no header schema, so only the corpus header applies'
+        )
+
+    def test_structure_specs_with_nested_namespaces_returns_the_structures_broad_to_narrow(self) -> None:
+        #: Given
+        specs = (_spec('code', structure=True), _spec('code-python', structure=True))
+        filename = 'python-typing'
+        model = _code_model(specs, (filename,))
+        governance = model.governance(_ref('code', filename))
+
+        #: When
+        aspects = governance.structure_specs()
+
+        #: Then
+        assert tuple(aspect.path for aspect in aspects) == (
+            SPECS_DIR / 'code.structure.json',
+            SPECS_DIR / 'code-python.structure.json',
+        ), 'the structure aspects follow the corpus and python specs, broad to narrow'
+
+    def test_structure_specs_with_a_corpus_spec_without_a_structure_returns_no_structures(self) -> None:
+        #: Given
+        specs = (_spec('code'), _spec('code-python', structure=True))
+        filename = 'python-typing'
+        model = _code_model(specs, (filename,))
+        governance = model.governance(_ref('code', filename))
+
+        #: When
+        aspects = governance.structure_specs()
+
+        #: Then
+        assert aspects == (), (
+            'a namespace never governs alone: no structure applies when the corpus spec has no structure aspect'
+        )
+
+    def test_structure_specs_with_a_namespace_without_a_structure_returns_the_corpus_structure(self) -> None:
+        #: Given
+        specs = (_spec('code', structure=True), _spec('code-python'))
+        filename = 'python-typing'
+        model = _code_model(specs, (filename,))
+        governance = model.governance(_ref('code', filename))
+
+        #: When
+        aspects = governance.structure_specs()
+
+        #: Then
+        assert tuple(aspect.path for aspect in aspects) == (SPECS_DIR / 'code.structure.json',), (
+            'a namespace spec without a structure file adds nothing, so only the corpus structure applies'
         )
 
     def test_governance_with_a_ref_of_a_corpus_the_model_lacks_raises_key_error(self) -> None:

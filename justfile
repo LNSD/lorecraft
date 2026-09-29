@@ -74,12 +74,11 @@ typecheck *EXTRA_FLAGS:
 # line in its own shell and stops at the first non-zero exit, so a findings exit
 # fails the recipe; fix what the first check reports, then rerun for the rest.
 
-# Check this repository's own documents (every lorecraft check, then check_structure and check_budget)
+# Check this repository's own documents (every lorecraft check, then check_budget)
 [group: 'docs']
 check-docs *EXTRA_FLAGS:
     @echo "📚 Checking documents..."
     uv run lorecraft check {{EXTRA_FLAGS}}
-    .agents/skills/docs-rules-check/scripts/check_structure.py {{EXTRA_FLAGS}}
     .agents/skills/docs-rules-check/scripts/check_budget.py {{EXTRA_FLAGS}}
 
 # Check this repository's own skills against the Agent Skills specification (check_skill)

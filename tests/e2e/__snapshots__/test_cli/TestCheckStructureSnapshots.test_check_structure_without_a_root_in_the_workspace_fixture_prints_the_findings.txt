@@ -1,5 +1,3 @@
-docs/code/logging.md:1: [frontmatter.missing] no `---` delimited frontmatter block
-docs/code/python-typing.md:1: [frontmatter.missing] no `---` delimited frontmatter block
 docs/code/logging.md:1: [structure.empty] section `Logging` is empty; omit it rather than leaving it empty (per code.md §5)
 docs/code/logging.md:1: [structure.outline] missing required section `Checklist` (per code.md §5)
 docs/code/python-typing.md:1: [structure.empty] section `Python typing` is empty; omit it rather than leaving it empty (per code.md §5)

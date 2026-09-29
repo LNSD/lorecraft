@@ -4,8 +4,9 @@ Discovery is spec-first: a directory under ``docs/`` is a corpus only when ``doc
 its stem. The loader lists the specification directory, parses each filename once with ``parse_spec_file``,
 sorts the parsed files into corpus stems and namespace stems, keeps the corpora whose
 ``docs/<corpus>/`` is a regular directory, lists the Markdown files directly inside each, and builds a
-``HeaderAspect`` from every header schema, which proves it well-formed, before any document is read. An entry
-that does not fit the layout is left out of the model; nothing it leaves out fails the run.
+``HeaderAspect`` from every header schema and a ``StructureAspect`` from every structure specification, which
+proves each one usable, before any document is read. An entry that does not fit the layout is left out of the
+model; nothing it leaves out fails the run.
 
 Nothing here logs and nothing here catches broadly: a repository or schema error names its path already, so
 it propagates unchanged to the command that loads the model, which reports it.
@@ -22,6 +23,7 @@ from lorecraft_project.schemas.header import HeaderAspect
 from lorecraft_project.schemas.name import SchemaName
 from lorecraft_project.schemas.repo import Repository as SchemaRepository
 from lorecraft_project.schemas.spec_file import SpecAspect, SpecFile, SpecFilenameError, parse_spec_file
+from lorecraft_project.schemas.structure import StructureAspect
 from lorecraft_vfs import EntryKind, FileSystem, RootRelativePath
 
 from .model import Corpus, Spec, WorkspaceModel, namespace_order_key
@@ -42,7 +44,7 @@ class _CorpusFiles:
 
 def load_workspace(schemas: SchemaRepository, documents: DocumentRepository) -> WorkspaceModel:
     """Build the snapshot: parse the spec filenames, keep corpus stems whose docs/<corpus>/ is a directory, list
-    the Markdown files directly inside each, and build a header aspect from every header schema.
+    the Markdown files directly inside each, and build a header and a structure aspect from every spec that has one.
 
     Raises:
         ListSpecsError: If the specification directory cannot be listed.
@@ -50,6 +52,8 @@ def load_workspace(schemas: SchemaRepository, documents: DocumentRepository) -> 
         ListDocumentsError: If a corpus directory cannot be listed.
         GetHeaderSchemaError: If any header schema cannot be read or decoded.
         InvalidHeaderSchemaError: If any header schema is not a well-formed JSON Schema.
+        GetStructureSchemaError: If any structure specification cannot be read or decoded.
+        InvalidStructureSchemaError: If any structure specification does not state usable rules.
     """
     spec_paths = schemas.list_spec_paths()
     directories = documents.list_corpus_directories()
@@ -89,6 +93,8 @@ def load_model(fs: FileSystem) -> WorkspaceModel:
         ListDocumentsError: If a corpus directory cannot be listed.
         GetHeaderSchemaError: If any header schema cannot be read or decoded.
         InvalidHeaderSchemaError: If any header schema is not a well-formed JSON Schema.
+        GetStructureSchemaError: If any structure specification cannot be read or decoded.
+        InvalidStructureSchemaError: If any structure specification does not state usable rules.
     """
     schemas = SchemaRepository(fs, SPECS_DIR)
     documents = DocumentRepository(fs)
@@ -123,6 +129,8 @@ def _load_corpus(
     Raises:
         GetHeaderSchemaError: If a header schema cannot be read or decoded.
         InvalidHeaderSchemaError: If a header schema is not a well-formed JSON Schema.
+        GetStructureSchemaError: If a structure specification cannot be read or decoded.
+        InvalidStructureSchemaError: If a structure specification does not state usable rules.
     """
     spec = _load_spec(schemas, (corpus_name,), files.spec)
 
@@ -141,19 +149,25 @@ def _load_corpus(
 
 
 def _load_spec(schemas: SchemaRepository, name: SchemaName, spec_files: list[SpecFile]) -> Spec:
-    """Build one spec from the files at its stem, decoding its header schema into an aspect if it has one.
+    """Build one spec from the files at its stem, decoding its header and structure JSON into aspects.
 
     Raises:
         GetHeaderSchemaError: If the header schema cannot be read or decoded.
         InvalidHeaderSchemaError: If the header schema is not a well-formed JSON Schema.
+        GetStructureSchemaError: If the structure specification cannot be read or decoded.
+        InvalidStructureSchemaError: If the structure specification does not state usable rules.
     """
     header: HeaderAspect | None = None
+    structure: StructureAspect | None = None
     for spec_file in spec_files:
         if spec_file.aspect is SpecAspect.HEADER:
             # Building the aspect is the well-formedness check: HeaderAspect rejects a malformed schema.
             header = HeaderAspect(path=spec_file.path, schema=schemas.get_header_schema(name))
+        elif spec_file.aspect is SpecAspect.STRUCTURE:
+            # Likewise, StructureAspect.parse rejects JSON that is not the structure dialect.
+            structure = StructureAspect.parse(spec_file.path, schemas.get_structure_schema(name))
     paths = tuple(sorted((spec_file.path for spec_file in spec_files), key=str))
-    return Spec(name=name, files=paths, header=header)
+    return Spec(name=name, files=paths, header=header, structure=structure)
 
 
 def _list_document_refs(documents: DocumentRepository, corpus_name: CorpusName) -> list[DocumentRef]:

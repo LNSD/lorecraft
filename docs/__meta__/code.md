@@ -390,7 +390,7 @@ Rule documents may reference other rule documents to establish relationships. Cr
 ### Required Sections
 
 [code.structure.json](code.structure.json) beside this file holds the outline below in machine-checkable
-form, and `check_structure.py` applies it. A
+form, and `lorecraft check structure` applies it. A
 `principle-*`, `pattern-*`, or `python-*` document takes its section outline from the narrowest
 `code-<namespace>.md` specification that matches its name instead of the general shape below; the general
 shape governs every document no namespace specification matches, `test-*` and `logging` today
