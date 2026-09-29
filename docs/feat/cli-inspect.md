@@ -29,7 +29,8 @@ that govern it. It answers why a document is or is not checked, without running 
   [workspace](workspace.md) lays out.
 - **Specification stem**: A filename in `docs/__meta__/` without its extensions, such as `feat-cli`, with the
   files that share it.
-- **Governed by**: The stems whose rules apply to a document, broad to narrow.
+- **Governed by**: The specifications whose rules apply to a document, broad to narrow: their stems in the
+  tree, and every file at those stems in the JSON.
 
 ## Configuration
 
@@ -66,10 +67,22 @@ brackets. An excerpt, from this repository:
 ```
 
 With `--json`, stdout is one object: `root`, and `corpora`, each with `name`, `directory`, `specs` as `stem`
-and `files`, and `documents` as `path` and `governed_by`. Paths are root-relative.
+and `files`, and `documents` as `path` and `governed_by`. `governed_by` lists the files of each governing stem,
+broad to narrow, so a reader opens a document's specifications without mapping a stem to its files. Paths are
+root-relative.
 
 ```json
-{"path": "docs/feat/cli-check.md", "governed_by": ["feat", "feat-cli"]}
+{
+  "path": "docs/feat/cli-check.md",
+  "governed_by": [
+    "docs/__meta__/feat.header.json",
+    "docs/__meta__/feat.md",
+    "docs/__meta__/feat.structure.json",
+    "docs/__meta__/feat-cli.header.json",
+    "docs/__meta__/feat-cli.md",
+    "docs/__meta__/feat-cli.structure.json"
+  ]
+}
 ```
 
 A root with no `docs/__meta__/` prints a model with no corpora, and exits `0`.
