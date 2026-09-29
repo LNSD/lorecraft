@@ -10,7 +10,7 @@ components: "module:lorecraft.cli.app,module:lorecraft.cli.registry,module:lorec
 
 ## Summary
 
-`lorecraft` is the console script the `lorecraft` package installs. It checks a repository's agent-facing
+`lorecraft` is the console script the `lorecraft` package installs, with `lc` as a shorter name for it. It checks a repository's agent-facing
 documentation against the specifications that repository declares under `docs/__meta__/`, and shows what those
 specifications govern. The application itself only routes: each command is its own subcommand, and a bare
 `lorecraft` prints help.

@@ -27,8 +27,10 @@ dependencies = [
     "wenmode>=0.15.1,<0.16",
 ]
 
+# `lc` is a shorter name for the same command line.
 [project.scripts]
 lorecraft = "lorecraft.cli:main"
+lc = "lorecraft.cli:main"
 
 [build-system]
 requires = ["hatchling", "hatch-vcs"]

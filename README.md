@@ -45,7 +45,8 @@ Or install it in an isolated environment with [pipx](https://pipx.pypa.io/):
 pipx install lorecraft
 ```
 
-Confirm which build you are running with `lorecraft version`.
+Confirm which build you are running with `lorecraft version`. Every command also runs as `lc`, a shorter
+name for `lorecraft`.
 
 <details>
 <summary>Installing from the Git repository</summary>
