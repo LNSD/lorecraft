@@ -12,7 +12,6 @@ structure specification is not JSON Schema. It is this small dialect, whose fiel
 
     {
       "$schema": "../schemas/structure.spec.json",
-      "spec": "code.md §5",
       "description": "what this file governs, for whoever opens it",
       "title": {"count": 1, "first": true},
       "empty_sections": "forbidden",
@@ -24,10 +23,12 @@ structure specification is not JSON Schema. It is this small dialect, whose fiel
       "forbidden": ["Changelog"]
     }
 
+The file does not name the prose it is the machine-checkable half of: that is ``<stem>.md`` beside it, and every
+finding quotes it.
+
 - ``$schema`` points editors at ``docs/schemas/structure.spec.json``, the JSON Schema ``just gen`` renders from
   ``structure_file``; it is not kept. That schema states the shape only: the rules ``StructureAspect`` refuses
   below it cannot state.
-- ``spec`` names the prose this file is the machine-checkable half of; every finding quotes it.
 - ``description`` is read by people only, and is not kept.
 - ``title`` states how many H1 titles a document carries, and whether one opens it ahead of every section.
 - ``empty_sections``, whose one value is ``"forbidden"``, reports a section left without content.
@@ -38,7 +39,7 @@ structure specification is not JSON Schema. It is this small dialect, whose fiel
 Nothing here logs: the command that loads the model catches every ``Error`` that escapes it and reports it.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from itertools import pairwise
 from typing import NewType, Self
 
@@ -47,6 +48,7 @@ from pydantic import ValidationError
 from lorecraft_core.error import Error
 from lorecraft_vfs import RootRelativePath
 
+from .spec_file import SpecFilenameError, parse_spec_file, prose_filename
 from .structure_file import StructureFile, StructureFileAny, StructureFileTitle
 
 # The text of a structure specification file as read, not yet known to be JSON, the dialect's shape or usable
@@ -114,30 +116,41 @@ class StructureAspect:
     checks them again.
 
     Attributes:
-        path: Root-relative path of the JSON file.
-        authority: The prose this file is the machine-checkable half of, such as ``code.md §5``; every finding
-            quotes it, so a reader is sent to the rule rather than to the JSON.
+        path: Root-relative path of the JSON file, ``<stem>.structure.json``; the prose it is the
+            machine-checkable half of is ``<stem>.md`` beside it, which ``authority`` names.
         title: The title rule, or None when the specification states none.
         forbid_empty_sections: True when every section must hold content.
         outline: The section order, matched against a document's sections left to right; may be empty.
         forbidden: Sections that must not appear at all.
+        authority: The filename of the prose this file is the machine-checkable half of, such as ``code.md``,
+            derived from ``path`` at construction. Every finding quotes it, so a reader is sent to the rule rather
+            than to the JSON.
     """
 
     path: RootRelativePath
-    authority: str
     title: TitleRule | None
     forbid_empty_sections: bool
     outline: tuple[OutlineEntry, ...]
     forbidden: tuple[str, ...]
+    authority: str = field(init=False)
 
     def __post_init__(self) -> None:
-        """Refuse rules that check nothing, that no title count satisfies, or that contradict themselves.
+        """Derive the authority from the path, then refuse rules that check nothing, that no title count satisfies,
+        or that contradict themselves.
 
         Raises:
-            InvalidStructureSchemaError: If the aspect states no rule, its title count is below 1, its outline
-                names a section twice or places two ``any`` runs side by side, or it forbids a section its own
-                outline names.
+            InvalidStructureSchemaError: If the path is not a specification filename, the aspect states no rule,
+                its title count is below 1, its outline names a section twice or places two ``any`` runs side by
+                side, or it forbids a section its own outline names.
         """
+        try:
+            spec_file = parse_spec_file(self.path)
+        except SpecFilenameError as exc:
+            raise InvalidStructureSchemaError(self.path, f'is not at a specification filename: {exc}') from exc
+        # `authority` is derived from `path` rather than passed in, so the two cannot disagree. A frozen dataclass
+        # refuses plain assignment, and `object.__setattr__` is the one way to set a field during construction.
+        object.__setattr__(self, 'authority', prose_filename(spec_file.name))
+
         if self.title is None and not self.forbid_empty_sections and not self.outline and not self.forbidden:
             raise InvalidStructureSchemaError(self.path, 'states no rule, so it would check nothing')
         if self.title is not None and self.title.count < 1:
@@ -192,7 +205,6 @@ class StructureAspect:
 
         return cls(
             path=path,
-            authority=file.spec,
             title=_title_rule(file.title),
             forbid_empty_sections=file.empty_sections == 'forbidden',
             outline=tuple(outline),

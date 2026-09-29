@@ -30,7 +30,6 @@ ACCEPT_ANY_HEADER_SCHEMA: Final[str] = '{"type": "object"}'
 CHECKLIST_STRUCTURE_SPEC: Final[str] = dedent(
     """
     {
-      "spec": "code.md §5",
       "outline": [{"any": true}, {"section": "Checklist"}]
     }
     """
@@ -415,7 +414,7 @@ class TestCheckStructureCommand:
         #: Then
         assert result.exit_code == 1, result.output
         assert result.stdout == (
-            'docs/code/guide.md:1: [structure.outline] missing required section `Checklist` (per code.md §5)\n'
+            'docs/code/guide.md:1: [structure.outline] missing required section `Checklist` (per code.md)\n'
         ), 'the finding prints root-relative, quoting the prose the specification checks'
 
     def test_check_structure_with_a_corpus_without_a_structure_spec_reports_it_ungoverned(self, tmp_path: Path) -> None:
@@ -435,7 +434,7 @@ class TestCheckStructureCommand:
 
     def test_check_structure_with_a_malformed_structure_spec_exits_as_invalid_input(self, tmp_path: Path) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', '{"spec": "code.md §5"}')
+        _write(tmp_path, 'docs/__meta__/code.structure.json', '{}')
         _write(tmp_path, 'docs/code/guide.md', '## Rule\n\ntext\n')
         app = build_app()
 
@@ -466,7 +465,7 @@ class TestCheckStructureCommand:
                 'file': 'docs/code/guide.md',
                 'line': 5,
                 'rule': 'structure.outline',
-                'message': 'unexpected section `Appendix`; the outline ends before it (per code.md §5)',
+                'message': 'unexpected section `Appendix`; the outline ends before it (per code.md)',
             }
         ], f'a finding serialises as the root-relative path and the line number, got {result.stdout!r}'
 
@@ -504,7 +503,7 @@ class TestCheckAllCommand:
         assert result.exit_code == 1, result.output
         assert result.stdout == (
             'docs/code/guide.md:1: [frontmatter.missing] no `---` delimited frontmatter block\n'
-            'docs/code/guide.md:1: [structure.outline] missing required section `Checklist` (per code.md §5)\n'
+            'docs/code/guide.md:1: [structure.outline] missing required section `Checklist` (per code.md)\n'
         ), "the bare run prints each check's findings as the check itself would, in check name order"
 
     def test_check_with_json_format_reports_each_check_under_its_name(self, tmp_path: Path) -> None:
