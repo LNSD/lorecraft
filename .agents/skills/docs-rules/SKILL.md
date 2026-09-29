@@ -1,8 +1,8 @@
 ---
 name: docs-rules
 description: Load the documentation rules that govern a document under docs/ - its format specification and content requirements. Use before creating or editing anything under docs/, when choosing which corpus a document belongs in, when adding a frontmatter field, or when fixing findings from /docs-rules-check
-compatibility: Requires uv to run the checks in /docs-rules-check
-allowed-tools: Bash(uv run lorecraft check*), Bash(just check-docs*), Bash(grep *), Bash(ls docs/*), Bash(awk *)
+compatibility: Requires uv to run lorecraft, and jq to list the specifications governing each document
+allowed-tools: Bash(uv run lorecraft check*), Bash(uv run lorecraft inspect*), Bash(jq *), Bash(just check-docs*), Bash(grep *), Bash(ls docs/*), Bash(awk *)
 ---
 
 # Doc Rules
@@ -21,22 +21,26 @@ This skill carries no rules of its own. `docs/__meta__/` is the authority, and t
 
 ## Resolving the Specification
 
-A document's own path names its specifications. No list of corpora or specifications is kept here, so a new
+A document's own path names its specifications, and `lorecraft inspect` resolves them with the same rules the
+checks apply. No list of corpora or specifications is kept here, and no resolution rule is restated, so a new
 one is covered as soon as it exists.
 
-A document sits directly inside its corpus directory, `docs/<corpus>/<name>.md`. The corpus specification,
-`docs/__meta__/<corpus>.md`, is the authority. Each namespace layer, `docs/__meta__/<corpus>-<namespace>.md`,
-adds to it when the namespace equals `<name>` or is a hyphen-delimited prefix of it, broad to narrow, and you
-write against every one: `docs/feat/cli-check-header.md` is governed by `feat.md`, then `feat-cli.md`.
-`ls docs/__meta__/<corpus>*.md` lists the candidates.
+Each document below is followed by the prose specifications that govern it, broad to narrow: its
+`governed_by` from `lorecraft inspect --json`, `.md` files only.
 
-Each of those `.md` files is paired with machine-checkable files at the same stem, `<stem>.header.json` for
-its frontmatter rules and `<stem>.structure.json` for its section structure, section word caps and token
-budget. Read the `.md` for the prose; the JSON is the exact field, section, cap and budget list, and it is what
-the checks run against.
+!`uv run lorecraft inspect --json | jq -r '.corpora[].documents[] | "\(.path): \(.governed_by | map(select(endswith(".md"))) | join(" "))"'`
 
-Where no corpus specification exists, the document's format is ungoverned. Say so rather than inventing rules
-or borrowing another corpus's — never carry a rule from one corpus into another.
+> If the block above is literal text, the runtime did not execute it — run that command yourself first. A
+> document not yet written is not listed: create the file, empty if need be, and run it again.
+
+Read every specification listed for the document, the corpus specification first and each namespace layer
+after it, and write against all of them. The `.json` files beside each are the machine-checkable halves the
+checks run against: `<stem>.header.json` for the frontmatter, `<stem>.structure.json` for the sections, word
+caps and token budget.
+
+A document that exists but is not listed is outside every corpus, and one listed with no specification is
+ungoverned. Say so rather than inventing rules or borrowing another corpus's — never carry a rule from one
+corpus into another.
 
 ## Choosing the Corpus
 
@@ -50,7 +54,7 @@ live at the `docs/` root, and agent workflow in `AGENTS.md` or a skill.
 
 ## Writing Path
 
-1. **Resolve and read the specification.** The corpus specification and every namespace layer that applies,
+1. **Resolve and read the specification.** Every `.md` in the document's `governed_by`,
    **before drafting**. The corpus specification ends with a `Checklist`; that is what you will be checked against, so
    hold it while writing. Reading them afterwards means rewriting.
 2. **Read a neighbor.** Open the closest existing document in the corpus and skim it. The specification states
@@ -106,8 +110,7 @@ Every listing is derivable instead, and the derivation is what you write:
 | Instead of listing | Point at |
 |---|---|
 | The documents in a corpus | The corpus directory, or the frontmatter discovery command |
-| The specification governing a document | Its own path: `docs/__meta__/<corpus>.md` |
-| The namespace layers for a document | Its filename: `docs/__meta__/<corpus>-<namespace>.md` |
+| The specifications governing a document | Its `governed_by` in `lorecraft inspect --json` |
 | Where a subject is covered | The one or two documents that actually cover it, in `References` |
 
 A document's `References` section is the one legitimate listing: it names the handful of documents that
@@ -145,7 +148,7 @@ frontmatter schemas set `additionalProperties: false`, so an undeclared key is a
 
 | Mistake | Why it is wrong | Do this instead |
 |---|---|---|
-| Writing first, reading the specification after | Produces a rewrite, not a fix | Read both layers in step 1 |
+| Writing first, reading the specification after | Produces a rewrite, not a fix | Read every layer in step 1 |
 | Borrowing a section list from another corpus | Corpora differ deliberately | Read the corpus's own template |
 | A `description` with no `Load when` clause | The document cannot be lazily loaded | Write both halves |
 | `name` not matching the filename | Breaks frontmatter discovery | Match it, minus `.md` |
@@ -160,6 +163,7 @@ These run without user permission:
 
 - `uv run lorecraft check`, `uv run lorecraft check header`, `uv run lorecraft check structure` and `uv run lorecraft check budget` with any flags — read-only, no side effects
 - `just check-docs`, which runs those checks over the whole corpus
+- `uv run lorecraft inspect` with any flags, piped into `jq` — read-only, prints the specification files governing each document
 - Reading any file under `docs/` or `.agents/skills/`
 - Frontmatter extraction: `awk '/^---$/{p=!p; print; next} p' <path>`
 - `ls` on any directory under `docs/`
