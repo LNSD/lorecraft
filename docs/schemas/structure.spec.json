@@ -108,7 +108,6 @@
           "section": "External References"
         }
       ],
-      "spec": "code.md §5",
       "title": {
         "count": 1,
         "first": true
@@ -127,14 +126,6 @@
       ],
       "default": null,
       "description": "The JSON Schema this file is written against, for editors; ignored by the check."
-    },
-    "spec": {
-      "description": "The prose this file is the machine-checkable half of: a document under `docs/__meta__/` and the part of it that states these rules. Every finding quotes it, to send the reader to the rule rather than to this file.",
-      "examples": [
-        "code.md §5",
-        "code-pattern.md Template"
-      ],
-      "type": "string"
     },
     "description": {
       "default": "",
@@ -216,9 +207,6 @@
       "type": "array"
     }
   },
-  "required": [
-    "spec"
-  ],
   "title": "Structure specification",
   "type": "object"
 }

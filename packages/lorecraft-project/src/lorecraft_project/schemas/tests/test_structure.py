@@ -28,7 +28,6 @@ class TestStructureAspectParse:
             dedent(
                 """
                 {
-                  "spec": "code.md §5",
                   "description": "read by people only",
                   "title": {"count": 1, "first": true},
                   "empty_sections": "forbidden",
@@ -49,7 +48,6 @@ class TestStructureAspectParse:
         #: Then
         assert aspect == StructureAspect(
             path=SPEC_PATH,
-            authority='code.md §5',
             title=TitleRule(count=1, first=True),
             forbid_empty_sections=True,
             outline=(
@@ -67,7 +65,6 @@ class TestStructureAspectParse:
                 """
                 {
                   "$schema": "../schemas/structure.spec.json",
-                  "spec": "code.md §5",
                   "forbidden": ["Changelog"]
                 }
                 """
@@ -80,7 +77,6 @@ class TestStructureAspectParse:
         #: Then
         assert aspect == StructureAspect(
             path=SPEC_PATH,
-            authority='code.md §5',
             title=None,
             forbid_empty_sections=False,
             outline=(),
@@ -94,7 +90,6 @@ class TestStructureAspectParse:
                 """
                 {
                   "$schema": 5,
-                  "spec": "code.md §5",
                   "forbidden": ["Changelog"]
                 }
                 """
@@ -114,7 +109,6 @@ class TestStructureAspectParse:
             dedent(
                 """
                 {
-                  "spec": "code.md",
                 """
             )
         )
@@ -132,7 +126,6 @@ class TestStructureAspectParse:
             dedent(
                 """
                 {
-                  "spec": "code.md",
                   "title": {"count": 0, "first": true}
                 }
                 """
@@ -152,7 +145,6 @@ class TestStructureAspectParse:
             dedent(
                 """
                 {
-                  "spec": "code.md",
                   "outline": [{"section": "Checklist", "optional": "yes"}]
                 }
                 """
@@ -172,7 +164,6 @@ class TestStructureAspectParse:
             dedent(
                 """
                 {
-                  "spec": "code.md",
                   "forbidden": ["Changelog"],
                   "sections": []
                 }
@@ -187,24 +178,16 @@ class TestStructureAspectParse:
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the error names the rejected file'
 
-    def test_parse_without_a_spec_field_raises_invalid_structure_schema_error(self) -> None:
+    def test_parse_with_a_spec_field_raises_invalid_structure_schema_error(self) -> None:
         #: Given
-        schema = StructureSchema(
-            dedent(
-                """
-                {
-                  "forbidden": ["Changelog"]
-                }
-                """
-            )
-        )
+        schema = StructureSchema('{"spec": "code.md", "forbidden": ["Changelog"]}')
 
         #: When
         with pytest.raises(InvalidStructureSchemaError) as exc_info:
             StructureAspect.parse(SPEC_PATH, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'every finding quotes `spec`, so a file without one is refused'
+        assert exc_info.value.path == SPEC_PATH, 'the prose is named by the filename, so `spec` is not a field'
 
     def test_parse_with_an_empty_sections_value_other_than_forbidden_raises_invalid_structure_schema_error(
         self,
@@ -214,7 +197,6 @@ class TestStructureAspectParse:
             dedent(
                 """
                 {
-                  "spec": "code.md",
                   "empty_sections": "allowed"
                 }
                 """
@@ -234,7 +216,6 @@ class TestStructureAspectParse:
             dedent(
                 """
                 {
-                  "spec": "code.md",
                   "title": {"count": true, "first": true}
                 }
                 """
@@ -254,7 +235,6 @@ class TestStructureAspectParse:
             dedent(
                 """
                 {
-                  "spec": "code.md",
                   "outline": [{"heading": "Checklist"}]
                 }
                 """
@@ -274,7 +254,6 @@ class TestStructureAspectParse:
             dedent(
                 """
                 {
-                  "spec": "code.md",
                   "forbidden": [1]
                 }
                 """
@@ -298,7 +277,11 @@ class TestStructureAspectConstruction:
         #: When
         with pytest.raises(InvalidStructureSchemaError) as exc_info:
             StructureAspect(
-                path=path, authority='code.md', title=None, forbid_empty_sections=False, outline=(), forbidden=()
+                path=path,
+                title=None,
+                forbid_empty_sections=False,
+                outline=(),
+                forbidden=(),
             )
 
         #: Then
@@ -311,7 +294,11 @@ class TestStructureAspectConstruction:
         #: When
         with pytest.raises(InvalidStructureSchemaError) as exc_info:
             StructureAspect(
-                path=SPEC_PATH, authority='code.md', title=title, forbid_empty_sections=False, outline=(), forbidden=()
+                path=SPEC_PATH,
+                title=title,
+                forbid_empty_sections=False,
+                outline=(),
+                forbidden=(),
             )
 
         #: Then
@@ -319,13 +306,15 @@ class TestStructureAspectConstruction:
 
     def test_construction_with_a_section_named_twice_raises_invalid_structure_schema_error(self) -> None:
         #: Given
-        outline = (SectionEntry(name='Checklist', optional=False), SectionEntry(name='Checklist', optional=True))
+        outline = (
+            SectionEntry(name='Checklist', optional=False),
+            SectionEntry(name='Checklist', optional=True),
+        )
 
         #: When
         with pytest.raises(InvalidStructureSchemaError) as exc_info:
             StructureAspect(
                 path=SPEC_PATH,
-                authority='code.md',
                 title=None,
                 forbid_empty_sections=False,
                 outline=outline,
@@ -343,7 +332,6 @@ class TestStructureAspectConstruction:
         with pytest.raises(InvalidStructureSchemaError) as exc_info:
             StructureAspect(
                 path=SPEC_PATH,
-                authority='code.md',
                 title=None,
                 forbid_empty_sections=False,
                 outline=outline,
@@ -355,13 +343,16 @@ class TestStructureAspectConstruction:
 
     def test_construction_with_two_adjacent_any_runs_raises_invalid_structure_schema_error(self) -> None:
         #: Given
-        outline = (AnySections(), AnySections(), SectionEntry(name='Checklist', optional=False))
+        outline = (
+            AnySections(),
+            AnySections(),
+            SectionEntry(name='Checklist', optional=False),
+        )
 
         #: When
         with pytest.raises(InvalidStructureSchemaError) as exc_info:
             StructureAspect(
                 path=SPEC_PATH,
-                authority='code.md',
                 title=None,
                 forbid_empty_sections=False,
                 outline=outline,
@@ -370,3 +361,29 @@ class TestStructureAspectConstruction:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'two runs side by side match as one, so the outline misleads'
+
+
+@pytest.mark.unit
+class TestStructureAspectAuthority:
+    def test_construction_at_a_namespace_path_derives_the_prose_at_its_stem(self) -> None:
+        #: Given
+        path = RootRelativePath.parse('docs/__meta__/code-python.structure.json')
+
+        #: When
+        aspect = StructureAspect(
+            path=path, title=None, forbid_empty_sections=False, outline=(), forbidden=('Changelog',)
+        )
+
+        #: Then
+        assert aspect.authority == 'code-python.md', 'the prose is the `.md` file at the same stem'
+
+    def test_construction_at_a_path_that_is_not_a_spec_filename_raises_invalid_structure_schema_error(self) -> None:
+        #: Given
+        path = RootRelativePath.parse('docs/__meta__/notes.txt')
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            StructureAspect(path=path, title=None, forbid_empty_sections=False, outline=(), forbidden=('Changelog',))
+
+        #: Then
+        assert exc_info.value.path == path, 'an aspect whose path names no prose has no authority to quote'

@@ -4,8 +4,8 @@ A specification file in ``docs/__meta__/`` is either ``<stem>.md``, the prose of
 ``<stem>.<aspect>.json``, one machine-checkable aspect of it. The aspect is ``header``, ``structure`` or
 ``budget``. The stem is one of the two forms ``name.py`` describes, and holds no dot.
 
-``parse_spec_file`` is the one place this grammar is read, and ``schema_filename`` the one place it is
-written. Every other module takes the parsed records.
+``parse_spec_file`` is the one place this grammar is read, and ``schema_filename`` and ``prose_filename`` the
+only places it is written. Every other module takes the parsed records.
 """
 
 from dataclasses import dataclass
@@ -148,6 +148,11 @@ def parse_spec_file(path: RootRelativePath) -> SpecFile:
 def schema_filename(name: SchemaName, aspect: SpecAspect) -> str:
     """The filename of one aspect at a ``<corpus>`` or ``<corpus>-<namespace>`` stem; never raises."""
     return f'{schema_name_stem(name)}.{aspect.value}{_JSON_SUFFIX}'
+
+
+def prose_filename(name: SchemaName) -> str:
+    """The filename of the prose at a ``<corpus>`` or ``<corpus>-<namespace>`` stem; never raises."""
+    return f'{schema_name_stem(name)}{_PROSE_SUFFIX}'
 
 
 def _split_filename(path: RootRelativePath) -> tuple[str, SpecAspect | None]:
