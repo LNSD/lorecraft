@@ -7,11 +7,11 @@ default:
 
 alias setup := sync
 
-# Sync the development environment: every workspace member and every group (uv sync --all-packages --all-groups)
+# Sync the development environment: the package and every group (uv sync --all-groups)
 [group: 'workspace']
 sync:
     @echo "🚀 Setting up development environment..."
-    uv sync --all-packages --all-groups
+    uv sync --all-groups
 
 # Remove build, test and cache artifacts
 [group: 'workspace']
@@ -45,11 +45,12 @@ fmt-check *EXTRA_FLAGS:
 
 alias lint := check
 
-# Check Python code (ruff check)
+# Check Python code (ruff check), then the import layering (lint-imports)
 [group: 'check']
 check *EXTRA_FLAGS:
     @echo "🔍 Linting code..."
     uv run ruff check . {{EXTRA_FLAGS}}
+    uv run lint-imports
 
 alias lint-fix := check-fix
 
@@ -61,11 +62,11 @@ check-fix *EXTRA_FLAGS:
 
 alias check-types := typecheck
 
-# Type-check every package (ty check)
+# Type-check the package source (ty check)
 [group: 'check']
 typecheck *EXTRA_FLAGS:
     @echo "🔍 Type-checking code..."
-    uv run ty check packages/*/src {{EXTRA_FLAGS}}
+    uv run ty check src {{EXTRA_FLAGS}}
 
 
 ## Docs
@@ -111,7 +112,7 @@ gen-schemas:
     from pydantic import BaseModel
     from pydantic.json_schema import GenerateJsonSchema
 
-    from lorecraft_project.schemas import StructureFile
+    from lorecraft.project.schemas import StructureFile
 
     JSON_SCHEMA_DIALECT = 'https://json-schema.org/draft/2020-12/schema'
 
@@ -155,11 +156,11 @@ gen-schemas:
 
 ## Build
 
-# Build the source distribution and wheel of every package (uv build --all-packages)
+# Build the source distribution and the wheel (uv build)
 [group: 'build']
 build:
     @echo "📦 Building"
-    uv build --all-packages
+    uv build
 
 
 ## Test

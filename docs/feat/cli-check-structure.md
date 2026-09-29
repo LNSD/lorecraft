@@ -3,7 +3,7 @@ name: "cli-check-structure"
 description: "lorecraft check structure: validating each document's H1 title, section order, empty and forbidden sections, and per-section word caps against the structure specifications its path selects, and the rule identifiers it reports. Load when a structure or word cap finding needs explaining, or when running the structure check on its own"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft.cli.commands.check.structure,module:lorecraft.checks.structure,module:lorecraft_project.schemas.structure,module:lorecraft_project.syntax,spec:feat,spec:code"
+components: "module:lorecraft.cli.commands.check.structure,module:lorecraft.checks.structure,module:lorecraft.project.schemas.structure,module:lorecraft.project.syntax,spec:feat,spec:code"
 ---
 
 # `lorecraft check structure`
@@ -91,6 +91,6 @@ corpus; structure unvalidated`.
 
 ## Code References
 
-- `packages/lorecraft/src/lorecraft/cli/commands/check/structure.py` - Declares the command and registers the check with the group
-- `packages/lorecraft/src/lorecraft/checks/structure.py` - The check of one document's headings
-- `packages/lorecraft-project/src/lorecraft_project/schemas/structure.py` - Loads and validates a structure specification
+- `src/lorecraft/cli/commands/check/structure.py` - Declares the command and registers the check with the group
+- `src/lorecraft/checks/structure.py` - The check of one document's headings
+- `src/lorecraft/project/schemas/structure.py` - Loads and validates a structure specification

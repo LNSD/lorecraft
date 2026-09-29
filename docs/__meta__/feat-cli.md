@@ -116,7 +116,7 @@ document invents, so it sits after Limitations and before References.
 
 ### Code References
 
-Name the command module under `packages/lorecraft/src/lorecraft/cli/` first, then the library modules it
+Name the command module under `src/lorecraft/cli/` first, then the library modules it
 composes, one entry per line, never wrapped. As everywhere in the corpus, name the files and do not narrate
 them.
 
@@ -194,7 +194,7 @@ lorecraft {{command}} {{subcommand}}
 
 ## Code References
 
-- `packages/lorecraft/src/lorecraft/cli/commands/{{command}}.py` - Declares the command and its options
+- `src/lorecraft/cli/commands/{{command}}.py` - Declares the command and its options
 ````
 
 ---

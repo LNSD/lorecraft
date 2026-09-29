@@ -122,8 +122,8 @@ stating the rule, or `null` for a rule the check holds itself. `lorecraft check 
 
 ## Code References
 
-- `packages/lorecraft/src/lorecraft/cli/commands/check/__init__.py` - The group and the bare run
-- `packages/lorecraft/src/lorecraft/cli/check_run.py` - Check registration, selection and both output formats
-- `packages/lorecraft/src/lorecraft/cli/root.py` - Root discovery
-- `packages/lorecraft/src/lorecraft/cli/select.py` - The rules a path argument is refused by
-- `packages/lorecraft/src/lorecraft/checks/run.py` - A check's run over the selected documents
+- `src/lorecraft/cli/commands/check/__init__.py` - The group and the bare run
+- `src/lorecraft/cli/check_run.py` - Check registration, selection and both output formats
+- `src/lorecraft/cli/root.py` - Root discovery
+- `src/lorecraft/cli/select.py` - The rules a path argument is refused by
+- `src/lorecraft/checks/run.py` - A check's run over the selected documents

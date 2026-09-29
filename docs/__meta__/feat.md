@@ -236,9 +236,9 @@ these three prefixes:
 | `skill:`  | A skill directory                                | kebab-case                     | `skill:docs-rules-check`  |
 | `spec:`   | A specification stem under `docs/__meta__/`      | kebab-case, extensions dropped | `spec:feat`               |
 
-A `module:` entry always starts with its import package, one of the workspace's packages under `packages/`,
-because two of them can hold a subpackage of the same name and a shorter name would not say which:
-`packages/lorecraft/src/lorecraft/checks/header.py` is `module:lorecraft.checks.header`. A `spec:` entry names
+A `module:` entry always starts with the import package, because two layers can hold a subpackage of the
+same name and a shorter name would not say which:
+`src/lorecraft/checks/header.py` is `module:lorecraft.checks.header`. A `spec:` entry names
 the stem, not one of its files: `spec:feat` stands for `feat.md` and every `feat.*.json` beside it.
 
 **Example:**
@@ -568,7 +568,7 @@ self-explanatory.}}
 
 {{The source files behind the feature, one entry per line, never wrapped. Name files; do not explain their logic.}}
 
-- `packages/{{package}}/src/{{import_package}}/{{path/to/module.py}}` - How this file relates to the feature
+- `src/lorecraft/{{path/to/module.py}}` - How this file relates to the feature
 ````
 
 ---
@@ -587,7 +587,7 @@ Before committing a feature document:
 - [ ] `status` reflects where the feature stands today, and names no version
 - [ ] `description` says what it covers and includes a "Load when" clause (no ending period)
 - [ ] `components` entries all use `module:`, `skill:` or `spec:`, spelled as [§2](#2-frontmatter-requirements) requires
-- [ ] Every `module:` entry starts with its import package, one of the workspace's packages
+- [ ] Every `module:` entry starts with the import package
 
 ### Structure
 

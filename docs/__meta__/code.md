@@ -37,7 +37,7 @@ The corpus in `docs/code/` is **the code rules**, also called the code guideline
 
 ### Rules Describe This Codebase
 
-Rule documents describe conventions that **exist in `packages/*/src/`**, not conventions imported from other ecosystems or aspirational ones.
+Rule documents describe conventions that **exist in `src/`**, not conventions imported from other ecosystems or aspirational ones.
 
 - Before writing a rule, find the code that already demonstrates it — then write the example from scratch, without citing that code ([§6](#6-content-guidelines))
 - Do not document tooling the repository does not use
@@ -218,18 +218,17 @@ High-level organizational and structural rules — the shape of the distribution
 written.
 
 **`arch` is reserved and currently unused.** No document in the corpus carries it; the first one would govern
-the workspace's `pyproject.toml` files and the layout under `packages/`.
+`pyproject.toml` and the layout under `src/`.
 
 #### `pkg` - Package-Specific Rules
 
-Rules scoped to individual packages, using the `pkg-` prefix followed by the package's full import path. Each
-workspace package under `packages/` is its own import package, and two of them can hold a subpackage of the
-same name, so the import package is always part of the name: a doc governing `lorecraft_project/checks/` is scoped
-`pkg:lorecraft_project.checks`. A security companion takes the same name plus `-security`.
+Rules scoped to individual packages, using the `pkg-` prefix followed by the package's full import path. Two
+layers can hold a subpackage of the same name, so the path always starts at the import package: a doc
+governing `lorecraft/project/checks/` is scoped `pkg:lorecraft.project.checks`. A security companion takes the same name plus `-security`.
 
 `scope` carries the import path exactly as Python spells it — **snake_case**, dotted for nesting:
-`pkg:lorecraft_project.checks.frontmatter` for a `frontmatter` subpackage of `checks`. The **filename** cannot
-carry an underscore or a dot, so it converts both to `-`: a doc scoped `pkg:lorecraft_project.checks` is named
+`pkg:lorecraft.project.checks.frontmatter` for a `frontmatter` subpackage of `checks`. The **filename** cannot
+carry an underscore or a dot, so it converts both to `-`: a doc scoped `pkg:lorecraft.project.checks` is named
 `pkg-lorecraft-project-checks.md`.
 
 A document governing a family of sibling subpackages names the family, not one member.
@@ -267,7 +266,7 @@ Write descriptions optimized for dynamic discovery. Unlike skills (which are exe
 - No ending period
 
 **Examples:**
-- ✅ `"Module organization under packages/*/src. Load when creating modules or organizing Python packages"`
+- ✅ `"Module organization under src. Load when creating modules or organizing Python packages"`
 - ✅ `"Exception handling patterns, bare-except prohibition. Load when raising or catching exceptions"`
 - ✅ `"Frozen dataclass defaults and field ordering. Load when declaring a dataclass"`
 - ❌ `"Module organization patterns"` (missing "Load when" trigger)
@@ -438,7 +437,7 @@ subset of packages, a decision point:
 
 ```markdown
 ✅ Governs something `scope` cannot express
-**MANDATORY for ALL test modules under `packages/*/tests/`**
+**MANDATORY for ALL test modules under `tests/it/`**
 **MANDATORY for ALL `pyproject.toml` files in the project**
 **MANDATORY for ALL dataclasses declared in the project**
 
@@ -471,7 +470,7 @@ Include when relevant:
 rule the doc states — the least code that carries the convention, invented for the purpose, standing
 on its own.
 
-This is deliberate, and it is the opposite of what a citation buys. A `# ✅ Good — lorecraft_project/x/y.py`
+This is deliberate, and it is the opposite of what a citation buys. A `# ✅ Good — lorecraft/project/x/y.py`
 attribution makes a doc feel checkable, but it is a **copy of a module living in a second file**, and
 it rots exactly like any other copy: the package is renamed, the helper moves, the signature grows an
 argument, the code the doc quotes is deleted — and now the rule document is wrong about the repository
@@ -485,7 +484,7 @@ So:
 
 - **Never write a file path into an example**, in the `# ✅ Good —` comment or anywhere else. The
   comment says _why_ the example is good or bad, never _where_ it came from.
-- **Never assert, in prose, that a named module does the thing.** "`lorecraft_project/checks/base.py`
+- **Never assert, in prose, that a named module does the thing.** "`lorecraft/project/checks/base.py`
   states X" is a citation wearing a sentence, and it rots on the next rename. State the rule.
 - **Invent the names.** Illustrative subjects (`parse_frontmatter`, `OutlineSpec`, `load_corpus`) are
   preferred precisely because they are obviously not an inventory of the project.
@@ -500,7 +499,7 @@ Three things stay exact, because they are what the doc is teaching rather than e
 
 - **Third-party and stdlib APIs**: `pathlib.Path`, `dataclasses.dataclass`, `logging`, `re`, `tomllib`.
   A doc that gets these wrong teaches the wrong thing.
-- **The names of packages and subpackages.** The workspace's import packages and the subpackages declared
+- **The names of packages and subpackages.** The import package, its layers and the subpackages declared
   under them — written as they really are, never disguised. These are the project's vocabulary,
   and a reader who cannot map an example onto the package it concerns has to translate before they can
   apply the rule, which is the same cost a toy domain imposes. Invented substitutes are at their worst
@@ -515,7 +514,7 @@ A fabricated example is still written in this project's stack and style: it pass
 configuration, and it never demonstrates tooling the repository does not use.
 
 Naming a **path pattern** is not a citation and stays allowed, because it is the convention itself:
-`packages/*/src/<import package>/<pkg>/`, `packages/*/src/<import package>/<pkg>/tests/test_*.py`, `__init__.py`. What is banned is pointing at one real module
+`src/lorecraft/<pkg>/`, `src/lorecraft/<pkg>/tests/test_*.py`, `__init__.py`. What is banned is pointing at one real module
 as evidence.
 
 The `Good` / `Bad` pair still carries the argument. A **Bad** example is the mistake the rule exists
@@ -523,7 +522,7 @@ to prevent, and it is at its strongest when it names the cost concretely — "th
 document with an empty frontmatter block and no test noticed" teaches more than a bare `foo`. Invent
 the war story if you must, but keep it specific: the point is the failure mode, not the provenance.
 
-**A convention must still exist in `packages/*/src/` to be documented** ([§1](#1-core-principles)) — that
+**A convention must still exist in `src/` to be documented** ([§1](#1-core-principles)) — that
 requirement is unchanged, and it is on the _author_ to have verified it. What changed is that the doc
 no longer proves it by quoting a file, because that proof expires.
 
@@ -552,7 +551,7 @@ must contain is governed above: the failure mode and what it cost, never where t
 - Include code snippets showing correct and incorrect usage, in Python
 - Fabricate every example: the least invented code that carries the convention
 - Verify a real module demonstrates the convention before documenting it — then write the example from scratch
-- Name path patterns (`packages/*/src/<import package>/<pkg>/`, `packages/*/src/<import package>/<pkg>/tests/test_*.py`) where the convention is about layout
+- Name path patterns (`src/lorecraft/<pkg>/`, `src/lorecraft/<pkg>/tests/test_*.py`) where the convention is about layout
 - Use consistent terminology throughout
 - Include a verification checklist at the end
 - Explain the reasoning behind rules
@@ -564,7 +563,7 @@ must contain is governed above: the failure mode and what it cost, never where t
 - Restate a single module's contract (document it in that module instead)
 - Cite a module in an example, or point at one in prose as evidence (it is a copy, and it drifts on the next rename)
 - Transcribe real code into an example, verbatim or lightly edited
-- Document a convention no package in `packages/*/src/` demonstrates (a convention nothing demonstrates is not one)
+- Document a convention no package in `src/` demonstrates (a convention nothing demonstrates is not one)
 - File a rule under a prefix whose subject it is not
 - Cover more than one responsibility in a doc, or add a doc that only routes to its siblings
 - Narrate a migration, or argue the case for a decision already made
@@ -684,14 +683,14 @@ Before committing a rule document:
 
 ### Content
 
-- [ ] Every convention documented is demonstrated by code in `packages/*/src/` (the author checked; the doc does not cite it)
+- [ ] Every convention documented is demonstrated by code in `src/` (the author checked; the doc does not cite it)
 - [ ] Code examples are Python and pass the project's Ruff configuration
 - [ ] Every example is fabricated — no example cites a module, and no prose points at one as evidence
 - [ ] Every example is labelled `# ✅ Good —`, `# ❌ Bad —`, or `# 🔶 Acceptable —`, with the reason after the dash
-- [ ] No example is a transcription of real code, and a rename anywhere in `packages/*/src/` could not falsify the doc
+- [ ] No example is a transcription of real code, and a rename anywhere in `src/` could not falsify the doc
 - [ ] Examples use this project's domain vocabulary and idioms, not toy domains a reader must translate
 - [ ] The doc states rules and shows shapes; it does not enumerate the documents that exist
-- [ ] Path patterns (`packages/*/src/<import package>/<pkg>/`, `packages/*/src/<import package>/<pkg>/tests/test_*.py`) appear only where the convention is about layout
+- [ ] Path patterns (`src/lorecraft/<pkg>/`, `src/lorecraft/<pkg>/tests/test_*.py`) appear only where the convention is about layout
 - [ ] No rule assumes tooling the project does not have
 
 ### Responsibility and Durability

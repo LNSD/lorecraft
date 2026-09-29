@@ -1,16 +1,15 @@
 ---
 name: "code-release"
-description: "Cut a release of the packages: tag the commit, build the source distributions and the wheels from that tag, and verify what the artifacts actually contain. Use when preparing a release, bumping the version, building distributions, or checking that packaging metadata is correct"
+description: "Cut a release of the package: tag the commit, build the source distribution and the wheel from that tag, and verify what the artifacts actually contain. Use when preparing a release, bumping the version, building distributions, or checking that packaging metadata is correct"
 compatibility: "Requires the just task runner, uv, a working GPG signing key because every tag and commit is signed, and git with the repository's full history: hatch-vcs reads the version from `git describe`, so a shallow or tagless checkout builds a version that is not the release. Publishing to an index is NOT configured in this repository, so this skill ends at a tag and a verified artifact."
-allowed-tools: Bash(just build *) Bash(just clean *) Bash(just fmt-check *) Bash(just check *) Bash(just typecheck *) Bash(just test *) Bash(just check-docs *) Bash(just check-skills *) Bash(git status *) Bash(git log *) Bash(git tag *) Bash(git describe *)
+allowed-tools: Bash(just build *) Bash(just clean *) Bash(just fmt-check *) Bash(just check *) Bash(just typecheck *) Bash(just test *) Bash(just check-docs *) Bash(just check-skills *) Bash(git status *) Bash(git log *) Bash(git tag *) Bash(git describe *) Bash(uv venv dist/verify *) Bash(uv pip install --python dist/verify *) Bash(dist/verify/bin/lorecraft *)
 ---
 
 # Code Release Skill
 
-Packaging for this repository, a uv workspace of Python packages built with hatchling. Every directory
-under `packages/` is a releasable package, and one tag releases all of them at the same version. The
-workspace member in `tests/` holds the end-to-end tests: it is private, never built and never released.
-The root `pyproject.toml` lists the members; read it rather than assuming a set.
+Packaging for this repository, one package, `lorecraft`, built with hatchling from the root `pyproject.toml`.
+The command line and the libraries it is built on are layers of that one import package, so a release is one
+source distribution and one wheel.
 
 A release here is four steps: tag the commit, build, verify what was built, and delete the tag if the
 artifacts are wrong. The build itself is a single recipe, so the work that matters is the verification
@@ -40,6 +39,12 @@ git status --porcelain     # must print nothing
 git log --oneline -1
 ```
 
+## One requirements list
+
+`[project].dependencies` holds the third-party requirements of every layer. A library layer that starts
+importing a new third-party package needs it added there, and only the clean install under
+[Verify the artifacts](#verify-the-artifacts) catches a miss.
+
 ## Everything a release stands on is signed
 
 **Every tag is GPG-signed, and so is every commit it points at.** A tag is what the version is derived
@@ -63,10 +68,8 @@ before tagging, or cut the release from a commit that is signed.
 
 ## The version has one home, and it is the git tag
 
-No file in the tree holds a release version; the `tests/` member's placeholder `0` is never built. Each
-package's `pyproject.toml` declares `dynamic = ["version"]` and `[tool.hatch.version]` sets
-`source = "vcs"`, with `root = "../.."` pointing hatch-vcs at the one checkout, so every package runs
-`git describe` against the same tag at build time. Bumping the version *is* tagging:
+No file in the tree holds a release version. `pyproject.toml` declares `dynamic = ["version"]` and
+`[tool.hatch.version]` sets `source = "vcs"`, so the build runs `git describe` against the tag. Bumping the version *is* tagging:
 
 ```bash
 git tag -s v0.2.0 -m "v0.2.0"
@@ -84,7 +87,7 @@ A `+`-suffixed local version is a development build. It is legitimate to hand so
 refuse it, which is the intended safety net.
 
 At runtime the command line reports what it was built with, via `importlib.metadata` in
-`lorecraft/metadata.py`; the libraries release under the same version and do not report one of their own.
+`lorecraft/metadata.py`; the libraries ship inside the same wheel and report no version of their own.
 `lorecraft version --verbose` additionally runs
 `git describe --tags --always --dirty` when it is running from a checkout, so a developer's install
 shows the working tree it is actually sitting on rather than the version frozen at install time.
@@ -108,7 +111,7 @@ carry a development version.
 | Command | Purpose |
 |---|---|
 | `just clean` | Remove `dist/`, caches and `__pycache__` before a build |
-| `just build` | `uv build --all-packages`: writes a source distribution and a wheel per releasable package into the root `dist/`, skipping the `tests/` member |
+| `just build` | `uv build`: writes the source distribution and the wheel into `dist/` |
 
 Always clean first. `uv build` does not empty `dist/`, so a stale wheel from an earlier version sits
 next to the new one and is easy to upload or inspect by mistake.
@@ -119,7 +122,7 @@ just build
 ls -la dist/
 ```
 
-Two files should appear per directory under `packages/`, and nothing else:
+Two files should appear, and nothing else:
 
 ```
 dist/<distribution>-<version>.tar.gz            source distribution
@@ -142,10 +145,9 @@ python3 -c "import zipfile,sys;[print(n) for n in zipfile.ZipFile(sys.argv[1]).n
 
 It must contain, and contain nothing beyond:
 
-- its own import package and everything under it, the one directory under the package's `src/`, and no
-  other top-level package
+- `lorecraft/` and everything under it, and no other top-level package
 - `<dist-info>/licenses/LICENSE-MIT` and `LICENSE-APACHE`, because the project is dual licensed and
-  `license-files` in each package's `pyproject.toml` puts both in the artifact
+  `license-files` in `pyproject.toml` puts both in the artifact
 - `METADATA`, `WHEEL`, `RECORD`
 
 Read the metadata and confirm the version is the one just tagged, and that the licence expression
@@ -157,9 +159,8 @@ python3 -c "import zipfile,sys;z=zipfile.ZipFile(sys.argv[1]);print(z.read([n fo
 
 `Version:` must be the tag without its `v` prefix, and must carry no `+` local segment — a `+g<sha>`
 or `.d<date>` suffix means the build did not happen on the tagged commit, or happened on a dirty tree.
-`License-Expression: MIT OR Apache-2.0` and both `License-File:` lines must be present. A package that
-depends on another workspace package must list it as a plain `Requires-Dist:`, with no local path: the
-workspace resolves it locally, and the artifact must not.
+`License-Expression: MIT OR Apache-2.0` and both `License-File:` lines must be present. Every
+`Requires-Dist:` is a third-party requirement, with no local path.
 
 ### The source distribution
 
@@ -167,11 +168,10 @@ workspace resolves it locally, and the artifact must not.
 tar tzf dist/*.tar.gz | sed 's|^[^/]*/||' | cut -d/ -f1 | sort -u
 ```
 
-Each sdist carries only what is needed to build its package from source: `src/<import package>/`,
-`pyproject.toml`, `README.md` and the two licence files, all from the package's own directory under
-`packages/`. Everything else, the package's `tests/` and the repository's `docs/`, `.agents/`,
+The sdist carries only what is needed to build the package from source: `src/lorecraft/`,
+`pyproject.toml`, `README.md` and the two licence files. Everything else, `tests/`, `docs/`, `.agents/`,
 `.github/`, `justfile` and `uv.lock`, is repository material rather than package material, and is
-excluded by the `include` list in each package's `[tool.hatch.build.targets.sdist]`.
+excluded by the `include` list in `[tool.hatch.build.targets.sdist]`.
 
 `tests/` is the one worth revisiting. A downstream packager builds from the sdist and runs its suite to
 verify the build, and cannot do that when the tests are absent. Add `"/tests"` back the day someone
@@ -181,12 +181,21 @@ Expect exactly that listing. Anything else means an `include` pattern lost its l
 patterns are gitignore-style, so an unanchored `README.md` also matches `docs/__meta__/README.md` and
 drags a directory back in.
 
+### A clean install
+
+The workspace tests cannot see a requirement the wheel is missing, so install it alone:
+
+```bash
+uv venv dist/verify
+uv pip install --python dist/verify dist/*.whl
+dist/verify/bin/lorecraft version    # the tagged version
+dist/verify/bin/lorecraft check      # no findings
+```
+
 ### Known packaging gap
 
-Each package's `README.md` is its long description, and each links its licence files by a bare
-relative path, `LICENSE-MIT` and `LICENSE-APACHE`. GitHub resolves those; an index rendering the long
-description does not, so the licence links break there. Fix it by making those URLs absolute before the
-first upload, not after.
+`README.md` is the long description, and its relative links, to the licence files and into `docs/`, resolve
+on GitHub but not on an index rendering it. Make them absolute before the first upload, not after.
 
 ## After verifying
 
@@ -223,7 +232,7 @@ step: report that the artifacts are built, verified and tagged, and stop.
 - Tagging a commit that is not itself signed, or signing the tag and skipping the DCO sign-off on the
   commit.
 - Running `just build` without `just clean` and then reading a stale artifact from `dist/`.
-- Treating a successful build as a verified artifact. Read the contents of every wheel.
+- Treating a successful build as a verified artifact. Read the wheel's contents and install it alone.
 - Tagging before the artifacts are checked, or pushing a tag without being asked.
 - Running `uv publish`, or adding a token to the repository, on the assumption that publishing is
   wanted. It is not configured, and configuring it is not this skill's job.
@@ -233,5 +242,5 @@ step: report that the artifacts are built, verified and tagged, and stop.
 
 After a verified build and a local tag:
 
-1. **Report** the version, every artifact filename, and what each wheel contained.
+1. **Report** the version, both artifact filenames, and what the wheel contained.
 2. **Ask** before pushing the tag or opening a release.

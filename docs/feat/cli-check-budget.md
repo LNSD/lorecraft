@@ -3,7 +3,7 @@ name: "cli-check-budget"
 description: "lorecraft check budget: counting each document's whole-file o200k_base tokens against the tokens budget its structure specifications set, and the rule identifiers it reports. Load when a document is reported over its token budget, or when running the budget check on its own"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft.cli.commands.check.budget,module:lorecraft.checks.budget,module:lorecraft_project.syntax.tokens,spec:feat,spec:code"
+components: "module:lorecraft.cli.commands.check.budget,module:lorecraft.checks.budget,module:lorecraft.project.syntax.tokens,spec:feat,spec:code"
 ---
 
 # `lorecraft check budget`
@@ -85,6 +85,6 @@ reason `no token budget for this corpus; tokens unvalidated`.
 
 ## Code References
 
-- `packages/lorecraft/src/lorecraft/cli/commands/check/budget.py` - Declares the command and registers the check with the group
-- `packages/lorecraft/src/lorecraft/checks/budget.py` - The check of one document's token count
-- `packages/lorecraft-project/src/lorecraft_project/syntax/tokens.py` - Counts tokens, with the vocabulary shipped in the package
+- `src/lorecraft/cli/commands/check/budget.py` - Declares the command and registers the check with the group
+- `src/lorecraft/checks/budget.py` - The check of one document's token count
+- `src/lorecraft/project/syntax/tokens.py` - Counts tokens, with the vocabulary shipped in the package

@@ -121,7 +121,7 @@ jobs:
 
       - uses: extractions/setup-just@f8a3cce218d9f83db3a2ecd90e41ac3de6cdfd9b # v3.1.0
 
-      # The generators run in the workspace environment, so the workspace packages must be installed.
+      # The generators import the package, so the development environment must be synced.
       - name: Sync the development environment
         run: just sync
 

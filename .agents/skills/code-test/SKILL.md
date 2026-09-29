@@ -1,8 +1,8 @@
 ---
 name: code-test
-description: Run targeted tests after format and lint are green. Defaults to the unit tier; widens to the integration, end-to-end or whole suite only on explicit signals. Use after editing Python code under packages/ or tests/, or when the user asks to run tests. No tier here needs a container, an external service, or credentials.
+description: Run targeted tests after format and lint are green. Defaults to the unit tier; widens to the integration, end-to-end or whole suite only on explicit signals. Use after editing Python code under src/ or tests/, or when the user asks to run tests. No tier here needs a container, an external service, or credentials.
 compatibility: Requires the just task runner and uv. pytest is invoked through the project environment rather than a system install. Nothing else is needed — this repository has no container-backed, networked or credentialed tests.
-allowed-tools: Bash(just test-unit *) Bash(just test-it *) Bash(just test-e2e *) Bash(just test *) Bash(just snapshot-review) Bash(uv run pytest packages/*) Bash(uv run pytest tests/*)
+allowed-tools: Bash(just test-unit *) Bash(just test-it *) Bash(just test-e2e *) Bash(just test *) Bash(just snapshot-review) Bash(uv run pytest src/*) Bash(uv run pytest tests/*)
 ---
 
 # Code Testing Skill
@@ -32,7 +32,7 @@ outward.
 **Signals that push the radius outward, from "pure logic" to wider:**
 - Changed a signature, an attribute, or the semantics of a type that other modules import — a
   finding, a check result, a parsed document.
-- Changed a shared type that more than one module depends on, or anything one workspace package
+- Changed a shared type that more than one module depends on, or anything one layer
   imports from another.
 - Changed a registry, discovery of checks, or an `__init__.py` that re-exports.
 - Changed a `pyproject.toml` — the root's dependency groups, pytest configuration or marker list, or a
@@ -68,8 +68,8 @@ dependency on `test`, so `just test-unit` runs `uv run pytest -m unit` with your
 single file or a single test — which no recipe covers — call pytest directly:
 
 ```bash
-uv run pytest packages/<package>/src/<import package>/<pkg>/tests/test_<module>.py -v
-uv run pytest packages/<package>/tests/test_<module>.py::Test<Subject>::test_<case> -v
+uv run pytest src/lorecraft/<pkg>/tests/test_<module>.py -v
+uv run pytest tests/it/test_<module>.py::Test<Subject>::test_<case> -v
 uv run pytest tests/e2e/test_<module>.py -v
 ```
 
@@ -91,24 +91,22 @@ never filters.
 
 ## Notes
 
-Unit tests sit beside the module they test, in a `tests/` subpackage under `packages/*/src/`: the tests
+Unit tests sit beside the module they test, in a `tests/` subpackage under `src/`: the tests
 for `<pkg>/<module>.py` are `<pkg>/tests/test_<module>.py`, and no wheel or sdist ships them. The `it`
-tier lives flat per package, in `packages/<package>/tests/`.
+tier lives flat, in `tests/it/`.
 [test-organization](../../../docs/code/test-organization.md) §2 owns the placement.
-The end-to-end tier lives at the root, in `tests/e2e/`, and covers the command line only: it drives the
-installed `lorecraft` console script from the `tests/` member, which is private and never built. Its shared helpers live beside the suites in `tests/lib/`, imported as
-`lib` (`from lib.cli import run_cli`) through pytest's `pythonpath = ["tests"]`. A library package has no e2e
-tier, because its end-to-end surface is its public API, which its `it` tier already covers.
+The end-to-end tier lives in `tests/e2e/` and covers the command line only: it drives the installed
+`lorecraft` console script. Its shared helpers live beside the suites in `tests/lib/`, imported as
+`lib` (`from lib.cli import run_cli`) through pytest's `pythonpath = ["tests"]`. A library layer has no
+e2e tier, because its end-to-end surface is its public API, which its `it` tier already covers.
 `tests/e2e/` is the slowest by an order of magnitude and the only tier that spawns a process, which is
 the reason the default stays narrow.
 
 pytest exits 5 when it collects nothing, and the `test` recipe preserves that failure. A tier with
 no collected tests therefore fails instead of reporting a misleading green run.
 
-Collection is confined by `testpaths` to each package's `src/` and `tests/` directories and the root
-`tests/e2e/`, through the globs `packages/*/src` and `packages/*/tests`, so a new package is collected
-without a configuration edit. A unit `tests/` subpackage has an `__init__.py`, so `--import-mode=importlib` imports it
-under its real dotted name and its relative imports resolve; the `it` and `e2e` directories carry none,
+Collection is confined by `testpaths` to `src/`, `tests/it/` and `tests/e2e/`. A unit `tests/` subpackage
+has an `__init__.py`, so `--import-mode=importlib` imports it under its real dotted name and its relative imports resolve; the `it` and `e2e` directories carry none,
 and importlib mode keeps two test files of the same name apart. Document-shaped fixtures are checked in as real
 files, so a test reads the same thing an agent would; adding a fixture file changes no configuration,
 but the test that consumes it still needs its marker.
