@@ -17,13 +17,13 @@ a test function — its name, its structure, its assertions, its fixtures — is
 
 | Directory | Marker | Needs to run | Typical duration | Purpose |
 |---|---|---|---|---|
-| `tests/` beside the module, under `packages/*/src/` | `unit` | Nothing beyond the interpreter | Milliseconds | Pure logic: frontmatter parsing, outline matching, length budgets, version formatting |
-| `packages/*/tests/` | `it` | The package importable, nothing outside the process | Tens of milliseconds | The package's own modules wired together: a CLI driven through Typer's `CliRunner`, a checker over a fixture tree |
-| `tests/e2e/`, at the root | `e2e` | The package installed, and a subprocess | Up to seconds | The product as a user runs it: the console script, its exit codes, and what it does with the machine it finds |
+| `tests/` beside the module, under `src/` | `unit` | Nothing beyond the interpreter | Milliseconds | Pure logic: frontmatter parsing, outline matching, length budgets, version formatting |
+| `tests/it/` | `it` | The package importable, nothing outside the process | Tens of milliseconds | The package's own modules wired together: a CLI driven through Typer's `CliRunner`, a checker over a fixture tree |
+| `tests/e2e/` | `e2e` | The package installed, and a subprocess | Up to seconds | The product as a user runs it: the console script, its exit codes, and what it does with the machine it finds |
 
 `unit` lives in the source tree, in a `tests/` subpackage beside the module it tests ([§2](#2-a-unit-test-sits-beside-the-module-it-tests)).
-`it` lives in each package's own `tests/` directory. `e2e` lives at the repository root and covers
-the command line only, because it tests the product rather than either package; its shared helpers sit in
+`it` lives in `tests/it/`. `e2e` lives in `tests/e2e/` and covers
+the command line only, because it tests the product rather than any one layer; its shared helpers sit in
 `tests/lib/`, imported as `lib` and never built or installed. The library has no `e2e` tier:
 its end-to-end surface is its public API, which its `it` tier already exercises.
 
@@ -55,7 +55,7 @@ it tests, moves with it, and changes in the same diff.
 
 **Belonging to the package is what gives the test its reach.** A co-located test imports its subject from
 the module itself, by the rule the package's own code follows ([python-modules](python-modules.md) §3):
-relatively inside a top-level package, absolutely for a module directly in the import package. It can
+relatively inside a top-level package, absolutely for a module directly in a root. It can
 therefore reach names the package's `__all__` does not re-export. The `it` and `e2e` tiers stay outside
 `src/`, because their job is to exercise the surface a user imports.
 
@@ -64,17 +64,17 @@ leading underscore, and PEP 8 reserves double-underscore names for Python itself
 each test module a real dotted name, so pytest's `importlib` import mode loads it under that name and its
 relative imports resolve.
 
-**No `tests/` subpackage ships.** Each package's wheel and source distribution excludes it. That exclusion is
+**No `tests/` subpackage ships.** The wheel and the source distribution exclude it. That exclusion is
 what lets a test module import `pytest` at the top without making pytest a runtime dependency.
 
 ```
 # ❌ Bad — the test sits in a separate tree and has to name the subject from outside the package
-packages/lorecraft-project/tests/unit/test_outline.py     # from lorecraft_project.checks import split_sections
+tests/unit/test_outline.py                         # from lorecraft.project.checks import split_sections
 ```
 
 ```
 # ✅ Good — the test sits beside its subject and imports it from inside the package
-packages/lorecraft-project/src/lorecraft_project/checks/
+src/lorecraft/project/checks/
     outline.py
     tests/
         __init__.py
@@ -105,7 +105,7 @@ def test_outline_checker_reads_spec_from_disk() -> None: ...
 ```
 
 ```python
-# ✅ Good — one marker, on the class, matching a `tests/` subpackage under `packages/*/src/`
+# ✅ Good — one marker, on the class, matching a `tests/` subpackage under `src/`
 @pytest.mark.unit
 class TestSectionSplitting:
     def test_split_sections_at_h2_yields_one_span_per_heading(self) -> None: ...
@@ -255,10 +255,10 @@ def test_check_corpus_over_fixture_tree_reports_one_finding_per_document() -> No
 
 Before committing code, verify:
 
-- [ ] Every new unit test file is `tests/test_<module>.py` beside its subject under `packages/*/src/`; every
-      other test file is directly in `packages/*/tests/`, the root `tests/e2e/`, or a tier directory introduced
+- [ ] Every new unit test file is `tests/test_<module>.py` beside its subject under `src/`; every
+      other test file is directly in `tests/it/`, the root `tests/e2e/`, or a tier directory introduced
       in the same change as its marker and its gate
-- [ ] Every `tests/` subpackage under `packages/*/src/` has an `__init__.py`, holds only `unit` tests, and
+- [ ] Every `tests/` subpackage under `src/` has an `__init__.py`, holds only `unit` tests, and
       is excluded from the package's wheel and source distribution
 - [ ] Each test's directory matches what it actually needs: no network anywhere, and no subprocess outside
       `tests/e2e/`

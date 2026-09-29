@@ -50,15 +50,13 @@ Confirm which build you are running with `lorecraft version`.
 <details>
 <summary>Installing from the Git repository</summary>
 
-To run a commit that has not been released yet, install from the repository with uv. The command line is the
-`packages/lorecraft` member of a uv workspace, so point uv at that subdirectory:
+To run a commit that has not been released yet, install from the repository:
 
 ```sh
-uv tool install "git+https://github.com/lnsd/lorecraft#subdirectory=packages/lorecraft"
+uv tool install "git+https://github.com/lnsd/lorecraft"
 ```
 
-This path needs uv: it builds the command line's sibling packages from the same checkout, where pip or pipx
-would take them from PyPI instead. It builds from the default branch. Append `@<tag>`, `@<branch>` or `@<commit>` to the repository URL to
+`pipx install` takes the same URL. It builds from the default branch. Append `@<tag>`, `@<branch>` or `@<commit>` to the repository URL to
 install a specific revision instead. The version is derived from the repository's git tags, so a build between
 two releases reports a development version, such as `0.2.1.dev3+g93b1ed1fb`.
 

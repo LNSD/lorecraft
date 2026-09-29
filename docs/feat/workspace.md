@@ -3,7 +3,7 @@ name: "workspace"
 description: "The fixed repository layout lorecraft reads: the root holding docs/__meta__/, corpus directories under docs/, the flat Markdown documents inside them, what is left out without a report, and the one snapshot every command reads. Load when laying out a repository for lorecraft, or asking why a directory or a file is not checked"
 type: "meta"
 status: "experimental"
-components: "module:lorecraft_project.layout,module:lorecraft_project.workspace,module:lorecraft_project.corpus,module:lorecraft_project.aspect"
+components: "module:lorecraft.project.layout,module:lorecraft.project.workspace,module:lorecraft.project.corpus,module:lorecraft.project.aspect"
 ---
 
 # Workspace Layout

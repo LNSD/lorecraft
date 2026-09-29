@@ -1,31 +1,67 @@
-# Virtual workspace root: never built.
+# The lorecraft package: one import package, `lorecraft`, in layers, each importing only those below it:
 #
-#   packages/lorecraft-core     the base package: the shared error class (import `lorecraft_core`)
-#   packages/lorecraft-vfs      the filesystem boundary: paths, views, scan, snapshot (import `lorecraft_vfs`)
-#   packages/lorecraft-project  the workspace model and the parse trees, on the filesystem boundary
-#                               (import `lorecraft_project`)
-#   packages/lorecraft          the command line (import `lorecraft`, console script `lorecraft`)
-#   tests                       the end-to-end suites and their helpers: private, never built
+#   lorecraft.cli      the command line, console script `lorecraft`
+#   lorecraft.checks   the checks the command line runs
+#   lorecraft.project  the workspace model and the parse trees, on the filesystem boundary
+#   lorecraft.vfs      the filesystem boundary: paths, views, scan, snapshot
+#   lorecraft.core     the base: the shared error class
 #
-# The version comes from the git tag (hatch-vcs), shared by every package, so CI needs full history.
-[tool.uv.workspace]
-members = [
-    "packages/*",
-    "tests",
+# Unit tests sit beside their module under src/; tests/ holds the integration and end-to-end tiers.
+[project]
+name = "lorecraft"
+dynamic = ["version"]
+description = "Toolkit for the agent-facing documentation of a repository: rule documents, feature docs, skills and the format specifications that govern them"
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
+authors = [
+    { name = "Lorenzo Delgado", email = "lnsdev@proton.me" },
+]
+requires-python = ">=3.12"
+dependencies = [
+    "jsonschema>=4.21,<5",
+    "pydantic>=2.13,<3",
+    "pyyaml>=6.0,<7",
+    "tiktoken>=0.14,<0.15",
+    "typer>=0.27.2",
+    "wenmode>=0.15.1,<0.16",
 ]
 
-[tool.uv.sources]
-lorecraft = { workspace = true }
-lorecraft-core = { workspace = true }
-lorecraft-project = { workspace = true }
-lorecraft-vfs = { workspace = true }
+[project.scripts]
+lorecraft = "lorecraft.cli:main"
+
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+# The version's home is the git tag: hatch-vcs derives it at build time, so CI needs full history.
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.version.raw-options]
+local_scheme = "node-and-date"
+
+# Unit tests sit in a `tests/` subpackage beside the module they test, inside src/. None of them ships:
+# `tests/` is a gitignore-style pattern that matches such a directory at any depth, so both targets drop
+# every one of them. Keeping them out is what lets a test import pytest without making it a dependency.
+[tool.hatch.build.targets.wheel]
+packages = ["src/lorecraft"]
+exclude = ["tests/"]
+
+# The include list keeps the sdist to the package source and its metadata files; without it hatchling ships
+# the whole repository, docs/ and the test tiers included.
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src/lorecraft",
+    "/README.md",
+    "/LICENSE-MIT",
+    "/LICENSE-APACHE",
+]
+exclude = ["tests/"]
 
 [dependency-groups]
 dev = [
-    "lorecraft",
-    "lorecraft-core",
-    "lorecraft-project",
-    "lorecraft-vfs",
+    "import-linter>=2.15,<3",
     "ruff>=0.16.0",
     "pytest>=9.0.3",
     "syrupy>=6.1.1",
@@ -33,10 +69,9 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-# Unit tests sit beside their module under src/, integration tests in each package's tests/.
 testpaths = [
-    "packages/*/src",
-    "packages/*/tests",
+    "src",
+    "tests/it",
     "tests/e2e",
 ]
 # The end-to-end helpers in tests/lib/ import as `lib`.
@@ -59,7 +94,7 @@ markers = [
 line-length = 120
 target-version = "py312"
 src = [
-    "packages/*/src",
+    "src",
     "tests",
 ]
 force-exclude = true
@@ -79,9 +114,23 @@ quote-style = "single"
 
 [tool.ty.environment]
 root = [
-    "packages/lorecraft-core/src",
-    "packages/lorecraft-project/src",
-    "packages/lorecraft-vfs/src",
-    "packages/lorecraft/src",
+    "src",
 ]
 python-version = "3.12"
+
+# The layers share one import package, so nothing in the packaging stops a lower layer importing a higher
+# one. This contract does: each layer may import only the layers below it, run by `just check`.
+[tool.importlinter]
+root_package = "lorecraft"
+
+[[tool.importlinter.contracts]]
+name = "The command line over the checks, the model, the filesystem and the base"
+type = "layers"
+containers = ["lorecraft"]
+layers = [
+    "cli",
+    "checks",
+    "project",
+    "vfs",
+    "core",
+]
