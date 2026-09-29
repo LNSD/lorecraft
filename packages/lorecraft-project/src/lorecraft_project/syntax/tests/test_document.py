@@ -1,4 +1,4 @@
-"""Parsing a document's text into its parse tree: where the frontmatter block is found, and where it is not.
+"""Parsing a document's text into its parse tree: where the frontmatter block is found, and which headings count.
 
 ``parse_document`` and ``parse_frontmatter`` are pure, so every case here is a text literal. The Markdown parser
 behind them decides what counts as a block; these pin the rules the checks report against.
@@ -8,6 +8,7 @@ import pytest
 
 from ..document import parse_document, parse_frontmatter
 from ..frontmatter import Frontmatter, FrontmatterKey, InvalidYamlFrontmatter, MissingFrontmatter
+from ..heading import Heading
 from ..position import LineNumber
 
 
@@ -116,3 +117,111 @@ class TestParseFrontmatter:
 
         #: Then
         assert frontmatter == MissingFrontmatter(), 'an unclosed block is not frontmatter'
+
+
+@pytest.mark.unit
+class TestParseDocumentHeadings:
+    def test_parse_document_with_headings_returns_each_with_its_level_text_and_line(self) -> None:
+        #: Given
+        text = '---\nname: guide\n---\n# Guide\n\nIntro.\n\n## Checklist\n\n- [ ] item\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.headings == (
+            Heading(level=1, text='Guide', line=LineNumber(4), empty=False),
+            Heading(level=2, text='Checklist', line=LineNumber(8), empty=False),
+        ), 'each heading carries its level, its text and the document line it starts on'
+
+    def test_parse_document_with_inline_markup_in_a_heading_returns_its_plain_text(self) -> None:
+        #: Given
+        text = '## **Check** `list`\n\ntext\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert [heading.text for heading in document.headings] == ['Check list'], (
+            'inline markup is stripped, so a spec can name the section by its words'
+        )
+
+    def test_parse_document_with_a_hash_line_in_a_fenced_block_returns_no_heading_for_it(self) -> None:
+        #: Given
+        text = '## Example\n\n```\n## not a heading\n```\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert [heading.text for heading in document.headings] == ['Example'], 'a `#` line in a code block is code'
+
+    def test_parse_document_with_a_heading_in_a_blockquote_leaves_it_out(self) -> None:
+        #: Given
+        text = '## Example\n\n> ## Quoted\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert [heading.text for heading in document.headings] == ['Example'], (
+            'a quoted heading illustrates a document, it does not section this one'
+        )
+
+    def test_parse_document_with_a_heading_in_a_list_item_leaves_it_out(self) -> None:
+        #: Given
+        text = '## Example\n\n- ## Nested\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert [heading.text for heading in document.headings] == ['Example'], (
+            'a heading nested in a list item does not section the document'
+        )
+
+    def test_parse_document_with_a_heading_followed_by_a_sibling_marks_it_empty(self) -> None:
+        #: Given
+        text = '## Empty\n## Full\n\ntext\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert [heading.empty for heading in document.headings] == [True, False], (
+            'a section closed straight away by a heading of its own level holds nothing'
+        )
+
+    def test_parse_document_with_a_heading_followed_by_a_subsection_marks_it_not_empty(self) -> None:
+        #: Given
+        text = '## Parent\n### Child\n\ntext\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert [heading.empty for heading in document.headings] == [False, False], (
+            'a subsection is content of the section that holds it'
+        )
+
+    def test_parse_document_with_a_heading_on_the_last_line_marks_it_empty(self) -> None:
+        #: Given
+        text = '## Full\n\ntext\n\n## Last\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.headings[-1].empty, 'a heading closed by the end of the document holds nothing'
+
+    def test_parse_document_with_crlf_line_endings_returns_each_heading_on_its_document_line(self) -> None:
+        #: Given
+        text = '# Guide\r\n\r\n## Checklist\r\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert [heading.line for heading in document.headings] == [LineNumber(1), LineNumber(3)], (
+            'a CRLF line ending counts as one line break'
+        )
