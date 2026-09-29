@@ -25,14 +25,19 @@
         {
           "path": "docs/code/logging.md",
           "governed_by": [
-            "code"
+            "docs/__meta__/code.header.json",
+            "docs/__meta__/code.md",
+            "docs/__meta__/code.structure.json"
           ]
         },
         {
           "path": "docs/code/python-typing.md",
           "governed_by": [
-            "code",
-            "code-python"
+            "docs/__meta__/code.header.json",
+            "docs/__meta__/code.md",
+            "docs/__meta__/code.structure.json",
+            "docs/__meta__/code-python.md",
+            "docs/__meta__/code-python.structure.json"
           ]
         }
       ]

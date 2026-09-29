@@ -95,14 +95,14 @@ def _corpus_line(corpus: Corpus) -> _Line:
 
 
 def _json_corpus(corpus: Corpus) -> dict[str, object]:
-    """One corpus as a JSON object: its specs and its documents with their governance."""
+    """One corpus as a JSON object: its specs, and its documents with the spec files that govern each."""
     specs: list[dict[str, object]] = []
     for spec in (corpus.spec, *corpus.namespace_specs):
         specs.append({'stem': schema_name_stem(spec.name), 'files': _paths(spec.files)})
     documents: list[dict[str, object]] = []
     for ref in corpus.documents:
         documents.append(
-            {'path': str(ref.path), 'governed_by': _governing_stems(corpus.governance(ref).specs)},
+            {'path': str(ref.path), 'governed_by': _governing_files(corpus.governance(ref).specs)},
         )
     return {
         'name': str(corpus.name),
@@ -118,6 +118,14 @@ def _governing_stems(specs: tuple[Spec, ...]) -> list[str]:
     for spec in specs:
         stems.append(schema_name_stem(spec.name))
     return stems
+
+
+def _governing_files(specs: tuple[Spec, ...]) -> list[str]:
+    """Every file of the governing specs as a root-relative path, broad to narrow, each spec's files sorted."""
+    paths: list[str] = []
+    for spec in specs:
+        paths.extend(_paths(spec.files))
+    return paths
 
 
 def _file_names(files: tuple[RootRelativePath, ...]) -> str:
