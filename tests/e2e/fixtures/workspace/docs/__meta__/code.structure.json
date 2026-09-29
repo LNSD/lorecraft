@@ -1,0 +1,11 @@
+{
+  "spec": "code.md §5",
+  "description": "The corpus layer: one title first, no empty section, and a Checklist after the document's own sections.",
+  "title": { "count": 1, "first": true },
+  "empty_sections": "forbidden",
+  "outline": [
+    { "any": true },
+    { "section": "Checklist" },
+    { "section": "References", "optional": true }
+  ]
+}

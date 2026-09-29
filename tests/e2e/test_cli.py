@@ -2,8 +2,9 @@
 
 `version --verbose` shells out to `git describe`, so this is the only tier that can observe the probe
 at all. This suite runs from the checkout, so the verbose command must report its Git description as
-well as the installed version and environment. Every version output, and `inspect`, `check` and `check header`
-over a checked-in workspace fixture, is compared to a reviewed snapshot file under `__snapshots__/`.
+well as the installed version and environment. Every version output, and `inspect`, `check`, `check header`
+and `check structure` over a checked-in workspace fixture, is compared to a reviewed snapshot file under
+`__snapshots__/`.
 """
 
 from pathlib import Path
@@ -20,7 +21,8 @@ from lorecraft import __version__
 _VARYING_FIELDS: Final[tuple[str, ...]] = ('Commit', 'Python', 'Platform', 'Install')
 
 # A checked-in workspace root holding each part of the model `inspect` draws: a corpus with a header schema
-# and a namespace spec, a document each governs, and a README beside the specifications that is not one.
+# and a structure specification, a namespace spec with a structure layer, a document each governs, and a README
+# beside the specifications that is not one.
 # Resolved, because the CLI prints the resolved root and the tests swap exactly that string for a placeholder.
 WORKSPACE_FIXTURE: Final[Path] = (Path(__file__).parent / 'fixtures' / 'workspace').resolve()
 _ROOT_PLACEHOLDER: Final[str] = '<workspace>'
@@ -177,6 +179,40 @@ class TestCheckHeaderSnapshots:
         #: Given
         expected = snapshot.use_extension(JsonTextSnapshotExtension)
         arguments = ('check', 'header', '--root', str(WORKSPACE_FIXTURE), '--format', 'json')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, 'the JSON report matches the reviewed snapshot'
+
+
+@pytest.mark.e2e
+class TestCheckStructureSnapshots:
+    # Every finding prints root-relative, so the output is the same in every checkout and nothing is redacted.
+    # The fixture's documents are a bare title, so each run reports findings, from both layers, and exits 1.
+
+    def test_check_structure_without_a_root_in_the_workspace_fixture_prints_the_findings(
+        self, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('check', 'structure')
+
+        #: When
+        result = run_cli(*arguments, cwd=WORKSPACE_FIXTURE)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, 'the findings found from the working directory match the reviewed snapshot'
+
+    def test_check_structure_with_json_over_the_workspace_fixture_prints_the_report(
+        self, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(JsonTextSnapshotExtension)
+        arguments = ('check', 'structure', '--root', str(WORKSPACE_FIXTURE), '--format', 'json')
 
         #: When
         result = run_cli(*arguments)

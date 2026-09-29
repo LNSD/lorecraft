@@ -1,4 +1,5 @@
-"""Specification filenames and stems, the decoded schemas, the header aspect and the repository that reads them."""
+"""Specification filenames and stems, the decoded schemas, the header and structure aspects, and the repository that
+reads them."""
 
 from .budget import BudgetSchema
 from .header import HeaderAspect, HeaderSchema, InvalidHeaderSchemaError
@@ -23,7 +24,15 @@ from .spec_file import (
     parse_spec_file,
     schema_filename,
 )
-from .structure import StructureSchema
+from .structure import (
+    AnySections,
+    InvalidStructureSchemaError,
+    OutlineEntry,
+    SectionEntry,
+    StructureAspect,
+    StructureSchema,
+    TitleRule,
+)
 
 __all__ = [
     'SchemaName',
@@ -43,6 +52,12 @@ __all__ = [
     'InvalidHeaderSchemaError',
     'BudgetSchema',
     'StructureSchema',
+    'StructureAspect',
+    'TitleRule',
+    'OutlineEntry',
+    'SectionEntry',
+    'AnySections',
+    'InvalidStructureSchemaError',
     'GetBudgetSchemaError',
     'GetHeaderSchemaError',
     'GetStructureSchemaError',

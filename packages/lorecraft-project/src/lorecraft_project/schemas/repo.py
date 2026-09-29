@@ -3,7 +3,8 @@
 Every path the repository takes or returns is root-relative: the specification directory is joined to the
 workspace root only inside ``FileSystem``. The repository reads and decodes; the JSON it returns is typed as
 decoded and nothing more. Whether a decoded header schema is well-formed is proved by building a
-``HeaderAspect`` from it, and which documents a specification governs is decided above the repository.
+``HeaderAspect`` from it, and a decoded structure specification by ``StructureAspect.parse``; which documents
+a specification governs is decided above the repository.
 
 Nothing here logs: the command that loads the model catches every ``Error`` that escapes it and reports it,
 so every handler below re-raises without logging.
@@ -118,7 +119,7 @@ class Repository:
         return HeaderSchema(definition)
 
     def get_structure_schema(self, name: SchemaName) -> StructureSchema:
-        """Read and JSON-decode one structure schema; nothing validates it yet.
+        """Read and JSON-decode one structure schema; ``StructureAspect.parse`` is what proves it usable.
 
         Raises:
             GetStructureSchemaError: If the file cannot be read, is not JSON, or is not a JSON object.

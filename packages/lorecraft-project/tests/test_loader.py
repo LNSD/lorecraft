@@ -15,7 +15,7 @@ from lorecraft_project.aspect import AspectNamespace
 from lorecraft_project.corpus import CorpusName
 from lorecraft_project.document.repo import Repository as DocumentRepository
 from lorecraft_project.layout import SPECS_DIR
-from lorecraft_project.schemas import GetHeaderSchemaError, InvalidHeaderSchemaError
+from lorecraft_project.schemas import GetHeaderSchemaError, InvalidHeaderSchemaError, InvalidStructureSchemaError
 from lorecraft_project.schemas import Repository as SchemaRepository
 from lorecraft_project.workspace.loader import load_workspace
 from lorecraft_project.workspace.model import WorkspaceModel
@@ -27,6 +27,9 @@ FEAT: Final[CorpusName] = CorpusName.parse('feat')
 # A well-formed Draft 2020-12 schema that accepts any frontmatter; the loader validates the dialect, not
 # the documents.
 VALID_HEADER_SCHEMA: Final[str] = '{"type": "object"}'
+
+# A structure specification stating one rule, the least the structure dialect accepts.
+VALID_STRUCTURE_SPEC: Final[str] = '{"spec": "code.md", "empty_sections": "forbidden"}'
 
 
 @pytest.fixture(scope='function')
@@ -49,11 +52,18 @@ def _write(root: Path, relative: str, text: str = '') -> None:
 
 
 def _write_tree(root: Path, prose: tuple[str, ...], schemas: tuple[str, ...], documents: tuple[str, ...]) -> None:
-    """Lay out ``docs/__meta__/<prose>.md``, ``docs/__meta__/<schema>`` and ``docs/<document>`` files."""
+    """Lay out ``docs/__meta__/<prose>.md``, ``docs/__meta__/<schema>`` and ``docs/<document>`` files.
+
+    A ``*.structure.json`` file holds a valid structure specification; any other schema file holds a valid header
+    schema.
+    """
     for stem in prose:
         _write(root, f'docs/__meta__/{stem}.md')
     for filename in schemas:
-        _write(root, f'docs/__meta__/{filename}', VALID_HEADER_SCHEMA)
+        if filename.endswith('.structure.json'):
+            _write(root, f'docs/__meta__/{filename}', VALID_STRUCTURE_SPEC)
+        else:
+            _write(root, f'docs/__meta__/{filename}', VALID_HEADER_SCHEMA)
     for relative in documents:
         _write(root, f'docs/{relative}')
 
@@ -437,6 +447,39 @@ class TestLoadWorkspaceEdgeCases:
 
         #: Then
         assert exc_info.value.path == SPECS_DIR / 'code.header.json', 'the error names the rejected schema'
+
+    def test_load_workspace_with_a_structure_spec_builds_the_structure_aspect(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+    ) -> None:
+        #: Given
+        _write_tree(tmp_path, prose=('code',), schemas=('code.structure.json',), documents=('code/logging.md',))
+
+        #: When
+        model = load_workspace(schemas, documents)
+
+        #: Then
+        ref = model.locate(RootRelativePath.parse('docs/code/logging.md'))
+        assert ref is not None, 'the document is listed'
+        aspects = model.governance(ref).structure_specs()
+        assert tuple(aspect.path for aspect in aspects) == (SPECS_DIR / 'code.structure.json',), (
+            'the corpus structure specification governs its document'
+        )
+
+    def test_load_workspace_with_an_invalid_structure_spec_raises_invalid_structure_schema_error(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+    ) -> None:
+        #: Given
+        # the corpus directory exists and is empty: validation happens before any document matters
+        _write_tree(tmp_path, prose=('code',), schemas=(), documents=())
+        (tmp_path / 'docs' / 'code').mkdir()
+        _write(tmp_path, 'docs/__meta__/code.structure.json', '{"spec": "code.md"}')
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            load_workspace(schemas, documents)
+
+        #: Then
+        assert exc_info.value.path == SPECS_DIR / 'code.structure.json', 'the error names the rejected specification'
 
     def test_load_workspace_with_a_broken_schema_in_an_unchecked_namespace_still_raises(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
