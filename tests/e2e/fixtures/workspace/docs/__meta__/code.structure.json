@@ -1,7 +1,8 @@
 {
-  "description": "The corpus layer: one title first, no empty section, and a Checklist after the document's own sections.",
+  "description": "The corpus layer: one title first, no empty section, a Checklist after the document's own sections, and a token budget each document fits.",
   "title": { "count": 1, "first": true },
   "empty_sections": "forbidden",
+  "tokens": 100,
   "outline": [
     { "any": true },
     { "section": "Checklist" },

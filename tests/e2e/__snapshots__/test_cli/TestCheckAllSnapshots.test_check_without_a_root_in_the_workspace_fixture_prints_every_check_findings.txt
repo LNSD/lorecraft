@@ -1,3 +1,4 @@
+docs/code/python-typing.md:1: [budget.tokens] 4 tokens; the budget is 3 (per code-python.structure.json)
 docs/code/logging.md:1: [frontmatter.missing] no `---` delimited frontmatter block
 docs/code/python-typing.md:1: [frontmatter.missing] no `---` delimited frontmatter block
 docs/code/logging.md:1: [structure.empty] section `Logging` is empty; omit it rather than leaving it empty (per code.md)

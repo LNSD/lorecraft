@@ -10,31 +10,35 @@ use and kept for as long as the database lives (pattern-memoization):
   building its full syntax tree. It reads that document's bytes and nothing else.
 - ``parse(ref)``: one document's parse tree, like a PSI file or a per-file index entry. It reads that
   document's bytes and nothing else.
+- ``tokens(ref)``: what one document's whole file costs an agent that loads it, like another per-file index
+  entry: counted from the raw text, frontmatter and code included, without a parse. It reads that document's
+  bytes and nothing else.
 
 Checks are plain functions of a database and a ref, like an inspection run over one file. Each asks for the
 cheapest query that holds what it reads, so a check that needs only the frontmatter never pays for the full
 parse, and every check reading the same query shares one computation of it. Their results are not cached; a
 check runs again every time.
 
-Nothing here records what a cached value read, so no dependency is tracked. Invalidation is written by hand
-instead, the way the IDE drops per-file index entries on a file change event and resets structural caches on
-a project model change. Reserved, not implemented: ``advance(snapshot) -> Database``, the next state. It would
-``diff`` the two snapshots and carry over each cached value the change set leaves valid: the frontmatter and
-the parse of every document whose bytes did not change, and the model unless an entry under ``docs/`` was added
-or deleted or a specification changed. That rule holds only while the frontmatter and the parse each read their
-own document and the model reads no document, so keep them that way: data drawn from several documents belongs
-in a new cache with its own rule.
+Nothing here records what a cached value read, so no dependency is tracked. Invalidation is written by hand instead,
+the way the IDE drops per-file index entries on a file change event and resets structural caches on a project model
+change. Reserved, not implemented: ``advance(snapshot) -> Database``, the next state. It would ``diff`` the two
+snapshots and carry over each cached value the change set leaves valid: the frontmatter, the parse and the token
+count of every document whose bytes did not change, and the model unless an entry under ``docs/`` was added or
+deleted or a specification changed. That rule holds only while the frontmatter, the parse and the token count each
+read their own document and the model reads no document, so keep them that way: data drawn from several documents
+belongs in a new cache with its own rule.
 """
 
 from lorecraft_project.document import DocumentRef
 from lorecraft_project.document import Repository as DocumentRepository
-from lorecraft_project.syntax import FrontmatterNode, ParsedDocument, parse_document, parse_frontmatter
+from lorecraft_project.syntax import FrontmatterNode, ParsedDocument, count_tokens, parse_document, parse_frontmatter
 from lorecraft_project.workspace import WorkspaceModel, load_model
 from lorecraft_vfs import Snapshot, VirtualFileSystem
 
 
 class Database:
-    """The workspace model, the frontmatter and the parse trees of one snapshot, each cached for its lifetime."""
+    """The workspace model, the frontmatter, the parse trees and the token counts of one snapshot, each cached for
+    its lifetime."""
 
     def __init__(self, snapshot: Snapshot) -> None:
         """Index the snapshot for reading; performs no I/O and computes nothing yet."""
@@ -44,6 +48,7 @@ class Database:
         self._model: WorkspaceModel | None = None
         self._frontmatters: dict[DocumentRef, FrontmatterNode] = {}
         self._parses: dict[DocumentRef, ParsedDocument] = {}
+        self._token_counts: dict[DocumentRef, int] = {}
 
     def model(self) -> WorkspaceModel:
         """The workspace model the snapshot declares, loaded on the first call.
@@ -98,3 +103,22 @@ class Database:
             parsed = parse_document(text)
             self._parses[ref] = parsed
         return parsed
+
+    def tokens(self, ref: DocumentRef) -> int:
+        """The tokens in one document's whole file, counted from the snapshot on the first call for its ref.
+
+        Cached apart from ``parse(ref)`` and never read from it: the count needs the raw text, not the tree, so
+        a check that needs only one of the two never pays for the other.
+
+        A document that cannot be read is not cached, so each call raises the same error again.
+
+        Raises:
+            DocumentDecodeError: If the document's bytes are not UTF-8.
+            GetDocumentError: If the snapshot holds no regular file at the document's path.
+        """
+        count = self._token_counts.get(ref)
+        if count is None:
+            text = self._documents.get_document(ref).text
+            count = count_tokens(text)
+            self._token_counts[ref] = count
+        return count

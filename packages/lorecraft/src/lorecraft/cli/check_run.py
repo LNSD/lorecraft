@@ -165,6 +165,7 @@ def _json_report(run: CheckRun) -> dict[str, object]:
                 'line': finding.line.value,
                 'rule': finding.rule,
                 'message': finding.message,
+                'spec': None if finding.spec is None else str(finding.spec),
             }
             for finding in run.findings()
         ],
