@@ -5,6 +5,7 @@ reports the tree as the scan saw it: every kind of report, and nothing written t
 """
 
 from pathlib import Path
+from textwrap import dedent
 from typing import Final
 
 import pytest
@@ -14,8 +15,14 @@ from lorecraft_project.layout import SNAPSHOT_SCOPE
 from lorecraft_vfs import RootRelativePath, take_snapshot
 
 # Requires a string ``description``, so a document without one yields a schema finding.
-DESCRIPTION_HEADER_SCHEMA: Final[str] = (
-    '{"type": "object", "required": ["description"], "properties": {"description": {"type": "string"}}}'
+DESCRIPTION_HEADER_SCHEMA: Final[str] = dedent(
+    """
+    {
+      "type": "object",
+      "required": ["description"],
+      "properties": {"description": {"type": "string"}}
+    }
+    """
 )
 
 

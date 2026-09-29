@@ -33,6 +33,7 @@ from .structure import (
     StructureSchema,
     TitleRule,
 )
+from .structure_file import StructureFile
 
 __all__ = [
     'SchemaName',
@@ -54,6 +55,7 @@ __all__ = [
     'StructureSchema',
     'StructureAspect',
     'TitleRule',
+    'StructureFile',
     'OutlineEntry',
     'SectionEntry',
     'AnySections',

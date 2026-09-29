@@ -5,6 +5,7 @@ run reports the tree as the scan saw it: every kind of report, and the specifica
 """
 
 from pathlib import Path
+from textwrap import dedent
 from typing import Final
 
 import pytest
@@ -14,14 +15,29 @@ from lorecraft_project.layout import SNAPSHOT_SCOPE
 from lorecraft_vfs import RootRelativePath, take_snapshot
 
 # A rule document: one title first, no empty section, the Checklist after the document's own sections.
-CODE_STRUCTURE_SPEC: Final[str] = (
-    '{"spec": "code.md §5", "title": {"count": 1, "first": true}, "empty_sections": "forbidden",'
-    ' "outline": [{"any": true}, {"section": "Checklist"}, {"section": "References", "optional": true}]}'
+CODE_STRUCTURE_SPEC: Final[str] = dedent(
+    """
+    {
+      "spec": "code.md §5",
+      "title": {"count": 1, "first": true},
+      "empty_sections": "forbidden",
+      "outline": [
+        {"any": true},
+        {"section": "Checklist"},
+        {"section": "References", "optional": true}
+      ]
+    }
+    """
 )
 
 # The python layer: References is required, wherever the corpus layer places it.
-PYTHON_STRUCTURE_SPEC: Final[str] = (
-    '{"spec": "code-python.md", "outline": [{"any": true}, {"section": "References"}, {"any": true}]}'
+PYTHON_STRUCTURE_SPEC: Final[str] = dedent(
+    """
+    {
+      "spec": "code-python.md",
+      "outline": [{"any": true}, {"section": "References"}, {"any": true}]
+    }
+    """
 )
 
 

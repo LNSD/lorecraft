@@ -126,6 +126,7 @@ Safe to run without asking:
 ## Next Steps
 
 After lint is clean:
-1. **Run targeted tests** → use `/code-test`
-2. **Check the changeset against the code rules** → use `/code-rules-check`
-3. **Commit** → only once lint is green
+1. **Regenerate the generated files, when the change touches what they are rendered from** → use `/code-gen`
+2. **Run targeted tests** → use `/code-test`
+3. **Check the changeset against the code rules** → use `/code-rules-check`
+4. **Commit** → only once lint is green
