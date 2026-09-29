@@ -177,7 +177,7 @@ def _echo_lines(run: CheckRun, ungoverned: str) -> None:
     for report in run.reports:
         if not report.governed:
             typer.echo(f'{report.ref.path}:1: [{report.ref.corpus}.ungoverned] {ungoverned}')
-        for finding in report.findings:
+        for finding in report.findings():
             typer.echo(format_finding(finding))
 
 

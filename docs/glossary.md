@@ -60,6 +60,14 @@ A JSON file beside a format specification that represents one aspect of its rule
 
 A script that validates one aspect of documentation against a machine-checkable companion. Document checks cover frontmatter, structure, and prose budget.
 
+### Violation
+
+One rule a document breaks, as a check reports it: a line, a rule identifier, and a message. It does not name the document, since a check sees only the part of the document it reads, such as the headings or the frontmatter. Violations are collected per document, in that document's report.
+
+### Finding
+
+A [violation](#violation) located in its document: the violation plus the document's root-relative path. Findings are what `lorecraft check` prints, counts, and serialises, so each one stands on its own once findings from many documents are listed together.
+
 ### Prose budget
 
 The maximum prose length allowed for a document or one of its sections, as defined by a budget specification.
