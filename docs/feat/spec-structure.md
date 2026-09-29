@@ -1,6 +1,6 @@
 ---
 name: "spec-structure"
-description: "The structure dialect: a <stem>.structure.json file states a document's H1 title rule, section outline with optional sections and any runs, empty and forbidden sections, per-section word caps and whole-file token budget, is refused on load when its rules are unusable, and is validated in editors by the generated docs/schemas/structure.spec.json. Load when writing or changing a structure specification, or one is reported invalid"
+description: "The structure dialect: a <stem>.structure.json file states a document's H1 title rule, section outline with optional sections and any runs, empty and forbidden sections, per-section word caps, whole-file token budget and frontmatter schema, is refused on load when its rules are unusable, and is validated in editors by the generated docs/schemas/structure.spec.json. Load when writing or changing a structure specification, or one is reported invalid"
 type: "feature"
 status: "experimental"
 components: "module:lorecraft.project.schemas.structure,module:lorecraft.project.schemas.structure_file,module:lorecraft.checks.structure,module:lorecraft.checks.budget,spec:feat,spec:code"
@@ -12,8 +12,8 @@ components: "module:lorecraft.project.schemas.structure,module:lorecraft.project
 
 A `<stem>.structure.json` file states the section rules of the documents its stem governs: the title, the
 order of the sections, which may be empty or must not appear, how many prose words each may hold, and how many
-tokens the whole file may hold. A section order cannot be said in JSON Schema, so this is a small dialect of
-its own, with a generated JSON Schema that lets an editor validate it as it is written.
+tokens the whole file may hold, beside a frontmatter schema. A section order cannot be said in JSON Schema, so
+this is a small dialect, with a generated JSON Schema that lets an editor validate it.
 
 ## Table of Contents
 
@@ -43,6 +43,7 @@ its own, with a generated JSON Schema that lets an editor validate it as it is w
 | `title` | `{"count": <n>, "first": <bool>}` | How many H1 titles a document holds, and whether one comes before any section |
 | `empty_sections` | `"forbidden"` | Every heading must have content under it |
 | `tokens` | integer | The token budget, applied by `lorecraft check budget` |
+| `frontmatter` | JSON Schema, root `"type": "object"` | The frontmatter schema, Draft 2020-12; refused on load when malformed, `null`, not rooted at `"type": "object"`, or carrying `$id` or another dialect's `$schema` at any depth. No check applies it yet |
 | `outline` | list of entries | `{"section": "<name>"}`, with `"optional": true` when it may be left out, or `{"any": true}`; either may add `"words": <n>` |
 | `forbidden` | list of names | Sections that must not appear anywhere |
 

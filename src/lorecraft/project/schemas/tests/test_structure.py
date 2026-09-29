@@ -10,6 +10,7 @@ from lorecraft.vfs import RootRelativePath
 
 from ..structure import (
     AnySections,
+    FrontmatterSchema,
     InvalidStructureSchemaError,
     SectionEntry,
     StructureAspect,
@@ -32,6 +33,7 @@ class TestStructureAspectParse:
                   "title": {"count": 1, "first": true},
                   "empty_sections": "forbidden",
                   "tokens": 5000,
+                  "frontmatter": {"type": "object", "required": ["name"]},
                   "outline": [
                     {"any": true, "words": 350},
                     {"section": "Checklist", "words": 250},
@@ -58,7 +60,94 @@ class TestStructureAspectParse:
             ),
             forbidden=('Changelog',),
             tokens=5000,
+            frontmatter=FrontmatterSchema(path=SPEC_PATH, schema={'type': 'object', 'required': ['name']}),
         ), 'every field is read into its typed rule, and an entry without `words` has no cap'
+
+    def test_parse_with_only_a_frontmatter_schema_returns_an_aspect_with_that_schema(self) -> None:
+        #: Given
+        schema = StructureSchema('{"frontmatter": {"type": "object"}}')
+
+        #: When
+        aspect = StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert aspect.frontmatter == FrontmatterSchema(path=SPEC_PATH, schema={'type': 'object'}), (
+            'a frontmatter schema is a rule, so a file stating only it is usable'
+        )
+
+    def test_parse_with_a_malformed_frontmatter_schema_raises_invalid_structure_schema_error(self) -> None:
+        #: Given
+        schema = StructureSchema('{"frontmatter": {"type": "object", "minProperties": -1}}')
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'the error names the structure specification the schema is in'
+
+    def test_parse_with_a_frontmatter_schema_without_an_object_type_raises_invalid_structure_schema_error(
+        self,
+    ) -> None:
+        #: Given
+        schema = StructureSchema('{"frontmatter": {"required": ["name"]}}')
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'the object type is stated, not implied'
+
+    def test_parse_with_a_frontmatter_value_that_is_not_an_object_raises_invalid_structure_schema_error(self) -> None:
+        #: Given
+        schema = StructureSchema('{"frontmatter": true}')
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'a boolean schema is refused by the shape'
+
+    def test_parse_with_a_null_frontmatter_raises_invalid_structure_schema_error(self) -> None:
+        #: Given
+        schema = StructureSchema('{"tokens": 100, "frontmatter": null}')
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, (
+            'the editor refuses null too; no rule is written by leaving the key out'
+        )
+
+    def test_parse_with_a_frontmatter_schema_carrying_an_id_raises_invalid_structure_schema_error(self) -> None:
+        #: Given
+        schema = StructureSchema('{"frontmatter": {"$id": "https://example.com/code", "type": "object"}}')
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'the editor lets an $id through, the load refuses it naming the file'
+
+    def test_parse_with_a_frontmatter_schema_in_a_foreign_dialect_raises_invalid_structure_schema_error(
+        self,
+    ) -> None:
+        #: Given
+        schema = StructureSchema(
+            '{"frontmatter": {"$schema": "http://json-schema.org/draft-07/schema#", "type": "object"}}'
+        )
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'the editor lets a foreign $schema through, the load refuses it'
 
     def test_parse_with_only_a_token_budget_returns_an_aspect_with_that_budget(self) -> None:
         #: Given
@@ -172,6 +261,7 @@ class TestStructureAspectParse:
             outline=(),
             forbidden=('Changelog',),
             tokens=None,
+            frontmatter=None,
         ), 'the `$schema` reference is for editors and changes no rule'
 
     def test_parse_with_a_schema_reference_that_is_not_a_string_raises_invalid_structure_schema_error(self) -> None:
@@ -374,6 +464,7 @@ class TestStructureAspectConstruction:
                 outline=(),
                 forbidden=(),
                 tokens=None,
+                frontmatter=None,
             )
 
         #: Then
@@ -392,6 +483,7 @@ class TestStructureAspectConstruction:
                 outline=(),
                 forbidden=(),
                 tokens=None,
+                frontmatter=None,
             )
 
         #: Then
@@ -413,6 +505,7 @@ class TestStructureAspectConstruction:
                 outline=outline,
                 forbidden=(),
                 tokens=None,
+                frontmatter=None,
             )
 
         #: Then
@@ -431,6 +524,7 @@ class TestStructureAspectConstruction:
                 outline=outline,
                 forbidden=('Checklist',),
                 tokens=None,
+                frontmatter=None,
             )
 
         #: Then
@@ -453,6 +547,7 @@ class TestStructureAspectConstruction:
                 outline=outline,
                 forbidden=(),
                 tokens=None,
+                frontmatter=None,
             )
 
         #: Then
@@ -471,6 +566,7 @@ class TestStructureAspectConstruction:
                 outline=(),
                 forbidden=('Changelog',),
                 tokens=tokens,
+                frontmatter=None,
             )
 
         #: Then
@@ -489,6 +585,7 @@ class TestStructureAspectConstruction:
                 outline=outline,
                 forbidden=(),
                 tokens=None,
+                frontmatter=None,
             )
 
         #: Then
@@ -507,6 +604,7 @@ class TestStructureAspectConstruction:
                 outline=outline,
                 forbidden=(),
                 tokens=None,
+                frontmatter=None,
             )
 
         #: Then
@@ -521,7 +619,13 @@ class TestStructureAspectAuthority:
 
         #: When
         aspect = StructureAspect(
-            path=path, title=None, forbid_empty_sections=False, outline=(), forbidden=('Changelog',), tokens=None
+            path=path,
+            title=None,
+            forbid_empty_sections=False,
+            outline=(),
+            forbidden=('Changelog',),
+            tokens=None,
+            frontmatter=None,
         )
 
         #: Then
@@ -534,8 +638,154 @@ class TestStructureAspectAuthority:
         #: When
         with pytest.raises(InvalidStructureSchemaError) as exc_info:
             StructureAspect(
-                path=path, title=None, forbid_empty_sections=False, outline=(), forbidden=('Changelog',), tokens=None
+                path=path,
+                title=None,
+                forbid_empty_sections=False,
+                outline=(),
+                forbidden=('Changelog',),
+                tokens=None,
+                frontmatter=None,
             )
 
         #: Then
         assert exc_info.value.path == path, 'an aspect whose path names no prose has no authority to quote'
+
+
+@pytest.mark.unit
+class TestFrontmatterSchema:
+    def test_construction_with_an_object_schema_keeps_it(self) -> None:
+        #: Given
+        schema: dict[str, object] = {'type': 'object', 'required': ['name'], 'description': 'read by people'}
+
+        #: When
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=schema)
+
+        #: Then
+        assert frontmatter.schema == schema, 'a well-formed object schema is held unchanged'
+
+    def test_construction_with_the_draft_2020_12_dialect_in_schema_keeps_it(self) -> None:
+        #: Given
+        schema: dict[str, object] = {'$schema': 'https://json-schema.org/draft/2020-12/schema', 'type': 'object'}
+
+        #: When
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=schema)
+
+        #: Then
+        assert frontmatter.schema == schema, 'naming the dialect the check applies is allowed'
+
+    def test_construction_with_root_combinators_beside_the_type_keeps_it(self) -> None:
+        #: Given
+        schema: dict[str, object] = {
+            'type': 'object',
+            'if': {'properties': {'type': {'const': 'pattern'}}},
+            'then': {'required': ['scope']},
+        }
+
+        #: When
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=schema)
+
+        #: Then
+        assert frontmatter.schema == schema, 'a combinator at the root is allowed next to the object type'
+
+    def test_construction_with_an_id_inside_an_enum_value_keeps_it(self) -> None:
+        #: Given
+        schema: dict[str, object] = {'type': 'object', 'properties': {'ref': {'enum': [{'$id': 'data'}]}}}
+
+        #: When
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=schema)
+
+        #: Then
+        assert frontmatter.schema == schema, 'a value under enum is data, not a schema, so its $id is no resource'
+
+    def test_construction_with_a_malformed_schema_raises_invalid_structure_schema_error(self) -> None:
+        #: Given
+        schema: dict[str, object] = {'type': 'object', 'required': 'name'}
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            FrontmatterSchema(path=SPEC_PATH, schema=schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'a malformed schema is refused, naming the structure specification'
+
+    def test_construction_without_a_type_raises_invalid_structure_schema_error(self) -> None:
+        #: Given
+        schema: dict[str, object] = {'required': ['name']}
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            FrontmatterSchema(path=SPEC_PATH, schema=schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'an implied object type is refused'
+
+    def test_construction_with_a_non_object_type_raises_invalid_structure_schema_error(self) -> None:
+        #: Given
+        schema: dict[str, object] = {'type': 'array'}
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            FrontmatterSchema(path=SPEC_PATH, schema=schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'a frontmatter is always a mapping'
+
+    def test_construction_with_a_type_list_raises_invalid_structure_schema_error(self) -> None:
+        #: Given
+        schema: dict[str, object] = {'type': ['object', 'null']}
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            FrontmatterSchema(path=SPEC_PATH, schema=schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'the type is exactly "object"'
+
+    def test_construction_with_an_id_raises_invalid_structure_schema_error(self) -> None:
+        #: Given
+        schema: dict[str, object] = {'$id': 'https://example.com/code', 'type': 'object'}
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            FrontmatterSchema(path=SPEC_PATH, schema=schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'an $id would change how relative $refs resolve'
+
+    def test_construction_with_an_id_in_a_nested_schema_raises_invalid_structure_schema_error(self) -> None:
+        #: Given
+        schema: dict[str, object] = {'type': 'object', 'properties': {'name': {'$id': 'https://example.com/name'}}}
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            FrontmatterSchema(path=SPEC_PATH, schema=schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'an $id at any depth makes a resource of its own'
+
+    def test_construction_with_a_foreign_dialect_raises_invalid_structure_schema_error(self) -> None:
+        #: Given
+        schema: dict[str, object] = {'$schema': 'http://json-schema.org/draft-07/schema#', 'type': 'object'}
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            FrontmatterSchema(path=SPEC_PATH, schema=schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'a schema written for another dialect is refused'
+
+    def test_construction_with_a_foreign_dialect_in_a_nested_schema_raises_invalid_structure_schema_error(
+        self,
+    ) -> None:
+        #: Given
+        schema: dict[str, object] = {
+            'type': 'object',
+            '$defs': {'scope': {'$schema': 'http://json-schema.org/draft-07/schema#', 'type': 'string'}},
+        }
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            FrontmatterSchema(path=SPEC_PATH, schema=schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'a nested schema may not switch dialect either'
