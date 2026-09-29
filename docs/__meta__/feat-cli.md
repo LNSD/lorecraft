@@ -124,9 +124,10 @@ them.
 
 ## 5. Content Guidelines
 
-- **Invoke the installed command.** Write `lorecraft check header`, never `uv run lorecraft check header`
-  or a `just` recipe that wraps it: the document describes the interface, not how a contributor launches it
-  from a checkout.
+- **Invoke the installed command.** Write `lorecraft check header` in examples. The CLI overview may mention
+  `uv tool run lorecraft` and its `uvx lorecraft` alias for on-demand use, or `uv run lorecraft` when the
+  current uv project declares Lorecraft as a dependency. Do not use a `just` recipe that wraps the command:
+  the document describes the interface a user runs.
 - **Agree with `--help`.** A description that says something different from the command's help text is a
   defect in one of the two; fix it in the same change.
 - **Document the command as it ships.** No planned subcommand, no option the command does not take, and no
@@ -211,5 +212,6 @@ lorecraft {{command}} {{subcommand}}
 - [ ] A `feature` document's Usage has `### Output` and `### Exit Status`, or links to its base's
 - [ ] Every exit code the command can return is in the Exit Status table
 - [ ] A command reporting rule identifiers lists them under Findings
-- [ ] Examples invoke `lorecraft` directly, without `uv run`, and output shown is copied from a run
+- [ ] Examples invoke `lorecraft` directly; the CLI overview gives the on-demand and conditional uv project
+      alternatives, and output shown is copied from a run
 - [ ] The document agrees with the command's `--help`
