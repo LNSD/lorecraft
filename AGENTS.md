@@ -14,9 +14,10 @@ standalone script per check. It is a Python project managed with `uv`, as a work
 - `tests/` is the end-to-end tier, a virtual member that is never built: the suites in `tests/e2e/` and their
   helper library in `tests/lib/`.
 
-**Two checks have moved into the command line so far: `lorecraft check header` and `lorecraft check
-structure`.** The structure check also enforces the section word caps a structure spec sets. A bare `lorecraft
-check` runs every check the command line carries, over one snapshot. The skill check still runs as a vendored
+**Three checks have moved into the command line so far: `lorecraft check header`, `lorecraft check structure`
+and `lorecraft check budget`.** The structure check also enforces the section word caps a structure spec sets, and
+the budget check its global `tokens` key, a whole-file token budget. A bare `lorecraft check` runs every check the
+command line carries, over one snapshot. The skill check still runs as a vendored
 script under `.agents/skills/*/scripts/`. Both are wired to `just check-docs` and `just check-skills` and gated
 in CI. Do not infer structure that is not on disk.
 
@@ -100,7 +101,7 @@ operation it covers. A user-level skill of the same name may exist; the reposito
 | `code-test` | Running the pytest tiers through `just test-unit`, `just test-it`, `just test-e2e` and `just test` |
 | `code-release` | Tagging a release, building the artifacts from that tag, and verifying what they contain |
 | `docs-rules` | Writing or editing anything under `docs/` — picks the corpus and the specification that governs it |
-| `docs-rules-check` | Checking a document under `docs/` against its spec; runs `lorecraft check header` and `lorecraft check structure`, word caps included |
+| `docs-rules-check` | Checking a document under `docs/` against its spec; runs `lorecraft check header`, `lorecraft check structure` and `lorecraft check budget` |
 | `skills-check` | Writing or checking a skill — **also the skill-authoring guide**; read before any `SKILL.md` edit |
 | `feat-discovery` | Answering what a part of the toolkit is or does, from `docs/feat/` |
 | `feat-status` | Reporting the maturity each feature doc declares, and which docs are missing a `status` |
@@ -148,7 +149,7 @@ selection misses them.
 | Lint | `just check`; every finding fixed, none silenced with a bare `# noqa`. `just check-fix` first |
 | Types | `just typecheck`; clean, with no finding silenced by widening an annotation to `Any` |
 | Tests | `just test-unit` after lint is clean, then the tier the change touches — `just test-it`, `just test-e2e` — and `just test` when it earns the whole suite |
-| Documents | `just check-docs`; every document under `docs/` passes the header and structure checks, word caps included |
+| Documents | `just check-docs`; every document under `docs/` passes the header, structure and budget checks |
 | Skills | `just check-skills`; every skill passes the Agent Skills specification |
 | Codegen | `just gen` after changing a generator or what it models; it must leave the tree unchanged in CI |
 
@@ -186,9 +187,9 @@ The shape in brief:
   same change.
 
 Each specification is prose plus the machine-checkable halves beside it — `<stem>.header.json`, and
-`<stem>.structure.json` with the section outline and the section word caps, read by the matching `lorecraft check
-<aspect>`. The prose is the authority and the JSON is the same rules in a form a check applies, so **change both in
-the same commit**: nothing detects the drift when they disagree. `docs/__meta__/README.md` explains how
+`<stem>.structure.json` with the section outline, the section word caps and the token budget, read by the matching
+`lorecraft check <aspect>`; the budget check reads the structure aspect's `tokens` key too. The prose is the authority and the JSON is the same rules in a form a check applies, so **change
+both in the same commit**: nothing detects the drift when they disagree. `docs/__meta__/README.md` explains how
 a document's own path selects the files that govern it.
 
 ## Testing Strategy

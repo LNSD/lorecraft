@@ -19,11 +19,15 @@ class Violation:
     Attributes:
         line: Where the violation is reported; line 1 when it concerns the whole document rather than one line.
         rule: Stable identifier for the violated rule.
+        message: Human-readable explanation of the violation.
+        spec: The specification file that states the broken rule, or None, the default, for a rule the check
+            itself holds, such as a document that is not UTF-8.
     """
 
     line: LineNumber
     rule: str
     message: str
+    spec: RootRelativePath | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,17 +39,19 @@ class Finding:
         line: The line containing the finding.
         rule: Stable identifier for the violated rule.
         message: Human-readable explanation of the finding.
+        spec: The specification file that states the broken rule, or None for a rule the check itself holds.
     """
 
     path: RootRelativePath
     line: LineNumber
     rule: str
     message: str
+    spec: RootRelativePath | None = None
 
     @classmethod
     def at(cls, path: RootRelativePath, violation: Violation) -> Self:
         """The finding a violation is, in the document at ``path``."""
-        return cls(path=path, line=violation.line, rule=violation.rule, message=violation.message)
+        return cls(path=path, line=violation.line, rule=violation.rule, message=violation.message, spec=violation.spec)
 
 
 def format_finding(finding: Finding) -> str:

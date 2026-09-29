@@ -33,12 +33,13 @@ class TestFindingAt:
     def test_finding_at_a_path_keeps_the_violation_and_adds_the_path(self) -> None:
         #: Given
         path = RootRelativePath.parse('docs/code/guide.md')
-        violation = Violation(line=LineNumber(3), rule='structure.outline', message='missing section')
+        spec = RootRelativePath.parse('docs/__meta__/code.structure.json')
+        violation = Violation(line=LineNumber(3), rule='structure.outline', message='missing section', spec=spec)
 
         #: When
         finding = Finding.at(path, violation)
 
         #: Then
-        assert finding == Finding(path=path, line=LineNumber(3), rule='structure.outline', message='missing section'), (
-            'a finding is the violation, located in the document at the path'
-        )
+        assert finding == Finding(
+            path=path, line=LineNumber(3), rule='structure.outline', message='missing section', spec=spec
+        ), 'a finding is the violation, spec included, located in the document at the path'

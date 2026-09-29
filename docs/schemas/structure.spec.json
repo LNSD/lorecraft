@@ -127,7 +127,7 @@
   "description": "A structure specification: the section outline a document governed by this file must follow.",
   "examples": [
     {
-      "description": "Section structure and word caps for a rule document in docs/code/.",
+      "description": "Section structure, word caps and token budget for a rule document in docs/code/.",
       "empty_sections": "forbidden",
       "outline": [
         {
@@ -150,7 +150,8 @@
       "title": {
         "count": 1,
         "first": true
-      }
+      },
+      "tokens": 5000
     }
   ],
   "properties": {
@@ -170,7 +171,7 @@
       "default": "",
       "description": "What this file governs and why, for whoever opens it; not read by the check.",
       "examples": [
-        "Section structure and word caps for a rule document in docs/code/."
+        "Section structure, word caps and token budget for a rule document in docs/code/."
       ],
       "type": "string"
     },
@@ -185,6 +186,22 @@
       ],
       "default": null,
       "description": "How many H1 titles a document carries, and whether one opens it; no title rule when absent."
+    },
+    "tokens": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The token budget: the most tokens the whole file may cost an agent that loads it, frontmatter, code and tables included; no budget when absent. Counted with OpenAI's `o200k_base` encoding, the same whichever agent reads the document.",
+      "examples": [
+        5000
+      ]
     },
     "empty_sections": {
       "anyOf": [
