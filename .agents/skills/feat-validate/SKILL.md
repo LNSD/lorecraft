@@ -278,15 +278,6 @@ coverage gap for that tier even when it exists. Note it as one.
 
 **Note**: Missing HIGH priority tests should always trigger a ⚠️ WARNING in the report.
 
-## Pre-approved Commands
-
-These tools/commands can run without user permission:
-- Read tool for feature docs and source files
-- Grep tool for searching implementations and tests
-- Glob tool for finding files
-- `just typecheck` to confirm documented symbols resolve with the documented signature
-- `just test-unit`, or `just test` when the feature spans tiers, to confirm the tests you found pass
-
 ## Example Verification Sessions
 
 ### Example 1: Header Check Feature (Function-focused)
