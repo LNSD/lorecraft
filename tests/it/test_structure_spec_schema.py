@@ -3,7 +3,8 @@
 ``docs/schemas/structure.spec.json`` is rendered by ``just gen`` from ``StructureFile``, the pydantic model
 ``StructureAspect.parse`` deserializes each file with, so the schema and the validation cannot disagree about a
 shape; CI's ``gen-check`` job keeps the committed file current. What is left to hold is the file an editor reads:
-that it is a well-formed schema, and that it accepts every specification this repository writes.
+that it is a well-formed schema, that it accepts every specification this repository writes, and that it holds the
+``frontmatter`` key, whose JSON Schema is written out rather than rendered, to a schema describing an object.
 """
 
 import json
@@ -51,3 +52,97 @@ class TestStructureSpecSchema:
         assert all(not errors for errors in schema_errors.values()), (
             f'the parser reads every one of them (`just check-docs`), so the schema must accept them: {schema_errors}'
         )
+
+    def test_structure_schema_with_a_frontmatter_schema_describing_an_object_accepts_it(
+        self, validator: Draft202012Validator
+    ) -> None:
+        #: Given
+        spec = {'frontmatter': {'type': 'object', 'required': ['name'], 'properties': {'name': {'type': 'string'}}}}
+
+        #: When
+        errors = list(validator.iter_errors(spec))
+
+        #: Then
+        assert errors == [], 'an editor accepts a frontmatter schema stating an object type'
+
+    def test_structure_schema_with_a_frontmatter_schema_without_a_type_refuses_it(
+        self, validator: Draft202012Validator
+    ) -> None:
+        #: Given
+        spec = {'frontmatter': {'required': ['name']}}
+
+        #: When
+        errors = list(validator.iter_errors(spec))
+
+        #: Then
+        assert errors, 'an editor refuses a frontmatter schema that leaves the object type implied'
+
+    def test_structure_schema_with_a_malformed_frontmatter_schema_refuses_it(
+        self, validator: Draft202012Validator
+    ) -> None:
+        #: Given
+        spec = {'frontmatter': {'type': 'object', 'required': 'name'}}
+
+        #: When
+        errors = list(validator.iter_errors(spec))
+
+        #: Then
+        assert errors, 'an editor checks the frontmatter schema against the Draft 2020-12 meta-schema'
+
+    def test_structure_schema_with_a_frontmatter_schema_of_another_type_refuses_it(
+        self, validator: Draft202012Validator
+    ) -> None:
+        #: Given
+        spec = {'frontmatter': {'type': 'array'}}
+
+        #: When
+        errors = list(validator.iter_errors(spec))
+
+        #: Then
+        assert errors, 'an editor refuses a frontmatter schema describing anything but an object'
+
+    def test_structure_schema_with_a_frontmatter_schema_whose_type_is_a_list_refuses_it(
+        self, validator: Draft202012Validator
+    ) -> None:
+        #: Given
+        spec = {'frontmatter': {'type': ['object', 'null']}}
+
+        #: When
+        errors = list(validator.iter_errors(spec))
+
+        #: Then
+        assert errors, 'an editor refuses a type list, even one naming object: the type is exactly "object"'
+
+    def test_structure_schema_with_a_null_frontmatter_refuses_it(self, validator: Draft202012Validator) -> None:
+        #: Given
+        spec = {'tokens': 100, 'frontmatter': None}
+
+        #: When
+        errors = list(validator.iter_errors(spec))
+
+        #: Then
+        assert errors, 'an editor refuses null, as the load does: no rule is written by leaving the key out'
+
+    def test_structure_schema_with_a_frontmatter_schema_carrying_an_id_accepts_it(
+        self, validator: Draft202012Validator
+    ) -> None:
+        #: Given
+        spec = {'frontmatter': {'$id': 'https://example.com/code', 'type': 'object'}}
+
+        #: When
+        errors = list(validator.iter_errors(spec))
+
+        #: Then
+        assert errors == [], 'no schema can refuse $id here, so the editor lets it through and the load refuses it'
+
+    def test_structure_schema_with_a_frontmatter_schema_in_a_foreign_dialect_accepts_it(
+        self, validator: Draft202012Validator
+    ) -> None:
+        #: Given
+        spec = {'frontmatter': {'$schema': 'http://json-schema.org/draft-07/schema#', 'type': 'object'}}
+
+        #: When
+        errors = list(validator.iter_errors(spec))
+
+        #: Then
+        assert errors == [], 'the editor lets a foreign $schema through and the load refuses it'
