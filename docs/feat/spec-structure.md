@@ -43,7 +43,7 @@ this is a small dialect, with a generated JSON Schema that lets an editor valida
 | `title` | `{"count": <n>, "first": <bool>}` | How many H1 titles a document holds, and whether one comes before any section |
 | `empty_sections` | `"forbidden"` | Every heading must have content under it |
 | `tokens` | integer | The token budget, applied by `lorecraft check budget` |
-| `frontmatter` | JSON Schema, root `"type": "object"` | The frontmatter schema, Draft 2020-12; refused on load when malformed, `null`, not rooted at `"type": "object"`, or carrying `$id` or another dialect's `$schema` at any depth. No check applies it yet |
+| `frontmatter` | JSON Schema, root `"type": "object"` | The frontmatter schema, applied by `lorecraft check header`, as [spec-header](spec-header.md) describes |
 | `outline` | list of entries | `{"section": "<name>"}`, with `"optional": true` when it may be left out, or `{"any": true}`; either may add `"words": <n>` |
 | `forbidden` | list of names | Sections that must not appear anywhere |
 
@@ -109,6 +109,7 @@ shape only; the rules above that no shape can state are checked on load.
 - [spec](spec.md) - Base: stems, aspects and how layers apply
 - [cli-check-structure](cli-check-structure.md) - Related: the check that applies the outline and the caps
 - [cli-check-budget](cli-check-budget.md) - Related: the check that applies the token budget
+- [spec-header](spec-header.md) - Related: the frontmatter key, which is JSON Schema
 
 ## Code References
 

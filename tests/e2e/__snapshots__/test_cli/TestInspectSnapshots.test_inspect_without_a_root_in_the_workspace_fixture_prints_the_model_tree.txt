@@ -2,7 +2,7 @@
 └── corpora (1)
     └── code (docs/code)
         ├── specs (2)
-        │   ├── code: code.header.json, code.md, code.structure.json
+        │   ├── code: code.md, code.structure.json
         │   └── code-python: code-python.md, code-python.structure.json
         └── documents (2)
             ├── logging.md [code]

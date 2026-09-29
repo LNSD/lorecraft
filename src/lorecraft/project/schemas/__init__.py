@@ -1,10 +1,8 @@
-"""Specification filenames and stems, the decoded schemas, the header and structure aspects, the repository that
-reads them, and the skill frontmatter schema with its parser."""
+"""Specification filenames and stems, the structure aspect with the frontmatter schema it carries, the repository
+that reads them, and the skill frontmatter schema with its parser."""
 
-from .header import HeaderAspect, HeaderSchema, InvalidHeaderSchemaError
 from .name import SchemaName, parse_schema_name, schema_name_stem
 from .repo import (
-    GetHeaderSchemaError,
     GetStructureSchemaError,
     ListCorpusSchemasError,
     ListSchemasError,
@@ -66,9 +64,6 @@ __all__ = [
     'UnknownSpecAspectError',
     'NotASpecStemError',
     'InvalidSpecStemError',
-    'HeaderSchema',
-    'HeaderAspect',
-    'InvalidHeaderSchemaError',
     'StructureSchema',
     'StructureAspect',
     'FrontmatterSchema',
@@ -78,7 +73,6 @@ __all__ = [
     'SectionEntry',
     'AnySections',
     'InvalidStructureSchemaError',
-    'GetHeaderSchemaError',
     'GetStructureSchemaError',
     'ListCorpusSchemasError',
     'ListSchemasError',

@@ -64,7 +64,7 @@ refactor.
 ### One Document, One Subject
 
 **A feature document has exactly one reason to change.** Split by subject, not by size: a document that
-covers both the header dialect and the structure dialect is rewritten whenever either changes, and neither
+covers both the frontmatter schema and the section outline is rewritten whenever either changes, and neither
 change can be reviewed on its own.
 
 Decide a document's home by asking what would force it to be rewritten:
@@ -92,17 +92,16 @@ A feature document describes behaviour that **exists in this repository**, not b
 
 Nothing registers a feature document with a specification: the document's own path resolves them.
 
-**This specification is the base layer.** It governs every document at `docs/feat/<name>.md`, through three
+**This specification is the base layer.** It governs every document at `docs/feat/<name>.md`, through two
 files in `docs/__meta__/`:
 
-| File                  | Governs                                                  | Read by                                            |
-|-----------------------|----------------------------------------------------------|----------------------------------------------------|
-| `feat.md`             | Everything. This document is the authority               | A person, and an agent before it writes            |
-| `feat.header.json`    | Frontmatter fields, vocabularies, patterns               | `lorecraft check header`                           |
-| `feat.structure.json` | The section outline, its order, the caps, the token budget | `lorecraft check structure`, `lorecraft check budget` |
+| File | Governs | Read by |
+|---|---|---|
+| `feat.md` | Everything. This document is the authority | A person, and an agent before it writes |
+| `feat.structure.json` | The frontmatter fields under its `frontmatter` key; the section outline, its order, the caps, the token budget | `lorecraft check header`, `lorecraft check structure`, `lorecraft check budget` |
 
 A **namespace layer** adds to that base for a group of documents: `feat-<namespace>.md` states its rules in
-prose, and `feat-<namespace>.header.json` or `feat-<namespace>.structure.json` beside it hold the parts a check
+prose, and `feat-<namespace>.structure.json` beside it holds the parts a check
 can decide. A layer applies when the namespace equals the document's name or is a hyphen-delimited prefix of
 it, and may span several segments: `feat-<a>-<b>` governs `<a>-<b>.md` and `<a>-<b>-*.md`. Every layer is
 applied on its own, broad to narrow, so a layer states only what it adds: it can require a section the base
@@ -139,8 +138,8 @@ is what [§6](#6-word-caps-and-token-budget) puts a number on.
 
 ## 2. Frontmatter Requirements
 
-The rules in this section are held in machine-checkable form in
-[feat.header.json](feat.header.json), which `just check-docs` runs against every document in the corpus.
+The rules in this section are held in machine-checkable form under the `frontmatter` key of
+[feat.structure.json](feat.structure.json), which `just check-docs` runs against every document in the corpus.
 
 **CRITICAL**: Every feature document MUST begin with valid YAML frontmatter:
 
@@ -297,7 +296,7 @@ found by one glob.
 **Specification features:**
 ```
 spec                              # Meta: the specification files under docs/__meta__/
-├── spec-header                   # The header dialect, JSON Schema
+├── spec-header                   # The frontmatter key, JSON Schema
 └── spec-structure                # The structure dialect: outline, word caps, token budget
 ```
 

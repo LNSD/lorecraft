@@ -38,8 +38,8 @@ class DocumentCheck:
     Attributes:
         name: The check's subcommand, and its key in the JSON report of a bare ``lorecraft check``.
         run: Checks the selected documents.
-        ungoverned: What the text line of an ungoverned document says after its rule, such as ``no header
-            schema for this corpus; frontmatter unvalidated``.
+        ungoverned: What the text line of an ungoverned document says after its rule, such as ``no
+            frontmatter schema for this corpus; frontmatter unvalidated``.
     """
 
     name: str
@@ -120,8 +120,8 @@ def print_run(run: CheckRun, output_format: Literal['text', 'json'], ungoverned:
     Args:
         run: The run to print.
         output_format: ``text`` or ``json``.
-        ungoverned: What the text line of an ungoverned document says after its rule, such as ``no header
-            schema for this corpus; frontmatter unvalidated``.
+        ungoverned: What the text line of an ungoverned document says after its rule, such as ``no
+            frontmatter schema for this corpus; frontmatter unvalidated``.
     """
     if output_format == 'json':
         typer.echo(json.dumps(_json_report(run)))

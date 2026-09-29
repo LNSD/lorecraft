@@ -50,7 +50,7 @@ A feature document's maturity label: `development`, `unstable`, `experimental`, 
 
 ### Machine-checkable companion
 
-A JSON file beside a format specification that represents one aspect of its rules for a checker: frontmatter (`.header.json`), or section structure with its word caps and token budget (`.structure.json`).
+A JSON file beside a format specification that represents one aspect of its rules for a checker: the structure aspect (`.structure.json`), holding the section structure with its word caps, the token budget and the frontmatter schema.
 
 ### Check
 

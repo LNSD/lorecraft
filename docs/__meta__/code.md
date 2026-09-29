@@ -157,9 +157,9 @@ Keep rule documents focused and concise. Agent entrypoint docs should NOT hardco
 
 ## 2. Frontmatter Requirements
 
-This section is the operative rule, and [code.header.json](code.header.json) beside it is the same rule in a
-form a checker applies — `lorecraft check header` validates every document's frontmatter against it, and
-`just check-docs` runs that over this corpus. A `principle-*`, `pattern-*`, or `python-*` document is additionally
+This section is the operative rule, and the `frontmatter` key of [code.structure.json](code.structure.json)
+beside it is the same rule in a form a checker applies — `lorecraft check header` validates every document's
+frontmatter against it, and `just check-docs` runs that over this corpus. A `principle-*`, `pattern-*`, or `python-*` document is additionally
 narrowed by every `code-<namespace>.md` specification whose namespace matches its name
 ([§1](#1-core-principles)); the narrowing adds to what this section requires and never relaxes it.
 
@@ -227,7 +227,7 @@ layers can hold a subpackage of the same name, so the path always starts at the 
 governing `lorecraft/project/checks/` is scoped `pkg:lorecraft.project.checks`. A security companion takes the same name plus `-security`.
 
 `scope` carries the import path exactly as Python spells it — **snake_case**, dotted for nesting:
-`pkg:lorecraft.project.checks.frontmatter` for a `frontmatter` subpackage of `checks`. The **filename** cannot
+`pkg:lorecraft.project.checks.header` for a `frontmatter` subpackage of `checks`. The **filename** cannot
 carry an underscore or a dot, so it converts both to `-`: a doc scoped `pkg:lorecraft.project.checks` is named
 `pkg-lorecraft-project-checks.md`.
 

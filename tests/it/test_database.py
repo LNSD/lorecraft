@@ -20,11 +20,11 @@ GUIDE: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename
 
 
 def _snapshot(guide: bytes) -> Snapshot:
-    """A snapshot of one ``code`` corpus, with a spec and a header schema, holding ``guide.md``."""
+    """A snapshot of one ``code`` corpus, with a spec and a frontmatter schema, holding ``guide.md``."""
     return Snapshot.of_files(
         {
             RootRelativePath.parse('docs/__meta__/code.md'): b'# Code\n',
-            RootRelativePath.parse('docs/__meta__/code.header.json'): b'{"type": "object"}',
+            RootRelativePath.parse('docs/__meta__/code.structure.json'): b'{"frontmatter": {"type": "object"}}',
             RootRelativePath.parse('docs/code/guide.md'): guide,
         }
     )

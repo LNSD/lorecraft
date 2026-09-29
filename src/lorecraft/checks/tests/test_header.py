@@ -1,7 +1,7 @@
-"""Header validation over a document's frontmatter node.
+"""Frontmatter validation over a document's frontmatter node.
 
 ``validate_header`` is pure, so every case here is a text literal parsed in memory, a filename, a corpus and
-an in-memory header schema; no document and no schema file is read.
+an in-memory frontmatter schema; no document and no specification file is read.
 """
 
 from typing import Final
@@ -11,7 +11,7 @@ import pytest
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.layout import SPECS_DIR
-from lorecraft.project.schemas import HeaderAspect, HeaderSchema
+from lorecraft.project.schemas import FrontmatterSchema
 from lorecraft.project.syntax import LineNumber, parse_frontmatter
 
 from ..header import validate_header
@@ -20,9 +20,10 @@ GUIDE: Final[AspectFilename] = AspectFilename.parse('guide')
 CODE: Final[CorpusName] = CorpusName.parse('code')
 
 
-def _code_header(schema: dict[str, object]) -> HeaderAspect:
-    """The ``code`` corpus header aspect, as the loader would build it from ``docs/__meta__/code.header.json``."""
-    return HeaderAspect(path=SPECS_DIR / 'code.header.json', schema=HeaderSchema(schema))
+def _code_frontmatter(schema: dict[str, object]) -> FrontmatterSchema:
+    """The ``code`` corpus frontmatter schema, as the loader would build it from the ``frontmatter`` key of
+    ``docs/__meta__/code.structure.json``."""
+    return FrontmatterSchema(path=SPECS_DIR / 'code.structure.json', schema=schema)
 
 
 @pytest.mark.unit
@@ -30,7 +31,7 @@ class TestValidateHeader:
     def test_validate_header_with_conforming_frontmatter_returns_no_findings(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('---\nname: guide\ntype: rule\n---\n# Guide\n')
-        schemas = (_code_header({'type': 'object', 'required': ['type']}),)
+        schemas = (_code_frontmatter({'type': 'object', 'required': ['type']}),)
 
         #: When
         result = validate_header(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
@@ -41,7 +42,7 @@ class TestValidateHeader:
     def test_validate_header_with_empty_schemas_returns_no_findings(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('no frontmatter at all\n')
-        schemas: tuple[HeaderAspect, ...] = ()
+        schemas: tuple[FrontmatterSchema, ...] = ()
 
         #: When
         result = validate_header(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
@@ -52,7 +53,7 @@ class TestValidateHeader:
     def test_validate_header_with_name_mismatch_reports_name_rule_on_the_name_line(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('---\ntype: rule\nname: other\n---\n')
-        schemas = (_code_header({'type': 'object'}),)
+        schemas = (_code_frontmatter({'type': 'object'}),)
 
         #: When
         result = validate_header(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
@@ -68,7 +69,7 @@ class TestValidateHeader:
     def test_validate_header_without_frontmatter_block_reports_missing(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('# Guide\n\nname: guide\n')
-        schemas = (_code_header({'type': 'object'}),)
+        schemas = (_code_frontmatter({'type': 'object'}),)
 
         #: When
         result = validate_header(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
@@ -82,7 +83,7 @@ class TestValidateHeader:
     def test_validate_header_with_invalid_yaml_reports_unparseable(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('---\nname: [unclosed\n---\n')
-        schemas = (_code_header({'type': 'object'}),)
+        schemas = (_code_frontmatter({'type': 'object'}),)
 
         #: When
         result = validate_header(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
@@ -96,7 +97,7 @@ class TestValidateHeader:
     def test_validate_header_with_non_mapping_yaml_reports_unparseable(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('---\n- guide\n---\n')
-        schemas = (_code_header({'type': 'object'}),)
+        schemas = (_code_frontmatter({'type': 'object'}),)
 
         #: When
         result = validate_header(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
@@ -110,7 +111,7 @@ class TestValidateHeader:
     def test_validate_header_with_missing_required_field_reports_it_under_the_corpus_with_the_schema(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('---\nname: guide\n---\n')
-        schemas = (_code_header({'type': 'object', 'required': ['type']}),)
+        schemas = (_code_frontmatter({'type': 'object', 'required': ['type']}),)
 
         #: When
         result = validate_header(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
@@ -119,7 +120,7 @@ class TestValidateHeader:
         assert [violation.rule for violation in result.violations] == ['code.type'], (
             'a required field is reported under the corpus namespace and the field name'
         )
-        assert result.violations[0].message.endswith('(per docs/__meta__/code.header.json)'), (
+        assert result.violations[0].message.endswith('(per docs/__meta__/code.structure.json)'), (
             'the violation names the schema that required the field'
         )
         assert result.violations[0].line == LineNumber(1), 'an absent field is reported on line 1'
