@@ -14,7 +14,8 @@ from lorecraft.checks import CheckRun, Database, run_structure
 from lorecraft_project.layout import SNAPSHOT_SCOPE
 from lorecraft_vfs import RootRelativePath, take_snapshot
 
-# A rule document: one title first, no empty section, the Checklist after the document's own sections.
+# A rule document: one title first, no empty section, the Checklist after the document's own sections, and at most
+# 6 prose words in the Checklist, where `- [ ] item` is 4.
 CODE_STRUCTURE_SPEC: Final[str] = dedent(
     """
     {
@@ -22,7 +23,7 @@ CODE_STRUCTURE_SPEC: Final[str] = dedent(
       "empty_sections": "forbidden",
       "outline": [
         {"any": true},
-        {"section": "Checklist"},
+        {"section": "Checklist", "words": 6},
         {"section": "References", "optional": true}
       ]
     }
@@ -57,8 +58,8 @@ def lorecraft_tree(tmp_path: Path) -> Path:
     """A tree shaped like this repository, built to produce every kind of report.
 
     Corpus ``code`` is governed by a corpus structure and a ``python`` layer: one clean document, one without
-    a Checklist, one python document without References, and one that is not UTF-8. Corpus ``feat`` has a
-    spec but no structure file, so its document is ungoverned.
+    a Checklist, one whose Checklist is over its word cap, one python document without References, and one that
+    is not UTF-8. Corpus ``feat`` has a spec but no structure file, so its document is ungoverned.
     """
     _write(tmp_path, 'docs/__meta__/code.md', b'# Code\n')
     _write(tmp_path, 'docs/__meta__/code.structure.json', CODE_STRUCTURE_SPEC.encode())
@@ -67,6 +68,7 @@ def lorecraft_tree(tmp_path: Path) -> Path:
     _write(tmp_path, 'docs/__meta__/feat.md', b'# Feat\n')
     _write(tmp_path, 'docs/code/clean.md', b'# Clean\n\n## Rule\n\ntext\n\n## Checklist\n\n- [ ] item\n')
     _write(tmp_path, 'docs/code/unchecked.md', b'# Unchecked\n\n## Rule\n\ntext\n')
+    _write(tmp_path, 'docs/code/wordy.md', b'# Wordy\n\n## Rule\n\ntext\n\n## Checklist\n\n- [ ] one two three four\n')
     _write(tmp_path, 'docs/code/python-typing.md', b'# Typing\n\n## Rule\n\ntext\n\n## Checklist\n\n- [ ] item\n')
     _write(tmp_path, 'docs/code/latin.md', b'# Caf\xe9\n')
     _write(tmp_path, 'docs/feat/overview.md', b'## Empty\n')
@@ -92,6 +94,11 @@ class TestRunStructure:
                 'missing required section `References` (per code-python.md)',
             ),
             ('docs/code/unchecked.md', 'structure.outline', 'missing required section `Checklist` (per code.md)'),
+            (
+                'docs/code/wordy.md',
+                'structure.words.section',
+                'section `Checklist` is 7 prose words; the cap is 6 (per code.md)',
+            ),
         ], 'each broken document yields exactly the finding its defect names, quoting the layer that states it'
 
     def test_run_structure_over_a_snapshot_reports_a_corpus_without_a_structure_spec_as_ungoverned(

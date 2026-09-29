@@ -7,13 +7,33 @@
       "examples": [
         {
           "any": true
+        },
+        {
+          "any": true,
+          "words": 350
         }
       ],
       "properties": {
         "any": {
           "const": true,
-          "description": "Always true: the entry's only field, which marks it as a run.",
+          "description": "Always true: the field that marks the entry as a run.",
           "type": "boolean"
+        },
+        "words": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The most words of prose each section in the run may hold, its H3 subsections included: a cap on every section alone, not on the run's total. No cap when absent.",
+          "examples": [
+            350
+          ]
         }
       },
       "required": [
@@ -27,7 +47,8 @@
       "description": "An outline entry naming one section, fixing its position against every other name in the outline.",
       "examples": [
         {
-          "section": "Checklist"
+          "section": "Checklist",
+          "words": 250
         },
         {
           "optional": true,
@@ -47,6 +68,22 @@
           "default": false,
           "description": "True when a document may leave the section out.",
           "type": "boolean"
+        },
+        "words": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The most words of prose the section may hold, its H3 subsections included; no cap when absent.",
+          "examples": [
+            250
+          ]
         }
       },
       "required": [
@@ -90,14 +127,16 @@
   "description": "A structure specification: the section outline a document governed by this file must follow.",
   "examples": [
     {
-      "description": "Section structure for a rule document in docs/code/.",
+      "description": "Section structure and word caps for a rule document in docs/code/.",
       "empty_sections": "forbidden",
       "outline": [
         {
-          "any": true
+          "any": true,
+          "words": 350
         },
         {
-          "section": "Checklist"
+          "section": "Checklist",
+          "words": 250
         },
         {
           "optional": true,
@@ -131,7 +170,7 @@
       "default": "",
       "description": "What this file governs and why, for whoever opens it; not read by the check.",
       "examples": [
-        "Section structure for a rule document in docs/code/."
+        "Section structure and word caps for a rule document in docs/code/."
       ],
       "type": "string"
     },
@@ -162,14 +201,16 @@
     },
     "outline": {
       "default": [],
-      "description": "The order of the document's sections, matched left to right. A named section is required unless optional, and may be named once; an `{\"any\": true}` entry matches a run of sections the outline does not name, and two may not sit side by side.",
+      "description": "The order of the document's sections, matched left to right. A named section is required unless optional, and may be named once; an `{\"any\": true}` entry matches a run of sections the outline does not name, and two may not sit side by side. An entry's `words` caps each section it matches; an entry without one caps none. A word is a whitespace-delimited token of prose: fenced code and table rows are not counted.",
       "examples": [
         [
           {
-            "any": true
+            "any": true,
+            "words": 350
           },
           {
-            "section": "Checklist"
+            "section": "Checklist",
+            "words": 250
           },
           {
             "optional": true,

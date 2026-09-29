@@ -3,8 +3,9 @@
 The check is pure: it takes the already validated structure aspects that govern a document and the document's
 headings, and returns violations. It reads those and nothing else, so it is handed them rather than the whole parse
 tree, and not even the document's path: the run that called it attaches that. It covers the mechanical half of a
-specification's section rules: the H1 title, empty sections, forbidden sections, and the order of the sections the
-outline names. Whether a section says what it should is a judgment call, and stays with review.
+specification's section rules: the H1 title, empty sections, forbidden sections, the order of the sections the
+outline names, and the word cap on each section. Whether a section
+says what it should is a judgment call, and stays with review.
 
 Each aspect is applied on its own. A namespace specification states only what it adds to the corpus one, so
 a document governed by both must pass both, and neither can relax the other.
@@ -13,7 +14,7 @@ a document governed by both must pass both, and neither can relax the other.
 from dataclasses import dataclass
 from typing import Final
 
-from lorecraft_project.schemas import AnySections, StructureAspect
+from lorecraft_project.schemas import AnySections, OutlineEntry, SectionEntry, StructureAspect
 from lorecraft_project.syntax import Heading, LineNumber
 
 from .reporting import Violation
@@ -53,6 +54,7 @@ def validate_structure(aspects: tuple[StructureAspect, ...], *, headings: tuple[
             *_check_empty(aspect, headings),
             *_check_forbidden(aspect, sections),
             *_check_outline(aspect, sections),
+            *_check_section_words(aspect, sections),
         ]
         for violation in aspect_violations:
             message = f'{violation.message} (per {aspect.authority})'
@@ -147,3 +149,46 @@ def _check_outline(aspect: StructureAspect, sections: tuple[Heading, ...]) -> li
             message = f'unexpected section `{left.text}`; the outline ends before it'
         return [Violation(left.line, 'structure.outline', message)]
     return []
+
+
+def _check_section_words(aspect: StructureAspect, sections: tuple[Heading, ...]) -> list[Violation]:
+    """Report every section holding more prose words than its outline entry allows, its subsections included.
+
+    A section the outline names takes the cap of the entry naming it, which may be none. Any other section takes
+    the cap of the ``any`` run it falls in: the first ``any`` entry after the entry naming the last named section
+    before it. In a document that follows the outline, that is the run which matches it.
+    """
+    violations: list[Violation] = []
+    last_named_at = -1  # the outline index of the last named section passed; -1 before any
+    for section in sections:
+        entry_at = _entry_index(aspect.outline, section.text)
+        if entry_at is None:
+            cap = _run_cap(aspect.outline, last_named_at)
+        else:
+            last_named_at = entry_at
+            cap = aspect.outline[entry_at].words
+        if cap is not None and section.words > cap:
+            violations.append(
+                Violation(
+                    section.line,
+                    'structure.words.section',
+                    f'section `{section.text}` is {section.words} prose words; the cap is {cap}',
+                )
+            )
+    return violations
+
+
+def _entry_index(outline: tuple[OutlineEntry, ...], name: str) -> int | None:
+    """Where in the outline the section entry naming ``name`` sits, or None when no entry names it."""
+    for index, entry in enumerate(outline):
+        if isinstance(entry, SectionEntry) and entry.name == name:
+            return index
+    return None
+
+
+def _run_cap(outline: tuple[OutlineEntry, ...], after: int) -> int | None:
+    """The cap of the first ``any`` entry past outline index ``after``, or None when there is no such entry."""
+    for entry in outline[after + 1 :]:
+        if isinstance(entry, AnySections):
+            return entry.words
+    return None

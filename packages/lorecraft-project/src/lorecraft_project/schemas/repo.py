@@ -16,7 +16,6 @@ from lorecraft_core.error import Error
 from lorecraft_project.corpus import CorpusName
 from lorecraft_vfs import EntryKind, FileSystem, ListDirError, ReadTextError, RootRelativePath
 
-from .budget import BudgetSchema
 from .header import HeaderSchema
 from .name import SchemaName
 from .spec_file import SpecAspect, SpecFile, SpecFilenameError, parse_spec_file, schema_filename
@@ -41,10 +40,6 @@ class GetHeaderSchemaError(Error):
 
 class GetStructureSchemaError(Error):
     """A requested structure schema cannot be loaded."""
-
-
-class GetBudgetSchemaError(Error):
-    """A requested budget schema cannot be loaded."""
 
 
 class Repository:
@@ -130,25 +125,6 @@ class Repository:
             return StructureSchema(self._fs.read_text(path))
         except ReadTextError as exc:
             raise GetStructureSchemaError(f'cannot read schema {path}: {exc.detail}') from exc
-
-    def get_budget_schema(self, name: SchemaName) -> BudgetSchema:
-        """Read and JSON-decode one budget schema; nothing validates it yet.
-
-        Raises:
-            GetBudgetSchemaError: If the file cannot be read, is not JSON, or is not a JSON object.
-        """
-        path = self._specs_dir / schema_filename(name, SpecAspect.BUDGET)
-        try:
-            text = self._fs.read_text(path)
-        except ReadTextError as exc:
-            raise GetBudgetSchemaError(f'cannot read schema {path}: {exc.detail}') from exc
-        try:
-            definition: object = json.loads(text)
-        except json.JSONDecodeError as exc:
-            raise GetBudgetSchemaError(f'invalid JSON in schema {path}: {exc.msg}') from exc
-        if not isinstance(definition, dict):
-            raise GetBudgetSchemaError(f'expected a JSON object in schema {path}')
-        return BudgetSchema(definition)
 
     def _schema_files(self) -> list[SpecFile]:
         """Parse the JSON schema files in name order; the seam already sorts its entries.

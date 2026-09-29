@@ -14,7 +14,6 @@ import pytest
 from lorecraft_project.aspect import AspectNamespace
 from lorecraft_project.corpus import CorpusName
 from lorecraft_project.schemas import (
-    GetBudgetSchemaError,
     GetHeaderSchemaError,
     GetStructureSchemaError,
     ListCorpusSchemasError,
@@ -109,7 +108,7 @@ class TestRepository:
         self, tmp_path: Path, repository: Repository
     ) -> None:
         #: Given
-        for filename in ('feat.structure.json', 'code.header.json', 'code.budget.json', 'README.md'):
+        for filename in ('feat.structure.json', 'code.header.json', 'README.md'):
             (tmp_path / filename).write_text('{}', encoding='utf-8')
 
         #: When
@@ -117,7 +116,6 @@ class TestRepository:
 
         #: Then
         assert schemas == [
-            SpecFile(RootRelativePath.parse('code.budget.json'), (CODE,), SpecAspect.BUDGET),
             SpecFile(RootRelativePath.parse('code.header.json'), (CODE,), SpecAspect.HEADER),
             SpecFile(RootRelativePath.parse('feat.structure.json'), (CorpusName.parse('feat'),), SpecAspect.STRUCTURE),
         ], 'every aspect is listed with its root-relative path; prose is not a schema'
@@ -126,7 +124,7 @@ class TestRepository:
         self, tmp_path: Path, repository: Repository
     ) -> None:
         #: Given
-        for filename in ('code.headers.json', 'README.header.json', 'feat.feature.header.json'):
+        for filename in ('code.headers.json', 'code.budget.json', 'README.header.json', 'feat.feature.header.json'):
             (tmp_path / filename).write_text('{}', encoding='utf-8')
 
         #: When
@@ -182,19 +180,6 @@ class TestRepository:
             'get_structure_schema reads code-python.structure.json, leaving the parse to StructureAspect'
         )
 
-    def test_get_budget_schema_with_namespace_loads_the_budget_file(
-        self, tmp_path: Path, repository: Repository
-    ) -> None:
-        #: Given
-        (tmp_path / 'code-python.budget.json').write_text('{"title": "Python"}', encoding='utf-8')
-        name = CODE_PYTHON
-
-        #: When
-        schema = repository.get_budget_schema(name)
-
-        #: Then
-        assert schema == {'title': 'Python'}, 'get_budget_schema loads code-python.budget.json'
-
     def test_get_header_schema_with_invalid_json_raises_get_header_schema_error(
         self, tmp_path: Path, repository: Repository
     ) -> None:
@@ -224,22 +209,6 @@ class TestRepository:
         #: Then
         assert 'cannot read schema' in str(exc_info.value), (
             "the repository fails only on a file it cannot read; malformed JSON is the parse's to refuse"
-        )
-
-    def test_get_budget_schema_with_invalid_json_raises_get_budget_schema_error(
-        self, tmp_path: Path, repository: Repository
-    ) -> None:
-        #: Given
-        (tmp_path / 'code.budget.json').write_text('{', encoding='utf-8')
-        name: SchemaName = (CODE,)
-
-        #: When
-        with pytest.raises(GetBudgetSchemaError) as exc_info:
-            repository.get_budget_schema(name)
-
-        #: Then
-        assert 'invalid JSON' in str(exc_info.value), (
-            'GetBudgetSchemaError identifies malformed JSON in code.budget.json'
         )
 
     def test_get_header_schema_with_missing_file_raises_get_header_schema_error(self, repository: Repository) -> None:
