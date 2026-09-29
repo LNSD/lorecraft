@@ -167,7 +167,7 @@ class TestRepository:
         #: Then
         assert schema == {'title': 'Python'}, 'get_header_schema loads code-python.header.json'
 
-    def test_get_structure_schema_with_namespace_loads_the_structure_file(
+    def test_get_structure_schema_with_namespace_reads_the_structure_file_text(
         self, tmp_path: Path, repository: Repository
     ) -> None:
         #: Given
@@ -178,7 +178,9 @@ class TestRepository:
         schema = repository.get_structure_schema(name)
 
         #: Then
-        assert schema == {'title': 'Python'}, 'get_structure_schema loads code-python.structure.json'
+        assert schema == '{"title": "Python"}', (
+            'get_structure_schema reads code-python.structure.json, leaving the parse to StructureAspect'
+        )
 
     def test_get_budget_schema_with_namespace_loads_the_budget_file(
         self, tmp_path: Path, repository: Repository
@@ -209,11 +211,10 @@ class TestRepository:
             'GetHeaderSchemaError identifies malformed JSON in code.header.json'
         )
 
-    def test_get_structure_schema_with_invalid_json_raises_get_structure_schema_error(
-        self, tmp_path: Path, repository: Repository
+    def test_get_structure_schema_with_missing_file_raises_get_structure_schema_error(
+        self, repository: Repository
     ) -> None:
         #: Given
-        (tmp_path / 'code.structure.json').write_text('{', encoding='utf-8')
         name: SchemaName = (CODE,)
 
         #: When
@@ -221,8 +222,8 @@ class TestRepository:
             repository.get_structure_schema(name)
 
         #: Then
-        assert 'invalid JSON' in str(exc_info.value), (
-            'GetStructureSchemaError identifies malformed JSON in code.structure.json'
+        assert 'cannot read schema' in str(exc_info.value), (
+            "the repository fails only on a file it cannot read; malformed JSON is the parse's to refuse"
         )
 
     def test_get_budget_schema_with_invalid_json_raises_get_budget_schema_error(
