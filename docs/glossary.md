@@ -22,7 +22,7 @@ A document in `docs/feat/` describing existing toolkit behavior, such as a capab
 
 ### Agent skill
 
-A reusable set of agent instructions, sometimes with supporting scripts. Skills live in `.agents/skills/`.
+A reusable set of agent instructions, sometimes with supporting scripts.
 
 ## Metadata and specifications
 
