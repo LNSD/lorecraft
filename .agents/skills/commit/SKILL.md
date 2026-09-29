@@ -225,6 +225,12 @@ The title states what became possible for the code; the summary names the featur
 agents run on this repository, and ships nothing to anyone using Lorecraft, so it is `chore(skills)` whatever
 the edit: a new section, a rewritten workflow, a fixed vendored script.
 
+**Project skills are typed like code.** A skill under `skills/` ships to every repository that uses Lorecraft,
+so a change to it takes its type from the consequence, exactly as a change under `packages/` does, with the
+scope `skills`: `feat(skills)` for a new skill or a workflow an agent could not follow before, `fix(skills)`
+for guidance that was wrong, `refactor(skills)` for a reshaping that leaves what an agent does unchanged. A
+commit touching both directories is typed by the `skills/` change.
+
 ### Summary
 
 Why the change exists and what is different now. The character limit applies only to the title.
@@ -365,7 +371,7 @@ checker's modules land, a change to the package itself scopes to `lorecraft`.
 | `docs(meta)` | format specifications under `docs/__meta__/` |
 | `docs(feat)` | feature documents under `docs/feat/` |
 | `docs` | documentation outside those named corpora when a narrower scope adds useful information |
-| `skills` | `.agents/skills/`, its `scripts/`, and the `.claude/skills` symlink |
+| `skills` | `skills/`, `.agents/skills/` with its `scripts/`, and the `.claude/skills` symlink |
 | `agents` | `AGENTS.md` and the `CLAUDE.md` pointer |
 | `build` | packaging and release metadata in `pyproject.toml` |
 | `ci` | `.github/`: workflows, pre-commit config, Renovate config |

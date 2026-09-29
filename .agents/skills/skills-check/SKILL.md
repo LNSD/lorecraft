@@ -21,11 +21,11 @@ A skill's location decides the rules it is held to.
 
 | Location | Kind | Loaded by | Rules |
 |---|---|---|---|
-| `.agents/skills/<name>/` | Workspace skill | Agents working in this repository (`.claude/skills/` is a symlink to it) | The specification, plus the frontmatter extensions below, and links into the repository |
+| `.agents/skills/<name>/` | Workspace skill | Agents working in this repository | The specification, plus the frontmatter extensions below, and links into the repository |
 | `skills/<name>/` | Project skill | Agents in other repositories, after the skill is installed there | The specification only; nothing may depend on this repository's agent or layout |
 
-Every skill here is a workspace skill today — this repository has no `skills/` directory. The project-skill
-rules still hold, and the script still enforces them, the moment one is added.
+Project skills live in `skills/`, and each is linked into `.agents/skills/` by a symlink so this repository's
+agents use it too. The script resolves the symlink and checks the skill once, as a project skill.
 
 Workspace skills may use these Claude Code extensions, because only this repository's agents load them:
 
@@ -197,12 +197,3 @@ Violations, per skill, most severe first, one per line, with the fix:
 
 Every finding cites the specification's rule or a rule in this skill. A finding with neither behind it is a
 style opinion: drop it.
-
-## Not This Skill
-
-| Use | For |
-|---|---|
-| `/docs-rules-check` | checking a document under `docs/` against its specification |
-| `/feat-validate` | whether the feature doc a skill restates matches the implementation |
-| `/code-rules-check` | checking code against the rule documents in `docs/code/` |
-| `/commit` | the commit scope for a skill change |
