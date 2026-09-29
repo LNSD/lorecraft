@@ -93,6 +93,7 @@ class TestRenderJson:
         document = json.loads(text)
         documents = document['corpora'][0]['documents']
         assert document['root'] == '/work', 'the root is reported as given'
-        assert documents[1] == {'path': 'docs/code/python-typing.md', 'governed_by': ['code', 'code-python']}, (
-            'a document lists its governing specs broad to narrow'
-        )
+        assert documents[1] == {
+            'path': 'docs/code/python-typing.md',
+            'governed_by': ['docs/__meta__/code.md', 'docs/__meta__/code-python.md'],
+        }, 'a document lists the files of its governing specs as root-relative paths, broad to narrow'
