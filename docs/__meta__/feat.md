@@ -233,7 +233,7 @@ these three prefixes:
 | Prefix    | Names                                            | Spelling                       | Example                   |
 |-----------|--------------------------------------------------|--------------------------------|---------------------------|
 | `module:` | A module or subpackage, by its full import path  | snake_case, dotted for nesting | `module:lorecraft.checks` |
-| `skill:`  | A skill directory under `.agents/skills/`        | kebab-case                     | `skill:docs-rules-check`  |
+| `skill:`  | A skill directory                                | kebab-case                     | `skill:docs-rules-check`  |
 | `spec:`   | A specification stem under `docs/__meta__/`      | kebab-case, extensions dropped | `spec:feat`               |
 
 A `module:` entry always starts with its import package, one of the workspace's packages under `packages/`,
@@ -447,9 +447,10 @@ Direction is a judgment the checker does not make. It is on the author, and on r
 
 ### DON'T
 
-- Mention how lorecraft is developed: no `just` recipe, CI job, `uv run` invocation or contributor skill. A
-  feature document is read by someone using lorecraft, and what a contributor runs lives in `AGENTS.md` and
-  the skills
+- Mention how lorecraft is developed: no `just` recipe, CI job or contributor skill. A feature document is
+  read by someone using lorecraft, and what a contributor runs lives in `AGENTS.md` and the skills. The CLI
+  overview may mention `uv tool run lorecraft` or its `uvx lorecraft` alias for on-demand use, and `uv run lorecraft`
+  for a uv project that declares Lorecraft as a dependency
 - Duplicate content from `docs/code/` (link instead)
 - Explain code logic; name the source file and let the code speak
 - Restate a sibling's or the base's behaviour (link instead)
@@ -614,7 +615,9 @@ Before committing a feature document:
 - [ ] The document has one subject — a single reason to change
 - [ ] No behaviour is restated from a sibling or from `docs/code/` (linked instead)
 - [ ] Examples are accurate, and every command shown is one the repository has
-- [ ] Nothing describes how lorecraft is developed: no `just` recipe, CI job, `uv run` or contributor skill
+- [ ] Nothing describes how lorecraft is developed: no `just` recipe, CI job or contributor skill; the CLI
+      overview may mention on-demand uv tool invocation and `uv run lorecraft` for a uv project that declares
+      Lorecraft as a dependency
 - [ ] No dependency version, release status, benchmark figure, or migration narrative appears
 - [ ] Terminology matches the Key Concepts section
 
