@@ -198,16 +198,6 @@ Violations, per skill, most severe first, one per line, with the fix:
 Every finding cites the specification's rule or a rule in this skill. A finding with neither behind it is a
 style opinion: drop it.
 
-## Pre-approved Commands
-
-These run without user permission:
-
-- `.agents/skills/skills-check/scripts/check_skill.py` with any flags, and `just check-skills`: read-only, no
-  side effects
-- `git diff`, `git status`, and `git merge-base`
-- `ls` on any directory under `.agents/skills/` or `skills/`
-- Reading any file under `.agents/skills/`, `skills/`, or `docs/`
-
 ## Not This Skill
 
 | Use | For |

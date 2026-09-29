@@ -221,6 +221,10 @@ refactor(checks): let a check report a finding without the corpus
 
 The title states what became possible for the code; the summary names the feature that needed it.
 
+**Workspace skills are `chore`.** A commit confined to `.agents/skills/` changes the tooling contributors'
+agents run on this repository, and ships nothing to anyone using Lorecraft, so it is `chore(skills)` whatever
+the edit: a new section, a rewritten workflow, a fixed vendored script.
+
 ### Summary
 
 Why the change exists and what is different now. The character limit applies only to the title.
