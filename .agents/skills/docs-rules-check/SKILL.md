@@ -31,31 +31,20 @@ Exclude `docs/__meta__/` itself: a specification is governed by its own corpus r
 
 !`grep -m 3 -E '^(description|type|scope):' docs/__meta__/*.md`
 
-Resolve per document, from its path:
-
-| Step | Rule |
-|---|---|
-| 1. Corpus | The first path segment under `docs/`. `docs/code/python-typing.md` is in the `code` corpus, however deeply nested. |
-| 2. Specification | `docs/__meta__/<corpus>.md`. Read it; it is the authority for that corpus. |
-| 3. Structure template | `docs/__meta__/<corpus>-<prefix>.md`, where `<prefix>` is the filename up to its first hyphen. Validate against it as well when the file exists. |
-
-| Document | Corpus | Specification | Structure template |
-|---|---|---|---|
-| `docs/code/principle-least-surprise.md` | `code` | `docs/__meta__/code.md` | `docs/__meta__/code-principle.md` |
-| `docs/code/pattern-registry.md` | `code` | `docs/__meta__/code.md` | `docs/__meta__/code-pattern.md` |
-| `docs/code/python-typing.md` | `code` | `docs/__meta__/code.md` | `docs/__meta__/code-python.md` |
-| `docs/code/test-functions.md` | `code` | `docs/__meta__/code.md` | none (`code-test.md` does not exist) |
-| `docs/code/logging.md` | `code` | `docs/__meta__/code.md` | none |
-
-`docs/code/` is the only corpus this repository carries today. A second one — feature docs under `docs/feat/`,
-say — resolves by exactly the same rule, and until `docs/__meta__/feat.md` exists its documents are ungoverned.
+Resolve per document, from its path. A document sits directly inside its corpus directory,
+`docs/<corpus>/<name>.md`. The corpus specification, `docs/__meta__/<corpus>.md`, is the authority. Each
+namespace layer, `docs/__meta__/<corpus>-<namespace>.md`, adds to it when the namespace equals `<name>` or is a
+hyphen-delimited prefix of it, broad to narrow, and you validate against every one:
+`docs/feat/cli-check-header.md` is governed by `feat.md`, then `feat-cli.md`. `ls docs/__meta__/<corpus>*.md`
+lists the candidates. A directory under `docs/` with no corpus specification is not a corpus, and its documents
+are ungoverned.
 
 Each specification is paired with machine-checkable files at the same stem: `<stem>.header.json` holds its
 frontmatter rules, `<stem>.structure.json` its section structure, section word caps and token budget. The
 commands in §3 and §4 resolve and apply those; you read the prose.
 
-Read the specification **before** the document, so the checklist is in hand while reading. Where step 2 finds
-no specification, the document's format is ungoverned: report it as unvalidated rather than inventing rules or
+Read the specifications **before** the document, so the checklists are in hand while reading. Where no corpus
+specification exists, the document's format is ungoverned: report it as unvalidated rather than inventing rules or
 borrowing another corpus's.
 
 ## 3. Frontmatter: run the command
@@ -135,7 +124,7 @@ the repository is clean; use the per-file invocations above while working a chan
 ## 5. Body: walk the checklist
 
 **Every specification ends with a `## Checklist`, and those items are the check surface** — the rules restated
-as verifiable statements. Walk each item against the document, plus the structure template's own checklist
+as verifiable statements. Walk each item against the document, plus each namespace layer's own checklist
 where one applies.
 
 The commands have settled the frontmatter, the section structure and the length, so what

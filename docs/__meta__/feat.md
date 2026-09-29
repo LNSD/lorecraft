@@ -52,7 +52,7 @@ not meant to document implementation internals — instead, they reference sourc
 for itself.
 
 - Focus on capabilities, behaviour, and integration points
-- Use the Implementation section to list source file references, not to explain code logic
+- Use the Code References section to list source file references, not to explain code logic
 - When tempted to describe an algorithm, a data structure, or a signature in detail, add a source file
   reference instead
 
@@ -92,24 +92,25 @@ A feature document describes behaviour that **exists in this repository**, not b
 
 Nothing registers a feature document with a specification: the document's own path resolves them.
 
-A document at `docs/feat/<name>.md` is governed by three files in `docs/__meta__/`:
+**This specification is the base layer.** It governs every document at `docs/feat/<name>.md`, through three
+files in `docs/__meta__/`:
 
-| File                  | Governs                                    | Read by                                    |
-|-----------------------|--------------------------------------------|--------------------------------------------|
-| `feat.md`             | Everything. This document is the authority | A person, and an agent before it writes    |
-| `feat.header.json`    | Frontmatter fields, vocabularies, patterns | `lorecraft check header`                  |
-| `feat.structure.json` | The section outline, its order, the caps   | `lorecraft check structure`                |
-| `feat.structure.json` | The token budget, its `tokens` key         | `lorecraft check budget`                   |
+| File                  | Governs                                                  | Read by                                            |
+|-----------------------|----------------------------------------------------------|----------------------------------------------------|
+| `feat.md`             | Everything. This document is the authority               | A person, and an agent before it writes            |
+| `feat.header.json`    | Frontmatter fields, vocabularies, patterns               | `lorecraft check header`                           |
+| `feat.structure.json` | The section outline, its order, the caps, the token budget | `lorecraft check structure`, `lorecraft check budget` |
 
-A **namespace layer** narrows that base: `feat-<namespace>.header.json` or `feat-<namespace>.structure.json`,
-applied when the namespace equals the document's name or is a hyphen-delimited prefix of it. A layer is
-additive: it states only what it adds, cannot release a document from what the base already said, and several
-apply broad to narrow, so a layer's caps can only tighten the base's. A namespace may span several segments:
-`feat-cli-check` would govern `cli-check.md` and `cli-check-*.md`. The `cli` namespace narrows CLI feature
-names and content in [feat-cli.md](feat-cli.md); add another namespace layer when a naming group genuinely
-shares rules the rest of the corpus does not.
+A **namespace layer** adds to that base for a group of documents: `feat-<namespace>.md` states its rules in
+prose, and `feat-<namespace>.header.json` or `feat-<namespace>.structure.json` beside it hold the parts a check
+can decide. A layer applies when the namespace equals the document's name or is a hyphen-delimited prefix of
+it, and may span several segments: `feat-<a>-<b>` governs `<a>-<b>.md` and `<a>-<b>-*.md`. Every layer is
+applied on its own, broad to narrow, so a layer states only what it adds: it can require a section the base
+leaves optional, narrow a field, or tighten a cap, and it cannot release a document from anything this base
+says. Add a layer when a naming group genuinely shares rules the rest of the corpus does not; a rule that
+holds for one group stays out of this file rather than becoming a condition inside it.
 
-The per-type section rules in [§4](#4-document-structure) have no machine-checkable layer: a specification
+The per-type section rules in [§4](#4-document-structure) have no machine-checkable form: a specification
 file is selected by the document's path, never by its `type`, and `feat.structure.json` asks no questions
 about the document it is applied to. They are checked by review against the [checklist](#8-checklist).
 
@@ -172,27 +173,26 @@ it — so this one is verified by reading.
 
 | Type | Purpose | Characteristics |
 |------|---------|-----------------|
-| `meta` | Groups related features/concepts | High-level overview, no Usage section, cannot link to children |
+| `meta` | Groups related features/concepts | High-level overview, no Usage section |
 | `feature` | Documents a user-facing capability | What a user can do, requires Usage section with examples |
-| `component` | Documents a software component | Internal architecture, requires Implementation section |
+| `component` | Documents a software component | Internal architecture, requires Code References section |
 
 **meta documents:**
-- Describe a domain or capability group (e.g. `check`, `spec`, `corpus`)
+- Describe a domain or capability group, such as the specification files under `docs/__meta__/`
 - Provide conceptual foundation and terminology
-- MUST NOT link to child documents (children link up to meta)
-- MUST NOT carry a Usage or an Implementation section (concrete usage lives in the children)
+- MUST NOT carry a Usage or a Code References section (concrete usage and code live in its extensions)
 
 **feature documents:**
 - Describe capabilities a user of this toolkit invokes
 - Focus on "what can a user do" and "how do they do it"
 - MUST include a Usage section with working examples
-- May link to related features, to the components that implement them, and to the parent meta document
+- May link to related features, to the components that implement them, and to its base
 
 **component documents:**
 - Describe an internal building block — a module, a subpackage, a spec dialect's reader
 - Focus on architecture, responsibilities, and integration
-- MUST include an Implementation section with source files
-- May link to related components, to features, and to the parent meta document
+- MUST include a Code References section with source files
+- May link to related components, to features, and to its base
 
 ### Status Definitions
 
@@ -230,19 +230,20 @@ there, and a version number never appears in it.
 The `components` field names the things a change to this feature would touch. Every entry MUST carry one of
 these three prefixes:
 
-| Prefix    | Names                                                       | Spelling                        | Example                       |
-|-----------|-------------------------------------------------------------|---------------------------------|-------------------------------|
-| `module:` | A module or subpackage, by its full import path             | snake_case, dotted for nesting  | `module:lorecraft_project.checks`|
-| `skill:`  | A skill directory under `.agents/skills/`                   | kebab-case                      | `skill:docs-rules-check`      |
-| `spec:`   | A specification file stem under `docs/__meta__/`            | kebab-case, dotted for a layer  | `spec:feat.feature`           |
+| Prefix    | Names                                            | Spelling                       | Example                   |
+|-----------|--------------------------------------------------|--------------------------------|---------------------------|
+| `module:` | A module or subpackage, by its full import path  | snake_case, dotted for nesting | `module:lorecraft.checks` |
+| `skill:`  | A skill directory under `.agents/skills/`        | kebab-case                     | `skill:docs-rules-check`  |
+| `spec:`   | A specification stem under `docs/__meta__/`      | kebab-case, extensions dropped | `spec:feat`               |
 
 A `module:` entry always starts with its import package, one of the workspace's packages under `packages/`,
 because two of them can hold a subpackage of the same name and a shorter name would not say which:
-`packages/lorecraft-project/src/lorecraft_project/checks/header.py` is `module:lorecraft_project.checks.header`.
+`packages/lorecraft/src/lorecraft/checks/header.py` is `module:lorecraft.checks.header`. A `spec:` entry names
+the stem, not one of its files: `spec:feat` stands for `feat.md` and every `feat.*.json` beside it.
 
 **Example:**
 ```yaml
-components: "module:lorecraft_project.checks.header,spec:feat,skill:docs-rules-check"
+components: "module:lorecraft.checks.header,spec:feat,skill:docs-rules-check"
 ```
 
 The schema enforces the prefix vocabulary and the character set of each entry. Which separator a given prefix
@@ -266,7 +267,7 @@ loaded to answer questions and to navigate the repository. Your description must
 
 **Examples:**
 - ✅ `"Outline matching, the any run, and corpus/namespace layering. Load when writing or debugging a structure spec"`
-- ✅ `"Word counting rules and the per-section caps a budget sets. Load when a document is reported over budget"`
+- ✅ `"Word counting rules and the per-section caps a structure spec sets. Load when a section is reported over its cap"`
 - ✅ `"Exit codes and the text and JSON finding formats. Load when wiring a check into CI or a pre-commit hook"`
 - ❌ `"Overview of the structure checker"` (vague, no trigger)
 - ❌ `"Handles various document checks"` (vague, no specifics)
@@ -293,33 +294,16 @@ found by one glob.
 
 ### Examples by Domain
 
-**CLI check features:**
-```
-cli-check                         # Meta: the documentation check command namespace
-└── cli-check-header              # Frontmatter validation against repository schemas
-```
-
 **Specification features:**
 ```
 spec                              # Meta: the specification files under docs/__meta__/
-├── spec-header                   # The JSON Schema dialect
-├── spec-structure                # The outline dialect
-└── spec-budget                   # The budget dialect
+├── spec-header                   # The header dialect, JSON Schema
+└── spec-structure                # The structure dialect: outline, word caps, token budget
 ```
 
-**Corpus features:**
-```
-corpus                            # Meta: what makes a directory under docs/ a governed corpus
-├── corpus-code                   # The rule corpus and its prefix groups
-└── corpus-feat                   # The feature corpus and its namespace layers
-```
-
-**Command features:**
-```
-cli                               # Meta: the command surface the toolkit exposes
-├── cli-selection                 # Path arguments, corpus discovery, repository root resolution
-└── cli-output                    # Text and JSON finding formats, and exit codes
-```
+A domain with a namespace layer takes its naming from that layer, which may tie the segments after the domain
+to something outside the corpus, such as a command path. Read `docs/__meta__/feat-<domain>.md` before naming a
+document in such a domain.
 
 ### Naming Rules
 
@@ -335,7 +319,7 @@ cli                               # Meta: the command surface the toolkit expose
 ### Benefits
 
 - **Discoverable** - Searching "check" finds every check feature
-- **Hierarchical** - A child document references its parent meta document for shared context
+- **Hierarchical** - An extension references its base for shared context
 - **Scalable** - A new feature slots into the existing hierarchy without moving anything
 - **Organized** - Natural grouping when listing files
 
@@ -360,9 +344,9 @@ Different document types have different required sections:
 | Architecture | optional | optional | optional |
 | Configuration | optional | optional | optional |
 | Usage | ✗ | ✓ | optional |
-| Implementation | ✗ | optional | ✓ |
 | Limitations | optional | optional | optional |
 | References | optional | optional | optional |
+| Code References | ✗ | optional | ✓ |
 
 **Section descriptions:**
 
@@ -373,19 +357,21 @@ Different document types have different required sections:
 5. **Architecture** - How the feature fits together: data flow, component interaction
 6. **Configuration** - Options, defaults, and where they are read from
 7. **Usage** - How to invoke the feature, with examples that run
-8. **Implementation** - File locations and internal notes, not code logic
-9. **Limitations** - Known constraints
-10. **References** - Cross-references to other feature documents
+8. **Limitations** - Known constraints
+9. **References** - Cross-references to other feature documents
+10. **Code References** - The source files behind the feature: references into the code, not an explanation
+    of it. Each entry is one line, never wrapped, however long, so a path and its note stay one grep hit
 
 ### Section Order
 
 **The order in the table above is the order on the page.** Summary, Table of Contents and Key Concepts open
-every document, in that order; References closes it, and nothing follows References. The optional sections
-between them keep their relative order whether or not each is present, so two documents that carry different
-subsets still read the same way.
+every document, in that order. References and Code References close it, in that order, and nothing follows
+them: both are references, one to other documents and one to the code, so they sit together after everything
+a reader needs to use the feature. The optional sections between keep their relative order whether or not each
+is present, so two documents that carry different subsets still read the same way.
 
 A document may add a section of its own — a dialect's field reference, a findings table — and those go after
-the named sections and before References. A section written out of that order is reported against this
+Limitations and before References. A section written out of that order is reported against this
 section, by name.
 
 ### Optional Sections
@@ -409,18 +395,24 @@ Use a simple list, with the relationship named before the description:
 
 ### Reference Direction Rules
 
+A document's **base** is the document whose name is the longest hyphen-delimited prefix of its own name that
+exists in the corpus, and the document is an **extension** of it: `spec.md` is the base of `spec-header.md`.
+The shorter name is always the base, the rule a specification's namespace follows once its corpus prefix is
+set aside. A base is usually a `meta` document, but a `feature` can be the base of the features that extend
+it, when what it documents works on its own and each extension adds to it.
+
 Reference rules depend on document type:
 
 | From Type   | Can Link To                                                  |
 |-------------|--------------------------------------------------------------|
-| `meta`      | Other meta documents only (siblings at the same level)       |
-| `feature`   | Parent meta, sibling features, related components            |
-| `component` | Parent meta, related features, child components              |
+| `meta`      | Its base, and other meta documents at the same level         |
+| `feature`   | Its base, sibling features, related components               |
+| `component` | Its base, related features, the components it contains       |
 
 **Key principles:**
-- ✅ **meta** documents MUST NOT link to children (features and components link UP to meta)
-- ✅ **component** documents MAY link to child components they contain
-- ✅ **feature** and **component** documents link UP to their parent meta document
+- ✅ Every document except the top of a domain links UP to its base, with the `Base` relationship
+- ✅ No document links DOWN to its extensions, whatever its type: a base does not know what extends it
+- ✅ The one exception: a **component** document MAY link to the components it contains
 
 **This rule applies to:**
 - The References section
@@ -428,16 +420,15 @@ Reference rules depend on document type:
 - Links in Architecture diagrams or tables
 - Any markdown link `[text](file.md)` pointing to a feature document
 
-**Rationale**: Meta documents provide stable, high-level context. Linking downward creates a maintenance
-burden whenever a child is added, removed or renamed; it couples a stable document to volatile detail; and
-it invites circular references between documents.
+**Rationale**: A base provides stable, higher-level context. Linking downward creates a maintenance burden
+whenever an extension is added, removed or renamed; it couples a stable document to volatile detail; and it invites
+circular references between documents.
 
 **Examples:**
-- ✅ `cli-check-header.md` (feature) → `cli-check.md` (meta) — child to parent
+- ✅ `spec-header.md` (feature) → `spec.md` (meta) — extension to base
 - ✅ `check-structure.md` (component) → `spec-structure.md` (feature) — component to the feature it serves
-- ✅ `cli-output.md` (feature) → `cli.md` (meta) — feature to parent meta
-- ❌ `cli-check.md` (meta) → `cli-check-header.md` (feature) — FORBIDDEN: meta to child
-- ❌ `spec.md` (meta) → lists `spec-budget.md` (feature) — FORBIDDEN: meta to child
+- ❌ `spec.md` (meta) → `spec-header.md` (feature) — FORBIDDEN: base to extension
+- ❌ `spec.md` (meta) → lists every `spec-*.md` — FORBIDDEN: base to extension, and an inventory besides
 
 Direction is a judgment the checker does not make. It is on the author, and on review.
 
@@ -448,17 +439,20 @@ Direction is a judgment the checker does not make. It is on the author, and on r
 ### DO
 
 - Keep descriptions focused and actionable
-- Reference specific modules and files with paths, in the Implementation section
+- Reference specific modules and files with paths, in the Code References section
 - Include examples that run, in fenced blocks
 - Use the terminology defined in Key Concepts, and define each term once
-- Show the command a reader would actually type
-- State the exit code and the finding format where a reader needs to script against it
+- Link a term the whole toolkit uses to its entry in [docs/glossary.md](../glossary.md), inline where the term
+  first appears, rather than defining it again in Key Concepts
 
 ### DON'T
 
+- Mention how lorecraft is developed: no `just` recipe, CI job, `uv run` invocation or contributor skill. A
+  feature document is read by someone using lorecraft, and what a contributor runs lives in `AGENTS.md` and
+  the skills
 - Duplicate content from `docs/code/` (link instead)
 - Explain code logic; name the source file and let the code speak
-- Restate a sibling's behaviour (link instead)
+- Restate a sibling's or the base's behaviour (link instead)
 - Hardcode paths that change frequently
 - Add speculative or planned features
 - Narrate a migration, or argue the case for a decision already made
@@ -476,8 +470,9 @@ check budget`, run by `just check-docs`, report what is over. A namespace layer 
 
 **Word caps keep each section concise**, for the person reading it. A word is whitespace-delimited text outside fenced code blocks and outside table rows. Code and tables cost no
 words: they are the examples and the reference material a feature document exists to hold, and charging for
-them would push an author toward prose where a table is clearer. Table of Contents and References carry no cap
-— both are lists of links whose length is a function of the document, not a choice.
+them would push an author toward prose where a table is clearer. Table of Contents, References and
+Code References carry no cap — each is a list of links whose length is a function of the document, not a
+choice.
 
 **A token budget keeps the document cheap to load**, for the agent reading it. It covers the whole
 file, frontmatter, code and tables included, since an agent pays for every character, and counts OpenAI's
@@ -515,9 +510,9 @@ What this feature does, why it exists, and its primary use.}}
 2. [Architecture](#architecture) {{if the flow is not obvious from usage}}
 3. [Configuration](#configuration) {{if applicable}}
 4. [Usage](#usage) {{REQUIRED for feature, optional for component, forbidden for meta}}
-5. [Implementation](#implementation) {{REQUIRED for component, optional for feature, forbidden for meta}}
-6. [Limitations](#limitations) {{if applicable}}
-7. [References](#references) {{if cross-referencing - follow the direction rules}}
+5. [Limitations](#limitations) {{if applicable}}
+6. [References](#references) {{if cross-referencing - follow the direction rules}}
+7. [Code References](#code-references) {{REQUIRED for component, optional for feature, forbidden for meta}}
 
 ## Key Concepts
 
@@ -558,14 +553,6 @@ self-explanatory.}}
 {{A second example that shows something the first does not}}
 ```
 
-## Implementation {{OPTIONAL}}
-
-{{File locations and internal notes. Name files; do not explain their logic.}}
-
-### Source Files
-
-- `packages/{{package}}/src/{{import_package}}/{{path/to/module.py}}` - How this file relates to the feature
-
 ## Limitations {{OPTIONAL}}
 
 - Limitation one
@@ -575,6 +562,12 @@ self-explanatory.}}
 
 - [feature-name](feature-name.md) - Relationship: Brief description
 - [another-feature](another-feature.md) - Relationship: Brief description
+
+## Code References {{OPTIONAL}}
+
+{{The source files behind the feature, one entry per line, never wrapped. Name files; do not explain their logic.}}
+
+- `packages/{{package}}/src/{{import_package}}/{{path/to/module.py}}` - How this file relates to the feature
 ````
 
 ---
@@ -600,19 +593,19 @@ Before committing a feature document:
 - [ ] One H1 title, human readable, before any section
 - [ ] Summary (2-4 sentences), then Table of Contents, then Key Concepts
 - [ ] **If type=feature**: a Usage section with examples that run (REQUIRED)
-- [ ] **If type=component**: an Implementation section naming source files (REQUIRED)
-- [ ] **If type=meta**: no Usage and no Implementation section
+- [ ] **If type=component**: a Code References section naming source files (REQUIRED)
+- [ ] **If type=meta**: no Usage and no Code References section
 - [ ] Optional sections appear in the order [§4](#4-document-structure) fixes
-- [ ] Any section the document invents sits after the named sections and before References
-- [ ] References, if present, is the last section
+- [ ] Any section the document invents sits after Limitations and before References
+- [ ] References and Code References, when present, close the document in that order
+- [ ] Each Code References entry is on one line, however long, so a file path and its note never split
 - [ ] No empty sections (omit an optional section rather than leaving it empty)
 
 ### Cross-References
 
 - [ ] References use the defined relationship types (`Dependency`, `Alternative`, `Related`, `Extended by`, `Base`)
-- [ ] **meta** documents do NOT link to children, in the References section or inline
-- [ ] **feature** documents link UP to the parent meta, and MAY link to related components
-- [ ] **component** documents link UP to the parent meta, and MAY link to child components
+- [ ] The document links UP to its base with `Base`, unless it is the top of its domain
+- [ ] The document does NOT link to its extensions, in the References section or inline; only a **component** MAY link to the components it contains
 
 ### Content
 
@@ -621,6 +614,7 @@ Before committing a feature document:
 - [ ] The document has one subject — a single reason to change
 - [ ] No behaviour is restated from a sibling or from `docs/code/` (linked instead)
 - [ ] Examples are accurate, and every command shown is one the repository has
+- [ ] Nothing describes how lorecraft is developed: no `just` recipe, CI job, `uv run` or contributor skill
 - [ ] No dependency version, release status, benchmark figure, or migration narrative appears
 - [ ] Terminology matches the Key Concepts section
 

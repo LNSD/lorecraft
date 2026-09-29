@@ -108,8 +108,8 @@ operation it covers. A user-level skill of the same name may exist; the reposito
 | `feat-validate` | Checking that a feature doc's claims exist in code and are covered by tests |
 | `commit` | Writing or amending a commit message |
 
-The three `feat-*` skills are live but have nothing to read yet: `docs/feat/` is empty, so each reports an
-empty corpus rather than an error.
+The three `feat-*` skills read `docs/feat/`, which documents what the toolkit ships, one command or one
+specification dialect per document; find a document through `/feat-discovery` rather than a list kept here.
 
 ## Commands
 

@@ -34,13 +34,9 @@ YAML metadata at the start of a Markdown document, between `---` delimiters. Fie
 
 A document in `docs/__meta__/` that defines the metadata, structure, and content rules for a corpus or document group.
 
-### Prefix specification
+### Namespace specification
 
-An additional specification selected by a document's filename prefix, such as `code-python.md` for `python-*` code rule documents. It adds or narrows corpus requirements.
-
-### Type specification
-
-A feature document structure specification selected by the frontmatter `type`. It defines required sections for that document type.
+An additional specification selected by a document's filename, when a namespace equals the name or is a hyphen-delimited prefix of it: `code-python.md` for `python-*` code rule documents, `feat-cli.md` for `cli-*` feature documents. It adds to the corpus specification and cannot relax it.
 
 ### Components
 
