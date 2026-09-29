@@ -33,6 +33,12 @@ specifications govern. The application itself only routes: each command is its o
 
 ## Architecture
 
+### Invoking the Command
+
+Run `lorecraft` directly when it is on `PATH`. For an on-demand run, use `uv tool run lorecraft` (or its alias
+`uvx lorecraft`). In a Python project that declares Lorecraft as a dependency, `uv run lorecraft` runs the
+command from that project's environment.
+
 ### Finding a Command
 
 `lorecraft --help` lists the commands, and `lorecraft <command> --help` lists a command's options and, for a
