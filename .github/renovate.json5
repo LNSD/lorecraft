@@ -12,10 +12,16 @@
   ],
   configMigration: true,
   rebaseWhen: 'behind-base-branch',
+  // Hold every update until its release is three days old: a compromised release is
+  // usually caught and yanked within that window, before it reaches the lock file.
+  minimumReleaseAge: '3 days',
+  internalChecksFilter: 'strict',
   lockFileMaintenance: {
     enabled: true,
     automerge: true,
-    automergeType: 'branch',
+    // Through a pull request, so the main ruleset's required checks run on the new
+    // lock file before it merges. Renovate holds no bypass on main.
+    automergeType: 'pr',
   },
   enabledManagers: [
     // pyproject.toml and uv.lock
