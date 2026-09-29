@@ -45,7 +45,7 @@ If you are an AI agent working on this repository, follow these rules first:
 When guidance conflicts, use this precedence:
 
 1. A direct instruction from the user in the current session.
-2. Skills in `.agents/skills/` — command workflows, selection rules, and operational details.
+2. Skills in `.agents/skills/` and `skills/` — command workflows, selection rules, and operational details.
 3. `AGENTS.md` — repository-level workflow, policy, and navigation.
 4. Rule and format documents under `docs/` — `docs/__meta__/` governs the form of a document, `docs/code/`
    governs the code.
@@ -56,7 +56,7 @@ Do not duplicate command recipes in project docs: command behaviour lives in the
 ## Dogfooding
 
 **Every check this repository ships is pointed at this repository.** A check lands as three things at once: the
-script, a `just` recipe that runs it over this repo's own `docs/` and `.agents/skills/`, and a CI job running
+script, a `just` recipe that runs it over this repo's own `docs/`, `.agents/skills/` and `skills/`, and a CI job running
 that recipe. **A check that cannot pass this repository does not ship.** When a check reports a finding, fix the
 document or fix the check — never loosen a schema, raise a cap or budget, or narrow a recipe's scope to make it green.
 
@@ -70,8 +70,9 @@ library package, and the skill then calls the command line instead of carrying t
 |---|---|
 | `AGENTS.md` | Project-level agent policy and workflow; this file |
 | `CLAUDE.md` | Single-line pointer to `AGENTS.md` |
-| `.agents/skills/` | Canonical skill definitions, plus the vendored check scripts |
+| `.agents/skills/` | Workspace skills, for agents working on this repository, plus the vendored check scripts |
 | `.claude/skills/` | Compatibility symlink to `.agents/skills/` |
+| `skills/` | Project skills, shipped for agents in repositories that use Lorecraft |
 | `pyproject.toml` | Virtual workspace root: the members, the dev group, `ruff`, `ty` and `pytest` config; each member has its own `pyproject.toml` |
 | `justfile` | Task runner recipes; wraps `uv` |
 | `docs/code/` | Code rules for this repository |
@@ -86,9 +87,19 @@ library package, and the skill then calls the command line instead of carrying t
 
 ## Skill Routing
 
-Skills live in `.agents/skills/`, and `.claude/skills` is a symlink to that directory, so Claude Code and
-Codex-style agents read the same definitions. Prefer a skill over a direct `uv run` or `just` invocation for any
-operation it covers. A user-level skill of the same name may exist; the repository-local one wins.
+Skills live in two places, and the difference is who loads them:
+
+- **`skills/` holds project skills**, shipped to other repositories: the workflow a Lorecraft user follows to
+  write and check their specifications, documents and code rules. A project skill assumes nothing about this
+  repository — no `just` recipe, no workspace skill, no path outside what its `metadata` links in — and calls
+  the installed `lorecraft` command rather than vendoring a script.
+- **`.agents/skills/` holds workspace skills**, for working on this repository. It also links each project
+  skill in by symlink, so this repository's agents run the same skills its users do: that is the dogfooding
+  above, applied to skills. `.claude/skills` is a symlink to `.agents/skills/`, so Claude Code and Codex-style
+  agents read the same definitions.
+
+`/skills-check` holds each kind to its own rules. Prefer a skill over a direct `uv run` or `just` invocation for
+any operation it covers. A user-level skill of the same name may exist; the repository-local skill wins.
 
 | Skill | Route to it when |
 |---|---|
@@ -101,7 +112,8 @@ operation it covers. A user-level skill of the same name may exist; the reposito
 | `code-test` | Running the pytest tiers through `just test-unit`, `just test-it`, `just test-e2e` and `just test` |
 | `code-release` | Tagging a release, building the artifacts from that tag, and verifying what they contain |
 | `docs-rules` | Writing or editing anything under `docs/` — picks the corpus and the specification that governs it |
-| `docs-rules-check` | Checking a document under `docs/` against its spec; runs `lorecraft check header`, `lorecraft check structure` and `lorecraft check budget` |
+| `docs-rules-check` | The review pass over `docs/`: a document against its specs, through `lorecraft check`, and a specification for loading, prose-JSON agreement and resolution |
+| `docs-rules-creator` | Writing or changing a specification in `docs/__meta__/`, for any corpus, or adding a corpus or namespace |
 | `skills-check` | Writing or checking a skill — **also the skill-authoring guide**; read before any `SKILL.md` edit |
 | `feat-discovery` | Answering what a part of the toolkit is or does, from `docs/feat/` |
 | `feat-status` | Reporting the maturity each feature doc declares, and which docs are missing a `status` |
@@ -129,7 +141,7 @@ run it and the rules for its output.
 3. Implement the smallest correct change. Prefer clear, typed, obvious code over clever abstractions.
 4. Format and lint with `just fmt` then `just check`; fix every finding, never a bare `# noqa`.
 5. Run the relevant tests: `just test-unit` always, and the tier the change reaches — `just test-it` for a module seam, `just test-e2e` for packaging or the console script.
-6. Run `just check-docs` and `just check-skills` when the change touches `docs/` or `.agents/skills/`.
+6. Run `just check-docs` and `just check-skills` when the change touches `docs/`, `.agents/skills/` or `skills/`.
 7. Close by stating what was skipped and any residual risk.
 
 A plan is grounded in what the repository actually contains, and that holds equally when the user asks for one:
