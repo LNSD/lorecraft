@@ -17,8 +17,8 @@ the whole reason a format specification exists.
 
 | | |
 |---|---|
-| Before | `feat(skills): add check_skill.py with frontmatter and link validation` |
-| After | `feat(skills): reject a skill the specification would not load` |
+| Before | `chore(skills): add check_skill.py with frontmatter and link validation` |
+| After | `chore(skills): reject a skill the specification would not load` |
 
 The first describes a file and its functions. The second names the class of breakage that can no longer
 reach `main`.

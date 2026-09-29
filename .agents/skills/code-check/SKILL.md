@@ -116,13 +116,6 @@ was suppressed and why, and it silently keeps hiding the next rule that fires on
 - Use `--select` to preview an unenabled rule family before proposing that it be turned on.
 - Run the full pass when you finish a coherent chunk of work, and before committing.
 
-## Pre-approved Commands
-
-Safe to run without asking:
-- `just check` — read-only.
-- `just check-fix` — rewrites only files already in the working set, applying fixes ruff considers safe.
-- `mcp__ide-index__ide_diagnostics` — read-only.
-
 ## Next Steps
 
 After lint is clean:
