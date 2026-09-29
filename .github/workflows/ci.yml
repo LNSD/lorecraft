@@ -20,8 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
-          # hatch-vcs derives the version from `git describe`, and the default shallow
-          # checkout carries no tags, so every job that builds the package needs history.
+          # hatch-vcs derives the version from the tags a shallow clone lacks.
           fetch-depth: 0
 
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
@@ -42,8 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
-          # hatch-vcs derives the version from `git describe`, and the default shallow
-          # checkout carries no tags, so every job that builds the package needs history.
+          # hatch-vcs derives the version from the tags a shallow clone lacks.
           fetch-depth: 0
 
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
@@ -64,8 +62,7 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
-          # hatch-vcs derives the version from `git describe`, and the default shallow
-          # checkout carries no tags, so every job that builds the package needs history.
+          # hatch-vcs derives the version from the tags a shallow clone lacks.
           fetch-depth: 0
 
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
@@ -87,8 +84,7 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
-          # hatch-vcs derives the version from `git describe`, and the default shallow
-          # checkout carries no tags, so every job that builds the package needs history.
+          # hatch-vcs derives the version from the tags a shallow clone lacks.
           fetch-depth: 0
 
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
@@ -104,15 +100,13 @@ jobs:
         run: just test
 
   ## Codegen
-  # Check generated code is up to date
   gen-check:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
-          # hatch-vcs derives the version from `git describe`, and the default shallow
-          # checkout carries no tags, so every job that builds the package needs history.
+          # hatch-vcs derives the version from the tags a shallow clone lacks.
           fetch-depth: 0
 
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
@@ -121,7 +115,6 @@ jobs:
 
       - uses: extractions/setup-just@f8a3cce218d9f83db3a2ecd90e41ac3de6cdfd9b # v3.1.0
 
-      # The generators import the package, so the development environment must be synced.
       - name: Sync the development environment
         run: just sync
 
@@ -143,16 +136,13 @@ jobs:
           fi
 
   ## Documents and skills
-  # This repository is the first corpus its own checks run against: the document
-  # and skill checks below are the gate, not a suggestion in prose.
   docs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
-          # hatch-vcs derives the version from `git describe`, and the default shallow
-          # checkout carries no tags, so every job that builds the package needs history.
+          # hatch-vcs derives the version from the tags a shallow clone lacks.
           fetch-depth: 0
 
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
