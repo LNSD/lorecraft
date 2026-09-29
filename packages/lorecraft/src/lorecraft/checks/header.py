@@ -91,6 +91,7 @@ def validate_header(
                         line=_key_line(frontmatter, field) if field else _FIRST_LINE,
                         rule=rule,
                         message=f'{error.message} (per {aspect.path})',
+                        spec=aspect.path,
                     )
                 )
 

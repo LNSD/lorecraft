@@ -1,4 +1,5 @@
-"""The database over a hand-built snapshot: the model, each frontmatter and each parse tree are computed once.
+"""The database over a hand-built snapshot: the model, each frontmatter, each parse tree and each token count are
+computed once.
 
 Every snapshot here is built in memory with ``Snapshot.of_files``, so no case reads the disk: the database is
 what wires the virtual view, the model loader and the parser together.
@@ -12,7 +13,7 @@ from lorecraft.checks import Database
 from lorecraft_project.aspect import AspectFilename
 from lorecraft_project.corpus import CorpusName
 from lorecraft_project.document import DocumentDecodeError, DocumentRef
-from lorecraft_project.syntax import Frontmatter
+from lorecraft_project.syntax import Frontmatter, count_tokens
 from lorecraft_vfs import RootRelativePath, Snapshot
 
 GUIDE: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('guide'))
@@ -114,6 +115,30 @@ class TestDatabase:
         #: When
         with pytest.raises(DocumentDecodeError) as exc_info:
             database.parse(GUIDE)
+
+        #: Then
+        assert exc_info.value.ref == GUIDE, 'the error names the document that could not be decoded'
+
+    def test_tokens_of_a_listed_document_counts_its_whole_file(self) -> None:
+        #: Given
+        # no prose words at all, but an agent loading the file still pays for every character of it
+        guide = '---\nname: "guide"\n---\n```python\nx = 1\n```\n'
+        database = Database(_snapshot(guide.encode()))
+        expected = count_tokens(guide)
+
+        #: When
+        tokens = database.tokens(GUIDE)
+
+        #: Then
+        assert tokens == expected, f'frontmatter and code count too, got {tokens}'
+
+    def test_tokens_of_a_document_that_is_not_utf8_raises_document_decode_error(self) -> None:
+        #: Given
+        database = Database(_snapshot(b'---\nname: "gu\xffide"\n---\n'))
+
+        #: When
+        with pytest.raises(DocumentDecodeError) as exc_info:
+            database.tokens(GUIDE)
 
         #: Then
         assert exc_info.value.ref == GUIDE, 'the error names the document that could not be decoded'

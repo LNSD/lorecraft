@@ -2,16 +2,19 @@
 
 A run asks the database for everything it reads: the model decides which aspects govern each document, and
 the part of the document the check reads is what the pure check validates — the frontmatter for the header
-check, the parse tree's headings for the structure check. Selecting which documents to check is the caller's
-business: a run checks the refs it is handed, in the order given, and parses only the governed ones. Every check reports
-in the same shape, so the ``check`` commands print every run the same way.
+check, the parse tree's headings for the structure check, the whole file's token count for the budget check.
+Selecting which documents to check is the caller's business: a run checks the refs it is handed, in the order
+given, and reads only the governed ones. Every check reports in the same shape, so the ``check`` commands print
+every run the same way.
 """
 
 from dataclasses import dataclass
 
 from lorecraft_project.document import DocumentDecodeError, DocumentRef
+from lorecraft_project.schemas import StructureAspect
 from lorecraft_project.syntax import FrontmatterNode, LineNumber, ParsedDocument
 
+from .budget import validate_budget
 from .database import Database
 from .header import validate_header
 from .reporting import Finding, Violation
@@ -125,6 +128,52 @@ def run_structure(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun
     return CheckRun(reports=tuple(reports))
 
 
+def run_budget(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
+    """Check each ref's whole-file token count against the budgets that govern it, in the order given.
+
+    A document is governed when at least one of its structure specifications sets a ``tokens`` budget; one whose
+    specifications set none is ungoverned, and its text is never read. A governed document that is not UTF-8
+    carries the single violation ``budget.undecodable`` at line 1.
+
+    Args:
+        database: The snapshot state the refs come from; its model decides which specifications govern each
+            document.
+        refs: The documents to check; each must be one the database's model lists.
+
+    Raises:
+        GetDocumentError: If a governed document is missing from the snapshot; a decode failure is a finding.
+        ListSpecsError: If the model is not loaded yet and the specification directory cannot be listed.
+        ListCorpusDirectoriesError: If the model is not loaded yet and docs/ cannot be listed.
+        ListDocumentsError: If the model is not loaded yet and a corpus directory cannot be listed.
+        GetHeaderSchemaError: If the model is not loaded yet and a header schema cannot be read or decoded.
+        InvalidHeaderSchemaError: If the model is not loaded yet and a header schema is malformed.
+        GetStructureSchemaError: If the model is not loaded yet and a structure specification cannot be read.
+        InvalidStructureSchemaError: If the model is not loaded yet and a structure specification is malformed.
+    """
+    reports: list[DocumentReport] = []
+    for ref in refs:
+        aspects = _budgeted(database.model().governance(ref).structure_specs())
+        if not aspects:
+            reports.append(DocumentReport(ref, governed=False, violations=()))
+            continue
+        token_count = _tokens(database, ref)
+        if token_count is None:
+            reports.append(DocumentReport(ref, governed=True, violations=(_undecodable('budget'),)))
+            continue
+        result = validate_budget(aspects, token_count=token_count)
+        reports.append(DocumentReport(ref, governed=True, violations=result.violations))
+    return CheckRun(reports=tuple(reports))
+
+
+def _budgeted(aspects: tuple[StructureAspect, ...]) -> tuple[StructureAspect, ...]:
+    """The structure aspects that set a ``tokens`` budget, in the order given."""
+    budgeted: list[StructureAspect] = []
+    for aspect in aspects:
+        if aspect.tokens is not None:
+            budgeted.append(aspect)
+    return tuple(budgeted)
+
+
 def _frontmatter(database: Database, ref: DocumentRef) -> FrontmatterNode | None:
     """The document's frontmatter node, or ``None`` when its bytes are not UTF-8.
 
@@ -153,6 +202,21 @@ def _parse(database: Database, ref: DocumentRef) -> ParsedDocument | None:
     """
     try:
         return database.parse(ref)
+    except DocumentDecodeError:
+        return None
+
+
+def _tokens(database: Database, ref: DocumentRef) -> int | None:
+    """The tokens in the document's whole file, or ``None`` when its bytes are not UTF-8.
+
+    Returns:
+        The token count. ``None`` is the degraded return ``_parse`` documents, for the same reason.
+
+    Raises:
+        GetDocumentError: If the document is missing from the snapshot; a decode failure is not raised.
+    """
+    try:
+        return database.tokens(ref)
     except DocumentDecodeError:
         return None
 

@@ -95,8 +95,9 @@ class StructureFile(_StructureFileModel):
         json_schema_extra={
             'examples': [
                 {
-                    'description': 'Section structure and word caps for a rule document in docs/code/.',
+                    'description': 'Section structure, word caps and token budget for a rule document in docs/code/.',
                     'title': {'count': 1, 'first': True},
+                    'tokens': 5000,
                     'empty_sections': 'forbidden',
                     'outline': _code_outline_example(),
                 }
@@ -108,11 +109,15 @@ class StructureFile(_StructureFileModel):
     schema_reference: str | None = Field(default=None, alias='$schema')
     """The JSON Schema this file is written against, for editors; ignored by the check."""
     description: str = Field(
-        default='', examples=['Section structure and word caps for a rule document in docs/code/.']
+        default='', examples=['Section structure, word caps and token budget for a rule document in docs/code/.']
     )
     """What this file governs and why, for whoever opens it; not read by the check."""
     title: StructureFileTitle | None = None
     """How many H1 titles a document carries, and whether one opens it; no title rule when absent."""
+    tokens: int | None = Field(default=None, ge=1, examples=[5000])
+    """The token budget: the most tokens the whole file may cost an agent that loads it, frontmatter, code and
+    tables included; no budget when absent. Counted with OpenAI's `o200k_base` encoding, the same whichever agent
+    reads the document."""
     empty_sections: Literal['forbidden'] | None = None
     """`forbidden` reports every section left without content: one that ends the document, or is followed straight
     away by a heading of its own level or higher. Empty sections are allowed when absent."""

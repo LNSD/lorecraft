@@ -142,11 +142,15 @@ This format specification ensures:
 
 Keep rule documents focused and concise. Agent entrypoint docs should NOT hardcode rule lists - use dynamic discovery instead.
 
-[code.structure.json](code.structure.json) makes "focused and concise" decidable with word caps, and
-`lorecraft check structure` enforces them. One caps an optional `Rule` section, one every other section of the
-document's own, and one the `Checklist`. A word is a whitespace-delimited token of prose; fenced code and table
-rows are not counted, so an example costs no words. A section's cap covers its H3 subsections. A section over its
-cap is split or moved, not compressed.
+[code.structure.json](code.structure.json) makes "focused and concise" decidable with two measures:
+
+- **Word caps keep each section concise**, enforced by `lorecraft check structure`. One caps an optional `Rule` section, one every other section of the
+  document's own, and one the `Checklist`. A word is a whitespace-delimited token of prose; fenced code and table
+  rows are not counted, so an example costs no words. A section's cap covers its H3 subsections. A section over
+  its cap is split or moved, not compressed.
+- **A token budget keeps the document cheap to load**, enforced by `lorecraft check budget`. It covers the whole file, frontmatter, code and tables
+  included, since an agent pays for every character it reads, and counts OpenAI's `o200k_base` tokens, the same
+  whichever agent reads the document. A document over it is split, or its examples trimmed.
 
 ---
 
@@ -396,7 +400,8 @@ Rule documents may reference other rule documents to establish relationships. Cr
 ### Required Sections
 
 [code.structure.json](code.structure.json) beside this file holds the outline below in machine-checkable
-form, together with the word caps of [§1](#1-core-principles), and `lorecraft check structure` applies both. A
+form, together with the word caps and token budget of [§1](#1-core-principles). `lorecraft check structure`
+applies the outline and the caps, and `lorecraft check budget` the budget. A
 `principle-*`, `pattern-*`, or `python-*` document takes its section outline from the narrowest
 `code-<namespace>.md` specification that matches its name instead of the general shape below; the general
 shape governs every document no namespace specification matches, `test-*` and `logging` today

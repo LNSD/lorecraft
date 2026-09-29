@@ -47,8 +47,10 @@ docs/__meta__/<stem>.<aspect>.json   the rules for one aspect, in machine-checka
 lorecraft check <aspect>             the check that applies them
 ```
 
-A specification's section word caps are not an aspect of their own: they are part of its structure aspect, in
-`<stem>.structure.json`, and `lorecraft check structure` enforces them with the section outline.
+A specification's section word caps and its token budget are not an aspect of their own: they are part of its
+structure aspect, in `<stem>.structure.json`. `lorecraft check structure` enforces the caps with the section
+outline, and `lorecraft check budget` the structure aspect's global `tokens` key, since it reads the raw file
+rather than its parse.
 
 **The aspect name is the whole binding.** The stem says which documents a file governs, the aspect says which
 check reads it, and a check needs no list of the files it applies to — it derives them from the document's own

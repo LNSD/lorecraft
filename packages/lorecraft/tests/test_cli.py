@@ -26,14 +26,19 @@ runner = CliRunner()
 # A well-formed Draft 2020-12 schema that accepts any frontmatter; the cases below turn on the tree, not the schema.
 ACCEPT_ANY_HEADER_SCHEMA: Final[str] = '{"type": "object"}'
 
-# A structure specification requiring a Checklist after the document's own sections.
+# A structure specification requiring a Checklist after the document's own sections, with a token budget every
+# document below fits.
 CHECKLIST_STRUCTURE_SPEC: Final[str] = dedent(
     """
     {
+      "tokens": 1000,
       "outline": [{"any": true}, {"section": "Checklist"}]
     }
     """
 )
+
+# A structure specification whose token budget a two-section document exceeds.
+TIGHT_BUDGET_STRUCTURE_SPEC: Final[str] = '{"tokens": 5}'
 
 
 @pytest.fixture(scope='function')
@@ -363,6 +368,7 @@ class TestCheckHeaderCommand:
                 'line': 1,
                 'rule': 'frontmatter.missing',
                 'message': 'no `---` delimited frontmatter block',
+                'spec': None,
             }
         ], f'a finding serialises as the root-relative path and the line number, got {result.stdout!r}'
 
@@ -466,8 +472,77 @@ class TestCheckStructureCommand:
                 'line': 5,
                 'rule': 'structure.outline',
                 'message': 'unexpected section `Appendix`; the outline ends before it (per code.md)',
+                'spec': 'docs/__meta__/code.structure.json',
             }
         ], f'a finding serialises as the root-relative path and the line number, got {result.stdout!r}'
+
+
+@pytest.mark.it
+class TestCheckBudgetCommand:
+    def test_check_budget_with_a_clean_corpus_exits_zero_and_counts_the_documents(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_STRUCTURE_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '## Rule\n\ntext\n\n## Checklist\n\n- [ ] item\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'budget', '--root', str(tmp_path)])
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stdout == '', 'a clean run prints no finding lines'
+        assert result.stderr == 'checked 1 file(s), 0 finding(s)\n', 'the summary goes to stderr'
+
+    def test_check_budget_with_a_file_over_its_budget_exits_one_and_prints_the_finding(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', TIGHT_BUDGET_STRUCTURE_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '## Rule\n\ntext\n\n## Checklist\n\n- [ ] item\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'budget', '--root', str(tmp_path)])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert result.stdout == (
+            'docs/code/guide.md:1: [budget.tokens] 13 tokens; the budget is 5 (per code.structure.json)\n'
+        ), 'the finding prints root-relative, quoting the prose the specification checks'
+
+    def test_check_budget_with_a_finding_and_json_format_names_the_spec_from_the_root(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', TIGHT_BUDGET_STRUCTURE_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '## Rule\n\ntext\n\n## Checklist\n\n- [ ] item\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'budget', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout)['findings'] == [
+            {
+                'file': 'docs/code/guide.md',
+                'line': 1,
+                'rule': 'budget.tokens',
+                'message': '13 tokens; the budget is 5 (per code.structure.json)',
+                'spec': 'docs/__meta__/code.structure.json',
+            }
+        ], f'the spec that sets the budget serialises root-relative, apart from the message, got {result.stdout!r}'
+
+    def test_check_budget_with_a_structure_spec_without_tokens_reports_it_ungoverned(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', '{"empty_sections": "forbidden"}')
+        _write(tmp_path, 'docs/code/guide.md', '## Rule\n\ntext\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'budget', '--root', str(tmp_path)])
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stdout == (
+            'docs/code/guide.md:1: [code.ungoverned] no token budget for this corpus; tokens unvalidated\n'
+        ), 'a structure spec that sets no `tokens` leaves the document unvalidated, not failed'
 
 
 @pytest.mark.it
@@ -485,7 +560,7 @@ class TestCheckAllCommand:
         #: Then
         assert result.exit_code == 0, result.output
         assert result.stdout == '', 'a clean run prints no finding lines'
-        assert result.stderr == 'checked 1 file(s) with 2 check(s), 0 finding(s)\n', (
+        assert result.stderr == 'checked 1 file(s) with 3 check(s), 0 finding(s)\n', (
             'one summary line covers every check the run made'
         )
 
@@ -519,6 +594,7 @@ class TestCheckAllCommand:
         assert result.exit_code == 0, result.output
         assert json.loads(result.stdout) == {
             'checks': {
+                'budget': {'checked': 1, 'findings': [], 'ungoverned': ['docs/code/guide.md']},
                 'header': {'checked': 1, 'findings': [], 'ungoverned': []},
                 'structure': {'checked': 1, 'findings': [], 'ungoverned': ['docs/code/guide.md']},
             },

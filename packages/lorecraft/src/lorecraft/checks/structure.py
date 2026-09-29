@@ -58,7 +58,7 @@ def validate_structure(aspects: tuple[StructureAspect, ...], *, headings: tuple[
         ]
         for violation in aspect_violations:
             message = f'{violation.message} (per {aspect.authority})'
-            violations.append(Violation(line=violation.line, rule=violation.rule, message=message))
+            violations.append(Violation(line=violation.line, rule=violation.rule, message=message, spec=aspect.path))
     violations.sort(key=lambda violation: (violation.line.value, violation.rule))
     return StructureCheckResult(violations=tuple(violations))
 
