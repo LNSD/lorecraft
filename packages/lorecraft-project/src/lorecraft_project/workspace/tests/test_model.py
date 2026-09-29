@@ -39,7 +39,6 @@ def _spec(stem: str, header: bool = True, structure: bool = False) -> Spec:
     if structure:
         structure_aspect = StructureAspect(
             path=SPECS_DIR / f'{stem}.structure.json',
-            authority=f'{stem}.md',
             title=None,
             forbid_empty_sections=True,
             outline=(),

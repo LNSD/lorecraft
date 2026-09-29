@@ -33,7 +33,6 @@ VALID_HEADER_SCHEMA: Final[str] = '{"type": "object"}'
 VALID_STRUCTURE_SPEC: Final[str] = dedent(
     """
     {
-      "spec": "code.md",
       "empty_sections": "forbidden"
     }
     """
@@ -480,7 +479,7 @@ class TestLoadWorkspaceEdgeCases:
         # the corpus directory exists and is empty: validation happens before any document matters
         _write_tree(tmp_path, prose=('code',), schemas=(), documents=())
         (tmp_path / 'docs' / 'code').mkdir()
-        _write(tmp_path, 'docs/__meta__/code.structure.json', '{"spec": "code.md"}')
+        _write(tmp_path, 'docs/__meta__/code.structure.json', '{}')
 
         #: When
         with pytest.raises(InvalidStructureSchemaError) as exc_info:

@@ -1,5 +1,4 @@
 {
-  "spec": "code-python.md Footer",
   "description": "The python layer, applied as well as the corpus one: References is required.",
   "outline": [
     { "any": true },

@@ -18,7 +18,6 @@ from lorecraft_vfs import RootRelativePath, take_snapshot
 CODE_STRUCTURE_SPEC: Final[str] = dedent(
     """
     {
-      "spec": "code.md §5",
       "title": {"count": 1, "first": true},
       "empty_sections": "forbidden",
       "outline": [
@@ -34,7 +33,6 @@ CODE_STRUCTURE_SPEC: Final[str] = dedent(
 PYTHON_STRUCTURE_SPEC: Final[str] = dedent(
     """
     {
-      "spec": "code-python.md",
       "outline": [{"any": true}, {"section": "References"}, {"any": true}]
     }
     """
@@ -93,7 +91,7 @@ class TestRunStructure:
                 'structure.outline',
                 'missing required section `References` (per code-python.md)',
             ),
-            ('docs/code/unchecked.md', 'structure.outline', 'missing required section `Checklist` (per code.md §5)'),
+            ('docs/code/unchecked.md', 'structure.outline', 'missing required section `Checklist` (per code.md)'),
         ], 'each broken document yields exactly the finding its defect names, quoting the layer that states it'
 
     def test_run_structure_over_a_snapshot_reports_a_corpus_without_a_structure_spec_as_ungoverned(
