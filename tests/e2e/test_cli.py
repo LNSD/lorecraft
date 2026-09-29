@@ -13,7 +13,7 @@ from typing import Final
 import pytest
 from syrupy.assertion import SnapshotAssertion
 
-from lib.cli import run_cli
+from lib.cli import run_alias, run_cli
 from lib.snapshot import JsonTextSnapshotExtension, TextSnapshotExtension
 from lorecraft import __version__
 
@@ -56,6 +56,17 @@ class TestInstalledCommandLine:
         #: Then
         assert result.returncode != 0, 'a bare invocation is a usage error, not a success'
         assert 'Usage:' in result.stdout, 'no_args_is_help prints the help rather than nothing'
+
+    def test_lc_alias_runs_the_same_command_line(self) -> None:
+        #: Given
+        expected = run_cli('--version')
+
+        #: When
+        result = run_alias('--version')
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert result.stdout == expected.stdout, '`lc` is the same entry point as `lorecraft`'
 
 
 @pytest.mark.e2e
