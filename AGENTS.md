@@ -110,7 +110,7 @@ any operation it covers. A user-level skill of the same name may exist; the repo
 | `code-check` | Linting Python with `ruff check`, through `just check`, auto-fixing the mechanical findings first |
 | `code-gen` | Regenerating the committed generated files, such as `docs/schemas/`, through `just gen` |
 | `code-test` | Running the pytest tiers through `just test-unit`, `just test-it`, `just test-e2e` and `just test` |
-| `code-release` | Tagging a release, building the artifacts from that tag, and verifying what they contain |
+| `release` | Tagging a release, building the artifacts from that tag, and verifying what they contain |
 | `docs-rules` | Writing or editing anything under `docs/` — picks the corpus and the specification that governs it |
 | `docs-rules-check` | The review pass over `docs/`: a document against its specs, through `lorecraft check`, and a specification for loading, prose-JSON agreement and resolution |
 | `docs-rules-creator` | Writing or changing a specification in `docs/__meta__/`, for any corpus, or adding a corpus or namespace |
@@ -247,7 +247,7 @@ cannot be relaxed:
 - Keep docs and code in sync in the same change.
 - **No file holds a version.** `hatch-vcs` derives it from the git tag at build time, and the command line
   alone reads it back with `importlib.metadata`;
-  the `code-release` skill owns the release flow. Adding a version literal anywhere is a defect, not a
+  the `release` skill owns the release flow. Adding a version literal anywhere is a defect, not a
   convenience.
 - Do not add a dependency without a stated reason; this is a small toolkit, and the standard library is
   preferred until it is genuinely insufficient.
