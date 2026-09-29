@@ -16,7 +16,7 @@ scope: "global"
 3. [Naming Schema](#3-naming-schema)
 4. [Document Structure](#4-document-structure)
 5. [Content Guidelines](#5-content-guidelines)
-6. [Prose Budget](#6-prose-budget)
+6. [Word Caps](#6-word-caps)
 7. [Template](#7-template)
 8. [Checklist](#8-checklist)
 
@@ -64,7 +64,7 @@ refactor.
 ### One Document, One Subject
 
 **A feature document has exactly one reason to change.** Split by subject, not by size: a document that
-covers both the outline dialect and the budget dialect is rewritten whenever either changes, and neither
+covers both the header dialect and the structure dialect is rewritten whenever either changes, and neither
 change can be reviewed on its own.
 
 Decide a document's home by asking what would force it to be rewritten:
@@ -92,19 +92,18 @@ A feature document describes behaviour that **exists in this repository**, not b
 
 Nothing registers a feature document with a specification: the document's own path resolves them.
 
-A document at `docs/feat/<name>.md` is governed by four files in `docs/__meta__/`:
+A document at `docs/feat/<name>.md` is governed by three files in `docs/__meta__/`:
 
 | File                  | Governs                                    | Read by                                    |
 |-----------------------|--------------------------------------------|--------------------------------------------|
 | `feat.md`             | Everything. This document is the authority | A person, and an agent before it writes    |
 | `feat.header.json`    | Frontmatter fields, vocabularies, patterns | `lorecraft check header`                  |
-| `feat.structure.json` | The section outline and its order          | `lorecraft check structure`                |
-| `feat.budget.json`    | Prose length, per document and per section | `check_budget.py`                          |
+| `feat.structure.json` | The section outline, its order, the caps   | `lorecraft check structure`                |
 
-A **namespace layer** narrows that base: `feat-<namespace>.header.json`, `feat-<namespace>.structure.json` or
-`feat-<namespace>.budget.json`, applied when the namespace equals the document's name or is a
-hyphen-delimited prefix of it. A layer is additive: it states only what it adds, cannot release a document
-from what the base already said, and several apply broad to narrow. A namespace may span several segments:
+A **namespace layer** narrows that base: `feat-<namespace>.header.json` or `feat-<namespace>.structure.json`,
+applied when the namespace equals the document's name or is a hyphen-delimited prefix of it. A layer is
+additive: it states only what it adds, cannot release a document from what the base already said, and several
+apply broad to narrow, so a layer's caps can only tighten the base's. A namespace may span several segments:
 `feat-cli-check` would govern `cli-check.md` and `cli-check-*.md`. The `cli` namespace narrows CLI feature
 names and content in [feat-cli.md](feat-cli.md); add another namespace layer when a naming group genuinely
 shares rules the rest of the corpus does not.
@@ -113,7 +112,7 @@ The per-type section rules in [§4](#4-document-structure) have no machine-check
 file is selected by the document's path, never by its `type`, and `feat.structure.json` asks no questions
 about the document it is applied to. They are checked by review against the [checklist](#8-checklist).
 
-The three checks run together as `just check-docs`. Read the relationship in either direction from the shell:
+Both checks run together as `just check-docs`. Read the relationship in either direction from the shell:
 
 ```bash
 ls docs/feat/*.md       # from a specification, the documents it governs
@@ -132,7 +131,7 @@ documents to load based on the question in front of them, rather than reading th
 
 Keep feature documents focused and concise. Agent entrypoint documents should NOT hardcode feature lists -
 use dynamic discovery instead. A word written here is paid for on every task that touches the subject, which
-is what [§6](#6-prose-budget) puts a number on.
+is what [§6](#6-word-caps) puts a number on.
 
 ---
 
@@ -468,31 +467,19 @@ Direction is a judgment the checker does not make. It is on the author, and on r
 
 ---
 
-## 6. Prose Budget
+## 6. Word Caps
 
 A feature document is loaded into an agent's context on demand, so every word in it is paid for on every task
-that touches its subject. The caps in [feat.budget.json](feat.budget.json) put a number on that, and
-`just check-docs` reports what is over.
+that touches its subject. The word caps in [feat.structure.json](feat.structure.json) put a number on that, and
+`lorecraft check structure`, run by `just check-docs`, reports what is over. A namespace layer can only tighten
+them.
 
-| Scope                                    | Words |
-|------------------------------------------|------:|
-| The whole document, frontmatter excluded |  1200 |
-| Summary                                  |    80 |
-| Key Concepts                             |   200 |
-| Architecture                             |   400 |
-| Usage                                    |   400 |
-| Implementation                           |   150 |
-| Limitations                              |   200 |
-| Any other section                        |   300 |
+A word is whitespace-delimited text outside fenced code blocks and outside table rows. Code and tables cost no
+words: they are the examples and the reference material a feature document exists to hold, and charging for
+them would push an author toward prose where a table is clearer. Table of Contents and References carry no cap
+— both are lists of links whose length is a function of the document, not a choice.
 
-**A word is whitespace-delimited text outside fenced code blocks and outside table rows.** Code and tables
-are free: they are the examples and the reference material a feature document exists to hold, and charging
-for them would push an author toward prose where a table is clearer.
-
-Table of Contents and References carry no section cap — both are lists of links whose length is a function of
-the document, not a choice — but their words still count toward the document total.
-
-A section over budget is a signal about structure, not an invitation to compress. Split the subject into two
+A section over its cap is a signal about structure, not an invitation to compress. Split the subject into two
 documents ([§1](#1-core-principles)), move the detail into the module it describes, or replace a paragraph
 with the table it was describing.
 
@@ -635,7 +622,7 @@ Before committing a feature document:
 
 ### Budget
 
-- [ ] The document is within the totals in [§6](#6-prose-budget)
+- [ ] Every section is within its word cap in [§6](#6-word-caps)
 - [ ] A section that ran over was split or moved, not compressed into unreadable prose
 
 ### Discovery

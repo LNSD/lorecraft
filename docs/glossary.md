@@ -54,11 +54,11 @@ A feature document's maturity label: `development`, `unstable`, `experimental`, 
 
 ### Machine-checkable companion
 
-A JSON file beside a format specification that represents one aspect of its rules for a checker: frontmatter (`.header.json`), section structure (`.structure.json`), or prose length (`.budget.json`).
+A JSON file beside a format specification that represents one aspect of its rules for a checker: frontmatter (`.header.json`), or section structure with its word caps (`.structure.json`).
 
 ### Check
 
-A script that validates one aspect of documentation against a machine-checkable companion. Document checks cover frontmatter, structure, and prose budget.
+A `lorecraft check` subcommand that validates one aspect of documentation against a machine-checkable companion. Document checks cover frontmatter, and structure with its word caps.
 
 ### Violation
 
@@ -68,9 +68,9 @@ One rule a document breaks, as a check reports it: a line, a rule identifier, an
 
 A [violation](#violation) located in its document: the violation plus the document's root-relative path. Findings are what `lorecraft check` prints, counts, and serialises, so each one stands on its own once findings from many documents are listed together.
 
-### Prose budget
+### Word cap
 
-The maximum prose length allowed for a document or one of its sections, as defined by a budget specification.
+The maximum prose words one section of a document may hold, its subsections included, as set by a `words` key on an outline entry of a structure specification and checked by `lorecraft check structure`. It keeps the section concise; code and tables are not counted.
 
 ## Toolkit internals
 

@@ -1,4 +1,5 @@
-"""Parsing a document's text into its parse tree: where the frontmatter block is found, and which headings count.
+"""Parsing a document's text into its parse tree: where the frontmatter block is found, which headings count, and how
+many prose words each section holds.
 
 ``parse_document`` and ``parse_frontmatter`` are pure, so every case here is a text literal. The Markdown parser
 behind them decides what counts as a block; these pin the rules the checks report against.
@@ -130,9 +131,9 @@ class TestParseDocumentHeadings:
 
         #: Then
         assert document.headings == (
-            Heading(level=1, text='Guide', line=LineNumber(4), empty=False),
-            Heading(level=2, text='Checklist', line=LineNumber(8), empty=False),
-        ), 'each heading carries its level, its text and the document line it starts on'
+            Heading(level=1, text='Guide', line=LineNumber(4), empty=False, words=5),
+            Heading(level=2, text='Checklist', line=LineNumber(8), empty=False, words=4),
+        ), 'each heading carries its level, its text, the document line it starts on and its prose words'
 
     def test_parse_document_with_inline_markup_in_a_heading_returns_its_plain_text(self) -> None:
         #: Given
@@ -225,3 +226,90 @@ class TestParseDocumentHeadings:
         assert [heading.line for heading in document.headings] == [LineNumber(1), LineNumber(3)], (
             'a CRLF line ending counts as one line break'
         )
+
+
+@pytest.mark.unit
+class TestParseDocumentWords:
+    def test_parse_document_with_a_subsection_counts_its_prose_in_the_parent_section(self) -> None:
+        #: Given
+        text = '## Parent\n\none two\n\n### Child\n\nthree four five\n\n## Next\n\nsix\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert [heading.words for heading in document.headings] == [5, 3, 1], (
+            'a section runs to the next heading of its level, so its subsections count, but no heading text does'
+        )
+
+    def test_parse_document_with_an_empty_section_counts_no_words_for_it(self) -> None:
+        #: Given
+        text = '## Empty\n## Full\n\none two\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert [heading.words for heading in document.headings] == [0, 2], 'a section holding nothing has no words'
+
+    def test_parse_document_with_a_fenced_code_block_leaves_its_lines_out(self) -> None:
+        #: Given
+        text = '## Example\n\none two\n\n```python\nvalue = compute(a, b)\n```\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.headings[0].words == 2, 'a fenced code block is not prose'
+
+    def test_parse_document_with_an_indented_code_block_leaves_its_lines_out(self) -> None:
+        #: Given
+        text = '## Example\n\none two\n\n    value = compute(a, b)\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.headings[0].words == 2, 'an indented code block is not prose'
+
+    def test_parse_document_with_a_code_block_in_a_list_item_leaves_its_lines_out(self) -> None:
+        #: Given
+        text = '## Steps\n\n- run it:\n\n  ```bash\n  just check --statistics\n  ```\n\n  then read\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.headings[0].words == 5, (
+            'a code block nested in a list item is not prose, and the item text around it is'
+        )
+
+    def test_parse_document_with_a_table_leaves_its_rows_out(self) -> None:
+        #: Given
+        text = '## Gates\n\none two\n\n| Gate | Recipe |\n|---|---|\n| Lint | just check |\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.headings[0].words == 2, 'a table row is a reference, not prose'
+
+    def test_parse_document_with_text_before_the_first_heading_leaves_it_out_of_the_section(self) -> None:
+        #: Given
+        text = 'one two three\n\n## Section\n\nfour\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.headings[0].words == 1, 'text before the first heading belongs to no section'
+
+    def test_parse_document_with_frontmatter_leaves_it_out_of_the_title_section(self) -> None:
+        #: Given
+        text = '---\nname: guide\ndescription: many words in the frontmatter\n---\n# Guide\n\none two\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.headings[0].words == 2, 'the frontmatter and the heading text are not section prose'

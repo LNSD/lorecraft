@@ -17,8 +17,8 @@ structure specification is not JSON Schema. It is this small dialect, whose fiel
       "empty_sections": "forbidden",
       "outline": [
         {"section": "Table of Contents", "optional": true},
-        {"any": true},
-        {"section": "Checklist"}
+        {"any": true, "words": 350},
+        {"section": "Checklist", "words": 250}
       ],
       "forbidden": ["Changelog"]
     }
@@ -33,7 +33,10 @@ finding quotes it.
 - ``title`` states how many H1 titles a document carries, and whether one opens it ahead of every section.
 - ``empty_sections``, whose one value is ``"forbidden"``, reports a section left without content.
 - ``outline`` is the order of the document's sections. A ``section`` entry names one and is required unless
-  ``optional``; an ``any`` entry matches a run of sections the outline does not name.
+  ``optional``; an ``any`` entry matches a run of sections the outline does not name. An entry's ``words`` caps
+  the prose words of each section it matches, H3 subsections included: on an ``any`` entry that is every section
+  in the run alone, not the run's total. An entry without ``words`` caps nothing. A word is a whitespace-delimited
+  token of prose; fenced code and table rows are not counted.
 - ``forbidden`` names sections that must not appear at all.
 
 Nothing here logs: the command that loads the model catches every ``Error`` that escapes it and reports it.
@@ -89,11 +92,16 @@ class SectionEntry:
 
     Attributes:
         name: The section's heading text.
-        optional: True when a document may leave the section out.
+        optional: True when a document may leave the section out; False, the default, when it must carry it.
+        words: The most prose words the section may hold, its H3 subsections included, or None, the default, for
+            no cap; at least 1, which ``StructureAspect`` checks.
     """
 
     name: str
-    optional: bool
+    optional: bool = False
+    # Checked by the enclosing `StructureAspect` rather than here, so a bad cap is refused as an
+    # `InvalidStructureSchemaError` naming the specification file, which this record does not know.
+    words: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,7 +109,16 @@ class AnySections:
     """An outline entry matching a run, of any length, of sections the outline does not name.
 
     The run stops at any section the outline names, which pins that name to its own entry wherever it turns up.
+
+    Attributes:
+        words: The most prose words each section in the run may hold, its H3 subsections included, or None, the
+            default, for no cap. It caps every section alone, not the run's total; at least 1, which
+            ``StructureAspect`` checks.
     """
+
+    # Checked by the enclosing `StructureAspect` rather than here, so a bad cap is refused as an
+    # `InvalidStructureSchemaError` naming the specification file, which this record does not know.
+    words: int | None = None
 
 
 type OutlineEntry = SectionEntry | AnySections
@@ -135,13 +152,13 @@ class StructureAspect:
     authority: str = field(init=False)
 
     def __post_init__(self) -> None:
-        """Derive the authority from the path, then refuse rules that check nothing, that no title count satisfies,
+        """Derive the authority from the path, then refuse rules that check nothing, that no count or cap satisfies,
         or that contradict themselves.
 
         Raises:
             InvalidStructureSchemaError: If the path is not a specification filename, the aspect states no rule,
-                its title count is below 1, its outline names a section twice or places two ``any`` runs side by
-                side, or it forbids a section its own outline names.
+                its title count or any word cap is below 1, its outline names a section twice or places two ``any``
+                runs side by side, or it forbids a section its own outline names.
         """
         try:
             spec_file = parse_spec_file(self.path)
@@ -155,6 +172,11 @@ class StructureAspect:
             raise InvalidStructureSchemaError(self.path, 'states no rule, so it would check nothing')
         if self.title is not None and self.title.count < 1:
             raise InvalidStructureSchemaError(self.path, f'title count must be at least 1, got {self.title.count}')
+        for entry in self.outline:
+            if entry.words is not None and entry.words < 1:
+                raise InvalidStructureSchemaError(
+                    self.path, f'outline word cap must be at least 1, got {entry.words} on {_describe_entry(entry)}'
+                )
 
         named = self.section_names()
         repeated = sorted({name for name in named if named.count(name) > 1})
@@ -199,9 +221,9 @@ class StructureAspect:
         outline: list[OutlineEntry] = []
         for entry in file.outline:
             if isinstance(entry, StructureFileAny):
-                outline.append(AnySections())
+                outline.append(AnySections(words=entry.words))
             else:
-                outline.append(SectionEntry(name=entry.section, optional=entry.optional))
+                outline.append(SectionEntry(name=entry.section, optional=entry.optional, words=entry.words))
 
         return cls(
             path=path,
@@ -217,6 +239,13 @@ def _title_rule(title: StructureFileTitle | None) -> TitleRule | None:
     if title is None:
         return None
     return TitleRule(count=title.count, first=title.first)
+
+
+def _describe_entry(entry: OutlineEntry) -> str:
+    """How an outline entry is named in a rejection: its section name, or ``any`` for a run."""
+    if isinstance(entry, SectionEntry):
+        return f'section {entry.name!r}'
+    return 'an `any` run'
 
 
 def _describe(error: ValidationError) -> str:

@@ -22,10 +22,11 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 def _code_outline_example() -> list[JsonValue]:
     """The outline of a rule document in docs/code/, as an example: its own sections, then the Checklist and the
-    two references. A fresh list for each example that shows it."""
+    two references, with a word cap on each of its own sections and on the Checklist. A fresh list for each example
+    that shows it."""
     return [
-        {'any': True},
-        {'section': 'Checklist'},
+        {'any': True, 'words': 350},
+        {'section': 'Checklist', 'words': 250},
         {'section': 'References', 'optional': True},
         {'section': 'External References', 'optional': True},
     ]
@@ -53,13 +54,20 @@ class StructureFileSection(_StructureFileModel):
 
     model_config = ConfigDict(
         title='Named section',
-        json_schema_extra={'examples': [{'section': 'Checklist'}, {'section': 'References', 'optional': True}]},
+        json_schema_extra={
+            'examples': [
+                {'section': 'Checklist', 'words': 250},
+                {'section': 'References', 'optional': True},
+            ]
+        },
     )
 
     section: str = Field(examples=['Checklist', 'References'])
     """The section's heading text, without its `#` markers or inline markup."""
     optional: bool = False
     """True when a document may leave the section out."""
+    words: int | None = Field(default=None, ge=1, examples=[250])
+    """The most words of prose the section may hold, its H3 subsections included; no cap when absent."""
 
 
 class StructureFileAny(_StructureFileModel):
@@ -68,10 +76,15 @@ class StructureFileAny(_StructureFileModel):
     The run stops at any section the outline names, so each named section still matches its own entry.
     """
 
-    model_config = ConfigDict(title='Unnamed sections', json_schema_extra={'examples': [{'any': True}]})
+    model_config = ConfigDict(
+        title='Unnamed sections', json_schema_extra={'examples': [{'any': True}, {'any': True, 'words': 350}]}
+    )
 
     any: Literal[True]
-    """Always true: the entry's only field, which marks it as a run."""
+    """Always true: the field that marks the entry as a run."""
+    words: int | None = Field(default=None, ge=1, examples=[350])
+    """The most words of prose each section in the run may hold, its H3 subsections included: a cap on every
+    section alone, not on the run's total. No cap when absent."""
 
 
 class StructureFile(_StructureFileModel):
@@ -82,7 +95,7 @@ class StructureFile(_StructureFileModel):
         json_schema_extra={
             'examples': [
                 {
-                    'description': 'Section structure for a rule document in docs/code/.',
+                    'description': 'Section structure and word caps for a rule document in docs/code/.',
                     'title': {'count': 1, 'first': True},
                     'empty_sections': 'forbidden',
                     'outline': _code_outline_example(),
@@ -94,7 +107,9 @@ class StructureFile(_StructureFileModel):
     # `$schema` is no Python name, so the field is declared under another and read from the file by its alias.
     schema_reference: str | None = Field(default=None, alias='$schema')
     """The JSON Schema this file is written against, for editors; ignored by the check."""
-    description: str = Field(default='', examples=['Section structure for a rule document in docs/code/.'])
+    description: str = Field(
+        default='', examples=['Section structure and word caps for a rule document in docs/code/.']
+    )
     """What this file governs and why, for whoever opens it; not read by the check."""
     title: StructureFileTitle | None = None
     """How many H1 titles a document carries, and whether one opens it; no title rule when absent."""
@@ -104,6 +119,7 @@ class StructureFile(_StructureFileModel):
     outline: tuple[StructureFileSection | StructureFileAny, ...] = Field(default=(), examples=[_code_outline_example()])
     """The order of the document's sections, matched left to right. A named section is required unless optional,
     and may be named once; an `{"any": true}` entry matches a run of sections the outline does not name, and two
-    may not sit side by side."""
+    may not sit side by side. An entry's `words` caps each section it matches; an entry without one caps none. A
+    word is a whitespace-delimited token of prose: fenced code and table rows are not counted."""
     forbidden: tuple[str, ...] = Field(default=(), examples=[['Changelog']])
     """Sections that must not appear at all; none may also be named in the outline."""
