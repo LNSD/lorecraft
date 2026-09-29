@@ -7,6 +7,7 @@ root-relative to it.
 """
 
 from pathlib import Path
+from textwrap import dedent
 from typing import Final
 
 import pytest
@@ -29,7 +30,14 @@ FEAT: Final[CorpusName] = CorpusName.parse('feat')
 VALID_HEADER_SCHEMA: Final[str] = '{"type": "object"}'
 
 # A structure specification stating one rule, the least the structure dialect accepts.
-VALID_STRUCTURE_SPEC: Final[str] = '{"spec": "code.md", "empty_sections": "forbidden"}'
+VALID_STRUCTURE_SPEC: Final[str] = dedent(
+    """
+    {
+      "spec": "code.md",
+      "empty_sections": "forbidden"
+    }
+    """
+)
 
 
 @pytest.fixture(scope='function')
