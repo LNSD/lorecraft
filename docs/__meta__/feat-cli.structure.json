@@ -1,0 +1,9 @@
+{
+  "$schema": "../schemas/structure.spec.json",
+  "description": "Narrows feat.structure.json for docs/feat/cli.md and docs/feat/cli-*.md, which is applied as well. The prose authority is docs/__meta__/feat-cli.md section 4; this file is its machine-checkable half. Every command takes an argument or an option, so Configuration, which the base leaves optional, is required here, and holds the command's argument and option table. Its cap is tighter than the base's, since the table costs no words and the prose around it only states precedence. Where Configuration sits is feat.structure.json's business, so the runs on either side of it match whatever the base allows.",
+  "outline": [
+    { "any": true },
+    { "section": "Configuration", "words": 150 },
+    { "any": true }
+  ]
+}
