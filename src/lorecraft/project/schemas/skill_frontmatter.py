@@ -1,0 +1,540 @@
+"""The frontmatter of a skill's ``SKILL.md``, as the Agent Skills specification defines it: the one declaration of
+its fields.
+
+The specification is https://agentskills.io/specification. ``SkillFrontmatter`` states its six fields and the
+limits it puts on them, and nothing else: an extension some agent reads beyond them, such as Claude Code's
+``argument-hint``, is not a field here. ``parse_skill_frontmatter`` deserializes a document's frontmatter
+straight into it, so a skill that gets past it has this shape exactly. And ``just gen`` renders it into
+``docs/schemas/skill-frontmatter.spec.json``, the JSON Schema an editor validates the frontmatter against while it
+is written, so the editor and the parser hold a skill to the same declaration.
+
+Unlike a header specification, whose JSON Schema is written by hand and applied with the ``jsonschema`` package,
+this schema is fixed by the specification, so it is declared once here as a pydantic model: pydantic validates a
+skill against it, and the JSON Schema is rendered from it rather than read.
+
+Each string field — the name, the description, the license, the compatibility note and the allowed tools — is a
+value object of its own type: constructing one proves the text satisfies the specification, so code holding one
+never checks it again. Each type stands alone, with its own errors and its own rules; none shares code with
+another, so a rule changes in one place and touches no other field. A type's rules are declared once, as a pydantic
+``TypeAdapter`` over a constrained ``str``: ``__post_init__`` runs it and turns the rule it reports broken into the
+type's own error, and the type's JSON Schema is the adapter's, so the check and the schema cannot disagree. Every
+value object is also a pydantic type: a field annotated with one takes an instance as it is and parses a string
+into one, a string it refuses is a validation error carrying its own message, and serializing gives the string back.
+
+The model is strict, frozen and closed. Strict, so a YAML value is never coerced into another type: an unquoted
+``version: 1.0`` under ``metadata`` is a float, not the string the specification asks for. Frozen, so a parsed
+frontmatter cannot change after it was validated. Closed (``extra='forbid'``), so a misspelt field is an error
+rather than a field silently ignored. An optional field written with no value decodes to YAML's null, and reads
+as absent.
+
+What the schema shows an editor is declared here too: each field's docstring is its description, ``Field`` adds
+its examples, taken from the specification, and the model's config names it and gives the specification's two
+whole examples. What no field can state, such as ``name`` matching the skill's directory, is left to whoever
+knows the directory.
+
+A note on the pydantic hooks every value object carries. pydantic reports only its own error types as a field's
+validation error; any other exception escapes the model's validation whole, so each type rewraps its own rejection
+as a ``PydanticCustomError``. The message goes in the error's context rather than its template, because pydantic
+formats the template and a rejected text may hold braces.
+"""
+
+from dataclasses import dataclass
+from typing import Annotated, Final, Self
+
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    GetCoreSchemaHandler,
+    GetJsonSchemaHandler,
+    StringConstraints,
+    TypeAdapter,
+    ValidationError,
+)
+from pydantic.json_schema import JsonSchemaValue
+from pydantic_core import PydanticCustomError, core_schema
+
+from lorecraft.core.error import Error
+
+SKILL_NAME_MAX_LENGTH: Final[int] = 64
+"""The most characters a skill name may have."""
+
+SKILL_NAME_PATTERN: Final[str] = r'^[a-z0-9]+(-[a-z0-9]+)*$'
+"""Lowercase ASCII letters and digits in runs joined by single hyphens: no leading, trailing or doubled hyphen."""
+
+_SKILL_NAME_RULES: Final[TypeAdapter[str]] = TypeAdapter(
+    Annotated[str, StringConstraints(min_length=1, max_length=SKILL_NAME_MAX_LENGTH, pattern=SKILL_NAME_PATTERN)]
+)
+"""A skill name's rules, declared once: ``SkillName`` checks them and renders its JSON Schema from them."""
+
+
+class SkillNameError(Error):
+    """A skill name does not satisfy the specification.
+
+    Attributes:
+        name: The rejected name, exactly as supplied.
+    """
+
+    name: str
+
+
+class EmptySkillNameError(SkillNameError):
+    """A skill name is empty."""
+
+    def __init__(self) -> None:
+        self.name = ''
+        super().__init__('skill name cannot be empty')
+
+
+class SkillNameTooLongError(SkillNameError):
+    """A skill name has more characters than the specification allows."""
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        super().__init__(f'skill name {name!r} is {len(name)} characters; the limit is {SKILL_NAME_MAX_LENGTH}')
+
+
+class InvalidSkillNameFormatError(SkillNameError):
+    """A skill name has a character outside lowercase letters, digits and hyphens, or a misplaced hyphen."""
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        super().__init__(
+            f'skill name {name!r} must be lowercase letters, digits and single hyphens, '
+            'neither starting nor ending with a hyphen'
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class SkillName:
+    """The ``name`` field: at most 64 lowercase ASCII letters, digits and hyphens, neither starting nor ending with
+    a hyphen, and never two in a row.
+
+    Parsing preserves the spelling. Whether the name matches the skill's directory is not checked here: that needs
+    the directory.
+
+    Attributes:
+        value: The validated name, exactly as supplied.
+    """
+
+    value: str
+
+    @classmethod
+    def parse(cls, raw: str) -> Self:
+        """Return a validated skill name.
+
+        Raises:
+            SkillNameError: If the name does not satisfy the specification.
+        """
+        return cls(raw)
+
+    def __post_init__(self) -> None:
+        """Keep direct construction from bypassing the name invariant.
+
+        Raises:
+            SkillNameError: If the name does not satisfy the specification.
+        """
+        try:
+            _SKILL_NAME_RULES.validate_python(self.value)
+        except ValidationError as exc:
+            # pydantic stops at the first rule broken and reports it by its error type.
+            match exc.errors()[0]['type']:
+                case 'string_too_short':
+                    raise EmptySkillNameError() from exc
+                case 'string_too_long':
+                    raise SkillNameTooLongError(self.value) from exc
+                case _:
+                    raise InvalidSkillNameFormatError(self.value) from exc
+
+    def __str__(self) -> str:
+        return self.value
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source: type[object], handler: GetCoreSchemaHandler
+    ) -> core_schema.CoreSchema:
+        """How pydantic validates and serializes a field of this type: see the module's note."""
+        return core_schema.no_info_plain_validator_function(
+            cls._from_pydantic, serialization=core_schema.plain_serializer_function_ser_schema(str)
+        )
+
+    @classmethod
+    def _from_pydantic(cls, value: object) -> Self:
+        """Take a ``SkillName`` as it is and parse a string into one, raising pydantic's own error for anything else."""
+        if isinstance(value, cls):
+            return value
+        if not isinstance(value, str):
+            raise PydanticCustomError('string_type', 'Input should be a valid string')
+        try:
+            return cls.parse(value)
+        except SkillNameError as exc:
+            raise PydanticCustomError('skill_name', '{reason}', {'reason': str(exc)}) from exc
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, schema: core_schema.CoreSchema, handler: GetJsonSchemaHandler
+    ) -> JsonSchemaValue:
+        """The JSON Schema of a field of this type: the rules ``__post_init__`` checks."""
+        return _SKILL_NAME_RULES.json_schema()
+
+
+SKILL_DESCRIPTION_MAX_LENGTH: Final[int] = 1024
+"""The most characters a skill description may have."""
+
+# A pattern matches anywhere in the string, as in JSON Schema, so `\S` states "holds a non-whitespace character".
+_SKILL_DESCRIPTION_RULES: Final[TypeAdapter[str]] = TypeAdapter(
+    Annotated[str, StringConstraints(min_length=1, max_length=SKILL_DESCRIPTION_MAX_LENGTH, pattern=r'\S')]
+)
+"""A skill description's rules, declared once: ``SkillDescription`` checks them and renders its JSON Schema from
+them."""
+
+
+class SkillDescriptionError(Error):
+    """A skill description does not satisfy the specification."""
+
+
+class EmptySkillDescriptionError(SkillDescriptionError):
+    """A skill description is empty, or holds nothing but whitespace."""
+
+    def __init__(self) -> None:
+        super().__init__('skill description cannot be empty')
+
+
+class SkillDescriptionTooLongError(SkillDescriptionError):
+    """A skill description has more characters than the specification allows."""
+
+    def __init__(self, description: str) -> None:
+        super().__init__(
+            f'skill description is {len(description)} characters; the limit is {SKILL_DESCRIPTION_MAX_LENGTH}'
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class SkillDescription:
+    """The ``description`` field: at least one character that is not whitespace, and at most 1024 characters.
+
+    Whether it says what the skill does and when to use it, as the specification asks, is a judgment no check makes.
+
+    Attributes:
+        value: The validated description, exactly as supplied.
+    """
+
+    value: str
+
+    @classmethod
+    def parse(cls, raw: str) -> Self:
+        """Return a validated skill description.
+
+        Raises:
+            SkillDescriptionError: If the description does not satisfy the specification.
+        """
+        return cls(raw)
+
+    def __post_init__(self) -> None:
+        """Keep direct construction from bypassing the description invariant.
+
+        Raises:
+            SkillDescriptionError: If the description does not satisfy the specification.
+        """
+        try:
+            _SKILL_DESCRIPTION_RULES.validate_python(self.value)
+        except ValidationError as exc:
+            # pydantic stops at the first rule broken and reports it by its error type. Too short and no
+            # non-whitespace character are both a blank description.
+            match exc.errors()[0]['type']:
+                case 'string_too_long':
+                    raise SkillDescriptionTooLongError(self.value) from exc
+                case _:
+                    raise EmptySkillDescriptionError() from exc
+
+    def __str__(self) -> str:
+        return self.value
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source: type[object], handler: GetCoreSchemaHandler
+    ) -> core_schema.CoreSchema:
+        """How pydantic validates and serializes a field of this type: see the module's note."""
+        return core_schema.no_info_plain_validator_function(
+            cls._from_pydantic, serialization=core_schema.plain_serializer_function_ser_schema(str)
+        )
+
+    @classmethod
+    def _from_pydantic(cls, value: object) -> Self:
+        """Take a ``SkillDescription`` as it is and parse a string into one, raising pydantic's own error for
+        anything else."""
+        if isinstance(value, cls):
+            return value
+        if not isinstance(value, str):
+            raise PydanticCustomError('string_type', 'Input should be a valid string')
+        try:
+            return cls.parse(value)
+        except SkillDescriptionError as exc:
+            raise PydanticCustomError('skill_description', '{reason}', {'reason': str(exc)}) from exc
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, schema: core_schema.CoreSchema, handler: GetJsonSchemaHandler
+    ) -> JsonSchemaValue:
+        """The JSON Schema of a field of this type: the rules ``__post_init__`` checks."""
+        return _SKILL_DESCRIPTION_RULES.json_schema()
+
+
+@dataclass(frozen=True, slots=True)
+class SkillLicense:
+    """The ``license`` field: a license's name, or the name of a license file bundled with the skill.
+
+    The specification puts no rule on the text, only a recommendation to keep it short, so every string is valid.
+    Whether a named license file exists is not checked here: that needs the skill's directory.
+
+    Attributes:
+        value: The license, exactly as supplied.
+    """
+
+    value: str
+
+    @classmethod
+    def parse(cls, raw: str) -> Self:
+        """Return the license; every string is one."""
+        return cls(raw)
+
+    def __str__(self) -> str:
+        return self.value
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source: type[object], handler: GetCoreSchemaHandler
+    ) -> core_schema.CoreSchema:
+        """How pydantic validates and serializes a field of this type: see the module's note."""
+        return core_schema.no_info_plain_validator_function(
+            cls._from_pydantic, serialization=core_schema.plain_serializer_function_ser_schema(str)
+        )
+
+    @classmethod
+    def _from_pydantic(cls, value: object) -> Self:
+        """Take a ``SkillLicense`` as it is and wrap a string in one, raising pydantic's own error for anything
+        else."""
+        if isinstance(value, cls):
+            return value
+        if not isinstance(value, str):
+            raise PydanticCustomError('string_type', 'Input should be a valid string')
+        return cls.parse(value)
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, schema: core_schema.CoreSchema, handler: GetJsonSchemaHandler
+    ) -> JsonSchemaValue:
+        """The JSON Schema of a field of this type: any string."""
+        return {'type': 'string'}
+
+
+SKILL_COMPATIBILITY_MAX_LENGTH: Final[int] = 500
+"""The most characters a skill compatibility note may have."""
+
+# A pattern matches anywhere in the string, as in JSON Schema, so `\S` states "holds a non-whitespace character".
+_SKILL_COMPATIBILITY_RULES: Final[TypeAdapter[str]] = TypeAdapter(
+    Annotated[str, StringConstraints(min_length=1, max_length=SKILL_COMPATIBILITY_MAX_LENGTH, pattern=r'\S')]
+)
+"""A skill compatibility note's rules, declared once: ``SkillCompatibility`` checks them and renders its JSON
+Schema from them."""
+
+
+class SkillCompatibilityError(Error):
+    """A skill compatibility note does not satisfy the specification."""
+
+
+class EmptySkillCompatibilityError(SkillCompatibilityError):
+    """A skill compatibility note is empty, or holds nothing but whitespace."""
+
+    def __init__(self) -> None:
+        super().__init__('skill compatibility cannot be empty; leave the field out instead')
+
+
+class SkillCompatibilityTooLongError(SkillCompatibilityError):
+    """A skill compatibility note has more characters than the specification allows."""
+
+    def __init__(self, compatibility: str) -> None:
+        super().__init__(
+            f'skill compatibility is {len(compatibility)} characters; the limit is {SKILL_COMPATIBILITY_MAX_LENGTH}'
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class SkillCompatibility:
+    """The ``compatibility`` field, the environment the skill needs: at least one character that is not
+    whitespace, and at most 500 characters.
+
+    Attributes:
+        value: The validated note, exactly as supplied.
+    """
+
+    value: str
+
+    @classmethod
+    def parse(cls, raw: str) -> Self:
+        """Return a validated compatibility note.
+
+        Raises:
+            SkillCompatibilityError: If the note does not satisfy the specification.
+        """
+        return cls(raw)
+
+    def __post_init__(self) -> None:
+        """Keep direct construction from bypassing the compatibility invariant.
+
+        Raises:
+            SkillCompatibilityError: If the note does not satisfy the specification.
+        """
+        try:
+            _SKILL_COMPATIBILITY_RULES.validate_python(self.value)
+        except ValidationError as exc:
+            # pydantic stops at the first rule broken and reports it by its error type. Too short and no
+            # non-whitespace character are both a blank note.
+            match exc.errors()[0]['type']:
+                case 'string_too_long':
+                    raise SkillCompatibilityTooLongError(self.value) from exc
+                case _:
+                    raise EmptySkillCompatibilityError() from exc
+
+    def __str__(self) -> str:
+        return self.value
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source: type[object], handler: GetCoreSchemaHandler
+    ) -> core_schema.CoreSchema:
+        """How pydantic validates and serializes a field of this type: see the module's note."""
+        return core_schema.no_info_plain_validator_function(
+            cls._from_pydantic, serialization=core_schema.plain_serializer_function_ser_schema(str)
+        )
+
+    @classmethod
+    def _from_pydantic(cls, value: object) -> Self:
+        """Take a ``SkillCompatibility`` as it is and parse a string into one, raising pydantic's own error for
+        anything else."""
+        if isinstance(value, cls):
+            return value
+        if not isinstance(value, str):
+            raise PydanticCustomError('string_type', 'Input should be a valid string')
+        try:
+            return cls.parse(value)
+        except SkillCompatibilityError as exc:
+            raise PydanticCustomError('skill_compatibility', '{reason}', {'reason': str(exc)}) from exc
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, schema: core_schema.CoreSchema, handler: GetJsonSchemaHandler
+    ) -> JsonSchemaValue:
+        """The JSON Schema of a field of this type: the rules ``__post_init__`` checks."""
+        return _SKILL_COMPATIBILITY_RULES.json_schema()
+
+
+@dataclass(frozen=True, slots=True)
+class SkillAllowedTools:
+    """The ``allowed-tools`` field: the tools the skill may run without asking.
+
+    The specification calls it a space-separated string and marks it experimental, and puts no rule on the text,
+    so every string is valid. It is kept whole rather than split into tools: a rule such as ``Bash(git add *)``
+    holds spaces of its own, and how an agent splits the string is the agent's.
+
+    Attributes:
+        value: The tools, exactly as supplied.
+    """
+
+    value: str
+
+    @classmethod
+    def parse(cls, raw: str) -> Self:
+        """Return the allowed tools; every string is a list of them."""
+        return cls(raw)
+
+    def __str__(self) -> str:
+        return self.value
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source: type[object], handler: GetCoreSchemaHandler
+    ) -> core_schema.CoreSchema:
+        """How pydantic validates and serializes a field of this type: see the module's note."""
+        return core_schema.no_info_plain_validator_function(
+            cls._from_pydantic, serialization=core_schema.plain_serializer_function_ser_schema(str)
+        )
+
+    @classmethod
+    def _from_pydantic(cls, value: object) -> Self:
+        """Take a ``SkillAllowedTools`` as it is and wrap a string in one, raising pydantic's own error for
+        anything else."""
+        if isinstance(value, cls):
+            return value
+        if not isinstance(value, str):
+            raise PydanticCustomError('string_type', 'Input should be a valid string')
+        return cls.parse(value)
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, schema: core_schema.CoreSchema, handler: GetJsonSchemaHandler
+    ) -> JsonSchemaValue:
+        """The JSON Schema of a field of this type: any string."""
+        return {'type': 'string'}
+
+
+class SkillFrontmatter(BaseModel):
+    """The frontmatter a skill's `SKILL.md` opens with: what an agent loads for every skill at startup."""
+
+    model_config = ConfigDict(
+        extra='forbid',
+        frozen=True,
+        strict=True,
+        use_attribute_docstrings=True,
+        title='Agent Skill frontmatter',
+        json_schema_extra={
+            'examples': [
+                {
+                    'name': 'skill-name',
+                    'description': 'A description of what this skill does and when to use it.',
+                },
+                {
+                    'name': 'pdf-processing',
+                    'description': 'Extract PDF text, fill forms, merge files. Use when handling PDFs.',
+                    'license': 'Apache-2.0',
+                    'metadata': {'author': 'example-org', 'version': '1.0'},
+                },
+            ],
+        },
+    )
+
+    name: SkillName = Field(examples=['pdf-processing', 'data-analysis', 'code-review'])
+    """The skill's name: lowercase letters, digits and hyphens, neither starting nor ending with a hyphen and
+    never two in a row. It must match the name of the directory the skill sits in."""
+    description: SkillDescription = Field(
+        examples=[
+            'Extracts text and tables from PDF files, fills PDF forms, and merges multiple PDFs. Use when working'
+            ' with PDF documents or when the user mentions PDFs, forms, or document extraction.'
+        ],
+    )
+    """What the skill does and when to use it, with the keywords that let an agent match it to a task."""
+    license: SkillLicense | None = Field(
+        default=None, examples=['Apache-2.0', 'Proprietary. LICENSE.txt has complete terms']
+    )
+    """The license the skill is under: a license's name, or the name of a license file bundled with the skill."""
+    compatibility: SkillCompatibility | None = Field(
+        default=None,
+        examples=[
+            'Designed for Claude Code (or similar products)',
+            'Requires git, docker, jq, and access to the internet',
+            'Requires Python 3.14+ and uv',
+        ],
+    )
+    """The environment the skill needs: the product it is meant for, the system packages it runs, or network
+    access. Most skills need none, and leave it out."""
+    metadata: dict[str, str] | None = Field(default=None, examples=[{'author': 'example-org', 'version': '1.0'}])
+    """Properties the specification does not define, for clients to read: string keys to string values, so a
+    number is quoted. Keys are best made unique enough not to collide with another client's."""
+    # `allowed-tools` is no Python name, so the field is declared under another and read by its alias.
+    allowed_tools: SkillAllowedTools | None = Field(
+        default=None,
+        alias='allowed-tools',
+        examples=['Read Grep', 'Bash(git add *) Bash(git commit *) Bash(git status *)', 'Bash(gh *)'],
+    )
+    """The tools the skill may run without asking, separated by spaces. Experimental: support for it varies
+    between agents."""
