@@ -98,7 +98,7 @@ files in `docs/__meta__/`:
 | File | Governs | Read by |
 |---|---|---|
 | `feat.md` | Everything. This document is the authority | A person, and an agent before it writes |
-| `feat.structure.json` | The frontmatter fields under its `frontmatter` key; the section outline, its order, the caps, the token budget | `lorecraft check header`, `lorecraft check structure`, `lorecraft check budget` |
+| `feat.structure.json` | The frontmatter fields under its `frontmatter` key; the section outline, its order, the caps, the token budget | `lorecraft check frontmatter`, `lorecraft check structure`, `lorecraft check budget` |
 
 A **namespace layer** adds to that base for a group of documents: `feat-<namespace>.md` states its rules in
 prose, and `feat-<namespace>.structure.json` beside it holds the parts a check
@@ -237,12 +237,12 @@ these three prefixes:
 
 A `module:` entry always starts with the import package, because two layers can hold a subpackage of the
 same name and a shorter name would not say which:
-`src/lorecraft/checks/header.py` is `module:lorecraft.checks.header`. A `spec:` entry names
+`src/lorecraft/checks/frontmatter.py` is `module:lorecraft.checks.frontmatter`. A `spec:` entry names
 the stem, not one of its files: `spec:feat` stands for `feat.md` and every `feat.*.json` beside it.
 
 **Example:**
 ```yaml
-components: "module:lorecraft.checks.header,spec:feat,skill:docs-rules-check"
+components: "module:lorecraft.checks.frontmatter,spec:feat,skill:docs-rules-check"
 ```
 
 The schema enforces the prefix vocabulary and the character set of each entry. Which separator a given prefix
@@ -296,7 +296,7 @@ found by one glob.
 **Specification features:**
 ```
 spec                              # Meta: the specification files under docs/__meta__/
-├── spec-header                   # The frontmatter key, JSON Schema
+├── spec-frontmatter              # The frontmatter key, JSON Schema
 └── spec-structure                # The structure dialect: outline, word caps, token budget
 ```
 
@@ -385,8 +385,8 @@ Use a simple list, with the relationship named before the description:
 ```markdown
 ## References
 
-- [cli-check-header](cli-check-header.md) - Dependency: frontmatter validation
-- [spec-header](spec-header.md) - Related: the dialect this check reads
+- [cli-check-frontmatter](cli-check-frontmatter.md) - Dependency: frontmatter validation
+- [spec-frontmatter](spec-frontmatter.md) - Related: the dialect this check reads
 - [cli-check](cli-check.md) - Base: the CLI namespace this check belongs to
 ```
 
@@ -395,7 +395,7 @@ Use a simple list, with the relationship named before the description:
 ### Reference Direction Rules
 
 A document's **base** is the document whose name is the longest hyphen-delimited prefix of its own name that
-exists in the corpus, and the document is an **extension** of it: `spec.md` is the base of `spec-header.md`.
+exists in the corpus, and the document is an **extension** of it: `spec.md` is the base of `spec-frontmatter.md`.
 The shorter name is always the base, the rule a specification's namespace follows once its corpus prefix is
 set aside. A base is usually a `meta` document, but a `feature` can be the base of the features that extend
 it, when what it documents works on its own and each extension adds to it.
@@ -424,9 +424,9 @@ whenever an extension is added, removed or renamed; it couples a stable document
 circular references between documents.
 
 **Examples:**
-- ✅ `spec-header.md` (feature) → `spec.md` (meta) — extension to base
+- ✅ `spec-frontmatter.md` (feature) → `spec.md` (meta) — extension to base
 - ✅ `check-structure.md` (component) → `spec-structure.md` (feature) — component to the feature it serves
-- ❌ `spec.md` (meta) → `spec-header.md` (feature) — FORBIDDEN: base to extension
+- ❌ `spec.md` (meta) → `spec-frontmatter.md` (feature) — FORBIDDEN: base to extension
 - ❌ `spec.md` (meta) → lists every `spec-*.md` — FORBIDDEN: base to extension, and an inventory besides
 
 Direction is a judgment the checker does not make. It is on the author, and on review.

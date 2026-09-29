@@ -37,8 +37,8 @@ class BudgetCheckResult:
 def validate_budget(aspects: tuple[StructureAspect, ...], *, token_count: int) -> BudgetCheckResult:
     """Check one document's token count against the budget of each structure aspect that sets one.
 
-    Every violation's message ends by naming the structure specification file that sets the budget, as the header
-    check names its schema: the number is in that file, not in the prose.
+    Every violation's message ends by naming the structure specification file that sets the budget, as every
+    frontmatter violation does: the number is in that file, not in the prose.
 
     Args:
         aspects: Applied each on its own; an aspect without a ``tokens`` budget is skipped. Empty means the

@@ -1,16 +1,16 @@
 ---
-name: "cli-check-header"
-description: "lorecraft check header: validating each document's YAML frontmatter against the frontmatter schemas of the structure specifications its path selects, the name-matches-filename rule, and the rule identifiers it reports. Load when a frontmatter finding needs explaining, or when running the header check on its own"
+name: "cli-check-frontmatter"
+description: "lorecraft check frontmatter, and its hidden alias check header: validating each document's YAML frontmatter against the frontmatter schemas of the structure specifications its path selects, the name-matches-filename rule, and the rule identifiers it reports. Load when a frontmatter finding needs explaining, or when running the frontmatter check on its own"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft.cli.commands.check.header,module:lorecraft.checks.header,module:lorecraft.project.schemas.structure,spec:feat,spec:code"
+components: "module:lorecraft.cli.commands.check.frontmatter,module:lorecraft.checks.frontmatter,module:lorecraft.project.schemas.structure,spec:feat,spec:code"
 ---
 
-# `lorecraft check header`
+# `lorecraft check frontmatter`
 
 ## Summary
 
-`lorecraft check header` validates the YAML frontmatter at the top of each document against the
+`lorecraft check frontmatter` validates the YAML frontmatter at the top of each document against the
 `frontmatter` key of every structure specification, `<stem>.structure.json`, that the document's path selects,
 and checks that the frontmatter `name` equals the filename. It is also one of the checks a bare
 `lorecraft check` runs.
@@ -28,9 +28,12 @@ and checks that the frontmatter `name` equals the filename. It is also one of th
 
 - **Frontmatter**: The YAML mapping between two `---` lines that opens a document.
 - **Frontmatter schema**: The `frontmatter` key of a `<stem>.structure.json` file; a JSON Schema the
-  frontmatter must satisfy, as [spec-header](spec-header.md) describes.
+  frontmatter must satisfy, as [spec-frontmatter](spec-frontmatter.md) describes.
 - **Layer**: Each frontmatter schema that applies to a document; every one is applied on its own, so a
   document governed by a corpus schema and a namespace schema must satisfy both.
+- **`check header`**: An alias of this command, kept for the name the check had when its schemas lived in
+  `<stem>.header.json` files. It is hidden from `--help`, behaves identically, and is not a second check: a
+  bare `lorecraft check` runs the frontmatter check once. A leftover `<stem>.header.json` is not read.
 
 ## Configuration
 
@@ -44,10 +47,10 @@ and checks that the frontmatter `name` equals the filename. It is also one of th
 
 ```bash
 # Check the frontmatter of every document
-lorecraft check header
+lorecraft check frontmatter
 
 # Check one document just written
-lorecraft check header docs/feat/cli-check-header.md
+lorecraft check frontmatter docs/feat/cli-check-frontmatter.md
 ```
 
 ```text
@@ -80,11 +83,12 @@ The `<corpus>` prefix is the document's corpus, whichever layer's schema the fin
 ## References
 
 - [cli-check](cli-check.md) - Base: root discovery, document selection, output and exit status
-- [spec-header](spec-header.md) - Dependency: the frontmatter schema this check reads
+- [spec-frontmatter](spec-frontmatter.md) - Dependency: the frontmatter schema this check reads
 
 ## Code References
 
-- `src/lorecraft/cli/commands/check/header.py` - Declares the command and registers the check with the group
-- `src/lorecraft/checks/header.py` - The check of one document's frontmatter
+- `src/lorecraft/cli/commands/check/frontmatter.py` - Declares the command and its hidden `header` alias, and
+  registers the check with the group
+- `src/lorecraft/checks/frontmatter.py` - The check of one document's frontmatter
 - `src/lorecraft/project/schemas/structure.py` - Loads and validates the frontmatter schema with the rest of the
   structure specification

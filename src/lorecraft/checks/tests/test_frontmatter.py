@@ -1,6 +1,6 @@
 """Frontmatter validation over a document's frontmatter node.
 
-``validate_header`` is pure, so every case here is a text literal parsed in memory, a filename, a corpus and
+``validate_frontmatter`` is pure, so every case here is a text literal parsed in memory, a filename, a corpus and
 an in-memory frontmatter schema; no document and no specification file is read.
 """
 
@@ -14,7 +14,7 @@ from lorecraft.project.layout import SPECS_DIR
 from lorecraft.project.schemas import FrontmatterSchema
 from lorecraft.project.syntax import LineNumber, parse_frontmatter
 
-from ..header import validate_header
+from ..frontmatter import validate_frontmatter
 
 GUIDE: Final[AspectFilename] = AspectFilename.parse('guide')
 CODE: Final[CorpusName] = CorpusName.parse('code')
@@ -27,36 +27,36 @@ def _code_frontmatter(schema: dict[str, object]) -> FrontmatterSchema:
 
 
 @pytest.mark.unit
-class TestValidateHeader:
-    def test_validate_header_with_conforming_frontmatter_returns_no_findings(self) -> None:
+class TestValidateFrontmatter:
+    def test_validate_frontmatter_with_conforming_frontmatter_returns_no_findings(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('---\nname: guide\ntype: rule\n---\n# Guide\n')
         schemas = (_code_frontmatter({'type': 'object', 'required': ['type']}),)
 
         #: When
-        result = validate_header(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
+        result = validate_frontmatter(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
 
         #: Then
         assert result.violations == (), 'a document matching its name and schema is clean'
 
-    def test_validate_header_with_empty_schemas_returns_no_findings(self) -> None:
+    def test_validate_frontmatter_with_empty_schemas_returns_no_findings(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('no frontmatter at all\n')
         schemas: tuple[FrontmatterSchema, ...] = ()
 
         #: When
-        result = validate_header(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
+        result = validate_frontmatter(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
 
         #: Then
         assert result.violations == (), 'an ungoverned document is never checked, whatever its text'
 
-    def test_validate_header_with_name_mismatch_reports_name_rule_on_the_name_line(self) -> None:
+    def test_validate_frontmatter_with_name_mismatch_reports_name_rule_on_the_name_line(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('---\ntype: rule\nname: other\n---\n')
         schemas = (_code_frontmatter({'type': 'object'}),)
 
         #: When
-        result = validate_header(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
+        result = validate_frontmatter(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
 
         #: Then
         assert [violation.rule for violation in result.violations] == ['frontmatter.name-matches-filename'], (
@@ -66,13 +66,13 @@ class TestValidateHeader:
             f'the violation points at the name key, got line {result.violations[0].line}'
         )
 
-    def test_validate_header_without_frontmatter_block_reports_missing(self) -> None:
+    def test_validate_frontmatter_without_frontmatter_block_reports_missing(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('# Guide\n\nname: guide\n')
         schemas = (_code_frontmatter({'type': 'object'}),)
 
         #: When
-        result = validate_header(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
+        result = validate_frontmatter(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
 
         #: Then
         assert [violation.rule for violation in result.violations] == ['frontmatter.missing'], (
@@ -80,13 +80,13 @@ class TestValidateHeader:
         )
         assert result.violations[0].line == LineNumber(1), 'a missing block is reported on line 1'
 
-    def test_validate_header_with_invalid_yaml_reports_unparseable(self) -> None:
+    def test_validate_frontmatter_with_invalid_yaml_reports_unparseable(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('---\nname: [unclosed\n---\n')
         schemas = (_code_frontmatter({'type': 'object'}),)
 
         #: When
-        result = validate_header(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
+        result = validate_frontmatter(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
 
         #: Then
         assert [violation.rule for violation in result.violations] == ['frontmatter.unparseable'], (
@@ -94,13 +94,13 @@ class TestValidateHeader:
         )
         assert result.violations[0].message.startswith('frontmatter is not valid YAML'), 'the message names the cause'
 
-    def test_validate_header_with_non_mapping_yaml_reports_unparseable(self) -> None:
+    def test_validate_frontmatter_with_non_mapping_yaml_reports_unparseable(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('---\n- guide\n---\n')
         schemas = (_code_frontmatter({'type': 'object'}),)
 
         #: When
-        result = validate_header(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
+        result = validate_frontmatter(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
 
         #: Then
         assert [violation.rule for violation in result.violations] == ['frontmatter.unparseable'], (
@@ -108,13 +108,13 @@ class TestValidateHeader:
         )
         assert result.violations[0].message == 'frontmatter is not a YAML mapping', 'the message names the shape'
 
-    def test_validate_header_with_missing_required_field_reports_it_under_the_corpus_with_the_schema(self) -> None:
+    def test_validate_frontmatter_with_missing_required_field_reports_it_under_the_corpus_with_the_schema(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('---\nname: guide\n---\n')
         schemas = (_code_frontmatter({'type': 'object', 'required': ['type']}),)
 
         #: When
-        result = validate_header(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
+        result = validate_frontmatter(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
 
         #: Then
         assert [violation.rule for violation in result.violations] == ['code.type'], (

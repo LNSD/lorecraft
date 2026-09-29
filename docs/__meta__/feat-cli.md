@@ -124,7 +124,7 @@ them.
 
 ## 5. Content Guidelines
 
-- **Invoke the installed command.** Write `lorecraft check header` in examples. The CLI overview may mention
+- **Invoke the installed command.** Write `lorecraft check frontmatter` in examples. The CLI overview may mention
   `uv tool run lorecraft` and its `uvx lorecraft` alias for on-demand use, or `uv run lorecraft` when the
   current uv project declares Lorecraft as a dependency. Do not use a `just` recipe that wraps the command:
   the document describes the interface a user runs.

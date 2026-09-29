@@ -70,7 +70,7 @@ If it needs a corpus that does not exist yet, that is a new specification: use `
 5. **Run the checks** on the files you wrote, the frontmatter as soon as it exists:
 
    ```bash
-   lorecraft check header <files>
+   lorecraft check frontmatter <files>
    lorecraft check structure <files>
    lorecraft check budget <files>
    ```

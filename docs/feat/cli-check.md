@@ -11,7 +11,7 @@ components: "module:lorecraft.cli.commands.check,module:lorecraft.cli.check_run,
 ## Summary
 
 `lorecraft check` validates the documents under a repository's `docs/` against the specifications in its
-`docs/__meta__/`. Named with a check, such as `lorecraft check header`, it runs that one check; bare, it runs
+`docs/__meta__/`. Named with a check, such as `lorecraft check frontmatter`, it runs that one check; bare, it runs
 every check the command line carries over the same documents and prints their findings together. Every check
 shares the root discovery, the output formats and the exit status documented here.
 
@@ -33,7 +33,7 @@ shares the root discovery, the output formats and the exit status documented her
 - **Governed**: A document is governed by a check when its corpus specification has a structure file and at
   least one structure file that applies to it states what the check reads. The structure check reads any
   file, so one stating only `tokens` or `frontmatter` governs the outline with no rule to hold it to. The
-  header check asks more: the corpus file must state `frontmatter` itself. An ungoverned document is
+  frontmatter check asks more: the corpus file must state `frontmatter` itself. An ungoverned document is
   listed, never failed.
 - **Workspace**: The root, its corpora and their documents, read once from one snapshot, as
   [workspace](workspace.md) lays out.
@@ -66,8 +66,8 @@ document.
 | `--root <path>`    | nearest parent holding `docs/__meta__/` | The repository root, as [Root Discovery](#root-discovery) describes |
 | `--format <text\|json>` | `text` | The output format, as [Output](#output) describes |
 
-Both options belong to the command that runs: `lorecraft check --root . header` is a usage error, and
-`lorecraft check header --root .` is what is meant. Each check also takes the documents to check as paths,
+Both options belong to the command that runs: `lorecraft check --root . frontmatter` is a usage error, and
+`lorecraft check frontmatter --root .` is what is meant. Each check also takes the documents to check as paths,
 which its own document tables.
 
 ## Usage
@@ -98,7 +98,7 @@ checked 1 file(s) with 3 check(s), 3 finding(s)
 
 In `json` format stdout is one JSON object and stderr is empty. A named check prints its report; a bare run
 prints every report under `checks`, keyed by check name. `spec` is the root-relative specification file
-stating the rule, or `null` for a rule the check holds itself. `lorecraft check header --format json`:
+stating the rule, or `null` for a rule the check holds itself. `lorecraft check frontmatter --format json`:
 
 ```json
 {"checked": 1, "findings": [{"file": "docs/feat/spec-demo.md", "line": 3, "rule": "feat.description", "message": "'A demo' does not match 'Load when' (per docs/__meta__/feat.structure.json)", "spec": "docs/__meta__/feat.structure.json"}], "ungoverned": []}

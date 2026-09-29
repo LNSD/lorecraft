@@ -51,12 +51,12 @@ the day the literal changes, and the reader has to evaluate the value to learn t
 ```python
 # ❌ Bad — the type is whatever the value happens to be, so widening this list to a
 # fourth aspect changes the declared type of every signature that took it
-SPEC_ASPECTS: Final = ('header', 'structure', 'budget')
+SPEC_ASPECTS: Final = ('frontmatter', 'structure', 'budget')
 ```
 
 ```python
 # ✅ Good — the contract is stated, and the value can grow without changing it
-SPEC_ASPECTS: Final[tuple[str, ...]] = ('header', 'structure', 'budget')
+SPEC_ASPECTS: Final[tuple[str, ...]] = ('frontmatter', 'structure', 'budget')
 ```
 
 ## 3. A `Final` Name Holds an Immutable Value

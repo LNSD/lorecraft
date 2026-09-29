@@ -60,7 +60,7 @@ def register_group(name: str, group: typer.Typer) -> None:
     """Register a Typer application as the `name` command group.
 
     Args:
-        name: Group as typed on the command line, so `'check'` for `lorecraft check header`.
+        name: Group as typed on the command line, so `'check'` for `lorecraft check frontmatter`.
         group: Typer application holding the group's subcommands.
 
     Raises:
