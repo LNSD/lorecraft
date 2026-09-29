@@ -20,11 +20,10 @@ def _path(raw: str) -> RootRelativePath:
 def _code_model() -> WorkspaceModel:
     """One corpus with a namespace spec and two documents."""
     code = CorpusName.parse('code')
-    corpus_spec = Spec(name=(code,), files=(_path('docs/__meta__/code.md'),), header=None, structure=None)
+    corpus_spec = Spec(name=(code,), files=(_path('docs/__meta__/code.md'),), structure=None)
     python_spec = Spec(
         name=(code, AspectNamespace.parse('python')),
         files=(_path('docs/__meta__/code-python.md'),),
-        header=None,
         structure=None,
     )
     corpus = Corpus(

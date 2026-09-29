@@ -27,8 +27,9 @@ path says which files govern it. Every command that reads a repository loads the
 - **Corpus**: A directory under `docs/` whose documents specifications govern, as
   [workspace](workspace.md) lays out.
 - **Stem**: A specification filename with its extensions dropped: `<corpus>` or `<corpus>-<namespace>`.
-- **Aspect**: One part of a specification a check can decide, held as `<stem>.<aspect>.json`: `header` or
-  `structure`.
+- **Aspect**: One part of a specification a check can decide, held as `<stem>.<aspect>.json`. Only
+  `structure` exists: it carries the section rules, the word caps, the token budget and the frontmatter
+  schema, each read by its own check.
 - **Prose**: `<stem>.md`, the specification written for a reader. It is the authority; the JSON beside it is
   the same rules in a form a check applies.
 - **Base**: The document an extension adds to: `cli-check.md` is the base of `cli-check-header.md`, and the
@@ -45,7 +46,8 @@ the corpus ends at the first hyphen: a corpus of several words is spelled with u
 is governed by `cli_specs.md` and narrowed by `cli_specs-<namespace>.md`. What follows is the namespace:
 lowercase letters and digits in hyphen-separated words. A stem holds no dot. A file whose name does not
 parse, such as `README.md` or an unknown aspect, is left out, and so is a namespace stem whose corpus has no
-file at its own stem, or no directory under `docs/`.
+file at its own stem, or no directory under `docs/`. A `<stem>.header.json` from before the frontmatter schema
+moved into the structure specification is an unknown aspect like any other, so it is left out and not read.
 
 ### Loading
 
@@ -55,7 +57,7 @@ an error naming the file.
 
 ## Limitations
 
-- Only two aspects exist; a third needs a new check and a new dialect in the package.
+- Only one aspect exists; a second needs a new check and a new dialect in the package.
 - A rule stated in prose that no aspect file holds is not checked: the prose and the JSON can drift, and
   nothing detects it.
 
@@ -80,7 +82,8 @@ follows the rule above: `feat-cli` governs `cli` and would be extended by a `fea
 A document is governed by its corpus specification, then by each namespace specification whose namespace equals
 its filename or is a hyphen-delimited prefix of it, broad to narrow: `feat-cli` governs `cli.md` and
 `cli-check.md`, not `client.md`. Each is applied on its own, so an extension only adds rules and cannot relax
-its base. A document governed by no file for an aspect is ungoverned for that aspect and reported as such.
+its base. A document whose corpus specification has no file a check reads, or whose files state none of the
+keys it reads, is ungoverned for that check and reported as such; frontmatter needs its key in the corpus file.
 
 ### References Point to the Base
 

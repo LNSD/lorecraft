@@ -1,6 +1,13 @@
 {
   "$schema": "../schemas/structure.spec.json",
-  "description": "Narrows code.structure.json for docs/code/principle-*.md, which is applied as well. The prose authority is docs/__meta__/code-principle.md. The four rule sections open the document, in this order; what closes it is code.structure.json's business.",
+  "description": "Narrows code.structure.json for docs/code/principle-*.md, which is applied as well. The prose authority is docs/__meta__/code-principle.md. The frontmatter fixes type and scope. The four rule sections open the document, in this order; what closes it is code.structure.json's business.",
+  "frontmatter": {
+    "type": "object",
+    "properties": {
+      "type": { "const": "principle" },
+      "scope": { "const": "global" }
+    }
+  },
   "outline": [
     { "section": "Rule" },
     { "section": "Examples" },

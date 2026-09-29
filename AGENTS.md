@@ -15,11 +15,11 @@ standalone script per check. It is one Python package, `lorecraft`, managed with
   end-to-end helper library in `tests/lib/`. None of it is built.
 
 **Three checks have moved into the command line so far: `lorecraft check header`, `lorecraft check structure`
-and `lorecraft check budget`.** The structure check also enforces the section word caps a structure spec sets, and
-the budget check its global `tokens` key, a whole-file token budget. A bare `lorecraft check` runs every check the
-command line carries, over one snapshot. The skill check still runs as a vendored
-script under `.agents/skills/*/scripts/`. Both are wired to `just check-docs` and `just check-skills` and gated
-in CI. Do not infer structure that is not on disk.
+and `lorecraft check budget`.** All three read the structure spec: the structure check its outline and section word
+caps, the budget check its global `tokens` key, a whole-file token budget, and the header check its global
+`frontmatter` key, a JSON Schema. A bare `lorecraft check` runs every check the command line carries, over one
+snapshot. The skill check still runs as a vendored script under `.agents/skills/*/scripts/`. Both are wired to
+`just check-docs` and `just check-skills` and gated in CI. Do not infer structure that is not on disk.
 
 The CLI is a router: `cli/app.py` declares the root application and the global options, and every subcommand
 lives in its own module under `cli/commands/`, joining by calling `@register(<name>)` beside its handler.
@@ -198,11 +198,12 @@ The shape in brief:
 - A feature doc is authoritative for documented behaviour: if code and a doc disagree, fix one of them in the
   same change.
 
-Each specification is prose plus the machine-checkable halves beside it — `<stem>.header.json`, and
-`<stem>.structure.json` with the section outline, the section word caps and the token budget, read by the matching
-`lorecraft check <aspect>`; the budget check reads the structure aspect's `tokens` key too. The prose is the authority and the JSON is the same rules in a form a check applies, so **change
-both in the same commit**: nothing detects the drift when they disagree. `docs/__meta__/README.md` explains how
-a document's own path selects the files that govern it.
+Each specification is prose plus the machine-checkable half beside it — `<stem>.structure.json`, with the section
+outline and word caps read by `lorecraft check structure`, the `tokens` budget read by `lorecraft check budget`,
+and the `frontmatter` JSON Schema read by `lorecraft check header`. The prose is the authority and the JSON
+is the same rules in a form a check applies, so **change both in the same commit**: nothing detects the drift
+when they disagree. `docs/__meta__/README.md` explains how a document's own path selects the files that govern
+it.
 
 ## Testing Strategy
 

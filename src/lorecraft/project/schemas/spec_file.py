@@ -1,8 +1,9 @@
 """The specification filename grammar: the stem a file sits at, and the aspect it carries.
 
 A specification file in ``docs/__meta__/`` is either ``<stem>.md``, the prose of a specification, or
-``<stem>.<aspect>.json``, one machine-checkable aspect of it. The aspect is ``header`` or ``structure``. The
-stem is one of the two forms ``name.py`` describes, and holds no dot.
+``<stem>.<aspect>.json``, one machine-checkable aspect of it. The only aspect is ``structure``, whose file also
+holds the frontmatter schema. A ``header`` file, where that schema was once kept, is an unknown aspect here like
+any other, and is left out. The stem is one of the two forms ``name.py`` describes, and holds no dot.
 
 ``parse_spec_file`` is the one place this grammar is read, and ``schema_filename`` and ``prose_filename`` the
 only places it is written. Every other module takes the parsed records.
@@ -26,7 +27,6 @@ _JSON_SUFFIX: Final[str] = '.json'
 class SpecAspect(Enum):
     """The machine-checkable aspect a ``<stem>.<aspect>.json`` file carries; the value is the filename token."""
 
-    HEADER = 'header'
     STRUCTURE = 'structure'
 
 
@@ -80,7 +80,7 @@ class UnknownSpecAspectError(SpecFilenameError):
     def __init__(self, path: RootRelativePath, token: str) -> None:
         self.path = path
         self.token = token
-        super().__init__(f'{path}: aspect {token!r} is not header or structure')
+        super().__init__(f'{path}: aspect {token!r} is not structure')
 
 
 class NotASpecStemError(SpecFilenameError):

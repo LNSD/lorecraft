@@ -1,6 +1,45 @@
 {
   "$schema": "../schemas/structure.spec.json",
-  "description": "Section structure, section word caps and token budget for a feature document in docs/feat/. The prose authorities are docs/__meta__/feat.md section 4 for the structure and section 6 for the caps and the budget; this file is their machine-checkable half. It is the base layer: a namespace layer, feat-<namespace>.structure.json, is applied on its own beside it and can only add to it. It states what every feature document carries whatever its type or namespace: Summary, Table of Contents and Key Concepts open it, the optional sections keep their relative order, sections the document invents for itself follow them, and References then Code References close it, both being references: one to other documents, one to the code. Usage and Code References are optional here for every type; which type requires or forbids them is a prose rule in feat.md section 4, checked by review, never a condition here. The word caps keep each section's prose concise: a word is a whitespace-delimited token of prose, and fenced code blocks and table rows are not counted, since examples and reference tables are what a feature document is for. A section's cap covers its H3 children, and the cap on the `any` run applies to each of its sections alone. Table of Contents, References and Code References carry no cap: each is a list of links. The token budget is on the whole file, frontmatter, code and tables included: what loading it costs an agent, in o200k_base tokens whichever agent reads it.",
+  "description": "Frontmatter, section structure, section word caps and token budget for a feature document in docs/feat/. The prose authorities are docs/__meta__/feat.md section 2 for the frontmatter, section 4 for the structure and section 6 for the caps and the budget; this file is their machine-checkable half. It is the base layer: a namespace layer, feat-<namespace>.structure.json, is applied on its own beside it and can only add to it. It states what every feature document carries whatever its type or namespace: Summary, Table of Contents and Key Concepts open it, the optional sections keep their relative order, sections the document invents for itself follow them, and References then Code References close it, both being references: one to other documents, one to the code. Usage and Code References are optional here for every type; which type requires or forbids them is a prose rule in feat.md section 4, checked by review, never a condition here. The word caps keep each section's prose concise: a word is a whitespace-delimited token of prose, and fenced code blocks and table rows are not counted, since examples and reference tables are what a feature document is for. A section's cap covers its H3 children, and the cap on the `any` run applies to each of its sections alone. Table of Contents, References and Code References carry no cap: each is a list of links. The token budget is on the whole file, frontmatter, code and tables included: what loading it costs an agent, in o200k_base tokens whichever agent reads it.",
+  "frontmatter": {
+    "type": "object",
+    "required": ["name", "description", "type", "status", "components"],
+    "additionalProperties": false,
+    "properties": {
+      "name": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+        "description": "Kebab-case. Must match the filename minus .md, which the checker verifies separately."
+      },
+      "description": {
+        "type": "string",
+        "minLength": 1,
+        "allOf": [
+          {
+            "pattern": "Load when",
+            "$comment": "The trigger clause naming the questions this document answers."
+          },
+          {
+            "not": { "pattern": "\\.\\s*$" },
+            "$comment": "No trailing period."
+          }
+        ]
+      },
+      "type": {
+        "enum": ["meta", "feature", "component"],
+        "description": "meta groups a feature area, feature documents a user-facing capability, component documents an internal building block."
+      },
+      "status": {
+        "enum": ["stable", "experimental", "unstable", "development"],
+        "description": "Feature maturity. States where the feature stands today; never a version number."
+      },
+      "components": {
+        "type": "string",
+        "pattern": "^\\s*(?:module|skill|spec):[a-z0-9_]+(?:[-._][a-z0-9_]+)*(?:\\s*,\\s*(?:module|skill|spec):[a-z0-9_]+(?:[-._][a-z0-9_]+)*)*\\s*$",
+        "description": "Comma-separated, each entry prefixed module: (a module by its full import path, starting with the import package, as in lorecraft.project.layout, snake_case and dotted), skill: (a skill directory, kebab-case), or spec: (a file stem under docs/__meta__/, kebab-case and dotted for a layer). The pattern fixes the prefix vocabulary and the character set; which separator each prefix uses is stated in feat.md section 2 and verified by reading, because one regular expression covering all three at once is less readable than the rule it encodes."
+      }
+    }
+  },
   "title": { "count": 1, "first": true },
   "empty_sections": "forbidden",
   "tokens": 4000,

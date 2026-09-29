@@ -28,8 +28,9 @@ left empty or forbidden, and the prose words each section holds. It is also one 
 ## Key Concepts
 
 - **Section**: An H2 heading and everything under it up to the next H2, its H3 subsections included.
-- **Structure specification**: A `<stem>.structure.json` file stating the outline and the word caps, as
-  [spec-structure](spec-structure.md) describes.
+- **Structure specification**: A `<stem>.structure.json` file stating the outline, as
+  [spec-structure-outline](spec-structure-outline.md) describes, and the word caps, as
+  [spec-structure-budget](spec-structure-budget.md) describes.
 - **Word cap**: The most prose words a section may hold. Prose excludes fenced code blocks and table rows.
 - **Layer**: Each structure specification that applies to a document; every one is applied on its own, so a
   document must pass the corpus specification and each namespace specification alike.
@@ -86,7 +87,8 @@ corpus; structure unvalidated`.
 ## References
 
 - [cli-check](cli-check.md) - Base: root discovery, document selection, output and exit status
-- [spec-structure](spec-structure.md) - Dependency: the structure dialect this check reads
+- [spec-structure-outline](spec-structure-outline.md) - Dependency: the outline keys this check reads
+- [spec-structure-budget](spec-structure-budget.md) - Dependency: the `words` caps this check reads
 - [cli-check-budget](cli-check-budget.md) - Related: the whole-file token budget from the same specification
 
 ## Code References

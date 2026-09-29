@@ -74,10 +74,9 @@ Write your coding rules as documents in `docs/code/`, and describe what a rule d
 docs/
 ├── __meta__/
 │   ├── code.md                     # what every rule document looks like, in prose
-│   ├── code.header.json            # its frontmatter schema
-│   ├── code.structure.json         # its sections, word caps and token budget
+│   ├── code.structure.json         # its frontmatter, sections, word caps and token budget
 │   ├── code-python.md              # narrower rules for the python-* documents
-│   └── code-python.structure.json  # the sections they must add
+│   └── code-python.structure.json  # the frontmatter and sections they add
 └── code/
     ├── logging.md                  # governed_by: [code]
     ├── python-modules.md           # governed_by: [code, code-python]

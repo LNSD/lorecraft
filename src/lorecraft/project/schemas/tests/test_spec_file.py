@@ -38,17 +38,29 @@ class TestParseSpecFile:
             'code.md parses into the code corpus stem with no aspect'
         )
 
-    def test_parse_spec_file_with_a_corpus_header_file_returns_a_header_spec_file(self) -> None:
+    def test_parse_spec_file_with_a_corpus_structure_file_returns_a_structure_spec_file(self) -> None:
         #: Given
-        path = META / 'code.header.json'
+        path = META / 'code.structure.json'
 
         #: When
         spec_file = parse_spec_file(path)
 
         #: Then
-        assert spec_file == SpecFile(path=path, name=(CODE,), aspect=SpecAspect.HEADER), (
-            'code.header.json parses into the code corpus stem and the header aspect'
+        assert spec_file == SpecFile(path=path, name=(CODE,), aspect=SpecAspect.STRUCTURE), (
+            'code.structure.json parses into the code corpus stem and the structure aspect'
         )
+
+    def test_parse_spec_file_with_a_header_file_raises_unknown_spec_aspect_error(self) -> None:
+        #: Given
+        # the frontmatter schema moved into the structure specification, so header is no longer an aspect
+        path = META / 'code.header.json'
+
+        #: When
+        with pytest.raises(UnknownSpecAspectError) as exc_info:
+            parse_spec_file(path)
+
+        #: Then
+        assert exc_info.value.token == 'header', 'header is not one of the aspect tokens'
 
     def test_parse_spec_file_with_a_nested_namespace_structure_file_returns_a_structure_spec_file(self) -> None:
         #: Given
@@ -73,17 +85,6 @@ class TestParseSpecFile:
         #: Then
         assert exc_info.value.path == path, 'feat.component is not a stem; the error names the file'
         assert 'dot' in exc_info.value.detail, 'the detail says the stem holds a dot'
-
-    def test_parse_spec_file_with_a_dotted_header_stem_raises_invalid_spec_stem_error(self) -> None:
-        #: Given
-        path = META / 'feat.feature.header.json'
-
-        #: When
-        with pytest.raises(InvalidSpecStemError) as exc_info:
-            parse_spec_file(path)
-
-        #: Then
-        assert exc_info.value.path == path, 'a dot in the stem is rejected whatever the aspect'
 
     def test_parse_spec_file_with_dotted_prose_raises_invalid_spec_stem_error(self) -> None:
         #: Given
@@ -171,7 +172,7 @@ class TestParseSpecFile:
 
     def test_parse_spec_file_with_json_at_a_non_stem_raises_invalid_spec_stem_error(self) -> None:
         #: Given
-        path = META / 'README.header.json'
+        path = META / 'README.structure.json'
 
         #: When
         with pytest.raises(InvalidSpecStemError) as exc_info:
@@ -179,7 +180,7 @@ class TestParseSpecFile:
 
         #: Then
         assert exc_info.value.path == path, (
-            'an aspect file must be named after a valid stem; the error names README.header.json'
+            'an aspect file must be named after a valid stem; the error names README.structure.json'
         )
 
     def test_parse_spec_file_with_an_uppercase_namespace_raises_invalid_spec_stem_error(self) -> None:

@@ -1,7 +1,8 @@
-"""Validate one document's frontmatter against the header schemas that govern it.
+"""Validate one document's frontmatter against the frontmatter schemas that govern it.
 
-The check is pure: it takes the already decoded, already validated header schemas that govern a document, the
-document's frontmatter node, and the filename and corpus the frontmatter is checked against, and returns violations.
+Each schema is the ``frontmatter`` key of a structure specification. The check is pure: it takes the already
+decoded, already validated frontmatter schemas that govern a document, the document's frontmatter node, and the
+filename and corpus the frontmatter is checked against, and returns violations.
 It reads those and nothing else, so it is handed that node rather than the whole parse tree, and not the document's
 path: the run that called it attaches that. Reading and parsing the document, choosing the schemas and deciding what
 a decode failure means all happen above it, in ``checks.run`` and the database.
@@ -15,7 +16,7 @@ from jsonschema.exceptions import ValidationError
 
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.schemas import HeaderAspect
+from lorecraft.project.schemas import FrontmatterSchema
 from lorecraft.project.syntax import (
     Frontmatter,
     FrontmatterNode,
@@ -43,13 +44,17 @@ class HeaderCheckResult:
 
 
 def validate_header(
-    schemas: tuple[HeaderAspect, ...], *, frontmatter: FrontmatterNode, filename: AspectFilename, corpus: CorpusName
+    schemas: tuple[FrontmatterSchema, ...],
+    *,
+    frontmatter: FrontmatterNode,
+    filename: AspectFilename,
+    corpus: CorpusName,
 ) -> HeaderCheckResult:
-    """Check one document's frontmatter against the header schemas that govern it. Pure: raises nothing.
+    """Check one document's frontmatter against the frontmatter schemas that govern it. Pure: raises nothing.
 
     Args:
-        schemas: Applied in order; each violation names the schema's path. Empty means the document is
-            ungoverned, which yields no violations.
+        schemas: Applied in order; each violation names the structure specification the schema is written in.
+            Empty means the document is ungoverned, which yields no violations.
         filename: The document's filename, which the frontmatter ``name`` must equal (rule
             ``frontmatter.name-matches-filename``).
         corpus: The document's corpus, which namespaces the rule of every schema violation.
@@ -77,8 +82,8 @@ def validate_header(
         )
 
     rule_namespace = str(corpus)
-    for aspect in schemas:
-        validator = Draft202012Validator(aspect.schema)
+    for schema in schemas:
+        validator = Draft202012Validator(schema.schema)
         errors = sorted(
             validator.iter_errors(frontmatter.data),
             key=lambda error: (tuple(str(part) for part in error.path), error.message),
@@ -90,8 +95,8 @@ def validate_header(
                     Violation(
                         line=_key_line(frontmatter, field) if field else _FIRST_LINE,
                         rule=rule,
-                        message=f'{error.message} (per {aspect.path})',
-                        spec=aspect.path,
+                        message=f'{error.message} (per {schema.path})',
+                        spec=schema.path,
                     )
                 )
 
