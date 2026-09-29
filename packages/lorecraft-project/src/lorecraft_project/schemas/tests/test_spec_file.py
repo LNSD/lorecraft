@@ -50,17 +50,17 @@ class TestParseSpecFile:
             'code.header.json parses into the code corpus stem and the header aspect'
         )
 
-    def test_parse_spec_file_with_a_nested_namespace_budget_file_returns_a_budget_spec_file(self) -> None:
+    def test_parse_spec_file_with_a_nested_namespace_structure_file_returns_a_structure_spec_file(self) -> None:
         #: Given
-        path = META / 'code-python-errors.budget.json'
+        path = META / 'code-python-errors.structure.json'
 
         #: When
         spec_file = parse_spec_file(path)
 
         #: Then
         assert spec_file == SpecFile(
-            path=path, name=(CODE, AspectNamespace.parse('python-errors')), aspect=SpecAspect.BUDGET
-        ), 'code-python-errors.budget.json parses into the code corpus, one python-errors namespace and budget'
+            path=path, name=(CODE, AspectNamespace.parse('python-errors')), aspect=SpecAspect.STRUCTURE
+        ), 'code-python-errors.structure.json parses into the code corpus, one python-errors namespace and structure'
 
     def test_parse_spec_file_with_a_dotted_structure_stem_raises_invalid_spec_stem_error(self) -> None:
         #: Given
@@ -143,6 +143,18 @@ class TestParseSpecFile:
 
         #: Then
         assert exc_info.value.path == path, 'headers is not one of the aspect tokens; the error names code.headers.json'
+
+    def test_parse_spec_file_with_a_budget_file_raises_unknown_spec_aspect_error(self) -> None:
+        #: Given
+        # word caps are part of the structure dialect, so budget is no longer an aspect of its own
+        path = META / 'code.budget.json'
+
+        #: When
+        with pytest.raises(UnknownSpecAspectError) as exc_info:
+            parse_spec_file(path)
+
+        #: Then
+        assert exc_info.value.token == 'budget', 'budget is not one of the aspect tokens'
 
     def test_parse_spec_file_with_prose_at_a_non_stem_raises_not_a_spec_stem_error(self) -> None:
         #: Given

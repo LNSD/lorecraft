@@ -1,8 +1,8 @@
 ---
 name: docs-rules-check
 description: Check a document under docs/ against the format specification that governs it in docs/__meta__/. Use when reviewing PRs, after editing anything under docs/, or before commits
-compatibility: Requires uv to run the check commands and the script in scripts/
-allowed-tools: Bash(uv run lorecraft check*), Bash(.agents/skills/docs-rules-check/scripts/check_budget.py*), Bash(git diff*), Bash(git status*), Bash(git merge-base*), Bash(grep *), Bash(ls docs/*), Bash(awk *)
+compatibility: Requires uv to run the check commands
+allowed-tools: Bash(uv run lorecraft check*), Bash(just check-docs*), Bash(git diff*), Bash(git status*), Bash(git merge-base*), Bash(grep *), Bash(ls docs/*), Bash(awk *)
 ---
 
 # Doc Rules Check
@@ -50,9 +50,9 @@ Resolve per document, from its path:
 `docs/code/` is the only corpus this repository carries today. A second one — feature docs under `docs/feat/`,
 say — resolves by exactly the same rule, and until `docs/__meta__/feat.md` exists its documents are ungoverned.
 
-Each specification is paired with three machine-checkable files at the same stem: `<stem>.header.json` holds
-its frontmatter rules, `<stem>.structure.json` its section structure, `<stem>.budget.json` its length. The
-commands in §3 and §4 and the script in §4 resolve and apply those; you read the prose.
+Each specification is paired with machine-checkable files at the same stem: `<stem>.header.json` holds its
+frontmatter rules, `<stem>.structure.json` its section structure and section word caps. The commands in §3 and
+§4 resolve and apply those; you read the prose.
 
 Read the specification **before** the document, so the checklist is in hand while reading. Where step 2 finds
 no specification, the document's format is ungoverned: report it as unvalidated rather than inventing rules or
@@ -82,8 +82,7 @@ findings, 1 means findings, 2 means bad usage or a specification in `docs/__meta
 `<corpus>.ungoverned` line means no schema governs that corpus — report it as unvalidated, not as a failure.
 
 **`lorecraft check`**, with no check named, runs every check the command line carries — the header and
-structure checks today, and each one that migrates from `scripts/` as it lands — over every document, reading
-the tree once. It takes `--root` and `--format` but no paths. Its text output is each check's lines in turn and
+structure checks today — over every document, reading the tree once. It takes `--root` and `--format` but no paths. Its text output is each check's lines in turn and
 one summary on stderr; its JSON output is `{"checks": {<name>: <that check's report>}}`, and its exit codes are
 the same. It is how `just check-docs` runs them.
 
@@ -91,14 +90,14 @@ Where `uv` is unavailable, extract the frontmatter with the Grep tool (pattern `
 `multiline: true`, `output_mode: content`) or `awk '/^---$/{p=!p; print; next} p' <path>`, and work the
 specification's frontmatter section by hand.
 
-## 4. Sections and budgets: run the command and the script
+## 4. Sections and word caps: run the command
 
 **`lorecraft check structure`** — validates section structure against the structure specs in `docs/__meta__/`,
 resolved by the same naming convention (`<corpus>.structure.json`, narrowed by
 `<corpus>-<prefix>.structure.json` where one exists). A structure spec is not JSON Schema: an outline is a
 sequence, and a corpus states **one** section order, which the spec holds as an outline the command walks. So
-the spec decides which sections a document must carry, which it forbids, what order they come in, and
-whether any section was left empty:
+the spec decides which sections a document must carry, which it forbids, what order they come in, whether
+any section was left empty, and how many prose words each H2 section may hold:
 
 ```bash
 uv run lorecraft check structure                            # every corpus
@@ -110,22 +109,17 @@ Headings come from a Markdown parse, so a `#` comment inside a fenced code block
 heading quoted in a blockquote or nested in a list item does not section the document. Root discovery, output
 and exit codes match §3.
 
-**`scripts/check_budget.py`** — counts prose words per document and per H2 section against the budget spec
-resolved the same way (`<corpus>.budget.json`, overlaid by `<corpus>-<prefix>.budget.json`). Fenced code and
-table rows are not counted. A corpus with no budget file prints `corpus.unbudgeted` and is not checked:
+The word caps keep each section concise. They are the `words` keys on the spec's outline entries, reported as
+`structure.words.section` on the heading. A section's count includes its H3 subsections; fenced code and table
+rows are not counted. A layered spec applies its own caps too, so a namespace can only tighten the corpus's.
 
-```bash
-.agents/skills/docs-rules-check/scripts/check_budget.py docs/code/python-typing.md # named files
-.agents/skills/docs-rules-check/scripts/check_budget.py --help                     # flags and exit codes
-```
-
-A budget finding on a section the change added prose to blocks, like any other finding. A finding on a
+A cap finding on a section the change added prose to blocks, like any other finding. A finding on a
 section the change did not touch is pre-existing: report it as such and leave it to the document's owner.
 The fix for an overage is to move or cut, never to compress; the corpus specification's content guidelines
 say where each kind of overflow belongs.
 
-`just check-docs` runs `lorecraft check` and the script over the whole corpus, which is what CI gates on. Use it to confirm the
-repository is clean; use the per-file invocations above while working a changeset.
+`just check-docs` runs `lorecraft check` over the whole corpus, which is what CI gates on. Use it to confirm
+the repository is clean; use the per-file invocations above while working a changeset.
 
 ## 5. Body: walk the checklist
 
@@ -133,7 +127,7 @@ repository is clean; use the per-file invocations above while working a changese
 as verifiable statements. Walk each item against the document, plus the structure template's own checklist
 where one applies.
 
-The two commands and the script have settled the frontmatter, the section structure and the length, so what
+The two commands have settled the frontmatter, the section structure and the length, so what
 is left here is what needs judgment: whether a section says what the specification asks of it,
 cross-reference direction, and whether a `description` is genuinely discovery-optimized rather than merely
 well-formed.
@@ -209,8 +203,7 @@ and §4 catch everything down to the blank line; the rest need reading.
 These run without user permission:
 
 - `uv run lorecraft check`, `uv run lorecraft check header` and `uv run lorecraft check structure` with any flags — read-only, no side effects
-- `.agents/skills/docs-rules-check/scripts/check_budget.py` with any flags — read-only, no side effects
-- `just check-docs`, which runs the three checks over the whole corpus
+- `just check-docs`, which runs those checks over the whole corpus
 - Frontmatter extraction (Grep tool or the `awk` fallback) on any file under `docs/`
 - `ls` on any directory under `docs/`, to check a list against what is actually there
 - All `git diff`, `git log`, and `git status` read-only commands

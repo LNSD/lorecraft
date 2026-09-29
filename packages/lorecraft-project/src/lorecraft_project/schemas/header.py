@@ -18,9 +18,8 @@ from lorecraft_core.error import Error
 from lorecraft_vfs import RootRelativePath
 
 # The decoded JSON object of a header schema file, not yet known to be a well-formed schema. A NewType only
-# keeps it apart from structure and budget JSON; `HeaderAspect` is the type whose construction proves it
-# well-formed. Values are `object` because a JSON Schema is recursive and JSON decodes each value to its own
-# Python type.
+# keeps it apart from structure JSON; `HeaderAspect` is the type whose construction proves it well-formed.
+# Values are `object` because a JSON Schema is recursive and JSON decodes each value to its own Python type.
 HeaderSchema = NewType('HeaderSchema', dict[str, object])
 
 

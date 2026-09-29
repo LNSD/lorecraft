@@ -12,7 +12,7 @@ from .position import LineNumber
 
 @dataclass(frozen=True, slots=True)
 class Heading:
-    """One top-level heading and whether the section it opens holds any content.
+    """One top-level heading, whether the section it opens holds any content, and how many prose words.
 
     Attributes:
         level: The heading depth, 1 for a title through 6.
@@ -20,9 +20,15 @@ class Heading:
         line: The document line the heading starts on.
         empty: True when nothing follows the heading before the next heading of the same or a higher level,
             or before the end of the document. A deeper heading opens a subsection, which is content.
+        words: The prose words in the section the heading opens, up to the same boundary as ``empty``: a
+            subsection's prose counts toward it, and no heading's own text does. Code blocks and table rows
+            are not prose.
     """
 
     level: int
     text: str
     line: LineNumber
     empty: bool
+    # Not range-checked: only the parser builds a heading, and it counts the words, so the value is never
+    # below 0.
+    words: int

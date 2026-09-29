@@ -2,7 +2,7 @@
 name: docs-rules
 description: Load the documentation rules that govern a document under docs/ - its format specification and content requirements. Use before creating or editing anything under docs/, when choosing which corpus a document belongs in, when adding a frontmatter field, or when fixing findings from /docs-rules-check
 compatibility: Requires uv to run the checks in /docs-rules-check
-allowed-tools: Bash(uv run lorecraft check*), Bash(.agents/skills/docs-rules-check/scripts/check_budget.py*), Bash(just check-docs*), Bash(grep *), Bash(ls docs/*), Bash(awk *)
+allowed-tools: Bash(uv run lorecraft check*), Bash(just check-docs*), Bash(grep *), Bash(ls docs/*), Bash(awk *)
 ---
 
 # Doc Rules
@@ -42,8 +42,8 @@ For a document at `docs/<corpus>/…/<file>.md`:
 
 Each of those `.md` files is paired with machine-checkable files at the same stem:
 `docs/__meta__/code.header.json` holds its frontmatter rules, `docs/__meta__/code.structure.json` its section
-structure, `docs/__meta__/code.budget.json` its length budget. Read the `.md` for the prose; the JSON is the
-exact field, section and word list, and it is what the checks run against.
+structure and section word caps. Read the `.md` for the prose; the JSON is the exact field, section and cap
+list, and it is what the checks run against.
 
 Where step 2 finds no specification, the document's format is ungoverned. Say so rather than inventing rules
 or borrowing another corpus's — never carry a rule from one corpus into another.
@@ -79,14 +79,13 @@ live at the `docs/` root, and agent workflow in `AGENTS.md` or a skill.
    ```bash
    uv run lorecraft check header <the files you wrote>
    uv run lorecraft check structure <the files you wrote>
-   .agents/skills/docs-rules-check/scripts/check_budget.py <the files you wrote>
    ```
 
-   The budget check counts prose words per document and per section against the corpus's
-   `docs/__meta__/<corpus>.budget.json`. A section over budget is moved or cut, not compressed: the
+   The structure check also counts each section's prose words against the `words` caps in the corpus's
+   `docs/__meta__/<corpus>.structure.json`. A section over its cap is moved or cut, not compressed: the
    specification's content guidelines say where each kind of overflow belongs.
 
-   `just check-docs` runs all three over the whole corpus. Run it before handing the change over — a new
+   `just check-docs` runs both over the whole corpus. Run it before handing the change over — a new
    document can break a neighbor's cross-reference, and the per-file run will not see that.
 
 6. **Check the whole document** with `/docs-rules-check`, which covers everything the checks cannot decide.
@@ -171,8 +170,7 @@ frontmatter schemas set `additionalProperties: false`, so an undeclared key is a
 These run without user permission:
 
 - `uv run lorecraft check`, `uv run lorecraft check header` and `uv run lorecraft check structure` with any flags — read-only, no side effects
-- `.agents/skills/docs-rules-check/scripts/check_budget.py` with any flags — read-only, no side effects
-- `just check-docs`, which runs those three checks over the whole corpus
+- `just check-docs`, which runs those checks over the whole corpus
 - Reading any file under `docs/` or `.agents/skills/`
 - Frontmatter extraction: `awk '/^---$/{p=!p; print; next} p' <path>`
 - `ls` on any directory under `docs/`

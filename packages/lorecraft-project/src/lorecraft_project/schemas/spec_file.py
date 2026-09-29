@@ -1,8 +1,8 @@
 """The specification filename grammar: the stem a file sits at, and the aspect it carries.
 
 A specification file in ``docs/__meta__/`` is either ``<stem>.md``, the prose of a specification, or
-``<stem>.<aspect>.json``, one machine-checkable aspect of it. The aspect is ``header``, ``structure`` or
-``budget``. The stem is one of the two forms ``name.py`` describes, and holds no dot.
+``<stem>.<aspect>.json``, one machine-checkable aspect of it. The aspect is ``header`` or ``structure``. The
+stem is one of the two forms ``name.py`` describes, and holds no dot.
 
 ``parse_spec_file`` is the one place this grammar is read, and ``schema_filename`` and ``prose_filename`` the
 only places it is written. Every other module takes the parsed records.
@@ -28,7 +28,6 @@ class SpecAspect(Enum):
 
     HEADER = 'header'
     STRUCTURE = 'structure'
-    BUDGET = 'budget'
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,7 +80,7 @@ class UnknownSpecAspectError(SpecFilenameError):
     def __init__(self, path: RootRelativePath, token: str) -> None:
         self.path = path
         self.token = token
-        super().__init__(f'{path}: aspect {token!r} is not header, structure or budget')
+        super().__init__(f'{path}: aspect {token!r} is not header or structure')
 
 
 class NotASpecStemError(SpecFilenameError):
