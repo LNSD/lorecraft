@@ -3,7 +3,7 @@ name: "spec"
 description: "The specification files under docs/__meta__/: the <stem>.md and <stem>.<aspect>.json filename grammar, how a stem makes a directory under docs/ a corpus, how corpus and namespace stems layer onto a document, and what an absent or malformed file means. Load when adding a corpus or a namespace specification, or asking why a document is governed, ungoverned or not checked at all"
 type: "meta"
 status: "experimental"
-components: "module:lorecraft_project.schemas.spec_file,module:lorecraft_project.schemas.name,module:lorecraft_project.workspace"
+components: "module:lorecraft.project.schemas.spec_file,module:lorecraft.project.schemas.name,module:lorecraft.project.workspace"
 ---
 
 # Specification Files

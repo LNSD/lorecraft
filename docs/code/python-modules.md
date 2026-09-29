@@ -23,13 +23,13 @@ alongside a package `outline/` in the same parent.
 When both exist, the package wins import resolution unconditionally. The module is unreachable — but it is
 still a file in the tree that a reader finds, a grep hits, and a reviewer edits, and its imports are still
 scanned by tooling. It is dead code wearing a live name, and the usual signal for dead code (nothing imports
-it) is absent, because `from lorecraft_project.outline import X` looks exactly like an import of it.
+it) is absent, because `from lorecraft.project.outline import X` looks exactly like an import of it.
 
 ```
-# ❌ Bad — outline.py is unreachable; `from lorecraft_project.checks.outline import OutlineReport`
+# ❌ Bad — outline.py is unreachable; `from lorecraft.project.checks.outline import OutlineReport`
 # resolves into the package, so edits to the module change nothing and the failure
 # is a confusing ImportError naming a symbol that is plainly right there
-lorecraft_project/checks/
+lorecraft/project/checks/
     outline.py
     outline/
         __init__.py
@@ -38,7 +38,7 @@ lorecraft_project/checks/
 
 ```
 # ✅ Good — one name, one location
-lorecraft_project/checks/
+lorecraft/project/checks/
     outline/
         __init__.py
         parser.py
@@ -69,21 +69,23 @@ shared base exception that is never raised directly may use a module named for t
 
 ## 3. Relative Inside a Top-Level Package, Absolute Across Them
 
-A top-level package is a directory directly under an import package, `lorecraft_project/<pkg>/` or
+A root is `lorecraft` itself or one of the libraries under it: the layers of the import-linter contract in
+the root `pyproject.toml` that sit below the command line's own, such as `lorecraft/project/`. A top-level
+package is a directory directly under a root that is not a root itself, `lorecraft/project/<pkg>/` or
 `lorecraft/<pkg>/`. An import whose target sits inside the importing module's own top-level package is
 relative: `from .report import OutlineReport`, `from ..registry import CheckerRegistry`. An import whose target
-sits outside it is absolute: another top-level package, a module directly in an import package, or the import
-package itself, as in `from lorecraft_project.layout import SNAPSHOT_SCOPE`. A module directly in an import package
-has no top-level package, so every library import it makes is absolute; so is every import from one workspace
-package into another, and every import in a test outside `src/`. A unit test co-located in a `tests/`
-subpackage is part of the package it sits in and follows the same rule as that package's code
-([test-organization](test-organization.md) §2). A package imports only what its `pyproject.toml` depends on:
-a library never imports `lorecraft`, which sits above every library, and `lorecraft_core`, the base every
-other package builds on, imports no workspace package at all.
+sits outside it is absolute: another top-level package, a module directly in a root, or a root itself, as in
+`from lorecraft.project.layout import SNAPSHOT_SCOPE`. A module directly in a root has no top-level package,
+so every library import it makes is absolute; so is every import from one root into another, and every import
+in a test outside `src/`. A unit test co-located in a `tests/` subpackage is part of the package it sits in and
+follows the same rule as that package's code ([test-organization](test-organization.md) §2). A layer imports
+only the layers below it in the contract, which `just check` runs: a library never imports the command line,
+which sits above every library, and `lorecraft.core`, the base every other layer builds on, imports none at
+all.
 
 **The form of an import says which boundary it crosses.** A leading dot means the package's own code, which
-moves and is reviewed with the importing module. `lorecraft_core.` or `lorecraft.` means another package's surface, which is an edge
-in the dependency graph between packages. A relative path out of the package names nothing a reader can see:
+moves and is reviewed with the importing module. A `lorecraft.` path means another package's surface, which is
+an edge in the dependency graph between packages. A relative path out of the package names nothing a reader can see:
 they have to count dots against the file's depth to learn that `....layout` means the layout module at the root,
 and the count changes when the file moves. The absolute form is the same string in every file, so one grep
 finds every importer. In an `it` or `e2e` test it also exercises the package the way a user imports it, so a
@@ -94,14 +96,14 @@ broken `__init__.py` export fails a test instead of being routed around.
 # dots, so nothing at the import says it lands on the root layout module; the second one
 # names the package's own sibling module the long way and stops meaning "ours"
 from ..layout import SNAPSHOT_SCOPE
-from lorecraft_project.watch.rerun import affected
+from lorecraft.project.watch.rerun import affected
 ```
 
 ```python
 # ✅ Good — inside the watch package: the root and the other packages by name, the
 # package's own modules by dot
-from lorecraft_core.error import Error
-from lorecraft_project.layout import SNAPSHOT_SCOPE
+from lorecraft.core.error import Error
+from lorecraft.project.layout import SNAPSHOT_SCOPE
 
 from .rerun import affected
 ```
@@ -124,7 +126,7 @@ from ...registry import CheckerRegistry
 
 ```python
 # ✅ Good — the same module, named from the root
-from lorecraft_project.checks.registry import CheckerRegistry
+from lorecraft.project.checks.registry import CheckerRegistry
 ```
 
 ## 5. `__all__` Declares a Package's Surface
@@ -138,7 +140,7 @@ in the diff: deleting a public name shows up as a line removed from `__all__`, n
 longer importable.
 
 ```python
-# ❌ Bad — `from lorecraft_project.checks.outline import *` now also exports `parser`, `report`,
+# ❌ Bad — `from lorecraft.project.checks.outline import *` now also exports `parser`, `report`,
 # `logging`, and every name those modules re-exported. A later refactor that stops
 # importing `logging` here is a breaking change nobody noticed making
 from .parser import OutlineParser, split_heading
@@ -283,9 +285,9 @@ Before committing code, verify:
 - [ ] Every new module or package names its subject, with no `common.py`, `errors.py`, or other category bucket
 - [ ] No module or package name starts with a single underscore
 - [ ] Each concrete exception is declared beside the code that raises it
-- [ ] An import inside `packages/*/src/`, co-located tests included, is relative exactly when its target is in
+- [ ] An import inside `src/`, co-located tests included, is relative exactly when its target is in
       the importing module's own top-level package; every other library import is absolute
-- [ ] A package imports only workspace packages its `pyproject.toml` depends on; `lorecraft_core` imports none
+- [ ] A layer imports only the layers below it; `lorecraft.core` imports none
 - [ ] No relative import uses three or more dots; such a target is imported absolutely
 - [ ] Every package `__init__.py` that re-exports declares `__all__` as a list of string literals matching
       exactly what it re-exports

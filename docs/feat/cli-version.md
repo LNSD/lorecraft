@@ -59,7 +59,7 @@ lorecraft 0.1.dev14+g376abe87a.d20260928
 Commit:   0425125-dirty
 Python:   3.13.14 (CPython)
 Platform: Linux-6.18.49-1-MANJARO-x86_64-with-glibc2.44
-Install:  /home/user/lorecraft/packages/lorecraft/src/lorecraft
+Install:  /home/user/lorecraft/src/lorecraft
 ```
 
 `Commit` is `git describe --tags --always --dirty` run in the checkout, so uncommitted work shows as `-dirty`.
@@ -84,5 +84,5 @@ or when the command fails or takes longer than five seconds.
 
 ## Code References
 
-- `packages/lorecraft/src/lorecraft/cli/commands/version.py` - Declares the command
-- `packages/lorecraft/src/lorecraft/cli/version.py` - Builds both forms and runs the `git describe` probe
+- `src/lorecraft/cli/commands/version.py` - Declares the command
+- `src/lorecraft/cli/version.py` - Builds both forms and runs the `git describe` probe

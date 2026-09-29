@@ -3,7 +3,7 @@ name: "cli-check-header"
 description: "lorecraft check header: validating each document's YAML frontmatter against the header schemas its path selects, the name-matches-filename rule, and the rule identifiers it reports. Load when a frontmatter finding needs explaining, or when running the header check on its own"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft.cli.commands.check.header,module:lorecraft.checks.header,module:lorecraft_project.schemas.header,spec:feat,spec:code"
+components: "module:lorecraft.cli.commands.check.header,module:lorecraft.checks.header,module:lorecraft.project.schemas.header,spec:feat,spec:code"
 ---
 
 # `lorecraft check header`
@@ -82,6 +82,6 @@ The `<corpus>` prefix is the document's corpus, whichever layer's schema the fin
 
 ## Code References
 
-- `packages/lorecraft/src/lorecraft/cli/commands/check/header.py` - Declares the command and registers the check with the group
-- `packages/lorecraft/src/lorecraft/checks/header.py` - The check of one document's frontmatter
-- `packages/lorecraft-project/src/lorecraft_project/schemas/header.py` - Loads and validates a header schema
+- `src/lorecraft/cli/commands/check/header.py` - Declares the command and registers the check with the group
+- `src/lorecraft/checks/header.py` - The check of one document's frontmatter
+- `src/lorecraft/project/schemas/header.py` - Loads and validates a header schema

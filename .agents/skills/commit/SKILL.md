@@ -226,7 +226,7 @@ agents run on this repository, and ships nothing to anyone using Lorecraft, so i
 the edit: a new section, a rewritten workflow, a fixed vendored script.
 
 **Project skills are typed like code.** A skill under `skills/` ships to every repository that uses Lorecraft,
-so a change to it takes its type from the consequence, exactly as a change under `packages/` does, with the
+so a change to it takes its type from the consequence, exactly as a change under `src/` does, with the
 scope `skills`: `feat(skills)` for a new skill or a workflow an agent could not follow before, `fix(skills)`
 for guidance that was wrong, `refactor(skills)` for a reshaping that leaves what an agent does unchanged. A
 commit touching both directories is typed by the `skills/` change.
@@ -351,17 +351,17 @@ scope only repeats the type or names no narrower area; the conventional format a
 
 **Process**:
 1. Check `git status` and `git diff`
-2. Identify which module under `packages/lorecraft/src/lorecraft/`, or which non-code area, contains the changes
+2. Identify which module under `src/lorecraft/`, or which non-code area, contains the changes
 3. Choose the one with the most significant architectural impact
 4. Add its name as the scope when it distinguishes the change's area
 
-**Code scopes**: the module or subsystem name under `packages/lorecraft/src/lorecraft/`, without the `.py` extension and
+**Code scopes**: the module or subsystem name under `src/lorecraft/`, without the `.py` extension and
 without the package prefix. A package directory scopes as the directory name, not as the file inside
 it: a change confined to one check module under a `checks/` package still scopes to `checks`, and the
 individual check is named in the description or a bullet.
 
-`packages/lorecraft/src/lorecraft/` currently holds only `__init__.py`, so there are no module scopes yet. Until the
-checker's modules land, a change to the package itself scopes to `lorecraft`.
+The layers under `src/lorecraft/` are the usual scopes: a change confined to one scopes to the layer's name.
+A change to modules directly in `src/lorecraft/` scopes to `lorecraft`.
 
 **Non-code scopes**: the area, named for the directory or artifact it lives in.
 
