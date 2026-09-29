@@ -88,6 +88,72 @@ check-skills *EXTRA_FLAGS:
     .agents/skills/skills-check/scripts/check_skill.py {{EXTRA_FLAGS}}
 
 
+## Codegen
+
+GEN_SCHEMAS_OUTDIR := "docs/schemas"
+
+# Run all code generation tasks
+[group: 'codegen']
+gen: gen-schemas
+
+# Generate the JSON Schemas of the specification files into docs/schemas/ (pydantic, in a uv script)
+[group: 'codegen']
+gen-schemas:
+    #!/usr/bin/env -S uv run python
+    # Runs in the workspace environment: run `just sync` first.
+    #
+    # Each schema is rendered from the pydantic model the package deserializes the file with, so the schema an
+    # editor applies and the validation the check runs come from one declaration; nothing here restates a field.
+    # The models carry everything an editor is shown: descriptions as field docstrings, examples and bounds in
+    # `Field`, titles and whole examples in `model_config`.
+    import json
+    from pathlib import Path
+
+    from pydantic import BaseModel
+    from pydantic.json_schema import GenerateJsonSchema
+
+    from lorecraft_project.schemas import StructureFile
+
+    JSON_SCHEMA_DIALECT = 'https://json-schema.org/draft/2020-12/schema'
+
+
+    class WithoutPropertyTitles(GenerateJsonSchema):
+        """pydantic's generator, without the title it gives every property: a property's key already names it."""
+
+        def field_title_should_be_set(self, schema: object) -> bool:
+            return False
+
+
+    def unwrap_descriptions(node: object) -> None:
+        """Rejoin the lines each description's docstring was wrapped at, keeping its paragraph breaks: an editor
+        wraps the text to its own width."""
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key == 'description' and isinstance(value, str):
+                    paragraphs = value.split('\n\n')
+                    node[key] = '\n\n'.join(' '.join(paragraph.split()) for paragraph in paragraphs)
+                else:
+                    unwrap_descriptions(value)
+        elif isinstance(node, list):
+            for item in node:
+                unwrap_descriptions(item)
+
+
+    def write_schema(file_model: type[BaseModel], filename: str) -> None:
+        """Write one file model's JSON Schema, led by the dialect it is written in, and print where it went."""
+        schema = file_model.model_json_schema(schema_generator=WithoutPropertyTitles)
+        unwrap_descriptions(schema)
+        path = Path('{{GEN_SCHEMAS_OUTDIR}}') / filename
+        path.parent.mkdir(parents=True, exist_ok=True)
+        document = {'$schema': JSON_SCHEMA_DIALECT, **schema}
+        path.write_text(json.dumps(document, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+        print(f'  {path}')
+
+
+    print('Generating the specification schemas...')
+    write_schema(StructureFile, 'structure.spec.json')
+
+
 ## Build
 
 # Build the source distribution and wheel of every package (uv build --all-packages)

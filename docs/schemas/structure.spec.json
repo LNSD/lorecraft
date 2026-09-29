@@ -1,0 +1,224 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "StructureFileAny": {
+      "additionalProperties": false,
+      "description": "An outline entry matching a run, of any length, of sections the outline does not name.\n\nThe run stops at any section the outline names, so each named section still matches its own entry.",
+      "examples": [
+        {
+          "any": true
+        }
+      ],
+      "properties": {
+        "any": {
+          "const": true,
+          "description": "Always true: the entry's only field, which marks it as a run.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "any"
+      ],
+      "title": "Unnamed sections",
+      "type": "object"
+    },
+    "StructureFileSection": {
+      "additionalProperties": false,
+      "description": "An outline entry naming one section, fixing its position against every other name in the outline.",
+      "examples": [
+        {
+          "section": "Checklist"
+        },
+        {
+          "optional": true,
+          "section": "References"
+        }
+      ],
+      "properties": {
+        "section": {
+          "description": "The section's heading text, without its `#` markers or inline markup.",
+          "examples": [
+            "Checklist",
+            "References"
+          ],
+          "type": "string"
+        },
+        "optional": {
+          "default": false,
+          "description": "True when a document may leave the section out.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "section"
+      ],
+      "title": "Named section",
+      "type": "object"
+    },
+    "StructureFileTitle": {
+      "additionalProperties": false,
+      "description": "How many H1 titles a document carries, and whether one opens it.",
+      "examples": [
+        {
+          "count": 1,
+          "first": true
+        }
+      ],
+      "properties": {
+        "count": {
+          "description": "The number of H1 titles a document carries.",
+          "examples": [
+            1
+          ],
+          "minimum": 1,
+          "type": "integer"
+        },
+        "first": {
+          "description": "True when an H1 title must come before any other heading.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "count",
+        "first"
+      ],
+      "title": "Title rule",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A structure specification: the section outline a document governed by this file must follow.",
+  "examples": [
+    {
+      "description": "Section structure for a rule document in docs/code/.",
+      "empty_sections": "forbidden",
+      "outline": [
+        {
+          "any": true
+        },
+        {
+          "section": "Checklist"
+        },
+        {
+          "optional": true,
+          "section": "References"
+        },
+        {
+          "optional": true,
+          "section": "External References"
+        }
+      ],
+      "spec": "code.md §5",
+      "title": {
+        "count": 1,
+        "first": true
+      }
+    }
+  ],
+  "properties": {
+    "$schema": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The JSON Schema this file is written against, for editors; ignored by the check."
+    },
+    "spec": {
+      "description": "The prose this file is the machine-checkable half of: a document under `docs/__meta__/` and the part of it that states these rules. Every finding quotes it, to send the reader to the rule rather than to this file.",
+      "examples": [
+        "code.md §5",
+        "code-pattern.md Template"
+      ],
+      "type": "string"
+    },
+    "description": {
+      "default": "",
+      "description": "What this file governs and why, for whoever opens it; not read by the check.",
+      "examples": [
+        "Section structure for a rule document in docs/code/."
+      ],
+      "type": "string"
+    },
+    "title": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/StructureFileTitle"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "How many H1 titles a document carries, and whether one opens it; no title rule when absent."
+    },
+    "empty_sections": {
+      "anyOf": [
+        {
+          "const": "forbidden",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "`forbidden` reports every section left without content: one that ends the document, or is followed straight away by a heading of its own level or higher. Empty sections are allowed when absent."
+    },
+    "outline": {
+      "default": [],
+      "description": "The order of the document's sections, matched left to right. A named section is required unless optional, and may be named once; an `{\"any\": true}` entry matches a run of sections the outline does not name, and two may not sit side by side.",
+      "examples": [
+        [
+          {
+            "any": true
+          },
+          {
+            "section": "Checklist"
+          },
+          {
+            "optional": true,
+            "section": "References"
+          },
+          {
+            "optional": true,
+            "section": "External References"
+          }
+        ]
+      ],
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/StructureFileSection"
+          },
+          {
+            "$ref": "#/$defs/StructureFileAny"
+          }
+        ]
+      },
+      "type": "array"
+    },
+    "forbidden": {
+      "default": [],
+      "description": "Sections that must not appear at all; none may also be named in the outline.",
+      "examples": [
+        [
+          "Changelog"
+        ]
+      ],
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "spec"
+  ],
+  "title": "Structure specification",
+  "type": "object"
+}

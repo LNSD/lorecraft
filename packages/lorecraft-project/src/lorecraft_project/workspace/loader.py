@@ -52,8 +52,9 @@ def load_workspace(schemas: SchemaRepository, documents: DocumentRepository) -> 
         ListDocumentsError: If a corpus directory cannot be listed.
         GetHeaderSchemaError: If any header schema cannot be read or decoded.
         InvalidHeaderSchemaError: If any header schema is not a well-formed JSON Schema.
-        GetStructureSchemaError: If any structure specification cannot be read or decoded.
-        InvalidStructureSchemaError: If any structure specification does not state usable rules.
+        GetStructureSchemaError: If any structure specification cannot be read.
+        InvalidStructureSchemaError: If any structure specification is not JSON in the dialect, or states no usable
+            rules.
     """
     spec_paths = schemas.list_spec_paths()
     directories = documents.list_corpus_directories()
@@ -93,8 +94,9 @@ def load_model(fs: FileSystem) -> WorkspaceModel:
         ListDocumentsError: If a corpus directory cannot be listed.
         GetHeaderSchemaError: If any header schema cannot be read or decoded.
         InvalidHeaderSchemaError: If any header schema is not a well-formed JSON Schema.
-        GetStructureSchemaError: If any structure specification cannot be read or decoded.
-        InvalidStructureSchemaError: If any structure specification does not state usable rules.
+        GetStructureSchemaError: If any structure specification cannot be read.
+        InvalidStructureSchemaError: If any structure specification is not JSON in the dialect, or states no usable
+            rules.
     """
     schemas = SchemaRepository(fs, SPECS_DIR)
     documents = DocumentRepository(fs)
@@ -129,8 +131,9 @@ def _load_corpus(
     Raises:
         GetHeaderSchemaError: If a header schema cannot be read or decoded.
         InvalidHeaderSchemaError: If a header schema is not a well-formed JSON Schema.
-        GetStructureSchemaError: If a structure specification cannot be read or decoded.
-        InvalidStructureSchemaError: If a structure specification does not state usable rules.
+        GetStructureSchemaError: If a structure specification cannot be read.
+        InvalidStructureSchemaError: If a structure specification is not JSON in the dialect, or states no usable
+            rules.
     """
     spec = _load_spec(schemas, (corpus_name,), files.spec)
 
@@ -154,8 +157,9 @@ def _load_spec(schemas: SchemaRepository, name: SchemaName, spec_files: list[Spe
     Raises:
         GetHeaderSchemaError: If the header schema cannot be read or decoded.
         InvalidHeaderSchemaError: If the header schema is not a well-formed JSON Schema.
-        GetStructureSchemaError: If the structure specification cannot be read or decoded.
-        InvalidStructureSchemaError: If the structure specification does not state usable rules.
+        GetStructureSchemaError: If the structure specification cannot be read.
+        InvalidStructureSchemaError: If the structure specification is not JSON in the dialect, or states no usable
+            rules.
     """
     header: HeaderAspect | None = None
     structure: StructureAspect | None = None
@@ -164,7 +168,7 @@ def _load_spec(schemas: SchemaRepository, name: SchemaName, spec_files: list[Spe
             # Building the aspect is the well-formedness check: HeaderAspect rejects a malformed schema.
             header = HeaderAspect(path=spec_file.path, schema=schemas.get_header_schema(name))
         elif spec_file.aspect is SpecAspect.STRUCTURE:
-            # Likewise, StructureAspect.parse rejects JSON that is not the structure dialect.
+            # Likewise, StructureAspect.parse rejects text that is not JSON in the structure dialect.
             structure = StructureAspect.parse(spec_file.path, schemas.get_structure_schema(name))
     paths = tuple(sorted((spec_file.path for spec_file in spec_files), key=str))
     return Spec(name=name, files=paths, header=header, structure=structure)

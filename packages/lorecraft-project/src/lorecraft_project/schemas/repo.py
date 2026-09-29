@@ -119,23 +119,17 @@ class Repository:
         return HeaderSchema(definition)
 
     def get_structure_schema(self, name: SchemaName) -> StructureSchema:
-        """Read and JSON-decode one structure schema; ``StructureAspect.parse`` is what proves it usable.
+        """Read one structure schema's text, undecoded: ``StructureAspect.parse`` deserializes and validates it in
+        one step, so the JSON is read once, by the model that states its shape.
 
         Raises:
-            GetStructureSchemaError: If the file cannot be read, is not JSON, or is not a JSON object.
+            GetStructureSchemaError: If the file cannot be read.
         """
         path = self._specs_dir / schema_filename(name, SpecAspect.STRUCTURE)
         try:
-            text = self._fs.read_text(path)
+            return StructureSchema(self._fs.read_text(path))
         except ReadTextError as exc:
             raise GetStructureSchemaError(f'cannot read schema {path}: {exc.detail}') from exc
-        try:
-            definition: object = json.loads(text)
-        except json.JSONDecodeError as exc:
-            raise GetStructureSchemaError(f'invalid JSON in schema {path}: {exc.msg}') from exc
-        if not isinstance(definition, dict):
-            raise GetStructureSchemaError(f'expected a JSON object in schema {path}')
-        return StructureSchema(definition)
 
     def get_budget_schema(self, name: SchemaName) -> BudgetSchema:
         """Read and JSON-decode one budget schema; nothing validates it yet.

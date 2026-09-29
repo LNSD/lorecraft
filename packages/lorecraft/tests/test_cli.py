@@ -10,6 +10,7 @@ import json
 import os
 from collections.abc import Iterator
 from pathlib import Path
+from textwrap import dedent
 from typing import Final
 
 import pytest
@@ -26,7 +27,14 @@ runner = CliRunner()
 ACCEPT_ANY_HEADER_SCHEMA: Final[str] = '{"type": "object"}'
 
 # A structure specification requiring a Checklist after the document's own sections.
-CHECKLIST_STRUCTURE_SPEC: Final[str] = '{"spec": "code.md §5", "outline": [{"any": true}, {"section": "Checklist"}]}'
+CHECKLIST_STRUCTURE_SPEC: Final[str] = dedent(
+    """
+    {
+      "spec": "code.md §5",
+      "outline": [{"any": true}, {"section": "Checklist"}]
+    }
+    """
+)
 
 
 @pytest.fixture(scope='function')

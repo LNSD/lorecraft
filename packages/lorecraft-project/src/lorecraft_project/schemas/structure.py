@@ -1,14 +1,17 @@
 """The structure aspect: a structure specification file's decoded JSON, and the rules it is decoded into.
 
-The repository reads and decodes a ``<stem>.structure.json`` file into a ``StructureSchema``, which proves
-nothing about it. ``StructureAspect.parse`` is the check: it reads the JSON's shape into typed rules, and
-building the aspect refuses a set of rules that checks nothing or contradicts itself. So every
-``StructureAspect`` that exists states usable rules, however it was built.
+The repository reads a ``<stem>.structure.json`` file's text, a ``StructureSchema``, which proves nothing about
+it. ``StructureAspect.parse`` is the check, in two steps at the edge. It deserializes the text straight into the
+strict, frozen ``StructureFile`` model, so JSON that is malformed or not the dialect's shape is refused before
+any rule is read. Then it maps the model to typed rules, and building the aspect refuses a set of rules that
+checks nothing or contradicts itself, which no shape can state. So every ``StructureAspect`` that exists states
+usable rules, however it was built.
 
 A document's outline is a sequence whose length varies, and JSON Schema cannot state an order over one, so a
-structure specification is not JSON Schema. It is this small dialect:
+structure specification is not JSON Schema. It is this small dialect, whose fields ``structure_file`` declares:
 
     {
+      "$schema": "../schemas/structure.spec.json",
       "spec": "code.md §5",
       "description": "what this file governs, for whoever opens it",
       "title": {"count": 1, "first": true},
@@ -21,6 +24,9 @@ structure specification is not JSON Schema. It is this small dialect:
       "forbidden": ["Changelog"]
     }
 
+- ``$schema`` points editors at ``docs/schemas/structure.spec.json``, the JSON Schema ``just gen`` renders from
+  ``structure_file``; it is not kept. That schema states the shape only: the rules ``StructureAspect`` refuses
+  below it cannot state.
 - ``spec`` names the prose this file is the machine-checkable half of; every finding quotes it.
 - ``description`` is read by people only, and is not kept.
 - ``title`` states how many H1 titles a document carries, and whether one opens it ahead of every section.
@@ -36,12 +42,16 @@ from dataclasses import dataclass
 from itertools import pairwise
 from typing import NewType, Self
 
+from pydantic import ValidationError
+
 from lorecraft_core.error import Error
 from lorecraft_vfs import RootRelativePath
 
-# The decoded JSON object of a structure specification file, not yet known to state valid rules. A NewType
-# only keeps it apart from header and budget JSON; `StructureAspect.parse` is what proves it.
-StructureSchema = NewType('StructureSchema', dict[str, object])
+from .structure_file import StructureFile, StructureFileAny, StructureFileTitle
+
+# The text of a structure specification file as read, not yet known to be JSON, the dialect's shape or usable
+# rules. A NewType only keeps it apart from other text; `StructureAspect.parse` is what proves it.
+StructureSchema = NewType('StructureSchema', str)
 
 
 class InvalidStructureSchemaError(Error):
@@ -158,98 +168,52 @@ class StructureAspect:
 
     @classmethod
     def parse(cls, path: RootRelativePath, schema: StructureSchema) -> Self:
-        """Read a decoded structure specification into its rules.
+        """Deserialize a structure specification's text into its rules.
 
         Args:
-            path: Where the JSON was read from; every rejection names it.
-            schema: The decoded JSON object.
+            path: Where the text was read from; every rejection names it.
+            schema: The file's text.
 
         Raises:
-            InvalidStructureSchemaError: If the JSON does not have the dialect's shape, or its rules are not
-                usable (see ``__post_init__``).
+            InvalidStructureSchemaError: If the text is not JSON, does not have the dialect's shape, or its rules
+                are not usable (see ``__post_init__``).
         """
-        unknown = sorted(set(schema) - {'spec', 'description', 'title', 'empty_sections', 'outline', 'forbidden'})
-        if unknown:
-            raise InvalidStructureSchemaError(path, f'unknown fields: {unknown}')
+        try:
+            file = StructureFile.model_validate_json(schema)
+        except ValidationError as exc:
+            raise InvalidStructureSchemaError(path, _describe(exc)) from exc
 
-        authority = schema.get('spec')
-        if not isinstance(authority, str):
-            raise InvalidStructureSchemaError(path, '`spec` must be a string naming the prose it checks')
-        if not isinstance(schema.get('description', ''), str):
-            raise InvalidStructureSchemaError(path, '`description` must be a string')
-
-        empty_sections = schema.get('empty_sections')
-        if empty_sections is not None and empty_sections != 'forbidden':
-            raise InvalidStructureSchemaError(path, f'`empty_sections` can only be "forbidden", got {empty_sections!r}')
+        outline: list[OutlineEntry] = []
+        for entry in file.outline:
+            if isinstance(entry, StructureFileAny):
+                outline.append(AnySections())
+            else:
+                outline.append(SectionEntry(name=entry.section, optional=entry.optional))
 
         return cls(
             path=path,
-            authority=authority,
-            title=_parse_title(path, schema.get('title')),
-            forbid_empty_sections=empty_sections == 'forbidden',
-            outline=_parse_outline(path, schema.get('outline', [])),
-            forbidden=_parse_forbidden(path, schema.get('forbidden', [])),
+            authority=file.spec,
+            title=_title_rule(file.title),
+            forbid_empty_sections=file.empty_sections == 'forbidden',
+            outline=tuple(outline),
+            forbidden=file.forbidden,
         )
 
 
-def _parse_title(path: RootRelativePath, value: object) -> TitleRule | None:
-    """Read the ``title`` field: absent, or an object with an integer ``count`` and a boolean ``first``.
-
-    Raises:
-        InvalidStructureSchemaError: If the field has any other shape.
-    """
-    if value is None:
+def _title_rule(title: StructureFileTitle | None) -> TitleRule | None:
+    """The title rule a file's ``title`` field states, or None when the file states none."""
+    if title is None:
         return None
-    if not isinstance(value, dict) or set(value) != {'count', 'first'}:
-        raise InvalidStructureSchemaError(path, '`title` must be an object with exactly `count` and `first`')
-    count = value['count']
-    first = value['first']
-    # `bool` is a subclass of `int`, so `true` would otherwise pass as a count of 1.
-    if not isinstance(count, int) or isinstance(count, bool):
-        raise InvalidStructureSchemaError(path, '`title.count` must be an integer')
-    if not isinstance(first, bool):
-        raise InvalidStructureSchemaError(path, '`title.first` must be a boolean')
-    return TitleRule(count=count, first=first)
+    return TitleRule(count=title.count, first=title.first)
 
 
-def _parse_outline(path: RootRelativePath, value: object) -> tuple[OutlineEntry, ...]:
-    """Read the ``outline`` field: a list of ``{"section": ..., "optional": ...}`` and ``{"any": true}`` entries.
-
-    Raises:
-        InvalidStructureSchemaError: If the field is not a list, or an entry has neither shape.
-    """
-    if not isinstance(value, list):
-        raise InvalidStructureSchemaError(path, '`outline` must be a list')
-    entries: list[OutlineEntry] = []
-    for entry in value:
-        if entry == {'any': True}:
-            entries.append(AnySections())
-            continue
-        if not isinstance(entry, dict) or 'section' not in entry or not set(entry) <= {'section', 'optional'}:
-            raise InvalidStructureSchemaError(
-                path, f'outline entry {entry!r} is neither {{"section": ...}} nor {{"any": true}}'
-            )
-        name = entry['section']
-        optional = entry.get('optional', False)
-        if not isinstance(name, str) or not isinstance(optional, bool):
-            raise InvalidStructureSchemaError(
-                path, f'outline entry {entry!r} needs a string `section` and a boolean `optional`'
-            )
-        entries.append(SectionEntry(name=name, optional=optional))
-    return tuple(entries)
-
-
-def _parse_forbidden(path: RootRelativePath, value: object) -> tuple[str, ...]:
-    """Read the ``forbidden`` field: a list of section names.
-
-    Raises:
-        InvalidStructureSchemaError: If the field is not a list of strings.
-    """
-    if not isinstance(value, list):
-        raise InvalidStructureSchemaError(path, '`forbidden` must be a list of section names')
-    names: list[str] = []
-    for name in value:
-        if not isinstance(name, str):
-            raise InvalidStructureSchemaError(path, f'`forbidden` holds {name!r}, which is not a section name')
-        names.append(name)
-    return tuple(names)
+def _describe(error: ValidationError) -> str:
+    """Every problem pydantic found in one file, as ``<field path>: <message>``, joined into one line."""
+    problems: list[str] = []
+    for detail in error.errors(include_url=False):
+        location = '.'.join(str(part) for part in detail['loc'])
+        if location:
+            problems.append(f'{location}: {detail["msg"]}')
+        else:
+            problems.append(detail['msg'])
+    return '; '.join(problems)
