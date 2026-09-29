@@ -16,6 +16,7 @@ structure specification is not JSON Schema. It is this small dialect, whose fiel
       "title": {"count": 1, "first": true},
       "empty_sections": "forbidden",
       "tokens": 5000,
+      "frontmatter": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string"}}},
       "outline": [
         {"section": "Table of Contents", "optional": true},
         {"any": true, "words": 350},
@@ -36,6 +37,11 @@ finding quotes it.
 - ``tokens`` is the token budget: the most tokens the whole file may hold, frontmatter, code and tables
   included, since that is what loading it costs an agent. The count is ``o200k_base``, the same whichever agent
   reads it. The budget check applies it, not the structure check: it reads the raw file, not the parse tree.
+- ``frontmatter`` is a Draft 2020-12 JSON Schema the document's frontmatter must satisfy. Unlike the rest of the
+  file it is JSON Schema, not the dialect: a frontmatter is a mapping, which JSON Schema states well. Its root must
+  say ``"type": "object"`` outright, and no schema in it, at any depth, may carry ``$id`` or name another dialect
+  in ``$schema``. The key is parsed and validated on load, and the structure check does not apply it: it reads
+  the headings, not the frontmatter.
 - ``outline`` is the order of the document's sections. A ``section`` entry names one and is required unless
   ``optional``; an ``any`` entry matches a run of sections the outline does not name. An entry's ``words`` caps
   the prose words of each section it matches, H3 subsections included: on an ``any`` entry that is every section
@@ -46,17 +52,21 @@ finding quotes it.
 Nothing here logs: the command that loads the model catches every ``Error`` that escapes it and reports it.
 """
 
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 from itertools import pairwise
 from typing import NewType, Self
 
-from pydantic import ValidationError
+from jsonschema import Draft202012Validator
+from jsonschema.exceptions import SchemaError
+from pydantic import JsonValue, ValidationError
+from referencing.jsonschema import DRAFT202012
 
 from lorecraft.core.error import Error
 from lorecraft.vfs import RootRelativePath
 
 from .spec_file import SpecFilenameError, parse_spec_file, prose_filename
-from .structure_file import StructureFile, StructureFileAny, StructureFileTitle
+from .structure_file import JSON_SCHEMA_DIALECT, StructureFile, StructureFileAny, StructureFileTitle
 
 # The text of a structure specification file as read, not yet known to be JSON, the dialect's shape or usable
 # rules. A NewType only keeps it apart from other text; `StructureAspect.parse` is what proves it.
@@ -130,11 +140,80 @@ type OutlineEntry = SectionEntry | AnySections
 
 
 @dataclass(frozen=True, slots=True)
+class FrontmatterSchema:
+    """A structure specification's ``frontmatter`` key: a Draft 2020-12 JSON Schema describing an object.
+
+    Construction checks the schema, so an instance is proof of it: no code holding a ``FrontmatterSchema`` checks
+    it again. A malformed schema is refused as an ``InvalidStructureSchemaError`` naming the specification file,
+    like every other rule of that file.
+
+    Frozen for equality only: ``schema`` is a dict, so instances are not hashable and must not be put in a set or
+    used as a key.
+
+    Attributes:
+        path: Root-relative path of the structure specification the schema is written in.
+        schema: The decoded schema. Values are ``object`` because a JSON Schema is recursive and JSON decodes each
+            value to its own Python type.
+    """
+
+    path: RootRelativePath
+    schema: dict[str, object]
+
+    def __post_init__(self) -> None:
+        """Refuse a schema that is not a well-formed Draft 2020-12 schema, that leaves it for another resource or
+        dialect anywhere inside it, or that does not describe an object.
+
+        Raises:
+            InvalidStructureSchemaError: If the schema is rejected by the Draft 2020-12 meta-schema, any schema in it
+                carries ``$id`` or names a dialect other than Draft 2020-12 in ``$schema``, or its root does not say
+                ``"type": "object"``.
+        """
+        try:
+            Draft202012Validator.check_schema(self.schema)
+        except SchemaError as exc:
+            raise InvalidStructureSchemaError(
+                self.path, f'frontmatter is not a valid JSON Schema: {exc.message}'
+            ) from exc
+        for subschema in _schemas_within(self.schema):
+            if '$id' in subschema:
+                # An `$id` would make that schema a resource of its own, with its own base URI, and so change what
+                # every relative `$ref` beneath it resolves to.
+                raise InvalidStructureSchemaError(self.path, 'frontmatter schema may not carry $id')
+            dialect = subschema.get('$schema', JSON_SCHEMA_DIALECT)
+            if dialect != JSON_SCHEMA_DIALECT:
+                # The check applies every schema under Draft 2020-12, so a schema written for another dialect would
+                # be read by rules it was not written for.
+                raise InvalidStructureSchemaError(
+                    self.path,
+                    f'frontmatter schema names {dialect!r} in $schema; only {JSON_SCHEMA_DIALECT} is allowed',
+                )
+        # A frontmatter is a mapping, so the schema must say so itself: a schema that left `type` out would accept
+        # a list or a string where the frontmatter should be.
+        if self.schema.get('type') != 'object':
+            raise InvalidStructureSchemaError(self.path, 'frontmatter schema root must state "type": "object"')
+
+
+def _schemas_within(schema: Mapping[str, object]) -> Iterator[Mapping[str, object]]:
+    """The schema itself, then every object subschema inside it, at any depth.
+
+    Only the places Draft 2020-12 reads a schema from are walked, such as ``properties`` or ``items``, so a value
+    under ``enum`` or ``const`` that happens to hold ``$id`` is data, not a schema, and is not visited. A boolean
+    subschema holds no keyword, so it is skipped.
+    """
+    yield schema
+    for subschema in DRAFT202012.subresources_of(schema):
+        if isinstance(subschema, Mapping):
+            yield from _schemas_within(subschema)
+
+
+@dataclass(frozen=True, slots=True)
 class StructureAspect:
     """One structure specification's rules, proved usable.
 
     Construction checks the rules, so an instance is proof of them: no code holding a ``StructureAspect``
     checks them again.
+
+    Not hashable when it states a frontmatter schema, since ``FrontmatterSchema`` holds a dict.
 
     Attributes:
         path: Root-relative path of the JSON file, ``<stem>.structure.json``; the prose it is the
@@ -145,6 +224,8 @@ class StructureAspect:
         forbidden: Sections that must not appear at all.
         tokens: The token budget: the most tokens the whole file may hold, frontmatter, code and tables
             included, or None for no budget; at least 1.
+        frontmatter: The JSON Schema a document's frontmatter must satisfy, or None when the specification states
+            none.
         authority: The filename of the prose this file is the machine-checkable half of, such as ``code.md``,
             derived from ``path`` at construction. Every finding quotes it, so a reader is sent to the rule rather
             than to the JSON.
@@ -159,6 +240,7 @@ class StructureAspect:
     # their one invariant, at least 1, and the budget check calls a document's count `token_count`, so it cannot
     # be mistaken for this budget.
     tokens: int | None
+    frontmatter: FrontmatterSchema | None
     authority: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -168,7 +250,8 @@ class StructureAspect:
         Raises:
             InvalidStructureSchemaError: If the path is not a specification filename, the aspect states no rule,
                 its title count, token budget or any word cap is below 1, its outline names a section twice or
-                places two ``any`` runs side by side, or it forbids a section its own outline names.
+                places two ``any`` runs side by side, or it forbids a section its own outline names. A frontmatter
+                schema is checked when it is built, before the aspect is.
         """
         try:
             spec_file = parse_spec_file(self.path)
@@ -182,6 +265,7 @@ class StructureAspect:
             self.title is None
             and not self.forbid_empty_sections
             and self.tokens is None
+            and self.frontmatter is None
             and not self.outline
             and not self.forbidden
         )
@@ -229,8 +313,9 @@ class StructureAspect:
             schema: The file's text.
 
         Raises:
-            InvalidStructureSchemaError: If the text is not JSON, does not have the dialect's shape, or its rules
-                are not usable (see ``__post_init__``).
+            InvalidStructureSchemaError: If the text is not JSON, does not have the dialect's shape, its
+                frontmatter schema is refused (see ``FrontmatterSchema``), or its rules are not usable (see
+                ``__post_init__``).
         """
         try:
             file = StructureFile.model_validate_json(schema)
@@ -251,6 +336,7 @@ class StructureAspect:
             outline=tuple(outline),
             forbidden=file.forbidden,
             tokens=file.tokens,
+            frontmatter=_frontmatter_schema(path, file.frontmatter),
         )
 
 
@@ -259,6 +345,19 @@ def _title_rule(title: StructureFileTitle | None) -> TitleRule | None:
     if title is None:
         return None
     return TitleRule(count=title.count, first=title.first)
+
+
+def _frontmatter_schema(path: RootRelativePath, schema: dict[str, JsonValue] | None) -> FrontmatterSchema | None:
+    """The frontmatter schema a file's ``frontmatter`` key states, or None when the file states none.
+
+    Raises:
+        InvalidStructureSchemaError: If the schema is refused (see ``FrontmatterSchema.__post_init__``).
+    """
+    if schema is None:
+        return None
+    # The copy only widens the value type from `JsonValue` to `object`, which `dict` would otherwise keep invariant.
+    widened: dict[str, object] = dict(schema)
+    return FrontmatterSchema(path=path, schema=widened)
 
 
 def _describe_entry(entry: OutlineEntry) -> str:

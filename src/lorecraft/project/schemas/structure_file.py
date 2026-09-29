@@ -15,9 +15,36 @@ its examples and bounds, and each model's config names it and gives a whole exam
 here; what a shape cannot state, such as an outline naming a section twice, is refused by ``StructureAspect``.
 """
 
-from typing import Literal
+from typing import Annotated, Final, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, WithJsonSchema, field_validator
+
+JSON_SCHEMA_DIALECT: Final[str] = 'https://json-schema.org/draft/2020-12/schema'
+"""Draft 2020-12, the one dialect a frontmatter schema is written in: the only one its ``$schema`` may name."""
+
+
+def _frontmatter_json_schema() -> dict[str, JsonValue]:
+    """What an editor holds the ``frontmatter`` key to: any schema the Draft 2020-12 meta-schema accepts that also
+    states ``"type": "object"`` at its root. ``StructureAspect`` refuses the same schemas when it loads the file, and
+    a few more no schema here can state, such as one carrying ``$id``. A ``null`` is refused here and at load alike.
+    A fresh dict each call, so no caller can change the source of the generated schema."""
+    return {
+        'allOf': [
+            {'$ref': JSON_SCHEMA_DIALECT},
+            {'type': 'object', 'required': ['type'], 'properties': {'type': {'const': 'object'}}},
+        ]
+    }
+
+
+def _code_frontmatter_example() -> dict[str, JsonValue]:
+    """The frontmatter schema of a rule document in docs/code/, as an example: a closed object whose two fields are
+    required strings. A fresh dict for each example that shows it."""
+    return {
+        'type': 'object',
+        'required': ['name', 'description'],
+        'additionalProperties': False,
+        'properties': {'name': {'type': 'string'}, 'description': {'type': 'string'}},
+    }
 
 
 def _code_outline_example() -> list[JsonValue]:
@@ -88,7 +115,8 @@ class StructureFileAny(_StructureFileModel):
 
 
 class StructureFile(_StructureFileModel):
-    """A structure specification: the section outline a document governed by this file must follow."""
+    """A structure specification: the frontmatter schema, section outline and token budget a document governed by
+    this file must follow."""
 
     model_config = ConfigDict(
         title='Structure specification',
@@ -98,6 +126,7 @@ class StructureFile(_StructureFileModel):
                     'description': 'Section structure, word caps and token budget for a rule document in docs/code/.',
                     'title': {'count': 1, 'first': True},
                     'tokens': 5000,
+                    'frontmatter': _code_frontmatter_example(),
                     'empty_sections': 'forbidden',
                     'outline': _code_outline_example(),
                 }
@@ -118,6 +147,13 @@ class StructureFile(_StructureFileModel):
     """The token budget: the most tokens the whole file may cost an agent that loads it, frontmatter, code and
     tables included; no budget when absent. Counted with OpenAI's `o200k_base` encoding, the same whichever agent
     reads the document."""
+    # The field's JSON Schema is written out rather than rendered: pydantic would render a dict of JSON values as any
+    # object, where an editor should check that the value is a JSON Schema describing an object.
+    frontmatter: Annotated[dict[str, JsonValue] | None, WithJsonSchema(_frontmatter_json_schema())] = Field(
+        default=None, examples=[_code_frontmatter_example()]
+    )
+    """The Draft 2020-12 JSON Schema a document's frontmatter must satisfy; no frontmatter rule when absent. Its root
+    must state `"type": "object"`, and it may carry neither `$id` nor a `$schema` naming another dialect."""
     empty_sections: Literal['forbidden'] | None = None
     """`forbidden` reports every section left without content: one that ends the document, or is followed straight
     away by a heading of its own level or higher. Empty sections are allowed when absent."""
@@ -128,3 +164,16 @@ class StructureFile(_StructureFileModel):
     word is a whitespace-delimited token of prose: fenced code and table rows are not counted."""
     forbidden: tuple[str, ...] = Field(default=(), examples=[['Changelog']])
     """Sections that must not appear at all; none may also be named in the outline."""
+
+    @field_validator('frontmatter', mode='before')
+    @classmethod
+    def _refuse_null_frontmatter(cls, value: object) -> object:
+        """Refuse ``"frontmatter": null``, as the editor's schema does, so the two agree on it: no frontmatter rule
+        is written by leaving the key out. A validator runs only on a value the file states, never on the default.
+
+        Raises:
+            ValueError: If the file states the key as ``null``; pydantic reports it as a validation error.
+        """
+        if value is None:
+            raise ValueError('may not be null; leave the key out for no frontmatter rule')
+        return value
