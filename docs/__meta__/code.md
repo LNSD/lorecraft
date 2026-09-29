@@ -102,9 +102,10 @@ Nothing registers a rule document with a specification: the document's own path 
   specification**, which applies to every document directly in that directory; the checks ignore a
   subdirectory, and §3 forbids one.
 - It is **additionally** governed by every `docs/__meta__/<corpus>-<namespace>.md` whose namespace equals the
-  document's name or is a hyphen-delimited prefix of it; `code-python-errors.md`, if it existed, would govern
-  `python-errors.md` and `python-errors-*.md`. So `docs/code/principle-least-surprise.md` answers to `code.md`
-  and to `code-principle.md`.
+  document's name or is a hyphen-delimited prefix of it; a `<corpus>-<a>-<b>.md` would govern `<a>-<b>.md` and
+  `<a>-<b>-*.md`. So a `principle-*` document answers to `code.md` and to the extension its prefix selects,
+  which `ls docs/__meta__/code-*` shows. This specification names none of its extensions: a base does not know
+  what extends it.
 - **The layers stack, broad to narrow.** The corpus specification is a whole rule set applied on its own; the
   namespace specification states only what it adds or narrows, and it cannot release a document from what the
   corpus specification already said. That is what a namespace specification is for: a rule that holds for a
@@ -200,7 +201,8 @@ of value, never a change of style.
 
 Universal software principles and best practices for optimal code quality. These are language-agnostic design principles that guide all implementation decisions.
 
-The `principle-*` prefix is reserved for them, and they follow the `code-principle.md` template. A rule that
+The `principle-*` prefix is reserved for them, and they follow the template of the extension that prefix
+selects. A rule that
 only holds for one language, one layer, or one dependency is not a principle.
 
 #### `core` - Core Rules
