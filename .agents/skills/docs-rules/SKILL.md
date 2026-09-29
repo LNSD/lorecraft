@@ -21,50 +21,37 @@ This skill carries no rules of its own. `docs/__meta__/` is the authority, and t
 
 ## Resolving the Specification
 
-A document's own path names its specification. No list of corpora is kept here, so a new corpus is covered as
-soon as its specification exists.
+A document's own path names its specifications. No list of corpora or specifications is kept here, so a new
+one is covered as soon as it exists.
 
-For a document at `docs/<corpus>/…/<file>.md`:
+A document sits directly inside its corpus directory, `docs/<corpus>/<name>.md`. The corpus specification,
+`docs/__meta__/<corpus>.md`, is the authority. Each namespace layer, `docs/__meta__/<corpus>-<namespace>.md`,
+adds to it when the namespace equals `<name>` or is a hyphen-delimited prefix of it, broad to narrow, and you
+write against every one: `docs/feat/cli-check-header.md` is governed by `feat.md`, then `feat-cli.md`.
+`ls docs/__meta__/<corpus>*.md` lists the candidates.
 
-| Step | Rule |
-|---|---|
-| 1. Corpus | The first path segment under `docs/`. `docs/code/python-typing.md` is in the `code` corpus, however deeply nested. |
-| 2. Specification | `docs/__meta__/<corpus>.md`. It is the authority for that corpus. |
-| 3. Structure template | `docs/__meta__/<corpus>-<prefix>.md`, where `<prefix>` is the filename up to its first hyphen. Write against it too, when it exists. |
+Each of those `.md` files is paired with machine-checkable files at the same stem, `<stem>.header.json` for
+its frontmatter rules and `<stem>.structure.json` for its section structure, section word caps and token
+budget. Read the `.md` for the prose; the JSON is the exact field, section, cap and budget list, and it is what
+the checks run against.
 
-| Document | Corpus | Specification | Structure template |
-|---|---|---|---|
-| `docs/feat/frontmatter-check.md` | `feat` | `docs/__meta__/feat.md` | none (`feat-frontmatter.md` does not exist) |
-| `docs/code/principle-least-surprise.md` | `code` | `docs/__meta__/code.md` | `docs/__meta__/code-principle.md` |
-| `docs/code/pattern-value-object.md` | `code` | `docs/__meta__/code.md` | `docs/__meta__/code-pattern.md` |
-| `docs/code/python-typing.md` | `code` | `docs/__meta__/code.md` | `docs/__meta__/code-python.md` |
-| `docs/code/logging.md` | `code` | `docs/__meta__/code.md` | none |
-
-Each of those `.md` files is paired with machine-checkable files at the same stem:
-`docs/__meta__/code.header.json` holds its frontmatter rules, `docs/__meta__/code.structure.json` its section
-structure, section word caps and token budget. Read the `.md` for the prose; the JSON is the exact field,
-section, cap and budget list, and it is what the checks run against.
-
-Where step 2 finds no specification, the document's format is ungoverned. Say so rather than inventing rules
+Where no corpus specification exists, the document's format is ungoverned. Say so rather than inventing rules
 or borrowing another corpus's — never carry a rule from one corpus into another.
 
 ## Choosing the Corpus
 
 The corpus is a decision about **what kind of claim the document makes**, not about its subject. A document
-about frontmatter could land in several places depending on what it asserts.
+about frontmatter could land in several places depending on what it asserts. Each corpus specification's
+`description`, in the [Catalog](#catalog) above, says what kind of claim its corpus holds; pick the one that
+matches.
 
-| The document says | Corpus |
-|---|---|
-| How code in this repository is written | `docs/code/` |
-| What behaviour this toolkit provides | `docs/feat/` |
-
-If neither fits, the document probably does not belong in a governed corpus at all: operator and user guides
+If none fits, the document probably does not belong in a governed corpus at all: operator and user guides
 live at the `docs/` root, and agent workflow in `AGENTS.md` or a skill.
 
 ## Writing Path
 
-1. **Resolve and read the specification.** Both the corpus specification and the structure template, **before
-   drafting**. The corpus specification ends with a `Checklist`; that is what you will be checked against, so
+1. **Resolve and read the specification.** The corpus specification and every namespace layer that applies,
+   **before drafting**. The corpus specification ends with a `Checklist`; that is what you will be checked against, so
    hold it while writing. Reading them afterwards means rewriting.
 2. **Read a neighbor.** Open the closest existing document in the corpus and skim it. The specification states
    the rules; a neighbor shows the register and depth the corpus actually settled on. A document that
@@ -120,7 +107,7 @@ Every listing is derivable instead, and the derivation is what you write:
 |---|---|
 | The documents in a corpus | The corpus directory, or the frontmatter discovery command |
 | The specification governing a document | Its own path: `docs/__meta__/<corpus>.md` |
-| The structure template for a document | Its filename prefix: `docs/__meta__/<corpus>-<prefix>.md` |
+| The namespace layers for a document | Its filename: `docs/__meta__/<corpus>-<namespace>.md` |
 | Where a subject is covered | The one or two documents that actually cover it, in `References` |
 
 A document's `References` section is the one legitimate listing: it names the handful of documents that
@@ -165,7 +152,7 @@ frontmatter schemas set `additionalProperties: false`, so an undeclared key is a
 | Inventing a frontmatter field | Splits the vocabulary silently | Amend the specification and its schema first |
 | Leaving an optional section empty | An empty section is a defect | Omit it |
 | Listing a corpus's documents in a document | The list rots on the next file that lands | Link the directory or give the discovery command |
-| A rule document in a subdirectory | `docs/code/` is flat | Keep it at the corpus root |
+| A document in a subdirectory of its corpus | Every corpus is flat, and the checks skip it silently | Keep it at the corpus root |
 
 ## Pre-approved Commands
 

@@ -1,0 +1,129 @@
+---
+name: "cli-check"
+description: "The lorecraft check command group and a bare lorecraft check: repository root discovery, document selection, the text and JSON output every check prints, and the 0/1/2 exit status. Load when running the documentation checks, wiring them into CI or a pre-commit hook, or parsing their output"
+type: "feature"
+status: "experimental"
+components: "module:lorecraft.cli.commands.check,module:lorecraft.cli.check_run,module:lorecraft.cli.root,module:lorecraft.cli.select,module:lorecraft.checks.run,module:lorecraft.checks.reporting"
+---
+
+# `lorecraft check`
+
+## Summary
+
+`lorecraft check` validates the documents under a repository's `docs/` against the specifications in its
+`docs/__meta__/`. Named with a check, such as `lorecraft check header`, it runs that one check; bare, it runs
+every check the command line carries over the same documents and prints their findings together. Every check
+shares the root discovery, the output formats and the exit status documented here.
+
+## Table of Contents
+
+1. [Key Concepts](#key-concepts)
+2. [Architecture](#architecture)
+3. [Configuration](#configuration)
+4. [Usage](#usage)
+5. [Limitations](#limitations)
+6. [References](#references)
+7. [Code References](#code-references)
+
+## Key Concepts
+
+- **Check**: One subcommand of the group, validating one aspect of a document against the matching
+  `<stem>.<aspect>.json` specification files.
+- **Finding**: One broken rule, located: a root-relative path, a line, a rule identifier and a message.
+- **Governed**: A document is governed by a check when at least one specification file for that check's
+  aspect applies to it; an ungoverned document is listed, never failed.
+- **Workspace**: The root, its corpora and their documents, read once from one snapshot, as
+  [workspace](workspace.md) lays out.
+
+## Architecture
+
+### Root Discovery
+
+Without `--root`, the root is the nearest of the working directory and its parents that holds a
+`docs/__meta__/` directory, as the [workspace layout](workspace.md#the-layout) places it. With `--root`, the given directory is the root, and it must exist. Either way it is
+resolved with symlinks followed, and every path printed is relative to it.
+
+### Document Selection
+
+A bare `lorecraft check` checks every document of the [workspace](workspace.md#documents). A named check
+does the same when given no paths. Given paths, it checks exactly those, and refuses the run when one is not such a
+document — outside `docs/`, inside `docs/__meta__/`, not Markdown, in a directory no specification names, or in
+a subdirectory of a corpus. Paths are relative to the working directory, not to the root.
+
+### One Run, One Snapshot
+
+Every check in a run reads the same [snapshot](workspace.md#one-snapshot). Every specification is loaded and
+validated before any check runs, so one malformed specification file stops the whole run rather than one
+document.
+
+## Configuration
+
+| Argument or option | Default | Description |
+|--------------------|---------|-------------|
+| `--root <path>`    | nearest parent holding `docs/__meta__/` | The repository root, as [Root Discovery](#root-discovery) describes |
+| `--format <text\|json>` | `text` | The output format, as [Output](#output) describes |
+
+Both options belong to the command that runs: `lorecraft check --root . header` is a usage error, and
+`lorecraft check header --root .` is what is meant. Each check also takes the documents to check as paths,
+which its own document tables.
+
+## Usage
+
+```bash
+# Every check over every document
+lorecraft check
+
+# One check, over two documents, as JSON
+lorecraft check structure docs/feat/cli.md docs/feat/cli-check.md --format json
+
+# Check another repository
+lorecraft check --root ../other-repo
+```
+
+### Output
+
+In `text` format each finding is one line on stdout, `<path>:<line>: [<rule>] <message>`, and a summary goes to
+stderr. A document no specification governs for the check is listed as `<path>:1: [<corpus>.ungoverned]
+<reason>`, which is not a finding.
+
+```text
+docs/feat/spec-demo.md:3: [feat.description] 'A demo' does not match 'Load when' (per docs/__meta__/feat.header.json)
+docs/feat/spec-demo.md:15: [structure.empty] section `Key Concepts` is empty; omit it rather than leaving it empty (per feat.md)
+docs/feat/spec-demo.md:15: [structure.outline] expected section `Table of Contents`, found `Key Concepts` (per feat.md)
+checked 1 file(s) with 3 check(s), 3 finding(s)
+```
+
+In `json` format stdout is one JSON object and stderr is empty. A named check prints its report; a bare run
+prints every report under `checks`, keyed by check name. `spec` is the root-relative specification file
+stating the rule, or `null` for a rule the check holds itself. `lorecraft check header --format json`:
+
+```json
+{"checked": 1, "findings": [{"file": "docs/feat/spec-demo.md", "line": 3, "rule": "feat.description", "message": "'A demo' does not match 'Load when' (per docs/__meta__/feat.header.json)", "spec": "docs/__meta__/feat.header.json"}], "ungoverned": []}
+```
+
+### Exit Status
+
+| Code | Meaning |
+|------|---------|
+| `0`  | No check reported a finding; ungoverned documents do not count |
+| `1`  | At least one finding |
+| `2`  | The run could not start: no root, a rejected path, an unreadable file, a malformed specification, or a usage error. Only the error is printed, on stderr |
+
+## Limitations
+
+- A bare `lorecraft check` takes no paths: it always checks every document.
+- A check covers what a machine can decide. Whether a section says what it should stays with review.
+
+## References
+
+- [cli](cli.md) - Base: the command line and the options every command shares
+- [workspace](workspace.md) - Dependency: the corpora and documents the checks select
+- [spec](spec.md) - Dependency: the specification files the checks read
+
+## Code References
+
+- `packages/lorecraft/src/lorecraft/cli/commands/check/__init__.py` - The group and the bare run
+- `packages/lorecraft/src/lorecraft/cli/check_run.py` - Check registration, selection and both output formats
+- `packages/lorecraft/src/lorecraft/cli/root.py` - Root discovery
+- `packages/lorecraft/src/lorecraft/cli/select.py` - The rules a path argument is refused by
+- `packages/lorecraft/src/lorecraft/checks/run.py` - A check's run over the selected documents

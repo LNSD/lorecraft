@@ -53,7 +53,7 @@ Each capability described in the doc MUST exist in production code:
 
 ### 2. Production Code Review
 
-- Locate implementation files from Architecture/Implementation section
+- Locate implementation files from Architecture and Code References sections
 - Verify documented modules/flags/functions exist
 - Check that documented behavior matches implementation
 - Verify documented interactions between components are accurate
@@ -97,14 +97,14 @@ Extract from the feature doc:
 - Documented capabilities from the Usage section (functions, flags, behaviors)
 - Component interactions from the Architecture section
 - Documented constraints and limitations
-- File paths from the Architecture/Implementation section
+- File paths from the Architecture and Code References sections
 
 `docs/__meta__/feat.md` fixes which sections a doc of each type carries, so read it when a section you expect
 is absent: a `meta` doc has no Usage section by design, and its concrete usage lives in its children.
 
 ### Step 2: Verify Production Code
 
-1. Read implementation files listed in Architecture/Implementation
+1. Read implementation files listed in Architecture and Code References
 2. Match documented capabilities to actual implementations
 3. For a capability spread across modules, trace the flow through every component it names
 4. Check documented constraints are enforced
@@ -298,7 +298,7 @@ These tools/commands can run without user permission:
    - Returns a list of findings carrying `path`, `line`, `rule` and `message`
    - Enforces the required keys, the quoting rule, and `name` matching the filename
 
-2. **Verify implementation** - Read files from the Implementation section:
+2. **Verify implementation** - Read files from the Code References section:
    - Verify the function exists with the correct signature
    - Verify the finding type matches the documented fields
    - Verify each of the three documented rules is actually enforced
