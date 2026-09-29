@@ -1,14 +1,14 @@
 ---
 name: code-gen
 description: Regenerate the committed generated files, such as the JSON Schemas under docs/schemas/, after changing the package types they are rendered from or a gen-* recipe in the justfile. Use after editing such a type or recipe, before running tests or committing, or when CI's `gen-check` job fails with "Generated code is out of date". Not for formatting or linting; see /code-format and /code-check.
-compatibility: Requires the just task runner and uv. The generators import the workspace packages, so the development environment must be synced first.
+compatibility: Requires the just task runner and uv. The generators import the package, so the development environment must be synced first.
 allowed-tools: Bash(just gen*) Bash(just sync) Bash(git status *) Bash(git diff *) Bash(grep -n * justfile)
 ---
 
 # Code Generation Skill
 
 Some files in this repository are generated and committed: the JSON Schemas under `docs/schemas/`, which
-editors validate the specification files against. Each is rendered from types a workspace package declares, so
+editors validate the specification files against. Each is rendered from types the package declares, so
 a change to those types leaves the committed file stale until it is regenerated.
 
 ## When to Run
@@ -32,7 +32,7 @@ Nothing else needs it. When unsure, run it: a generator with nothing to change l
 ## Commands
 
 ```bash
-just sync   # first, when the environment may be stale: the generators import the workspace packages
+just sync   # first, when the environment may be stale: the generators import the package
 just gen    # every generator; `just gen-schemas` runs the schema generator alone
 ```
 
@@ -55,7 +55,7 @@ A description that reads badly in the diff reads badly in an editor too: fix the
 - **A schema is rendered from the model that validates the file.** The package deserializes each file with the
   same pydantic model the generator renders, so the schema an editor applies and the check's validation cannot
   disagree about a shape. A test beside each model, such as
-  `packages/lorecraft-project/tests/test_structure_spec_schema.py`, holds the committed schema to every file this
+  `tests/it/test_structure_spec_schema.py`, holds the committed schema to every file this
   repository writes. When it fails, fix the model or the file. Never loosen the test.
 
 ## Where It Fits

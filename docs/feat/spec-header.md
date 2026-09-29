@@ -3,7 +3,7 @@ name: "spec-header"
 description: "The header dialect: a <stem>.header.json file is a Draft 2020-12 JSON Schema for a document's YAML frontmatter, validated against the meta-schema on load, with corpus and namespace schemas applied each on its own. Load when writing or changing a header schema, adding a frontmatter field, or a header schema is reported invalid"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft_project.schemas.header,module:lorecraft.checks.header,spec:feat,spec:code"
+components: "module:lorecraft.project.schemas.header,module:lorecraft.checks.header,spec:feat,spec:code"
 ---
 
 # Header Specification Files
@@ -84,5 +84,5 @@ meta-schema rejects, or a file that is not a JSON object, stops the command with
 
 ## Code References
 
-- `packages/lorecraft-project/src/lorecraft_project/schemas/header.py` - The dialect and its meta-schema check
-- `packages/lorecraft/src/lorecraft/checks/header.py` - Applies the schemas to a document's frontmatter
+- `src/lorecraft/project/schemas/header.py` - The dialect and its meta-schema check
+- `src/lorecraft/checks/header.py` - Applies the schemas to a document's frontmatter

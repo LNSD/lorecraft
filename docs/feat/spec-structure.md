@@ -3,7 +3,7 @@ name: "spec-structure"
 description: "The structure dialect: a <stem>.structure.json file states a document's H1 title rule, section outline with optional sections and any runs, empty and forbidden sections, per-section word caps and whole-file token budget, is refused on load when its rules are unusable, and is validated in editors by the generated docs/schemas/structure.spec.json. Load when writing or changing a structure specification, or one is reported invalid"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft_project.schemas.structure,module:lorecraft_project.schemas.structure_file,module:lorecraft.checks.structure,module:lorecraft.checks.budget,spec:feat,spec:code"
+components: "module:lorecraft.project.schemas.structure,module:lorecraft.project.schemas.structure_file,module:lorecraft.checks.structure,module:lorecraft.checks.budget,spec:feat,spec:code"
 ---
 
 # Structure Specification Files
@@ -111,5 +111,5 @@ shape only; the rules above that no shape can state are checked on load.
 
 ## Code References
 
-- `packages/lorecraft-project/src/lorecraft_project/schemas/structure_file.py` - The file's shape, and the source of the generated schema
-- `packages/lorecraft-project/src/lorecraft_project/schemas/structure.py` - Turns a file into rules, and refuses unusable ones
+- `src/lorecraft/project/schemas/structure_file.py` - The file's shape, and the source of the generated schema
+- `src/lorecraft/project/schemas/structure.py` - Turns a file into rules, and refuses unusable ones

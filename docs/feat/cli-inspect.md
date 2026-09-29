@@ -3,7 +3,7 @@ name: "cli-inspect"
 description: "lorecraft inspect: printing the workspace model a repository root declares, its corpora, their specification stems and files, and the stems governing each document, as a tree or as JSON. Load when asking which specifications govern a document, why a document is not checked, or scripting against the workspace model"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft.cli.commands.inspect,module:lorecraft.cli.workspace_tree,module:lorecraft_project.workspace"
+components: "module:lorecraft.cli.commands.inspect,module:lorecraft.cli.workspace_tree,module:lorecraft.project.workspace"
 ---
 
 # `lorecraft inspect`
@@ -114,6 +114,6 @@ error: invalid JSON in schema docs/__meta__/feat.header.json: Expecting property
 
 ## Code References
 
-- `packages/lorecraft/src/lorecraft/cli/commands/inspect.py` - Declares the command, loads the model
-- `packages/lorecraft/src/lorecraft/cli/workspace_tree.py` - Draws the tree and renders the JSON
-- `packages/lorecraft-project/src/lorecraft_project/workspace/` - The workspace model and its loader
+- `src/lorecraft/cli/commands/inspect.py` - Declares the command, loads the model
+- `src/lorecraft/cli/workspace_tree.py` - Draws the tree and renders the JSON
+- `src/lorecraft/project/workspace/` - The workspace model and its loader
