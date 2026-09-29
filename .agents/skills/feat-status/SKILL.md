@@ -105,11 +105,6 @@ Do NOT use this skill for:
 
 ## Notes
 
-### Pre-approved Commands
-
-These commands can run without user permission:
-- `python3 .agents/skills/feat-status/report.py` - Safe, read-only, no side effects
-
 ### Status Field Values
 
 The `status` field in feature frontmatter should be one of:

@@ -124,13 +124,6 @@ but the test that consumes it still needs its marker.
 - Reading a zero-collected run as a passing run.
 - Skipping tests on a behaviour change. Docs-only is the one acceptable skip, and it should be stated.
 
-## Pre-approved commands
-
-Runnable without asking: `just test-unit`, `just test-it`, `just test-e2e`, `just test`, `just snapshot-review`, and
-`uv run pytest packages/...` or `uv run pytest tests/...` for a single file or test. Nothing in this suite starts a service or spends
-credentials, so there is no tier that needs confirmation first. `just snapshot-update` rewrites checked-in
-files, so it runs only when the change is meant to alter output.
-
 ## Debugging
 
 Append pytest flags to either recipe: `-x` to stop at the first failure, `-k <expr>` to select by
