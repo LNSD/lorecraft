@@ -1,4 +1,7 @@
-"""A document's parse tree: the frontmatter node, the headings, and the line positions every check reports against."""
+"""A document's parse tree: the frontmatter node, the headings, and the line positions every check reports against.
+
+Beside it, ``count_tokens``: what a document's raw text costs an agent, counted without parsing it.
+"""
 
 from .document import ParsedDocument, parse_document, parse_frontmatter
 from .frontmatter import (
@@ -11,6 +14,7 @@ from .frontmatter import (
 )
 from .heading import Heading
 from .position import InvalidLineNumberError, LineNumber
+from .tokens import count_tokens
 
 __all__ = [
     'ParsedDocument',
@@ -25,4 +29,5 @@ __all__ = [
     'Heading',
     'LineNumber',
     'InvalidLineNumberError',
+    'count_tokens',
 ]

@@ -43,6 +43,7 @@ def _spec(stem: str, header: bool = True, structure: bool = False) -> Spec:
             forbid_empty_sections=True,
             outline=(),
             forbidden=(),
+            tokens=None,
         )
         files.append(structure_aspect.path)
     return Spec(

@@ -31,6 +31,7 @@ class TestStructureAspectParse:
                   "description": "read by people only",
                   "title": {"count": 1, "first": true},
                   "empty_sections": "forbidden",
+                  "tokens": 5000,
                   "outline": [
                     {"any": true, "words": 350},
                     {"section": "Checklist", "words": 250},
@@ -56,11 +57,33 @@ class TestStructureAspectParse:
                 SectionEntry(name='References', optional=True),
             ),
             forbidden=('Changelog',),
+            tokens=5000,
         ), 'every field is read into its typed rule, and an entry without `words` has no cap'
+
+    def test_parse_with_only_a_token_budget_returns_an_aspect_with_that_budget(self) -> None:
+        #: Given
+        schema = StructureSchema('{"tokens": 4000}')
+
+        #: When
+        aspect = StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert aspect.tokens == 4000, 'a token budget is a rule, so a file stating only it is usable'
+
+    def test_parse_with_a_token_budget_of_zero_raises_invalid_structure_schema_error(self) -> None:
+        #: Given
+        schema = StructureSchema('{"tokens": 0}')
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'no document satisfies a budget of 0 tokens'
 
     def test_parse_with_a_document_word_cap_raises_invalid_structure_schema_error(self) -> None:
         #: Given
-        # words are capped per section only, never for the document as a whole
+        # words are capped per section only; the document as a whole has a token budget instead
         schema = StructureSchema('{"words": 1800}')
 
         #: When
@@ -103,6 +126,17 @@ class TestStructureAspectParse:
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the file is read strictly, so a string is not a word cap'
 
+    def test_parse_with_a_fractional_token_budget_raises_invalid_structure_schema_error(self) -> None:
+        #: Given
+        schema = StructureSchema('{"tokens": 5000.5}')
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'a token budget is a whole number of tokens'
+
     def test_parse_with_a_boolean_section_word_cap_raises_invalid_structure_schema_error(self) -> None:
         #: Given
         schema = StructureSchema('{"outline": [{"section": "Checklist", "words": true}]}')
@@ -137,6 +171,7 @@ class TestStructureAspectParse:
             forbid_empty_sections=False,
             outline=(),
             forbidden=('Changelog',),
+            tokens=None,
         ), 'the `$schema` reference is for editors and changes no rule'
 
     def test_parse_with_a_schema_reference_that_is_not_a_string_raises_invalid_structure_schema_error(self) -> None:
@@ -338,6 +373,7 @@ class TestStructureAspectConstruction:
                 forbid_empty_sections=False,
                 outline=(),
                 forbidden=(),
+                tokens=None,
             )
 
         #: Then
@@ -355,6 +391,7 @@ class TestStructureAspectConstruction:
                 forbid_empty_sections=False,
                 outline=(),
                 forbidden=(),
+                tokens=None,
             )
 
         #: Then
@@ -375,6 +412,7 @@ class TestStructureAspectConstruction:
                 forbid_empty_sections=False,
                 outline=outline,
                 forbidden=(),
+                tokens=None,
             )
 
         #: Then
@@ -392,6 +430,7 @@ class TestStructureAspectConstruction:
                 forbid_empty_sections=False,
                 outline=outline,
                 forbidden=('Checklist',),
+                tokens=None,
             )
 
         #: Then
@@ -413,10 +452,29 @@ class TestStructureAspectConstruction:
                 forbid_empty_sections=False,
                 outline=outline,
                 forbidden=(),
+                tokens=None,
             )
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'two runs side by side match as one, so the outline misleads'
+
+    def test_construction_with_a_token_budget_of_zero_raises_invalid_structure_schema_error(self) -> None:
+        #: Given
+        tokens = 0
+
+        #: When
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+            StructureAspect(
+                path=SPEC_PATH,
+                title=None,
+                forbid_empty_sections=False,
+                outline=(),
+                forbidden=('Changelog',),
+                tokens=tokens,
+            )
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'a budget of 0 tokens is one no document can meet'
 
     def test_construction_with_a_section_word_cap_of_zero_raises_invalid_structure_schema_error(self) -> None:
         #: Given
@@ -430,6 +488,7 @@ class TestStructureAspectConstruction:
                 forbid_empty_sections=False,
                 outline=outline,
                 forbidden=(),
+                tokens=None,
             )
 
         #: Then
@@ -447,6 +506,7 @@ class TestStructureAspectConstruction:
                 forbid_empty_sections=False,
                 outline=outline,
                 forbidden=(),
+                tokens=None,
             )
 
         #: Then
@@ -461,7 +521,7 @@ class TestStructureAspectAuthority:
 
         #: When
         aspect = StructureAspect(
-            path=path, title=None, forbid_empty_sections=False, outline=(), forbidden=('Changelog',)
+            path=path, title=None, forbid_empty_sections=False, outline=(), forbidden=('Changelog',), tokens=None
         )
 
         #: Then
@@ -473,7 +533,9 @@ class TestStructureAspectAuthority:
 
         #: When
         with pytest.raises(InvalidStructureSchemaError) as exc_info:
-            StructureAspect(path=path, title=None, forbid_empty_sections=False, outline=(), forbidden=('Changelog',))
+            StructureAspect(
+                path=path, title=None, forbid_empty_sections=False, outline=(), forbidden=('Changelog',), tokens=None
+            )
 
         #: Then
         assert exc_info.value.path == path, 'an aspect whose path names no prose has no authority to quote'

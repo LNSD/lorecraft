@@ -8,7 +8,8 @@ content itself is not kept: no check reads it yet.
 
 A prose word is whitespace-delimited text outside code blocks, table rows and headings: a section's words say how
 concise its prose is, and code and tables are free because they are the examples and references a document exists
-to hold.
+to hold. What the whole file costs an agent that loads it is a different question, answered from the raw text by
+``count_tokens`` without a parse.
 
 A check that reads nothing but the frontmatter does not need the tree: ``parse_frontmatter`` finds and decodes
 the same block for a fraction of the cost, so it is the cheap path, and ``parse_document`` the full one.

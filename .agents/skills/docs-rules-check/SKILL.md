@@ -51,8 +51,8 @@ Resolve per document, from its path:
 say — resolves by exactly the same rule, and until `docs/__meta__/feat.md` exists its documents are ungoverned.
 
 Each specification is paired with machine-checkable files at the same stem: `<stem>.header.json` holds its
-frontmatter rules, `<stem>.structure.json` its section structure and section word caps. The commands in §3 and
-§4 resolve and apply those; you read the prose.
+frontmatter rules, `<stem>.structure.json` its section structure, section word caps and token budget. The
+commands in §3 and §4 resolve and apply those; you read the prose.
 
 Read the specification **before** the document, so the checklist is in hand while reading. Where step 2 finds
 no specification, the document's format is ungoverned: report it as unvalidated rather than inventing rules or
@@ -82,7 +82,7 @@ findings, 1 means findings, 2 means bad usage or a specification in `docs/__meta
 `<corpus>.ungoverned` line means no schema governs that corpus — report it as unvalidated, not as a failure.
 
 **`lorecraft check`**, with no check named, runs every check the command line carries — the header and
-structure checks today — over every document, reading the tree once. It takes `--root` and `--format` but no paths. Its text output is each check's lines in turn and
+structure and budget checks today — over every document, reading the tree once. It takes `--root` and `--format` but no paths. Its text output is each check's lines in turn and
 one summary on stderr; its JSON output is `{"checks": {<name>: <that check's report>}}`, and its exit codes are
 the same. It is how `just check-docs` runs them.
 
@@ -90,7 +90,7 @@ Where `uv` is unavailable, extract the frontmatter with the Grep tool (pattern `
 `multiline: true`, `output_mode: content`) or `awk '/^---$/{p=!p; print; next} p' <path>`, and work the
 specification's frontmatter section by hand.
 
-## 4. Sections and word caps: run the command
+## 4. Sections, word caps and token budget: run the commands
 
 **`lorecraft check structure`** — validates section structure against the structure specs in `docs/__meta__/`,
 resolved by the same naming convention (`<corpus>.structure.json`, narrowed by
@@ -111,9 +111,20 @@ and exit codes match §3.
 
 The word caps keep each section concise. They are the `words` keys on the spec's outline entries, reported as
 `structure.words.section` on the heading. A section's count includes its H3 subsections; fenced code and table
-rows are not counted. A layered spec applies its own caps too, so a namespace can only tighten the corpus's.
+rows are not counted.
 
-A cap finding on a section the change added prose to blocks, like any other finding. A finding on a
+**`lorecraft check budget`** — the token budget keeps the document cheap to load. It is the structure spec's
+top-level `tokens` key, on the whole file with frontmatter, code and tables included, reported as `budget.tokens`
+on line 1. It counts OpenAI's `o200k_base` tokens whichever agent reads the file. A corpus whose structure specs
+set no `tokens` prints `<corpus>.ungoverned`. A layered spec applies its own caps and budget too, so a namespace
+can only tighten the corpus's:
+
+```bash
+uv run lorecraft check budget                            # every corpus
+uv run lorecraft check budget docs/code/python-typing.md # named files
+```
+
+A cap or budget finding on a section or document the change added to blocks, like any other finding. A finding on a
 section the change did not touch is pre-existing: report it as such and leave it to the document's owner.
 The fix for an overage is to move or cut, never to compress; the corpus specification's content guidelines
 say where each kind of overflow belongs.
@@ -127,7 +138,7 @@ the repository is clean; use the per-file invocations above while working a chan
 as verifiable statements. Walk each item against the document, plus the structure template's own checklist
 where one applies.
 
-The two commands have settled the frontmatter, the section structure and the length, so what
+The commands have settled the frontmatter, the section structure and the length, so what
 is left here is what needs judgment: whether a section says what the specification asks of it,
 cross-reference direction, and whether a `description` is genuinely discovery-optimized rather than merely
 well-formed.
@@ -202,7 +213,7 @@ and §4 catch everything down to the blank line; the rest need reading.
 
 These run without user permission:
 
-- `uv run lorecraft check`, `uv run lorecraft check header` and `uv run lorecraft check structure` with any flags — read-only, no side effects
+- `uv run lorecraft check`, `uv run lorecraft check header`, `uv run lorecraft check structure` and `uv run lorecraft check budget` with any flags — read-only, no side effects
 - `just check-docs`, which runs those checks over the whole corpus
 - Frontmatter extraction (Grep tool or the `awk` fallback) on any file under `docs/`
 - `ls` on any directory under `docs/`, to check a list against what is actually there

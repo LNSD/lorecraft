@@ -37,6 +37,7 @@ def _aspect(
         forbid_empty_sections=forbid_empty_sections,
         outline=outline,
         forbidden=forbidden,
+        tokens=None,
     )
 
 

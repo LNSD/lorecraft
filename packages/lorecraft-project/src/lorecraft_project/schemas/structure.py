@@ -15,6 +15,7 @@ structure specification is not JSON Schema. It is this small dialect, whose fiel
       "description": "what this file governs, for whoever opens it",
       "title": {"count": 1, "first": true},
       "empty_sections": "forbidden",
+      "tokens": 5000,
       "outline": [
         {"section": "Table of Contents", "optional": true},
         {"any": true, "words": 350},
@@ -32,6 +33,9 @@ finding quotes it.
 - ``description`` is read by people only, and is not kept.
 - ``title`` states how many H1 titles a document carries, and whether one opens it ahead of every section.
 - ``empty_sections``, whose one value is ``"forbidden"``, reports a section left without content.
+- ``tokens`` is the token budget: the most tokens the whole file may hold, frontmatter, code and tables
+  included, since that is what loading it costs an agent. The count is ``o200k_base``, the same whichever agent
+  reads it. The budget check applies it, not the structure check: it reads the raw file, not the parse tree.
 - ``outline`` is the order of the document's sections. A ``section`` entry names one and is required unless
   ``optional``; an ``any`` entry matches a run of sections the outline does not name. An entry's ``words`` caps
   the prose words of each section it matches, H3 subsections included: on an ``any`` entry that is every section
@@ -139,6 +143,8 @@ class StructureAspect:
         forbid_empty_sections: True when every section must hold content.
         outline: The section order, matched against a document's sections left to right; may be empty.
         forbidden: Sections that must not appear at all.
+        tokens: The token budget: the most tokens the whole file may hold, frontmatter, code and tables
+            included, or None for no budget; at least 1.
         authority: The filename of the prose this file is the machine-checkable half of, such as ``code.md``,
             derived from ``path`` at construction. Every finding quotes it, so a reader is sent to the rule rather
             than to the JSON.
@@ -149,16 +155,20 @@ class StructureAspect:
     forbid_empty_sections: bool
     outline: tuple[OutlineEntry, ...]
     forbidden: tuple[str, ...]
+    # The token budget and the outline's word caps stay plain ints rather than value objects: construction checks
+    # their one invariant, at least 1, and the budget check calls a document's count `token_count`, so it cannot
+    # be mistaken for this budget.
+    tokens: int | None
     authority: str = field(init=False)
 
     def __post_init__(self) -> None:
-        """Derive the authority from the path, then refuse rules that check nothing, that no count or cap satisfies,
-        or that contradict themselves.
+        """Derive the authority from the path, then refuse rules that check nothing, that no count, cap or budget
+        satisfies, or that contradict themselves.
 
         Raises:
             InvalidStructureSchemaError: If the path is not a specification filename, the aspect states no rule,
-                its title count or any word cap is below 1, its outline names a section twice or places two ``any``
-                runs side by side, or it forbids a section its own outline names.
+                its title count, token budget or any word cap is below 1, its outline names a section twice or
+                places two ``any`` runs side by side, or it forbids a section its own outline names.
         """
         try:
             spec_file = parse_spec_file(self.path)
@@ -168,10 +178,19 @@ class StructureAspect:
         # refuses plain assignment, and `object.__setattr__` is the one way to set a field during construction.
         object.__setattr__(self, 'authority', prose_filename(spec_file.name))
 
-        if self.title is None and not self.forbid_empty_sections and not self.outline and not self.forbidden:
+        states_no_rule = (
+            self.title is None
+            and not self.forbid_empty_sections
+            and self.tokens is None
+            and not self.outline
+            and not self.forbidden
+        )
+        if states_no_rule:
             raise InvalidStructureSchemaError(self.path, 'states no rule, so it would check nothing')
         if self.title is not None and self.title.count < 1:
             raise InvalidStructureSchemaError(self.path, f'title count must be at least 1, got {self.title.count}')
+        if self.tokens is not None and self.tokens < 1:
+            raise InvalidStructureSchemaError(self.path, f'token budget must be at least 1, got {self.tokens}')
         for entry in self.outline:
             if entry.words is not None and entry.words < 1:
                 raise InvalidStructureSchemaError(
@@ -231,6 +250,7 @@ class StructureAspect:
             forbid_empty_sections=file.empty_sections == 'forbidden',
             outline=tuple(outline),
             forbidden=file.forbidden,
+            tokens=file.tokens,
         )
 
 
