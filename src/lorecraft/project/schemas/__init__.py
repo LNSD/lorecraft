@@ -1,5 +1,5 @@
-"""Specification filenames and stems, the decoded schemas, the header and structure aspects, and the repository that
-reads them."""
+"""Specification filenames and stems, the decoded schemas, the header and structure aspects, the repository that
+reads them, and the skill frontmatter schema with its parser."""
 
 from .header import HeaderAspect, HeaderSchema, InvalidHeaderSchemaError
 from .name import SchemaName, parse_schema_name, schema_name_stem
@@ -10,6 +10,25 @@ from .repo import (
     ListSchemasError,
     ListSpecsError,
     Repository,
+)
+from .skill import InvalidSkillFrontmatterError, parse_skill_frontmatter
+from .skill_frontmatter import (
+    EmptySkillCompatibilityError,
+    EmptySkillDescriptionError,
+    EmptySkillNameError,
+    InvalidSkillNameFormatError,
+    SkillAllowedTools,
+    SkillCompatibility,
+    SkillCompatibilityError,
+    SkillCompatibilityTooLongError,
+    SkillDescription,
+    SkillDescriptionError,
+    SkillDescriptionTooLongError,
+    SkillFrontmatter,
+    SkillLicense,
+    SkillName,
+    SkillNameError,
+    SkillNameTooLongError,
 )
 from .spec_file import (
     InvalidSpecStemError,
@@ -63,4 +82,22 @@ __all__ = [
     'ListSchemasError',
     'ListSpecsError',
     'Repository',
+    'SkillFrontmatter',
+    'SkillName',
+    'SkillNameError',
+    'EmptySkillNameError',
+    'SkillNameTooLongError',
+    'InvalidSkillNameFormatError',
+    'SkillDescription',
+    'SkillDescriptionError',
+    'EmptySkillDescriptionError',
+    'SkillDescriptionTooLongError',
+    'SkillLicense',
+    'SkillCompatibility',
+    'SkillCompatibilityError',
+    'EmptySkillCompatibilityError',
+    'SkillCompatibilityTooLongError',
+    'SkillAllowedTools',
+    'parse_skill_frontmatter',
+    'InvalidSkillFrontmatterError',
 ]
