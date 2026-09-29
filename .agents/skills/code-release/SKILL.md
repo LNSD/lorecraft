@@ -1,7 +1,7 @@
 ---
 name: "code-release"
 description: "Cut a release of the package: tag the commit, build the source distribution and the wheel from that tag, and verify what the artifacts actually contain. Use when preparing a release, bumping the version, building distributions, or checking that packaging metadata is correct"
-compatibility: "Requires the just task runner, uv, a working GPG signing key because every tag and commit is signed, and git with the repository's full history: hatch-vcs reads the version from `git describe`, so a shallow or tagless checkout builds a version that is not the release. Publishing to an index is NOT configured in this repository, so this skill ends at a tag and a verified artifact."
+compatibility: "Requires the just task runner, uv, a working GPG signing key because every tag and commit is signed, and git with the repository's full history: hatch-vcs reads the version from `git describe`, so a shallow or tagless checkout builds a version that is not the release. Publishing is the release workflow's job, on a published GitHub release; this skill ends at a local tag and a verified artifact."
 allowed-tools: Bash(just build *) Bash(just clean *) Bash(just fmt-check *) Bash(just check *) Bash(just typecheck *) Bash(just test *) Bash(just check-docs *) Bash(just check-skills *) Bash(git status *) Bash(git log *) Bash(git tag *) Bash(git describe *) Bash(uv venv dist/verify *) Bash(uv pip install --python dist/verify *) Bash(dist/verify/bin/lorecraft *)
 ---
 
@@ -208,15 +208,32 @@ locally can still be deleted. If the artifacts are wrong, delete the tag with
 `git tag -d v<version>`, fix the cause, and tag again — a tag that was never pushed costs nothing to
 withdraw.
 
-## Publishing is not configured
+## Publishing
 
-There is no `publish` recipe, no index credentials, no trusted publisher and no release workflow in
-`.github/workflows/`. CI runs the gates on `main` and on pull requests, and nothing in it uploads
-anything.
+Publishing a GitHub release publishes the package. The owner pushes the signed tag, then creates the
+release from it:
 
-When publishing is set up, the command is `uv publish`, and the release workflow should build from a
-tag and upload with a trusted publisher rather than a long-lived token. Until then, do not invent the
-step: report that the artifacts are built, verified and tagged, and stop.
+```bash
+git push origin v<version>
+gh release create v<version> --verify-tag --generate-notes
+```
+
+`--verify-tag` refuses to create the tag on the fly: the release form would otherwise make a lightweight,
+unsigned tag, and the release workflow rejects one. `.github/workflows/release.yml` runs on the published
+release and repeats this skill in CI: it checks the tag is annotated, carries a signature GitHub verifies,
+and points at a commit on `main`, then runs every gate, builds, checks that both artifacts carry the tag's
+version and nothing else sits in `dist/`, and installs the wheel alone. Only then does the upload job
+start, and it waits for the owner's approval of the `pypi` environment.
+
+The upload uses a trusted publisher: PyPI trusts the workflow's OIDC token for the `pypi` GitHub
+environment, so there is no index token in the repository or in its secrets. The publisher is registered
+on PyPI against the repository, the workflow file name and that environment; renaming any of the three
+breaks publishing until the registration is updated to match. Each artifact is uploaded with a PEP 740
+attestation and a GitHub build provenance attestation.
+
+A published version is permanent. `v*` tags cannot be moved or deleted, a published release is
+immutable, and PyPI refuses a second upload of the same version even after it is deleted, so a wrong
+release is fixed by tagging the next version.
 
 ## Anti-patterns
 
@@ -234,8 +251,10 @@ step: report that the artifacts are built, verified and tagged, and stop.
 - Running `just build` without `just clean` and then reading a stale artifact from `dist/`.
 - Treating a successful build as a verified artifact. Read the wheel's contents and install it alone.
 - Tagging before the artifacts are checked, or pushing a tag without being asked.
-- Running `uv publish`, or adding a token to the repository, on the assumption that publishing is
-  wanted. It is not configured, and configuring it is not this skill's job.
+- Running `uv publish` from a workstation, or adding an index token to the repository or its secrets.
+  The release workflow is the only publisher.
+- Creating the release without `--verify-tag`, or from the release form's "create new tag" field. The tag
+  it makes is unsigned, and the release workflow rejects it.
 - Committing `dist/`. It is ignored, and it should stay ignored.
 
 ## Next Steps
@@ -243,4 +262,4 @@ step: report that the artifacts are built, verified and tagged, and stop.
 After a verified build and a local tag:
 
 1. **Report** the version, both artifact filenames, and what the wheel contained.
-2. **Ask** before pushing the tag or opening a release.
+2. **Ask** before pushing the tag or creating the release: a published release publishes the package.
