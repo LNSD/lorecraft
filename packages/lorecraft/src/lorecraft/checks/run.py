@@ -14,7 +14,7 @@ from lorecraft_project.syntax import FrontmatterNode, LineNumber, ParsedDocument
 
 from .database import Database
 from .header import validate_header
-from .reporting import Finding
+from .reporting import Finding, Violation
 from .structure import validate_structure
 
 
@@ -26,12 +26,16 @@ class DocumentReport:
         ref: The document the report is about; its path is the report path.
         governed: False when no specification governs the document for the check's aspect; the document was
             then never parsed.
-        findings: The check's findings; empty for an ungoverned document.
+        violations: What the check found, without the document's path; empty for an ungoverned document.
     """
 
     ref: DocumentRef
     governed: bool
-    findings: tuple[Finding, ...]
+    violations: tuple[Violation, ...]
+
+    def findings(self) -> tuple[Finding, ...]:
+        """Every violation, located in the report's document; empty exactly when the document is clean."""
+        return tuple(Finding.at(self.ref.path, violation) for violation in self.violations)
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,14 +52,14 @@ class CheckRun:
         """Every finding of every report, in report order; empty exactly when the run is clean."""
         findings: list[Finding] = []
         for report in self.reports:
-            findings.extend(report.findings)
+            findings.extend(report.findings())
         return tuple(findings)
 
 
 def run_header(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
     """Check each ref against the header schemas that govern it, in the order given.
 
-    A governed document that is not UTF-8 carries the single finding ``frontmatter.undecodable`` at line 1.
+    A governed document that is not UTF-8 carries the single violation ``frontmatter.undecodable`` at line 1.
 
     Args:
         database: The snapshot state the refs come from; its model decides which schemas govern each document.
@@ -75,21 +79,21 @@ def run_header(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
     for ref in refs:
         aspects = database.model().governance(ref).header_schemas()
         if not aspects:
-            reports.append(DocumentReport(ref, governed=False, findings=()))
+            reports.append(DocumentReport(ref, governed=False, violations=()))
             continue
         frontmatter = _frontmatter(database, ref)
         if frontmatter is None:
-            reports.append(DocumentReport(ref, governed=True, findings=(_undecodable(ref, 'frontmatter'),)))
+            reports.append(DocumentReport(ref, governed=True, violations=(_undecodable('frontmatter'),)))
             continue
-        findings = validate_header(frontmatter, ref, aspects).findings
-        reports.append(DocumentReport(ref, governed=True, findings=findings))
+        result = validate_header(aspects, frontmatter=frontmatter, filename=ref.filename, corpus=ref.corpus)
+        reports.append(DocumentReport(ref, governed=True, violations=result.violations))
     return CheckRun(reports=tuple(reports))
 
 
 def run_structure(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
     """Check each ref against the structure specifications that govern it, in the order given.
 
-    A governed document that is not UTF-8 carries the single finding ``structure.undecodable`` at line 1.
+    A governed document that is not UTF-8 carries the single violation ``structure.undecodable`` at line 1.
 
     Args:
         database: The snapshot state the refs come from; its model decides which specifications govern each
@@ -110,14 +114,14 @@ def run_structure(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun
     for ref in refs:
         aspects = database.model().governance(ref).structure_specs()
         if not aspects:
-            reports.append(DocumentReport(ref, governed=False, findings=()))
+            reports.append(DocumentReport(ref, governed=False, violations=()))
             continue
         document = _parse(database, ref)
         if document is None:
-            reports.append(DocumentReport(ref, governed=True, findings=(_undecodable(ref, 'structure'),)))
+            reports.append(DocumentReport(ref, governed=True, violations=(_undecodable('structure'),)))
             continue
-        findings = validate_structure(document.headings, ref, aspects).findings
-        reports.append(DocumentReport(ref, governed=True, findings=findings))
+        result = validate_structure(aspects, headings=document.headings)
+        reports.append(DocumentReport(ref, governed=True, violations=result.violations))
     return CheckRun(reports=tuple(reports))
 
 
@@ -153,10 +157,9 @@ def _parse(database: Database, ref: DocumentRef) -> ParsedDocument | None:
         return None
 
 
-def _undecodable(ref: DocumentRef, rule_namespace: str) -> Finding:
-    """The finding a governed document that is not UTF-8 carries instead of the check's own."""
-    return Finding(
-        path=ref.path,
+def _undecodable(rule_namespace: str) -> Violation:
+    """The violation a governed document that is not UTF-8 carries instead of the check's own."""
+    return Violation(
         line=LineNumber(1),
         rule=f'{rule_namespace}.undecodable',
         message='document is not valid UTF-8',

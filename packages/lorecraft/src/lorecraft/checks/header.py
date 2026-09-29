@@ -1,9 +1,10 @@
 """Validate one document's frontmatter against the header schemas that govern it.
 
-The check is pure: it takes the document's frontmatter node, its ref and the already decoded, already validated
-header schemas, and returns findings. It reads the frontmatter and nothing else, so it is handed that node
-rather than the whole parse tree. Reading and parsing the document, choosing the schemas and deciding what a
-decode failure means all happen above it, in ``checks.run`` and the database.
+The check is pure: it takes the already decoded, already validated header schemas that govern a document, the
+document's frontmatter node, and the filename and corpus the frontmatter is checked against, and returns violations.
+It reads those and nothing else, so it is handed that node rather than the whole parse tree, and not the document's
+path: the run that called it attaches that. Reading and parsing the document, choosing the schemas and deciding what
+a decode failure means all happen above it, in ``checks.run`` and the database.
 """
 
 from dataclasses import dataclass
@@ -12,7 +13,8 @@ from typing import Final
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
-from lorecraft_project.document import DocumentRef
+from lorecraft_project.aspect import AspectFilename
+from lorecraft_project.corpus import CorpusName
 from lorecraft_project.schemas import HeaderAspect
 from lorecraft_project.syntax import (
     Frontmatter,
@@ -23,60 +25,58 @@ from lorecraft_project.syntax import (
     NonMappingFrontmatter,
 )
 
-from .reporting import Finding
+from .reporting import Violation
 
 _FIRST_LINE: Final[LineNumber] = LineNumber(1)
-"""Where a finding with no more precise position is reported: a missing block, a missing key."""
+"""Where a violation with no more precise position is reported: a missing block, a missing key."""
 
 
 @dataclass(frozen=True, slots=True)
 class HeaderCheckResult:
-    """Findings produced by checking one document's frontmatter.
+    """What the header check found in one document.
 
     Attributes:
-        findings: Immutable findings produced by the check.
+        violations: In the order the check finds them; empty when the document conforms.
     """
 
-    findings: tuple[Finding, ...]
+    violations: tuple[Violation, ...]
 
 
 def validate_header(
-    frontmatter: FrontmatterNode, ref: DocumentRef, schemas: tuple[HeaderAspect, ...]
+    schemas: tuple[HeaderAspect, ...], *, frontmatter: FrontmatterNode, filename: AspectFilename, corpus: CorpusName
 ) -> HeaderCheckResult:
-    """Check one document's frontmatter against the header schemas that govern it.
-
-    The report path of every finding is ``ref.path``, schema rule identifiers are namespaced by
-    ``str(ref.corpus)``, and the frontmatter ``name`` must equal ``str(ref.filename)`` (rule
-    ``frontmatter.name-matches-filename``). Pure: raises nothing.
+    """Check one document's frontmatter against the header schemas that govern it. Pure: raises nothing.
 
     Args:
-        schemas: Applied in order; each finding names the schema's path. Empty means the document is
-            ungoverned, which yields no findings.
+        schemas: Applied in order; each violation names the schema's path. Empty means the document is
+            ungoverned, which yields no violations.
+        filename: The document's filename, which the frontmatter ``name`` must equal (rule
+            ``frontmatter.name-matches-filename``).
+        corpus: The document's corpus, which namespaces the rule of every schema violation.
     """
     if not schemas:
-        return HeaderCheckResult(findings=())
+        return HeaderCheckResult(violations=())
 
     if isinstance(frontmatter, MissingFrontmatter):
-        return _one_finding(ref, 'frontmatter.missing', 'no `---` delimited frontmatter block')
+        return _one_violation('frontmatter.missing', 'no `---` delimited frontmatter block')
     if isinstance(frontmatter, InvalidYamlFrontmatter):
-        return _one_finding(ref, 'frontmatter.unparseable', f'frontmatter is not valid YAML: {frontmatter.detail}')
+        return _one_violation('frontmatter.unparseable', f'frontmatter is not valid YAML: {frontmatter.detail}')
     if isinstance(frontmatter, NonMappingFrontmatter):
-        return _one_finding(ref, 'frontmatter.unparseable', 'frontmatter is not a YAML mapping')
+        return _one_violation('frontmatter.unparseable', 'frontmatter is not a YAML mapping')
 
-    findings: list[Finding] = []
-    expected_name = str(ref.filename)
+    violations: list[Violation] = []
+    expected_name = str(filename)
     name = frontmatter.data.get('name')
     if name != expected_name:
-        findings.append(
-            Finding(
-                path=ref.path,
+        violations.append(
+            Violation(
                 line=_key_line(frontmatter, 'name'),
                 rule='frontmatter.name-matches-filename',
                 message=f'`name` is {name!r}; expected {expected_name!r}',
             )
         )
 
-    rule_namespace = str(ref.corpus)
+    rule_namespace = str(corpus)
     for aspect in schemas:
         validator = Draft202012Validator(aspect.schema)
         errors = sorted(
@@ -84,23 +84,22 @@ def validate_header(
             key=lambda error: (tuple(str(part) for part in error.path), error.message),
         )
         for error in errors:
-            for field in _finding_fields(error):
+            for field in _violated_fields(error):
                 rule = f'{rule_namespace}.{field}' if field else f'{rule_namespace}.frontmatter'
-                findings.append(
-                    Finding(
-                        path=ref.path,
+                violations.append(
+                    Violation(
                         line=_key_line(frontmatter, field) if field else _FIRST_LINE,
                         rule=rule,
                         message=f'{error.message} (per {aspect.path})',
                     )
                 )
 
-    return HeaderCheckResult(findings=tuple(findings))
+    return HeaderCheckResult(violations=tuple(violations))
 
 
-def _one_finding(ref: DocumentRef, rule: str, message: str) -> HeaderCheckResult:
-    """The result of a document whose frontmatter is unusable: one finding on its first line."""
-    return HeaderCheckResult(findings=(Finding(path=ref.path, line=_FIRST_LINE, rule=rule, message=message),))
+def _one_violation(rule: str, message: str) -> HeaderCheckResult:
+    """The result of a document whose frontmatter is unusable: one violation on its first line."""
+    return HeaderCheckResult(violations=(Violation(line=_FIRST_LINE, rule=rule, message=message),))
 
 
 def _key_line(frontmatter: Frontmatter, key: str) -> LineNumber:
@@ -111,7 +110,7 @@ def _key_line(frontmatter: Frontmatter, key: str) -> LineNumber:
     return line
 
 
-def _finding_fields(error: ValidationError) -> list[str]:
+def _violated_fields(error: ValidationError) -> list[str]:
     """Return the top-level fields implicated by one schema error."""
     if error.path:
         return [str(error.path[0])]
