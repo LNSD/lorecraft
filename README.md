@@ -1,15 +1,17 @@
 <div align="center">
 
-<img src="docs/assets/logo-light.png#gh-light-mode-only" alt="lorecraft" width="120" />
-<img src="docs/assets/logo-dark.png#gh-dark-mode-only" alt="lorecraft" width="120" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/lnsd/lorecraft/main/docs/assets/logo-dark.png" />
+  <img src="https://raw.githubusercontent.com/lnsd/lorecraft/main/docs/assets/logo-light.png" alt="lorecraft" width="120" />
+</picture>
 
 # lorecraft
 
-[Read the Docs](docs/) · [Report Bug](https://github.com/lnsd/lorecraft/issues/new?labels=bug) · [Request Feature](https://github.com/lnsd/lorecraft/issues/new?labels=enhancement)
+[Read the Docs](https://github.com/lnsd/lorecraft/tree/main/docs) · [Report Bug](https://github.com/lnsd/lorecraft/issues/new?labels=bug) · [Request Feature](https://github.com/lnsd/lorecraft/issues/new?labels=enhancement)
 
 [![CI](https://img.shields.io/github/actions/workflow/status/lnsd/lorecraft/ci.yml?branch=main&label=CI)](https://github.com/lnsd/lorecraft/actions/workflows/ci.yml)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE-APACHE)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE-MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/lnsd/lorecraft/blob/main/LICENSE-APACHE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/lnsd/lorecraft/blob/main/LICENSE-MIT)
 [![PyPI](https://img.shields.io/pypi/v/lorecraft)](https://pypi.org/project/lorecraft/)
 
 </div>
@@ -91,12 +93,12 @@ lorecraft check    # check every rule document against them
 ```
 
 Then let your agent use them, through the [skills](#skills): `/code-rules` loads the rules that apply before it writes code, and
-`/code-rules-check` checks its changes against them. This repository's own [`docs/code/`](docs/code/) is a
+`/code-rules-check` checks its changes against them. This repository's own [`docs/code/`](https://github.com/lnsd/lorecraft/tree/main/docs/code) is a
 working example.
 
 ## Skills
 
-The [`skills/`](skills/) directory holds agent skills that put the rules to work:
+The [`skills/`](https://github.com/lnsd/lorecraft/tree/main/skills) directory holds agent skills that put the rules to work:
 
 - **During development**, `code-rules` loads the coding rules that apply before the agent writes code,
   and `docs-rules` does the same for your documents.

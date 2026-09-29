@@ -18,6 +18,27 @@ authors = [
     { name = "Lorenzo Delgado", email = "lnsdev@proton.me" },
 ]
 requires-python = ">=3.12"
+keywords = [
+    "agents",
+    "agent-skills",
+    "documentation",
+    "lint",
+    "specifications",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Documentation",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Software Development :: Quality Assurance",
+]
 dependencies = [
     "jsonschema>=4.21,<5",
     "pydantic>=2.13,<3",
@@ -26,6 +47,12 @@ dependencies = [
     "typer>=0.27.2",
     "wenmode>=0.15.1,<0.16",
 ]
+
+[project.urls]
+Homepage = "https://github.com/lnsd/lorecraft"
+Documentation = "https://github.com/lnsd/lorecraft/tree/main/docs"
+Repository = "https://github.com/lnsd/lorecraft"
+Issues = "https://github.com/lnsd/lorecraft/issues"
 
 # `lc` is a shorter name for the same command line.
 [project.scripts]
