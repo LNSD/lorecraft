@@ -82,7 +82,6 @@ class StructureFile(_StructureFileModel):
         json_schema_extra={
             'examples': [
                 {
-                    'spec': 'code.md §5',
                     'description': 'Section structure for a rule document in docs/code/.',
                     'title': {'count': 1, 'first': True},
                     'empty_sections': 'forbidden',
@@ -95,9 +94,6 @@ class StructureFile(_StructureFileModel):
     # `$schema` is no Python name, so the field is declared under another and read from the file by its alias.
     schema_reference: str | None = Field(default=None, alias='$schema')
     """The JSON Schema this file is written against, for editors; ignored by the check."""
-    spec: str = Field(examples=['code.md §5', 'code-pattern.md Template'])
-    """The prose this file is the machine-checkable half of: a document under `docs/__meta__/` and the part of it
-    that states these rules. Every finding quotes it, to send the reader to the rule rather than to this file."""
     description: str = Field(default='', examples=['Section structure for a rule document in docs/code/.'])
     """What this file governs and why, for whoever opens it; not read by the check."""
     title: StructureFileTitle | None = None

@@ -33,7 +33,6 @@ def _aspect(
     """A structure aspect at ``docs/__meta__/<stem>.structure.json``, quoting ``<stem>.md`` as its authority."""
     return StructureAspect(
         path=SPECS_DIR / f'{stem}.structure.json',
-        authority=f'{stem}.md',
         title=title,
         forbid_empty_sections=forbid_empty_sections,
         outline=outline,
