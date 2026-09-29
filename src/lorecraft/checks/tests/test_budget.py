@@ -25,6 +25,7 @@ def _aspect(tokens: int | None, stem: str = 'code') -> StructureAspect:
         outline=(),
         forbidden=(),
         tokens=tokens,
+        frontmatter=None,
     )
 
 

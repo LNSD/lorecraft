@@ -44,6 +44,7 @@ def _spec(stem: str, header: bool = True, structure: bool = False) -> Spec:
             outline=(),
             forbidden=(),
             tokens=None,
+            frontmatter=None,
         )
         files.append(structure_aspect.path)
     return Spec(

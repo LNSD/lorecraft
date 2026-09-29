@@ -38,6 +38,7 @@ def _aspect(
         outline=outline,
         forbidden=forbidden,
         tokens=None,
+        frontmatter=None,
     )
 
 

@@ -43,6 +43,7 @@ from .spec_file import (
 )
 from .structure import (
     AnySections,
+    FrontmatterSchema,
     InvalidStructureSchemaError,
     OutlineEntry,
     SectionEntry,
@@ -70,6 +71,7 @@ __all__ = [
     'InvalidHeaderSchemaError',
     'StructureSchema',
     'StructureAspect',
+    'FrontmatterSchema',
     'TitleRule',
     'StructureFile',
     'OutlineEntry',
