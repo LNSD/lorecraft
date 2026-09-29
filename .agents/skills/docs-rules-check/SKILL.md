@@ -1,8 +1,8 @@
 ---
 name: docs-rules-check
 description: Check a document under docs/ against the format specification that governs it in docs/__meta__/. Use when reviewing PRs, after editing anything under docs/, or before commits
-compatibility: Requires uv to run the check commands
-allowed-tools: Bash(uv run lorecraft check*), Bash(just check-docs*), Bash(git diff*), Bash(git status*), Bash(git merge-base*), Bash(grep *), Bash(ls docs/*), Bash(awk *)
+compatibility: Requires uv to run the check commands, and jq to list the specifications governing each document
+allowed-tools: Bash(uv run lorecraft check*), Bash(uv run lorecraft inspect*), Bash(jq *), Bash(just check-docs*), Bash(git diff*), Bash(git status*), Bash(git merge-base*), Bash(grep *), Bash(ls docs/*), Bash(awk *)
 ---
 
 # Doc Rules Check
@@ -31,21 +31,24 @@ Exclude `docs/__meta__/` itself: a specification is governed by its own corpus r
 
 !`grep -m 3 -E '^(description|type|scope):' docs/__meta__/*.md`
 
-Resolve per document, from its path. A document sits directly inside its corpus directory,
-`docs/<corpus>/<name>.md`. The corpus specification, `docs/__meta__/<corpus>.md`, is the authority. Each
-namespace layer, `docs/__meta__/<corpus>-<namespace>.md`, adds to it when the namespace equals `<name>` or is a
-hyphen-delimited prefix of it, broad to narrow, and you validate against every one:
-`docs/feat/cli-check-header.md` is governed by `feat.md`, then `feat-cli.md`. `ls docs/__meta__/<corpus>*.md`
-lists the candidates. A directory under `docs/` with no corpus specification is not a corpus, and its documents
-are ungoverned.
+Do not resolve the specifications by hand. `lorecraft inspect` resolves them with the same rules the checks
+apply: each document below is followed by the prose specifications that govern it, broad to narrow, its
+`governed_by` from `lorecraft inspect --json` with `.md` files only.
+
+!`uv run lorecraft inspect --json | jq -r '.corpora[].documents[] | "\(.path): \(.governed_by | map(select(endswith(".md"))) | join(" "))"'`
+
+> If the block above is literal text, the runtime did not execute it — run that command yourself first.
+
+Read every specification listed for the document, the corpus specification first and each namespace layer
+after it, and validate against all of them. A document that exists but is not listed is outside every corpus.
 
 Each specification is paired with machine-checkable files at the same stem: `<stem>.header.json` holds its
 frontmatter rules, `<stem>.structure.json` its section structure, section word caps and token budget. The
 commands in §3 and §4 resolve and apply those; you read the prose.
 
-Read the specifications **before** the document, so the checklists are in hand while reading. Where no corpus
-specification exists, the document's format is ungoverned: report it as unvalidated rather than inventing rules or
-borrowing another corpus's.
+Read the specifications **before** the document, so the checklists are in hand while reading. Where a
+document is listed with no specification, its format is ungoverned: report it as unvalidated rather than
+inventing rules or borrowing another corpus's.
 
 ## 3. Frontmatter: run the command
 
@@ -204,6 +207,7 @@ These run without user permission:
 
 - `uv run lorecraft check`, `uv run lorecraft check header`, `uv run lorecraft check structure` and `uv run lorecraft check budget` with any flags — read-only, no side effects
 - `just check-docs`, which runs those checks over the whole corpus
+- `uv run lorecraft inspect` with any flags, piped into `jq` — read-only, prints the specification files governing each document
 - Frontmatter extraction (Grep tool or the `awk` fallback) on any file under `docs/`
 - `ls` on any directory under `docs/`, to check a list against what is actually there
 - All `git diff`, `git log`, and `git status` read-only commands
