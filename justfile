@@ -96,7 +96,7 @@ GEN_SCHEMAS_OUTDIR := "docs/schemas"
 [group: 'codegen']
 gen: gen-schemas
 
-# Generate the JSON Schemas of the specification files into docs/schemas/ (pydantic, in a uv script)
+# Generate the JSON Schemas of the package's pydantic models into docs/schemas/ (pydantic, in a uv script)
 [group: 'codegen']
 gen-schemas:
     #!/usr/bin/env -S uv run python
@@ -112,7 +112,10 @@ gen-schemas:
     from pydantic import BaseModel
     from pydantic.json_schema import GenerateJsonSchema
 
-    from lorecraft.project.schemas import StructureFile
+    from lorecraft.project.schemas import (
+        SkillFrontmatter,
+        StructureFile,
+    )
 
     JSON_SCHEMA_DIALECT = 'https://json-schema.org/draft/2020-12/schema'
 
@@ -152,6 +155,7 @@ gen-schemas:
 
     print('Generating the specification schemas...')
     write_schema(StructureFile, 'structure.spec.json')
+    write_schema(SkillFrontmatter, 'skill-frontmatter.spec.json')
 
 
 ## Build
