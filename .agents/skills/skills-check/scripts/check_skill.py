@@ -25,8 +25,8 @@ A skill's location decides which rules apply:
     skills/<name>/          project skill: installed into other repositories. The
                             specification only, and no link may leave the skill, except
                             through the `metadata` convention described in SKILL.md.
-                            This repository has no skills/ directory; the rules apply
-                            if one is added.
+                            Project skills live in skills/; a symlink to one from
+                            .agents/skills/ is checked once, as a project skill.
 """
 
 from __future__ import annotations
@@ -424,12 +424,18 @@ def validate(root: Path, skill_dir: Path) -> list[Finding]:
 
 
 def collect(root: Path, paths: list[Path]) -> list[Path]:
-    """Resolve the arguments to skill directories; a SKILL.md or any file inside a skill names its skill."""
+    """Resolve the arguments to skill directories; a SKILL.md or any file inside a skill names its skill.
+
+    A skill directory is resolved through symlinks: a project skill linked into the workspace is one skill,
+    checked once and as a project skill.
+    """
     if not paths:
         return sorted(
-            skill_md.parent
-            for skills_dir in (root / WORKSPACE_DIR, root / PROJECT_DIR)
-            for skill_md in skills_dir.glob('*/SKILL.md')
+            {
+                skill_md.parent.resolve()
+                for skills_dir in (root / WORKSPACE_DIR, root / PROJECT_DIR)
+                for skill_md in skills_dir.glob('*/SKILL.md')
+            }
         )
 
     skill_dirs: set[Path] = set()
