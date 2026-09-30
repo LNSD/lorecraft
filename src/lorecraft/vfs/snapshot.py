@@ -1,7 +1,7 @@
 """What one scan of the workspace saw, as a value, and the view that answers from it.
 
 A ``Snapshot`` holds listings, file bytes and symlink targets, never a handle or a stat result, so two
-snapshots compare and hash structurally. ``VirtualFileSystem`` answers the three ``FileSystem`` operations
+snapshots compare and hash structurally. ``VirtualFileSystem`` answers the four ``FileSystem`` operations
 from one snapshot without touching the disk. ``take_snapshot`` in ``disk.py`` is the producer that reads
 the disk; ``Snapshot.of_files`` builds one by hand.
 """
@@ -228,6 +228,22 @@ class VirtualFileSystem(FileSystem):
         """
         real_path = self._resolve(path)
         if real_path is None or real_path in self._files:
+            return None
+        return real_path
+
+    def resolve_file(self, path: RootRelativePath) -> RootRelativePath | None:
+        """Follow the recorded links in ``path`` and return the recorded file it leads to; see ``FileSystem``.
+
+        Returns:
+            The real file, root-relative, or ``None`` where ``resolve_dir`` lists, and also for a directory and
+            for a file whose bytes the snapshot did not record, such as one a link the scan did not follow
+            leads to.
+
+        Raises:
+            ResolveFileError: Never; kept in the contract for the disk implementation.
+        """
+        real_path = self._resolve(path)
+        if real_path is None or real_path not in self._files:
             return None
         return real_path
 

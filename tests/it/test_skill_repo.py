@@ -20,6 +20,7 @@ from lorecraft.project.skill import (
     ResolveSkillsDirError,
     Skill,
     SkillDecodeError,
+    SkillLocation,
     SkillRef,
 )
 from lorecraft.vfs import DiskFileSystem, RootRelativePath
@@ -67,7 +68,23 @@ def _write_skill(directory: Path) -> None:
 
 
 def _ref(directory: str) -> SkillRef:
+    """The ref of the skill in ``directory``."""
     return SkillRef(RootRelativePath.parse(directory))
+
+
+def _location(directory: str) -> SkillLocation:
+    """The location of a skill whose directory and ``SKILL.md`` are no links."""
+    path = RootRelativePath.parse(directory)
+    return SkillLocation(SkillRef(path), resolves_to=path, file_resolves_to=path / 'SKILL.md')
+
+
+def _linked_location(directory: str, resolves_to: str, file_resolves_to: str) -> SkillLocation:
+    """The location of a skill whose directory or ``SKILL.md`` is a link, with the real paths they lead to."""
+    return SkillLocation(
+        SkillRef(RootRelativePath.parse(directory)),
+        resolves_to=RootRelativePath.parse(resolves_to),
+        file_resolves_to=RootRelativePath.parse(file_resolves_to),
+    )
 
 
 @pytest.fixture(scope='function')
@@ -161,7 +178,7 @@ class TestRepositoryListSkills:
         skills = repository.list_skills(UNIVERSAL_DIR)
 
         #: Then
-        assert skills == (_ref('.agents/skills/commit'), _ref('.agents/skills/review')), (
+        assert skills == (_location('.agents/skills/commit'), _location('.agents/skills/review')), (
             'each directory holding a SKILL.md is a skill, listed in directory order'
         )
 
@@ -176,8 +193,8 @@ class TestRepositoryListSkills:
         skills = repository.list_skills(UNIVERSAL_DIR)
 
         #: Then
-        assert skills == (_ref('.agents/skills/review'),), (
-            'the skill is the entry under the skills directory, not the place its link leads to'
+        assert skills == (_linked_location('.agents/skills/review', 'skills/review', 'skills/review/SKILL.md'),), (
+            'the skill is the entry under the skills directory, and it records the place its link leads to'
         )
 
     def test_list_skills_with_two_entries_leading_to_one_directory_returns_both_entries(
@@ -191,9 +208,10 @@ class TestRepositoryListSkills:
         skills = repository.list_skills(UNIVERSAL_DIR)
 
         #: Then
-        assert skills == (_ref('.agents/skills/audit'), _ref('.agents/skills/review')), (
-            'each entry under the skills directory is a skill of its own, as an agent sees them'
-        )
+        assert skills == (
+            _linked_location('.agents/skills/audit', '.agents/skills/review', '.agents/skills/review/SKILL.md'),
+            _location('.agents/skills/review'),
+        ), 'each entry under the skills directory is a skill of its own, as an agent sees them'
 
     def test_list_skills_with_a_directory_without_a_skill_file_leaves_it_out(
         self, repository: Repository, universal_dir: Path
@@ -244,8 +262,8 @@ class TestRepositoryListSkills:
         skills = repository.list_skills(UNIVERSAL_DIR)
 
         #: Then
-        assert skills == (SkillRef(UNIVERSAL_DIR / 'review'),), (
-            'a SKILL.md linked to where its text lives makes the directory a skill, as a regular one does'
+        assert skills == (_linked_location('.agents/skills/review', '.agents/skills/review', 'REVIEW.md'),), (
+            'a SKILL.md linked to where its text lives makes the directory a skill, and records that file'
         )
 
     def test_list_skills_with_a_symlinked_skill_file_that_is_not_utf8_returns_the_skill(
@@ -260,7 +278,7 @@ class TestRepositoryListSkills:
         skills = repository.list_skills(UNIVERSAL_DIR)
 
         #: Then
-        assert skills == (SkillRef(UNIVERSAL_DIR / 'review'),), (
+        assert skills == (_linked_location('.agents/skills/review', '.agents/skills/review', 'REVIEW.md'),), (
             'the link leads to a file, so the directory is a skill: what the file holds is decided above'
         )
 
@@ -290,6 +308,21 @@ class TestRepositoryListSkills:
 
         #: Then
         assert skills == (), 'a SKILL.md link that leads to a directory does not make the directory a skill'
+
+    def test_list_skills_with_a_skill_file_linked_outside_the_root_leaves_it_out(
+        self, repository: Repository, universal_dir: Path, tmp_path_factory: pytest.TempPathFactory
+    ) -> None:
+        #: Given
+        outside = tmp_path_factory.mktemp('outside') / 'REVIEW.md'
+        outside.write_text('', encoding='utf-8')
+        (universal_dir / 'review').mkdir()
+        (universal_dir / 'review' / 'SKILL.md').symlink_to(outside)
+
+        #: When
+        skills = repository.list_skills(UNIVERSAL_DIR)
+
+        #: Then
+        assert skills == (), 'a SKILL.md whose text lives outside the root has no root-relative file to record'
 
     def test_list_skills_with_a_dangling_skill_entry_leaves_it_out(
         self, repository: Repository, universal_dir: Path

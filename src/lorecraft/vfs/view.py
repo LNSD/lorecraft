@@ -3,9 +3,9 @@
 Every path crossing this boundary is a ``RootRelativePath`` such as ``docs/code/logging.md``: never absolute,
 never holding a ``..`` component, so no argument can name a file outside the root. The type carries that
 proof, so no implementation checks it again. Nothing above the boundary sees a ``Path``, a handle, a stat
-result or an mtime. ``resolve_dir`` is the one operation that reports where a symlink chain leads, as a
-root-relative directory; ``list_dir`` and ``read_text`` reach through a link on the way to the path they are
-given, or at it, and never report or classify a link's target. Every
+result or an mtime. ``resolve_dir`` and ``resolve_file`` are the two operations that report where a symlink
+chain leads, as a root-relative directory or file; ``list_dir`` and ``read_text`` reach through a link on the
+way to the path they are given, or at it, and never report or classify a link's target. Every
 implementation of the view is this package's own: ``DiskFileSystem`` reads the disk under the workspace
 root, and ``VirtualFileSystem`` answers from a ``Snapshot``.
 """
@@ -96,6 +96,23 @@ class ResolveDirError(Error):
         super().__init__(f'cannot resolve directory {path}: {detail}')
 
 
+class ResolveFileError(Error):
+    """A path under the root cannot be resolved to a file because the operating system refused a lookup.
+
+    Attributes:
+        path: The root-relative path whose symlink chain could not be followed.
+        detail: The operating system's own description of the refusal.
+    """
+
+    path: RootRelativePath
+    detail: str
+
+    def __init__(self, path: RootRelativePath, detail: str) -> None:
+        self.path = path
+        self.detail = detail
+        super().__init__(f'cannot resolve file {path}: {detail}')
+
+
 def decode_text(path: RootRelativePath, data: bytes) -> str:
     """Decode a file's bytes as UTF-8; the one decode every implementation shares.
 
@@ -147,7 +164,7 @@ class FileSystem(ABC):
     def resolve_dir(self, path: RootRelativePath) -> RootRelativePath | None:
         """Follow every symlink in ``path`` and return the real directory it leads to, root-relative.
 
-        The one operation that says where a symlink leads, and only per directory: ``list_dir`` and
+        One of the two operations that say where a symlink leads, with ``resolve_file``: ``list_dir`` and
         ``read_text`` follow a link without naming the real path. A regular directory resolves to itself,
         and the root resolves to ``.``.
 
@@ -160,5 +177,23 @@ class FileSystem(ABC):
 
         Raises:
             ResolveDirError: If the operating system refuses the lookup, such as a permission error on a
+                component, and the chain does not lead outside the root.
+        """
+
+    @abstractmethod
+    def resolve_file(self, path: RootRelativePath) -> RootRelativePath | None:
+        """Follow every symlink in ``path`` and return the real regular file it leads to, root-relative.
+
+        ``resolve_dir``'s counterpart for a file: a regular file resolves to itself, and a link to one resolves
+        to the file it leads to, wherever the chain goes on the way.
+
+        Returns:
+            The real file, root-relative, or ``None`` when no regular file under the root sits at the end of
+            the chain: the path is missing, a link dangles or loops, a component is not a directory, the
+            target is not a regular file, or it lies outside the root. A chain that leads outside the root
+            resolves to ``None`` even when the operating system refuses to search a directory on the way.
+
+        Raises:
+            ResolveFileError: If the operating system refuses the lookup, such as a permission error on a
                 component, and the chain does not lead outside the root.
         """
