@@ -19,7 +19,12 @@ from dataclasses import dataclass, field
 
 from lorecraft.agents import iter_agents
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.aspect import AspectFilename, AspectFilenameError, AspectNamespace
+from lorecraft.project.aspect import (
+    AspectFilename,
+    AspectNamespace,
+    EmptyAspectNameError,
+    InvalidAspectNameCharacterError,
+)
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.ref import DocumentRef
 from lorecraft.project.document.repo import Repository as DocumentRepository
@@ -186,7 +191,7 @@ def _list_document_refs(documents: DocumentRepository, corpus_name: CorpusName) 
     for document_file in documents.list_documents(corpus_name):
         try:
             filename = AspectFilename.parse(document_file.stem)
-        except AspectFilenameError:
+        except (EmptyAspectNameError, InvalidAspectNameCharacterError):
             continue
         refs.append(DocumentRef(corpus=corpus_name, filename=filename))
     return refs
