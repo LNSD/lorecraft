@@ -1,4 +1,4 @@
-"""The `check` command group: one subcommand per documentation check, each in its own module here.
+"""The `check` command group: one subcommand per check, over documents or over skills, each in its own module here.
 
 Importing this package registers the group and imports every module beside this one, so each check joins
 the group the same way a top-level command joins the root: by being a file in the package. Each check module
@@ -13,13 +13,20 @@ from typing import Annotated, Literal
 
 import typer
 
-from lorecraft.checks import CheckRun
-from lorecraft.cli.check_run import DocumentCheck, print_runs, registered_checks, select_documents
+from lorecraft.checks import CheckRun, SkillCheckRun
+from lorecraft.cli.check_run import (
+    DocumentCheck,
+    SkillCheck,
+    print_runs,
+    registered_checks,
+    registered_skill_checks,
+    select_documents,
+)
 from lorecraft.cli.registry import register_group
 from lorecraft.core.error import Error
 
 app: typer.Typer = typer.Typer(
-    help='Run the documentation checks: every check when no check is named, or the one named.',
+    help='Run the documentation and skill checks: every check when no check is named, or the one named.',
     invoke_without_command=True,
 )
 register_group('check', app)
@@ -39,7 +46,7 @@ def check_all(
         typer.Option('--format', help='Output format: text or json. Defaults to text.'),
     ] = None,
 ) -> None:
-    """Run every check over every document, when no check is named.
+    """Run every check, over every document and every skill, when no check is named.
 
     Each check reads the same snapshot, through one database, so a document is read and parsed once however
     many checks read it. Exit 0 when clean, 1 when any check finds something, and 2 for invalid input or
@@ -65,6 +72,10 @@ def check_all(
         runs: list[tuple[DocumentCheck, CheckRun]] = []
         for check in registered_checks():
             runs.append((check, check.run(database, refs)))
+        skill_refs = database.model().skills
+        skill_runs: list[tuple[SkillCheck, SkillCheckRun]] = []
+        for skill_check in registered_skill_checks():
+            skill_runs.append((skill_check, skill_check.run(database, skill_refs)))
     except Error as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=2) from exc
@@ -74,9 +85,12 @@ def check_all(
         typer.echo(f'cannot read input: {exc}', err=True)
         raise typer.Exit(code=2) from exc
 
-    print_runs(tuple(runs), output_format or 'text')
+    print_runs(tuple(runs), tuple(skill_runs), output_format or 'text')
     for _check, run in runs:
         if run.findings():
+            raise typer.Exit(code=1)
+    for _skill_check, skill_run in skill_runs:
+        if skill_run.findings():
             raise typer.Exit(code=1)
 
 

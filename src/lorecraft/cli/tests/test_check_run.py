@@ -6,10 +6,19 @@ that is refused before it is stored; a new name would join every later bare run 
 
 import pytest
 
-from lorecraft.checks import run_frontmatter
+from lorecraft.checks import run_frontmatter, run_skills
 
-from ..check_run import DocumentCheck, DuplicateCheckError, register_check, registered_checks
+from ..check_run import (
+    DocumentCheck,
+    DuplicateCheckError,
+    SkillCheck,
+    register_check,
+    register_skill_check,
+    registered_checks,
+    registered_skill_checks,
+)
 from ..commands.check.frontmatter import FRONTMATTER_CHECK
+from ..commands.check.skills import SKILLS_CHECK
 
 
 @pytest.mark.unit
@@ -35,6 +44,44 @@ class TestRegisterCheck:
 
         #: Then
         assert FRONTMATTER_CHECK.name in str(exc_info.value), 'the error names the contested check'
+
+    def test_register_check_under_the_name_of_a_skill_check_raises_duplicate_check_error(self) -> None:
+        #: Given
+        rival = DocumentCheck(name=SKILLS_CHECK.name, run=run_frontmatter, ungoverned='another message')
+
+        #: When
+        with pytest.raises(DuplicateCheckError) as exc_info:
+            register_check(rival)
+
+        #: Then
+        assert SKILLS_CHECK.name in str(exc_info.value), 'a document check cannot take the name of a skill check'
+
+
+@pytest.mark.unit
+class TestRegisterSkillCheck:
+    def test_register_skill_check_with_the_same_check_again_keeps_one_entry(self) -> None:
+        #: Given
+        before = registered_skill_checks()
+
+        #: When
+        returned = register_skill_check(SKILLS_CHECK)
+
+        #: Then
+        assert returned is SKILLS_CHECK, 'registration returns the check unchanged, so it can be bound to a name'
+        assert registered_skill_checks() == before, 'registering the same check twice is a no-op'
+
+    def test_register_skill_check_under_the_name_of_a_document_check_raises_duplicate_check_error(self) -> None:
+        #: Given
+        rival = SkillCheck(name=FRONTMATTER_CHECK.name, run=run_skills)
+
+        #: When
+        with pytest.raises(DuplicateCheckError) as exc_info:
+            register_skill_check(rival)
+
+        #: Then
+        assert FRONTMATTER_CHECK.name in str(exc_info.value), (
+            'a skill check cannot take the name of a document check: the bare report keys both by name'
+        )
 
 
 @pytest.mark.unit

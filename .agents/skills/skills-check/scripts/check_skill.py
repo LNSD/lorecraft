@@ -6,13 +6,14 @@
 #   "typer>=0.12,<1",
 # ]
 # ///
-"""Check skills against the Agent Skills specification (https://agentskills.io/specification).
+"""Check the body of skills against the Agent Skills specification (https://agentskills.io/specification).
 
-Covers the mechanical half of /skills-check: frontmatter fields and their limits, the
-name matching its directory, the SKILL.md length budget, and whether every relative
-link resolves. Judgment calls stay with the skill - whether a description says when to
-use the skill, whether content belongs in SKILL.md or a reference file, whether a
-reference chain runs too deep.
+Covers what `lorecraft check skills` does not yet: the SKILL.md length budget, the files a
+project skill links in through `metadata`, and whether every relative link resolves. The
+frontmatter - its fields, their limits and the name matching its directory - is checked
+by `lorecraft check skills`, and no longer here. Judgment calls stay with the skill -
+whether a description says when to use the skill, whether content belongs in SKILL.md or
+a reference file, whether a reference chain runs too deep.
 
 This is a vendored standalone copy; the checks it implements are destined for the
 lorecraft library, which will run them from one checker instead of a script per skill.
@@ -20,8 +21,7 @@ lorecraft library, which will run them from one checker instead of a script per 
 A skill's location decides which rules apply:
 
     .agents/skills/<name>/  workspace skill: used by agents working in this repository.
-                            The specification, plus the frontmatter extensions this
-                            repository's agents read, and links into the repository.
+                            The specification, plus links into the repository.
     skills/<name>/          project skill: installed into other repositories. The
                             specification only, and no link may leave the skill, except
                             through the `metadata` convention described in SKILL.md.
@@ -35,7 +35,6 @@ import functools
 import json
 import re
 import sys
-import unicodedata
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -47,23 +46,12 @@ import yaml
 WORKSPACE_DIR = Path('.agents/skills')
 PROJECT_DIR = Path('skills')
 
-SPEC_FIELDS = {'name', 'description', 'license', 'compatibility', 'metadata', 'allowed-tools'}
-
-# Claude Code reads these in addition to the specification's fields. Workspace skills are
-# only ever loaded by this repository's agents, so they may use them; a project skill may
-# not, because the agent that installs it may reject an unknown field.
-WORKSPACE_EXTENSION_FIELDS = {'argument-hint', 'disable-model-invocation', 'user-invocable', 'model'}
-
 # The `metadata` subkeys that link repository files into a project skill, named after the
 # skill directory the file is linked from. See §4 of this skill's SKILL.md.
 LINKED_DIRS = {'references', 'assets', 'scripts'}
 
-NAME_MAX = 64
-DESCRIPTION_MAX = 1024
-COMPATIBILITY_MAX = 500
 SKILL_MD_MAX_LINES = 500
 
-NAME_PATTERN = re.compile(r'^[a-z0-9]+(-[a-z0-9]+)*$')
 LINK_PATTERN = re.compile(r'\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)')
 FENCE_PATTERN = re.compile(r'^\s*(```|~~~)')
 HEADING_PATTERN = re.compile(r'^\s{0,3}#{1,6}\s+(.*?)\s*#*\s*$')
@@ -100,6 +88,24 @@ def split_frontmatter(text: str) -> str | None:
         if line.strip() == '---':
             return '\n'.join(lines[1:offset])
     return None
+
+
+def load_frontmatter(text: str) -> dict:
+    """The frontmatter mapping of a SKILL.md, or an empty one when it has none that can be read.
+
+    An unusable frontmatter is `lorecraft check skills`'s finding, so it is not reported here:
+    the body is checked as the body of a skill that links nothing in.
+    """
+    block = split_frontmatter(text)
+    if block is None:
+        return {}
+    try:
+        frontmatter = yaml.safe_load(block)
+    except yaml.YAMLError:
+        return {}
+    if not isinstance(frontmatter, dict):
+        return {}
+    return frontmatter
 
 
 def heading_slug(heading: str) -> str:
@@ -164,109 +170,6 @@ def skill_kind(root: Path, skill_dir: Path) -> SkillKind | None:
     if skill_dir.parent == root / PROJECT_DIR:
         return SkillKind.project
     return None
-
-
-def check_frontmatter(rel: str, text: str, frontmatter: dict, skill_dir: Path, kind: SkillKind) -> list[Finding]:
-    findings: list[Finding] = []
-
-    allowed = SPEC_FIELDS | WORKSPACE_EXTENSION_FIELDS if kind is SkillKind.workspace else SPEC_FIELDS
-    for key in frontmatter:
-        if key not in allowed:
-            findings.append(
-                Finding(rel, key_line(text, str(key)), 'field.unknown', f'`{key}` is not a {kind.value} skill field')
-            )
-
-    name = frontmatter.get('name')
-    if not isinstance(name, str) or not name:
-        findings.append(Finding(rel, key_line(text, 'name'), 'name.missing', '`name` is required and must be a string'))
-    else:
-        name = unicodedata.normalize('NFKC', name)
-        if len(name) > NAME_MAX:
-            findings.append(
-                Finding(rel, key_line(text, 'name'), 'name.length', f'`name` exceeds {NAME_MAX} characters')
-            )
-        if not NAME_PATTERN.match(name):
-            findings.append(
-                Finding(
-                    rel,
-                    key_line(text, 'name'),
-                    'name.format',
-                    '`name` must be lowercase letters, digits, and single hyphens, not starting or ending with one',
-                )
-            )
-        if name != skill_dir.name:
-            findings.append(
-                Finding(
-                    rel,
-                    key_line(text, 'name'),
-                    'name.directory',
-                    f'`name` is `{name}` but the directory is `{skill_dir.name}`',
-                )
-            )
-
-    description = frontmatter.get('description')
-    if not isinstance(description, str) or not description.strip():
-        findings.append(
-            Finding(
-                rel,
-                key_line(text, 'description'),
-                'description.missing',
-                '`description` is required and must be a non-empty string',
-            )
-        )
-    elif len(description) > DESCRIPTION_MAX:
-        findings.append(
-            Finding(
-                rel,
-                key_line(text, 'description'),
-                'description.length',
-                f'`description` is {len(description)} characters; the limit is {DESCRIPTION_MAX}',
-            )
-        )
-
-    if 'compatibility' in frontmatter:
-        compatibility = frontmatter['compatibility']
-        if not isinstance(compatibility, str) or not compatibility.strip():
-            findings.append(
-                Finding(
-                    rel,
-                    key_line(text, 'compatibility'),
-                    'compatibility.type',
-                    '`compatibility` must be a non-empty string',
-                )
-            )
-        elif len(compatibility) > COMPATIBILITY_MAX:
-            findings.append(
-                Finding(
-                    rel,
-                    key_line(text, 'compatibility'),
-                    'compatibility.length',
-                    f'`compatibility` is {len(compatibility)} characters; the limit is {COMPATIBILITY_MAX}',
-                )
-            )
-
-    for key in ('license', 'allowed-tools'):
-        if key in frontmatter and not isinstance(frontmatter[key], str):
-            findings.append(Finding(rel, key_line(text, key), f'{key}.type', f'`{key}` must be a string'))
-
-    if 'metadata' in frontmatter:
-        metadata = frontmatter['metadata']
-        if not isinstance(metadata, dict):
-            findings.append(Finding(rel, key_line(text, 'metadata'), 'metadata.type', '`metadata` must be a mapping'))
-        else:
-            for key, value in metadata.items():
-                if not isinstance(key, str) or not isinstance(value, str):
-                    findings.append(
-                        Finding(
-                            rel,
-                            key_line(text, 'metadata'),
-                            'metadata.type',
-                            f'`metadata.{key}` must map a string key to a string value; '
-                            'quote numbers and join lists with spaces',
-                        )
-                    )
-
-    return findings
 
 
 def linked_files(root: Path, rel: str, text: str, frontmatter: dict) -> tuple[dict[Path, Path], list[Finding]]:
@@ -395,17 +298,8 @@ def validate(root: Path, skill_dir: Path) -> list[Finding]:
         return [Finding(rel, 1, 'skill.missing', 'a skill directory must contain SKILL.md')]
 
     text = skill_md.read_text(encoding='utf-8')
-    block = split_frontmatter(text)
-    if block is None:
-        return [Finding(rel, 1, 'frontmatter.missing', 'SKILL.md must open with a `---` delimited YAML frontmatter')]
-    try:
-        frontmatter = yaml.safe_load(block)
-    except yaml.YAMLError as err:
-        return [Finding(rel, 1, 'frontmatter.yaml', f'frontmatter is not valid YAML: {err}')]
-    if not isinstance(frontmatter, dict):
-        return [Finding(rel, 1, 'frontmatter.yaml', 'frontmatter must be a YAML mapping')]
-
-    findings = check_frontmatter(rel, text, frontmatter, skill_dir, kind)
+    frontmatter = load_frontmatter(text)
+    findings: list[Finding] = []
 
     line_count = len(text.splitlines())
     if line_count > SKILL_MD_MAX_LINES:
@@ -518,7 +412,7 @@ def main(
         typer.Option('--linking', help='check only the skills whose `metadata` links these repository files'),
     ] = None,
 ) -> None:
-    """Check skills against the Agent Skills specification."""
+    """Check the body of skills against the Agent Skills specification; `lorecraft check skills` has the frontmatter."""
     if root is not None:
         root = root.resolve()
         if not (root / WORKSPACE_DIR).is_dir():
