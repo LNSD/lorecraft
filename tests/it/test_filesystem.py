@@ -20,21 +20,24 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.vfs import (
     Change,
     ChangeKind,
-    DecodeTextError,
     DirEntry,
+    DirListError,
+    DirResolveError,
     DiskFileSystem,
+    EntryInspectError,
     EntryKind,
-    EntryKindError,
     FileBytes,
+    FileReadError,
+    FileResolveError,
     Link,
-    ListDirError,
     Listing,
-    ReadTextError,
-    ResolveDirError,
-    ResolveFileError,
+    OsRefusal,
     ScanRoot,
     Snapshot,
-    TakeSnapshotError,
+    SnapshotDirListError,
+    SnapshotFileReadError,
+    TextDecodeError,
+    UnrecordedFileError,
     VirtualFileSystem,
     diff,
     take_snapshot,
@@ -224,10 +227,19 @@ def chain_of_41_links(tmp_path: Path) -> str:
     return target
 
 
+# What a failed read answers in a parity comparison. ``FileSystem.read_text`` lists two read failures: the disk
+# raises ``FileReadError`` with the operating system's refusal as its source, and a snapshot, which has no
+# operating system to refuse, raises ``UnrecordedFileError``. A caller catches both alike, so parity counts them
+# as one answer.
+UNREADABLE_FILE: Final[str] = 'the path leads to no file that can be read'
+
+
 def _answer(call: Callable[[RootRelativePath], object], path: RootRelativePath) -> object:
-    """What one view answers for ``path``: the return value, or the class of the ``Error`` it raised."""
+    """What one view answers for ``path``: the return value, ``UNREADABLE_FILE``, or the class of the ``Error``."""
     try:
         return call(path)
+    except (FileReadError, UnrecordedFileError):
+        return UNREADABLE_FILE
     except Error as exc:
         return type(exc)
 
@@ -354,7 +366,7 @@ class TestDiskFileSystemListDir:
         locked = RootRelativePath.parse(unreadable_dir.name)
 
         #: When
-        with pytest.raises(ListDirError) as exc_info:
+        with pytest.raises(DirListError) as exc_info:
             filesystem.list_dir(locked)
 
         #: Then
@@ -381,24 +393,25 @@ class TestDiskFileSystemReadText:
         latin = RootRelativePath.parse('latin.md')
 
         #: When
-        with pytest.raises(DecodeTextError) as exc_info:
+        with pytest.raises(TextDecodeError) as exc_info:
             filesystem.read_text(latin)
 
         #: Then
         assert exc_info.value.path == latin, 'the error names the root-relative file'
 
-    def test_read_text_with_a_missing_file_raises_read_text_error(self, tmp_path: Path) -> None:
+    def test_read_text_with_a_missing_file_raises_file_read_error(self, tmp_path: Path) -> None:
         #: Given
         filesystem = DiskFileSystem(tmp_path)
         missing = RootRelativePath.parse('missing.md')
 
         #: When
-        with pytest.raises(ReadTextError) as exc_info:
+        with pytest.raises(FileReadError) as exc_info:
             filesystem.read_text(missing)
 
         #: Then
         assert exc_info.value.path == missing, 'the error names the root-relative file'
-        assert not isinstance(exc_info.value, DecodeTextError), 'a missing file is not a decode failure'
+        assert exc_info.value.refusal is OsRefusal.NOT_FOUND, 'the refusal is classified from the errno'
+        assert not isinstance(exc_info.value, TextDecodeError), 'a missing file is not a decode failure'
 
 
 @pytest.mark.it
@@ -523,7 +536,7 @@ class TestDiskFileSystemEntryKind:
         inside = RootRelativePath.parse(unreadable_dir.name) / 'inner'
 
         #: When
-        with pytest.raises(EntryKindError) as exc_info:
+        with pytest.raises(EntryInspectError) as exc_info:
             filesystem.entry_kind(inside)
 
         #: Then
@@ -682,7 +695,7 @@ class TestDiskFileSystemResolveDir:
         inside_locked = RootRelativePath.parse(unreadable_dir.name) / 'skills'
 
         #: When
-        with pytest.raises(ResolveDirError) as exc_info:
+        with pytest.raises(DirResolveError) as exc_info:
             filesystem.resolve_dir(inside_locked)
 
         #: Then
@@ -815,7 +828,7 @@ class TestDiskFileSystemResolveFile:
         inside_locked = RootRelativePath.parse(unreadable_dir.name) / 'SKILL.md'
 
         #: When
-        with pytest.raises(ResolveFileError) as exc_info:
+        with pytest.raises(FileResolveError) as exc_info:
             filesystem.resolve_file(inside_locked)
 
         #: Then
@@ -1203,7 +1216,7 @@ class TestTakeSnapshot:
         ), 'a directory two roots reach has its links followed when either root asks for it'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
-    def test_take_snapshot_with_an_unreadable_directory_raises_take_snapshot_error(
+    def test_take_snapshot_with_an_unreadable_directory_raises_snapshot_dir_list_error(
         self, tmp_path: Path, unreadable_dir: Path
     ) -> None:
         #: Given
@@ -1211,21 +1224,21 @@ class TestTakeSnapshot:
         scope = (ScanRoot(locked, depth=0),)
 
         #: When
-        with pytest.raises(TakeSnapshotError) as exc_info:
+        with pytest.raises(SnapshotDirListError) as exc_info:
             take_snapshot(tmp_path, scope)
 
         #: Then
         assert exc_info.value.path == locked, 'the error names the root-relative directory the scan stopped at'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores file permissions')
-    def test_take_snapshot_with_an_unreadable_file_raises_take_snapshot_error(
+    def test_take_snapshot_with_an_unreadable_file_raises_snapshot_file_read_error(
         self, tmp_path: Path, unreadable_file: Path
     ) -> None:
         #: Given
         locked = RootRelativePath.parse(unreadable_file.relative_to(tmp_path).as_posix())
 
         #: When
-        with pytest.raises(TakeSnapshotError) as exc_info:
+        with pytest.raises(SnapshotFileReadError) as exc_info:
             take_snapshot(tmp_path, SNAPSHOT_SCOPE)
 
         #: Then

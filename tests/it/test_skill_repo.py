@@ -24,7 +24,7 @@ from lorecraft.project.skill import (
     SkillRef,
     SkillsDirListError,
 )
-from lorecraft.vfs import DiskFileSystem, ResolveDirError
+from lorecraft.vfs import DirResolveError, DiskFileSystem
 
 UNIVERSAL_DIR: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills')
 CLAUDE_DIR: Final[RootRelativePath] = RootRelativePath.parse('.claude/skills')
@@ -159,7 +159,7 @@ class TestRepositoryResolveSkillsDir:
         locked = locked_agents_dir
 
         #: When
-        with pytest.raises(ResolveDirError) as exc_info:
+        with pytest.raises(DirResolveError) as exc_info:
             repository.resolve_skills_dir(UNIVERSAL_DIR)
 
         #: Then

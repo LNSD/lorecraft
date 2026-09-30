@@ -67,7 +67,7 @@ def require_real_layout(fs: FileSystem) -> None:
 
     Raises:
         LinkedLayoutError: If ``docs/`` is a symlink, or else if ``docs/__meta__/`` is one.
-        EntryKindError: If the view cannot inspect either directory; a view over a snapshot never raises it.
+        EntryInspectError: If the view cannot inspect either directory; a view over a snapshot never raises it.
     """
     # `docs/` first: a scan stops at a linked `docs/`, so a snapshot never knows what `docs/__meta__/` is.
     for directory in (DOCS_DIR, SPECS_DIR):

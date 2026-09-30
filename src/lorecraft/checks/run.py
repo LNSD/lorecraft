@@ -113,11 +113,11 @@ def run_frontmatter(database: Database, refs: tuple[DocumentRef, ...]) -> CheckR
 
     Raises:
         DocumentReadError: If a governed document is missing from the snapshot; a decode failure is a finding.
-        ListDirError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
+        DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
         CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
         StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
         InvalidStructureSchemaError: If the model is not loaded yet and a structure specification is malformed.
-        ResolveDirError: If the model is not loaded yet and a skills directory cannot be resolved.
+        DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
         SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
         SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
         SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
@@ -150,11 +150,11 @@ def run_structure(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun
 
     Raises:
         DocumentReadError: If a governed document is missing from the snapshot; a decode failure is a finding.
-        ListDirError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
+        DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
         CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
         StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
         InvalidStructureSchemaError: If the model is not loaded yet and a structure specification is malformed.
-        ResolveDirError: If the model is not loaded yet and a skills directory cannot be resolved.
+        DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
         SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
         SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
         SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
@@ -189,11 +189,11 @@ def run_budget(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
 
     Raises:
         DocumentReadError: If a governed document is missing from the snapshot; a decode failure is a finding.
-        ListDirError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
+        DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
         CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
         StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
         InvalidStructureSchemaError: If the model is not loaded yet and a structure specification is malformed.
-        ResolveDirError: If the model is not loaded yet and a skills directory cannot be resolved.
+        DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
         SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
         SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
         SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.

@@ -11,6 +11,7 @@ implementation of the view is this package's own: ``DiskFileSystem`` reads the d
 root, and ``VirtualFileSystem`` answers from a ``Snapshot``.
 """
 
+import errno
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
@@ -41,105 +42,183 @@ class DirEntry:
     kind: EntryKind
 
 
-class ListDirError(Error):
+class OsRefusal(Enum):
+    """Why the operating system refused a call on a path, classified once from its ``errno``.
+
+    The set comes from outside the package, so it is an enum a handler can ``match`` over, and each value is
+    the reason as a message states it. A variant translating an ``OSError`` holds one, so nothing above it
+    reads the ``OSError`` itself.
+    """
+
+    NOT_FOUND = 'no such file or directory'
+    PERMISSION_DENIED = 'permission denied'
+    NOT_A_DIRECTORY = 'not a directory'
+    IS_A_DIRECTORY = 'is a directory'
+    OTHER = 'refused by the operating system'
+
+    @classmethod
+    def of(cls, error: OSError) -> 'OsRefusal':
+        """Classify an ``OSError`` by its ``errno``; one the enum does not name is ``OTHER``."""
+        match error.errno:
+            case errno.ENOENT:
+                return cls.NOT_FOUND
+            case errno.EACCES | errno.EPERM:
+                return cls.PERMISSION_DENIED
+            case errno.ENOTDIR:
+                return cls.NOT_A_DIRECTORY
+            case errno.EISDIR:
+                return cls.IS_A_DIRECTORY
+            case _:
+                return cls.OTHER
+
+
+class DirListError(Error):
     """An existing directory under the root cannot be listed; a missing one is not an error.
 
     Attributes:
         path: The root-relative directory that could not be listed.
-        detail: The operating system's own description of the failure.
+        refusal: Why the operating system refused the listing.
+        source: The operating system's failure.
     """
 
     path: RootRelativePath
-    detail: str
+    refusal: OsRefusal
+    source: OSError
 
-    def __init__(self, path: RootRelativePath, detail: str) -> None:
+    def __init__(self, path: RootRelativePath, refusal: OsRefusal, *, source: OSError) -> None:
         self.path = path
-        self.detail = detail
-        super().__init__(f'cannot list directory {path}: {detail}')
+        self.refusal = refusal
+        self.source = source
+        super().__init__(f'cannot list directory {path}: {refusal.value}')
+        self.__cause__ = source
 
 
-class ReadTextError(Error):
-    """A file under the root cannot be read.
+class FileReadError(Error):
+    """A file under the root is missing or cannot be read.
 
     Attributes:
         path: The root-relative file that could not be read.
-        detail: The operating system's or decoder's own description of the failure.
+        refusal: Why the operating system refused the read.
+        source: The operating system's failure.
     """
 
     path: RootRelativePath
-    detail: str
+    refusal: OsRefusal
+    source: OSError
 
-    def __init__(self, path: RootRelativePath, detail: str) -> None:
+    def __init__(self, path: RootRelativePath, refusal: OsRefusal, *, source: OSError) -> None:
         self.path = path
-        self.detail = detail
-        super().__init__(f'cannot read file {path}: {detail}')
+        self.refusal = refusal
+        self.source = source
+        super().__init__(f'cannot read file {path}: {refusal.value}')
+        self.__cause__ = source
 
 
-class DecodeTextError(ReadTextError):
-    """A file under the root is not UTF-8."""
+class UnrecordedFileError(Error):
+    """A path leads to no regular file a snapshot recorded, which a view over it answers like a missing file.
+
+    Attributes:
+        path: The root-relative path that was read.
+    """
+
+    path: RootRelativePath
+
+    def __init__(self, path: RootRelativePath) -> None:
+        self.path = path
+        super().__init__(f'cannot read file {path}: not in the snapshot')
 
 
-class EntryKindError(Error):
+class TextDecodeError(Error):
+    """A file under the root is not UTF-8.
+
+    Attributes:
+        path: The root-relative file that could not be decoded.
+        source: The decoder's failure, which locates the first byte that does not decode.
+    """
+
+    path: RootRelativePath
+    source: UnicodeDecodeError
+
+    def __init__(self, path: RootRelativePath, *, source: UnicodeDecodeError) -> None:
+        self.path = path
+        self.source = source
+        super().__init__(f'file {path} is not UTF-8')
+        self.__cause__ = source
+
+
+class EntryInspectError(Error):
     """An existing entry under the root cannot be inspected; a missing one is not an error.
 
     Attributes:
         path: The root-relative path whose entry could not be inspected.
-        detail: The operating system's own description of the failure.
+        refusal: Why the operating system refused the inspection.
+        source: The operating system's failure.
     """
 
     path: RootRelativePath
-    detail: str
+    refusal: OsRefusal
+    source: OSError
 
-    def __init__(self, path: RootRelativePath, detail: str) -> None:
+    def __init__(self, path: RootRelativePath, refusal: OsRefusal, *, source: OSError) -> None:
         self.path = path
-        self.detail = detail
-        super().__init__(f'cannot inspect entry {path}: {detail}')
+        self.refusal = refusal
+        self.source = source
+        super().__init__(f'cannot inspect entry {path}: {refusal.value}')
+        self.__cause__ = source
 
 
-class ResolveDirError(Error):
-    """A path under the root cannot be resolved because the operating system refused a lookup.
+class DirResolveError(Error):
+    """A path under the root cannot be resolved to a directory because the operating system refused a lookup.
 
     Attributes:
         path: The root-relative path whose symlink chain could not be followed.
-        detail: The operating system's own description of the refusal.
+        refusal: Why the operating system refused the lookup.
+        source: The operating system's failure.
     """
 
     path: RootRelativePath
-    detail: str
+    refusal: OsRefusal
+    source: OSError
 
-    def __init__(self, path: RootRelativePath, detail: str) -> None:
+    def __init__(self, path: RootRelativePath, refusal: OsRefusal, *, source: OSError) -> None:
         self.path = path
-        self.detail = detail
-        super().__init__(f'cannot resolve directory {path}: {detail}')
+        self.refusal = refusal
+        self.source = source
+        super().__init__(f'cannot resolve directory {path}: {refusal.value}')
+        self.__cause__ = source
 
 
-class ResolveFileError(Error):
+class FileResolveError(Error):
     """A path under the root cannot be resolved to a file because the operating system refused a lookup.
 
     Attributes:
         path: The root-relative path whose symlink chain could not be followed.
-        detail: The operating system's own description of the refusal.
+        refusal: Why the operating system refused the lookup.
+        source: The operating system's failure.
     """
 
     path: RootRelativePath
-    detail: str
+    refusal: OsRefusal
+    source: OSError
 
-    def __init__(self, path: RootRelativePath, detail: str) -> None:
+    def __init__(self, path: RootRelativePath, refusal: OsRefusal, *, source: OSError) -> None:
         self.path = path
-        self.detail = detail
-        super().__init__(f'cannot resolve file {path}: {detail}')
+        self.refusal = refusal
+        self.source = source
+        super().__init__(f'cannot resolve file {path}: {refusal.value}')
+        self.__cause__ = source
 
 
 def decode_text(path: RootRelativePath, data: bytes) -> str:
     """Decode a file's bytes as UTF-8; the one decode every implementation shares.
 
     Raises:
-        DecodeTextError: If the bytes are not UTF-8.
+        TextDecodeError: If the bytes are not UTF-8.
     """
     try:
         return data.decode('utf-8')
     except UnicodeDecodeError as exc:
-        raise DecodeTextError(path, str(exc)) from exc
+        raise TextDecodeError(path, source=exc) from exc
 
 
 class FileSystem(ABC):
@@ -150,7 +229,7 @@ class FileSystem(ABC):
     value was built.
 
     An ABC rather than a Protocol because every implementation is this package's own and must be complete,
-    so a missing method fails at instantiation instead of at its first call (python-exceptions §1). With
+    so a missing method fails at instantiation instead of at its first call (error-boundaries §1). With
     ``DiskFileSystem`` and ``VirtualFileSystem``, pattern-repository's second real implementation exists.
     """
 
@@ -165,7 +244,7 @@ class FileSystem(ABC):
             The entries in name order, or ``()`` when the path is missing or leads to no directory.
 
         Raises:
-            ListDirError: If the directory exists but cannot be read.
+            DirListError: If the directory exists but cannot be read.
         """
 
     @abstractmethod
@@ -173,8 +252,9 @@ class FileSystem(ABC):
         """Read one file as UTF-8 text; a symlink on the way to the file, or at it, is followed.
 
         Raises:
-            DecodeTextError: If the bytes are not UTF-8.
-            ReadTextError: If the file is missing or cannot be read.
+            TextDecodeError: If the bytes are not UTF-8.
+            FileReadError: If the file is missing or cannot be read, on disk.
+            UnrecordedFileError: If the path leads to no file a snapshot recorded.
         """
 
     @abstractmethod
@@ -189,7 +269,7 @@ class FileSystem(ABC):
             no directory.
 
         Raises:
-            EntryKindError: If the entry exists but cannot be inspected.
+            EntryInspectError: If the entry exists but cannot be inspected.
         """
 
     @abstractmethod
@@ -208,7 +288,7 @@ class FileSystem(ABC):
             to search a directory on the way.
 
         Raises:
-            ResolveDirError: If the operating system refuses the lookup, such as a permission error on a
+            DirResolveError: If the operating system refuses the lookup, such as a permission error on a
                 component, and the chain does not lead outside the root.
         """
 
@@ -226,6 +306,6 @@ class FileSystem(ABC):
             resolves to ``None`` even when the operating system refuses to search a directory on the way.
 
         Raises:
-            ResolveFileError: If the operating system refuses the lookup, such as a permission error on a
+            FileResolveError: If the operating system refuses the lookup, such as a permission error on a
                 component, and the chain does not lead outside the root.
         """

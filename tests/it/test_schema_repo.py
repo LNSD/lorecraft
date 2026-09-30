@@ -22,7 +22,7 @@ from lorecraft.project.schemas import (
     SpecFile,
     StructureSchemaReadError,
 )
-from lorecraft.vfs import DiskFileSystem, ListDirError
+from lorecraft.vfs import DirListError, DiskFileSystem
 
 CODE: Final[CorpusName] = CorpusName.parse('code')
 CODE_PYTHON: Final[SchemaName] = (CODE, AspectNamespace.parse('python'))
@@ -93,7 +93,7 @@ class TestRepositoryListSpecs:
         repository = locked_repository
 
         #: When
-        with pytest.raises(ListDirError) as exc_info:
+        with pytest.raises(DirListError) as exc_info:
             repository.list_spec_paths()
 
         #: Then
@@ -197,7 +197,7 @@ class TestRepository:
         repository = locked_repository
 
         #: When
-        with pytest.raises(ListDirError) as exc_info:
+        with pytest.raises(DirListError) as exc_info:
             repository.list_schemas()
 
         #: Then

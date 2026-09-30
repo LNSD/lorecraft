@@ -269,7 +269,9 @@ class TestInspectCommand:
 
         #: Then
         assert result.exit_code == 1, result.output
-        assert 'error: cannot snapshot docs' in result.output, 'the failure names the path the scan stopped at'
+        assert 'error: cannot snapshot directory docs: permission denied' in result.output, (
+            'the failure names the step, the path the scan stopped at, and the refusal'
+        )
 
     def test_inspect_with_a_linked_specs_directory_exits_one_and_names_it(self, linked_specs_workspace: Path) -> None:
         #: Given

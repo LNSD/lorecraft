@@ -12,7 +12,7 @@ so every handler below re-raises without logging.
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName
-from lorecraft.vfs import EntryKind, FileSystem, ListDirError, ReadTextError
+from lorecraft.vfs import DirListError, EntryKind, FileReadError, FileSystem, UnrecordedFileError
 
 from .name import SchemaName, schema_name_stem
 from .spec_file import SpecAspect, SpecFile, SpecFilenameError, parse_spec_file, schema_filename
@@ -28,9 +28,9 @@ class CorpusSchemasListError(Error):
     """
 
     corpus: CorpusName
-    source: ListDirError
+    source: DirListError
 
-    def __init__(self, corpus: CorpusName, *, source: ListDirError) -> None:
+    def __init__(self, corpus: CorpusName, *, source: DirListError) -> None:
         self.corpus = corpus
         self.source = source
         super().__init__(f'cannot list the schemas of corpus {corpus}')
@@ -46,9 +46,9 @@ class StructureSchemaReadError(Error):
     """
 
     name: SchemaName
-    source: ReadTextError
+    source: FileReadError | UnrecordedFileError
 
-    def __init__(self, name: SchemaName, *, source: ReadTextError) -> None:
+    def __init__(self, name: SchemaName, *, source: FileReadError | UnrecordedFileError) -> None:
         self.name = name
         self.source = source
         super().__init__(f'cannot read the structure schema {schema_name_stem(name)}')
@@ -70,7 +70,7 @@ class Repository:
         with a file whose name is not a specification filename. A missing directory lists as nothing.
 
         Raises:
-            ListDirError: If the directory exists but cannot be listed.
+            DirListError: If the directory exists but cannot be listed.
         """
         # A failure to list is the listing's own, with the directory as its path: this layer adds nothing to it.
         entries = self._fs.list_dir(self._specs_dir)
@@ -82,7 +82,7 @@ class Repository:
         A file whose name does not parse is left out. A missing directory lists as nothing.
 
         Raises:
-            ListDirError: If the directory exists but cannot be listed.
+            DirListError: If the directory exists but cannot be listed.
         """
         return self._schema_files()
 
@@ -96,7 +96,7 @@ class Repository:
         """
         try:
             files = self._schema_files()
-        except ListDirError as exc:
+        except DirListError as exc:
             raise CorpusSchemasListError(corpus, source=exc) from exc
         return [schema for schema in files if schema.corpus == corpus]
 
@@ -110,14 +110,14 @@ class Repository:
         path = self._specs_dir / schema_filename(name, SpecAspect.STRUCTURE)
         try:
             return StructureSchema(self._fs.read_text(path))
-        except ReadTextError as exc:
+        except (FileReadError, UnrecordedFileError) as exc:
             raise StructureSchemaReadError(name, source=exc) from exc
 
     def _schema_files(self) -> list[SpecFile]:
         """Parse the JSON schema files in name order; the seam already sorts its entries.
 
         Raises:
-            ListDirError: If the directory exists but cannot be listed.
+            DirListError: If the directory exists but cannot be listed.
         """
         schemas: list[SpecFile] = []
         for entry in self._fs.list_dir(self._specs_dir):
