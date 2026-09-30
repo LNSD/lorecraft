@@ -23,6 +23,7 @@ from lorecraft.vfs import (
     DirEntry,
     DiskFileSystem,
     EntryKind,
+    EntryKindError,
     FileBytes,
     Link,
     ListDirError,
@@ -398,6 +399,135 @@ class TestDiskFileSystemReadText:
         #: Then
         assert exc_info.value.path == missing, 'the error names the root-relative file'
         assert not isinstance(exc_info.value, DecodeTextError), 'a missing file is not a decode failure'
+
+
+@pytest.mark.it
+class TestDiskFileSystemEntryKind:
+    def test_entry_kind_with_a_regular_file_returns_file(self, tmp_path: Path) -> None:
+        #: Given
+        (tmp_path / 'notes.md').write_text('', encoding='utf-8')
+        filesystem = DiskFileSystem(tmp_path)
+
+        #: When
+        kind = filesystem.entry_kind(RootRelativePath.parse('notes.md'))
+
+        #: Then
+        assert kind is EntryKind.FILE, 'a regular file is FILE'
+
+    def test_entry_kind_with_a_directory_returns_directory(self, tmp_path: Path) -> None:
+        #: Given
+        (tmp_path / 'docs').mkdir()
+        filesystem = DiskFileSystem(tmp_path)
+
+        #: When
+        kind = filesystem.entry_kind(RootRelativePath.parse('docs'))
+
+        #: Then
+        assert kind is EntryKind.DIRECTORY, 'a regular directory is DIRECTORY'
+
+    def test_entry_kind_with_the_root_returns_directory(self, tmp_path: Path) -> None:
+        #: Given
+        filesystem = DiskFileSystem(tmp_path)
+
+        #: When
+        kind = filesystem.entry_kind(RootRelativePath.parse('.'))
+
+        #: Then
+        assert kind is EntryKind.DIRECTORY, 'the root is a directory'
+
+    def test_entry_kind_with_a_symlink_to_a_directory_returns_symlink(self, tmp_path: Path) -> None:
+        #: Given
+        (tmp_path / 'real-docs').mkdir()
+        (tmp_path / 'docs').symlink_to('real-docs')
+        filesystem = DiskFileSystem(tmp_path)
+
+        #: When
+        kind = filesystem.entry_kind(RootRelativePath.parse('docs'))
+
+        #: Then
+        assert kind is EntryKind.SYMLINK, 'a link at the path is SYMLINK, never the directory it leads to'
+
+    def test_entry_kind_with_a_dangling_symlink_returns_symlink(self, tmp_path: Path) -> None:
+        #: Given
+        (tmp_path / 'link').symlink_to('missing')
+        filesystem = DiskFileSystem(tmp_path)
+
+        #: When
+        kind = filesystem.entry_kind(RootRelativePath.parse('link'))
+
+        #: Then
+        assert kind is EntryKind.SYMLINK, 'a link to nothing is still an entry, and a SYMLINK'
+
+    def test_entry_kind_with_a_fifo_returns_other(self, tmp_path: Path) -> None:
+        #: Given
+        os.mkfifo(tmp_path / 'pipe')
+        filesystem = DiskFileSystem(tmp_path)
+
+        #: When
+        kind = filesystem.entry_kind(RootRelativePath.parse('pipe'))
+
+        #: Then
+        assert kind is EntryKind.OTHER, 'neither a file nor a directory is OTHER'
+
+    def test_entry_kind_through_a_linked_parent_returns_the_kind_of_the_entry_it_leads_to(self, tmp_path: Path) -> None:
+        #: Given
+        (tmp_path / 'real').mkdir()
+        (tmp_path / 'real' / 'SKILL.md').write_text('', encoding='utf-8')
+        (tmp_path / 'link').symlink_to('real')
+        filesystem = DiskFileSystem(tmp_path)
+
+        #: When
+        kind = filesystem.entry_kind(RootRelativePath.parse('link/SKILL.md'))
+
+        #: Then
+        assert kind is EntryKind.FILE, 'a link on the way is followed, so link/SKILL.md is the file in real/'
+
+    def test_entry_kind_with_a_missing_path_returns_none(self, tmp_path: Path) -> None:
+        #: Given
+        filesystem = DiskFileSystem(tmp_path)
+
+        #: When
+        kind = filesystem.entry_kind(RootRelativePath.parse('missing.md'))
+
+        #: Then
+        assert kind is None, 'a missing path has no kind rather than failing'
+
+    def test_entry_kind_through_a_file_component_returns_none(self, tmp_path: Path) -> None:
+        #: Given
+        (tmp_path / 'notes.md').write_text('', encoding='utf-8')
+        filesystem = DiskFileSystem(tmp_path)
+
+        #: When
+        kind = filesystem.entry_kind(RootRelativePath.parse('notes.md/inner'))
+
+        #: Then
+        assert kind is None, 'nothing sits inside a file, so the path has no kind'
+
+    def test_entry_kind_behind_a_looping_link_returns_none(self, tmp_path: Path) -> None:
+        #: Given
+        (tmp_path / 'loop').symlink_to('loop')
+        filesystem = DiskFileSystem(tmp_path)
+
+        #: When
+        kind = filesystem.entry_kind(RootRelativePath.parse('loop/inner'))
+
+        #: Then
+        assert kind is None, 'a looping parent leads to no directory, so nothing is inside it, like a dangling one'
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
+    def test_entry_kind_under_an_unreadable_directory_raises_entry_kind_error(
+        self, tmp_path: Path, unreadable_dir: Path
+    ) -> None:
+        #: Given
+        filesystem = DiskFileSystem(tmp_path)
+        inside = RootRelativePath.parse(unreadable_dir.name) / 'inner'
+
+        #: When
+        with pytest.raises(EntryKindError) as exc_info:
+            filesystem.entry_kind(inside)
+
+        #: Then
+        assert exc_info.value.path == inside, 'the error names the root-relative path that could not be inspected'
 
 
 @pytest.mark.it
@@ -1450,6 +1580,172 @@ class TestVirtualFileSystemMatchesDisk:
 
         #: Then
         assert virtual_answer == disk_answer, 'reading the missing docs/missing.md fails the same over the snapshot'
+
+    # entry_kind: a listed entry of every kind, entries recorded outside a listing of their parent, entries behind
+    # the linked scope root, and paths neither view holds anything at. An entry inside an unentered directory is
+    # left out: the disk sees it, while the snapshot never entered the directory.
+
+    def test_entry_kind_over_a_snapshot_with_a_scope_root_agrees_with_disk(self, parity_tree: Path) -> None:
+        #: Given
+        disk = DiskFileSystem(parity_tree)
+        virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
+        path = 'docs'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'docs is a directory on both, though the snapshot never listed the root'
+
+    def test_entry_kind_over_a_snapshot_with_the_meta_directory_entry_agrees_with_disk(self, parity_tree: Path) -> None:
+        #: Given
+        disk = DiskFileSystem(parity_tree)
+        virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
+        path = 'docs/__meta__'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'docs/__meta__ is a directory on both'
+
+    def test_entry_kind_over_a_snapshot_with_a_code_file_agrees_with_disk(self, parity_tree: Path) -> None:
+        #: Given
+        disk = DiskFileSystem(parity_tree)
+        virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
+        path = 'docs/code/a.md'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'docs/code/a.md is a file on both'
+
+    def test_entry_kind_over_a_snapshot_with_a_link_to_a_file_agrees_with_disk(self, parity_tree: Path) -> None:
+        #: Given
+        disk = DiskFileSystem(parity_tree)
+        virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
+        path = 'docs/code/linked.md'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'docs/code/linked.md is a link on both, never the file it leads to'
+
+    def test_entry_kind_over_a_snapshot_with_a_fifo_agrees_with_disk(self, parity_tree: Path) -> None:
+        #: Given
+        disk = DiskFileSystem(parity_tree)
+        virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
+        path = PARITY_FIFO
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'the fifo is OTHER on both'
+
+    def test_entry_kind_over_a_snapshot_with_an_unentered_directory_agrees_with_disk(self, parity_tree: Path) -> None:
+        #: Given
+        disk = DiskFileSystem(parity_tree)
+        virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
+        path = 'docs/code/sub'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'docs/code/sub is a directory on both, though the scan never entered it'
+
+    def test_entry_kind_over_a_snapshot_with_the_linked_scope_root_agrees_with_disk(self, parity_tree: Path) -> None:
+        #: Given
+        disk = DiskFileSystem(parity_tree)
+        virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
+        path = '.claude/skills'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, '.claude/skills is a link on both, though it sits in no listing'
+
+    def test_entry_kind_over_a_snapshot_with_a_link_behind_the_linked_scope_root_agrees_with_disk(
+        self, parity_tree: Path
+    ) -> None:
+        #: Given
+        disk = DiskFileSystem(parity_tree)
+        virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
+        path = '.claude/skills/beta'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'the link on the way is followed on both, and beta is a link itself'
+
+    def test_entry_kind_over_a_snapshot_with_a_file_behind_the_linked_scope_root_agrees_with_disk(
+        self, parity_tree: Path
+    ) -> None:
+        #: Given
+        disk = DiskFileSystem(parity_tree)
+        virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
+        path = '.claude/skills/alpha/SKILL.md'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'the link on the way is followed on both, to a file'
+
+    def test_entry_kind_over_a_snapshot_behind_a_dangling_link_agrees_with_disk(self, parity_tree: Path) -> None:
+        #: Given
+        disk = DiskFileSystem(parity_tree)
+        virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
+        path = 'docs/dangling/inner'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'nothing is inside a dangling link on either view'
+
+    def test_entry_kind_over_a_snapshot_behind_a_looping_link_agrees_with_disk(self, parity_tree: Path) -> None:
+        #: Given
+        disk = DiskFileSystem(parity_tree)
+        virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
+        path = 'docs/loop/inner'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'nothing is inside a looping link on either view'
+
+    def test_entry_kind_over_a_snapshot_with_a_missing_path_agrees_with_disk(self, parity_tree: Path) -> None:
+        #: Given
+        disk = DiskFileSystem(parity_tree)
+        virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
+        path = 'docs/missing.md'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'docs/missing.md has no kind on either view'
+
+    def test_entry_kind_over_a_snapshot_with_a_linked_docs_agrees_with_disk(self, tmp_path: Path) -> None:
+        #: Given
+        (tmp_path / 'real-docs' / 'code').mkdir(parents=True)
+        (tmp_path / 'docs').symlink_to('real-docs')
+        disk = DiskFileSystem(tmp_path)
+        virtual = VirtualFileSystem(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        path = 'docs'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'a linked scope root the scan does not follow is a link on both'
 
     # resolve_file: a skill file, one reached through a linked skill entry, and a directory.
 
