@@ -17,6 +17,7 @@ from .snapshot import MAX_LINKS, FileBytes, Link, Listing, Snapshot
 from .view import (
     DirEntry,
     EntryKind,
+    EntryKindError,
     FileSystem,
     ListDirError,
     ReadTextError,
@@ -38,9 +39,9 @@ def disk_location(root: Path, path: RootRelativePath) -> Path:
 class DiskFileSystem(FileSystem):
     """The view that reads the disk under one workspace root.
 
-    ``list_dir`` and ``read_text`` follow a symlink wherever the operating system does, outside the root
-    included; only ``resolve_dir`` and ``resolve_file`` refuse a chain that leaves the root. A snapshot never
-    reads outside the root, so there the two views differ.
+    ``list_dir``, ``read_text`` and ``entry_kind`` follow a symlink wherever the operating system does, outside
+    the root included; only ``resolve_dir`` and ``resolve_file`` refuse a chain that leaves the root. A
+    snapshot never reads outside the root, so there the two views differ.
     """
 
     def __init__(self, root: Path) -> None:
@@ -74,6 +75,22 @@ class DiskFileSystem(FileSystem):
         except OSError as exc:
             raise ReadTextError(path, exc.strerror or str(exc)) from exc
         return decode_text(path, data)
+
+    def entry_kind(self, path: RootRelativePath) -> EntryKind | None:
+        """What the entry at ``path`` itself is on disk, from ``os.lstat``; see ``FileSystem.entry_kind``.
+
+        Raises:
+            EntryKindError: If the entry exists but cannot be inspected.
+        """
+        try:
+            mode = os.lstat(disk_location(self._root, path)).st_mode
+        except (FileNotFoundError, NotADirectoryError) as exc:  # noqa: F841 — a missing path has no kind, by contract
+            return None
+        except OSError as exc:
+            if exc.errno == errno.ELOOP:  # a looping link on the way leads to no directory, like a dangling one
+                return None
+            raise EntryKindError(path, exc.strerror or str(exc)) from exc
+        return _kind_of_mode(mode)
 
     def resolve_dir(self, path: RootRelativePath) -> RootRelativePath | None:
         """Resolve a directory's symlink chain on disk; see ``FileSystem.resolve_dir``.
@@ -370,6 +387,11 @@ def _lstat_kind(root: Path, path: RootRelativePath) -> EntryKind | None:
         return None
     except OSError as exc:
         raise TakeSnapshotError(path, exc.strerror or str(exc)) from exc
+    return _kind_of_mode(mode)
+
+
+def _kind_of_mode(mode: int) -> EntryKind:
+    """Classify an ``lstat`` mode: a symlink is SYMLINK, never what it points at."""
     if stat.S_ISLNK(mode):
         return EntryKind.SYMLINK
     if stat.S_ISDIR(mode):

@@ -5,7 +5,8 @@ never holding a ``..`` component, so no argument can name a file outside the roo
 proof, so no implementation checks it again. Nothing above the boundary sees a ``Path``, a handle, a stat
 result or an mtime. ``resolve_dir`` and ``resolve_file`` are the two operations that report where a symlink
 chain leads, as a root-relative directory or file; ``list_dir`` and ``read_text`` reach through a link on the
-way to the path they are given, or at it, and never report or classify a link's target. Every
+way to the path they are given, or at it, and never report or classify a link's target. ``entry_kind`` reaches
+through a link on the way and reports one at the path as a link, as a listing of its parent would. Every
 implementation of the view is this package's own: ``DiskFileSystem`` reads the disk under the workspace
 root, and ``VirtualFileSystem`` answers from a ``Snapshot``.
 """
@@ -77,6 +78,23 @@ class ReadTextError(Error):
 
 class DecodeTextError(ReadTextError):
     """A file under the root is not UTF-8."""
+
+
+class EntryKindError(Error):
+    """An existing entry under the root cannot be inspected; a missing one is not an error.
+
+    Attributes:
+        path: The root-relative path whose entry could not be inspected.
+        detail: The operating system's own description of the failure.
+    """
+
+    path: RootRelativePath
+    detail: str
+
+    def __init__(self, path: RootRelativePath, detail: str) -> None:
+        self.path = path
+        self.detail = detail
+        super().__init__(f'cannot inspect entry {path}: {detail}')
 
 
 class ResolveDirError(Error):
@@ -158,6 +176,21 @@ class FileSystem(ABC):
         Raises:
             DecodeTextError: If the bytes are not UTF-8.
             ReadTextError: If the file is missing or cannot be read.
+        """
+
+    @abstractmethod
+    def entry_kind(self, path: RootRelativePath) -> EntryKind | None:
+        """What the entry at ``path`` itself is, as ``list_dir`` of its parent would list it.
+
+        A symlink on the way to ``path`` is followed, as ``list_dir`` follows one to the directory it lists; a
+        symlink at ``path`` is SYMLINK, whatever it points at. The root is a DIRECTORY.
+
+        Returns:
+            The entry's kind, or ``None`` when nothing is there: the path is missing, or its parent leads to
+            no directory.
+
+        Raises:
+            EntryKindError: If the entry exists but cannot be inspected.
         """
 
     @abstractmethod
