@@ -140,8 +140,8 @@ inside the same group. Letting the failure escape cancels the siblings, and `any
 async def check_each(path: Path, results: dict[Path, list[Finding] | OSError]) -> None:
     try:
         results[path] = await check_document(path)
-    except OSError as error:
-        results[path] = error
+    except OSError as exc:
+        results[path] = exc
 ```
 
 ## Checklist
@@ -164,7 +164,7 @@ Before committing code, verify:
 - [python-async-rt](python-async-rt.md) - Related: Owns the runtime that executes these cancel scopes
 - [pattern-resource-lifecycle](pattern-resource-lifecycle.md) - Related: A task group is released on every
   exit path, like any resource
-- [python-errors-handling](python-errors-handling.md) - Related: Owns how caught exceptions are handled
+- [error-handling](error-handling.md) - Related: Owns how caught exceptions are handled
 
 ## External References
 

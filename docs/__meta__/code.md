@@ -65,7 +65,7 @@ A group's parent doc (`python-modules`, `logging`) is itself a **rule document w
 
 ### A Group's Prefix Names Its Subject
 
-A rule filed under a prefix must be **about that subject**. `python-errors-*` is about how this project declares and surfaces exceptions; a rule that merely _raises_ one does not belong there. Ask what the rule is about, not what it touches — a doc about rendering findings into a report is about reports, however much `dataclasses` appears in it.
+A rule filed under a prefix must be **about that subject**. `error-*` is about how this project declares and surfaces its errors; a rule that merely _raises_ one does not belong there. Ask what the rule is about, not what it touches — a doc about rendering findings into a report is about reports, however much `dataclasses` appears in it.
 
 ### Rules Are Conventions, Not Module Facts
 
@@ -306,12 +306,12 @@ member that specializes another adds a further segment:
 ```
 
 The groups in use are `principle-*` (universal principles), `pattern-*` (design patterns), `python-*`
-(language conventions), `python-errors-*`, `test-*`, and unprefixed standalone documents such as `logging`. A
+(language conventions), `error-*` (how this project declares and handles its errors), `test-*`, and unprefixed standalone documents such as `logging`. A
 rule document that fits none of them is standalone, and a new group is created by writing its first member.
 
 ### A Prefix Names The Subject, Not The Language
 
-A doc's prefix names **what the doc is about**. That is why `logging` and `test-*` carry no `python-` prefix
+A doc's prefix names **what the doc is about**. That is why `logging`, `error-*` and `test-*` carry no `python-` prefix
 and are not defects: a doc about the shape of a log line is about logging, and a doc about how tests are
 organized is about tests. Prefixing them `python-logging` and `python-test-files` would file them under a
 subject they are not about, and would claim the `python-*` group owns everything written in Python — which is
@@ -353,9 +353,9 @@ Rule documents may reference other rule documents to establish relationships. Cr
 | Type | Meaning | Example |
 |---|---|---|
 | `Related` | Sibling in same prefix group | test-organization <-> test-functions |
-| `Foundation` | Core rule a pkg/arch rule builds on | pkg-lorecraft-project-checks -> python-exceptions |
+| `Foundation` | Core rule a pkg/arch rule builds on | pkg-lorecraft-project-checks -> error-types |
 | `Companion` | Paired doc for same package | pkg-lorecraft-project-checks <-> pkg-lorecraft-project-checks-security |
-| `Extends` | Specializes/refines another rule document | python-errors-handling -> python-exceptions |
+| `Extends` | Specializes/refines another rule document | python-async-tasks -> python-async |
 
 ### Direction Rules
 
@@ -378,15 +378,15 @@ Rule documents may reference other rule documents to establish relationships. Cr
 
 ```markdown
 ## References
-- [python-exceptions](python-exceptions.md) - Extends: Exception type declaration
+- [error-types](error-types.md) - Extends: Error type declaration
 - [python-modules](python-modules.md) - Foundation: Module organization
 - [pkg-lorecraft-project-checks-security](pkg-lorecraft-project-checks-security.md) - Companion: Security checklist
 ```
 
 ### Examples
 
-- ✅ `python-errors-handling` -> `python-exceptions` (Extends: core to core)
-- ✅ `pkg-lorecraft-project-checks` -> `python-exceptions` (Foundation: pkg to core)
+- ✅ `python-async-tasks` -> `python-async` (Extends: core to core)
+- ✅ `pkg-lorecraft-project-checks` -> `error-types` (Foundation: pkg to core)
 - ✅ `pkg-lorecraft-project-checks-frontmatter` -> `pkg-lorecraft-project-checks` (Extends: pkg to pkg)
 - ✅ `pkg-lorecraft-project-checks` <-> `pkg-lorecraft-project-checks-security` (Companion: bidirectional)
 - ✅ an `arch` doc governing `pyproject.toml` -> `python-modules` (Foundation: arch to core)

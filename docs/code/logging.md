@@ -17,8 +17,8 @@ logger sits under `lorecraft`, so one call reaches the whole package and a call 
 **Events carry named fields; spans carry duration and parentage.** The library emits them, and the CLI's
 opt-in `--trace` configures independent JSON event and span output layers on stderr, on every logger root.
 Errors and their types are owned by
-[python-exceptions](python-exceptions.md); what to do with a caught exception beyond logging it is
-owned by [python-errors-handling](python-errors-handling.md).
+[error-types](error-types.md); what to do with a caught exception beyond logging it is
+owned by [error-handling](error-handling.md).
 
 ## 1. `logger = logging.getLogger(__name__)`, at Module Level
 
@@ -129,18 +129,18 @@ A handler that logs at a level other than `error` — a retried spec load is a `
 # ❌ Bad — the traceback is dropped, so the log says a check failed and nothing about where
 try:
     checker.check_document(document)
-except CheckerError as exc:
+except CheckerError as exc:  # degrade boundary: one document of the corpus run
     logger.error(f'check failed: {exc}')
-    raise
+    skipped.append(document.path)
 ```
 
 ```python
-# ✅ Good — the traceback travels with the line
+# ✅ Good — the traceback, and the chain of causes beneath it, travel with the line
 try:
     checker.check_document(document)
-except CheckerError:
+except CheckerError:  # degrade boundary: one document of the corpus run
     logger.exception('check failed', extra={'fields': {'document': str(document.path)}})
-    raise
+    skipped.append(document.path)
 ```
 
 ```python
@@ -277,8 +277,8 @@ Before committing code, verify:
 
 ## References
 
-- [python-errors-handling](python-errors-handling.md) - Related: Owns what an `except` block does beyond logging — retry, re-raise, or swallow
-- [python-exceptions](python-exceptions.md) - Related: Owns the exception types whose messages end up in these lines
+- [error-handling](error-handling.md) - Related: Owns what an `except` block does beyond logging — retry, re-raise, or swallow
+- [error-types](error-types.md) - Related: Owns the error types whose messages end up in these lines
 - [python-modules](python-modules.md) - Related: Owns the module boundary that `__name__` names, and the package root where `NullHandler` is attached
 - [principle-least-surprise](principle-least-surprise.md) - Foundation: A library that reconfigures the host's logging on import surprises the host
 - [principle-information-hiding](principle-information-hiding.md) - Foundation: A library exposes records; where they go is the application's decision
