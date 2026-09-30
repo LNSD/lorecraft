@@ -47,30 +47,112 @@ class Skill:
     text: str
 
 
-class ResolveSkillsDirError(Error):
-    """A skills directory cannot be resolved because the operating system refused a lookup."""
+class SkillsDirListError(Error):
+    """A skills directory exists but cannot be listed.
+
+    Attributes:
+        skills_dir: The skills directory whose skills were being listed.
+        source: The failure to list it.
+    """
+
+    skills_dir: RootRelativePath
+    source: ListDirError
+
+    def __init__(self, skills_dir: RootRelativePath, *, source: ListDirError) -> None:
+        self.skills_dir = skills_dir
+        self.source = source
+        super().__init__(f'cannot list the skills in {skills_dir}')
+        self.__cause__ = source
 
 
-class ListSkillsError(Error):
-    """A skills directory, or a skill directory in it, exists but cannot be listed or resolved."""
+class SkillEntryResolveError(Error):
+    """A symlinked entry in a skills directory cannot be resolved because the operating system refused a lookup.
+
+    Attributes:
+        entry: The entry whose link was being followed.
+        source: The failure to resolve it.
+    """
+
+    entry: RootRelativePath
+    source: ResolveDirError
+
+    def __init__(self, entry: RootRelativePath, *, source: ResolveDirError) -> None:
+        self.entry = entry
+        self.source = source
+        super().__init__(f'cannot resolve skill entry {entry}')
+        self.__cause__ = source
 
 
-class GetSkillError(Error):
-    """A skill listed in the model cannot be read.
+class SkillDirListError(Error):
+    """A skill directory exists but cannot be listed to look for its ``SKILL.md``.
+
+    Attributes:
+        directory: The skill directory being looked in.
+        source: The failure to list it.
+    """
+
+    directory: RootRelativePath
+    source: ListDirError
+
+    def __init__(self, directory: RootRelativePath, *, source: ListDirError) -> None:
+        self.directory = directory
+        self.source = source
+        super().__init__(f'cannot look for {SKILL_ENTRY_FILENAME} in {directory}')
+        self.__cause__ = source
+
+
+class SkillFileResolveError(Error):
+    """A symlinked ``SKILL.md`` cannot be resolved because the operating system refused a lookup.
+
+    Attributes:
+        skill_file: The ``SKILL.md`` whose link was being followed.
+        source: The failure to resolve it.
+    """
+
+    skill_file: RootRelativePath
+    source: ResolveFileError
+
+    def __init__(self, skill_file: RootRelativePath, *, source: ResolveFileError) -> None:
+        self.skill_file = skill_file
+        self.source = source
+        super().__init__(f'cannot resolve {skill_file}')
+        self.__cause__ = source
+
+
+class SkillReadError(Error):
+    """A skill listed in the model cannot be read: its ``SKILL.md`` is missing or unreadable.
 
     Attributes:
         ref: The skill whose ``SKILL.md`` could not be read.
+        source: The failure to read the file.
     """
 
     ref: SkillRef
+    source: ReadTextError
 
-    def __init__(self, ref: SkillRef, detail: str) -> None:
+    def __init__(self, ref: SkillRef, *, source: ReadTextError) -> None:
         self.ref = ref
-        super().__init__(f'cannot read skill {ref.path}: {detail}')
+        self.source = source
+        super().__init__(f'cannot read skill {ref.path}')
+        self.__cause__ = source
 
 
-class SkillDecodeError(GetSkillError):
-    """The skill's ``SKILL.md`` is not UTF-8; the check reports this as a finding."""
+class SkillDecodeError(Error):
+    """A skill's ``SKILL.md`` is not UTF-8; the check reports this as a finding.
+
+    Attributes:
+        ref: The skill whose ``SKILL.md`` could not be decoded.
+        source: The failure to decode the file.
+    """
+
+    ref: SkillRef
+    source: DecodeTextError
+
+    def __init__(self, ref: SkillRef, *, source: DecodeTextError) -> None:
+        self.ref = ref
+        self.source = source
+        super().__init__(f'skill {ref.path} is not UTF-8')
+        self.__cause__ = source
 
 
 class Repository:
@@ -89,12 +171,10 @@ class Repository:
             the root.
 
         Raises:
-            ResolveSkillsDirError: If the operating system refuses the lookup.
+            ResolveDirError: If the operating system refuses the lookup.
         """
-        try:
-            return self._fs.resolve_dir(skills_dir)
-        except ResolveDirError as exc:
-            raise ResolveSkillsDirError(f'cannot resolve skills directory {skills_dir}: {exc.detail}') from exc
+        # A refused lookup is the resolve's own, with the skills directory as its path: nothing to add here.
+        return self._fs.resolve_dir(skills_dir)
 
     def list_skills(self, skills_dir: RootRelativePath) -> tuple[SkillLocation, ...]:
         """The location of every skill directly inside one skills directory, sorted by name.
@@ -113,13 +193,15 @@ class Repository:
                 here.
 
         Raises:
-            ListSkillsError: If the skills directory or a skill directory cannot be listed, or an entry cannot
-                be resolved.
+            SkillsDirListError: If the skills directory cannot be listed.
+            SkillEntryResolveError: If a symlinked entry cannot be resolved.
+            SkillDirListError: If a skill directory cannot be listed.
+            SkillFileResolveError: If a symlinked ``SKILL.md`` cannot be resolved.
         """
         try:
             entries = self._fs.list_dir(skills_dir)
         except ListDirError as exc:
-            raise ListSkillsError(f'cannot list skills in {skills_dir}: {exc.detail}') from exc
+            raise SkillsDirListError(skills_dir, source=exc) from exc
 
         # The seam lists entries in name order, so the locations come out sorted.
         locations: list[SkillLocation] = []
@@ -146,27 +228,27 @@ class Repository:
 
         Raises:
             SkillDecodeError: If the file is not UTF-8.
-            GetSkillError: If the file is missing or unreadable.
+            SkillReadError: If the file is missing or unreadable.
         """
         # DecodeTextError is a ReadTextError, so the narrower clause must come first.
         try:
             text = self._fs.read_text(ref.path)
         except DecodeTextError as exc:
-            raise SkillDecodeError(ref, exc.detail) from exc
+            raise SkillDecodeError(ref, source=exc) from exc
         except ReadTextError as exc:
-            raise GetSkillError(ref, exc.detail) from exc
+            raise SkillReadError(ref, source=exc) from exc
         return Skill(ref, text)
 
     def _resolve_entry(self, entry: RootRelativePath) -> RootRelativePath | None:
         """The real directory a symlinked entry leads to, or ``None`` when no directory under the root is there.
 
         Raises:
-            ListSkillsError: If the operating system refuses the lookup.
+            SkillEntryResolveError: If the operating system refuses the lookup.
         """
         try:
             return self._fs.resolve_dir(entry)
         except ResolveDirError as exc:
-            raise ListSkillsError(f'cannot resolve skill entry {entry}: {exc.detail}') from exc
+            raise SkillEntryResolveError(entry, source=exc) from exc
 
     def _skill_file(self, directory: RootRelativePath) -> RootRelativePath | None:
         """The real file of the ``SKILL.md`` in ``directory``, or ``None`` when it holds none.
@@ -179,12 +261,13 @@ class Repository:
             directory: A real directory, so a ``SKILL.md`` listed in it sits at a real path.
 
         Raises:
-            ListSkillsError: If the directory cannot be listed, or a linked ``SKILL.md`` cannot be resolved.
+            SkillDirListError: If the directory cannot be listed.
+            SkillFileResolveError: If a linked ``SKILL.md`` cannot be resolved.
         """
         try:
             entries = self._fs.list_dir(directory)
         except ListDirError as exc:
-            raise ListSkillsError(f'cannot look for {SKILL_ENTRY_FILENAME} in {directory}: {exc.detail}') from exc
+            raise SkillDirListError(directory, source=exc) from exc
 
         skill_file = directory / SKILL_ENTRY_FILENAME
         for entry in entries:
@@ -196,5 +279,5 @@ class Repository:
                 try:
                     return self._fs.resolve_file(skill_file)
                 except ResolveFileError as exc:
-                    raise ListSkillsError(f'cannot resolve {skill_file}: {exc.detail}') from exc
+                    raise SkillFileResolveError(skill_file, source=exc) from exc
         return None

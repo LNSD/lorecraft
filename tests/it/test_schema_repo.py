@@ -15,16 +15,14 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas import (
-    GetStructureSchemaError,
-    ListCorpusSchemasError,
-    ListSchemasError,
-    ListSpecsError,
+    CorpusSchemasListError,
     Repository,
     SchemaName,
     SpecAspect,
     SpecFile,
+    StructureSchemaReadError,
 )
-from lorecraft.vfs import DiskFileSystem
+from lorecraft.vfs import DiskFileSystem, ListDirError
 
 CODE: Final[CorpusName] = CorpusName.parse('code')
 CODE_PYTHON: Final[SchemaName] = (CODE, AspectNamespace.parse('python'))
@@ -88,18 +86,18 @@ class TestRepositoryListSpecs:
         assert paths == [], 'a missing directory holds no specifications'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
-    def test_list_spec_paths_with_unreadable_directory_raises_list_specs_error(
+    def test_list_spec_paths_with_unreadable_directory_raises_list_dir_error(
         self, locked_repository: Repository
     ) -> None:
         #: Given
         repository = locked_repository
 
         #: When
-        with pytest.raises(ListSpecsError) as exc_info:
+        with pytest.raises(ListDirError) as exc_info:
             repository.list_spec_paths()
 
         #: Then
-        assert 'locked' in str(exc_info.value), 'the error names the directory that refused listing'
+        assert str(exc_info.value.path) == 'locked', 'the listing failure passes through, naming the directory'
 
 
 @pytest.mark.it
@@ -167,19 +165,20 @@ class TestRepository:
             'get_structure_schema reads code-python.structure.json, leaving the parse to StructureAspect'
         )
 
-    def test_get_structure_schema_with_missing_file_raises_get_structure_schema_error(
+    def test_get_structure_schema_with_missing_file_raises_structure_schema_read_error(
         self, repository: Repository
     ) -> None:
         #: Given
         name: SchemaName = (CODE,)
 
         #: When
-        with pytest.raises(GetStructureSchemaError) as exc_info:
+        with pytest.raises(StructureSchemaReadError) as exc_info:
             repository.get_structure_schema(name)
 
         #: Then
-        assert 'cannot read schema' in str(exc_info.value), (
-            "the repository fails only on a file it cannot read; malformed JSON is the parse's to refuse"
+        assert exc_info.value.name == name, (
+            'the error names the schema; the repository fails only on a file it cannot read, malformed JSON is the '
+            "parse's to refuse"
         )
 
     def test_list_schemas_with_missing_directory_returns_empty(self, tmp_path: Path) -> None:
@@ -193,16 +192,16 @@ class TestRepository:
         assert schemas == [], 'a missing directory holds no schemas'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
-    def test_list_schemas_with_unreadable_directory_raises_list_error(self, locked_repository: Repository) -> None:
+    def test_list_schemas_with_unreadable_directory_raises_list_dir_error(self, locked_repository: Repository) -> None:
         #: Given
         repository = locked_repository
 
         #: When
-        with pytest.raises(ListSchemasError) as exc_info:
+        with pytest.raises(ListDirError) as exc_info:
             repository.list_schemas()
 
         #: Then
-        assert 'locked' in str(exc_info.value), 'the error names the directory that refused listing'
+        assert str(exc_info.value.path) == 'locked', 'the listing failure passes through, naming the directory'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
     def test_list_schemas_by_corpus_with_unreadable_directory_raises_corpus_list_error(
@@ -213,8 +212,9 @@ class TestRepository:
         corpus = CODE
 
         #: When
-        with pytest.raises(ListCorpusSchemasError) as exc_info:
+        with pytest.raises(CorpusSchemasListError) as exc_info:
             repository.list_schemas_by_corpus(corpus)
 
         #: Then
-        assert 'locked' in str(exc_info.value), 'the error names the directory that refused listing'
+        assert exc_info.value.corpus == corpus, 'the error names the corpus whose schemas were being listed'
+        assert str(exc_info.value.source.path) == 'locked', 'its source names the directory that refused listing'

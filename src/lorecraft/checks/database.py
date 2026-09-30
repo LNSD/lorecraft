@@ -73,14 +73,16 @@ class Database:
         A load that fails is not cached, so each call raises the same error again.
 
         Raises:
-            ListSpecsError: If the specification directory cannot be listed.
-            ListCorpusDirectoriesError: If docs/ cannot be listed.
-            ListDocumentsError: If a corpus directory cannot be listed.
-            GetStructureSchemaError: If any structure specification cannot be read.
+            ListDirError: If the specification directory or docs/ cannot be listed.
+            CorpusListError: If a corpus directory cannot be listed.
+            StructureSchemaReadError: If any structure specification cannot be read.
             InvalidStructureSchemaError: If any structure specification is not JSON in the dialect, or states no
                 usable rules, its frontmatter schema included.
-            ResolveSkillsDirError: If a skills directory cannot be resolved.
-            ListSkillsError: If a skills directory or a skill directory cannot be listed.
+            ResolveDirError: If a skills directory cannot be resolved.
+            SkillsDirListError: If a skills directory cannot be listed.
+            SkillEntryResolveError: If a symlinked skill entry cannot be resolved.
+            SkillDirListError: If a skill directory cannot be listed.
+            SkillFileResolveError: If a symlinked SKILL.md cannot be resolved.
         """
         if self._model is None:
             self._model = load_model(self._fs)
@@ -131,7 +133,7 @@ class Database:
 
         Raises:
             DocumentDecodeError: If the document's bytes are not UTF-8.
-            GetDocumentError: If the snapshot holds no regular file at the document's path.
+            DocumentReadError: If the snapshot holds no regular file at the document's path.
         """
         decoded = self._frontmatters.get(ref)
         if decoded is None:
@@ -147,7 +149,7 @@ class Database:
 
         Raises:
             DocumentDecodeError: If the document's bytes are not UTF-8.
-            GetDocumentError: If the snapshot holds no regular file at the document's path.
+            DocumentReadError: If the snapshot holds no regular file at the document's path.
         """
         parsed = self._parses.get(ref)
         if parsed is None:
@@ -166,7 +168,7 @@ class Database:
 
         Raises:
             DocumentDecodeError: If the document's bytes are not UTF-8.
-            GetDocumentError: If the snapshot holds no regular file at the document's path.
+            DocumentReadError: If the snapshot holds no regular file at the document's path.
         """
         count = self._token_counts.get(ref)
         if count is None:
@@ -182,7 +184,7 @@ class Database:
 
         Raises:
             SkillDecodeError: If the skill's bytes are not UTF-8.
-            GetSkillError: If the snapshot holds no regular file at the skill's path.
+            SkillReadError: If the snapshot holds no regular file at the skill's path.
         """
         decoded = self._skill_frontmatters.get(ref)
         if decoded is None:

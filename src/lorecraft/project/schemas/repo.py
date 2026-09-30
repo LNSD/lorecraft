@@ -14,25 +14,45 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName
 from lorecraft.vfs import EntryKind, FileSystem, ListDirError, ReadTextError
 
-from .name import SchemaName
+from .name import SchemaName, schema_name_stem
 from .spec_file import SpecAspect, SpecFile, SpecFilenameError, parse_spec_file, schema_filename
 from .structure import StructureSchema
 
 
-class ListSchemasError(Error):
-    """The specification directory cannot be listed."""
+class CorpusSchemasListError(Error):
+    """The schemas of one corpus cannot be listed, because the specification directory cannot be.
+
+    Attributes:
+        corpus: The corpus whose schemas were being listed.
+        source: The failure to list the specification directory.
+    """
+
+    corpus: CorpusName
+    source: ListDirError
+
+    def __init__(self, corpus: CorpusName, *, source: ListDirError) -> None:
+        self.corpus = corpus
+        self.source = source
+        super().__init__(f'cannot list the schemas of corpus {corpus}')
+        self.__cause__ = source
 
 
-class ListSpecsError(Error):
-    """The specification directory cannot be listed."""
+class StructureSchemaReadError(Error):
+    """A structure schema the model names cannot be read.
 
+    Attributes:
+        name: The schema whose structure file was being read.
+        source: The failure to read the file.
+    """
 
-class ListCorpusSchemasError(Error):
-    """Schemas for a corpus cannot be listed."""
+    name: SchemaName
+    source: ReadTextError
 
-
-class GetStructureSchemaError(Error):
-    """A requested structure schema cannot be loaded."""
+    def __init__(self, name: SchemaName, *, source: ReadTextError) -> None:
+        self.name = name
+        self.source = source
+        super().__init__(f'cannot read the structure schema {schema_name_stem(name)}')
+        self.__cause__ = source
 
 
 class Repository:
@@ -50,12 +70,10 @@ class Repository:
         with a file whose name is not a specification filename. A missing directory lists as nothing.
 
         Raises:
-            ListSpecsError: If the directory exists but cannot be listed.
+            ListDirError: If the directory exists but cannot be listed.
         """
-        try:
-            entries = self._fs.list_dir(self._specs_dir)
-        except ListDirError as exc:
-            raise ListSpecsError(f'cannot list specifications in {self._specs_dir}: {exc.detail}') from exc
+        # A failure to list is the listing's own, with the directory as its path: this layer adds nothing to it.
+        entries = self._fs.list_dir(self._specs_dir)
         return [self._specs_dir / entry.name for entry in entries if entry.kind is EntryKind.FILE]
 
     def list_schemas(self) -> list[SpecFile]:
@@ -64,12 +82,9 @@ class Repository:
         A file whose name does not parse is left out. A missing directory lists as nothing.
 
         Raises:
-            ListSchemasError: If the directory exists but cannot be listed.
+            ListDirError: If the directory exists but cannot be listed.
         """
-        try:
-            return self._schema_files()
-        except ListDirError as exc:
-            raise ListSchemasError(f'cannot list schemas in {self._specs_dir}: {exc.detail}') from exc
+        return self._schema_files()
 
     def list_schemas_by_corpus(self, corpus: CorpusName) -> list[SpecFile]:
         """List the JSON schema files whose stem belongs to one corpus, in stable name order.
@@ -77,14 +92,12 @@ class Repository:
         A missing directory lists as nothing.
 
         Raises:
-            ListCorpusSchemasError: If the directory exists but cannot be listed.
+            CorpusSchemasListError: If the directory exists but cannot be listed.
         """
         try:
             files = self._schema_files()
         except ListDirError as exc:
-            raise ListCorpusSchemasError(
-                f'cannot list schemas for {corpus} in {self._specs_dir}: {exc.detail}'
-            ) from exc
+            raise CorpusSchemasListError(corpus, source=exc) from exc
         return [schema for schema in files if schema.corpus == corpus]
 
     def get_structure_schema(self, name: SchemaName) -> StructureSchema:
@@ -92,13 +105,13 @@ class Repository:
         one step, so the JSON is read once, by the model that states its shape.
 
         Raises:
-            GetStructureSchemaError: If the file cannot be read.
+            StructureSchemaReadError: If the file cannot be read.
         """
         path = self._specs_dir / schema_filename(name, SpecAspect.STRUCTURE)
         try:
             return StructureSchema(self._fs.read_text(path))
         except ReadTextError as exc:
-            raise GetStructureSchemaError(f'cannot read schema {path}: {exc.detail}') from exc
+            raise StructureSchemaReadError(name, source=exc) from exc
 
     def _schema_files(self) -> list[SpecFile]:
         """Parse the JSON schema files in name order; the seam already sorts its entries.
