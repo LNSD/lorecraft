@@ -136,7 +136,7 @@ def select_documents(root: Path | None, paths: list[Path] | None) -> tuple[Datab
             lists.
 
     Raises:
-        WorkingDirectoryError: If no root is given and the working directory cannot be read.
+        WorkingDirectoryError: If no root is given, or a path is named, and the working directory cannot be read.
         RootError: If the root cannot be established.
         LinkedLayoutError: If ``docs/`` or ``docs/__meta__/`` under the root is a symlink.
         DocumentPathError: If a named path is not a document the model lists.
@@ -151,9 +151,10 @@ def select_documents(root: Path | None, paths: list[Path] | None) -> tuple[Datab
     model = database.model()
     if not paths:
         return database, model.documents()
+    working_directory = _working_directory()
     refs: list[DocumentRef] = []
     for argument in paths:
-        refs.append(select_document(model, root_path, argument))
+        refs.append(select_document(database, root_path, working_directory, argument))
     return database, tuple(refs)
 
 
