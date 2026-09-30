@@ -23,7 +23,7 @@ from lorecraft.project.document.repo import (
     ListDocumentsError,
     Repository,
 )
-from lorecraft.vfs import DirEntry, DiskFileSystem, EntryKind, RootRelativePath
+from lorecraft.vfs import DiskFileSystem, RootRelativePath
 
 
 @pytest.fixture(scope='function')
@@ -72,12 +72,11 @@ class TestRepositoryListCorpusDirectories:
         directories = repository.list_corpus_directories()
 
         #: Then
-        assert directories == (
-            DirEntry('code', EntryKind.DIRECTORY),
-            DirEntry('feat', EntryKind.DIRECTORY),
-        ), 'directories are listed by name and a file directly under docs/ is dropped'
+        assert directories == ('code', 'feat'), (
+            'directories are listed by name and a file directly under docs/ is dropped'
+        )
 
-    def test_list_corpus_directories_with_a_symlinked_directory_returns_symlink_kind(
+    def test_list_corpus_directories_with_a_symlinked_directory_leaves_it_out(
         self, tmp_path: Path, repository: Repository
     ) -> None:
         #: Given
@@ -88,7 +87,7 @@ class TestRepositoryListCorpusDirectories:
         directories = repository.list_corpus_directories()
 
         #: Then
-        assert DirEntry('rules', EntryKind.SYMLINK) in directories, 'a symlinked corpus is listed as SYMLINK'
+        assert directories == ('code',), 'a symlinked directory is no corpus, whatever it leads to'
 
     def test_list_corpus_directories_with_no_docs_directory_returns_empty(
         self, tmp_path: Path, repository: Repository
@@ -132,9 +131,9 @@ class TestRepositoryListDocuments:
         documents = repository.list_documents(corpus)
 
         #: Then
-        assert documents == (
-            DocumentFile(RootRelativePath.parse('docs/code/logging.md'), 'logging', EntryKind.FILE),
-        ), 'a subdirectory inside a corpus is not a document and is not descended into'
+        assert documents == (DocumentFile(RootRelativePath.parse('docs/code/logging.md'), 'logging'),), (
+            'a subdirectory inside a corpus is not a document and is not descended into'
+        )
 
     def test_list_documents_with_a_txt_file_ignores_it(self, code_dir: Path, repository: Repository) -> None:
         #: Given
@@ -146,11 +145,11 @@ class TestRepositoryListDocuments:
         documents = repository.list_documents(corpus)
 
         #: Then
-        assert documents == (
-            DocumentFile(RootRelativePath.parse('docs/code/logging.md'), 'logging', EntryKind.FILE),
-        ), 'only .md entries are documents'
+        assert documents == (DocumentFile(RootRelativePath.parse('docs/code/logging.md'), 'logging'),), (
+            'only .md entries are documents'
+        )
 
-    def test_list_documents_with_a_symlinked_document_returns_symlink_kind(
+    def test_list_documents_with_a_symlinked_document_leaves_it_out(
         self, code_dir: Path, repository: Repository
     ) -> None:
         #: Given
@@ -162,10 +161,9 @@ class TestRepositoryListDocuments:
         documents = repository.list_documents(corpus)
 
         #: Then
-        assert documents == (
-            DocumentFile(RootRelativePath.parse('docs/code/alias.md'), 'alias', EntryKind.SYMLINK),
-            DocumentFile(RootRelativePath.parse('docs/code/logging.md'), 'logging', EntryKind.FILE),
-        ), 'a symlinked .md is listed as SYMLINK, never followed'
+        assert documents == (DocumentFile(RootRelativePath.parse('docs/code/logging.md'), 'logging'),), (
+            'a symlinked .md is no document, whatever it leads to'
+        )
 
     def test_list_documents_with_a_readme_returns_its_stem_unvalidated(
         self, code_dir: Path, repository: Repository
@@ -178,7 +176,7 @@ class TestRepositoryListDocuments:
         documents = repository.list_documents(corpus)
 
         #: Then
-        assert documents == (DocumentFile(RootRelativePath.parse('docs/code/README.md'), 'README', EntryKind.FILE),), (
+        assert documents == (DocumentFile(RootRelativePath.parse('docs/code/README.md'), 'README'),), (
             'the stem is listed as spelled; whether it is a valid name is decided above the repository'
         )
 
