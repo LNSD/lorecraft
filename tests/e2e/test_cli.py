@@ -22,7 +22,8 @@ _VARYING_FIELDS: Final[tuple[str, ...]] = ('Commit', 'Python', 'Platform', 'Inst
 
 # A checked-in workspace root holding each part of the model `inspect` draws: a corpus with a structure
 # specification that states a frontmatter schema, a namespace spec with a structure layer, a document each governs,
-# and a README beside the specifications that is not one.
+# a README beside the specifications that is not one, and a skills directory two agents read, one through a
+# link, holding a skill, a link to it and a link to a skill kept outside it.
 # Resolved, because the CLI prints the resolved root and the tests swap exactly that string for a placeholder.
 WORKSPACE_FIXTURE: Final[Path] = (Path(__file__).parent / 'fixtures' / 'workspace').resolve()
 _ROOT_PLACEHOLDER: Final[str] = '<workspace>'
