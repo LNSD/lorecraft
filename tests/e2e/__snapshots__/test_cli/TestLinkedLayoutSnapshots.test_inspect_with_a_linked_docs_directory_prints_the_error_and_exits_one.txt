@@ -1,0 +1,1 @@
+error: docs is a symlink, which lorecraft does not follow: docs/ must be a real directory

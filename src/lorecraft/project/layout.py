@@ -3,7 +3,8 @@
 from typing import Final
 
 from lorecraft.agents import iter_agents
-from lorecraft.vfs import RootRelativePath, ScanRoot
+from lorecraft.core.error import Error
+from lorecraft.vfs import RootRelativePath, ScanRoot, Snapshot
 
 DOCS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs')
 SPECS_DIR: Final[RootRelativePath] = DOCS_DIR / '__meta__'
@@ -39,3 +40,35 @@ the repository is followed, so a skill linked to where its files live, such as
 ``.agents/skills/review -> ../../skills/review``, or a ``SKILL.md`` linked to where its text lives, is in the
 snapshot as it is on disk. A link leading outside the repository is never followed.
 """
+
+
+class LinkedLayoutError(Error):
+    """A directory the layout fixes, ``docs/`` or ``docs/__meta__/``, is a symlink.
+
+    Attributes:
+        path: The root-relative directory that is a symlink.
+    """
+
+    path: RootRelativePath
+
+    def __init__(self, path: RootRelativePath) -> None:
+        self.path = path
+        super().__init__(f'{path} is a symlink, which lorecraft does not follow: {path}/ must be a real directory')
+
+
+def require_real_layout(snapshot: Snapshot) -> None:
+    """Refuse a snapshot in which ``docs/`` or ``docs/__meta__/`` is a symlink.
+
+    Under ``docs/`` a snapshot records a symlink and never reads through it. Behind a linked ``docs/`` or
+    ``docs/__meta__/`` it therefore holds no specification, and the model loaded from it has no corpus: a
+    command would report a clean run over a repository it never read. A root with neither directory is not
+    refused; it declares nothing, which is a model with no corpora.
+
+    Raises:
+        LinkedLayoutError: If ``docs/`` is a symlink, or else if ``docs/__meta__/`` is one.
+    """
+    linked_paths = {link.path for link in snapshot.links}
+    # `docs/` first: a scan stops at a linked `docs/`, so it never sees what `docs/__meta__/` is.
+    for directory in (DOCS_DIR, SPECS_DIR):
+        if directory in linked_paths:
+            raise LinkedLayoutError(directory)

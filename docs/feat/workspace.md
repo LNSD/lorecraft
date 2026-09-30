@@ -74,6 +74,9 @@ so it sees one moment of the tree even while files change. It reads each agent's
 followed. Under a skills directory a symlink to a directory or a file in the repository is followed, so a skill
 linked to where its files live is read; one leading outside the repository is not.
 
+`docs/` and `docs/__meta__/` themselves must be real directories. Behind a symlink the snapshot would hold no
+specification, so a command stops with an error naming the linked directory rather than read an empty model.
+
 ## Limitations
 
 - The layout is fixed: `docs/` and `docs/__meta__/` cannot be renamed or moved, and a corpus cannot nest.

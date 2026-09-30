@@ -1,0 +1,1 @@
+docs/__meta__ is a symlink, which lorecraft does not follow: docs/__meta__/ must be a real directory
