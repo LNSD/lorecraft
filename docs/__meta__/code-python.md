@@ -21,7 +21,7 @@ Every python rule document contains the following parts in order.
 
 | Field | Value | Notes |
 |-------|-------|-------|
-| `name` | `python-<aspect>` or `python-<aspect>-<facet>` | Matches filename minus `.md` |
+| `name` | `python-<facet>` or `python-<facet>-<segment>` | Matches filename minus `.md` |
 | `description` | Discovery-optimized summary | No trailing period |
 | `type` | `"core"` | Always |
 | `scope` | `"global"` | Always |
@@ -138,7 +138,7 @@ sibling's rule "so the reader does not have to click", delete the restatement an
 A python document links its neighbours. Entries are `- [{{name}}]({{name}}.md) - {{Relationship}}: {{what the
 reader gets there}}`, with continuation lines indented two spaces.
 
-- A document that specializes a parent (`python-<aspect>-<facet>`) names the parent `Extends`, **first** in
+- A document that specializes a parent (`python-<facet>-<segment>`) names the parent `Extends`, **first** in
   the list. The parent names its children `Related`, never `Extends`: specialization points one way, and a
   pair that each call the other `Extends` has recorded no relationship at all.
 - Siblings inside the group are `Related`. A `principle-*` document is `Foundation`.
@@ -169,18 +169,18 @@ adjacent.
 
 ### Sub-Group Members
 
-A `python-<aspect>` document may be specialized by `python-<aspect>-<facet>` documents. When it is:
+A `python-<facet>` document may be specialized by `python-<facet>-<segment>` documents. When it is:
 
-- **The parent carries rule content.** It states the invariants the facets make operational, and it is never a
-  router: a document whose only job is to list its children is prohibited
+- **The parent carries rule content.** It states the invariants the children make operational, and it is never
+  a router: a document whose only job is to list its children is prohibited
   ([code.md §1](code.md#1-core-principles)).
 - **The child labels the parent `Extends`**, first in `## References`, and its doctrine paragraph names what
   the parent owns.
-- **A facet exists because the parent had two reasons to change**, not because the parent got long. Splitting
+- **A child exists because the parent had two reasons to change**, not because the parent got long. Splitting
   on length produces two documents that must be read together, which is worse than one that is read once.
 
-A sub-group with no parent document is legal: the facets sit side by side as `Related` siblings and the shared
-prefix is what groups them. Do not add a parent purely so that one exists.
+A sub-group with no parent document is legal: the children sit side by side as `Related` siblings and the
+shared prefix is what groups them. Do not add a parent purely so that one exists.
 
 ## Template
 
@@ -188,7 +188,7 @@ Every python rule document MUST follow this template:
 
 ````markdown
 ---
-name: "python-<aspect>[-<facet>]"
+name: "python-<facet>[-<segment>]"
 description: "{{Brief summary. Load when [trigger conditions], no period}}"
 type: "core"
 scope: "global"
