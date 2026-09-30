@@ -3,9 +3,9 @@
 `version --verbose` shells out to `git describe`, so this is the only tier that can observe the probe
 at all. This suite runs from the checkout, so the verbose command must report its Git description as
 well as the installed version and environment. Every version output, and `inspect`, `check`, `check frontmatter`,
-`check structure` and `check budget` over a checked-in workspace fixture, is compared to a reviewed snapshot file
-under `__snapshots__/`. So is what `check` and `inspect` print for a root whose `docs/` or `docs/__meta__/` is a
-symlink into that fixture.
+`check structure`, `check budget` and `check skills` over a checked-in workspace fixture, is compared to a reviewed
+snapshot file under `__snapshots__/`. So is what `check` and `inspect` print for a root whose `docs/` or
+`docs/__meta__/` is a symlink into that fixture.
 """
 
 from pathlib import Path
@@ -259,6 +259,41 @@ class TestCheckBudgetSnapshots:
         #: Given
         expected = snapshot.use_extension(JsonTextSnapshotExtension)
         arguments = ('check', 'budget', '--root', str(WORKSPACE_FIXTURE), '--format', 'json')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, 'the JSON report matches the reviewed snapshot'
+
+
+@pytest.mark.e2e
+class TestCheckSkillsSnapshots:
+    # Every finding prints root-relative, so the output is the same in every checkout and nothing is redacted.
+    # The fixture's `beta` skill is a link to `alpha`, so its name does not match its directory: each run reports
+    # that finding and exits 1.
+
+    def test_check_skills_without_a_root_in_the_workspace_fixture_prints_the_findings(
+        self, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('check', 'skills')
+
+        #: When
+        result = run_cli(*arguments, cwd=WORKSPACE_FIXTURE)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, 'the findings found from the working directory match the reviewed snapshot'
+
+    def test_check_skills_with_json_over_the_workspace_fixture_prints_the_report(
+        self, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(JsonTextSnapshotExtension)
+        arguments = ('check', 'skills', '--root', str(WORKSPACE_FIXTURE), '--format', 'json')
 
         #: When
         result = run_cli(*arguments)

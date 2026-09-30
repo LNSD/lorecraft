@@ -10,6 +10,8 @@ use and kept for as long as the database lives (pattern-memoization):
   building its full syntax tree. It reads that document's bytes and nothing else.
 - ``parse(ref)``: one document's parse tree, like a PSI file or a per-file index entry. It reads that
   document's bytes and nothing else.
+- ``skill_frontmatter(ref)``: one skill's frontmatter node, the same stub for a ``SKILL.md``. It reads that
+  skill's bytes and nothing else.
 - ``tokens(ref)``: what one document's whole file costs an agent that loads it, like another per-file index
   entry: counted from the raw text, frontmatter and code included, without a parse. It reads that document's
   bytes and nothing else.
@@ -23,38 +25,44 @@ Nothing here records what a cached value read, so no dependency is tracked. Inva
 the way the IDE drops per-file index entries on a file change event and resets structural caches on a project model
 change. Reserved, not implemented: ``advance(snapshot) -> Database``, the next state. It would ``diff`` the two
 snapshots and carry over each cached value the change set leaves valid: the frontmatter, the parse and the token
-count of every document whose bytes did not change, and the model unless an entry was added or deleted under
-``docs/``, a skills directory or a directory a skill is linked to, a link on the way to a skill changed its
-target, or a specification changed. That rule holds only while the frontmatter, the parse and the token count
-each read their own document and the model reads no document, so keep them that way: data drawn from several
-documents belongs in a new cache with its own rule.
+count of every document whose bytes did not change, the frontmatter of every skill whose bytes did not, and the
+model unless an entry was added or deleted under ``docs/``, a skills directory or a directory a skill is linked
+to, a link on the way to a skill changed its target, or a specification changed. That rule holds only while the
+frontmatter, the parse and the token count each read their own document and the model reads no document, so keep
+them that way: data drawn from several documents belongs in a new cache with its own rule.
 
 A change names a real path, while a ref may name a path through a link: a skill's ``SKILL.md`` under a linked
 skill entry changes at the path the link leads to, not at the ref's. A snapshot maps a linked path to its real
 one and not back, so ``advance`` would resolve each cached ref's path to the real one before looking it up in
-the change set.
+the change set. It would resolve it in both snapshots: a link retargeted to another skill leaves every file's
+bytes as they were, so a skill's frontmatter carries over only when its ref leads to the same real path before
+and after, and that path's bytes did not change.
 """
 
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.document import Repository as DocumentRepository
+from lorecraft.project.skill import Repository as SkillRepository
+from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import FrontmatterNode, ParsedDocument, count_tokens, parse_document, parse_frontmatter
 from lorecraft.project.workspace import WorkspaceModel, load_model
 from lorecraft.vfs import Snapshot, VirtualFileSystem
 
 
 class Database:
-    """The workspace model, the frontmatter, the parse trees and the token counts of one snapshot, each cached for
-    its lifetime."""
+    """The workspace model, the frontmatter, the parse trees, the token counts and the skill frontmatter of one
+    snapshot, each cached for its lifetime."""
 
     def __init__(self, snapshot: Snapshot) -> None:
         """Index the snapshot for reading; performs no I/O and computes nothing yet."""
         self._fs = VirtualFileSystem(snapshot)
         self._documents = DocumentRepository(self._fs)
+        self._skills = SkillRepository(self._fs)
         # `None` until the first `model()` call; a loaded model is never `None`, so the two cannot be confused.
         self._model: WorkspaceModel | None = None
         self._frontmatters: dict[DocumentRef, FrontmatterNode] = {}
         self._parses: dict[DocumentRef, ParsedDocument] = {}
         self._token_counts: dict[DocumentRef, int] = {}
+        self._skill_frontmatters: dict[SkillRef, FrontmatterNode] = {}
 
     def model(self) -> WorkspaceModel:
         """The workspace model the snapshot declares, loaded on the first call.
@@ -128,3 +136,19 @@ class Database:
             count = count_tokens(text)
             self._token_counts[ref] = count
         return count
+
+    def skill_frontmatter(self, ref: SkillRef) -> FrontmatterNode:
+        """The frontmatter of one skill's ``SKILL.md``, parsed from the snapshot on the first call for its ref.
+
+        A skill that cannot be read is not cached, so each call raises the same error again.
+
+        Raises:
+            SkillDecodeError: If the skill's bytes are not UTF-8.
+            GetSkillError: If the snapshot holds no regular file at the skill's path.
+        """
+        decoded = self._skill_frontmatters.get(ref)
+        if decoded is None:
+            text = self._skills.get_skill(ref).text
+            decoded = parse_frontmatter(text)
+            self._skill_frontmatters[ref] = decoded
+        return decoded

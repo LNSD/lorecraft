@@ -81,11 +81,17 @@ check-docs *EXTRA_FLAGS:
     @echo "📚 Checking documents..."
     uv run lorecraft check {{EXTRA_FLAGS}}
 
-# Check this repository's own skills against the Agent Skills specification (check_skill)
+# Check this repository's own skills against the Agent Skills specification: the frontmatter (lorecraft check skills), then the body (check_skill)
 [group: 'docs']
 check-skills *EXTRA_FLAGS:
-    @echo "📚 Checking skills..."
-    .agents/skills/skills-check/scripts/check_skill.py {{EXTRA_FLAGS}}
+    #!/usr/bin/env bash
+    # Both halves always run, so one pass shows every finding; the recipe fails when either does. The flags
+    # go to the script, the half that still has options of its own.
+    echo "📚 Checking skills..."
+    status=0
+    uv run lorecraft check skills || status=1
+    .agents/skills/skills-check/scripts/check_skill.py {{EXTRA_FLAGS}} || status=1
+    exit "$status"
 
 
 ## Codegen

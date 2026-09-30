@@ -120,7 +120,8 @@ error: invalid JSON in schema docs/__meta__/feat.structure.json: Expecting prope
 
 ## Limitations
 
-- A skill is shown as found, not as valid: `inspect` does not read a `SKILL.md`.
+- A skill is shown as found, not as valid: `inspect` does not read a `SKILL.md`;
+  [check skills](cli-check-skills.md) does.
 - A skill entry that is a symlink does not show where it leads.
 - A file the model [leaves out](workspace.md#left-out-not-reported), such as a Markdown file in a
   subdirectory of a corpus, is not shown at all.

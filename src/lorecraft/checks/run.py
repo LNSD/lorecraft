@@ -1,4 +1,4 @@
-"""Run a check over documents of one database.
+"""Run a check over documents, or over skills, of one database.
 
 A run asks the database for everything it reads: the model decides which aspects govern each document, and
 the part of the document the check reads is what the pure check validates — the frontmatter for the frontmatter
@@ -6,18 +6,24 @@ check, the parse tree's headings for the structure check, the whole file's token
 Selecting which documents to check is the caller's business: a run checks the refs it is handed, in the order
 given, and reads only the governed ones. Every check reports in the same shape, so the ``check`` commands print
 every run the same way.
+
+The skill check runs over skills instead: the refs it is handed are the model's ``SkillRef``s, the part it reads
+is the frontmatter of each ``SKILL.md``, and the Agent Skills specification governs every one of them, so a
+skill is never ungoverned. It reports in a shape of its own, a ``SkillCheckRun`` of ``SkillReport``s.
 """
 
 from dataclasses import dataclass
 
 from lorecraft.project.document import DocumentDecodeError, DocumentRef
 from lorecraft.project.schemas import StructureAspect
+from lorecraft.project.skill import SkillDecodeError, SkillRef
 from lorecraft.project.syntax import FrontmatterNode, LineNumber, ParsedDocument
 
 from .budget import validate_budget
 from .database import Database
 from .frontmatter import validate_frontmatter
 from .reporting import Finding, Violation
+from .skill import validate_skill
 from .structure import validate_structure
 
 
@@ -50,6 +56,41 @@ class CheckRun:
     """
 
     reports: tuple[DocumentReport, ...]
+
+    def findings(self) -> tuple[Finding, ...]:
+        """Every finding of every report, in report order; empty exactly when the run is clean."""
+        findings: list[Finding] = []
+        for report in self.reports:
+            findings.extend(report.findings())
+        return tuple(findings)
+
+
+@dataclass(frozen=True, slots=True)
+class SkillReport:
+    """The outcome of checking one selected skill.
+
+    Attributes:
+        ref: The skill the report is about; its ``SKILL.md`` path is the report path.
+        violations: What the check found, without the skill's path; empty when the skill conforms.
+    """
+
+    ref: SkillRef
+    violations: tuple[Violation, ...]
+
+    def findings(self) -> tuple[Finding, ...]:
+        """Every violation, located in the skill's ``SKILL.md``; empty exactly when the skill is clean."""
+        return tuple(Finding.at(self.ref.path, violation) for violation in self.violations)
+
+
+@dataclass(frozen=True, slots=True)
+class SkillCheckRun:
+    """One pass of the skill check over the selected skills: what the text and JSON printers consume.
+
+    Attributes:
+        reports: One per selected skill, in the order the refs were given.
+    """
+
+    reports: tuple[SkillReport, ...]
 
     def findings(self) -> tuple[Finding, ...]:
         """Every finding of every report, in report order; empty exactly when the run is clean."""
@@ -167,6 +208,30 @@ def run_budget(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
     return CheckRun(reports=tuple(reports))
 
 
+def run_skills(database: Database, refs: tuple[SkillRef, ...]) -> SkillCheckRun:
+    """Check each skill's frontmatter against the Agent Skills specification, in the order given.
+
+    Every skill is governed: the specification applies to each one. A skill whose ``SKILL.md`` is not UTF-8
+    carries the single violation ``skill.undecodable`` at line 1.
+
+    Args:
+        database: The snapshot state the refs come from.
+        refs: The skills to check; each must be one the database's model lists.
+
+    Raises:
+        GetSkillError: If a skill's ``SKILL.md`` is missing from the snapshot; a decode failure is a finding.
+    """
+    reports: list[SkillReport] = []
+    for ref in refs:
+        frontmatter = _skill_frontmatter(database, ref)
+        if frontmatter is None:
+            reports.append(SkillReport(ref, violations=(_undecodable_skill(),)))
+            continue
+        result = validate_skill(frontmatter, directory_name=ref.directory.name)
+        reports.append(SkillReport(ref, violations=result.violations))
+    return SkillCheckRun(reports=tuple(reports))
+
+
 def _budgeted(aspects: tuple[StructureAspect, ...]) -> tuple[StructureAspect, ...]:
     """The structure aspects that set a ``tokens`` budget, in the order given."""
     budgeted: list[StructureAspect] = []
@@ -223,10 +288,34 @@ def _tokens(database: Database, ref: DocumentRef) -> int | None:
         return None
 
 
+def _skill_frontmatter(database: Database, ref: SkillRef) -> FrontmatterNode | None:
+    """The skill's frontmatter node, or ``None`` when its ``SKILL.md`` is not UTF-8.
+
+    Returns:
+        The frontmatter node. ``None`` is the degraded return ``_parse`` documents, for the same reason.
+
+    Raises:
+        GetSkillError: If the skill's ``SKILL.md`` is missing from the snapshot; a decode failure is not raised.
+    """
+    try:
+        return database.skill_frontmatter(ref)
+    except SkillDecodeError:
+        return None
+
+
 def _undecodable(rule_namespace: str) -> Violation:
     """The violation a governed document that is not UTF-8 carries instead of the check's own."""
     return Violation(
         line=LineNumber(1),
         rule=f'{rule_namespace}.undecodable',
         message='document is not valid UTF-8',
+    )
+
+
+def _undecodable_skill() -> Violation:
+    """The violation a skill whose ``SKILL.md`` is not UTF-8 carries instead of the check's own."""
+    return Violation(
+        line=LineNumber(1),
+        rule='skill.undecodable',
+        message='SKILL.md is not valid UTF-8',
     )
