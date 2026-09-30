@@ -31,7 +31,16 @@ from lorecraft.project.document.repo import Repository as DocumentRepository
 from lorecraft.project.layout import SPECS_DIR
 from lorecraft.project.schemas.name import SchemaName
 from lorecraft.project.schemas.repo import Repository as SchemaRepository
-from lorecraft.project.schemas.spec_file import SpecAspect, SpecFile, SpecFilenameError, parse_spec_file
+from lorecraft.project.schemas.spec_file import (
+    DottedSpecStemError,
+    InvalidSpecStemError,
+    NotASpecFileError,
+    NotASpecStemError,
+    SpecAspect,
+    SpecFile,
+    UnknownSpecAspectError,
+    parse_spec_file,
+)
 from lorecraft.project.schemas.structure import StructureAspect
 from lorecraft.project.skill.ref import SkillLocation
 from lorecraft.project.skill.repo import Repository as SkillRepository
@@ -63,8 +72,19 @@ def load_workspace(schemas: SchemaRepository, documents: DocumentRepository, ski
         DirListError: If the specification directory or docs/ cannot be listed.
         CorpusListError: If a corpus directory cannot be listed.
         StructureSchemaReadError: If any structure specification cannot be read.
-        InvalidStructureSchemaError: If any structure specification is not JSON in the dialect, or states no usable
-            rules, its frontmatter schema included.
+        StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
+        StructureSpecFilenameError: If a structure specification is not at a specification filename.
+        EmptyStructureSpecError: If a structure specification states no rule.
+        InvalidTitleCountError: If a title count is below 1.
+        InvalidTokenBudgetError: If a token budget is below 1.
+        InvalidWordCapError: If an outline word cap is below 1.
+        RepeatedOutlineSectionError: If an outline names a section twice.
+        ForbiddenOutlineSectionError: If a specification forbids a section its outline names.
+        AdjacentAnyRunsError: If an outline places two ``any`` runs side by side.
+        InvalidFrontmatterSchemaError: If a frontmatter schema is rejected by the meta-schema.
+        FrontmatterSchemaIdError: If a schema in a frontmatter schema carries ``$id``.
+        ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
+        UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
         DirResolveError: If a skills directory cannot be resolved.
         SkillsDirListError: If a skills directory cannot be listed.
         SkillEntryResolveError: If a symlinked skill entry cannot be resolved.
@@ -107,8 +127,19 @@ def load_model(fs: FileSystem) -> WorkspaceModel:
         DirListError: If the specification directory or docs/ cannot be listed.
         CorpusListError: If a corpus directory cannot be listed.
         StructureSchemaReadError: If any structure specification cannot be read.
-        InvalidStructureSchemaError: If any structure specification is not JSON in the dialect, or states no usable
-            rules, its frontmatter schema included.
+        StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
+        StructureSpecFilenameError: If a structure specification is not at a specification filename.
+        EmptyStructureSpecError: If a structure specification states no rule.
+        InvalidTitleCountError: If a title count is below 1.
+        InvalidTokenBudgetError: If a token budget is below 1.
+        InvalidWordCapError: If an outline word cap is below 1.
+        RepeatedOutlineSectionError: If an outline names a section twice.
+        ForbiddenOutlineSectionError: If a specification forbids a section its outline names.
+        AdjacentAnyRunsError: If an outline places two ``any`` runs side by side.
+        InvalidFrontmatterSchemaError: If a frontmatter schema is rejected by the meta-schema.
+        FrontmatterSchemaIdError: If a schema in a frontmatter schema carries ``$id``.
+        ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
+        UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
         DirResolveError: If a skills directory cannot be resolved.
         SkillsDirListError: If a skills directory cannot be listed.
         SkillEntryResolveError: If a symlinked skill entry cannot be resolved.
@@ -130,7 +161,13 @@ def _group_spec_files(spec_paths: list[RootRelativePath]) -> dict[CorpusName, _C
     for path in spec_paths:
         try:
             spec_file = parse_spec_file(path)
-        except SpecFilenameError:
+        except (
+            NotASpecFileError,
+            UnknownSpecAspectError,
+            NotASpecStemError,
+            DottedSpecStemError,
+            InvalidSpecStemError,
+        ):
             continue
 
         group = groups.setdefault(spec_file.corpus, _CorpusFiles())
@@ -148,8 +185,19 @@ def _load_corpus(
 
     Raises:
         StructureSchemaReadError: If a structure specification cannot be read.
-        InvalidStructureSchemaError: If a structure specification is not JSON in the dialect, or states no usable
-            rules, its frontmatter schema included.
+        StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
+        StructureSpecFilenameError: If a structure specification is not at a specification filename.
+        EmptyStructureSpecError: If a structure specification states no rule.
+        InvalidTitleCountError: If a title count is below 1.
+        InvalidTokenBudgetError: If a token budget is below 1.
+        InvalidWordCapError: If an outline word cap is below 1.
+        RepeatedOutlineSectionError: If an outline names a section twice.
+        ForbiddenOutlineSectionError: If a specification forbids a section its outline names.
+        AdjacentAnyRunsError: If an outline places two ``any`` runs side by side.
+        InvalidFrontmatterSchemaError: If a frontmatter schema is rejected by the meta-schema.
+        FrontmatterSchemaIdError: If a schema in a frontmatter schema carries ``$id``.
+        ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
+        UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
     """
     spec = _load_spec(schemas, (corpus_name,), files.spec)
 
@@ -172,8 +220,19 @@ def _load_spec(schemas: SchemaRepository, name: SchemaName, spec_files: list[Spe
 
     Raises:
         StructureSchemaReadError: If the structure specification cannot be read.
-        InvalidStructureSchemaError: If the structure specification is not JSON in the dialect, or states no usable
-            rules, its frontmatter schema included.
+        StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
+        StructureSpecFilenameError: If a structure specification is not at a specification filename.
+        EmptyStructureSpecError: If a structure specification states no rule.
+        InvalidTitleCountError: If a title count is below 1.
+        InvalidTokenBudgetError: If a token budget is below 1.
+        InvalidWordCapError: If an outline word cap is below 1.
+        RepeatedOutlineSectionError: If an outline names a section twice.
+        ForbiddenOutlineSectionError: If a specification forbids a section its outline names.
+        AdjacentAnyRunsError: If an outline places two ``any`` runs side by side.
+        InvalidFrontmatterSchemaError: If a frontmatter schema is rejected by the meta-schema.
+        FrontmatterSchemaIdError: If a schema in a frontmatter schema carries ``$id``.
+        ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
+        UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
     """
     structure: StructureAspect | None = None
     for spec_file in spec_files:

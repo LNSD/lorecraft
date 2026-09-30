@@ -9,13 +9,25 @@ import pytest
 from lorecraft.core.path import RootRelativePath
 
 from ..structure import (
+    AdjacentAnyRunsError,
     AnySections,
+    EmptyStructureSpecError,
+    ForbiddenOutlineSectionError,
+    ForeignFrontmatterDialectError,
     FrontmatterSchema,
-    InvalidStructureSchemaError,
+    FrontmatterSchemaIdError,
+    InvalidFrontmatterSchemaError,
+    InvalidTitleCountError,
+    InvalidTokenBudgetError,
+    InvalidWordCapError,
+    RepeatedOutlineSectionError,
     SectionEntry,
     StructureAspect,
     StructureSchema,
+    StructureSpecDecodeError,
+    StructureSpecFilenameError,
     TitleRule,
+    UntypedFrontmatterSchemaError,
 )
 
 SPEC_PATH: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
@@ -75,47 +87,47 @@ class TestStructureAspectParse:
             'a frontmatter schema is a rule, so a file stating only it is usable'
         )
 
-    def test_parse_with_a_malformed_frontmatter_schema_raises_invalid_structure_schema_error(self) -> None:
+    def test_parse_with_a_malformed_frontmatter_schema_raises_invalid_frontmatter_schema_error(self) -> None:
         #: Given
         schema = StructureSchema('{"frontmatter": {"type": "object", "minProperties": -1}}')
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(InvalidFrontmatterSchemaError) as exc_info:
             StructureAspect.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the error names the structure specification the schema is in'
 
-    def test_parse_with_a_frontmatter_schema_without_an_object_type_raises_invalid_structure_schema_error(
+    def test_parse_with_a_frontmatter_schema_without_an_object_type_raises_untyped_frontmatter_schema_error(
         self,
     ) -> None:
         #: Given
         schema = StructureSchema('{"frontmatter": {"required": ["name"]}}')
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(UntypedFrontmatterSchemaError) as exc_info:
             StructureAspect.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the object type is stated, not implied'
 
-    def test_parse_with_a_frontmatter_value_that_is_not_an_object_raises_invalid_structure_schema_error(self) -> None:
+    def test_parse_with_a_frontmatter_value_that_is_not_an_object_raises_structure_spec_decode_error(self) -> None:
         #: Given
         schema = StructureSchema('{"frontmatter": true}')
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
             StructureAspect.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a boolean schema is refused by the shape'
 
-    def test_parse_with_a_null_frontmatter_raises_invalid_structure_schema_error(self) -> None:
+    def test_parse_with_a_null_frontmatter_raises_structure_spec_decode_error(self) -> None:
         #: Given
         schema = StructureSchema('{"tokens": 100, "frontmatter": null}')
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
             StructureAspect.parse(SPEC_PATH, schema)
 
         #: Then
@@ -123,18 +135,18 @@ class TestStructureAspectParse:
             'the editor refuses null too; no rule is written by leaving the key out'
         )
 
-    def test_parse_with_a_frontmatter_schema_carrying_an_id_raises_invalid_structure_schema_error(self) -> None:
+    def test_parse_with_a_frontmatter_schema_carrying_an_id_raises_frontmatter_schema_id_error(self) -> None:
         #: Given
         schema = StructureSchema('{"frontmatter": {"$id": "https://example.com/code", "type": "object"}}')
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(FrontmatterSchemaIdError) as exc_info:
             StructureAspect.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the editor lets an $id through, the load refuses it naming the file'
 
-    def test_parse_with_a_frontmatter_schema_in_a_foreign_dialect_raises_invalid_structure_schema_error(
+    def test_parse_with_a_frontmatter_schema_in_a_foreign_dialect_raises_foreign_frontmatter_dialect_error(
         self,
     ) -> None:
         #: Given
@@ -143,7 +155,7 @@ class TestStructureAspectParse:
         )
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(ForeignFrontmatterDialectError) as exc_info:
             StructureAspect.parse(SPEC_PATH, schema)
 
         #: Then
@@ -159,79 +171,79 @@ class TestStructureAspectParse:
         #: Then
         assert aspect.tokens == 4000, 'a token budget is a rule, so a file stating only it is usable'
 
-    def test_parse_with_a_token_budget_of_zero_raises_invalid_structure_schema_error(self) -> None:
+    def test_parse_with_a_token_budget_of_zero_raises_structure_spec_decode_error(self) -> None:
         #: Given
         schema = StructureSchema('{"tokens": 0}')
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
             StructureAspect.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'no document satisfies a budget of 0 tokens'
 
-    def test_parse_with_a_document_word_cap_raises_invalid_structure_schema_error(self) -> None:
+    def test_parse_with_a_document_word_cap_raises_structure_spec_decode_error(self) -> None:
         #: Given
         # words are capped per section only; the document as a whole has a token budget instead
         schema = StructureSchema('{"words": 1800}')
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
             StructureAspect.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a top-level `words` is not a field, so it is refused, not ignored'
 
-    def test_parse_with_a_section_word_cap_of_zero_raises_invalid_structure_schema_error(self) -> None:
+    def test_parse_with_a_section_word_cap_of_zero_raises_structure_spec_decode_error(self) -> None:
         #: Given
         schema = StructureSchema('{"outline": [{"section": "Checklist", "words": 0}]}')
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
             StructureAspect.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'no section satisfies a cap of 0 words'
 
-    def test_parse_with_an_any_word_cap_of_zero_raises_invalid_structure_schema_error(self) -> None:
+    def test_parse_with_an_any_word_cap_of_zero_raises_structure_spec_decode_error(self) -> None:
         #: Given
         schema = StructureSchema('{"outline": [{"any": true, "words": 0}]}')
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
             StructureAspect.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'no section in a run satisfies a cap of 0 words'
 
-    def test_parse_with_a_string_word_cap_raises_invalid_structure_schema_error(self) -> None:
+    def test_parse_with_a_string_word_cap_raises_structure_spec_decode_error(self) -> None:
         #: Given
         schema = StructureSchema('{"outline": [{"section": "Checklist", "words": "250"}]}')
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
             StructureAspect.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the file is read strictly, so a string is not a word cap'
 
-    def test_parse_with_a_fractional_token_budget_raises_invalid_structure_schema_error(self) -> None:
+    def test_parse_with_a_fractional_token_budget_raises_structure_spec_decode_error(self) -> None:
         #: Given
         schema = StructureSchema('{"tokens": 5000.5}')
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
             StructureAspect.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a token budget is a whole number of tokens'
 
-    def test_parse_with_a_boolean_section_word_cap_raises_invalid_structure_schema_error(self) -> None:
+    def test_parse_with_a_boolean_section_word_cap_raises_structure_spec_decode_error(self) -> None:
         #: Given
         schema = StructureSchema('{"outline": [{"section": "Checklist", "words": true}]}')
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
             StructureAspect.parse(SPEC_PATH, schema)
 
         #: Then
@@ -264,7 +276,7 @@ class TestStructureAspectParse:
             frontmatter=None,
         ), 'the `$schema` reference is for editors and changes no rule'
 
-    def test_parse_with_a_schema_reference_that_is_not_a_string_raises_invalid_structure_schema_error(self) -> None:
+    def test_parse_with_a_schema_reference_that_is_not_a_string_raises_structure_spec_decode_error(self) -> None:
         #: Given
         schema = StructureSchema(
             dedent(
@@ -278,13 +290,13 @@ class TestStructureAspectParse:
         )
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
             StructureAspect.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the error names the rejected file'
 
-    def test_parse_with_text_that_is_not_json_raises_invalid_structure_schema_error(self) -> None:
+    def test_parse_with_text_that_is_not_json_raises_structure_spec_decode_error(self) -> None:
         #: Given
         schema = StructureSchema(
             dedent(
@@ -295,13 +307,13 @@ class TestStructureAspectParse:
         )
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
             StructureAspect.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'text that is not JSON is refused at the edge, naming the file'
 
-    def test_parse_with_a_title_count_below_one_raises_invalid_structure_schema_error(self) -> None:
+    def test_parse_with_a_title_count_below_one_raises_structure_spec_decode_error(self) -> None:
         #: Given
         schema = StructureSchema(
             dedent(
@@ -314,13 +326,13 @@ class TestStructureAspectParse:
         )
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
             StructureAspect.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'no document satisfies a count of 0'
 
-    def test_parse_with_a_string_for_a_boolean_raises_invalid_structure_schema_error(self) -> None:
+    def test_parse_with_a_string_for_a_boolean_raises_structure_spec_decode_error(self) -> None:
         #: Given
         schema = StructureSchema(
             dedent(
@@ -333,13 +345,13 @@ class TestStructureAspectParse:
         )
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
             StructureAspect.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the file is read strictly, so no value is coerced into another type'
 
-    def test_parse_with_an_unknown_field_raises_invalid_structure_schema_error(self) -> None:
+    def test_parse_with_an_unknown_field_raises_structure_spec_decode_error(self) -> None:
         #: Given
         schema = StructureSchema(
             dedent(
@@ -353,24 +365,24 @@ class TestStructureAspectParse:
         )
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
             StructureAspect.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the error names the rejected file'
 
-    def test_parse_with_a_spec_field_raises_invalid_structure_schema_error(self) -> None:
+    def test_parse_with_a_spec_field_raises_structure_spec_decode_error(self) -> None:
         #: Given
         schema = StructureSchema('{"spec": "code.md", "forbidden": ["Changelog"]}')
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
             StructureAspect.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the prose is named by the filename, so `spec` is not a field'
 
-    def test_parse_with_an_empty_sections_value_other_than_forbidden_raises_invalid_structure_schema_error(
+    def test_parse_with_an_empty_sections_value_other_than_forbidden_raises_structure_spec_decode_error(
         self,
     ) -> None:
         #: Given
@@ -385,13 +397,13 @@ class TestStructureAspectParse:
         )
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
             StructureAspect.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, '"forbidden" is the only value `empty_sections` takes'
 
-    def test_parse_with_a_boolean_title_count_raises_invalid_structure_schema_error(self) -> None:
+    def test_parse_with_a_boolean_title_count_raises_structure_spec_decode_error(self) -> None:
         #: Given
         schema = StructureSchema(
             dedent(
@@ -404,13 +416,13 @@ class TestStructureAspectParse:
         )
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
             StructureAspect.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a JSON boolean is not a count, though Python treats it as one'
 
-    def test_parse_with_an_outline_entry_of_neither_shape_raises_invalid_structure_schema_error(self) -> None:
+    def test_parse_with_an_outline_entry_of_neither_shape_raises_structure_spec_decode_error(self) -> None:
         #: Given
         schema = StructureSchema(
             dedent(
@@ -423,13 +435,13 @@ class TestStructureAspectParse:
         )
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
             StructureAspect.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'an outline entry is a section or an `any` run, nothing else'
 
-    def test_parse_with_a_forbidden_entry_that_is_not_a_string_raises_invalid_structure_schema_error(self) -> None:
+    def test_parse_with_a_forbidden_entry_that_is_not_a_string_raises_structure_spec_decode_error(self) -> None:
         #: Given
         schema = StructureSchema(
             dedent(
@@ -442,7 +454,7 @@ class TestStructureAspectParse:
         )
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
             StructureAspect.parse(SPEC_PATH, schema)
 
         #: Then
@@ -451,12 +463,12 @@ class TestStructureAspectParse:
 
 @pytest.mark.unit
 class TestStructureAspectConstruction:
-    def test_construction_without_any_rule_raises_invalid_structure_schema_error(self) -> None:
+    def test_construction_without_any_rule_raises_empty_structure_spec_error(self) -> None:
         #: Given
         path = SPEC_PATH
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(EmptyStructureSpecError) as exc_info:
             StructureAspect(
                 path=path,
                 title=None,
@@ -470,12 +482,12 @@ class TestStructureAspectConstruction:
         #: Then
         assert exc_info.value.path == path, 'a specification stating no rule would check nothing'
 
-    def test_construction_with_a_title_count_of_zero_raises_invalid_structure_schema_error(self) -> None:
+    def test_construction_with_a_title_count_of_zero_raises_invalid_title_count_error(self) -> None:
         #: Given
         title = TitleRule(count=0, first=False)
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(InvalidTitleCountError) as exc_info:
             StructureAspect(
                 path=SPEC_PATH,
                 title=title,
@@ -489,7 +501,7 @@ class TestStructureAspectConstruction:
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a title rule asks for at least one title'
 
-    def test_construction_with_a_section_named_twice_raises_invalid_structure_schema_error(self) -> None:
+    def test_construction_with_a_section_named_twice_raises_repeated_outline_section_error(self) -> None:
         #: Given
         outline = (
             SectionEntry(name='Checklist'),
@@ -497,7 +509,7 @@ class TestStructureAspectConstruction:
         )
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(RepeatedOutlineSectionError) as exc_info:
             StructureAspect(
                 path=SPEC_PATH,
                 title=None,
@@ -511,12 +523,12 @@ class TestStructureAspectConstruction:
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a name fixes one position, so it cannot be given two'
 
-    def test_construction_forbidding_a_section_its_outline_names_raises_invalid_structure_schema_error(self) -> None:
+    def test_construction_forbidding_a_section_its_outline_names_raises_forbidden_outline_section_error(self) -> None:
         #: Given
         outline = (SectionEntry(name='Checklist', optional=True),)
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(ForbiddenOutlineSectionError) as exc_info:
             StructureAspect(
                 path=SPEC_PATH,
                 title=None,
@@ -530,7 +542,7 @@ class TestStructureAspectConstruction:
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a section cannot be both placed and forbidden'
 
-    def test_construction_with_two_adjacent_any_runs_raises_invalid_structure_schema_error(self) -> None:
+    def test_construction_with_two_adjacent_any_runs_raises_adjacent_any_runs_error(self) -> None:
         #: Given
         outline = (
             AnySections(),
@@ -539,7 +551,7 @@ class TestStructureAspectConstruction:
         )
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(AdjacentAnyRunsError) as exc_info:
             StructureAspect(
                 path=SPEC_PATH,
                 title=None,
@@ -553,12 +565,12 @@ class TestStructureAspectConstruction:
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'two runs side by side match as one, so the outline misleads'
 
-    def test_construction_with_a_token_budget_of_zero_raises_invalid_structure_schema_error(self) -> None:
+    def test_construction_with_a_token_budget_of_zero_raises_invalid_token_budget_error(self) -> None:
         #: Given
         tokens = 0
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(InvalidTokenBudgetError) as exc_info:
             StructureAspect(
                 path=SPEC_PATH,
                 title=None,
@@ -572,12 +584,12 @@ class TestStructureAspectConstruction:
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a budget of 0 tokens is one no document can meet'
 
-    def test_construction_with_a_section_word_cap_of_zero_raises_invalid_structure_schema_error(self) -> None:
+    def test_construction_with_a_section_word_cap_of_zero_raises_invalid_word_cap_error(self) -> None:
         #: Given
         outline = (SectionEntry(name='Checklist', words=0),)
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(InvalidWordCapError) as exc_info:
             StructureAspect(
                 path=SPEC_PATH,
                 title=None,
@@ -591,12 +603,12 @@ class TestStructureAspectConstruction:
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a section cap of 0 words is one no section with prose can meet'
 
-    def test_construction_with_a_negative_any_word_cap_raises_invalid_structure_schema_error(self) -> None:
+    def test_construction_with_a_negative_any_word_cap_raises_invalid_word_cap_error(self) -> None:
         #: Given
         outline = (AnySections(words=-1),)
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(InvalidWordCapError) as exc_info:
             StructureAspect(
                 path=SPEC_PATH,
                 title=None,
@@ -631,12 +643,12 @@ class TestStructureAspectAuthority:
         #: Then
         assert aspect.authority == 'code-python.md', 'the prose is the `.md` file at the same stem'
 
-    def test_construction_at_a_path_that_is_not_a_spec_filename_raises_invalid_structure_schema_error(self) -> None:
+    def test_construction_at_a_path_that_is_not_a_spec_filename_raises_structure_spec_filename_error(self) -> None:
         #: Given
         path = RootRelativePath.parse('docs/__meta__/notes.txt')
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(StructureSpecFilenameError) as exc_info:
             StructureAspect(
                 path=path,
                 title=None,
@@ -697,84 +709,84 @@ class TestFrontmatterSchema:
         #: Then
         assert frontmatter.schema == schema, 'a value under enum is data, not a schema, so its $id is no resource'
 
-    def test_construction_with_a_malformed_schema_raises_invalid_structure_schema_error(self) -> None:
+    def test_construction_with_a_malformed_schema_raises_invalid_frontmatter_schema_error(self) -> None:
         #: Given
         schema: dict[str, object] = {'type': 'object', 'required': 'name'}
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(InvalidFrontmatterSchemaError) as exc_info:
             FrontmatterSchema(path=SPEC_PATH, schema=schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a malformed schema is refused, naming the structure specification'
 
-    def test_construction_without_a_type_raises_invalid_structure_schema_error(self) -> None:
+    def test_construction_without_a_type_raises_untyped_frontmatter_schema_error(self) -> None:
         #: Given
         schema: dict[str, object] = {'required': ['name']}
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(UntypedFrontmatterSchemaError) as exc_info:
             FrontmatterSchema(path=SPEC_PATH, schema=schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'an implied object type is refused'
 
-    def test_construction_with_a_non_object_type_raises_invalid_structure_schema_error(self) -> None:
+    def test_construction_with_a_non_object_type_raises_untyped_frontmatter_schema_error(self) -> None:
         #: Given
         schema: dict[str, object] = {'type': 'array'}
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(UntypedFrontmatterSchemaError) as exc_info:
             FrontmatterSchema(path=SPEC_PATH, schema=schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a frontmatter is always a mapping'
 
-    def test_construction_with_a_type_list_raises_invalid_structure_schema_error(self) -> None:
+    def test_construction_with_a_type_list_raises_untyped_frontmatter_schema_error(self) -> None:
         #: Given
         schema: dict[str, object] = {'type': ['object', 'null']}
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(UntypedFrontmatterSchemaError) as exc_info:
             FrontmatterSchema(path=SPEC_PATH, schema=schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the type is exactly "object"'
 
-    def test_construction_with_an_id_raises_invalid_structure_schema_error(self) -> None:
+    def test_construction_with_an_id_raises_frontmatter_schema_id_error(self) -> None:
         #: Given
         schema: dict[str, object] = {'$id': 'https://example.com/code', 'type': 'object'}
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(FrontmatterSchemaIdError) as exc_info:
             FrontmatterSchema(path=SPEC_PATH, schema=schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'an $id would change how relative $refs resolve'
 
-    def test_construction_with_an_id_in_a_nested_schema_raises_invalid_structure_schema_error(self) -> None:
+    def test_construction_with_an_id_in_a_nested_schema_raises_frontmatter_schema_id_error(self) -> None:
         #: Given
         schema: dict[str, object] = {'type': 'object', 'properties': {'name': {'$id': 'https://example.com/name'}}}
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(FrontmatterSchemaIdError) as exc_info:
             FrontmatterSchema(path=SPEC_PATH, schema=schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'an $id at any depth makes a resource of its own'
 
-    def test_construction_with_a_foreign_dialect_raises_invalid_structure_schema_error(self) -> None:
+    def test_construction_with_a_foreign_dialect_raises_foreign_frontmatter_dialect_error(self) -> None:
         #: Given
         schema: dict[str, object] = {'$schema': 'http://json-schema.org/draft-07/schema#', 'type': 'object'}
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(ForeignFrontmatterDialectError) as exc_info:
             FrontmatterSchema(path=SPEC_PATH, schema=schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a schema written for another dialect is refused'
 
-    def test_construction_with_a_foreign_dialect_in_a_nested_schema_raises_invalid_structure_schema_error(
+    def test_construction_with_a_foreign_dialect_in_a_nested_schema_raises_foreign_frontmatter_dialect_error(
         self,
     ) -> None:
         #: Given
@@ -784,7 +796,7 @@ class TestFrontmatterSchema:
         }
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(ForeignFrontmatterDialectError) as exc_info:
             FrontmatterSchema(path=SPEC_PATH, schema=schema)
 
         #: Then
