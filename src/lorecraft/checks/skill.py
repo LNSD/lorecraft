@@ -8,7 +8,7 @@ in, and returns violations. Reading the ``SKILL.md`` and deciding what a decode 
 """
 
 from dataclasses import dataclass
-from typing import Final
+from typing import Final, assert_never
 
 from pydantic import ValidationError
 
@@ -56,12 +56,19 @@ def validate_skill(frontmatter: FrontmatterNode, *, directory_name: str) -> Skil
         frontmatter: The frontmatter node of the skill's ``SKILL.md``.
         directory_name: The name of the directory the skill sits in, which the frontmatter ``name`` must equal.
     """
-    if isinstance(frontmatter, MissingFrontmatter):
-        return _one_violation('skill.frontmatter-missing', 'no `---` delimited frontmatter block')
-    if isinstance(frontmatter, InvalidYamlFrontmatter):
-        return _one_violation('skill.frontmatter-unparseable', f'frontmatter is not valid YAML: {frontmatter.problem}')
-    if isinstance(frontmatter, NonMappingFrontmatter):
-        return _one_violation('skill.frontmatter-unparseable', 'frontmatter is not a YAML mapping')
+    match frontmatter:
+        case MissingFrontmatter():
+            return _one_violation('skill.frontmatter-missing', 'no `---` delimited frontmatter block', _FIRST_LINE)
+        case InvalidYamlFrontmatter(problem=problem, line=line):
+            return _one_violation(
+                'skill.frontmatter-unparseable', f'frontmatter is not valid YAML: {problem}', line or _FIRST_LINE
+            )
+        case NonMappingFrontmatter():
+            return _one_violation('skill.frontmatter-unparseable', 'frontmatter is not a YAML mapping', _FIRST_LINE)
+        case Frontmatter():
+            pass  # the mapping is checked below
+        case _:
+            assert_never(frontmatter)
 
     violations: list[Violation] = []
     try:
@@ -111,9 +118,9 @@ def _specification_violations(frontmatter: Frontmatter, error: ValidationError) 
     return violations
 
 
-def _one_violation(rule: str, message: str) -> SkillCheckResult:
-    """The result of a skill whose frontmatter is unusable: one violation on its first line."""
-    return SkillCheckResult(violations=(Violation(line=_FIRST_LINE, rule=rule, message=message),))
+def _one_violation(rule: str, message: str, line: LineNumber) -> SkillCheckResult:
+    """The result of a skill whose frontmatter is unusable: one violation, on the line it is found at."""
+    return SkillCheckResult(violations=(Violation(line=line, rule=rule, message=message),))
 
 
 def _key_line(frontmatter: Frontmatter, key: str) -> LineNumber:

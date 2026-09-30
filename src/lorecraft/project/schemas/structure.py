@@ -55,7 +55,7 @@ Nothing here logs: the command that loads the model catches every ``Error`` that
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 from itertools import pairwise
-from typing import NewType, Self
+from typing import NewType, Self, assert_never
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
@@ -74,7 +74,13 @@ from .spec_file import (
     parse_spec_file,
     prose_filename,
 )
-from .structure_file import JSON_SCHEMA_DIALECT, StructureFile, StructureFileAny, StructureFileTitle
+from .structure_file import (
+    JSON_SCHEMA_DIALECT,
+    StructureFile,
+    StructureFileAny,
+    StructureFileSection,
+    StructureFileTitle,
+)
 
 # The text of a structure specification file as read, not yet known to be JSON, the dialect's shape or usable
 # rules. A NewType only keeps it apart from other text; `StructureAspect.parse` is what proves it.
@@ -540,8 +546,13 @@ class StructureAspect:
         """The names of the outline's section entries, in outline order."""
         names: list[str] = []
         for entry in self.outline:
-            if isinstance(entry, SectionEntry):
-                names.append(entry.name)
+            match entry:
+                case SectionEntry():
+                    names.append(entry.name)
+                case AnySections():
+                    pass  # a run names no section
+                case _:
+                    assert_never(entry)
         return names
 
     @classmethod
@@ -574,10 +585,13 @@ class StructureAspect:
 
         outline: list[OutlineEntry] = []
         for entry in file.outline:
-            if isinstance(entry, StructureFileAny):
-                outline.append(AnySections(words=entry.words))
-            else:
-                outline.append(SectionEntry(name=entry.section, optional=entry.optional, words=entry.words))
+            match entry:
+                case StructureFileAny():
+                    outline.append(AnySections(words=entry.words))
+                case StructureFileSection():
+                    outline.append(SectionEntry(name=entry.section, optional=entry.optional, words=entry.words))
+                case _:
+                    assert_never(entry)
 
         return cls(
             path=path,
@@ -615,9 +629,13 @@ def _frontmatter_schema(path: RootRelativePath, schema: dict[str, JsonValue] | N
 
 def _describe_entry(entry: OutlineEntry) -> str:
     """How an outline entry is named in a rejection: its section name, or ``any`` for a run."""
-    if isinstance(entry, SectionEntry):
-        return f'section {entry.name!r}'
-    return 'an `any` run'
+    match entry:
+        case SectionEntry():
+            return f'section {entry.name!r}'
+        case AnySections():
+            return 'an `any` run'
+        case _:
+            assert_never(entry)
 
 
 def _problems(error: ValidationError) -> tuple[str, ...]:

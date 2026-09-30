@@ -93,6 +93,7 @@ class TestValidateFrontmatter:
             'YAML that does not parse is one unparseable violation'
         )
         assert result.violations[0].message.startswith('frontmatter is not valid YAML'), 'the message names the cause'
+        assert result.violations[0].line == LineNumber(3), 'the violation sits on the line the parser stopped at'
 
     def test_validate_frontmatter_with_non_mapping_yaml_reports_unparseable(self) -> None:
         #: Given

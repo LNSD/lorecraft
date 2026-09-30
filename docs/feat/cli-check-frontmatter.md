@@ -65,9 +65,9 @@ key is listed as `<corpus>.ungoverned` with the reason
 
 ## Findings
 
-A finding is reported on the line of the key it concerns, or on line 1 when the key is absent or the whole
-block is at fault. A document whose frontmatter is missing, unparseable or undecodable reports that one
-finding and nothing else.
+A finding is reported on the line of the key it concerns, on the line the YAML parser stopped at when the block
+does not parse, or on line 1 when the key is absent or the whole block is at fault. A document whose frontmatter
+is missing, unparseable or undecodable reports that one finding and nothing else.
 
 | Rule | Reported when |
 |------|---------------|
