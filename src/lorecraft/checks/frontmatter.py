@@ -65,7 +65,7 @@ def validate_frontmatter(
     if isinstance(frontmatter, MissingFrontmatter):
         return _one_violation('frontmatter.missing', 'no `---` delimited frontmatter block')
     if isinstance(frontmatter, InvalidYamlFrontmatter):
-        return _one_violation('frontmatter.unparseable', f'frontmatter is not valid YAML: {frontmatter.detail}')
+        return _one_violation('frontmatter.unparseable', f'frontmatter is not valid YAML: {frontmatter.problem}')
     if isinstance(frontmatter, NonMappingFrontmatter):
         return _one_violation('frontmatter.unparseable', 'frontmatter is not a YAML mapping')
 

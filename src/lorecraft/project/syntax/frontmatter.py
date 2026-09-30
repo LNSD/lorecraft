@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Final
 
 import yaml
+from yaml.reader import ReaderError
 
 from .position import LineNumber
 
@@ -64,11 +65,16 @@ class MissingFrontmatter:
 class InvalidYamlFrontmatter:
     """The block is there but is not valid YAML.
 
+    A value, compared by value, so it holds the parser's facts rather than the parser's exception, which compares
+    by identity.
+
     Attributes:
-        detail: The first line of the YAML parser's own description of the error.
+        problem: What the YAML parser found wrong, in its own words, such as ``mapping values are not allowed here``.
+        line: The document line the problem is on, or None when the parser does not say.
     """
 
-    detail: str
+    problem: str
+    line: LineNumber | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,18 +96,34 @@ def decode_frontmatter(block: str) -> FrontmatterNode:
     """
     # `yaml.safe_load` composes a node tree and then constructs the value from it. The two steps run here
     # apart, on one loader, because the node tree is what records the line each key is written on.
-    loader = yaml.SafeLoader(block)
+    try:
+        # The loader checks every character as it is built, so a control character fails here, not in the parse.
+        loader = yaml.SafeLoader(block)
+    except ReaderError as exc:
+        line = LineNumber(block.count('\n', 0, exc.position) + _FIRST_BLOCK_LINE)
+        return InvalidYamlFrontmatter(problem=exc.reason, line=line)
     try:
         node = loader.get_single_node()
         data: object = None if node is None else loader.construct_document(node)
-    except yaml.YAMLError as exc:
-        return InvalidYamlFrontmatter(detail=str(exc).splitlines()[0])
+    except yaml.MarkedYAMLError as exc:
+        return _invalid_yaml(exc)
     finally:
         loader.dispose()
 
     if not isinstance(node, yaml.MappingNode) or not isinstance(data, dict):
         return NonMappingFrontmatter()
     return Frontmatter(data=data, keys=_keys(node))
+
+
+def _invalid_yaml(error: yaml.MarkedYAMLError) -> InvalidYamlFrontmatter:
+    """The parser's facts about a block that does not parse: its problem, and the line it marked."""
+    # The parser names the problem, or, for a few errors, only the construct it was reading when it stopped.
+    problem = error.problem or error.context or 'the block is not valid YAML'
+    mark = error.problem_mark or error.context_mark
+    if mark is None:
+        return InvalidYamlFrontmatter(problem=problem, line=None)
+    # The mark counts lines from 0 within the block; the block starts on document line 2.
+    return InvalidYamlFrontmatter(problem=problem, line=LineNumber(mark.line + _FIRST_BLOCK_LINE))
 
 
 def _keys(mapping: yaml.MappingNode) -> tuple[FrontmatterKey, ...]:

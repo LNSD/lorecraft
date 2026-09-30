@@ -68,41 +68,58 @@ _SKILL_NAME_RULES: Final[TypeAdapter[str]] = TypeAdapter(
 """A skill name's rules, declared once: ``SkillName`` checks them and renders its JSON Schema from them."""
 
 
-class SkillNameError(Error):
-    """A skill name does not satisfy the specification.
+class EmptySkillNameError(Error):
+    """A skill name is empty.
+
+    Attributes:
+        source: The rule the name broke, as pydantic reported it.
+    """
+
+    source: ValidationError
+
+    def __init__(self, *, source: ValidationError) -> None:
+        self.source = source
+        super().__init__('skill name cannot be empty')
+        self.__cause__ = source
+
+
+class OverlongSkillNameError(Error):
+    """A skill name has more characters than the specification allows.
 
     Attributes:
         name: The rejected name, exactly as supplied.
+        source: The rule the name broke, as pydantic reported it.
     """
 
     name: str
+    source: ValidationError
 
-
-class EmptySkillNameError(SkillNameError):
-    """A skill name is empty."""
-
-    def __init__(self) -> None:
-        self.name = ''
-        super().__init__('skill name cannot be empty')
-
-
-class SkillNameTooLongError(SkillNameError):
-    """A skill name has more characters than the specification allows."""
-
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, *, source: ValidationError) -> None:
         self.name = name
+        self.source = source
         super().__init__(f'skill name {name!r} is {len(name)} characters; the limit is {SKILL_NAME_MAX_LENGTH}')
+        self.__cause__ = source
 
 
-class InvalidSkillNameFormatError(SkillNameError):
-    """A skill name has a character outside lowercase letters, digits and hyphens, or a misplaced hyphen."""
+class InvalidSkillNameFormatError(Error):
+    """A skill name has a character outside lowercase letters, digits and hyphens, or a misplaced hyphen.
 
-    def __init__(self, name: str) -> None:
+    Attributes:
+        name: The rejected name, exactly as supplied.
+        source: The rule the name broke, as pydantic reported it.
+    """
+
+    name: str
+    source: ValidationError
+
+    def __init__(self, name: str, *, source: ValidationError) -> None:
         self.name = name
+        self.source = source
         super().__init__(
             f'skill name {name!r} must be lowercase letters, digits and single hyphens, '
             'neither starting nor ending with a hyphen'
         )
+        self.__cause__ = source
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,7 +141,9 @@ class SkillName:
         """Return a validated skill name.
 
         Raises:
-            SkillNameError: If the name does not satisfy the specification.
+            EmptySkillNameError: If the name is empty.
+            OverlongSkillNameError: If the name has more characters than the specification allows.
+            InvalidSkillNameFormatError: If the name is not lowercase letters, digits and single hyphens.
         """
         return cls(raw)
 
@@ -132,7 +151,9 @@ class SkillName:
         """Keep direct construction from bypassing the name invariant.
 
         Raises:
-            SkillNameError: If the name does not satisfy the specification.
+            EmptySkillNameError: If the name is empty.
+            OverlongSkillNameError: If the name has more characters than the specification allows.
+            InvalidSkillNameFormatError: If the name is not lowercase letters, digits and single hyphens.
         """
         try:
             _SKILL_NAME_RULES.validate_python(self.value)
@@ -140,11 +161,11 @@ class SkillName:
             # pydantic stops at the first rule broken and reports it by its error type.
             match exc.errors()[0]['type']:
                 case 'string_too_short':
-                    raise EmptySkillNameError() from exc
+                    raise EmptySkillNameError(source=exc) from exc
                 case 'string_too_long':
-                    raise SkillNameTooLongError(self.value) from exc
+                    raise OverlongSkillNameError(self.value, source=exc) from exc
                 case _:
-                    raise InvalidSkillNameFormatError(self.value) from exc
+                    raise InvalidSkillNameFormatError(self.value, source=exc) from exc
 
     def __str__(self) -> str:
         return self.value
@@ -167,7 +188,7 @@ class SkillName:
             raise PydanticCustomError('string_type', 'Input should be a valid string')
         try:
             return cls.parse(value)
-        except SkillNameError as exc:
+        except (EmptySkillNameError, OverlongSkillNameError, InvalidSkillNameFormatError) as exc:
             raise PydanticCustomError('skill_name', '{reason}', {'reason': str(exc)}) from exc
 
     @classmethod
@@ -189,24 +210,39 @@ _SKILL_DESCRIPTION_RULES: Final[TypeAdapter[str]] = TypeAdapter(
 them."""
 
 
-class SkillDescriptionError(Error):
-    """A skill description does not satisfy the specification."""
+class EmptySkillDescriptionError(Error):
+    """A skill description is empty, or holds nothing but whitespace.
 
+    Attributes:
+        source: The rule the description broke, as pydantic reported it.
+    """
 
-class EmptySkillDescriptionError(SkillDescriptionError):
-    """A skill description is empty, or holds nothing but whitespace."""
+    source: ValidationError
 
-    def __init__(self) -> None:
+    def __init__(self, *, source: ValidationError) -> None:
+        self.source = source
         super().__init__('skill description cannot be empty')
+        self.__cause__ = source
 
 
-class SkillDescriptionTooLongError(SkillDescriptionError):
-    """A skill description has more characters than the specification allows."""
+class OverlongSkillDescriptionError(Error):
+    """A skill description has more characters than the specification allows.
 
-    def __init__(self, description: str) -> None:
+    Attributes:
+        description: The rejected description, exactly as supplied.
+        source: The rule the description broke, as pydantic reported it.
+    """
+
+    description: str
+    source: ValidationError
+
+    def __init__(self, description: str, *, source: ValidationError) -> None:
+        self.description = description
+        self.source = source
         super().__init__(
             f'skill description is {len(description)} characters; the limit is {SKILL_DESCRIPTION_MAX_LENGTH}'
         )
+        self.__cause__ = source
 
 
 @dataclass(frozen=True, slots=True)
@@ -226,7 +262,8 @@ class SkillDescription:
         """Return a validated skill description.
 
         Raises:
-            SkillDescriptionError: If the description does not satisfy the specification.
+            EmptySkillDescriptionError: If the description is empty or only whitespace.
+            OverlongSkillDescriptionError: If the description has more characters than the specification allows.
         """
         return cls(raw)
 
@@ -234,7 +271,8 @@ class SkillDescription:
         """Keep direct construction from bypassing the description invariant.
 
         Raises:
-            SkillDescriptionError: If the description does not satisfy the specification.
+            EmptySkillDescriptionError: If the description is empty or only whitespace.
+            OverlongSkillDescriptionError: If the description has more characters than the specification allows.
         """
         try:
             _SKILL_DESCRIPTION_RULES.validate_python(self.value)
@@ -243,9 +281,9 @@ class SkillDescription:
             # non-whitespace character are both a blank description.
             match exc.errors()[0]['type']:
                 case 'string_too_long':
-                    raise SkillDescriptionTooLongError(self.value) from exc
+                    raise OverlongSkillDescriptionError(self.value, source=exc) from exc
                 case _:
-                    raise EmptySkillDescriptionError() from exc
+                    raise EmptySkillDescriptionError(source=exc) from exc
 
     def __str__(self) -> str:
         return self.value
@@ -269,7 +307,7 @@ class SkillDescription:
             raise PydanticCustomError('string_type', 'Input should be a valid string')
         try:
             return cls.parse(value)
-        except SkillDescriptionError as exc:
+        except (EmptySkillDescriptionError, OverlongSkillDescriptionError) as exc:
             raise PydanticCustomError('skill_description', '{reason}', {'reason': str(exc)}) from exc
 
     @classmethod
@@ -339,24 +377,39 @@ _SKILL_COMPATIBILITY_RULES: Final[TypeAdapter[str]] = TypeAdapter(
 Schema from them."""
 
 
-class SkillCompatibilityError(Error):
-    """A skill compatibility note does not satisfy the specification."""
+class EmptySkillCompatibilityError(Error):
+    """A skill compatibility note is empty, or holds nothing but whitespace.
 
+    Attributes:
+        source: The rule the note broke, as pydantic reported it.
+    """
 
-class EmptySkillCompatibilityError(SkillCompatibilityError):
-    """A skill compatibility note is empty, or holds nothing but whitespace."""
+    source: ValidationError
 
-    def __init__(self) -> None:
+    def __init__(self, *, source: ValidationError) -> None:
+        self.source = source
         super().__init__('skill compatibility cannot be empty; leave the field out instead')
+        self.__cause__ = source
 
 
-class SkillCompatibilityTooLongError(SkillCompatibilityError):
-    """A skill compatibility note has more characters than the specification allows."""
+class OverlongSkillCompatibilityError(Error):
+    """A skill compatibility note has more characters than the specification allows.
 
-    def __init__(self, compatibility: str) -> None:
+    Attributes:
+        compatibility: The rejected note, exactly as supplied.
+        source: The rule the note broke, as pydantic reported it.
+    """
+
+    compatibility: str
+    source: ValidationError
+
+    def __init__(self, compatibility: str, *, source: ValidationError) -> None:
+        self.compatibility = compatibility
+        self.source = source
         super().__init__(
             f'skill compatibility is {len(compatibility)} characters; the limit is {SKILL_COMPATIBILITY_MAX_LENGTH}'
         )
+        self.__cause__ = source
 
 
 @dataclass(frozen=True, slots=True)
@@ -375,7 +428,8 @@ class SkillCompatibility:
         """Return a validated compatibility note.
 
         Raises:
-            SkillCompatibilityError: If the note does not satisfy the specification.
+            EmptySkillCompatibilityError: If the note is empty or only whitespace.
+            OverlongSkillCompatibilityError: If the note has more characters than the specification allows.
         """
         return cls(raw)
 
@@ -383,7 +437,8 @@ class SkillCompatibility:
         """Keep direct construction from bypassing the compatibility invariant.
 
         Raises:
-            SkillCompatibilityError: If the note does not satisfy the specification.
+            EmptySkillCompatibilityError: If the note is empty or only whitespace.
+            OverlongSkillCompatibilityError: If the note has more characters than the specification allows.
         """
         try:
             _SKILL_COMPATIBILITY_RULES.validate_python(self.value)
@@ -392,9 +447,9 @@ class SkillCompatibility:
             # non-whitespace character are both a blank note.
             match exc.errors()[0]['type']:
                 case 'string_too_long':
-                    raise SkillCompatibilityTooLongError(self.value) from exc
+                    raise OverlongSkillCompatibilityError(self.value, source=exc) from exc
                 case _:
-                    raise EmptySkillCompatibilityError() from exc
+                    raise EmptySkillCompatibilityError(source=exc) from exc
 
     def __str__(self) -> str:
         return self.value
@@ -418,7 +473,7 @@ class SkillCompatibility:
             raise PydanticCustomError('string_type', 'Input should be a valid string')
         try:
             return cls.parse(value)
-        except SkillCompatibilityError as exc:
+        except (EmptySkillCompatibilityError, OverlongSkillCompatibilityError) as exc:
             raise PydanticCustomError('skill_compatibility', '{reason}', {'reason': str(exc)}) from exc
 
     @classmethod
