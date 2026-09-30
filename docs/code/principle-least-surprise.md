@@ -267,6 +267,8 @@ Before committing code, verify:
 
 - [principle-single-responsibility](principle-single-responsibility.md) - Related: A class that cannot be named
   in one sentence cannot have a predictable API
+- [principle-symmetry](principle-symmetry.md) - Related: A name predicts behaviour only while the same idea keeps
+  the same shape everywhere it appears
 
 ## External References
 
