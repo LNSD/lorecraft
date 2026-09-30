@@ -70,7 +70,8 @@ Identify the paths that raise where nothing locally proves they cannot:
 - `assert` used to enforce a runtime invariant; `-O` removes it
 - A resource left unreleased when the failing path skips the cleanup
 
-**Note**: this overlaps with `docs/code/error-handling.md` and `docs/code/error-types.md`.
+**Note**: this overlaps with `docs/code/error-handling.md`, `docs/code/error-types.md` and
+`docs/code/error-boundaries.md`.
 Verify compliance with the project's error handling standards.
 
 ### 5. Backwards Compatibility

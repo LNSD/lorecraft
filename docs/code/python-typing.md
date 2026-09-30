@@ -1,6 +1,6 @@
 ---
 name: "python-typing"
-description: "Annotation spelling and honesty: builtin generics, `X | None`, `type` aliases, `Self`, justified `Any`, and static checking. Load when writing or reviewing a type annotation, alias, or alternative constructor"
+description: "Annotation spelling and honesty: builtin generics, `X | None`, `type` aliases, `Self`, justified `Any`, `match` with `assert_never` over a closed union, and static checking. Load when writing or reviewing a type annotation, alias, or alternative constructor, or branching on which member of a union a value holds"
 type: "core"
 scope: "global"
 ---
@@ -200,7 +200,38 @@ class CorpusLabel:
         return cls(raw)
 ```
 
-## 7. Review the Claims That `ty` Cannot Prove
+## 7. Branch on a Closed Union With `match` and `assert_never`
+
+Code that decides by which member a closed union holds — an error variant's `source`, a parse outcome, a plain
+data union — uses `match` with one class pattern per member and closes with `case _: assert_never(value)`,
+imported from `typing`. It is the tool whenever a union is branched on, never an `isinstance` chain.
+
+The closing arm is what makes the `match` a check. Once every member has an arm, the value's type there is
+`Never` and the call type-checks; when a member is added to the union and not handled, `ty` reports the arm,
+through a union nested in another and an attribute such as `exc.source` alike. An `isinstance` chain ending in a
+fall-through gives the new member whatever the last branch does, and nothing says so.
+
+```python
+# ❌ Bad — a block kind added to the union falls through to the paragraph branch and is counted as prose
+def words(block: Block) -> int:
+    if isinstance(block, CodeFence):
+        return 0
+    return len(block.text.split())
+```
+
+```python
+# ✅ Good — a member with no arm is a type error at the assert_never call
+def words(block: Block) -> int:
+    match block:
+        case CodeFence():
+            return 0
+        case Heading() | Paragraph():
+            return len(block.text.split())
+        case _:
+            assert_never(block)
+```
+
+## 8. Review the Claims That `ty` Cannot Prove
 
 `just typecheck` runs `ty` over the package. A clean check catches many mismatches, but it cannot prove that
 an annotation expresses the intended contract: `Any` can hide a mismatch, and `str` can admit values whose
@@ -245,6 +276,8 @@ Before committing code, verify:
 - [ ] A new structural alias uses `type`, and code that needs a runtime type expression does not use the alias
       object as that expression
 - [ ] An alternative constructor that constructs `cls` returns `Self`, preserving the subclass result
+- [ ] Every branch on which member a closed union holds is a `match` closed by `case _: assert_never(...)`,
+      never an `isinstance` chain
 - [ ] Every changed signature was read against its body: no path returns `None` under a non-optional return
       type, no `Any` hides a mismatch, and no annotation was left behind by the edit; `just typecheck` passes
 
@@ -258,6 +291,7 @@ Before committing code, verify:
 - [python-constants](python-constants.md) - Related: When a module-level name is annotated `Final[...]`
 - [python-modules](python-modules.md) - Related: Import placement and ordering, including the
   `TYPE_CHECKING` block
+- [error-types](error-types.md) - Related: The error unions whose `source` a `match` most often branches on
 
 ## External References
 
@@ -265,3 +299,4 @@ Before committing code, verify:
 - [PEP 585 - Type Hinting Generics In Standard Collections](https://peps.python.org/pep-0585/)
 - [PEP 695 - Type Parameter Syntax](https://peps.python.org/pep-0695/)
 - [PEP 673 - Self Type](https://peps.python.org/pep-0673/)
+- [typing.assert_never - Python Standard Library](https://docs.python.org/3/library/typing.html#typing.assert_never)
