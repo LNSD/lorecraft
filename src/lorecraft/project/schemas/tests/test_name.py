@@ -7,11 +7,10 @@ from lorecraft.project.aspect import (
     AspectFilename,
     AspectName,
     AspectNamespace,
-    AspectNamespaceError,
-    InvalidAspectFilenameError,
     InvalidAspectNameCharacterError,
+    InvalidAspectNamespaceCharacterError,
 )
-from lorecraft.project.corpus import CorpusName, CorpusNameError, EmptyCorpusNameError, InvalidCorpusNameCharacterError
+from lorecraft.project.corpus import CorpusName, EmptyCorpusNameError, InvalidCorpusNameCharacterError
 
 from ..name import SchemaName, parse_schema_name, schema_name_stem
 
@@ -58,7 +57,7 @@ class TestSchemaName:
         stem = 'code-python_errors_handling'
 
         #: When
-        with pytest.raises(AspectNamespaceError) as exc_info:
+        with pytest.raises(InvalidAspectNamespaceCharacterError) as exc_info:
             parse_schema_name(stem)
 
         #: Then
@@ -205,14 +204,12 @@ class TestAspectFilename:
         filename = 'python-'
 
         #: When
-        with pytest.raises(InvalidAspectFilenameError) as exc_info:
+        with pytest.raises(InvalidAspectNameCharacterError) as exc_info:
             AspectFilename.parse(filename)
 
         #: Then
-        assert exc_info.value.filename == filename, 'the error retains the rejected filename'
-        assert isinstance(exc_info.value.__cause__, InvalidAspectNameCharacterError), (
-            'the cause identifies the invalid character'
-        )
+        assert exc_info.value.name == filename, 'the name error passes through, retaining the whole stem'
+        assert exc_info.value.position == len(filename) - 1, 'the trailing separator is the invalid character'
 
 
 @pytest.mark.unit
@@ -259,10 +256,7 @@ class TestCorpusName:
             CorpusName.parse(invalid_name)
 
         #: Then
-        assert isinstance(exc_info.value, CorpusNameError), 'the error belongs to the corpus-name hierarchy'
-        assert isinstance(exc_info.value, Error), 'the error belongs to the package hierarchy'
-        assert exc_info.value.name == invalid_name, 'the rejected value is available without parsing the message'
-        assert exc_info.value.character is None, 'an empty name has no invalid character'
+        assert type(exc_info.value).__bases__ == (Error,), 'the variant derives from Error directly, not a family'
         assert str(exc_info.value) == 'corpus name cannot be empty', 'the error explains the empty-name case'
 
     def test_parse_with_a_single_dot_raises_character_error_at_position_zero(self) -> None:

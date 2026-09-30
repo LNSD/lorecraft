@@ -3,23 +3,7 @@
 from dataclasses import dataclass
 from typing import Self
 
-from lorecraft.core.error import Error
-
-from .name import AspectName, AspectNameError
-
-
-class AspectFilenameError(Error):
-    """An aspect filename is invalid."""
-
-    filename: str
-
-
-class InvalidAspectFilenameError(AspectFilenameError):
-    """An aspect filename contains an invalid name."""
-
-    def __init__(self, filename: str) -> None:
-        self.filename = filename
-        super().__init__(f'invalid name in aspect filename {filename!r}')
+from .name import AspectName
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,14 +24,12 @@ class AspectFilename:
         """Parse the entire filename stem as the name.
 
         Raises:
-            InvalidAspectFilenameError: If the name is invalid; the lower-level validation
-                error is chained as the cause.
+            EmptyAspectNameError: If the stem is empty.
+            InvalidAspectNameCharacterError: If a character of the stem is not lowercase with valid separators.
         """
-        try:
-            parsed_name = AspectName.parse(filename)
-        except AspectNameError as exc:
-            raise InvalidAspectFilenameError(filename) from exc
-        return cls(name=parsed_name)
+        # The stem is the whole name, so a failure is the name's own and passes through: a wrapper here would
+        # hold nothing the name's error does not.
+        return cls(name=AspectName.parse(filename))
 
     def __str__(self) -> str:
         return str(self.name)

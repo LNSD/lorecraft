@@ -7,31 +7,23 @@ from typing import Self
 from lorecraft.core.error import Error
 
 
-class CorpusNameError(Error):
-    """A corpus name does not satisfy its format."""
-
-    name: str
-
-
-class EmptyCorpusNameError(CorpusNameError):
+class EmptyCorpusNameError(Error):
     """A corpus name is empty."""
 
-    character: None
-
     def __init__(self) -> None:
-        self.name = ''
-        self.character = None
         super().__init__('corpus name cannot be empty')
 
 
-class InvalidCorpusNameCharacterError(CorpusNameError):
+class InvalidCorpusNameCharacterError(Error):
     """A corpus name contains a character outside its format.
 
     Attributes:
+        name: The rejected corpus name.
         position: Zero-based position of the invalid character.
         character: The invalid character.
     """
 
+    name: str
     position: int
     character: str
 
@@ -71,7 +63,8 @@ class CorpusName:
         """Return a validated corpus name.
 
         Raises:
-            CorpusNameError: If the name is not lowercase snake case.
+            EmptyCorpusNameError: If the name is empty.
+            InvalidCorpusNameCharacterError: If a character falls outside lowercase snake case.
         """
         return cls(raw)
 
@@ -79,7 +72,8 @@ class CorpusName:
         """Keep direct construction from bypassing the name invariant.
 
         Raises:
-            CorpusNameError: If the name is not lowercase snake case.
+            EmptyCorpusNameError: If the name is empty.
+            InvalidCorpusNameCharacterError: If a character falls outside lowercase snake case.
         """
         if not self.value:
             raise EmptyCorpusNameError()

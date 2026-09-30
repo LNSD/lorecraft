@@ -21,7 +21,7 @@ from lorecraft.cli.select import (
 )
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.corpus import CorpusName, CorpusNameError
+from lorecraft.project.corpus import CorpusName, InvalidCorpusNameCharacterError
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.skill import SkillRef
@@ -221,7 +221,9 @@ class TestSelectDocument:
 
         #: Then
         assert exc_info.value.reason is DocumentPathProblem.INVALID_CORPUS_NAME, 'the first segment must parse'
-        assert isinstance(exc_info.value.__cause__, CorpusNameError), 'the parser failure is chained as the cause'
+        assert isinstance(exc_info.value.__cause__, InvalidCorpusNameCharacterError), (
+            'the parser failure is chained as the cause'
+        )
         assert exc_info.value.detail != '', 'the parser message is carried as the detail'
 
     def test_select_document_with_a_nested_path_under_a_spec_less_directory_raises_not_a_corpus(
