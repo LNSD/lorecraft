@@ -41,7 +41,7 @@ finding quotes it.
   file it is JSON Schema, not the dialect: a frontmatter is a mapping, which JSON Schema states well. Its root must
   say ``"type": "object"`` outright, and no schema in it, at any depth, may carry ``$id`` or name another dialect
   in ``$schema``. The
-  header check applies it, not the structure check: it reads the frontmatter, not the headings.
+  frontmatter check applies it, not the structure check: it reads the frontmatter, not the headings.
 - ``outline`` is the order of the document's sections. A ``section`` entry names one and is required unless
   ``optional``; an ``any`` entry matches a run of sections the outline does not name. An entry's ``words`` caps
   the prose words of each section it matches, H3 subsections included: on an ``any`` entry that is every section

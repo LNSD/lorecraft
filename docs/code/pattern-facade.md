@@ -24,16 +24,16 @@ Two entry points check one document in the same way. Keep the sequence in one pl
 
 ```python
 # ❌ Bad — each caller must know the steps and can silently omit schema selection.
-def check_from_cli(path: Path, repository: Repository) -> HeaderCheckResult:
+def check_from_cli(path: Path, repository: Repository) -> FrontmatterCheckResult:
     document = resolve_document(path)
-    schema = repository.get_header_schema(document.corpus)
-    return validate_header(document, schema)
+    schema = repository.get_frontmatter_schema(document.corpus)
+    return validate_frontmatter(document, schema)
 
 
-def check_from_editor(path: Path, repository: Repository) -> HeaderCheckResult:
+def check_from_editor(path: Path, repository: Repository) -> FrontmatterCheckResult:
     document = resolve_document(path)
-    schema = repository.get_header_schema(document.corpus)
-    return validate_header(document, schema)
+    schema = repository.get_frontmatter_schema(document.corpus)
+    return validate_frontmatter(document, schema)
 ```
 
 ```python
@@ -42,18 +42,18 @@ class DocumentChecks:
     def __init__(self, repository: Repository) -> None:
         self._repository = repository
 
-    def check_header(self, path: Path) -> HeaderCheckResult:
+    def check_frontmatter(self, path: Path) -> FrontmatterCheckResult:
         document = resolve_document(path)
-        schema = self._repository.get_header_schema(document.corpus)
-        return validate_header(document, schema)
+        schema = self._repository.get_frontmatter_schema(document.corpus)
+        return validate_frontmatter(document, schema)
 
 
-def check_from_cli(path: Path, checks: DocumentChecks) -> HeaderCheckResult:
-    return checks.check_header(path)
+def check_from_cli(path: Path, checks: DocumentChecks) -> FrontmatterCheckResult:
+    return checks.check_frontmatter(path)
 
 
-def check_from_editor(path: Path, checks: DocumentChecks) -> HeaderCheckResult:
-    return checks.check_header(path)
+def check_from_editor(path: Path, checks: DocumentChecks) -> FrontmatterCheckResult:
+    return checks.check_frontmatter(path)
 ```
 
 ## Why It Matters

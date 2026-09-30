@@ -1,6 +1,6 @@
-"""The header run over a database opened on a snapshot of a real tree.
+"""The frontmatter run over a database opened on a snapshot of a real tree.
 
-``run_header`` reads everything through the database, and the database answers from one snapshot, so the run
+``run_frontmatter`` reads everything through the database, and the database answers from one snapshot, so the run
 reports the tree as the scan saw it: every kind of report, and nothing written to the disk afterwards.
 """
 
@@ -10,7 +10,7 @@ from typing import Final
 
 import pytest
 
-from lorecraft.checks import CheckRun, Database, run_header
+from lorecraft.checks import CheckRun, Database, run_frontmatter
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.vfs import RootRelativePath, take_snapshot
 
@@ -41,7 +41,7 @@ def _write(root: Path, relative: str, data: bytes = b'') -> Path:
 
 def _run_every_document(database: Database) -> CheckRun:
     """Check every document the database's model lists."""
-    return run_header(database, database.model().documents())
+    return run_frontmatter(database, database.model().documents())
 
 
 @pytest.fixture(scope='function')
@@ -69,8 +69,8 @@ def lorecraft_tree(tmp_path: Path) -> Path:
 
 
 @pytest.mark.it
-class TestRunHeader:
-    def test_run_header_over_a_snapshot_reports_one_rule_per_broken_document(self, lorecraft_tree: Path) -> None:
+class TestRunFrontmatter:
+    def test_run_frontmatter_over_a_snapshot_reports_one_rule_per_broken_document(self, lorecraft_tree: Path) -> None:
         #: Given
         database = Database(take_snapshot(lorecraft_tree, SNAPSHOT_SCOPE))
 
@@ -86,7 +86,7 @@ class TestRunHeader:
             ('docs/code/undescribed.md', 'code.description'),
         ], 'each broken document yields exactly the finding its defect names'
 
-    def test_run_header_over_a_snapshot_reports_a_corpus_without_a_frontmatter_schema_as_ungoverned(
+    def test_run_frontmatter_over_a_snapshot_reports_a_corpus_without_a_frontmatter_schema_as_ungoverned(
         self, lorecraft_tree: Path
     ) -> None:
         #: Given
@@ -101,7 +101,9 @@ class TestRunHeader:
             'the feat structure specification states no frontmatter schema, so its one document is ungoverned'
         )
 
-    def test_run_header_after_the_disk_changes_reports_the_tree_the_snapshot_saw(self, lorecraft_tree: Path) -> None:
+    def test_run_frontmatter_after_the_disk_changes_reports_the_tree_the_snapshot_saw(
+        self, lorecraft_tree: Path
+    ) -> None:
         #: Given
         database = Database(take_snapshot(lorecraft_tree, SNAPSHOT_SCOPE))
         _write(lorecraft_tree, 'docs/code/bare.md', b'---\nname: "bare"\ndescription: "Fixed after the scan"\n---\n')

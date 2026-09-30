@@ -51,7 +51,7 @@ A specification's frontmatter schema, section word caps and token budget are not
 structure aspect, in `<stem>.structure.json`, carries the section rules, the word caps, the token budget and
 the frontmatter schema. `lorecraft check structure` enforces the caps with the section outline,
 `lorecraft check budget` the global `tokens` key, since it reads the raw file rather than its parse, and
-`lorecraft check header` the global `frontmatter` key, as `check budget` reads `tokens`.
+`lorecraft check frontmatter` the global `frontmatter` key, as `check budget` reads `tokens`.
 
 **The aspect name is the whole binding.** The stem says which documents a file governs, the aspect says which
 checks read it, each its own keys, and a check needs no list of the files it applies to — it derives them from

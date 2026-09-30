@@ -2,7 +2,7 @@
 
 These run the command line in process through Typer's `CliRunner`, so they cross module boundaries —
 root application, registry, command module, version strings, the scan and the model load behind `inspect`,
-the checks behind `check header`, `check structure` and `check budget` — without needing the console script
+the checks behind `check frontmatter`, `check structure` and `check budget` — without needing the console script
 that `tests/e2e/` exercises. `inspect` and the checks read a real tree under `tmp_path`.
 """
 
@@ -218,22 +218,22 @@ class TestInspectCommand:
 
 
 @pytest.mark.it
-class TestCheckHeaderCommand:
-    def test_check_header_with_a_clean_corpus_exits_zero_and_counts_the_documents(self, tmp_path: Path) -> None:
+class TestCheckFrontmatterCommand:
+    def test_check_frontmatter_with_a_clean_corpus_exits_zero_and_counts_the_documents(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n')
         app = build_app()
 
         #: When
-        result = runner.invoke(app, ['check', 'header', '--root', str(tmp_path)])
+        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path)])
 
         #: Then
         assert result.exit_code == 0, result.output
         assert result.stdout == '', 'a clean run prints no finding lines'
         assert result.stderr == 'checked 1 file(s), 0 finding(s)\n', 'the summary goes to stderr'
 
-    def test_check_header_without_a_root_finds_the_nearest_parent_with_docs_meta(
+    def test_check_frontmatter_without_a_root_finds_the_nearest_parent_with_docs_meta(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         #: Given
@@ -245,7 +245,7 @@ class TestCheckHeaderCommand:
         app = build_app()
 
         #: When
-        result = runner.invoke(app, ['check', 'header'])
+        result = runner.invoke(app, ['check', 'frontmatter'])
 
         #: Then
         assert result.exit_code == 1, result.output
@@ -253,7 +253,7 @@ class TestCheckHeaderCommand:
             'the root is discovered upward from the working directory, and findings print root-relative'
         )
 
-    def test_check_header_with_a_corpus_without_a_frontmatter_schema_reports_it_ungoverned(
+    def test_check_frontmatter_with_a_corpus_without_a_frontmatter_schema_reports_it_ungoverned(
         self, tmp_path: Path
     ) -> None:
         #: Given
@@ -262,7 +262,7 @@ class TestCheckHeaderCommand:
         app = build_app()
 
         #: When
-        result = runner.invoke(app, ['check', 'header', '--root', str(tmp_path)])
+        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path)])
 
         #: Then
         assert result.exit_code == 0, result.output
@@ -271,32 +271,34 @@ class TestCheckHeaderCommand:
             'no frontmatter schema for this corpus; frontmatter unvalidated\n'
         ), 'an ungoverned document is reported as unvalidated, not as a finding'
 
-    def test_check_header_with_invalid_corpus_name_exits_as_invalid_input(self, tmp_path: Path) -> None:
+    def test_check_frontmatter_with_invalid_corpus_name_exits_as_invalid_input(self, tmp_path: Path) -> None:
         #: Given
         document = _write(tmp_path, 'docs/bad-name/guide.md', '---\nname: "guide"\n---\n')
         app = build_app()
 
         #: When
-        result = runner.invoke(app, ['check', 'header', '--root', str(tmp_path), str(document)])
+        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), str(document)])
 
         #: Then
         assert result.exit_code == 2, result.output
         assert "invalid character '-' in corpus name 'bad-name'" in result.output, 'the CLI reports the invalid name'
 
-    def test_check_header_with_a_path_in_a_corpus_subdirectory_exits_as_invalid_input(self, tmp_path: Path) -> None:
+    def test_check_frontmatter_with_a_path_in_a_corpus_subdirectory_exits_as_invalid_input(
+        self, tmp_path: Path
+    ) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.md')
         document = _write(tmp_path, 'docs/code/sub/guide.md', '---\nname: "guide"\n---\n')
         app = build_app()
 
         #: When
-        result = runner.invoke(app, ['check', 'header', '--root', str(tmp_path), str(document)])
+        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), str(document)])
 
         #: Then
         assert result.exit_code == 2, result.output
         assert 'corpora are flat' in result.output, 'the CLI reports that a nested file is not a document'
 
-    def test_check_header_with_a_path_in_a_directory_without_a_spec_exits_as_invalid_input(
+    def test_check_frontmatter_with_a_path_in_a_directory_without_a_spec_exits_as_invalid_input(
         self, tmp_path: Path
     ) -> None:
         #: Given
@@ -305,20 +307,20 @@ class TestCheckHeaderCommand:
         app = build_app()
 
         #: When
-        result = runner.invoke(app, ['check', 'header', '--root', str(tmp_path), str(document)])
+        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), str(document)])
 
         #: Then
         assert result.exit_code == 2, result.output
         assert 'not a corpus' in result.output, 'the CLI reports that the directory has no specification'
 
-    def test_check_header_with_a_malformed_frontmatter_schema_exits_as_invalid_input(
+    def test_check_frontmatter_with_a_malformed_frontmatter_schema_exits_as_invalid_input(
         self, malformed_schema_workspace: Path
     ) -> None:
         #: Given
         app = build_app()
 
         #: When
-        result = runner.invoke(app, ['check', 'header', '--root', str(malformed_schema_workspace)])
+        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(malformed_schema_workspace)])
 
         #: Then
         assert result.exit_code == 2, result.output
@@ -326,7 +328,7 @@ class TestCheckHeaderCommand:
             'the failure names the specification the load rejected'
         )
 
-    def test_check_header_with_a_non_utf8_governed_document_exits_with_an_undecodable_finding(
+    def test_check_frontmatter_with_a_non_utf8_governed_document_exits_with_an_undecodable_finding(
         self, tmp_path: Path
     ) -> None:
         #: Given
@@ -337,7 +339,7 @@ class TestCheckHeaderCommand:
         app = build_app()
 
         #: When
-        result = runner.invoke(app, ['check', 'header', '--root', str(tmp_path)])
+        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path)])
 
         #: Then
         assert result.exit_code == 1, result.output
@@ -345,7 +347,7 @@ class TestCheckHeaderCommand:
             'a document that is not UTF-8 is a finding, not an invalid-input failure'
         )
 
-    def test_check_header_with_a_spec_less_directory_beside_a_corpus_reports_only_the_corpus(
+    def test_check_frontmatter_with_a_spec_less_directory_beside_a_corpus_reports_only_the_corpus(
         self, tmp_path: Path
     ) -> None:
         #: Given
@@ -355,7 +357,7 @@ class TestCheckHeaderCommand:
         app = build_app()
 
         #: When
-        result = runner.invoke(app, ['check', 'header', '--root', str(tmp_path), '--format', 'json'])
+        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), '--format', 'json'])
 
         #: Then
         assert result.exit_code == 0, result.output
@@ -364,7 +366,7 @@ class TestCheckHeaderCommand:
             'only the corpus named in docs/__meta__/ is checked; the spec-less directory is not mentioned'
         )
 
-    def test_check_header_with_a_finding_and_json_format_reports_the_file_as_text_and_the_line_as_a_number(
+    def test_check_frontmatter_with_a_finding_and_json_format_reports_the_file_as_text_and_the_line_as_a_number(
         self, tmp_path: Path
     ) -> None:
         #: Given
@@ -373,7 +375,7 @@ class TestCheckHeaderCommand:
         app = build_app()
 
         #: When
-        result = runner.invoke(app, ['check', 'header', '--root', str(tmp_path), '--format', 'json'])
+        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), '--format', 'json'])
 
         #: Then
         assert result.exit_code == 1, result.output
@@ -387,7 +389,7 @@ class TestCheckHeaderCommand:
             }
         ], f'a finding serialises as the root-relative path and the line number, got {result.stdout!r}'
 
-    def test_check_header_from_a_deleted_working_directory_exits_with_a_working_directory_error(
+    def test_check_frontmatter_from_a_deleted_working_directory_exits_with_a_working_directory_error(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         #: Given
@@ -398,12 +400,58 @@ class TestCheckHeaderCommand:
         app = build_app()
 
         #: When
-        result = runner.invoke(app, ['check', 'header'])
+        result = runner.invoke(app, ['check', 'frontmatter'])
 
         #: Then
         assert result.exit_code == 2, result.output
         assert result.stderr.startswith('cannot read the current directory:'), (
             f'an unreadable working directory is the reported failure, got {result.stderr!r}'
+        )
+
+
+@pytest.mark.it
+class TestCheckHeaderAlias:
+    def test_check_header_with_a_clean_corpus_behaves_as_check_frontmatter(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'header', '--root', str(tmp_path)])
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stderr == 'checked 1 file(s), 0 finding(s)\n', 'the alias runs the frontmatter check'
+
+    def test_check_header_with_a_finding_prints_and_exits_as_check_frontmatter(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'header', '--root', str(tmp_path)])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert result.stdout == 'docs/code/guide.md:1: [frontmatter.missing] no `---` delimited frontmatter block\n', (
+            'the alias prints the finding the frontmatter check prints'
+        )
+
+    def test_check_header_with_a_malformed_frontmatter_schema_exits_as_invalid_input(
+        self, malformed_schema_workspace: Path
+    ) -> None:
+        #: Given
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'header', '--root', str(malformed_schema_workspace)])
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert 'invalid structure schema docs/__meta__/code.structure.json' in result.stderr, (
+            'the alias reports a rejected specification as the frontmatter check does'
         )
 
 
@@ -608,7 +656,7 @@ class TestCheckAllCommand:
         assert json.loads(result.stdout) == {
             'checks': {
                 'budget': {'checked': 1, 'findings': [], 'ungoverned': ['docs/code/guide.md']},
-                'header': {'checked': 1, 'findings': [], 'ungoverned': []},
+                'frontmatter': {'checked': 1, 'findings': [], 'ungoverned': []},
                 'structure': {'checked': 1, 'findings': [], 'ungoverned': []},
             },
         }, f'each check keeps the report its own subcommand prints, got {result.stdout!r}'
@@ -632,7 +680,7 @@ class TestCheckAllCommand:
         app = build_app()
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(tmp_path), 'header'])
+        result = runner.invoke(app, ['check', '--root', str(tmp_path), 'frontmatter'])
 
         #: Then
         assert result.exit_code == 2, result.output
@@ -689,7 +737,7 @@ class TestCommandRouting:
         #: Then
         assert 'command' in str(exc_info.value), 'the error says the name is held by a plain command'
 
-    def test_build_app_when_called_mounts_the_check_group_with_its_header_command(self) -> None:
+    def test_build_app_when_called_mounts_the_check_group_with_its_frontmatter_command(self) -> None:
         #: Given
         app = build_app()
 
@@ -698,7 +746,8 @@ class TestCommandRouting:
 
         #: Then
         assert result.exit_code == 0, result.output
-        assert 'header' in result.output, 'the check group lists the header check discovered beside it'
+        assert 'frontmatter' in result.output, 'the check group lists the frontmatter check discovered beside it'
+        assert 'header' not in result.output, 'the header alias of the frontmatter check is hidden from the help'
 
     def test_build_app_when_called_mounts_the_check_group_with_its_structure_command(self) -> None:
         #: Given

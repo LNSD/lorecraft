@@ -181,7 +181,7 @@ Produce a structured report listing:
 
 | Documented Capability | Implementation | Status |
 |-----------------------|----------------|--------|
-| Frontmatter checked against the header schema | `checks/header.py:check()` | ✅ VERIFIED |
+| Frontmatter checked against the frontmatter schema | `checks/frontmatter.py:validate_frontmatter()` | ✅ VERIFIED |
 | Flow: discover corpus → parse → validate → findings | Multiple modules | ✅ VERIFIED |
 | Flag `--format json` emits machine-readable findings | `cli.py:build_parser()` | ✅ VERIFIED |
 | Findings carry path, line, rule id and message | `finding.py:Finding` | ✅ VERIFIED |
@@ -280,14 +280,14 @@ coverage gap for that tier even when it exists. Note it as one.
 
 ## Example Verification Sessions
 
-### Example 1: Header Check Feature (Function-focused)
+### Example 1: Frontmatter Check Feature (Function-focused)
 
-**Scenario**: Verify `docs/feat/check-header.md`
+**Scenario**: Verify `docs/feat/cli-check-frontmatter.md`
 
 1. **Parse doc** - Extract documented capabilities:
-   - `check_header(document, schema)` function signature
-   - Returns a list of findings carrying `path`, `line`, `rule` and `message`
-   - Enforces the required keys, the quoting rule, and `name` matching the filename
+   - `validate_frontmatter(schemas, *, frontmatter, filename, corpus)` function signature
+   - Returns a result whose violations carry `line`, `rule` and `message`
+   - Enforces the required keys, the closed field set, and `name` matching the filename
 
 2. **Verify implementation** - Read files from the Code References section:
    - Verify the function exists with the correct signature
