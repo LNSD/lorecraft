@@ -15,7 +15,17 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.vfs import DirListError, EntryKind, FileReadError, FileSystem, UnrecordedFileError
 
 from .name import SchemaName, schema_name_stem
-from .spec_file import SpecAspect, SpecFile, SpecFilenameError, parse_spec_file, schema_filename
+from .spec_file import (
+    DottedSpecStemError,
+    InvalidSpecStemError,
+    NotASpecFileError,
+    NotASpecStemError,
+    SpecAspect,
+    SpecFile,
+    UnknownSpecAspectError,
+    parse_spec_file,
+    schema_filename,
+)
 from .structure import StructureSchema
 
 
@@ -125,7 +135,13 @@ class Repository:
                 continue
             try:
                 spec_file = parse_spec_file(self._specs_dir / entry.name)
-            except SpecFilenameError:
+            except (
+                NotASpecFileError,
+                UnknownSpecAspectError,
+                NotASpecStemError,
+                DottedSpecStemError,
+                InvalidSpecStemError,
+            ):
                 # Not a specification filename: a listing leaves it out.
                 continue
             if spec_file.aspect is not None:

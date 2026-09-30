@@ -116,7 +116,26 @@ def run_frontmatter(database: Database, refs: tuple[DocumentRef, ...]) -> CheckR
         DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
         CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
         StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
-        InvalidStructureSchemaError: If the model is not loaded yet and a structure specification is malformed.
+        StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in the
+            dialect's shape.
+        StructureSpecFilenameError: If the model is not loaded yet and a structure specification is not at a
+            specification filename.
+        EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
+        InvalidTitleCountError: If the model is not loaded yet and a title count is below 1.
+        InvalidTokenBudgetError: If the model is not loaded yet and a token budget is below 1.
+        InvalidWordCapError: If the model is not loaded yet and an outline word cap is below 1.
+        RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
+        ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
+            outline names.
+        AdjacentAnyRunsError: If the model is not loaded yet and an outline places two ``any`` runs side by side.
+        InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by the
+            meta-schema.
+        FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries
+            ``$id``.
+        ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema names
+            another dialect.
+        UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not state
+            an object.
         DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
         SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
         SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
@@ -153,7 +172,26 @@ def run_structure(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun
         DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
         CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
         StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
-        InvalidStructureSchemaError: If the model is not loaded yet and a structure specification is malformed.
+        StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in the
+            dialect's shape.
+        StructureSpecFilenameError: If the model is not loaded yet and a structure specification is not at a
+            specification filename.
+        EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
+        InvalidTitleCountError: If the model is not loaded yet and a title count is below 1.
+        InvalidTokenBudgetError: If the model is not loaded yet and a token budget is below 1.
+        InvalidWordCapError: If the model is not loaded yet and an outline word cap is below 1.
+        RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
+        ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
+            outline names.
+        AdjacentAnyRunsError: If the model is not loaded yet and an outline places two ``any`` runs side by side.
+        InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by the
+            meta-schema.
+        FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries
+            ``$id``.
+        ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema names
+            another dialect.
+        UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not state
+            an object.
         DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
         SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
         SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
@@ -192,7 +230,26 @@ def run_budget(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
         DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
         CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
         StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
-        InvalidStructureSchemaError: If the model is not loaded yet and a structure specification is malformed.
+        StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in the
+            dialect's shape.
+        StructureSpecFilenameError: If the model is not loaded yet and a structure specification is not at a
+            specification filename.
+        EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
+        InvalidTitleCountError: If the model is not loaded yet and a title count is below 1.
+        InvalidTokenBudgetError: If the model is not loaded yet and a token budget is below 1.
+        InvalidWordCapError: If the model is not loaded yet and an outline word cap is below 1.
+        RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
+        ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
+            outline names.
+        AdjacentAnyRunsError: If the model is not loaded yet and an outline places two ``any`` runs side by side.
+        InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by the
+            meta-schema.
+        FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries
+            ``$id``.
+        ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema names
+            another dialect.
+        UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not state
+            an object.
         DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
         SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
         SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.

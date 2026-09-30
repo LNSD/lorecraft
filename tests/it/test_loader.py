@@ -18,7 +18,11 @@ from lorecraft.project.aspect import AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.repo import Repository as DocumentRepository
 from lorecraft.project.layout import SNAPSHOT_SCOPE, SPECS_DIR
-from lorecraft.project.schemas import InvalidStructureSchemaError
+from lorecraft.project.schemas import (
+    EmptyStructureSpecError,
+    InvalidFrontmatterSchemaError,
+    StructureSpecDecodeError,
+)
 from lorecraft.project.schemas import Repository as SchemaRepository
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.skill import SkillLocation, SkillRef, SkillsDir
@@ -455,7 +459,7 @@ class TestLoadWorkspaceEdgeCases:
         assert corpus.spec.files == (SPECS_DIR / 'code.md',), 'the header file is not one of the spec files'
         assert corpus.spec.structure is None, 'and it states no rules'
 
-    def test_load_workspace_with_a_malformed_frontmatter_schema_raises_invalid_structure_schema_error(
+    def test_load_workspace_with_a_malformed_frontmatter_schema_raises_invalid_frontmatter_schema_error(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
@@ -465,7 +469,7 @@ class TestLoadWorkspaceEdgeCases:
         _write(tmp_path, 'docs/__meta__/code.structure.json', '{"frontmatter": {"type": "nonsense"}}')
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(InvalidFrontmatterSchemaError) as exc_info:
             load_workspace(schemas, documents, skills)
 
         #: Then
@@ -488,7 +492,7 @@ class TestLoadWorkspaceEdgeCases:
             'the corpus structure specification governs its document'
         )
 
-    def test_load_workspace_with_an_invalid_structure_spec_raises_invalid_structure_schema_error(
+    def test_load_workspace_with_an_invalid_structure_spec_raises_empty_structure_spec_error(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
@@ -498,7 +502,7 @@ class TestLoadWorkspaceEdgeCases:
         _write(tmp_path, 'docs/__meta__/code.structure.json', '{}')
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(EmptyStructureSpecError) as exc_info:
             load_workspace(schemas, documents, skills)
 
         #: Then
@@ -512,7 +516,7 @@ class TestLoadWorkspaceEdgeCases:
         _write(tmp_path, 'docs/__meta__/code-python.structure.json', 'not json')
 
         #: When
-        with pytest.raises(InvalidStructureSchemaError) as exc_info:
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
             load_workspace(schemas, documents, skills)
 
         #: Then
