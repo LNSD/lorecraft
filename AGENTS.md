@@ -70,7 +70,6 @@ library layer, and the skill then calls the command line instead of carrying the
 | Resource | Purpose |
 |---|---|
 | `AGENTS.md` | Project-level agent policy and workflow; this file |
-| `CLAUDE.md` | Single-line pointer to `AGENTS.md` |
 | `.agents/skills/` | Workspace skills, for agents working on this repository, plus the vendored check scripts |
 | `.claude/skills/` | Compatibility symlink to `.agents/skills/` |
 | `skills/` | Project skills, shipped for agents in repositories that use Lorecraft |
