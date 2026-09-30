@@ -8,7 +8,12 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 
-from ..skill import InvalidSkillFrontmatterError, parse_skill_frontmatter
+from ..skill import (
+    InvalidSkillFrontmatterError,
+    MissingSkillFrontmatterError,
+    NonMappingSkillFrontmatterError,
+    parse_skill_frontmatter,
+)
 from ..skill_frontmatter import (
     SkillAllowedTools,
     SkillCompatibility,
@@ -71,28 +76,28 @@ class TestParseSkillFrontmatter:
         assert frontmatter.metadata == {'author': 'example-org', 'version': '1.0'}, 'metadata is kept'
         assert frontmatter.allowed_tools == SkillAllowedTools('Bash(git add *) Read'), 'allowed-tools is read by alias'
 
-    def test_parse_skill_frontmatter_without_a_block_raises_invalid_skill_frontmatter(self) -> None:
+    def test_parse_skill_frontmatter_without_a_block_raises_missing_skill_frontmatter(self) -> None:
         #: Given
         text = '# Skill\n'
 
         #: When
-        with pytest.raises(InvalidSkillFrontmatterError) as exc_info:
+        with pytest.raises(MissingSkillFrontmatterError) as exc_info:
             parse_skill_frontmatter(SKILL_PATH, text)
 
         #: Then
         assert exc_info.value.path == SKILL_PATH, 'the error names the file'
-        assert 'frontmatter block' in str(exc_info.value), f'the missing block is reported, got {exc_info.value}'
+        assert type(exc_info.value) is MissingSkillFrontmatterError, 'the missing block is its own failure'
 
-    def test_parse_skill_frontmatter_with_a_non_mapping_block_raises_invalid_skill_frontmatter(self) -> None:
+    def test_parse_skill_frontmatter_with_a_non_mapping_block_raises_non_mapping_skill_frontmatter(self) -> None:
         #: Given
         text = '---\n- name\n---\n'
 
         #: When
-        with pytest.raises(InvalidSkillFrontmatterError) as exc_info:
+        with pytest.raises(NonMappingSkillFrontmatterError) as exc_info:
             parse_skill_frontmatter(SKILL_PATH, text)
 
         #: Then
-        assert 'mapping' in str(exc_info.value), f'the block is reported as not a mapping, got {exc_info.value}'
+        assert exc_info.value.path == SKILL_PATH, 'the error names the file whose block is not a mapping'
 
     @pytest.mark.parametrize(
         'name',
@@ -113,7 +118,9 @@ class TestParseSkillFrontmatter:
             parse_skill_frontmatter(SKILL_PATH, text)
 
         #: Then
-        assert 'name:' in str(exc_info.value), f'the name field is reported, got {exc_info.value}'
+        assert any(problem.startswith('name:') for problem in exc_info.value.problems), (
+            f'the name field is reported, got {exc_info.value}'
+        )
 
     def test_parse_skill_frontmatter_without_a_description_raises_invalid_skill_frontmatter(self) -> None:
         #: Given
@@ -124,7 +131,9 @@ class TestParseSkillFrontmatter:
             parse_skill_frontmatter(SKILL_PATH, text)
 
         #: Then
-        assert 'description:' in str(exc_info.value), f'the missing description is reported, got {exc_info.value}'
+        assert any(problem.startswith('description:') for problem in exc_info.value.problems), (
+            f'the missing description is reported, got {exc_info.value}'
+        )
 
     def test_parse_skill_frontmatter_with_a_description_over_the_limit_raises_invalid_skill_frontmatter(self) -> None:
         #: Given
@@ -135,7 +144,9 @@ class TestParseSkillFrontmatter:
             parse_skill_frontmatter(SKILL_PATH, text)
 
         #: Then
-        assert 'description:' in str(exc_info.value), f'the long description is reported, got {exc_info.value}'
+        assert any(problem.startswith('description:') for problem in exc_info.value.problems), (
+            f'the long description is reported, got {exc_info.value}'
+        )
 
     def test_parse_skill_frontmatter_with_an_unquoted_metadata_number_raises_invalid_skill_frontmatter(self) -> None:
         #: Given
@@ -146,7 +157,9 @@ class TestParseSkillFrontmatter:
             parse_skill_frontmatter(SKILL_PATH, text)
 
         #: Then
-        assert 'metadata.version:' in str(exc_info.value), f'a YAML float is not coerced, got {exc_info.value}'
+        assert any(problem.startswith('metadata.version:') for problem in exc_info.value.problems), (
+            f'a YAML float is not coerced, got {exc_info.value}'
+        )
 
     def test_parse_skill_frontmatter_with_a_field_outside_the_specification_raises_invalid_skill_frontmatter(
         self,
@@ -159,4 +172,6 @@ class TestParseSkillFrontmatter:
             parse_skill_frontmatter(SKILL_PATH, text)
 
         #: Then
-        assert 'argument-hint:' in str(exc_info.value), f'the unknown field is reported, got {exc_info.value}'
+        assert any(problem.startswith('argument-hint:') for problem in exc_info.value.problems), (
+            f'the unknown field is reported, got {exc_info.value}'
+        )

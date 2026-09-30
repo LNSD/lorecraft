@@ -59,7 +59,7 @@ def validate_skill(frontmatter: FrontmatterNode, *, directory_name: str) -> Skil
     if isinstance(frontmatter, MissingFrontmatter):
         return _one_violation('skill.frontmatter-missing', 'no `---` delimited frontmatter block')
     if isinstance(frontmatter, InvalidYamlFrontmatter):
-        return _one_violation('skill.frontmatter-unparseable', f'frontmatter is not valid YAML: {frontmatter.detail}')
+        return _one_violation('skill.frontmatter-unparseable', f'frontmatter is not valid YAML: {frontmatter.problem}')
     if isinstance(frontmatter, NonMappingFrontmatter):
         return _one_violation('skill.frontmatter-unparseable', 'frontmatter is not a YAML mapping')
 
