@@ -2,7 +2,7 @@
 
 import pytest
 
-from lorecraft.vfs import RootRelativePath
+from lorecraft.core.path import RootRelativePath
 
 from ..ref import SkillRef
 

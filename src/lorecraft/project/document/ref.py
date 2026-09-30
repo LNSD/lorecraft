@@ -7,10 +7,10 @@ location every finding reports.
 
 from dataclasses import dataclass
 
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX
-from lorecraft.vfs import RootRelativePath
 
 
 @dataclass(frozen=True, slots=True)

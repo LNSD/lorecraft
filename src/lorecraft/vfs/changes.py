@@ -9,7 +9,8 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import PurePosixPath
 
-from .path import RootRelativePath
+from lorecraft.core.path import RootRelativePath
+
 from .snapshot import Snapshot
 
 

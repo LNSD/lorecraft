@@ -14,6 +14,7 @@ aspect whatever the namespace specs carry.
 from dataclasses import dataclass
 
 from lorecraft.agents import AgentName
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.ref import DocumentRef
@@ -21,7 +22,6 @@ from lorecraft.project.schemas.name import SchemaName
 from lorecraft.project.schemas.structure import FrontmatterSchema, StructureAspect
 from lorecraft.project.skill.ref import SkillLocation, SkillRef
 from lorecraft.project.skill.skills_dir import SkillsDir
-from lorecraft.vfs import RootRelativePath
 
 
 @dataclass(frozen=True, slots=True)

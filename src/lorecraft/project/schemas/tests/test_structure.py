@@ -6,7 +6,7 @@ from typing import Final
 
 import pytest
 
-from lorecraft.vfs import RootRelativePath
+from lorecraft.core.path import RootRelativePath
 
 from ..structure import (
     AnySections,

@@ -11,6 +11,7 @@ Nothing here logs: the command that parses a skill catches every ``Error`` that 
 from pydantic import ValidationError
 
 from lorecraft.core.error import Error
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import (
     Frontmatter,
     InvalidYamlFrontmatter,
@@ -18,7 +19,6 @@ from lorecraft.project.syntax import (
     NonMappingFrontmatter,
     parse_frontmatter,
 )
-from lorecraft.vfs import RootRelativePath
 
 from .skill_frontmatter import SkillFrontmatter
 

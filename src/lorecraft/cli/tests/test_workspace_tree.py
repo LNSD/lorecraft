@@ -7,12 +7,12 @@ import pytest
 
 from lorecraft.agents import AgentName
 from lorecraft.cli.workspace_tree import render_json, render_text
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.skill import SkillLocation, SkillRef, SkillsDir
 from lorecraft.project.workspace import Corpus, Spec, WorkspaceModel
-from lorecraft.vfs import RootRelativePath
 
 
 def _path(raw: str) -> RootRelativePath:

@@ -13,7 +13,7 @@ location.
 from dataclasses import dataclass
 
 from lorecraft.agents import SKILL_ENTRY_FILENAME
-from lorecraft.vfs import RootRelativePath
+from lorecraft.core.path import RootRelativePath
 
 
 # order=True so a tuple of refs sorts by directory, the order the model lists them in.

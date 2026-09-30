@@ -11,8 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 from lorecraft.core.error import Error
+from lorecraft.core.path import ROOT, RootRelativePath
 
-from .path import ROOT, RootRelativePath
 from .snapshot import MAX_LINKS, FileBytes, Link, Listing, Snapshot
 from .view import (
     DirEntry,

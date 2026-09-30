@@ -4,9 +4,9 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectNamespace
 from lorecraft.project.corpus import CorpusName
-from lorecraft.vfs import RootRelativePath
 
 from ..name import SchemaName
 from ..spec_file import (

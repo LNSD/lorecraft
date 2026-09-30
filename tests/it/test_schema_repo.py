@@ -11,6 +11,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas import (
@@ -23,7 +24,7 @@ from lorecraft.project.schemas import (
     SpecAspect,
     SpecFile,
 )
-from lorecraft.vfs import DiskFileSystem, RootRelativePath
+from lorecraft.vfs import DiskFileSystem
 
 CODE: Final[CorpusName] = CorpusName.parse('code')
 CODE_PYTHON: Final[SchemaName] = (CODE, AspectNamespace.parse('python'))

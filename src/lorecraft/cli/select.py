@@ -14,12 +14,13 @@ from pathlib import Path
 
 from lorecraft.checks import Database
 from lorecraft.core.error import Error
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName, CorpusNameError
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.workspace import WorkspaceModel
-from lorecraft.vfs import RootRelativePath, disk_location
+from lorecraft.vfs import disk_location
 
 
 class DocumentPathProblem(Enum):

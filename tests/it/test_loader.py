@@ -13,6 +13,7 @@ from typing import Final
 import pytest
 
 from lorecraft.agents import AgentName
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.repo import Repository as DocumentRepository
@@ -23,7 +24,7 @@ from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.skill import SkillLocation, SkillRef, SkillsDir
 from lorecraft.project.workspace.loader import load_model, load_workspace
 from lorecraft.project.workspace.model import WorkspaceModel
-from lorecraft.vfs import DiskFileSystem, RootRelativePath, VirtualFileSystem, take_snapshot
+from lorecraft.vfs import DiskFileSystem, VirtualFileSystem, take_snapshot
 
 CLAUDE: Final[AgentName] = AgentName('claude-code')
 CODEX: Final[AgentName] = AgentName('codex')

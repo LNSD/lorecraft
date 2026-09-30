@@ -8,7 +8,8 @@ from pathlib import PurePosixPath
 import pytest
 
 from lorecraft.core.error import Error
-from lorecraft.vfs import Link, RootRelativePath, Snapshot, VirtualFileSystem
+from lorecraft.core.path import RootRelativePath
+from lorecraft.vfs import Link, Snapshot, VirtualFileSystem
 
 from ..layout import DOCS_DIR, SPECS_DIR, LinkedLayoutError, require_real_layout
 

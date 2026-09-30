@@ -20,6 +20,7 @@ from dataclasses import dataclass
 
 from lorecraft.agents import SKILL_ENTRY_FILENAME
 from lorecraft.core.error import Error
+from lorecraft.core.path import RootRelativePath
 from lorecraft.vfs import (
     DecodeTextError,
     EntryKind,
@@ -28,7 +29,6 @@ from lorecraft.vfs import (
     ReadTextError,
     ResolveDirError,
     ResolveFileError,
-    RootRelativePath,
 )
 
 from .ref import SkillLocation, SkillRef

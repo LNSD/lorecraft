@@ -40,13 +40,14 @@ skill's frontmatter carries over only when the two models locate its ref at the 
 bytes did not change.
 """
 
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.document import Repository as DocumentRepository
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import FrontmatterNode, ParsedDocument, count_tokens, parse_document, parse_frontmatter
 from lorecraft.project.workspace import WorkspaceModel, load_model
-from lorecraft.vfs import RootRelativePath, Snapshot, VirtualFileSystem
+from lorecraft.vfs import Snapshot, VirtualFileSystem
 
 
 class Database:

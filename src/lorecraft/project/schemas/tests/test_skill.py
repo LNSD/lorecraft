@@ -6,7 +6,7 @@ from typing import Final
 
 import pytest
 
-from lorecraft.vfs import RootRelativePath
+from lorecraft.core.path import RootRelativePath
 
 from ..skill import InvalidSkillFrontmatterError, parse_skill_frontmatter
 from ..skill_frontmatter import (

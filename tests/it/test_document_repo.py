@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.ref import DocumentRef
@@ -23,7 +24,7 @@ from lorecraft.project.document.repo import (
     ListDocumentsError,
     Repository,
 )
-from lorecraft.vfs import DiskFileSystem, RootRelativePath
+from lorecraft.vfs import DiskFileSystem
 
 
 @pytest.fixture(scope='function')

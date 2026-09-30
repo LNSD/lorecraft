@@ -13,6 +13,7 @@ so every handler below re-raises without logging.
 from dataclasses import dataclass
 
 from lorecraft.core.error import Error
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX
 from lorecraft.vfs import (
@@ -21,7 +22,6 @@ from lorecraft.vfs import (
     FileSystem,
     ListDirError,
     ReadTextError,
-    RootRelativePath,
 )
 
 from .ref import DocumentRef
