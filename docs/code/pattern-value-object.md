@@ -37,8 +37,8 @@ A failed parse raises a value-specific error declared beside the value object: o
 is rejected, deriving from the package's `Error` base.
 Each variant owns the rejected value and useful failure context, such as the invalid character and its
 position, and builds the message. `parse` or a direct-construction guard selects the failure and raises the
-variant without composing its text. How the variants are declared is owned by
-[error-types](error-types.md).
+variant without composing its text, whoever constructs the value ([error-boundaries](error-boundaries.md)). How
+the variants are declared is owned by [error-types](error-types.md).
 
 A value earns a value object when it does at least one of three jobs:
 

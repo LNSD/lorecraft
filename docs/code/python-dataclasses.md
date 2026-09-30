@@ -215,7 +215,7 @@ accumulator — a findings buffer, a running counter — is not frozen, and is n
 A field with a meaningful range — a line budget, a heading depth, a finding limit, a line number — is checked
 in `__post_init__` and raises `ValueError` naming the field and the offending value. That holds for a record
 only code builds; a record built from input, such as a budget read from a specification, raises an `Error`
-variant instead, because the user fixes it ([error-types](error-types.md)).
+variant instead, because the user fixes it ([error-boundaries](error-boundaries.md)).
 
 The check is **mandatory, not optional**, and the reason is that Python offers nothing stronger. In a
 type-driven design the constraint would live in the type, so an out-of-range value would be unconstructible and
@@ -329,7 +329,7 @@ Before committing code, verify:
   forward references
 - [python-naming](python-naming.md) - Related: Field and class naming, and `ClassVar` capability constants
 - [python-docstrings](python-docstrings.md) - Related: Docstring sections beyond `Attributes:`
-- [error-types](error-types.md) - Related: When a validation failure warrants a domain
+- [error-boundaries](error-boundaries.md) - Related: When a validation failure warrants a domain
   error rather than `ValueError`
 
 ## External References
