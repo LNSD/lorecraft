@@ -43,7 +43,7 @@ class TestRegisterCheck:
             register_check(rival)
 
         #: Then
-        assert FRONTMATTER_CHECK.name in str(exc_info.value), 'the error names the contested check'
+        assert exc_info.value.name == FRONTMATTER_CHECK.name, 'the error names the contested check'
 
     def test_register_check_under_the_name_of_a_skill_check_raises_duplicate_check_error(self) -> None:
         #: Given
@@ -54,7 +54,7 @@ class TestRegisterCheck:
             register_check(rival)
 
         #: Then
-        assert SKILLS_CHECK.name in str(exc_info.value), 'a document check cannot take the name of a skill check'
+        assert exc_info.value.name == SKILLS_CHECK.name, 'a document check cannot take the name of a skill check'
 
 
 @pytest.mark.unit
@@ -79,7 +79,7 @@ class TestRegisterSkillCheck:
             register_skill_check(rival)
 
         #: Then
-        assert FRONTMATTER_CHECK.name in str(exc_info.value), (
+        assert exc_info.value.name == FRONTMATTER_CHECK.name, (
             'a skill check cannot take the name of a document check: the bare report keys both by name'
         )
 

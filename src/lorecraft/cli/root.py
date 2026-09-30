@@ -10,14 +10,10 @@ from pathlib import Path
 
 from lorecraft.core.error import Error
 from lorecraft.project.layout import SPECS_DIR
-from lorecraft.vfs import disk_location
+from lorecraft.vfs import OsRefusal, disk_location
 
 
-class RootError(Error):
-    """A workspace root cannot be established."""
-
-
-class RootNotFoundError(RootError):
+class RootNotFoundError(Error):
     """Neither ``start`` nor any of its parents holds ``docs/__meta__/``.
 
     Attributes:
@@ -31,7 +27,28 @@ class RootNotFoundError(RootError):
         super().__init__('cannot find repository root: no parent contains docs/__meta__/')
 
 
-class InvalidRootError(RootError):
+class RootCandidateInspectError(Error):
+    """A directory on the way up from the start cannot be inspected for ``docs/__meta__/``.
+
+    Attributes:
+        candidate: The directory whose ``docs/__meta__/`` could not be inspected.
+        refusal: Why the operating system refused the inspection.
+        source: The operating system's failure.
+    """
+
+    candidate: Path
+    refusal: OsRefusal
+    source: OSError
+
+    def __init__(self, candidate: Path, refusal: OsRefusal, *, source: OSError) -> None:
+        self.candidate = candidate
+        self.refusal = refusal
+        self.source = source
+        super().__init__(f'cannot find repository root: cannot inspect {candidate}: {refusal.value}')
+        self.__cause__ = source
+
+
+class InvalidRootError(Error):
     """An explicit root is not an existing directory.
 
     Attributes:
@@ -45,16 +62,44 @@ class InvalidRootError(RootError):
         super().__init__(f'{path} is not an existing directory')
 
 
+class RootInspectError(Error):
+    """An explicit root cannot be inspected to learn whether it is a directory.
+
+    Attributes:
+        path: The root, resolved.
+        refusal: Why the operating system refused the inspection.
+        source: The operating system's failure.
+    """
+
+    path: Path
+    refusal: OsRefusal
+    source: OSError
+
+    def __init__(self, path: Path, refusal: OsRefusal, *, source: OSError) -> None:
+        self.path = path
+        self.refusal = refusal
+        self.source = source
+        super().__init__(f'cannot inspect root {path}: {refusal.value}')
+        self.__cause__ = source
+
+
 def find_root(start: Path) -> Path:
     """The first of ``start`` and its parents holding ``docs/__meta__/`` as a directory, resolved.
 
     Raises:
         RootNotFoundError: If no directory from ``start`` upward holds ``docs/__meta__/``.
+        RootCandidateInspectError: If the operating system refuses to inspect a directory on the way up.
     """
     # A relative start has parents that stop at `.`, so resolve first to climb the real directory tree.
     resolved = start.resolve()
     for candidate in (resolved, *resolved.parents):
-        if disk_location(candidate, SPECS_DIR).is_dir():
+        try:
+            holds_specs = disk_location(candidate, SPECS_DIR).is_dir()
+        except OSError as exc:
+            # Python 3.12's `is_dir` raises every failure but a missing path, a PermissionError for one; 3.13 and
+            # later answer False. Raised here, it is a failure of this search, not a bare OSError for the command.
+            raise RootCandidateInspectError(candidate, OsRefusal.of(exc), source=exc) from exc
+        if holds_specs:
             return candidate
     raise RootNotFoundError(start)
 
@@ -64,8 +109,14 @@ def resolve_root(path: Path) -> Path:
 
     Raises:
         InvalidRootError: If the resolved path is not an existing directory.
+        RootInspectError: If the operating system refuses to inspect it.
     """
     resolved = path.resolve()
-    if not resolved.is_dir():
+    try:
+        is_directory = resolved.is_dir()
+    except OSError as exc:
+        # As in `find_root`: Python 3.12's `is_dir` raises where 3.13 and later answer False.
+        raise RootInspectError(resolved, OsRefusal.of(exc), source=exc) from exc
+    if not is_directory:
         raise InvalidRootError(resolved)
     return resolved

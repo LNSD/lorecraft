@@ -67,12 +67,6 @@ def frontmatter(
     except Error as exc:
         report_failure(exc)
         raise typer.Exit(code=2) from exc
-    except OSError as exc:
-        # The flow converts its own OSErrors into an Error where each is raised. What is left is Python 3.12:
-        # its Path.is_dir re-raises every failure but a missing path, a PermissionError for one, from
-        # find_root and resolve_root, where 3.13 and later answer False.
-        typer.echo(f'error: cannot read input: {exc}', err=True)
-        raise typer.Exit(code=2) from exc
 
     print_run(run, output_format, FRONTMATTER_CHECK.ungoverned)
     if run.findings():
