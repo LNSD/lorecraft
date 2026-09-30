@@ -60,14 +60,16 @@ def load_workspace(schemas: SchemaRepository, documents: DocumentRepository, ski
     agents' skills directories and the skills in them.
 
     Raises:
-        ListSpecsError: If the specification directory cannot be listed.
-        ListCorpusDirectoriesError: If docs/ cannot be listed.
-        ListDocumentsError: If a corpus directory cannot be listed.
-        GetStructureSchemaError: If any structure specification cannot be read.
+        ListDirError: If the specification directory or docs/ cannot be listed.
+        CorpusListError: If a corpus directory cannot be listed.
+        StructureSchemaReadError: If any structure specification cannot be read.
         InvalidStructureSchemaError: If any structure specification is not JSON in the dialect, or states no usable
             rules, its frontmatter schema included.
-        ResolveSkillsDirError: If a skills directory cannot be resolved.
-        ListSkillsError: If a skills directory or a skill directory cannot be listed.
+        ResolveDirError: If a skills directory cannot be resolved.
+        SkillsDirListError: If a skills directory cannot be listed.
+        SkillEntryResolveError: If a symlinked skill entry cannot be resolved.
+        SkillDirListError: If a skill directory cannot be listed.
+        SkillFileResolveError: If a symlinked SKILL.md cannot be resolved.
     """
     spec_paths = schemas.list_spec_paths()
     corpus_directories = documents.list_corpus_directories()
@@ -102,14 +104,16 @@ def load_model(fs: FileSystem) -> WorkspaceModel:
     and a ``VirtualFileSystem`` answers from one snapshot, so the model reflects a single moment.
 
     Raises:
-        ListSpecsError: If the specification directory cannot be listed.
-        ListCorpusDirectoriesError: If docs/ cannot be listed.
-        ListDocumentsError: If a corpus directory cannot be listed.
-        GetStructureSchemaError: If any structure specification cannot be read.
+        ListDirError: If the specification directory or docs/ cannot be listed.
+        CorpusListError: If a corpus directory cannot be listed.
+        StructureSchemaReadError: If any structure specification cannot be read.
         InvalidStructureSchemaError: If any structure specification is not JSON in the dialect, or states no usable
             rules, its frontmatter schema included.
-        ResolveSkillsDirError: If a skills directory cannot be resolved.
-        ListSkillsError: If a skills directory or a skill directory cannot be listed.
+        ResolveDirError: If a skills directory cannot be resolved.
+        SkillsDirListError: If a skills directory cannot be listed.
+        SkillEntryResolveError: If a symlinked skill entry cannot be resolved.
+        SkillDirListError: If a skill directory cannot be listed.
+        SkillFileResolveError: If a symlinked SKILL.md cannot be resolved.
     """
     schemas = SchemaRepository(fs, SPECS_DIR)
     documents = DocumentRepository(fs)
@@ -143,7 +147,7 @@ def _load_corpus(
     """Decode the corpus spec and its namespace specs.
 
     Raises:
-        GetStructureSchemaError: If a structure specification cannot be read.
+        StructureSchemaReadError: If a structure specification cannot be read.
         InvalidStructureSchemaError: If a structure specification is not JSON in the dialect, or states no usable
             rules, its frontmatter schema included.
     """
@@ -167,7 +171,7 @@ def _load_spec(schemas: SchemaRepository, name: SchemaName, spec_files: list[Spe
     """Build one spec from the files at its stem, decoding its structure JSON into an aspect.
 
     Raises:
-        GetStructureSchemaError: If the structure specification cannot be read.
+        StructureSchemaReadError: If the structure specification cannot be read.
         InvalidStructureSchemaError: If the structure specification is not JSON in the dialect, or states no usable
             rules, its frontmatter schema included.
     """
@@ -185,7 +189,7 @@ def _list_document_refs(documents: DocumentRepository, corpus_name: CorpusName) 
     """The refs of the validly named Markdown files the repository lists in the corpus; the rest are left out.
 
     Raises:
-        ListDocumentsError: If the corpus directory cannot be listed.
+        CorpusListError: If the corpus directory cannot be listed.
     """
     refs: list[DocumentRef] = []
     for document_file in documents.list_documents(corpus_name):
@@ -203,7 +207,7 @@ def _load_skills_dirs(skills: SkillRepository) -> tuple[SkillsDir, ...]:
     Sorted by agent then path, so the model does not depend on the order the agents are registered in.
 
     Raises:
-        ResolveSkillsDirError: If a skills directory cannot be resolved.
+        ResolveDirError: If a skills directory cannot be resolved.
     """
     skills_dirs: list[SkillsDir] = []
     for agent in iter_agents():
@@ -225,7 +229,10 @@ def _list_skill_locations(skills: SkillRepository, skills_dirs: tuple[SkillsDir,
     sorted as a whole, since one skills directory may sit inside another.
 
     Raises:
-        ListSkillsError: If a skills directory or a skill directory cannot be listed.
+        SkillsDirListError: If a skills directory cannot be listed.
+        SkillEntryResolveError: If a symlinked skill entry cannot be resolved.
+        SkillDirListError: If a skill directory cannot be listed.
+        SkillFileResolveError: If a symlinked SKILL.md cannot be resolved.
     """
     real_directories: set[RootRelativePath] = set()
     for skills_dir in skills_dirs:

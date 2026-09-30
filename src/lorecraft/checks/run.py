@@ -112,14 +112,16 @@ def run_frontmatter(database: Database, refs: tuple[DocumentRef, ...]) -> CheckR
         refs: The documents to check; each must be one the database's model lists.
 
     Raises:
-        GetDocumentError: If a governed document is missing from the snapshot; a decode failure is a finding.
-        ListSpecsError: If the model is not loaded yet and the specification directory cannot be listed.
-        ListCorpusDirectoriesError: If the model is not loaded yet and docs/ cannot be listed.
-        ListDocumentsError: If the model is not loaded yet and a corpus directory cannot be listed.
-        GetStructureSchemaError: If the model is not loaded yet and a structure specification cannot be read.
+        DocumentReadError: If a governed document is missing from the snapshot; a decode failure is a finding.
+        ListDirError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
+        CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
+        StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
         InvalidStructureSchemaError: If the model is not loaded yet and a structure specification is malformed.
-        ResolveSkillsDirError: If the model is not loaded yet and a skills directory cannot be resolved.
-        ListSkillsError: If the model is not loaded yet and a skills directory cannot be listed.
+        ResolveDirError: If the model is not loaded yet and a skills directory cannot be resolved.
+        SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
+        SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
+        SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
+        SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
     """
     reports: list[DocumentReport] = []
     for ref in refs:
@@ -147,14 +149,16 @@ def run_structure(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun
         refs: The documents to check; each must be one the database's model lists.
 
     Raises:
-        GetDocumentError: If a governed document is missing from the snapshot; a decode failure is a finding.
-        ListSpecsError: If the model is not loaded yet and the specification directory cannot be listed.
-        ListCorpusDirectoriesError: If the model is not loaded yet and docs/ cannot be listed.
-        ListDocumentsError: If the model is not loaded yet and a corpus directory cannot be listed.
-        GetStructureSchemaError: If the model is not loaded yet and a structure specification cannot be read.
+        DocumentReadError: If a governed document is missing from the snapshot; a decode failure is a finding.
+        ListDirError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
+        CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
+        StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
         InvalidStructureSchemaError: If the model is not loaded yet and a structure specification is malformed.
-        ResolveSkillsDirError: If the model is not loaded yet and a skills directory cannot be resolved.
-        ListSkillsError: If the model is not loaded yet and a skills directory cannot be listed.
+        ResolveDirError: If the model is not loaded yet and a skills directory cannot be resolved.
+        SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
+        SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
+        SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
+        SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
     """
     reports: list[DocumentReport] = []
     for ref in refs:
@@ -184,14 +188,16 @@ def run_budget(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
         refs: The documents to check; each must be one the database's model lists.
 
     Raises:
-        GetDocumentError: If a governed document is missing from the snapshot; a decode failure is a finding.
-        ListSpecsError: If the model is not loaded yet and the specification directory cannot be listed.
-        ListCorpusDirectoriesError: If the model is not loaded yet and docs/ cannot be listed.
-        ListDocumentsError: If the model is not loaded yet and a corpus directory cannot be listed.
-        GetStructureSchemaError: If the model is not loaded yet and a structure specification cannot be read.
+        DocumentReadError: If a governed document is missing from the snapshot; a decode failure is a finding.
+        ListDirError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
+        CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
+        StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
         InvalidStructureSchemaError: If the model is not loaded yet and a structure specification is malformed.
-        ResolveSkillsDirError: If the model is not loaded yet and a skills directory cannot be resolved.
-        ListSkillsError: If the model is not loaded yet and a skills directory cannot be listed.
+        ResolveDirError: If the model is not loaded yet and a skills directory cannot be resolved.
+        SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
+        SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
+        SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
+        SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
     """
     reports: list[DocumentReport] = []
     for ref in refs:
@@ -219,7 +225,7 @@ def run_skills(database: Database, refs: tuple[SkillRef, ...]) -> SkillCheckRun:
         refs: The skills to check; each must be one the database's model lists.
 
     Raises:
-        GetSkillError: If a skill's ``SKILL.md`` is missing from the snapshot; a decode failure is a finding.
+        SkillReadError: If a skill's ``SKILL.md`` is missing from the snapshot; a decode failure is a finding.
     """
     reports: list[SkillReport] = []
     for ref in refs:
@@ -248,7 +254,7 @@ def _frontmatter(database: Database, ref: DocumentRef) -> FrontmatterNode | None
         The frontmatter node. ``None`` is the degraded return ``_parse`` documents, for the same reason.
 
     Raises:
-        GetDocumentError: If the document is missing from the snapshot; a decode failure is not raised.
+        DocumentReadError: If the document is missing from the snapshot; a decode failure is not raised.
     """
     try:
         return database.frontmatter(ref)
@@ -265,7 +271,7 @@ def _parse(database: Database, ref: DocumentRef) -> ParsedDocument | None:
         rather than taking the exit-2 path an unreadable file takes.
 
     Raises:
-        GetDocumentError: If the document is missing from the snapshot; a decode failure is not raised.
+        DocumentReadError: If the document is missing from the snapshot; a decode failure is not raised.
     """
     try:
         return database.parse(ref)
@@ -280,7 +286,7 @@ def _tokens(database: Database, ref: DocumentRef) -> int | None:
         The token count. ``None`` is the degraded return ``_parse`` documents, for the same reason.
 
     Raises:
-        GetDocumentError: If the document is missing from the snapshot; a decode failure is not raised.
+        DocumentReadError: If the document is missing from the snapshot; a decode failure is not raised.
     """
     try:
         return database.tokens(ref)
@@ -295,7 +301,7 @@ def _skill_frontmatter(database: Database, ref: SkillRef) -> FrontmatterNode | N
         The frontmatter node. ``None`` is the degraded return ``_parse`` documents, for the same reason.
 
     Raises:
-        GetSkillError: If the skill's ``SKILL.md`` is missing from the snapshot; a decode failure is not raised.
+        SkillReadError: If the skill's ``SKILL.md`` is missing from the snapshot; a decode failure is not raised.
     """
     try:
         return database.skill_frontmatter(ref)
