@@ -13,6 +13,7 @@ aspect whatever the namespace specs carry.
 
 from dataclasses import dataclass
 
+from lorecraft.agents import AgentName
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.ref import DocumentRef
@@ -184,8 +185,8 @@ class WorkspaceModel:
             agent and directory, sorted by agent then path. Two agents reading one real directory are two
             records with the same ``resolves_to``.
         skills: Every skill directly inside the real directories those resolve to, each once, sorted by
-            directory. The agents that read a skill are the ones whose ``resolves_to`` is its parent.
-            A skill belongs to no corpus, so no spec governs it and ``documents()`` does not list it.
+            directory; ``skill_agents`` says which agents read one. A skill belongs to no corpus, so no spec
+            governs it and ``documents()`` does not list it.
     """
 
     corpora: tuple[Corpus, ...]
@@ -212,6 +213,18 @@ class WorkspaceModel:
             if ref.path == path:
                 return ref
         return None
+
+    def skill_agents(self, ref: SkillRef) -> tuple[AgentName, ...]:
+        """The agents that read a skill: those with a skills directory that leads to the one holding it.
+
+        Returns:
+            The agents in name order, each once, or ``()`` when no skills directory leads there.
+        """
+        agents: list[AgentName] = []
+        for skills_dir in self.skills_dirs:
+            if skills_dir.resolves_to == ref.directory.parent and skills_dir.agent not in agents:
+                agents.append(skills_dir.agent)
+        return tuple(agents)
 
     def governance(self, ref: DocumentRef) -> Governance:
         """The specs governing a document this model lists.

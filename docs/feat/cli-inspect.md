@@ -1,6 +1,6 @@
 ---
 name: "cli-inspect"
-description: "lorecraft inspect: printing the workspace model a repository root declares, its corpora, their specification stems and files, and the stems governing each document, as a tree or as JSON. Load when asking which specifications govern a document, why a document is not checked, or scripting against the workspace model"
+description: "lorecraft inspect: printing the workspace model a repository root declares, its corpora, their specification stems and files, the stems governing each document, and the agent skills with the agents that read them, as a tree or as JSON. Load when asking which specifications govern a document, why a document is not checked, which agents read a skill, or scripting against the workspace model"
 type: "feature"
 status: "experimental"
 components: "module:lorecraft.cli.commands.inspect,module:lorecraft.cli.workspace_tree,module:lorecraft.project.workspace"
@@ -10,9 +10,10 @@ components: "module:lorecraft.cli.commands.inspect,module:lorecraft.cli.workspac
 
 ## Summary
 
-`lorecraft inspect` shows what a repository declares under `docs/`, as the checks see it: each corpus, the
+`lorecraft inspect` shows what a repository declares, as the checks see it: each corpus under `docs/`, the
 specification stems in `docs/__meta__/` that belong to it with their files, and every document with the stems
-that govern it. It answers why a document is or is not checked, without running a check.
+that govern it; then each agent's skills directory and every skill with the agents that read it. It answers
+why a document is or is not checked, and which agents see a skill, without running a check.
 
 ## Table of Contents
 
@@ -31,6 +32,9 @@ that govern it. It answers why a document is or is not checked, without running 
   files that share it.
 - **Governed by**: The specifications whose rules apply to a document, broad to narrow: their stems in the
   tree, and every file at those stems in the JSON.
+- **Agent skills directory**: A directory an agent reads skills from, such as `.claude/skills`, shown only when
+  the root has it, with the real directory it leads to when it is a symlink.
+- **Skill**: A directory directly inside an agent skills directory that holds a `SKILL.md`.
 
 ## Configuration
 
@@ -66,10 +70,10 @@ brackets. An excerpt, from this repository:
         ├── cli-check.md [feat, feat-cli]
 ```
 
-With `--json`, stdout is one object: `root`, and `corpora`, each with `name`, `directory`, `specs` as `stem`
-and `files`, and `documents` as `path` and `governed_by`. `governed_by` lists the files of each governing stem,
-broad to narrow, so a reader opens a document's specifications without mapping a stem to its files. Paths are
-root-relative.
+With `--json`, stdout is one object. It holds `root`, and `corpora`, each with `name`, `directory`, `specs` as
+`stem` and `files`, and `documents` as `path` and `governed_by`. `governed_by` lists the files of each governing
+stem, broad to narrow, so a reader opens a document's specifications without mapping a stem to its files. Paths
+are root-relative.
 
 ```json
 {
@@ -83,14 +87,31 @@ root-relative.
 }
 ```
 
-A root with no `docs/__meta__/` prints a model with no corpora, and exits `0`.
+The skills follow the corpora. An agent skills directory that is a symlink names where it leads, and a
+skill is followed by the agents that read it in brackets. A skill that is itself a symlink, to another skill
+or to a directory elsewhere in the repository, is listed where the agent finds it:
+
+```text
+├── agent skills directories (2)
+│   ├── claude-code: .claude/skills -> .agents/skills
+│   └── codex: .agents/skills
+└── skills (2)
+    ├── .agents/skills/commit [claude-code, codex]
+    └── .agents/skills/docs-rules [claude-code, codex]
+```
+
+In the JSON these are `agent_skills_dirs`, each with `agent`, `path` and `resolves_to`, and `skills`, each with
+the `path` of its `SKILL.md` and its `agents`.
+
+A root with no `docs/__meta__/` prints a model with no corpora, a root with no skills directory one with no
+skills, and both exit `0`.
 
 ### Exit Status
 
 | Code | Meaning |
 |------|---------|
 | `0`  | The model was printed |
-| `1`  | The model could not be loaded: an entry that cannot be read, or a specification file that cannot be decoded or states no usable rules. The error goes to stderr, prefixed `error:` |
+| `1`  | The model could not be loaded: an entry that cannot be read, under `docs/` or a skills directory, or a specification file that cannot be decoded or states no usable rules. The error goes to stderr, prefixed `error:` |
 | `2`  | A usage error, including a `ROOT` that is not an existing directory |
 
 ```text
@@ -99,7 +120,8 @@ error: invalid JSON in schema docs/__meta__/feat.structure.json: Expecting prope
 
 ## Limitations
 
-- Only the documentation corpora are shown; the skills the model lists are not.
+- A skill is shown as found, not as valid: `inspect` does not read a `SKILL.md`.
+- A skill entry that is a symlink does not show where it leads.
 - A file the model [leaves out](workspace.md#left-out-not-reported), such as a Markdown file in a
   subdirectory of a corpus, is not shown at all.
 

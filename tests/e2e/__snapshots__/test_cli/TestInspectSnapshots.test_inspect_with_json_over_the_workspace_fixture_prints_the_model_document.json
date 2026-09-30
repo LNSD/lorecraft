@@ -39,5 +39,40 @@
         }
       ]
     }
+  ],
+  "agent_skills_dirs": [
+    {
+      "agent": "claude-code",
+      "path": ".claude/skills",
+      "resolves_to": ".agents/skills"
+    },
+    {
+      "agent": "codex",
+      "path": ".agents/skills",
+      "resolves_to": ".agents/skills"
+    }
+  ],
+  "skills": [
+    {
+      "path": ".agents/skills/alpha/SKILL.md",
+      "agents": [
+        "claude-code",
+        "codex"
+      ]
+    },
+    {
+      "path": ".agents/skills/beta/SKILL.md",
+      "agents": [
+        "claude-code",
+        "codex"
+      ]
+    },
+    {
+      "path": ".agents/skills/gamma/SKILL.md",
+      "agents": [
+        "claude-code",
+        "codex"
+      ]
+    }
   ]
 }

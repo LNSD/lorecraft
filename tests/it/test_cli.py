@@ -145,7 +145,7 @@ class TestInspectCommand:
         assert result.exit_code == 0, result.output
         lines = result.output.splitlines()
         assert lines[0] == str(workspace.resolve()), 'the tree is headed by the resolved root'
-        assert '            └── logging.md [code]' in lines, 'a rule document sits under its corpus, with its spec'
+        assert '│           └── logging.md [code]' in lines, 'a rule document sits under its corpus, with its spec'
 
     def test_inspect_with_json_prints_the_model_as_one_json_document(self, workspace: Path) -> None:
         #: Given
@@ -160,6 +160,38 @@ class TestInspectCommand:
         document = json.loads(result.output)
         assert document['root'] == str(workspace.resolve()), 'the root is reported resolved'
         assert [corpus['name'] for corpus in document['corpora']] == ['code'], 'the one spec-backed corpus is found'
+
+    def test_inspect_with_json_over_a_root_with_skills_prints_each_directory_and_each_skill(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        (tmp_path / 'skills' / 'review').mkdir(parents=True)
+        (tmp_path / 'skills' / 'review' / 'SKILL.md').write_text('')
+        (tmp_path / '.agents' / 'skills' / 'commit').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'commit' / 'SKILL.md').write_text('')
+        (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
+        (tmp_path / '.claude').mkdir()
+        (tmp_path / '.claude' / 'skills').symlink_to('../.agents/skills')
+        app = build_app()
+        arguments = ['inspect', str(tmp_path), '--json']
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output) == {
+            'root': str(tmp_path.resolve()),
+            'corpora': [],
+            'agent_skills_dirs': [
+                {'agent': 'claude-code', 'path': '.claude/skills', 'resolves_to': '.agents/skills'},
+                {'agent': 'codex', 'path': '.agents/skills', 'resolves_to': '.agents/skills'},
+            ],
+            'skills': [
+                {'path': '.agents/skills/commit/SKILL.md', 'agents': ['claude-code', 'codex']},
+                {'path': '.agents/skills/review/SKILL.md', 'agents': ['claude-code', 'codex']},
+            ],
+        }, 'the linked agent directory and the skill linked from outside it are both in the document'
 
     def test_inspect_with_a_malformed_frontmatter_schema_exits_one_and_names_it(
         self, malformed_schema_workspace: Path
