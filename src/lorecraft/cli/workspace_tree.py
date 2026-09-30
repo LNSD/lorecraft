@@ -70,7 +70,7 @@ def render_json(root: Path, model: WorkspaceModel) -> str:
             {'agent': skills_dir.agent, 'path': str(skills_dir.path), 'resolves_to': str(skills_dir.resolves_to)}
         )
     skills: list[dict[str, object]] = []
-    for ref in model.skills:
+    for ref in model.skills():
         skills.append({'path': str(ref.path), 'agents': list(model.skill_agents(ref))})
     document = {
         'root': str(root),
@@ -132,10 +132,10 @@ def _skills_dirs_section(skills_dirs: tuple[SkillsDir, ...]) -> _Line:
 def _skills_section(model: WorkspaceModel) -> _Line:
     """``skills (N)``, one line per skill: its directory, then the agents that read it in brackets."""
     lines: list[_Line] = []
-    for ref in model.skills:
+    for ref in model.skills():
         agents = model.skill_agents(ref)
         lines.append(_Line(f'{ref.directory} [{", ".join(agents)}]'))
-    return _Line(f'skills ({len(model.skills)})', tuple(lines))
+    return _Line(f'skills ({len(model.skill_locations)})', tuple(lines))
 
 
 def _json_corpus(corpus: Corpus) -> dict[str, object]:

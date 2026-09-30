@@ -72,7 +72,7 @@ def check_all(
         runs: list[tuple[DocumentCheck, CheckRun]] = []
         for check in registered_checks():
             runs.append((check, check.run(database, refs)))
-        skill_refs = database.model().skills
+        skill_refs = database.model().skills()
         skill_runs: list[tuple[SkillCheck, SkillCheckRun]] = []
         for skill_check in registered_skill_checks():
             skill_runs.append((skill_check, skill_check.run(database, skill_refs)))

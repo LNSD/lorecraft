@@ -10,7 +10,7 @@ from lorecraft.cli.workspace_tree import render_json, render_text
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.skill import SkillRef, SkillsDir
+from lorecraft.project.skill import SkillLocation, SkillRef, SkillsDir
 from lorecraft.project.workspace import Corpus, Spec, WorkspaceModel
 from lorecraft.vfs import RootRelativePath
 
@@ -37,11 +37,11 @@ def _code_model() -> WorkspaceModel:
             DocumentRef(code, AspectFilename.parse('python-typing')),
         ),
     )
-    return WorkspaceModel(corpora=(corpus,), skills_dirs=(), skills=())
+    return WorkspaceModel(corpora=(corpus,), skills_dirs=(), skill_locations=())
 
 
 def _empty_model() -> WorkspaceModel:
-    return WorkspaceModel(corpora=(), skills_dirs=(), skills=())
+    return WorkspaceModel(corpora=(), skills_dirs=(), skill_locations=())
 
 
 def _skills_model() -> WorkspaceModel:
@@ -53,8 +53,14 @@ def _skills_model() -> WorkspaceModel:
             SkillsDir(agent=AgentName('claude-code'), path=_path('.claude/skills'), resolves_to=universal),
             SkillsDir(agent=AgentName('codex'), path=universal, resolves_to=universal),
         ),
-        skills=(SkillRef(_path('.agents/skills/commit')), SkillRef(_path('.agents/skills/review'))),
+        skill_locations=(_regular_skill('.agents/skills/commit'), _regular_skill('.agents/skills/review')),
     )
+
+
+def _regular_skill(directory: str) -> SkillLocation:
+    """The location of a skill whose directory and ``SKILL.md`` are no links."""
+    path = _path(directory)
+    return SkillLocation(SkillRef(path), resolves_to=path, file_resolves_to=path / 'SKILL.md')
 
 
 @pytest.mark.unit

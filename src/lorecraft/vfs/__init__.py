@@ -17,6 +17,7 @@ from .view import (
     ListDirError,
     ReadTextError,
     ResolveDirError,
+    ResolveFileError,
 )
 
 __all__ = [
@@ -40,6 +41,7 @@ __all__ = [
     'ReadTextError',
     'DecodeTextError',
     'ResolveDirError',
+    'ResolveFileError',
     'ChangeKind',
     'Change',
     'ChangeSet',

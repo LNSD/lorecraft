@@ -1,20 +1,25 @@
 """Map an explicit document or skill argument from the command line onto the workspace model.
 
-A CLI argument is a disk path by definition, so the argument is resolved once, symlinks followed, and
-everything after that is a pure question to the model. An explicit path is a boundary, so it is rejected with
-the most specific reason it fails, where discovery would simply have ignored the file.
+A document argument is a disk path by definition, so it is resolved once, symlinks followed, and everything after
+that is a pure question to the model. A skill argument is only spelled on disk: the disk is asked only where it
+leads above the root, the part under the root is taken as spelled, and every link in that part is followed
+through the snapshot, so it names what the model saw even when the tree changed since. An explicit path is a
+boundary, so it is rejected with the most specific reason it fails, where discovery would simply have ignored
+the file.
 """
 
+import os
 from enum import Enum
 from pathlib import Path
 
+from lorecraft.checks import Database
 from lorecraft.core.error import Error
 from lorecraft.project.corpus import CorpusName, CorpusNameError
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.workspace import WorkspaceModel
-from lorecraft.vfs import disk_location
+from lorecraft.vfs import RootRelativePath, disk_location
 
 
 class DocumentPathProblem(Enum):
@@ -106,7 +111,6 @@ def select_document(model: WorkspaceModel, root: Path, argument: Path) -> Docume
 class SkillPathProblem(Enum):
     """Which rule an explicit skill argument failed; the message of each is its value."""
 
-    UNREADABLE = 'cannot read path'
     NOT_LISTED = 'not a skill the workspace lists; name a skill directory or its SKILL.md'
 
 
@@ -116,53 +120,73 @@ class SkillPathError(Error):
     Attributes:
         argument: The path exactly as typed.
         reason: Which rule it failed; tests compare this, never the message.
-        detail: Extra text from the underlying failure (strerror), or ''.
     """
 
     argument: Path
     reason: SkillPathProblem
-    detail: str
 
-    def __init__(self, argument: Path, reason: SkillPathProblem, detail: str = '') -> None:
+    def __init__(self, argument: Path, reason: SkillPathProblem) -> None:
         self.argument = argument
         self.reason = reason
-        self.detail = detail
-        super().__init__(f'{argument}: {detail or reason.value}')
+        super().__init__(f'{argument}: {reason.value}')
 
 
-def select_skills_at(model: WorkspaceModel, root: Path, argument: Path) -> tuple[SkillRef, ...]:
-    """Resolve one CLI argument (symlinks followed, one realpath) and map it onto the model's skills.
+def select_skills_at(database: Database, root: Path, working_directory: Path, argument: Path) -> tuple[SkillRef, ...]:
+    """Map one CLI argument onto the model's skills, resolving it through the snapshot rather than the disk.
 
     The argument names a skill by its directory or by its ``SKILL.md``, through a link or not: a skill kept in
-    ``skills/review/`` and linked from ``.agents/skills/review`` is named by either path. Every skill the
-    model lists that leads to the named directory is returned, so a directory two entries link to selects both.
+    ``skills/review/`` and linked from ``.agents/skills/review`` is named by either path. The part of the
+    argument under the root is taken by its spelling alone, then every link in it is followed through the
+    snapshot, and every skill the model lists at the real path it leads to is returned, so a directory two
+    entries link to selects both.
 
     Args:
-        model: The model the argument must name a skill of.
-        root: The resolved workspace root; the model's skills are located under it.
+        database: The snapshot the argument is resolved in, and the model it must name a skill of.
+        root: The resolved workspace root; the argument is located relative to it.
+        working_directory: What a relative argument is relative to.
         argument: The path as typed; quoted verbatim in the error message.
 
     Returns:
-        The skills at the named directory, in the model's order; never empty.
+        The skills at the named path, in the model's order; never empty.
 
     Raises:
-        SkillPathError: UNREADABLE when the path cannot be resolved, NOT_LISTED when no skill the model lists
-            is there.
+        SkillPathError: NOT_LISTED when the argument lies outside the root, the snapshot holds nothing at it,
+            or no skill the model lists is there.
     """
-    try:
-        named = argument.resolve(strict=True)
-    except (OSError, RuntimeError) as exc:
-        # Python 3.12 raises RuntimeError, not OSError, for a symlink loop under strict resolution.
-        detail = exc.strerror if isinstance(exc, OSError) and exc.strerror else str(exc)
-        raise SkillPathError(argument, SkillPathProblem.UNREADABLE, detail) from exc
-
-    refs: list[SkillRef] = []
-    for ref in model.skills:
-        directory = disk_location(root, ref.directory).resolve()
-        # Resolved as the argument was: a ``SKILL.md`` may itself be a link to where its text lives.
-        skill_file = (directory / ref.path.name).resolve()
-        if named == directory or named == skill_file:
-            refs.append(ref)
+    # Lexical, like rust-analyzer's `AbsPath::normalize`: `..` drops the component before it even when that one
+    # is a link. Following links here would read the disk; the snapshot follows every link below the root.
+    # `/` discards the working directory when the argument is absolute.
+    named = Path(os.path.normpath(working_directory / argument))
+    spelled = _spell_under_root(root, named)
+    if spelled is None:
+        raise SkillPathError(argument, SkillPathProblem.NOT_LISTED)
+    real_path = database.resolve(spelled)
+    if real_path is None:
+        raise SkillPathError(argument, SkillPathProblem.NOT_LISTED)
+    refs = database.model().locate_skills(real_path)
     if not refs:
         raise SkillPathError(argument, SkillPathProblem.NOT_LISTED)
-    return tuple(refs)
+    return refs
+
+
+def _spell_under_root(root: Path, named: Path) -> RootRelativePath | None:
+    """``named`` relative to the root, or ``None`` when it lies outside it.
+
+    The root is resolved, symlinks followed, but an argument may reach it through a link above it, such as
+    ``~/code`` linked to ``/data/code``. The snapshot records nothing above the root, so there the disk is asked
+    where each ancestor leads; below the root the argument is taken as spelled, and the snapshot follows its links.
+    The disk is never asked about a path under the root: that would read the tree as it is now, not as the
+    snapshot saw it.
+
+    Args:
+        root: The resolved workspace root.
+        named: An absolute path, normalised, so holding no ``..``.
+    """
+    if named.is_relative_to(root):
+        return RootRelativePath.parse(named.relative_to(root).as_posix())
+    # Farthest ancestor first, from `/` down: the first one that leads to the root is where the part under the
+    # root begins, and no ancestor below it is resolved. Nearest first would resolve those on the live disk.
+    for ancestor in reversed(named.parents):
+        if Path(os.path.realpath(ancestor)) == root:
+            return RootRelativePath.parse(named.relative_to(ancestor).as_posix())
+    return None
