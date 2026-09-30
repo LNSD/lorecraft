@@ -4,8 +4,8 @@ Every path crossing this boundary is a ``RootRelativePath`` such as ``docs/code/
 never holding a ``..`` component, so no argument can name a file outside the root. The type carries that
 proof, so no implementation checks it again. Nothing above the boundary sees a ``Path``, a handle, a stat
 result or an mtime. ``resolve_dir`` is the one operation that reports where a symlink chain leads, as a
-root-relative directory; ``list_dir`` and ``read_text`` reach through a linked directory on the way to the
-path they are given, and never report or classify a link's target. Every
+root-relative directory; ``list_dir`` and ``read_text`` reach through a link on the way to the path they are
+given, or at it, and never report or classify a link's target. Every
 implementation of the view is this package's own: ``DiskFileSystem`` reads the disk under the workspace
 root, and ``VirtualFileSystem`` answers from a ``Snapshot``.
 """
@@ -136,7 +136,7 @@ class FileSystem(ABC):
 
     @abstractmethod
     def read_text(self, path: RootRelativePath) -> str:
-        """Read one file as UTF-8 text; a symlink on the way to the file's directory is followed.
+        """Read one file as UTF-8 text; a symlink on the way to the file, or at it, is followed.
 
         Raises:
             DecodeTextError: If the bytes are not UTF-8.
@@ -148,8 +148,8 @@ class FileSystem(ABC):
         """Follow every symlink in ``path`` and return the real directory it leads to, root-relative.
 
         The one operation that says where a symlink leads, and only per directory: ``list_dir`` and
-        ``read_text`` follow a linked directory without naming the real one. A regular directory resolves
-        to itself, and the root resolves to ``.``.
+        ``read_text`` follow a link without naming the real path. A regular directory resolves to itself,
+        and the root resolves to ``.``.
 
         Returns:
             The real directory, root-relative, or ``None`` when no directory under the root sits at the

@@ -27,7 +27,12 @@ def disk_location(root: Path, path: RootRelativePath) -> Path:
 
 
 class DiskFileSystem(FileSystem):
-    """The view that reads the disk under one workspace root."""
+    """The view that reads the disk under one workspace root.
+
+    ``list_dir`` and ``read_text`` follow a symlink wherever the operating system does, outside the root
+    included; only ``resolve_dir`` refuses a chain that leaves the root. A snapshot never reads outside the
+    root, so there the two views differ.
+    """
 
     def __init__(self, root: Path) -> None:
         """Remember the root, made real once: the constructor's only I/O.
@@ -81,7 +86,9 @@ class DiskFileSystem(FileSystem):
             if not leads_to.is_relative_to(self._root):
                 return None
             raise ResolveDirError(path, exc.strerror or str(exc)) from exc
-        if not os.path.isdir(real):
+        # Asked of the path as given, not of ``real``: ``realpath`` follows a chain of any length, while the
+        # operating system gives up past its own limit, and then nothing opens the directory through it.
+        if not os.path.isdir(disk_location(self._root, path)):
             return None
         try:
             relative = Path(real).relative_to(self._root)
@@ -98,10 +105,11 @@ class ScanRoot:
         directory: Root-relative directory the scan starts at.
         depth: 0 lists ``directory`` only; 1 also lists each DIRECTORY entry inside it, and so on. Never
             negative. Entries beyond the depth are listed by their parent and never entered.
-        follow_links: When true, a symlink that leads to a directory under the root is followed: one on the
-            way to ``directory``, and one listed within the depth, which is entered as a DIRECTORY entry is.
-            The directory it leads to is listed at its real path, wherever under the root that is. When
-            false, a symlink is recorded and never followed.
+        follow_links: When true, a symlink that leads somewhere under the root is followed: one on the way
+            to ``directory``, and one listed by the scan. A link to a directory costs depth as a DIRECTORY
+            entry does, and the directory is listed at its real path, wherever under the root that is. A
+            link to a regular file has the file's bytes read, as a FILE entry has, and recorded at the
+            file's real path. When false, a symlink is recorded and never followed.
     """
 
     directory: RootRelativePath
@@ -142,9 +150,9 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
 
     Every symlink met is recorded, and followed only under a scope root that asks for it
     (``ScanRoot.follow_links``). Without it a scope root with a symlink on the way to it is not listed, and a
-    symlink entry is never entered. With it the scan lists the directory the link leads to, when that is a
-    directory under the root, at its real path and with the depth left at the link. Either way every listing
-    sits at a real path; a link to a file is never read through.
+    symlink entry is neither entered nor read through. With it the scan goes where the link leads, when that
+    is under the root: a directory is listed at its real path, with the depth left at the link, and a regular
+    file has its bytes recorded at its real path. Either way every listing and every file sits at a real path.
 
     Raises:
         TakeSnapshotError: If a directory in scope cannot be listed, or a file or symlink in it cannot be
@@ -159,16 +167,15 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
     followed_depth: dict[RootRelativePath, int] = {}
     pending: list[tuple[RootRelativePath, int, bool]] = []
     for scan in scope:
-        scope_root = _walk_to_directory(root, scan.directory, links, follow_links=scan.follow_links)
-        if scope_root is not None:
-            pending.append((scope_root, scan.depth, scan.follow_links))
+        scope_root = _walk_to_real_path(root, scan.directory, links, follow_links=scan.follow_links)
+        if scope_root is not None and scope_root.kind is EntryKind.DIRECTORY:
+            pending.append((scope_root.path, scan.depth, scan.follow_links))
 
     while pending:
         directory, depth, follow_links = pending.pop()
         if followed_depth.get(directory, -1) >= depth:
             continue  # a listing that followed links covers one that does not
-        # At depth 0 no entry is entered, so there is no link to follow and a plain listing covers it too.
-        if (not follow_links or depth == 0) and listed_depth.get(directory, -1) >= depth:
+        if not follow_links and listed_depth.get(directory, -1) >= depth:
             continue
         try:
             entries = _scan(root, directory)
@@ -196,10 +203,8 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
                 if target is None:
                     continue  # vanished after the listing; see the docstring
                 links[path] = target
-                if follow_links and depth > 0:
-                    leads_to = _walk_to_directory(root, path, links, follow_links=True)
-                    if leads_to is not None:
-                        pending.append((leads_to, depth - 1, follow_links))
+                if follow_links:
+                    _follow_listed_link(root, path, depth, links, files, pending)
             kept.append(entry)
         listings[directory] = tuple(kept)
 
@@ -210,26 +215,73 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
     )
 
 
-def _walk_to_directory(
+def _follow_listed_link(
+    root: Path,
+    link: RootRelativePath,
+    depth: int,
+    links: dict[RootRelativePath, PurePosixPath],
+    files: dict[RootRelativePath, bytes],
+    pending: list[tuple[RootRelativePath, int, bool]],
+) -> None:
+    """Go where one listed symlink leads, under a scope root that follows links.
+
+    A directory is queued in ``pending`` to be listed one level deeper, when ``depth`` leaves a level: the
+    link costs depth as a DIRECTORY entry does. A regular file has its bytes read into ``files``, at any
+    depth, as a FILE entry has. A link that leads nowhere under the root is left as recorded.
+
+    Raises:
+        TakeSnapshotError: If a component of the chain, or the file it leads to, exists but cannot be read.
+    """
+    leads_to = _walk_to_real_path(root, link, links, follow_links=True)
+    if leads_to is None:
+        return
+    if leads_to.kind is EntryKind.DIRECTORY and depth > 0:
+        pending.append((leads_to.path, depth - 1, True))
+    if leads_to.kind is EntryKind.FILE:
+        data = _read_bytes(root, leads_to.path)
+        if data is not None:  # None when it vanished after the walk; the link then stays recorded alone
+            files[leads_to.path] = data
+
+
+@dataclass(frozen=True, slots=True)
+class _RealPath:
+    """Where a walk from the root ended.
+
+    Attributes:
+        path: The real path, root-relative, with no symlink on the way to it or at it.
+        kind: DIRECTORY or FILE; a walk ends nowhere else.
+    """
+
+    path: RootRelativePath
+    kind: EntryKind
+
+
+def _walk_to_real_path(
     root: Path, path: RootRelativePath, links: dict[RootRelativePath, PurePosixPath], *, follow_links: bool
-) -> RootRelativePath | None:
-    """The real directory ``path`` leads to, so the scan may list it, or ``None`` when it may not.
+) -> _RealPath | None:
+    """The real directory or regular file ``path`` leads to, so the scan may read it, or ``None``.
 
     Walks the components from the root with ``lstat``, one real directory to the next, and records every
     symlink met in ``links``. Without ``follow_links`` the walk ends at the first symlink, which leaves the
-    path unlisted. With it a symlink splices its target into the components still to walk, as the kernel
-    does and as ``VirtualFileSystem.resolve_dir`` does over the snapshot: recording each link of the chain
-    is what lets that view walk the same chain to the same directory.
+    path unread. With it a symlink splices its target into the components still to walk, as the kernel
+    does and as ``VirtualFileSystem`` does over the snapshot: recording each link of the chain is what lets
+    that view walk the same chain to the same place.
 
-    A snapshot has no record for a lone file, so a component that is one is seen only through a listing of
-    its parent: a scope that must answer whether a root exists lists that parent too. Nor has it one for a
-    directory a chain only passes through and climbs back out of with ``..``, which the view does not know.
+    The view knows a directory only by what the snapshot recorded in it or under it. A directory the walk
+    stepped into by name since the last link has nothing recorded in it yet, so a ``..`` climbing back out
+    of one, as in ``tmp/../review``, makes a chain the view could not walk: the walk ends there instead of
+    reading what the view would not reach. A ``..`` climbing out of the directory a link sits in is followed,
+    since the recorded link makes that directory and its ancestors known.
+
+    A snapshot has no record for a lone file, so a scope root that is one is seen only through a listing of
+    its parent: a scope that must answer whether a root exists lists that parent too.
 
     Returns:
-        The real directory, root-relative, or ``None`` when no directory under the root is there: a
-        component is missing or is neither a directory nor a symlink, a symlink is not followed, its
-        target is absolute (so outside the root, see ``_read_link``) or climbs above the root, or the
-        chain is longer than ``MAX_LINKS``.
+        The real path and its kind, or ``None`` when no directory or regular file under the root is there:
+        a component is missing, a component on the way is no directory, the last one is neither a
+        directory, a regular file nor a symlink, a symlink is not followed, its target is absolute (so
+        outside the root, see ``_read_link``) or climbs above the root, a ``..`` climbs out of a directory
+        the walk stepped into, or the chain is longer than ``MAX_LINKS``.
 
     Raises:
         TakeSnapshotError: If a component exists but cannot be inspected, or its link cannot be read.
@@ -237,10 +289,11 @@ def _walk_to_directory(
     resolved = ROOT
     remaining = list(path.parts)
     links_followed = 0
+    stepped_into_since_last_link = 0
     while remaining:
         part = remaining.pop(0)
         if part == '..':
-            if resolved == ROOT:
+            if resolved == ROOT or stepped_into_since_last_link > 0:
                 return None
             resolved = resolved.parent
             continue
@@ -248,7 +301,10 @@ def _walk_to_directory(
         kind = _lstat_kind(root, candidate)
         if kind is EntryKind.DIRECTORY:
             resolved = candidate
+            stepped_into_since_last_link += 1
             continue
+        if kind is EntryKind.FILE and not remaining:
+            return _RealPath(candidate, EntryKind.FILE)
         if kind is not EntryKind.SYMLINK:
             return None
         target = _read_link(root, candidate)
@@ -259,7 +315,8 @@ def _walk_to_directory(
         if not follow_links or target.is_absolute() or links_followed > MAX_LINKS:
             return None
         remaining = list(target.parts) + remaining
-    return resolved
+        stepped_into_since_last_link = 0
+    return _RealPath(resolved, EntryKind.DIRECTORY)
 
 
 def _lstat_kind(root: Path, path: RootRelativePath) -> EntryKind | None:
@@ -342,7 +399,8 @@ def _scan(root: Path, path: RootRelativePath) -> tuple[DirEntry, ...] | None:
     """List one directory with a single ``os.scandir``, sorted by name.
 
     Returns:
-        The entries in name order, or ``None`` when the path is missing or is not a directory.
+        The entries in name order, or ``None`` when the path is missing, is not a directory, or is a link
+        that loops.
 
     Raises:
         ListDirError: If the directory exists but cannot be read.
@@ -353,6 +411,8 @@ def _scan(root: Path, path: RootRelativePath) -> tuple[DirEntry, ...] | None:
     except (FileNotFoundError, NotADirectoryError) as exc:  # noqa: F841 — a missing path is None, by contract
         return None
     except OSError as exc:
+        if exc.errno == errno.ELOOP:  # a looping link leads to no directory, exactly like a dangling one
+            return None
         raise ListDirError(path, exc.strerror or str(exc)) from exc
     entries.sort(key=lambda entry: entry.name)
     return tuple(entries)

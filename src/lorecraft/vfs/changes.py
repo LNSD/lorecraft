@@ -26,7 +26,8 @@ class Change:
     """One path's difference between two snapshots.
 
     Attributes:
-        path: The root-relative path of a listed entry, or of a symlink met on the way to a scope root.
+        path: The root-relative path of anything ``Snapshot.entries`` reports: a listed entry, a listed
+            directory, a file a followed link leads to, or a symlink met along a chain.
         kind: DELETED also when the entry at ``path`` changed kind; see ``diff``.
     """
 

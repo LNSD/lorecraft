@@ -17,6 +17,8 @@ import pytest
 
 from lorecraft.core.error import Error
 from lorecraft.vfs import (
+    Change,
+    ChangeKind,
     DecodeTextError,
     DirEntry,
     DiskFileSystem,
@@ -32,6 +34,7 @@ from lorecraft.vfs import (
     Snapshot,
     TakeSnapshotError,
     VirtualFileSystem,
+    diff,
     take_snapshot,
 )
 
@@ -86,10 +89,13 @@ PARITY_FIFO: Final[str] = 'docs/code/pipe'
 # What the snapshot of the parity tree records; the completeness test pins it, so the parity tests cover it.
 PARITY_ENTRIES: Final[Mapping[str, EntryKind]] = MappingProxyType(
     {
+        '.agents/skills': EntryKind.DIRECTORY,
         '.agents/skills/alpha': EntryKind.DIRECTORY,
         '.agents/skills/alpha/SKILL.md': EntryKind.FILE,
         '.agents/skills/beta': EntryKind.SYMLINK,
+        '.claude': EntryKind.DIRECTORY,
         '.claude/skills': EntryKind.SYMLINK,
+        'docs': EntryKind.DIRECTORY,
         'docs/__meta__': EntryKind.DIRECTORY,
         'docs/__meta__/code.md': EntryKind.FILE,
         'docs/absolute': EntryKind.SYMLINK,
@@ -198,6 +204,22 @@ def linked_skills_tree(tmp_path: Path) -> Path:
     (tmp_path / '.claude').mkdir()
     (tmp_path / '.claude' / 'skills').symlink_to('../.agents/skills')
     return tmp_path
+
+
+@pytest.fixture(scope='function')
+def chain_of_41_links(tmp_path: Path) -> str:
+    """A directory under ``tmp_path`` reached through 41 links, one more than Linux follows; returns the first link.
+
+    ``real/`` holds ``SKILL.md``; ``link-0`` leads to ``real`` and each later link to the one before it, so
+    ``link-40`` is the head of a chain that does not loop and is still too long to open.
+    """
+    (tmp_path / 'real').mkdir()
+    (tmp_path / 'real' / 'SKILL.md').write_bytes(b'---\n')
+    target = 'real'
+    for index in range(41):
+        (tmp_path / f'link-{index}').symlink_to(target)
+        target = f'link-{index}'
+    return target
 
 
 def _answer(call: Callable[[RootRelativePath], object], path: RootRelativePath) -> object:
@@ -309,6 +331,17 @@ class TestDiskFileSystemListDir:
 
         #: Then
         assert entries == (), 'a non-directory lists as nothing rather than failing'
+
+    def test_list_dir_with_a_looping_link_returns_empty(self, tmp_path: Path) -> None:
+        #: Given
+        (tmp_path / 'loop').symlink_to('loop')
+        filesystem = DiskFileSystem(tmp_path)
+
+        #: When
+        entries = filesystem.list_dir(RootRelativePath.parse('loop'))
+
+        #: Then
+        assert entries == (), 'a looping link leads to no directory, so it lists as nothing, like a dangling one'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
     def test_list_dir_with_an_unreadable_directory_raises_list_dir_error(
@@ -449,6 +482,18 @@ class TestDiskFileSystemResolveDir:
 
         #: Then
         assert resolved is None, 'a looping link leads nowhere, like a dangling one'
+
+    def test_resolve_dir_with_a_chain_longer_than_the_system_follows_returns_none(
+        self, tmp_path: Path, chain_of_41_links: str
+    ) -> None:
+        #: Given
+        filesystem = DiskFileSystem(tmp_path)
+
+        #: When
+        resolved = filesystem.resolve_dir(RootRelativePath.parse(chain_of_41_links))
+
+        #: Then
+        assert resolved is None, 'nothing opens a directory through a chain the operating system gives up on'
 
     def test_resolve_dir_with_a_link_to_a_file_returns_none(self, tmp_path: Path) -> None:
         #: Given
@@ -811,14 +856,32 @@ class TestTakeSnapshot:
             links=(Link(RootRelativePath.parse('.agents/skills/loop'), PurePosixPath('loop')),),
         ), 'a link that leads back to itself ends the walk instead of the scan never returning'
 
-    def test_take_snapshot_following_a_link_to_a_file_records_it_without_reading_through_it(
-        self, tmp_path: Path
-    ) -> None:
+    def test_take_snapshot_following_a_link_to_a_file_records_its_bytes_at_the_real_path(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'REVIEW.md').write_bytes(b'---\n')
         (tmp_path / '.agents' / 'skills').mkdir(parents=True)
         (tmp_path / '.agents' / 'skills' / 'SKILL.md').symlink_to('../../REVIEW.md')
-        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=1, follow_links=True),)
+        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=0, follow_links=True),)
+
+        #: When
+        snapshot = take_snapshot(tmp_path, scope)
+
+        #: Then
+        assert snapshot == Snapshot(
+            listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('SKILL.md', EntryKind.SYMLINK),)),),
+            files=(FileBytes(RootRelativePath.parse('REVIEW.md'), b'---\n'),),
+            links=(Link(RootRelativePath.parse('.agents/skills/SKILL.md'), PurePosixPath('../../REVIEW.md')),),
+        ), 'the entry stays a symlink, and the file it leads to is read at its real path, whatever the depth'
+
+    def test_take_snapshot_following_a_link_to_a_file_outside_the_root_records_it_without_reading_through_it(
+        self, tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
+    ) -> None:
+        #: Given
+        outside = tmp_path_factory.mktemp('outside') / 'REVIEW.md'
+        outside.write_bytes(b'---\n')
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'SKILL.md').symlink_to(outside)
+        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=0, follow_links=True),)
 
         #: When
         snapshot = take_snapshot(tmp_path, scope)
@@ -827,8 +890,29 @@ class TestTakeSnapshot:
         assert snapshot == Snapshot(
             listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('SKILL.md', EntryKind.SYMLINK),)),),
             files=(),
-            links=(Link(RootRelativePath.parse('.agents/skills/SKILL.md'), PurePosixPath('../../REVIEW.md')),),
-        ), 'only a link to a directory is followed: no bytes are read through a link to a file'
+            links=(Link(RootRelativePath.parse('.agents/skills/SKILL.md'), PurePosixPath(outside)),),
+        ), 'a link leading outside the root is recorded, and no bytes outside the root are read'
+
+    def test_take_snapshot_following_a_link_that_climbs_out_of_a_directory_it_stepped_into_lists_nothing_through_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        (tmp_path / 'skills' / 'review').mkdir(parents=True)
+        (tmp_path / 'skills' / 'review' / 'SKILL.md').write_bytes(b'---\n')
+        (tmp_path / 'skills' / 'tmp').mkdir()
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/tmp/../review')
+        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=1, follow_links=True),)
+
+        #: When
+        snapshot = take_snapshot(tmp_path, scope)
+
+        #: Then
+        assert snapshot == Snapshot(
+            listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('review', EntryKind.SYMLINK),)),),
+            files=(),
+            links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/tmp/../review')),),
+        ), 'the snapshot records nothing in skills/tmp, so the view could not walk this chain: the scan does not either'
 
     def test_take_snapshot_with_a_following_root_over_a_plain_one_follows_the_links_it_lists(
         self, tmp_path: Path
@@ -1082,8 +1166,20 @@ class TestVirtualFileSystemMatchesDisk:
         #: Then
         assert virtual_answer == disk_answer, 'docs/code-link lists as docs/code, where it leads, on both'
 
-    # read_text: every file and directory entry, and a file behind a linked directory. A symlink to a file is
-    # left out (the disk reads through it) and so is the fifo (reading it on disk would block).
+    # read_text: every file and directory entry, a file behind a linked directory, and a link to a recorded file.
+    # The fifo is left out (reading it on disk would block).
+
+    def test_read_text_over_a_snapshot_with_a_link_to_a_recorded_file_agrees_with_disk(self, parity_tree: Path) -> None:
+        #: Given
+        disk = DiskFileSystem(parity_tree)
+        virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
+        path = 'docs/code/linked.md'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.read_text, virtual.read_text, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'linked.md leads to a.md, whose bytes are recorded, so it reads the same'
 
     def test_read_text_over_a_snapshot_with_a_skill_directory_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
@@ -1713,3 +1809,66 @@ class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
 
         #: Then
         assert virtual_answer == disk_answer, 'SKILL.md reads as the same text through the path an agent uses'
+
+    def test_read_text_over_a_following_snapshot_with_a_linked_skill_file_agrees_with_disk(
+        self, linked_skills_tree: Path
+    ) -> None:
+        #: Given
+        (linked_skills_tree / 'REVIEW.md').write_bytes(b'---\nname: shared\n---\n')
+        (linked_skills_tree / '.agents' / 'skills' / 'shared').mkdir()
+        (linked_skills_tree / '.agents' / 'skills' / 'shared' / 'SKILL.md').symlink_to('../../../REVIEW.md')
+        disk = DiskFileSystem(linked_skills_tree)
+        virtual = VirtualFileSystem(take_snapshot(linked_skills_tree, FOLLOWING_SCOPE))
+        path = '.claude/skills/shared/SKILL.md'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.read_text, virtual.read_text, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'a SKILL.md that is itself a link reads as the file it leads to on both'
+
+    def test_resolve_dir_over_a_following_snapshot_with_a_chain_longer_than_the_system_follows_agrees_with_disk(
+        self, tmp_path: Path, chain_of_41_links: str
+    ) -> None:
+        #: Given
+        scope = (ScanRoot(RootRelativePath.parse(chain_of_41_links), depth=0, follow_links=True),)
+        disk = DiskFileSystem(tmp_path)
+        virtual = VirtualFileSystem(take_snapshot(tmp_path, scope))
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, chain_of_41_links)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'a chain of 41 links leads to no directory on either view'
+
+    def test_list_dir_over_a_following_snapshot_with_a_looping_link_agrees_with_disk(self, tmp_path: Path) -> None:
+        #: Given
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'loop').symlink_to('loop')
+        disk = DiskFileSystem(tmp_path)
+        virtual = VirtualFileSystem(take_snapshot(tmp_path, FOLLOWING_SCOPE))
+        path = '.agents/skills/loop'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'a looping link lists as nothing on both'
+
+
+@pytest.mark.it
+class TestDiffOfFollowingSnapshots:
+    def test_diff_with_an_empty_linked_directory_removed_returns_it_deleted(self, linked_skills_tree: Path) -> None:
+        #: Given
+        (linked_skills_tree / 'skills' / 'review' / 'SKILL.md').unlink()
+        old = take_snapshot(linked_skills_tree, FOLLOWING_SCOPE)
+        (linked_skills_tree / 'skills' / 'review').rmdir()
+        new = take_snapshot(linked_skills_tree, FOLLOWING_SCOPE)
+
+        #: When
+        changes = diff(old, new)
+
+        #: Then
+        assert changes == frozenset({Change(RootRelativePath.parse('skills/review'), ChangeKind.DELETED)}), (
+            'the directory the link led to is gone, and no listing of its parent was there to say so'
+        )

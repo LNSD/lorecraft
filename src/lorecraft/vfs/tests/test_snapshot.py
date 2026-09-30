@@ -152,7 +152,7 @@ class TestSnapshotEquality:
 
 @pytest.mark.unit
 class TestSnapshotEntries:
-    def test_entries_of_a_scanned_snapshot_returns_every_listed_path_and_scope_root_link(self) -> None:
+    def test_entries_of_a_scanned_snapshot_returns_every_listed_path_directory_and_scope_root_link(self) -> None:
         #: Given
         snapshot = _skills_snapshot()
 
@@ -161,10 +161,12 @@ class TestSnapshotEntries:
 
         #: Then
         assert entries == {
+            RootRelativePath.parse('.agents/skills'): EntryKind.DIRECTORY,
             RootRelativePath.parse('.agents/skills/alpha'): EntryKind.DIRECTORY,
             RootRelativePath.parse('.agents/skills/beta'): EntryKind.SYMLINK,
             RootRelativePath.parse('.agents/skills/alpha/SKILL.md'): EntryKind.FILE,
             RootRelativePath.parse('.claude/skills'): EntryKind.SYMLINK,
+            RootRelativePath.parse('docs'): EntryKind.DIRECTORY,
             RootRelativePath.parse('docs/code'): EntryKind.DIRECTORY,
             RootRelativePath.parse('docs/code/a.md'): EntryKind.FILE,
             RootRelativePath.parse('docs/code/above'): EntryKind.SYMLINK,
@@ -175,7 +177,39 @@ class TestSnapshotEntries:
             RootRelativePath.parse('docs/code/pipe'): EntryKind.OTHER,
             RootRelativePath.parse('docs/code/sub'): EntryKind.DIRECTORY,
             RootRelativePath.parse('docs/code/up'): EntryKind.SYMLINK,
-        }, 'every entry of every listing, plus the link met on the way to a scope root'
+        }, 'every entry of every listing, every listed directory, and the link met on the way to a scope root'
+
+    def test_entries_of_a_snapshot_listing_the_root_leaves_the_root_out(self) -> None:
+        #: Given
+        snapshot = Snapshot.of_files({RootRelativePath.parse('a.md'): b'a'})
+
+        #: When
+        entries = snapshot.entries()
+
+        #: Then
+        assert entries == {RootRelativePath.parse('a.md'): EntryKind.FILE}, (
+            'the root always exists, so its listing adds no entry of its own'
+        )
+
+    def test_entries_of_a_snapshot_with_a_file_in_no_listing_returns_it_as_a_file(self) -> None:
+        #: Given
+        # What a scan records for `.agents/skills/SKILL.md -> ../../REVIEW.md` when it follows the link: the
+        # bytes sit at the real path, in a directory the scan never listed.
+        snapshot = Snapshot(
+            listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('SKILL.md', EntryKind.SYMLINK),)),),
+            files=(FileBytes(RootRelativePath.parse('REVIEW.md'), b'---\n'),),
+            links=(Link(RootRelativePath.parse('.agents/skills/SKILL.md'), PurePosixPath('../../REVIEW.md')),),
+        )
+
+        #: When
+        entries = snapshot.entries()
+
+        #: Then
+        assert entries == {
+            RootRelativePath.parse('.agents/skills'): EntryKind.DIRECTORY,
+            RootRelativePath.parse('.agents/skills/SKILL.md'): EntryKind.SYMLINK,
+            RootRelativePath.parse('REVIEW.md'): EntryKind.FILE,
+        }, 'a file a followed link leads to is an entry, though no listing names it'
 
 
 @pytest.mark.unit
@@ -350,17 +384,47 @@ class TestVirtualFileSystemReadText:
         #: Then
         assert type(exc_info.value) is ReadTextError, 'docs/code/missing.md was never recorded, so it is missing'
 
-    def test_read_text_with_a_symlink_raises_read_text_error(self) -> None:
+    def test_read_text_with_a_link_to_a_recorded_file_returns_its_text(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code/linked.md')
+
+        #: When
+        text = virtual.read_text(path)
+
+        #: Then
+        assert text == '# A\n', 'linked.md leads to a.md, whose bytes the snapshot recorded, so it reads as that file'
+
+    def test_read_text_with_a_link_to_an_unrecorded_file_raises_read_text_error(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code/dangling')
 
         #: When
         with pytest.raises(ReadTextError) as exc_info:
             virtual.read_text(path)
 
         #: Then
-        assert type(exc_info.value) is ReadTextError, 'no bytes are recorded through a symlink, so it reads as missing'
+        assert type(exc_info.value) is ReadTextError, (
+            'dangling leads to a path the snapshot holds no bytes for, so it reads as missing'
+        )
+
+    def test_read_text_with_a_file_in_no_listing_behind_a_link_returns_its_text(self) -> None:
+        #: Given
+        # What a scan records for `.agents/skills/SKILL.md -> ../../REVIEW.md` when it follows the link.
+        snapshot = Snapshot(
+            listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('SKILL.md', EntryKind.SYMLINK),)),),
+            files=(FileBytes(RootRelativePath.parse('REVIEW.md'), b'---\n'),),
+            links=(Link(RootRelativePath.parse('.agents/skills/SKILL.md'), PurePosixPath('../../REVIEW.md')),),
+        )
+        virtual = VirtualFileSystem(snapshot)
+        path = RootRelativePath.parse('.agents/skills/SKILL.md')
+
+        #: When
+        text = virtual.read_text(path)
+
+        #: Then
+        assert text == '---\n', 'the link leads to REVIEW.md at the root, recorded at its real path'
 
     def test_read_text_with_a_file_behind_a_linked_directory_returns_its_text(self) -> None:
         #: Given
