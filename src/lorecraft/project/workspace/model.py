@@ -261,9 +261,9 @@ class WorkspaceModel:
         """The specs governing a document this model lists.
 
         Raises:
-            KeyError: If ``ref.corpus`` is not a corpus of this model (refs from the model never trigger it).
+            ValueError: If ``ref.corpus`` is not a corpus of this model (refs from the model never trigger it).
         """
         corpus = self.corpus(ref.corpus)
         if corpus is None:
-            raise KeyError(str(ref.corpus))
+            raise ValueError(f'document {ref.path} is in no corpus of this model')
         return corpus.governance(ref)

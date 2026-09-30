@@ -9,7 +9,7 @@ a decode failure means all happen above it, in ``checks.run`` and the database.
 """
 
 from dataclasses import dataclass
-from typing import Final
+from typing import Final, assert_never
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
@@ -62,12 +62,19 @@ def validate_frontmatter(
     if not schemas:
         return FrontmatterCheckResult(violations=())
 
-    if isinstance(frontmatter, MissingFrontmatter):
-        return _one_violation('frontmatter.missing', 'no `---` delimited frontmatter block')
-    if isinstance(frontmatter, InvalidYamlFrontmatter):
-        return _one_violation('frontmatter.unparseable', f'frontmatter is not valid YAML: {frontmatter.problem}')
-    if isinstance(frontmatter, NonMappingFrontmatter):
-        return _one_violation('frontmatter.unparseable', 'frontmatter is not a YAML mapping')
+    match frontmatter:
+        case MissingFrontmatter():
+            return _one_violation('frontmatter.missing', 'no `---` delimited frontmatter block', _FIRST_LINE)
+        case InvalidYamlFrontmatter(problem=problem, line=line):
+            return _one_violation(
+                'frontmatter.unparseable', f'frontmatter is not valid YAML: {problem}', line or _FIRST_LINE
+            )
+        case NonMappingFrontmatter():
+            return _one_violation('frontmatter.unparseable', 'frontmatter is not a YAML mapping', _FIRST_LINE)
+        case Frontmatter():
+            pass  # the mapping is checked below
+        case _:
+            assert_never(frontmatter)
 
     violations: list[Violation] = []
     expected_name = str(filename)
@@ -103,9 +110,9 @@ def validate_frontmatter(
     return FrontmatterCheckResult(violations=tuple(violations))
 
 
-def _one_violation(rule: str, message: str) -> FrontmatterCheckResult:
-    """The result of a document whose frontmatter is unusable: one violation on its first line."""
-    return FrontmatterCheckResult(violations=(Violation(line=_FIRST_LINE, rule=rule, message=message),))
+def _one_violation(rule: str, message: str, line: LineNumber) -> FrontmatterCheckResult:
+    """The result of a document whose frontmatter is unusable: one violation, on the line it is found at."""
+    return FrontmatterCheckResult(violations=(Violation(line=line, rule=rule, message=message),))
 
 
 def _key_line(frontmatter: Frontmatter, key: str) -> LineNumber:

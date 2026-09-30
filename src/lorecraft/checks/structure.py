@@ -12,7 +12,7 @@ a document governed by both must pass both, and neither can relax the other.
 """
 
 from dataclasses import dataclass
-from typing import Final
+from typing import Final, assert_never
 
 from lorecraft.project.schemas import AnySections, OutlineEntry, SectionEntry, StructureAspect
 from lorecraft.project.syntax import Heading, LineNumber
@@ -119,25 +119,29 @@ def _check_outline(aspect: StructureAspect, sections: tuple[Heading, ...]) -> li
     at = 0  # the first section not yet accounted for
 
     for entry in aspect.outline:
-        if isinstance(entry, AnySections):
-            # The run stops at a section the outline names: that section belongs to the entry naming it,
-            # wherever in the outline that entry falls.
-            while at < len(sections) and sections[at].text not in named:
-                at += 1
-            continue
+        match entry:
+            case AnySections():
+                # The run stops at a section the outline names: that section belongs to the entry naming it,
+                # wherever in the outline that entry falls.
+                while at < len(sections) and sections[at].text not in named:
+                    at += 1
+            case SectionEntry():
+                if at < len(sections) and sections[at].text == entry.name:
+                    at += 1
+                    continue
+                if entry.optional:
+                    continue
 
-        if at < len(sections) and sections[at].text == entry.name:
-            at += 1
-            continue
-        if entry.optional:
-            continue
-
-        if at < len(sections):
-            found = sections[at]
-            return [
-                Violation(found.line, 'structure.outline', f'expected section `{entry.name}`, found `{found.text}`')
-            ]
-        return [Violation(_FIRST_LINE, 'structure.outline', f'missing required section `{entry.name}`')]
+                if at < len(sections):
+                    found = sections[at]
+                    return [
+                        Violation(
+                            found.line, 'structure.outline', f'expected section `{entry.name}`, found `{found.text}`'
+                        )
+                    ]
+                return [Violation(_FIRST_LINE, 'structure.outline', f'missing required section `{entry.name}`')]
+            case _:
+                assert_never(entry)
 
     if at < len(sections):
         left = sections[at]
@@ -181,14 +185,25 @@ def _check_section_words(aspect: StructureAspect, sections: tuple[Heading, ...])
 def _entry_index(outline: tuple[OutlineEntry, ...], name: str) -> int | None:
     """Where in the outline the section entry naming ``name`` sits, or None when no entry names it."""
     for index, entry in enumerate(outline):
-        if isinstance(entry, SectionEntry) and entry.name == name:
-            return index
+        match entry:
+            case SectionEntry():
+                if entry.name == name:
+                    return index
+            case AnySections():
+                pass  # a run names no section
+            case _:
+                assert_never(entry)
     return None
 
 
 def _run_cap(outline: tuple[OutlineEntry, ...], after: int) -> int | None:
     """The cap of the first ``any`` entry past outline index ``after``, or None when there is no such entry."""
     for entry in outline[after + 1 :]:
-        if isinstance(entry, AnySections):
-            return entry.words
+        match entry:
+            case AnySections():
+                return entry.words
+            case SectionEntry():
+                pass  # a section entry caps only its own section
+            case _:
+                assert_never(entry)
     return None
