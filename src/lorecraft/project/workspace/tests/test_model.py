@@ -358,6 +358,16 @@ class TestGovernance:
 
 @pytest.mark.unit
 class TestCorpus:
+    def test_directory_of_a_corpus_returns_its_directory_under_docs(self) -> None:
+        #: Given
+        corpus = Corpus(name=CODE, spec=_spec('code'), namespace_specs=(), documents=())
+
+        #: When
+        directory = corpus.directory
+
+        #: Then
+        assert directory == RootRelativePath.parse('docs/code'), 'a corpus is the directory under docs/ at its name'
+
     def test_governance_with_a_ref_of_another_corpus_raises_value_error(self) -> None:
         #: Given
         corpus = Corpus(name=CODE, spec=_spec('code'), namespace_specs=(), documents=())
