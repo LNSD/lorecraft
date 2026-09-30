@@ -77,6 +77,8 @@ def run_frontmatter(database: Database, refs: tuple[DocumentRef, ...]) -> CheckR
         ListDocumentsError: If the model is not loaded yet and a corpus directory cannot be listed.
         GetStructureSchemaError: If the model is not loaded yet and a structure specification cannot be read.
         InvalidStructureSchemaError: If the model is not loaded yet and a structure specification is malformed.
+        ResolveSkillsDirError: If the model is not loaded yet and a skills directory cannot be resolved.
+        ListSkillsError: If the model is not loaded yet and a skills directory cannot be listed.
     """
     reports: list[DocumentReport] = []
     for ref in refs:
@@ -110,6 +112,8 @@ def run_structure(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun
         ListDocumentsError: If the model is not loaded yet and a corpus directory cannot be listed.
         GetStructureSchemaError: If the model is not loaded yet and a structure specification cannot be read.
         InvalidStructureSchemaError: If the model is not loaded yet and a structure specification is malformed.
+        ResolveSkillsDirError: If the model is not loaded yet and a skills directory cannot be resolved.
+        ListSkillsError: If the model is not loaded yet and a skills directory cannot be listed.
     """
     reports: list[DocumentReport] = []
     for ref in refs:
@@ -145,6 +149,8 @@ def run_budget(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
         ListDocumentsError: If the model is not loaded yet and a corpus directory cannot be listed.
         GetStructureSchemaError: If the model is not loaded yet and a structure specification cannot be read.
         InvalidStructureSchemaError: If the model is not loaded yet and a structure specification is malformed.
+        ResolveSkillsDirError: If the model is not loaded yet and a skills directory cannot be resolved.
+        ListSkillsError: If the model is not loaded yet and a skills directory cannot be listed.
     """
     reports: list[DocumentReport] = []
     for ref in refs:

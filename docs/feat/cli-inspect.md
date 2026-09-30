@@ -99,7 +99,7 @@ error: invalid JSON in schema docs/__meta__/feat.structure.json: Expecting prope
 
 ## Limitations
 
-- The model covers the documentation corpora only; skills under `.agents/skills/` are not part of it.
+- Only the documentation corpora are shown; the skills the model lists are not.
 - A file the model [leaves out](workspace.md#left-out-not-reported), such as a Markdown file in a
   subdirectory of a corpus, is not shown at all.
 

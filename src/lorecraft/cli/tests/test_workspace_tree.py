@@ -35,11 +35,11 @@ def _code_model() -> WorkspaceModel:
             DocumentRef(code, AspectFilename.parse('python-typing')),
         ),
     )
-    return WorkspaceModel(corpora=(corpus,))
+    return WorkspaceModel(corpora=(corpus,), skills_dirs=(), skills=())
 
 
 def _empty_model() -> WorkspaceModel:
-    return WorkspaceModel(corpora=())
+    return WorkspaceModel(corpora=(), skills_dirs=(), skills=())
 
 
 @pytest.mark.unit
