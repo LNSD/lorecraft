@@ -7,28 +7,23 @@ from typing import Self
 from lorecraft.core.error import Error
 
 
-class AspectNameError(Error):
-    """An aspect name does not satisfy its format."""
-
-    name: str
-
-
-class EmptyAspectNameError(AspectNameError):
+class EmptyAspectNameError(Error):
     """An aspect name is empty."""
 
     def __init__(self) -> None:
-        self.name = ''
         super().__init__('aspect name cannot be empty')
 
 
-class InvalidAspectNameCharacterError(AspectNameError):
+class InvalidAspectNameCharacterError(Error):
     """An aspect name contains a character outside its format.
 
     Attributes:
+        name: The rejected aspect name.
         position: Zero-based position of the invalid character.
         character: The invalid character.
     """
 
+    name: str
     position: int
     character: str
 
@@ -63,12 +58,18 @@ class AspectName:
         """Return a validated aspect name.
 
         Raises:
-            AspectNameError: If the name is empty or is not lowercase with valid separators.
+            EmptyAspectNameError: If the name is empty.
+            InvalidAspectNameCharacterError: If a character is not lowercase with valid separators.
         """
         return cls(raw)
 
     def __post_init__(self) -> None:
-        """Keep direct construction from bypassing the name invariant."""
+        """Keep direct construction from bypassing the name invariant.
+
+        Raises:
+            EmptyAspectNameError: If the name is empty.
+            InvalidAspectNameCharacterError: If a character is not lowercase with valid separators.
+        """
         _validate_aspect_name(self.value)
 
     def __str__(self) -> str:

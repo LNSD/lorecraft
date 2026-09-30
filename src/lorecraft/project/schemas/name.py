@@ -17,8 +17,10 @@ def parse_schema_name(stem: str) -> SchemaName:
     """Read the token before the first hyphen as the corpus and the rest as one namespace.
 
     Raises:
-        CorpusNameError: If the corpus token is invalid.
-        AspectNamespaceError: If the namespace token is invalid.
+        EmptyCorpusNameError: If the corpus token is empty.
+        InvalidCorpusNameCharacterError: If a character of the corpus token falls outside lowercase snake case.
+        EmptyAspectNamespaceError: If a hyphen is followed by no namespace.
+        InvalidAspectNamespaceCharacterError: If a character of the namespace token falls outside kebab case.
     """
     corpus_token, separator, namespace_token = stem.partition('-')
     corpus = CorpusName.parse(corpus_token)

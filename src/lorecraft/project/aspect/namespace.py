@@ -7,23 +7,23 @@ from typing import Self
 from lorecraft.core.error import Error
 
 
-class AspectNamespaceError(Error):
-    """A namespace does not satisfy its format."""
-
-    namespace: str
-
-
-class EmptyAspectNamespaceError(AspectNamespaceError):
+class EmptyAspectNamespaceError(Error):
     """A namespace is empty."""
 
     def __init__(self) -> None:
-        self.namespace = ''
         super().__init__('namespace cannot be empty')
 
 
-class InvalidAspectNamespaceCharacterError(AspectNamespaceError):
-    """A namespace contains a character outside its format."""
+class InvalidAspectNamespaceCharacterError(Error):
+    """A namespace contains a character outside its format.
 
+    Attributes:
+        namespace: The rejected namespace.
+        position: Zero-based position of the invalid character.
+        character: The invalid character.
+    """
+
+    namespace: str
     position: int
     character: str
 
@@ -53,12 +53,18 @@ class AspectNamespace:
         """Return a validated namespace.
 
         Raises:
-            AspectNamespaceError: If the namespace is empty or is not kebab case.
+            EmptyAspectNamespaceError: If the namespace is empty.
+            InvalidAspectNamespaceCharacterError: If a character falls outside kebab case.
         """
         return cls(raw)
 
     def __post_init__(self) -> None:
-        """Keep direct construction from bypassing namespace validation."""
+        """Keep direct construction from bypassing namespace validation.
+
+        Raises:
+            EmptyAspectNamespaceError: If the namespace is empty.
+            InvalidAspectNamespaceCharacterError: If a character falls outside kebab case.
+        """
         _validate_namespace(self.value)
 
     def matches(self, document_name: str) -> bool:
