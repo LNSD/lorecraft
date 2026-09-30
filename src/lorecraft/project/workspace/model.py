@@ -18,6 +18,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.ref import DocumentRef
+from lorecraft.project.layout import DOCS_DIR
 from lorecraft.project.schemas.name import SchemaName
 from lorecraft.project.schemas.structure import FrontmatterSchema, StructureAspect
 from lorecraft.project.skill.ref import SkillLocation, SkillRef
@@ -159,6 +160,11 @@ class Corpus:
         for ref in self.documents:
             if ref.corpus != self.name:
                 raise ValueError(f'corpus {self.name} lists document {ref.path} of another corpus')
+
+    @property
+    def directory(self) -> RootRelativePath:
+        """Root-relative ``docs/<name>``, the directory the corpus's documents sit directly inside."""
+        return DOCS_DIR / str(self.name)
 
     def governance(self, ref: DocumentRef) -> Governance:
         """Corpus spec, then every namespace spec that matches, in stored order. Pure.
