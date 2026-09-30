@@ -14,7 +14,16 @@ from lorecraft.core.error import Error
 
 from .path import ROOT, RootRelativePath
 from .snapshot import MAX_LINKS, FileBytes, Link, Listing, Snapshot
-from .view import DirEntry, EntryKind, FileSystem, ListDirError, ReadTextError, ResolveDirError, decode_text
+from .view import (
+    DirEntry,
+    EntryKind,
+    FileSystem,
+    ListDirError,
+    ReadTextError,
+    ResolveDirError,
+    ResolveFileError,
+    decode_text,
+)
 
 
 def disk_location(root: Path, path: RootRelativePath) -> Path:
@@ -30,8 +39,8 @@ class DiskFileSystem(FileSystem):
     """The view that reads the disk under one workspace root.
 
     ``list_dir`` and ``read_text`` follow a symlink wherever the operating system does, outside the root
-    included; only ``resolve_dir`` refuses a chain that leaves the root. A snapshot never reads outside the
-    root, so there the two views differ.
+    included; only ``resolve_dir`` and ``resolve_file`` refuse a chain that leaves the root. A snapshot never
+    reads outside the root, so there the two views differ.
     """
 
     def __init__(self, root: Path) -> None:
@@ -89,6 +98,36 @@ class DiskFileSystem(FileSystem):
         # Asked of the path as given, not of ``real``: ``realpath`` follows a chain of any length, while the
         # operating system gives up past its own limit, and then nothing opens the directory through it.
         if not os.path.isdir(disk_location(self._root, path)):
+            return None
+        try:
+            relative = Path(real).relative_to(self._root)
+        except ValueError as exc:  # noqa: F841 — a target outside the root has no root-relative spelling
+            return None
+        return RootRelativePath.parse(relative.as_posix())
+
+    def resolve_file(self, path: RootRelativePath) -> RootRelativePath | None:
+        """Resolve a file's symlink chain on disk; see ``FileSystem.resolve_file``.
+
+        Raises:
+            ResolveFileError: If the operating system refuses the lookup, such as a permission error on a
+                component, and the chain does not lead outside the root.
+        """
+        try:
+            real = os.path.realpath(disk_location(self._root, path), strict=True)
+        except (FileNotFoundError, NotADirectoryError) as exc:  # noqa: F841 — missing or through a file resolves to None, by contract
+            return None
+        except OSError as exc:
+            if exc.errno == errno.ELOOP:  # a looping link leads nowhere, exactly like a dangling one
+                return None
+            # As in ``resolve_dir``: a target outside the root is never a file under it, so a refused search
+            # there is not a failure.
+            leads_to = Path(os.path.realpath(disk_location(self._root, path)))
+            if not leads_to.is_relative_to(self._root):
+                return None
+            raise ResolveFileError(path, exc.strerror or str(exc)) from exc
+        # Asked of the path as given, as in ``resolve_dir``: nothing opens the file through a chain longer than
+        # the operating system follows.
+        if not os.path.isfile(disk_location(self._root, path)):
             return None
         try:
             relative = Path(real).relative_to(self._root)

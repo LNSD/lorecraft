@@ -5,12 +5,13 @@ project skills directories the modelled agents read; its file is always named ``
 carries its name; and its form is the Agent Skills specification's, not a corpus specification's.
 """
 
-from .ref import SkillRef
+from .ref import SkillLocation, SkillRef
 from .repo import GetSkillError, ListSkillsError, Repository, ResolveSkillsDirError, Skill, SkillDecodeError
 from .skills_dir import SkillsDir
 
 __all__ = [
     'SkillRef',
+    'SkillLocation',
     'SkillsDir',
     'Skill',
     'Repository',

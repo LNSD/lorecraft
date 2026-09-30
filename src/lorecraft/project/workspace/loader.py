@@ -27,7 +27,7 @@ from lorecraft.project.schemas.name import SchemaName
 from lorecraft.project.schemas.repo import Repository as SchemaRepository
 from lorecraft.project.schemas.spec_file import SpecAspect, SpecFile, SpecFilenameError, parse_spec_file
 from lorecraft.project.schemas.structure import StructureAspect
-from lorecraft.project.skill.ref import SkillRef
+from lorecraft.project.skill.ref import SkillLocation
 from lorecraft.project.skill.repo import Repository as SkillRepository
 from lorecraft.project.skill.skills_dir import SkillsDir
 from lorecraft.vfs import EntryKind, FileSystem, RootRelativePath
@@ -87,8 +87,8 @@ def load_workspace(schemas: SchemaRepository, documents: DocumentRepository, ski
         corpora.append(_load_corpus(schemas, corpus_name, files, refs))
 
     skills_dirs = _load_skills_dirs(skills)
-    skill_refs = _list_skill_refs(skills, skills_dirs)
-    return WorkspaceModel(corpora=tuple(corpora), skills_dirs=skills_dirs, skills=skill_refs)
+    skill_locations = _list_skill_locations(skills, skills_dirs)
+    return WorkspaceModel(corpora=tuple(corpora), skills_dirs=skills_dirs, skill_locations=skill_locations)
 
 
 def load_model(fs: FileSystem) -> WorkspaceModel:
@@ -216,10 +216,10 @@ def _load_skills_dirs(skills: SkillRepository) -> tuple[SkillsDir, ...]:
     return tuple(skills_dirs)
 
 
-def _list_skill_refs(skills: SkillRepository, skills_dirs: tuple[SkillsDir, ...]) -> tuple[SkillRef, ...]:
-    """Every skill in the real directories behind ``skills_dirs``, each once, sorted by directory.
+def _list_skill_locations(skills: SkillRepository, skills_dirs: tuple[SkillsDir, ...]) -> tuple[SkillLocation, ...]:
+    """The location of every skill in the real directories behind ``skills_dirs``, each once, sorted by directory.
 
-    Two agents reading one real directory add no second ref: the directory is listed once. The refs are
+    Two agents reading one real directory add no second skill: the directory is listed once. The locations are
     sorted as a whole, since one skills directory may sit inside another.
 
     Raises:
@@ -229,7 +229,7 @@ def _list_skill_refs(skills: SkillRepository, skills_dirs: tuple[SkillsDir, ...]
     for skills_dir in skills_dirs:
         real_directories.add(skills_dir.resolves_to)
 
-    refs: list[SkillRef] = []
+    locations: list[SkillLocation] = []
     for real_directory in real_directories:
-        refs.extend(skills.list_skills(real_directory))
-    return tuple(sorted(refs))
+        locations.extend(skills.list_skills(real_directory))
+    return tuple(sorted(locations))

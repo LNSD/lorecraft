@@ -23,7 +23,7 @@ def _write(root: Path, relative: str, data: bytes = b'') -> Path:
 
 def _run_every_skill(database: Database) -> SkillCheckRun:
     """Check every skill the database's model lists."""
-    return run_skills(database, database.model().skills)
+    return run_skills(database, database.model().skills())
 
 
 @pytest.fixture(scope='function')

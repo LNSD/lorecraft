@@ -20,7 +20,7 @@ from lorecraft.project.layout import SNAPSHOT_SCOPE, SPECS_DIR
 from lorecraft.project.schemas import InvalidStructureSchemaError
 from lorecraft.project.schemas import Repository as SchemaRepository
 from lorecraft.project.skill import Repository as SkillRepository
-from lorecraft.project.skill import SkillRef, SkillsDir
+from lorecraft.project.skill import SkillLocation, SkillRef, SkillsDir
 from lorecraft.project.workspace.loader import load_model, load_workspace
 from lorecraft.project.workspace.model import WorkspaceModel
 from lorecraft.vfs import DiskFileSystem, RootRelativePath, VirtualFileSystem, take_snapshot
@@ -68,6 +68,21 @@ def _write(root: Path, relative: str, text: str = '') -> None:
     path = root / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding='utf-8')
+
+
+def _skill_location(directory: str) -> SkillLocation:
+    """The location of a skill whose directory and ``SKILL.md`` are no links."""
+    path = RootRelativePath.parse(directory)
+    return SkillLocation(SkillRef(path), resolves_to=path, file_resolves_to=path / 'SKILL.md')
+
+
+def _linked_skill_location(directory: str, resolves_to: str, file_resolves_to: str) -> SkillLocation:
+    """The location of a skill whose directory or ``SKILL.md`` is a link, with the real paths they lead to."""
+    return SkillLocation(
+        SkillRef(RootRelativePath.parse(directory)),
+        resolves_to=RootRelativePath.parse(resolves_to),
+        file_resolves_to=RootRelativePath.parse(file_resolves_to),
+    )
 
 
 def _write_tree(root: Path, prose: tuple[str, ...], schemas: tuple[str, ...], documents: tuple[str, ...]) -> None:
@@ -591,7 +606,7 @@ class TestLoadWorkspaceEdgeCases:
 
         #: Then
         assert not missing_docs.exists(), 'the case turns on docs/ being absent'
-        assert model == WorkspaceModel(corpora=(), skills_dirs=(), skills=()), (
+        assert model == WorkspaceModel(corpora=(), skills_dirs=(), skill_locations=()), (
             'a root without docs/ is an empty workspace'
         )
 
@@ -609,9 +624,9 @@ class TestLoadWorkspaceSkills:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert model.skills == (
-            SkillRef(RootRelativePath.parse('.agents/skills/commit')),
-            SkillRef(RootRelativePath.parse('.agents/skills/review')),
+        assert model.skill_locations == (
+            _skill_location('.agents/skills/commit'),
+            _skill_location('.agents/skills/review'),
         ), 'every skill is listed, sorted by directory'
 
     def test_load_workspace_with_skills_and_a_corpus_keeps_the_skills_out_of_the_documents(
@@ -669,9 +684,9 @@ class TestLoadWorkspaceSkills:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert model.skills == (
-            SkillRef(RootRelativePath.parse('.agents/skills/review')),
-            SkillRef(RootRelativePath.parse('.claude/skills/commit')),
+        assert model.skill_locations == (
+            _skill_location('.agents/skills/review'),
+            _skill_location('.claude/skills/commit'),
         ), 'every agent directory is read, and the refs sort across them'
 
     def test_load_workspace_with_one_skills_directory_inside_another_sorts_the_refs_as_a_whole(
@@ -688,10 +703,10 @@ class TestLoadWorkspaceSkills:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert model.skills == (
-            SkillRef(RootRelativePath.parse('.agents/skills/alpha')),
-            SkillRef(RootRelativePath.parse('.agents/skills/claude/inner')),
-            SkillRef(RootRelativePath.parse('.agents/skills/zeta')),
+        assert model.skill_locations == (
+            _skill_location('.agents/skills/alpha'),
+            _skill_location('.agents/skills/claude/inner'),
+            _skill_location('.agents/skills/zeta'),
         ), 'the refs of a nested skills directory sort among the refs of the one holding it'
 
     def test_load_workspace_with_no_skills_directory_records_none(
@@ -722,7 +737,7 @@ class TestLoadModel:
         model = load_model(VirtualFileSystem(snapshot))
 
         #: Then
-        assert model.skills == (SkillRef(RootRelativePath.parse('.agents/skills/review')),), (
+        assert model.skill_locations == (_skill_location('.agents/skills/review'),), (
             'the snapshot scope covers the skills directories, and the linked directory adds no second ref'
         )
 
@@ -739,9 +754,9 @@ class TestLoadModel:
         model = load_model(VirtualFileSystem(snapshot))
 
         #: Then
-        assert model.skills == (SkillRef(RootRelativePath.parse('.agents/skills/review')),), (
-            'the scan follows the link, so the snapshot lists the skill the disk view lists'
-        )
+        assert model.skill_locations == (
+            _linked_skill_location('.agents/skills/review', 'skills/review', 'skills/review/SKILL.md'),
+        ), 'the scan follows the link, so the snapshot lists the skill the disk view lists'
 
     def test_load_model_over_a_snapshot_lists_a_skill_whose_skill_file_is_linked(self, tmp_path: Path) -> None:
         #: Given
@@ -754,9 +769,9 @@ class TestLoadModel:
         model = load_model(VirtualFileSystem(snapshot))
 
         #: Then
-        assert model.skills == (SkillRef(RootRelativePath.parse('.agents/skills/review')),), (
-            'the scan reads through the linked SKILL.md, so the snapshot lists the skill the disk view lists'
-        )
+        assert model.skill_locations == (
+            _linked_skill_location('.agents/skills/review', '.agents/skills/review', 'shared/REVIEW.md'),
+        ), 'the scan reads through the linked SKILL.md, so the snapshot lists the skill the disk view lists'
 
     def test_load_model_over_a_snapshot_with_a_skills_directory_linked_elsewhere_lists_its_skills(
         self, tmp_path: Path
@@ -771,7 +786,7 @@ class TestLoadModel:
         model = load_model(VirtualFileSystem(snapshot))
 
         #: Then
-        assert model.skills == (SkillRef(RootRelativePath.parse('skills/review')),), (
+        assert model.skill_locations == (_skill_location('skills/review'),), (
             'a skills directory linked to one no agent declares is read where it leads'
         )
 
@@ -786,6 +801,6 @@ class TestLoadModel:
         model = load_model(fs)
 
         #: Then
-        assert model.skills == (SkillRef(RootRelativePath.parse('.agents/skills/review')),), (
-            'the disk view follows the link, and the ref names the entry under the skills directory'
-        )
+        assert model.skill_locations == (
+            _linked_skill_location('.agents/skills/review', 'skills/review', 'skills/review/SKILL.md'),
+        ), 'the disk view follows the link, and the ref names the entry under the skills directory'

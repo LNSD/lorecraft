@@ -167,19 +167,19 @@ def select_skills(root: Path | None, paths: list[Path] | None) -> tuple[Database
             empty selects every skill the model lists. A skill two paths name is selected once.
 
     Raises:
-        WorkingDirectoryError: If no root is given and the working directory cannot be read.
+        WorkingDirectoryError: If no root is given, or a path is named, and the working directory cannot be read.
         RootError: If the root cannot be established.
         SkillPathError: If a named path is not a skill the model lists.
         Error: Any failure to take the snapshot or to load the model, as ``Database.model`` documents.
     """
     root_path = find_root(_working_directory()) if root is None else resolve_root(root)
     database = Database(take_snapshot(root_path, SNAPSHOT_SCOPE))
-    model = database.model()
     if not paths:
-        return database, model.skills
+        return database, database.model().skills()
+    working_directory = _working_directory()
     refs: list[SkillRef] = []
     for argument in paths:
-        for ref in select_skills_at(model, root_path, argument):
+        for ref in select_skills_at(database, root_path, working_directory, argument):
             if ref not in refs:
                 refs.append(ref)
     return database, tuple(refs)

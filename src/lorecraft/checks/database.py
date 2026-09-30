@@ -33,10 +33,11 @@ them that way: data drawn from several documents belongs in a new cache with its
 
 A change names a real path, while a ref may name a path through a link: a skill's ``SKILL.md`` under a linked
 skill entry changes at the path the link leads to, not at the ref's. A snapshot maps a linked path to its real
-one and not back, so ``advance`` would resolve each cached ref's path to the real one before looking it up in
-the change set. It would resolve it in both snapshots: a link retargeted to another skill leaves every file's
-bytes as they were, so a skill's frontmatter carries over only when its ref leads to the same real path before
-and after, and that path's bytes did not change.
+one and not back, so the model records each skill's ``SkillLocation``, the real ``SKILL.md`` its ref leads to,
+and ``advance`` would look that path up in the change set. A link retargeted to another skill leaves every file's
+bytes as they were and the ref as it was, like a file's identity in the IDE, while its location changes. So a
+skill's frontmatter carries over only when the two models locate its ref at the same real file and that file's
+bytes did not change.
 """
 
 from lorecraft.project.document import DocumentRef
@@ -45,7 +46,7 @@ from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import FrontmatterNode, ParsedDocument, count_tokens, parse_document, parse_frontmatter
 from lorecraft.project.workspace import WorkspaceModel, load_model
-from lorecraft.vfs import Snapshot, VirtualFileSystem
+from lorecraft.vfs import RootRelativePath, Snapshot, VirtualFileSystem
 
 
 class Database:
@@ -82,6 +83,20 @@ class Database:
         if self._model is None:
             self._model = load_model(self._fs)
         return self._model
+
+    def resolve(self, path: RootRelativePath) -> RootRelativePath | None:
+        """Where ``path`` leads in the snapshot, every recorded link on the way followed; never cached.
+
+        Like the IDE's lookup of a path in its virtual file system: a path handed in from outside, such as a
+        command line argument, is interpreted in the same frozen tree every check reads, not on the live disk.
+
+        Returns:
+            The real directory or the real file, root-relative, or ``None`` when the snapshot holds neither there.
+        """
+        directory = self._fs.resolve_dir(path)
+        if directory is not None:
+            return directory
+        return self._fs.resolve_file(path)
 
     def frontmatter(self, ref: DocumentRef) -> FrontmatterNode:
         """The frontmatter of one document, parsed from the snapshot on the first call for its ref.

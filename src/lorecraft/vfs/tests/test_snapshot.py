@@ -710,3 +710,107 @@ class TestVirtualFileSystemResolveDir:
 
         #: Then
         assert resolved is None, 'src lies outside the scanned scope, so it leads to no directory'
+
+
+@pytest.mark.unit
+class TestVirtualFileSystemResolveFile:
+    def test_resolve_file_with_a_file_returns_itself(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code/a.md')
+
+        #: When
+        resolved = virtual.resolve_file(path)
+
+        #: Then
+        assert resolved == RootRelativePath.parse('docs/code/a.md'), 'a recorded file with no link on its way is itself'
+
+    def test_resolve_file_with_a_link_to_a_file_returns_the_file(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code/linked.md')
+
+        #: When
+        resolved = virtual.resolve_file(path)
+
+        #: Then
+        assert resolved == RootRelativePath.parse('docs/code/a.md'), 'linked.md leads to its sibling a.md'
+
+    def test_resolve_file_through_a_linked_parent_and_a_linked_directory_returns_the_real_file(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('.claude/skills/beta/SKILL.md')
+
+        #: When
+        resolved = virtual.resolve_file(path)
+
+        #: Then
+        assert resolved == RootRelativePath.parse('.agents/skills/alpha/SKILL.md'), (
+            'the links .claude/skills and beta are followed on the way to the file'
+        )
+
+    def test_resolve_file_with_a_directory_returns_none(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code')
+
+        #: When
+        resolved = virtual.resolve_file(path)
+
+        #: Then
+        assert resolved is None, 'a directory is not a file'
+
+    def test_resolve_file_with_an_other_entry_returns_none(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code/pipe')
+
+        #: When
+        resolved = virtual.resolve_file(path)
+
+        #: Then
+        assert resolved is None, 'the fifo pipe has no recorded bytes, so it is no regular file'
+
+    def test_resolve_file_with_a_dangling_link_returns_none(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code/dangling')
+
+        #: When
+        resolved = virtual.resolve_file(path)
+
+        #: Then
+        assert resolved is None, 'dangling targets a path the snapshot never recorded'
+
+    def test_resolve_file_with_a_looping_link_returns_none(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code/loop')
+
+        #: When
+        resolved = virtual.resolve_file(path)
+
+        #: Then
+        assert resolved is None, 'a link to itself never reaches a file'
+
+    def test_resolve_file_with_an_absolute_link_returns_none(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code/absolute')
+
+        #: When
+        resolved = virtual.resolve_file(path)
+
+        #: Then
+        assert resolved is None, 'the absolute target /srv/docs is outside anything the snapshot recorded'
+
+    def test_resolve_file_with_a_missing_path_returns_none(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code/missing.md')
+
+        #: When
+        resolved = virtual.resolve_file(path)
+
+        #: Then
+        assert resolved is None, 'docs/code/missing.md was never recorded, so it leads to no file'
