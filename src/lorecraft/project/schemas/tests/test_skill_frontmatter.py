@@ -10,14 +10,14 @@ from ..skill_frontmatter import (
     EmptySkillDescriptionError,
     EmptySkillNameError,
     InvalidSkillNameFormatError,
+    OverlongSkillCompatibilityError,
+    OverlongSkillDescriptionError,
+    OverlongSkillNameError,
     SkillAllowedTools,
     SkillCompatibility,
-    SkillCompatibilityTooLongError,
     SkillDescription,
-    SkillDescriptionTooLongError,
     SkillLicense,
     SkillName,
-    SkillNameTooLongError,
 )
 
 
@@ -58,14 +58,14 @@ class TestSkillName:
             SkillName.parse(raw)
 
         #: Then
-        assert exc_info.value.name == raw, 'the error keeps the rejected name'
+        assert isinstance(exc_info.value.source, ValidationError), 'the broken rule is kept as the source'
 
     def test_parse_with_a_name_over_the_limit_raises_skill_name_too_long(self) -> None:
         #: Given
         raw = 'a' * 65
 
         #: When
-        with pytest.raises(SkillNameTooLongError) as exc_info:
+        with pytest.raises(OverlongSkillNameError) as exc_info:
             SkillName.parse(raw)
 
         #: Then
@@ -138,7 +138,7 @@ class TestSkillDescription:
         raw = 'x' * 1025
 
         #: When
-        with pytest.raises(SkillDescriptionTooLongError) as exc_info:
+        with pytest.raises(OverlongSkillDescriptionError) as exc_info:
             SkillDescription.parse(raw)
 
         #: Then
@@ -208,7 +208,7 @@ class TestSkillCompatibility:
         raw = 'x' * 501
 
         #: When
-        with pytest.raises(SkillCompatibilityTooLongError) as exc_info:
+        with pytest.raises(OverlongSkillCompatibilityError) as exc_info:
             SkillCompatibility.parse(raw)
 
         #: Then
@@ -273,7 +273,10 @@ class TestSkillValuePydanticType:
 
         #: Then
         messages = [error['msg'] for error in exc_info.value.errors()]
-        assert messages == [str(InvalidSkillNameFormatError('{pdf}'))], 'one error, the name message, braces kept'
+        assert messages == [
+            "skill name '{pdf}' must be lowercase letters, digits and single hyphens, "
+            'neither starting nor ending with a hyphen'
+        ], 'one error, the name message, braces kept'
 
     def test_model_validate_with_a_non_string_raises_a_validation_error(self) -> None:
         #: Given

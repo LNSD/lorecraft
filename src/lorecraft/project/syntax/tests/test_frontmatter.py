@@ -82,7 +82,7 @@ class TestDecodeFrontmatter:
         assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
         assert node.keys == (FrontmatterKey('name', LineNumber(3)),), 'only keys written as strings are listed'
 
-    def test_decode_frontmatter_with_invalid_yaml_returns_the_first_line_of_the_error(self) -> None:
+    def test_decode_frontmatter_with_invalid_yaml_returns_the_parsers_problem_and_line(self) -> None:
         #: Given
         block = 'name: [unclosed\n'
 
@@ -90,8 +90,21 @@ class TestDecodeFrontmatter:
         node = decode_frontmatter(block)
 
         #: Then
-        assert isinstance(node, InvalidYamlFrontmatter), f'a block that does not parse is invalid YAML, got {node!r}'
-        assert node.detail and '\n' not in node.detail, f'the detail is one line of the error, got {node.detail!r}'
+        assert node == InvalidYamlFrontmatter(
+            problem="expected ',' or ']', but got '<stream end>'", line=LineNumber(3)
+        ), 'the parser names the problem, and the document line it stopped on follows the opening delimiter'
+
+    def test_decode_frontmatter_with_a_control_character_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'name: a\x00b\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(problem='special characters are not allowed', line=LineNumber(2)), (
+            'a character the reader refuses is a finding on its line, not a crash'
+        )
 
     def test_decode_frontmatter_with_a_yaml_list_returns_non_mapping(self) -> None:
         #: Given
