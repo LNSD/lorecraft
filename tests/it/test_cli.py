@@ -313,8 +313,8 @@ class TestInspectCommand:
 
         #: Then
         assert result.exit_code == 0, result.output
-        assert result.stdout.splitlines()[1:] == ['└── corpora (0)'], (
-            'a root that declares no specification is an empty model, not an error'
+        assert result.stdout.splitlines()[1] == '├── corpora (0)', (
+            'a root that declares no specification is a model with no corpora, not an error'
         )
 
 

@@ -60,9 +60,9 @@ def require_real_layout(snapshot: Snapshot) -> None:
     """Refuse a snapshot in which ``docs/`` or ``docs/__meta__/`` is a symlink.
 
     Under ``docs/`` a snapshot records a symlink and never reads through it. Behind a linked ``docs/`` or
-    ``docs/__meta__/`` it therefore holds no specification, and the model loaded from it has no corpus: a command would report
-    a clean run over a repository it never read. A root with neither directory is not refused; it declares
-    nothing, which is a model with no corpora.
+    ``docs/__meta__/`` it therefore holds no specification, and the model loaded from it has no corpus: a
+    command would report a clean run over a repository it never read. A root with neither directory is not
+    refused; it declares nothing, which is a model with no corpora.
 
     Raises:
         LinkedLayoutError: If ``docs/`` is a symlink, or else if ``docs/__meta__/`` is one.
