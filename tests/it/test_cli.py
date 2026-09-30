@@ -1143,7 +1143,7 @@ class TestCommandRouting:
             register(name)(_unused_handler)
 
         #: Then
-        assert name in str(exc_info.value), 'the error names the subcommand that was already registered'
+        assert exc_info.value.name == name, 'the error names the subcommand that was already registered'
 
     def test_register_with_a_group_name_raises_duplicate_command_error(self) -> None:
         #: Given
@@ -1155,7 +1155,7 @@ class TestCommandRouting:
             register(name)(_unused_handler)
 
         #: Then
-        assert 'group' in str(exc_info.value), 'the error says the name is held by a command group'
+        assert exc_info.value.name == name, 'a command cannot take the name a command group holds'
 
     def test_register_group_with_a_command_name_raises_duplicate_command_error(self) -> None:
         #: Given
@@ -1167,7 +1167,7 @@ class TestCommandRouting:
             register_group('version', group)
 
         #: Then
-        assert 'command' in str(exc_info.value), 'the error says the name is held by a plain command'
+        assert exc_info.value.name == 'version', 'a group cannot take the name a plain command holds'
 
     def test_build_app_when_called_mounts_the_check_group_with_its_frontmatter_command(self) -> None:
         #: Given

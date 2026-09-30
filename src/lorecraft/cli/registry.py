@@ -25,7 +25,18 @@ _discovered: bool = False
 
 
 class DuplicateCommandError(RuntimeError):
-    """Two handlers claimed the same subcommand name."""
+    """Two handlers, two groups, or a handler and a group claimed one subcommand name: a defect in the package,
+    never the user's input, so the traceback, not the message, says where the second claim was made.
+
+    Attributes:
+        name: The subcommand name claimed twice.
+    """
+
+    name: str
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        super().__init__(f'subcommand {name!r} is already registered')
 
 
 def register(name: str) -> Callable[[CommandHandler], CommandHandler]:
@@ -46,10 +57,10 @@ def register(name: str) -> Callable[[CommandHandler], CommandHandler]:
 
     def decorator(handler: CommandHandler) -> CommandHandler:
         if name in _GROUPS:
-            raise DuplicateCommandError(f'subcommand {name!r} is already registered as a group')
+            raise DuplicateCommandError(name)
         registered = _HANDLERS.get(name)
         if registered is not None and registered is not handler:
-            raise DuplicateCommandError(f'subcommand {name!r} is already registered to {registered!r}')
+            raise DuplicateCommandError(name)
         _HANDLERS[name] = handler
         return handler
 
@@ -68,10 +79,10 @@ def register_group(name: str, group: typer.Typer) -> None:
             Registering the same group again is a no-op.
     """
     if name in _HANDLERS:
-        raise DuplicateCommandError(f'subcommand {name!r} is already registered as a command')
+        raise DuplicateCommandError(name)
     registered = _GROUPS.get(name)
     if registered is not None and registered is not group:
-        raise DuplicateCommandError(f'subcommand {name!r} is already registered to another group')
+        raise DuplicateCommandError(name)
     _GROUPS[name] = group
 
 

@@ -4,7 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from ..root import InvalidRootError, RootError, RootNotFoundError, find_root, resolve_root
+from lorecraft.core.error import Error
+
+from ..root import InvalidRootError, RootNotFoundError, find_root, resolve_root
 
 
 @pytest.mark.unit
@@ -58,7 +60,7 @@ class TestFindRoot:
             find_root(start)
 
         #: Then
-        assert isinstance(exc_info.value, RootError), 'the error belongs to the root family'
+        assert type(exc_info.value).__bases__ == (Error,), 'the variant derives from Error directly, not a family'
         assert exc_info.value.start == start, 'the error retains where the search began'
 
 
@@ -73,7 +75,7 @@ class TestResolveRoot:
             resolve_root(path)
 
         #: Then
-        assert isinstance(exc_info.value, RootError), 'the error belongs to the root family'
+        assert type(exc_info.value).__bases__ == (Error,), 'the variant derives from Error directly, not a family'
         assert exc_info.value.path == path.resolve(), 'the error identifies the rejected directory'
 
     def test_resolve_root_with_a_file_raises_invalid_root_error(self, tmp_path: Path) -> None:

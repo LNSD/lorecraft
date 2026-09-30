@@ -7,7 +7,6 @@ specific reason it fails, where discovery would simply have ignored the file.
 """
 
 import os
-from enum import Enum
 from pathlib import Path, PurePosixPath
 
 from lorecraft.checks import Database
@@ -20,38 +19,134 @@ from lorecraft.project.skill import SkillRef
 from lorecraft.project.workspace import WorkspaceModel
 
 
-class DocumentPathProblem(Enum):
-    """Which rule an explicit document argument failed; the message of each is its value."""
-
-    NOT_FOUND = 'no such file'
-    NOT_A_FILE = 'expected a readable Markdown file'
-    NOT_MARKDOWN = 'expected a .md file'
-    OUTSIDE_DOCS = 'file must be inside docs/ and outside docs/__meta__/'
-    NOT_IN_CORPUS = 'file must be inside a corpus directory under docs/'
-    INVALID_CORPUS_NAME = 'invalid corpus name'
-    NOT_A_CORPUS = 'not a corpus: no docs/__meta__/<dir>.* specification'
-    NESTED = 'corpora are flat; the file is in a subdirectory of its corpus'
-    NOT_LISTED = 'not a document the workspace lists'
-
-
-class DocumentPathError(Error):
-    """An explicit document argument does not name a document the model lists.
+class MissingDocumentPathError(Error):
+    """An explicit document argument leads to no file the snapshot holds, though it sits where a document may.
 
     Attributes:
         argument: The path exactly as typed.
-        reason: Which rule it failed; tests compare this, never the message.
-        detail: Extra text from the underlying failure (the CorpusName message), or ''.
     """
 
     argument: Path
-    reason: DocumentPathProblem
-    detail: str
 
-    def __init__(self, argument: Path, reason: DocumentPathProblem, detail: str = '') -> None:
+    def __init__(self, argument: Path) -> None:
         self.argument = argument
-        self.reason = reason
-        self.detail = detail
-        super().__init__(f'{argument}: {detail or reason.value}')
+        super().__init__(f'{argument}: no such file')
+
+
+class NonFileDocumentPathError(Error):
+    """An explicit document argument leads to a directory, not a file.
+
+    Attributes:
+        argument: The path exactly as typed.
+    """
+
+    argument: Path
+
+    def __init__(self, argument: Path) -> None:
+        self.argument = argument
+        super().__init__(f'{argument}: expected a readable Markdown file')
+
+
+class NonMarkdownDocumentPathError(Error):
+    """An explicit document argument names a file that is not ``.md``.
+
+    Attributes:
+        argument: The path exactly as typed.
+    """
+
+    argument: Path
+
+    def __init__(self, argument: Path) -> None:
+        self.argument = argument
+        super().__init__(f'{argument}: expected a .md file')
+
+
+class OutsideDocsDocumentPathError(Error):
+    """An explicit document argument lies outside ``docs/``, inside ``docs/__meta__/``, or outside the root.
+
+    Attributes:
+        argument: The path exactly as typed.
+    """
+
+    argument: Path
+
+    def __init__(self, argument: Path) -> None:
+        self.argument = argument
+        super().__init__(f'{argument}: file must be inside docs/ and outside docs/__meta__/')
+
+
+class CorpuslessDocumentPathError(Error):
+    """An explicit document argument sits directly in ``docs/``, in no corpus directory.
+
+    Attributes:
+        argument: The path exactly as typed.
+    """
+
+    argument: Path
+
+    def __init__(self, argument: Path) -> None:
+        self.argument = argument
+        super().__init__(f'{argument}: file must be inside a corpus directory under docs/')
+
+
+class InvalidCorpusDocumentPathError(Error):
+    """An explicit document argument's corpus directory is not a valid corpus name.
+
+    Attributes:
+        argument: The path exactly as typed.
+        source: Why the directory's name is not a corpus name.
+    """
+
+    argument: Path
+    source: EmptyCorpusNameError | InvalidCorpusNameCharacterError
+
+    def __init__(self, argument: Path, *, source: EmptyCorpusNameError | InvalidCorpusNameCharacterError) -> None:
+        self.argument = argument
+        self.source = source
+        super().__init__(f'{argument}: invalid corpus name')
+        self.__cause__ = source
+
+
+class UnknownCorpusDocumentPathError(Error):
+    """An explicit document argument's corpus directory has no specification, so it is not a corpus.
+
+    Attributes:
+        argument: The path exactly as typed.
+    """
+
+    argument: Path
+
+    def __init__(self, argument: Path) -> None:
+        self.argument = argument
+        super().__init__(f'{argument}: not a corpus: no docs/__meta__/<dir>.* specification')
+
+
+class NestedDocumentPathError(Error):
+    """An explicit document argument sits in a subdirectory of its corpus, where corpora are flat.
+
+    Attributes:
+        argument: The path exactly as typed.
+    """
+
+    argument: Path
+
+    def __init__(self, argument: Path) -> None:
+        self.argument = argument
+        super().__init__(f'{argument}: corpora are flat; the file is in a subdirectory of its corpus')
+
+
+class UnlistedDocumentPathError(Error):
+    """An explicit document argument names a file the workspace model does not list as a document.
+
+    Attributes:
+        argument: The path exactly as typed.
+    """
+
+    argument: Path
+
+    def __init__(self, argument: Path) -> None:
+        self.argument = argument
+        super().__init__(f'{argument}: not a document the workspace lists')
 
 
 def select_document(database: Database, root: Path, working_directory: Path, argument: Path) -> DocumentRef:
@@ -61,14 +156,14 @@ def select_document(database: Database, root: Path, working_directory: Path, arg
     names the document the run reads: a document linked from inside the snapshot is named by the link, and a link
     outside it, which the scan never read, is judged by its spelling.
 
-    The rules apply in order: NOT_A_FILE for a path the snapshot leads to a directory, then on the file it leads to
-    NOT_MARKDOWN, OUTSIDE_DOCS and NOT_IN_CORPUS, then on the first segment after docs/ INVALID_CORPUS_NAME (from
-    ``CorpusName.parse``, chained) and NOT_A_CORPUS, then NESTED (more than one segment below the corpus), then
-    ``model.locate``, where a miss is NOT_LISTED. The first segment is judged before depth so a nested path under a
-    non-corpus (``docs/schemas/tables/x.md``) names the real cause, NOT_A_CORPUS, rather than a subdirectory of a
-    corpus that does not exist. Where the snapshot leads to no file, the same rules judge the path as spelled, and
-    one that passes them all is NOT_FOUND: a file the scan never entered, such as a nested one, is refused for where
-    it sits rather than as missing.
+    The rules apply in order: a directory for a path the snapshot leads to one, then on the file it leads to not
+    Markdown, outside ``docs/`` and in no corpus, then on the first segment after ``docs/`` an invalid corpus name
+    (the parser's failure as its source) and an unknown corpus, then nested (more than one segment below the
+    corpus), then ``model.locate``, where a miss is unlisted. The first segment is judged before depth so a nested
+    path under a non-corpus (``docs/schemas/tables/x.md``) names the real cause, an unknown corpus, rather than a
+    subdirectory of a corpus that does not exist. Where the snapshot leads to no file, the same rules judge the path
+    as spelled, and one that passes them all is missing: a file the scan never entered, such as a nested one, is
+    refused for where it sits rather than as missing.
 
     Args:
         database: The snapshot the argument is resolved in, and the model it must name a document of.
@@ -77,74 +172,79 @@ def select_document(database: Database, root: Path, working_directory: Path, arg
         argument: The path as typed; quoted verbatim in the error message.
 
     Raises:
-        DocumentPathError: One reason per rule above, and OUTSIDE_DOCS when the argument lies outside the root.
+        NonFileDocumentPathError: If the snapshot leads the argument to a directory.
+        NonMarkdownDocumentPathError: If it names a file that is not ``.md``.
+        OutsideDocsDocumentPathError: If it lies outside ``docs/``, inside ``docs/__meta__/``, or outside the root.
+        CorpuslessDocumentPathError: If it sits directly in ``docs/``.
+        InvalidCorpusDocumentPathError: If its corpus directory is not a valid corpus name.
+        UnknownCorpusDocumentPathError: If its corpus directory is not a corpus.
+        NestedDocumentPathError: If it sits in a subdirectory of its corpus.
+        MissingDocumentPathError: If it passes every rule of placement but the snapshot holds no file there.
+        UnlistedDocumentPathError: If the model lists no document at the file it leads to.
     """
     # Lexical, as in `select_skills_at`: following links here would read the disk.
     named = Path(os.path.normpath(working_directory / argument))
     spelled = _spell_under_root(root, named)
     if spelled is None:
-        raise DocumentPathError(argument, DocumentPathProblem.OUTSIDE_DOCS)
+        raise OutsideDocsDocumentPathError(argument)
     document = database.resolve_file(spelled)
     if document is None and database.resolve(spelled) is not None:
-        raise DocumentPathError(argument, DocumentPathProblem.NOT_A_FILE)
+        raise NonFileDocumentPathError(argument)
 
     model = database.model()
     if document is None:
         _require_document_placement(model, argument, spelled)
-        raise DocumentPathError(argument, DocumentPathProblem.NOT_FOUND)
+        raise MissingDocumentPathError(argument)
     _require_document_placement(model, argument, document)
     ref = model.locate(document)
     if ref is None:
-        raise DocumentPathError(argument, DocumentPathProblem.NOT_LISTED)
+        raise UnlistedDocumentPathError(argument)
     return ref
 
 
 def _require_document_placement(model: WorkspaceModel, argument: Path, path: RootRelativePath) -> None:
-    """Refuse ``path`` unless it is a Markdown file directly inside a corpus the model lists.
+    """Refuse ``path`` unless it is a Markdown file directly inside a corpus the model lists; the first rule it
+    fails, in the order ``select_document`` gives, selects the error.
 
     Raises:
-        DocumentPathError: NOT_MARKDOWN, OUTSIDE_DOCS, NOT_IN_CORPUS, INVALID_CORPUS_NAME, NOT_A_CORPUS or NESTED,
-            the first rule ``path`` fails, in the order ``select_document`` gives.
+        NonMarkdownDocumentPathError: If ``path`` is not ``.md``.
+        OutsideDocsDocumentPathError: If it lies outside ``docs/`` or inside ``docs/__meta__/``.
+        CorpuslessDocumentPathError: If it sits directly in ``docs/``.
+        InvalidCorpusDocumentPathError: If its corpus directory is not a valid corpus name.
+        UnknownCorpusDocumentPathError: If its corpus directory is not a corpus.
+        NestedDocumentPathError: If it sits in a subdirectory of its corpus.
     """
     if PurePosixPath(path.name).suffix != DOCUMENT_SUFFIX:
-        raise DocumentPathError(argument, DocumentPathProblem.NOT_MARKDOWN)
+        raise NonMarkdownDocumentPathError(argument)
     if not path.is_relative_to(DOCS_DIR) or path.is_relative_to(SPECS_DIR):
-        raise DocumentPathError(argument, DocumentPathProblem.OUTSIDE_DOCS)
+        raise OutsideDocsDocumentPathError(argument)
     parts = path.parts[len(DOCS_DIR.parts) :]
     if len(parts) < 2:
-        raise DocumentPathError(argument, DocumentPathProblem.NOT_IN_CORPUS)
+        raise CorpuslessDocumentPathError(argument)
 
     try:
         corpus = CorpusName.parse(parts[0])
     except (EmptyCorpusNameError, InvalidCorpusNameCharacterError) as exc:
-        raise DocumentPathError(argument, DocumentPathProblem.INVALID_CORPUS_NAME, str(exc)) from exc
+        raise InvalidCorpusDocumentPathError(argument, source=exc) from exc
     if model.corpus(corpus) is None:
-        raise DocumentPathError(argument, DocumentPathProblem.NOT_A_CORPUS)
+        raise UnknownCorpusDocumentPathError(argument)
     if len(parts) > 2:
-        raise DocumentPathError(argument, DocumentPathProblem.NESTED)
+        raise NestedDocumentPathError(argument)
 
 
-class SkillPathProblem(Enum):
-    """Which rule an explicit skill argument failed; the message of each is its value."""
-
-    NOT_LISTED = 'not a skill the workspace lists; name a skill directory or its SKILL.md'
-
-
-class SkillPathError(Error):
-    """An explicit skill argument does not name a skill the model lists.
+class UnlistedSkillPathError(Error):
+    """An explicit skill argument does not name a skill the model lists: it lies outside the root, the snapshot
+    holds nothing at it, or no skill the model lists is there.
 
     Attributes:
         argument: The path exactly as typed.
-        reason: Which rule it failed; tests compare this, never the message.
     """
 
     argument: Path
-    reason: SkillPathProblem
 
-    def __init__(self, argument: Path, reason: SkillPathProblem) -> None:
+    def __init__(self, argument: Path) -> None:
         self.argument = argument
-        self.reason = reason
-        super().__init__(f'{argument}: {reason.value}')
+        super().__init__(f'{argument}: not a skill the workspace lists; name a skill directory or its SKILL.md')
 
 
 def select_skills_at(database: Database, root: Path, working_directory: Path, argument: Path) -> tuple[SkillRef, ...]:
@@ -166,7 +266,7 @@ def select_skills_at(database: Database, root: Path, working_directory: Path, ar
         The skills at the named path, in the model's order; never empty.
 
     Raises:
-        SkillPathError: NOT_LISTED when the argument lies outside the root, the snapshot holds nothing at it,
+        UnlistedSkillPathError: If the argument lies outside the root, the snapshot holds nothing at it,
             or no skill the model lists is there.
     """
     # Lexical, like rust-analyzer's `AbsPath::normalize`: `..` drops the component before it even when that one
@@ -175,13 +275,13 @@ def select_skills_at(database: Database, root: Path, working_directory: Path, ar
     named = Path(os.path.normpath(working_directory / argument))
     spelled = _spell_under_root(root, named)
     if spelled is None:
-        raise SkillPathError(argument, SkillPathProblem.NOT_LISTED)
+        raise UnlistedSkillPathError(argument)
     real_path = database.resolve(spelled)
     if real_path is None:
-        raise SkillPathError(argument, SkillPathProblem.NOT_LISTED)
+        raise UnlistedSkillPathError(argument)
     refs = database.model().locate_skills(real_path)
     if not refs:
-        raise SkillPathError(argument, SkillPathProblem.NOT_LISTED)
+        raise UnlistedSkillPathError(argument)
     return refs
 
 
