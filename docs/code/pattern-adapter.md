@@ -23,8 +23,9 @@ attributes exist, not that signatures or behavior match, so an `isinstance` chec
 prove an adapter works.
 
 Translate failures as well as values. The adapter catches the library's exceptions and raises a domain error
-that takes the library's exception as its typed `source`, so the consumer handles one vocabulary of errors. How
-that error is declared is owned by [error-types](error-types.md).
+that takes the library's exception as its typed `source`, with the facts the consumer acts on as typed fields,
+so the consumer handles one vocabulary of errors. How that translation is done is owned by
+[error-boundaries](error-boundaries.md), and how the error is declared by [error-types](error-types.md).
 
 ## Examples
 
@@ -113,6 +114,7 @@ already the boundary. Do not mirror a library's whole API to have "our own" vers
 - [principle-information-hiding](principle-information-hiding.md) - Foundation: The library's shape is a decision hidden behind the adapter
 - [pattern-protocol](pattern-protocol.md) - Related: Describes the consumer's contract when several adapters serve it
 - [pattern-facade](pattern-facade.md) - Related: A facade coordinates a workflow; an adapter translates one interface
+- [error-boundaries](error-boundaries.md) - Related: Owns the translation of a library's exception into a variant
 - [error-types](error-types.md) - Related: Owns how the domain errors an adapter raises are declared
 
 ## External References
