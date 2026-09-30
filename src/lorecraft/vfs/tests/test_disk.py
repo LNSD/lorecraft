@@ -4,8 +4,9 @@ from pathlib import Path
 
 import pytest
 
+from lorecraft.core.path import RootRelativePath
+
 from ..disk import ScanRoot, disk_location
-from ..path import RootRelativePath
 
 
 @pytest.mark.unit

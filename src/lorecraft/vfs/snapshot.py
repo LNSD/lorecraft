@@ -11,7 +11,8 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Final, Self
 
-from .path import ROOT, RootRelativePath
+from lorecraft.core.path import ROOT, RootRelativePath
+
 from .view import DirEntry, EntryKind, FileSystem, ReadTextError, decode_text
 
 MAX_LINKS: Final[int] = 40

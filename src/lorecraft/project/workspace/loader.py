@@ -18,6 +18,7 @@ it propagates unchanged to the command that loads the model, which reports it.
 from dataclasses import dataclass, field
 
 from lorecraft.agents import iter_agents
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectFilenameError, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.ref import DocumentRef
@@ -30,7 +31,7 @@ from lorecraft.project.schemas.structure import StructureAspect
 from lorecraft.project.skill.ref import SkillLocation
 from lorecraft.project.skill.repo import Repository as SkillRepository
 from lorecraft.project.skill.skills_dir import SkillsDir
-from lorecraft.vfs import FileSystem, RootRelativePath
+from lorecraft.vfs import FileSystem
 
 from .model import Corpus, Spec, WorkspaceModel, namespace_order_key
 

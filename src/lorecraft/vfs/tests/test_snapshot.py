@@ -10,7 +10,8 @@ from typing import Final, cast
 
 import pytest
 
-from ..path import RootRelativePath
+from lorecraft.core.path import RootRelativePath
+
 from ..snapshot import FileBytes, Link, Listing, Snapshot, VirtualFileSystem
 from ..view import DecodeTextError, DirEntry, EntryKind, FileSystem, ReadTextError
 

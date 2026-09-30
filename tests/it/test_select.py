@@ -20,13 +20,14 @@ from lorecraft.cli.select import (
     select_document,
     select_skills_at,
 )
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName, CorpusNameError
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.workspace import WorkspaceModel, load_model
-from lorecraft.vfs import DiskFileSystem, RootRelativePath, take_snapshot
+from lorecraft.vfs import DiskFileSystem, take_snapshot
 
 
 def _write(root: Path, relative: str, text: str = '') -> Path:

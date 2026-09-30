@@ -8,8 +8,8 @@ it was, and ``Finding.at`` joins the two into a finding, the located form the ou
 from dataclasses import dataclass
 from typing import Self
 
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
-from lorecraft.vfs import RootRelativePath
 
 
 @dataclass(frozen=True, slots=True)

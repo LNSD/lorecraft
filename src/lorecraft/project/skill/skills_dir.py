@@ -8,7 +8,7 @@ agents again or guess whose a directory is.
 from dataclasses import dataclass
 
 from lorecraft.agents import AgentName
-from lorecraft.vfs import RootRelativePath
+from lorecraft.core.path import RootRelativePath
 
 
 @dataclass(frozen=True, slots=True)

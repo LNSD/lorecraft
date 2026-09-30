@@ -8,8 +8,9 @@ from pathlib import PurePosixPath
 
 import pytest
 
+from lorecraft.core.path import RootRelativePath
+
 from ..changes import Change, ChangeKind, ChangeSet, diff
-from ..path import RootRelativePath
 from ..snapshot import FileBytes, Link, Listing, Snapshot
 from ..view import DirEntry, EntryKind
 

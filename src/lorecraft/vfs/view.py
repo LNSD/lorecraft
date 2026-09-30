@@ -16,8 +16,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from lorecraft.core.error import Error
-
-from .path import RootRelativePath
+from lorecraft.core.path import RootRelativePath
 
 
 class EntryKind(Enum):

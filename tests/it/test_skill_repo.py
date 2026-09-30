@@ -13,6 +13,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.skill import (
     GetSkillError,
     ListSkillsError,
@@ -23,7 +24,7 @@ from lorecraft.project.skill import (
     SkillLocation,
     SkillRef,
 )
-from lorecraft.vfs import DiskFileSystem, RootRelativePath
+from lorecraft.vfs import DiskFileSystem
 
 UNIVERSAL_DIR: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills')
 CLAUDE_DIR: Final[RootRelativePath] = RootRelativePath.parse('.claude/skills')

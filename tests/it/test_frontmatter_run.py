@@ -11,8 +11,9 @@ from typing import Final
 import pytest
 
 from lorecraft.checks import CheckRun, Database, run_frontmatter
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.layout import SNAPSHOT_SCOPE
-from lorecraft.vfs import RootRelativePath, take_snapshot
+from lorecraft.vfs import take_snapshot
 
 # A frontmatter schema requiring a string ``description``, so a document without one yields a schema finding.
 DESCRIPTION_STRUCTURE_SPEC: Final[str] = dedent(

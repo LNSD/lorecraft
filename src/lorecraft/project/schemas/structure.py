@@ -63,7 +63,7 @@ from pydantic import JsonValue, ValidationError
 from referencing.jsonschema import DRAFT202012
 
 from lorecraft.core.error import Error
-from lorecraft.vfs import RootRelativePath
+from lorecraft.core.path import RootRelativePath
 
 from .spec_file import SpecFilenameError, parse_spec_file, prose_filename
 from .structure_file import JSON_SCHEMA_DIALECT, StructureFile, StructureFileAny, StructureFileTitle

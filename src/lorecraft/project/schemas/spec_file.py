@@ -14,9 +14,9 @@ from enum import Enum
 from typing import Final
 
 from lorecraft.core.error import Error
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectNamespaceError
 from lorecraft.project.corpus import CorpusName, CorpusNameError
-from lorecraft.vfs import RootRelativePath
 
 from .name import SchemaName, parse_schema_name, schema_name_stem
 

@@ -13,9 +13,9 @@ from typing import Final
 import pytest
 from jsonschema import Draft202012Validator
 
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import parse_skill_frontmatter
 from lorecraft.project.syntax import Frontmatter, parse_frontmatter
-from lorecraft.vfs import RootRelativePath
 
 REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 SCHEMA_FILE: Final[Path] = REPOSITORY_ROOT / 'docs' / 'schemas' / 'skill-frontmatter.spec.json'
