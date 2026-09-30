@@ -58,6 +58,11 @@ named document check does the same when given no paths. Given paths, it checks e
 document — outside `docs/`, inside `docs/__meta__/`, not Markdown, in a directory no specification names, or in
 a subdirectory of a corpus. Paths are relative to the working directory, not to the root.
 
+Under the root a path is resolved in the [snapshot](workspace.md#one-snapshot), not on disk, so it names what
+the run reads: a link the snapshot recorded is followed to its target, a link it never read is judged by its
+spelling, and a path it holds no file at refuses the run. Above the root a link is followed on disk, so the root
+may be reached through one.
+
 ### One Run, One Snapshot
 
 Every check in a run reads the same [snapshot](workspace.md#one-snapshot). Every specification is loaded and
