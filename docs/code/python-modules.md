@@ -61,11 +61,11 @@ read as reaching past a privacy boundary, and a reader can no longer tell the le
 breach. What a package offers is its `__all__` ([§5](#5-__all__-declares-a-packages-surface)): a module whose
 names it does not re-export is internal whatever the file is called.
 
-Declare each concrete exception beside the code that raises it. For example, the corpus-name exceptions belong
-in `corpus/name.py` with `CorpusName`, and the `RootError` family belongs in `workspace/root.py` with workspace
-root validation. A
-shared base exception that is never raised directly may use a module named for that exact type, such as
-`error.py`. [python-exceptions](python-exceptions.md) owns exception inheritance and context.
+Declare each concrete exception, and any `type` union naming an operation's failures, beside the code that
+raises them: the variants a value object's `parse` raises sit in the value object's module, and a repository method's
+variants sit in the repository's module. The package's `Error` base, which is never raised directly,
+may use a module named for that exact type, `error.py`. How an error type is declared is owned by
+[error-types](error-types.md).
 
 ## 3. Relative Inside a Top-Level Package, Absolute Across Them
 
@@ -284,7 +284,7 @@ Before committing code, verify:
 - [ ] No `x.py` sits beside an `x/` package in the same directory
 - [ ] Every new module or package names its subject, with no `common.py`, `errors.py`, or other category bucket
 - [ ] No module or package name starts with a single underscore
-- [ ] Each concrete exception is declared beside the code that raises it
+- [ ] Each concrete exception sits beside the code that raises it
 - [ ] An import inside `src/`, co-located tests included, is relative exactly when its target is in
       the importing module's own top-level package; every other library import is absolute
 - [ ] A layer imports only the layers below it; `lorecraft.core` imports none
@@ -309,7 +309,7 @@ Before committing code, verify:
 - [python-typing](python-typing.md) - Related: The `TYPE_CHECKING` import block and its quoted annotations
 - [python-naming](python-naming.md) - Related: Casing and the leading-underscore privacy marker for the
   symbols a package exports
-- [python-exceptions](python-exceptions.md) - Related: Owns exception selection and inheritance
+- [error-types](error-types.md) - Related: Owns how an error type is declared
 - [pattern-registry](pattern-registry.md) - Related: The discovery mechanism that import-time registration
   serves
 - [test-organization](test-organization.md) - Related: Where a co-located unit test sits, and so which import

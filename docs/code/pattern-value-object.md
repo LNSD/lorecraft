@@ -33,11 +33,12 @@ State the complete value format in the class docstring, beside the field whose v
 characters, excluded forms, bounds, case handling and normalization where they apply. The class docstring tells
 a caller what can be constructed before they have an invalid input.
 
-A failed parse raises a value-specific error declared beside the value object, under the package's domain error
-hierarchy. The error owns the rejected value and useful failure context, such as the invalid character and its
+A failed parse raises a value-specific error declared beside the value object: one variant per way the value
+is rejected, deriving from the package's `Error` base.
+Each variant owns the rejected value and useful failure context, such as the invalid character and its
 position, and builds the message. `parse` or a direct-construction guard selects the failure and raises the
-error without composing its text. [python-exceptions](python-exceptions.md) owns the hierarchy and
-structured-context rules.
+variant without composing its text. How the variants are declared is owned by
+[error-types](error-types.md).
 
 A value earns a value object when it does at least one of three jobs:
 
@@ -96,19 +97,14 @@ def record_finding(corpus: str, document: str, finding: Finding) -> None:
 ```python
 # ✅ Good — two types, so a transposition is visible at the call site and the constraint is
 # checked once, where the value entered.
-class CorpusNameError(Error):
-    """Base class for corpus-name validation failures."""
-
-
-class EmptyCorpusNameError(CorpusNameError):
+class EmptyCorpusNameError(Error):
     """A corpus name is empty."""
 
     def __init__(self) -> None:
-        self.name = ''
         super().__init__('corpus name cannot be empty')
 
 
-class InvalidCorpusNameCharacterError(CorpusNameError):
+class InvalidCorpusNameCharacterError(Error):
     """A corpus name contains a character outside its required format.
 
     Attributes:
@@ -122,6 +118,7 @@ class InvalidCorpusNameCharacterError(CorpusNameError):
         self.position = position
         self.character = name[position]
         super().__init__(f'invalid character {self.character!r} in corpus name {name!r}')
+
 
 
 @dataclass(frozen=True, slots=True)
@@ -153,7 +150,8 @@ class CorpusName:
             The validated corpus name.
 
         Raises:
-            CorpusNameError: If the name is not lowercase snake case.
+            EmptyCorpusNameError: If the name is empty.
+            InvalidCorpusNameCharacterError: If a character falls outside lowercase snake case.
         """
         if not raw:
             raise EmptyCorpusNameError()
@@ -177,7 +175,7 @@ class DocumentName:
     @classmethod
     def parse(cls, raw: str) -> 'DocumentName':
         if not raw:
-            raise InvalidDocumentNameError('document name must not be empty')
+            raise EmptyDocumentNameError()
         return cls(raw)
 
     def __str__(self) -> str:
@@ -217,7 +215,7 @@ class LineNumber:
     @classmethod
     def parse(cls, raw: int) -> 'LineNumber':
         if raw < 1:
-            raise InvalidLineNumberError(f'line number must be 1-based: {raw}')
+            raise InvalidLineNumberError(raw)
         return cls(raw)
 
     def __str__(self) -> str:
@@ -317,12 +315,15 @@ class DocumentRef:
         """Parse a slashed reference such as `code/python-naming`.
 
         Raises:
-            InvalidDocumentRefError: If the reference is not exactly two slashed segments.
+            InvalidDocumentRefError: If the reference has no slash.
+            EmptyCorpusNameError: If the corpus segment is empty.
+            InvalidCorpusNameCharacterError: If a character of the corpus segment falls outside
+                lowercase snake case.
+            EmptyDocumentNameError: If the document segment is empty.
         """
-        try:
-            corpus, name = raw.split('/', 1)
-        except ValueError as exc:
-            raise InvalidDocumentRefError(f'expected <corpus>/<document>, got {raw!r}') from exc
+        corpus, separator, name = raw.partition('/')
+        if not separator:
+            raise InvalidDocumentRefError(raw)
         return cls(CorpusName.parse(corpus), DocumentName.parse(name))
 
     @classmethod
@@ -400,7 +401,8 @@ indistinguishable from an oversight, and the next reader will treat it as one.
 
 - [principle-least-surprise](principle-least-surprise.md) - Foundation: A signature saying `str` twice surprises the caller who transposes them
 - [pattern-newtype](pattern-newtype.md) - Related: Static-only distinctions for values without runtime invariants
-- [python-exceptions](python-exceptions.md) - Related: Domain error hierarchy and structured failure context
+- [error-types](error-types.md) - Related: Owns the error variants a failed parse
+  raises, and the context they carry
 - [pattern-registry](pattern-registry.md) - Related: Registry keys are exactly the kind of identity that earns a value object
 - [pattern-resource-lifecycle](pattern-resource-lifecycle.md) - Related: A lifecycle is one state value, not several booleans
 

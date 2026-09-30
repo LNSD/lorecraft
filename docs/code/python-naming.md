@@ -14,8 +14,8 @@ differs from the standard library's, **the local vocabulary wins**, because a co
 worth more than a better convention applied half the time.
 
 What the named things are annotated with is owned by [python-typing](python-typing.md). Where a module or
-package name may live is owned by [python-modules](python-modules.md). Exception class naming sits with
-[python-exceptions](python-exceptions.md).
+package name may live is owned by [python-modules](python-modules.md). How an error class and its union are
+named is owned by [error-types](error-types.md).
 
 ## 1. Case Follows PEP 8
 
@@ -273,7 +273,7 @@ Before committing code, verify:
   the `connect`/`disconnect` pair
 - [python-typing](python-typing.md) - Related: The annotations these names carry, including `ClassVar`
 - [python-modules](python-modules.md) - Related: Where a module of a given name may be placed
-- [python-exceptions](python-exceptions.md) - Related: Choosing bases for exception classes
+- [error-types](error-types.md) - Related: Owns what an error class and its union are named
 - [python-docstrings](python-docstrings.md) - Related: The docstring that follows the name
 
 ## External References

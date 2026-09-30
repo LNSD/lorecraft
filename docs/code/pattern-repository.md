@@ -13,7 +13,7 @@ A repository owns access to one kind of stored entity. Callers ask for entities 
 
 Keep the repository concrete. Construct it with its storage location and inject it into callers that need it. A protocol or abstract base class earns its place only when a second real implementation exists. Its public methods should name useful operations, such as `list_schemas` and `get_frontmatter_schema`. Retrieval returns domain values; discovery may return a small record with the schema name and path so callers can identify files to inspect. Do not expose file handles, parser records, or filesystem exceptions.
 
-Give each public method one exception family. That family may contain subclasses for failures callers handle differently. Translate I/O, decoding, and missing data at the repository boundary, retaining the original exception with `raise ... from exc`. Put the family beside the method that raises it. Callers can then handle one operation's failures without catching failures from another operation.
+Give each public method its own variants, one per way it fails ([error-types](error-types.md)). Translate I/O, decoding, and missing data at the repository boundary into variants that carry the original exception as their typed `source`. Declare the variants beside the method that raises them. Callers can then handle one operation's failures without catching failures from another operation.
 
 Keep validation of what the retrieved entity *means* above the repository. It reads and decodes; a checker decides whether a decoded schema accepts a document. Do not log in the repository: the caller has the context needed to report the failure.
 
@@ -29,8 +29,8 @@ def check_frontmatter(schema_path: Path, document: Document) -> list[Finding]:
 ```
 
 ```python
-# ✅ Good — the repository returns the entity in domain terms. Its getter raises
-# GetFrontmatterSchemaError for read and decode failures; validation stays here.
+# ✅ Good — the repository returns the entity in domain terms. Its getter raises a read
+# or a decode variant of its own; validation stays here.
 def check_frontmatter(schemas: Repository, corpus: CorpusName, document: Document) -> list[Finding]:
     schema = schemas.get_frontmatter_schema(corpus)
     return validate(document, schema)
@@ -38,7 +38,7 @@ def check_frontmatter(schemas: Repository, corpus: CorpusName, document: Documen
 
 ## Why It Matters
 
-One boundary makes changes to schema serialization local. Retrieval callers depend on schema names and values rather than filesystem paths; discovery callers receive the exact files available. Method-specific error families make recovery explicit: a caller listing available schemas can report a listing failure without accidentally handling a failed schema load as the same event.
+One boundary makes changes to schema serialization local. Retrieval callers depend on schema names and values rather than filesystem paths; discovery callers receive the exact files available. Method-specific error types make recovery explicit: a caller listing available schemas can report a listing failure without accidentally handling a failed schema load as the same event.
 
 ## Pragmatism Caveat
 
@@ -49,7 +49,8 @@ Do not add a repository for one read in one place, or wrap an existing domain-fa
 - [ ] One concrete repository owns one entity family and its storage location
 - [ ] Public methods express domain operations; retrieval returns domain values and discovery records include name and path
 - [ ] No storage handle, parser record, or storage exception crosses its public boundary
-- [ ] Each public method raises one documented exception family and chains the underlying cause
+- [ ] Each public method raises its own documented variants, and each carries its underlying cause as a
+      typed `source`
 - [ ] The repository reads and decodes; callers apply the entity's business or validation rules
 - [ ] Repository tests use real storage files rather than a fake implementation
 
@@ -57,6 +58,7 @@ Do not add a repository for one read in one place, or wrap an existing domain-fa
 
 - [principle-information-hiding](principle-information-hiding.md) - Foundation: keep storage details inside one boundary
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: one entity family per repository
+- [error-types](error-types.md) - Related: Owns the variants a repository method raises
 
 ## External References
 
