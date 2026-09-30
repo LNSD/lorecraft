@@ -10,6 +10,7 @@ from lorecraft.project.corpus import CorpusName
 
 from ..name import SchemaName
 from ..spec_file import (
+    DottedSpecStemError,
     InvalidSpecStemError,
     NotASpecFileError,
     NotASpecStemError,
@@ -74,24 +75,24 @@ class TestParseSpecFile:
             path=path, name=(CODE, AspectNamespace.parse('python-errors')), aspect=SpecAspect.STRUCTURE
         ), 'code-python-errors.structure.json parses into the code corpus, one python-errors namespace and structure'
 
-    def test_parse_spec_file_with_a_dotted_structure_stem_raises_invalid_spec_stem_error(self) -> None:
+    def test_parse_spec_file_with_a_dotted_structure_stem_raises_dotted_spec_stem_error(self) -> None:
         #: Given
         path = META / 'feat.component.structure.json'
 
         #: When
-        with pytest.raises(InvalidSpecStemError) as exc_info:
+        with pytest.raises(DottedSpecStemError) as exc_info:
             parse_spec_file(path)
 
         #: Then
         assert exc_info.value.path == path, 'feat.component is not a stem; the error names the file'
-        assert 'dot' in exc_info.value.detail, 'the detail says the stem holds a dot'
+        assert exc_info.value.stem == 'feat.component', 'the error holds the stem with the dot'
 
-    def test_parse_spec_file_with_dotted_prose_raises_invalid_spec_stem_error(self) -> None:
+    def test_parse_spec_file_with_dotted_prose_raises_dotted_spec_stem_error(self) -> None:
         #: Given
         path = META / 'feat.feature.md'
 
         #: When
-        with pytest.raises(InvalidSpecStemError) as exc_info:
+        with pytest.raises(DottedSpecStemError) as exc_info:
             parse_spec_file(path)
 
         #: Then

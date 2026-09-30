@@ -65,7 +65,15 @@ from referencing.jsonschema import DRAFT202012
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
 
-from .spec_file import SpecFilenameError, parse_spec_file, prose_filename
+from .spec_file import (
+    DottedSpecStemError,
+    InvalidSpecStemError,
+    NotASpecFileError,
+    NotASpecStemError,
+    UnknownSpecAspectError,
+    parse_spec_file,
+    prose_filename,
+)
 from .structure_file import JSON_SCHEMA_DIALECT, StructureFile, StructureFileAny, StructureFileTitle
 
 # The text of a structure specification file as read, not yet known to be JSON, the dialect's shape or usable
@@ -73,8 +81,56 @@ from .structure_file import JSON_SCHEMA_DIALECT, StructureFile, StructureFileAny
 StructureSchema = NewType('StructureSchema', str)
 
 
-class InvalidStructureSchemaError(Error):
-    """A structure specification file does not state valid rules in the structure dialect.
+class StructureSpecDecodeError(Error):
+    """A structure specification file is not JSON, or does not have the structure dialect's shape.
+
+    Attributes:
+        path: Root-relative path of the rejected file.
+        problems: Every problem found, as ``<field path>: <message>``, read from the validation error.
+        source: The validation error.
+    """
+
+    path: RootRelativePath
+    problems: tuple[str, ...]
+    source: ValidationError
+
+    def __init__(self, path: RootRelativePath, problems: tuple[str, ...], *, source: ValidationError) -> None:
+        self.path = path
+        self.problems = problems
+        self.source = source
+        super().__init__(f'invalid structure schema {path}: {"; ".join(problems)}')
+        self.__cause__ = source
+
+
+class StructureSpecFilenameError(Error):
+    """A structure specification file does not sit at a specification filename.
+
+    Attributes:
+        path: Root-relative path of the rejected file.
+        source: Why the filename is not a specification filename.
+    """
+
+    path: RootRelativePath
+    source: NotASpecFileError | UnknownSpecAspectError | NotASpecStemError | DottedSpecStemError | InvalidSpecStemError
+
+    def __init__(
+        self,
+        path: RootRelativePath,
+        *,
+        source: NotASpecFileError
+        | UnknownSpecAspectError
+        | NotASpecStemError
+        | DottedSpecStemError
+        | InvalidSpecStemError,
+    ) -> None:
+        self.path = path
+        self.source = source
+        super().__init__(f'invalid structure schema {path}: is not at a specification filename')
+        self.__cause__ = source
+
+
+class EmptyStructureSpecError(Error):
+    """A structure specification states no rule, so it would check nothing.
 
     Attributes:
         path: Root-relative path of the rejected file.
@@ -82,9 +138,185 @@ class InvalidStructureSchemaError(Error):
 
     path: RootRelativePath
 
-    def __init__(self, path: RootRelativePath, detail: str) -> None:
+    def __init__(self, path: RootRelativePath) -> None:
         self.path = path
-        super().__init__(f'invalid structure schema {path}: {detail}')
+        super().__init__(f'invalid structure schema {path}: states no rule, so it would check nothing')
+
+
+class InvalidTitleCountError(Error):
+    """A structure specification's title count is below 1.
+
+    Attributes:
+        path: Root-relative path of the rejected file.
+        count: The count it states.
+    """
+
+    path: RootRelativePath
+    count: int
+
+    def __init__(self, path: RootRelativePath, count: int) -> None:
+        self.path = path
+        self.count = count
+        super().__init__(f'invalid structure schema {path}: title count must be at least 1, got {count}')
+
+
+class InvalidTokenBudgetError(Error):
+    """A structure specification's token budget is below 1.
+
+    Attributes:
+        path: Root-relative path of the rejected file.
+        tokens: The budget it states.
+    """
+
+    path: RootRelativePath
+    tokens: int
+
+    def __init__(self, path: RootRelativePath, tokens: int) -> None:
+        self.path = path
+        self.tokens = tokens
+        super().__init__(f'invalid structure schema {path}: token budget must be at least 1, got {tokens}')
+
+
+class InvalidWordCapError(Error):
+    """An outline entry's word cap is below 1.
+
+    Attributes:
+        path: Root-relative path of the rejected file.
+        entry: The outline entry that states the cap.
+        words: The cap it states.
+    """
+
+    path: RootRelativePath
+    entry: 'OutlineEntry'
+    words: int
+
+    def __init__(self, path: RootRelativePath, entry: 'OutlineEntry', words: int) -> None:
+        self.path = path
+        self.entry = entry
+        self.words = words
+        super().__init__(
+            f'invalid structure schema {path}: outline word cap must be at least 1, got {words} on '
+            f'{_describe_entry(entry)}'
+        )
+
+
+class RepeatedOutlineSectionError(Error):
+    """An outline names one section more than once.
+
+    Attributes:
+        path: Root-relative path of the rejected file.
+        sections: The repeated section names, sorted.
+    """
+
+    path: RootRelativePath
+    sections: tuple[str, ...]
+
+    def __init__(self, path: RootRelativePath, sections: tuple[str, ...]) -> None:
+        self.path = path
+        self.sections = sections
+        super().__init__(
+            f'invalid structure schema {path}: names sections more than once in the outline: {list(sections)}'
+        )
+
+
+class ForbiddenOutlineSectionError(Error):
+    """A structure specification forbids a section its own outline names.
+
+    Attributes:
+        path: Root-relative path of the rejected file.
+        sections: The sections both named and forbidden, sorted.
+    """
+
+    path: RootRelativePath
+    sections: tuple[str, ...]
+
+    def __init__(self, path: RootRelativePath, sections: tuple[str, ...]) -> None:
+        self.path = path
+        self.sections = sections
+        super().__init__(f'invalid structure schema {path}: forbids sections its own outline names: {list(sections)}')
+
+
+class AdjacentAnyRunsError(Error):
+    """An outline places two ``any`` runs side by side, which match exactly what one run matches.
+
+    Attributes:
+        path: Root-relative path of the rejected file.
+    """
+
+    path: RootRelativePath
+
+    def __init__(self, path: RootRelativePath) -> None:
+        self.path = path
+        super().__init__(f'invalid structure schema {path}: places two `any` runs side by side')
+
+
+class InvalidFrontmatterSchemaError(Error):
+    """A frontmatter schema is rejected by the Draft 2020-12 meta-schema.
+
+    Attributes:
+        path: Root-relative path of the structure specification the schema is written in.
+        problem: What the meta-schema rejected, read from the schema error.
+        source: The schema error.
+    """
+
+    path: RootRelativePath
+    problem: str
+    source: SchemaError
+
+    def __init__(self, path: RootRelativePath, problem: str, *, source: SchemaError) -> None:
+        self.path = path
+        self.problem = problem
+        self.source = source
+        super().__init__(f'invalid structure schema {path}: frontmatter is not a valid JSON Schema: {problem}')
+        self.__cause__ = source
+
+
+class FrontmatterSchemaIdError(Error):
+    """A schema inside a frontmatter schema carries ``$id``, which would make it a resource of its own.
+
+    Attributes:
+        path: Root-relative path of the structure specification the schema is written in.
+    """
+
+    path: RootRelativePath
+
+    def __init__(self, path: RootRelativePath) -> None:
+        self.path = path
+        super().__init__(f'invalid structure schema {path}: frontmatter schema may not carry $id')
+
+
+class ForeignFrontmatterDialectError(Error):
+    """A schema inside a frontmatter schema names a dialect other than Draft 2020-12 in ``$schema``.
+
+    Attributes:
+        path: Root-relative path of the structure specification the schema is written in.
+        dialect: The dialect it names.
+    """
+
+    path: RootRelativePath
+    dialect: object
+
+    def __init__(self, path: RootRelativePath, dialect: object) -> None:
+        self.path = path
+        self.dialect = dialect
+        super().__init__(
+            f'invalid structure schema {path}: frontmatter schema names {dialect!r} in $schema; only '
+            f'{JSON_SCHEMA_DIALECT} is allowed'
+        )
+
+
+class UntypedFrontmatterSchemaError(Error):
+    """A frontmatter schema's root does not state ``"type": "object"``.
+
+    Attributes:
+        path: Root-relative path of the structure specification the schema is written in.
+    """
+
+    path: RootRelativePath
+
+    def __init__(self, path: RootRelativePath) -> None:
+        self.path = path
+        super().__init__(f'invalid structure schema {path}: frontmatter schema root must state "type": "object"')
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,7 +346,7 @@ class SectionEntry:
     name: str
     optional: bool = False
     # Checked by the enclosing `StructureAspect` rather than here, so a bad cap is refused as an
-    # `InvalidStructureSchemaError` naming the specification file, which this record does not know.
+    # `InvalidWordCapError` naming the specification file, which this record does not know.
     words: int | None = None
 
 
@@ -131,7 +363,7 @@ class AnySections:
     """
 
     # Checked by the enclosing `StructureAspect` rather than here, so a bad cap is refused as an
-    # `InvalidStructureSchemaError` naming the specification file, which this record does not know.
+    # `InvalidWordCapError` naming the specification file, which this record does not know.
     words: int | None = None
 
 
@@ -144,7 +376,7 @@ class FrontmatterSchema:
     """A structure specification's ``frontmatter`` key: a Draft 2020-12 JSON Schema describing an object.
 
     Construction checks the schema, so an instance is proof of it: no code holding a ``FrontmatterSchema`` checks
-    it again. A malformed schema is refused as an ``InvalidStructureSchemaError`` naming the specification file,
+    it again. A malformed schema is refused with an error naming the specification file,
     like every other rule of that file.
 
     Frozen for equality only: ``schema`` is a dict, so instances are not hashable and must not be put in a set or
@@ -165,33 +397,30 @@ class FrontmatterSchema:
         dialect anywhere inside it, or that does not describe an object.
 
         Raises:
-            InvalidStructureSchemaError: If the schema is rejected by the Draft 2020-12 meta-schema, any schema in it
-                carries ``$id`` or names a dialect other than Draft 2020-12 in ``$schema``, or its root does not say
-                ``"type": "object"``.
+            InvalidFrontmatterSchemaError: If the schema is rejected by the Draft 2020-12 meta-schema.
+            FrontmatterSchemaIdError: If any schema in it carries ``$id``.
+            ForeignFrontmatterDialectError: If any schema in it names a dialect other than Draft 2020-12 in
+                ``$schema``.
+            UntypedFrontmatterSchemaError: If its root does not say ``"type": "object"``.
         """
         try:
             Draft202012Validator.check_schema(self.schema)
         except SchemaError as exc:
-            raise InvalidStructureSchemaError(
-                self.path, f'frontmatter is not a valid JSON Schema: {exc.message}'
-            ) from exc
+            raise InvalidFrontmatterSchemaError(self.path, exc.message, source=exc) from exc
         for subschema in _schemas_within(self.schema):
             if '$id' in subschema:
                 # An `$id` would make that schema a resource of its own, with its own base URI, and so change what
                 # every relative `$ref` beneath it resolves to.
-                raise InvalidStructureSchemaError(self.path, 'frontmatter schema may not carry $id')
+                raise FrontmatterSchemaIdError(self.path)
             dialect = subschema.get('$schema', JSON_SCHEMA_DIALECT)
             if dialect != JSON_SCHEMA_DIALECT:
                 # The check applies every schema under Draft 2020-12, so a schema written for another dialect would
                 # be read by rules it was not written for.
-                raise InvalidStructureSchemaError(
-                    self.path,
-                    f'frontmatter schema names {dialect!r} in $schema; only {JSON_SCHEMA_DIALECT} is allowed',
-                )
+                raise ForeignFrontmatterDialectError(self.path, dialect)
         # A frontmatter is a mapping, so the schema must say so itself: a schema that left `type` out would accept
         # a list or a string where the frontmatter should be.
         if self.schema.get('type') != 'object':
-            raise InvalidStructureSchemaError(self.path, 'frontmatter schema root must state "type": "object"')
+            raise UntypedFrontmatterSchemaError(self.path)
 
 
 def _schemas_within(schema: Mapping[str, object]) -> Iterator[Mapping[str, object]]:
@@ -248,16 +477,28 @@ class StructureAspect:
         """Derive the authority from the path, then refuse rules that check nothing, that no count, cap or budget
         satisfies, or that contradict themselves.
 
+        A frontmatter schema is checked when it is built, before the aspect is.
+
         Raises:
-            InvalidStructureSchemaError: If the path is not a specification filename, the aspect states no rule,
-                its title count, token budget or any word cap is below 1, its outline names a section twice or
-                places two ``any`` runs side by side, or it forbids a section its own outline names. A frontmatter
-                schema is checked when it is built, before the aspect is.
+            StructureSpecFilenameError: If the path is not a specification filename.
+            EmptyStructureSpecError: If the aspect states no rule.
+            InvalidTitleCountError: If its title count is below 1.
+            InvalidTokenBudgetError: If its token budget is below 1.
+            InvalidWordCapError: If a word cap in its outline is below 1.
+            RepeatedOutlineSectionError: If its outline names a section twice.
+            ForbiddenOutlineSectionError: If it forbids a section its own outline names.
+            AdjacentAnyRunsError: If its outline places two ``any`` runs side by side.
         """
         try:
             spec_file = parse_spec_file(self.path)
-        except SpecFilenameError as exc:
-            raise InvalidStructureSchemaError(self.path, f'is not at a specification filename: {exc}') from exc
+        except (
+            NotASpecFileError,
+            UnknownSpecAspectError,
+            NotASpecStemError,
+            DottedSpecStemError,
+            InvalidSpecStemError,
+        ) as exc:
+            raise StructureSpecFilenameError(self.path, source=exc) from exc
         # `authority` is derived from `path` rather than passed in, so the two cannot disagree. A frozen dataclass
         # refuses plain assignment, and `object.__setattr__` is the one way to set a field during construction.
         object.__setattr__(self, 'authority', prose_filename(spec_file.name))
@@ -271,31 +512,29 @@ class StructureAspect:
             and not self.forbidden
         )
         if states_no_rule:
-            raise InvalidStructureSchemaError(self.path, 'states no rule, so it would check nothing')
+            raise EmptyStructureSpecError(self.path)
         if self.title is not None and self.title.count < 1:
-            raise InvalidStructureSchemaError(self.path, f'title count must be at least 1, got {self.title.count}')
+            raise InvalidTitleCountError(self.path, self.title.count)
         if self.tokens is not None and self.tokens < 1:
-            raise InvalidStructureSchemaError(self.path, f'token budget must be at least 1, got {self.tokens}')
+            raise InvalidTokenBudgetError(self.path, self.tokens)
         for entry in self.outline:
             if entry.words is not None and entry.words < 1:
-                raise InvalidStructureSchemaError(
-                    self.path, f'outline word cap must be at least 1, got {entry.words} on {_describe_entry(entry)}'
-                )
+                raise InvalidWordCapError(self.path, entry, entry.words)
 
         named = self.section_names()
         repeated = sorted({name for name in named if named.count(name) > 1})
         if repeated:
-            raise InvalidStructureSchemaError(self.path, f'names sections more than once in the outline: {repeated}')
+            raise RepeatedOutlineSectionError(self.path, tuple(repeated))
 
         contradicted = sorted(set(named) & set(self.forbidden))
         if contradicted:
-            raise InvalidStructureSchemaError(self.path, f'forbids sections its own outline names: {contradicted}')
+            raise ForbiddenOutlineSectionError(self.path, tuple(contradicted))
 
         for earlier, later in pairwise(self.outline):
             # Two runs side by side match exactly what one run matches, so an outline written this way means
             # something other than what it says.
             if isinstance(earlier, AnySections) and isinstance(later, AnySections):
-                raise InvalidStructureSchemaError(self.path, 'places two `any` runs side by side')
+                raise AdjacentAnyRunsError(self.path)
 
     def section_names(self) -> list[str]:
         """The names of the outline's section entries, in outline order."""
@@ -314,14 +553,24 @@ class StructureAspect:
             schema: The file's text.
 
         Raises:
-            InvalidStructureSchemaError: If the text is not JSON, does not have the dialect's shape, its
-                frontmatter schema is refused (see ``FrontmatterSchema``), or its rules are not usable (see
-                ``__post_init__``).
+            StructureSpecDecodeError: If the text is not JSON or does not have the dialect's shape.
+            InvalidFrontmatterSchemaError: If its frontmatter schema is rejected by the meta-schema.
+            FrontmatterSchemaIdError: If a schema in its frontmatter schema carries ``$id``.
+            ForeignFrontmatterDialectError: If a schema in its frontmatter schema names another dialect.
+            UntypedFrontmatterSchemaError: If its frontmatter schema's root does not state an object.
+            StructureSpecFilenameError: If the path is not a specification filename.
+            EmptyStructureSpecError: If it states no rule.
+            InvalidTitleCountError: If its title count is below 1.
+            InvalidTokenBudgetError: If its token budget is below 1.
+            InvalidWordCapError: If a word cap in its outline is below 1.
+            RepeatedOutlineSectionError: If its outline names a section twice.
+            ForbiddenOutlineSectionError: If it forbids a section its own outline names.
+            AdjacentAnyRunsError: If its outline places two ``any`` runs side by side.
         """
         try:
             file = StructureFile.model_validate_json(schema)
         except ValidationError as exc:
-            raise InvalidStructureSchemaError(path, _describe(exc)) from exc
+            raise StructureSpecDecodeError(path, _problems(exc), source=exc) from exc
 
         outline: list[OutlineEntry] = []
         for entry in file.outline:
@@ -352,7 +601,10 @@ def _frontmatter_schema(path: RootRelativePath, schema: dict[str, JsonValue] | N
     """The frontmatter schema a file's ``frontmatter`` key states, or None when the file states none.
 
     Raises:
-        InvalidStructureSchemaError: If the schema is refused (see ``FrontmatterSchema.__post_init__``).
+        InvalidFrontmatterSchemaError: If the schema is rejected by the meta-schema.
+        FrontmatterSchemaIdError: If a schema in it carries ``$id``.
+        ForeignFrontmatterDialectError: If a schema in it names another dialect.
+        UntypedFrontmatterSchemaError: If its root does not state an object.
     """
     if schema is None:
         return None
@@ -368,8 +620,8 @@ def _describe_entry(entry: OutlineEntry) -> str:
     return 'an `any` run'
 
 
-def _describe(error: ValidationError) -> str:
-    """Every problem pydantic found in one file, as ``<field path>: <message>``, joined into one line."""
+def _problems(error: ValidationError) -> tuple[str, ...]:
+    """Every problem pydantic found in one file, each as ``<field path>: <message>``."""
     problems: list[str] = []
     for detail in error.errors(include_url=False):
         location = '.'.join(str(part) for part in detail['loc'])
@@ -377,4 +629,4 @@ def _describe(error: ValidationError) -> str:
             problems.append(f'{location}: {detail["msg"]}')
         else:
             problems.append(detail['msg'])
-    return '; '.join(problems)
+    return tuple(problems)
