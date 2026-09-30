@@ -153,6 +153,8 @@ python-version = "3.12"
 # one. This contract does: each layer may import only the layers below it, run by `just check`.
 [tool.importlinter]
 root_package = "lorecraft"
+# Needed so a contract can name a third-party package, as the one on the validators below does.
+include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "The command line over the checks, the model, the agents, the filesystem and the base"
@@ -166,3 +168,12 @@ layers = [
     "vfs",
     "core",
 ]
+
+# Each frontmatter schema translates its validator's errors into `FrontmatterProblem` values at its own seam in
+# `project.schemas`, so a check reads one shape whichever validator is behind it and never an error record.
+[[tool.importlinter.contracts]]
+name = "The checks read frontmatter problems, never a validator's errors"
+type = "forbidden"
+source_modules = ["lorecraft.checks"]
+forbidden_modules = ["jsonschema", "pydantic", "pydantic_core"]
+allow_indirect_imports = true

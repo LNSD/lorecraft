@@ -125,3 +125,30 @@ class TestValidateFrontmatter:
             'the violation names the schema that required the field'
         )
         assert result.violations[0].line == LineNumber(1), 'an absent field is reported on line 1'
+
+    def test_validate_frontmatter_with_a_field_the_schema_does_not_allow_reports_it_unknown_on_its_line(self) -> None:
+        #: Given
+        frontmatter = parse_frontmatter('---\nname: guide\nmodel: opus\n---\n')
+        schemas = (_code_frontmatter({'type': 'object', 'properties': {'name': {}}, 'additionalProperties': False}),)
+
+        #: When
+        result = validate_frontmatter(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
+
+        #: Then
+        assert [(violation.line, violation.rule) for violation in result.violations] == [
+            (LineNumber(3), 'code.unknown-field')
+        ], 'a field the schema does not allow is reported on its own line, as the skill check reports one'
+
+    def test_validate_frontmatter_with_a_name_mismatch_and_a_schema_problem_reports_the_name_first(self) -> None:
+        #: Given
+        frontmatter = parse_frontmatter('---\nname: other\n---\n')
+        schemas = (_code_frontmatter({'type': 'object', 'required': ['type']}),)
+
+        #: When
+        result = validate_frontmatter(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
+
+        #: Then
+        assert [violation.message for violation in result.violations] == [
+            "`name` is 'other'; expected 'guide', the document's filename",
+            "'type' is a required property (per docs/__meta__/code.structure.json)",
+        ], 'the name is compared before the schemas are applied, as in the skill check'

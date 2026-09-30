@@ -40,8 +40,9 @@ finding quotes it.
 - ``frontmatter`` is a Draft 2020-12 JSON Schema the document's frontmatter must satisfy. Unlike the rest of the
   file it is JSON Schema, not the dialect: a frontmatter is a mapping, which JSON Schema states well. Its root must
   say ``"type": "object"`` outright, and no schema in it, at any depth, may carry ``$id`` or name another dialect
-  in ``$schema``. The
-  frontmatter check applies it, not the structure check: it reads the frontmatter, not the headings.
+  in ``$schema``. The frontmatter check applies it, not the structure check: it reads the frontmatter, not the
+  headings. ``FrontmatterSchema.validate`` translates ``jsonschema``'s errors into ``FrontmatterProblem`` values
+  here, beside the decoding, because this is the one place the package reads a ``jsonschema`` error.
 - ``outline`` is the order of the document's sections. A ``section`` entry names one and is required unless
   ``optional``; an ``any`` entry matches a run of sections the outline does not name. An entry's ``words`` caps
   the prose words of each section it matches, H3 subsections included: on an ``any`` entry that is every section
@@ -52,6 +53,7 @@ finding quotes it.
 Nothing here logs: the command that loads the model catches every ``Error`` that escapes it and reports it.
 """
 
+import re
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 from itertools import pairwise
@@ -59,12 +61,14 @@ from typing import NewType, Self, assert_never
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
+from jsonschema.exceptions import ValidationError as SchemaValidationError
 from pydantic import JsonValue, ValidationError
 from referencing.jsonschema import DRAFT202012
 
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
 
+from .frontmatter_problem import FrontmatterProblem, FrontmatterProblemKind
 from .spec_file import (
     DottedSpecStemError,
     InvalidSpecStemError,
@@ -427,6 +431,85 @@ class FrontmatterSchema:
         # a list or a string where the frontmatter should be.
         if self.schema.get('type') != 'object':
             raise UntypedFrontmatterSchemaError(self.path)
+
+    def validate(self, data: Mapping[object, object]) -> tuple[FrontmatterProblem, ...]:
+        """Hold one decoded frontmatter to the schema. Pure: raises nothing.
+
+        The messages are ``jsonschema``'s own, unlike ``SkillFrontmatterSchema``'s: the schema is the
+        repository's, so the validator's wording names constraints its authors wrote. Two errors ``jsonschema``
+        reports on the whole block are split instead, in its own wording: an absent required field, and each
+        field the schema does not allow, get a problem of their own, on that field.
+
+        Returns:
+            One problem per field at fault, ordered by the field and then the message, or ``()`` when the
+            frontmatter conforms.
+        """
+        validator = Draft202012Validator(self.schema)
+        # Sorted, unlike the skill schema's problems: `jsonschema` reports errors in the order it walks the
+        # schema's keywords, which says nothing about the fields.
+        errors = sorted(
+            validator.iter_errors(data),
+            key=lambda error: (tuple(str(part) for part in error.path), error.message),
+        )
+        problems: list[FrontmatterProblem] = []
+        for error in errors:
+            for problem in _frontmatter_problems(error):
+                # One `required` error names one absent field, but its record lists all the schema requires, so
+                # every such error below would report every absent field again.
+                if problem not in problems:
+                    problems.append(problem)
+        return tuple(problems)
+
+
+def _frontmatter_problems(error: SchemaValidationError) -> list[FrontmatterProblem]:
+    """The problems one ``jsonschema`` error reports, each on the top-level field it concerns."""
+    if error.path:
+        # Anything wrong below the top-level field, such as a key its value lacks, is that field's value at fault.
+        if len(error.path) == 1 and error.validator == 'type':
+            kind = FrontmatterProblemKind.WRONG_TYPE
+        else:
+            kind = FrontmatterProblemKind.INVALID_VALUE
+        return [FrontmatterProblem(str(error.path[0]), kind, error.message)]
+    if error.validator == 'required' and isinstance(error.instance, dict):
+        problems: list[FrontmatterProblem] = []
+        for required in error.validator_value:
+            field = str(required)
+            if field not in error.instance:
+                message = f'{field!r} is a required property'
+                problems.append(FrontmatterProblem(field, FrontmatterProblemKind.MISSING, message))
+        return problems
+    # `error.schema` is typed to allow a boolean schema, but `additionalProperties` only runs inside an object one.
+    if (
+        error.validator == 'additionalProperties'
+        and isinstance(error.schema, Mapping)
+        and isinstance(error.instance, dict)
+    ):
+        problems = []
+        for key in _additional_keys(error.schema, error.instance):
+            # `jsonschema`'s wording for one unexpected key; a key that is not a string names no field.
+            message = f'Additional properties are not allowed ({key!r} was unexpected)'
+            field = key if isinstance(key, str) else None
+            problems.append(FrontmatterProblem(field, FrontmatterProblemKind.UNKNOWN_FIELD, message))
+        return problems
+    # A rule over the whole block, such as `minProperties`, concerns no field.
+    return [FrontmatterProblem(None, FrontmatterProblemKind.INVALID_VALUE, error.message)]
+
+
+def _additional_keys(schema: Mapping[str, object], instance: Mapping[object, object]) -> list[object]:
+    """The keys of ``instance`` that neither ``properties`` nor ``patternProperties`` of ``schema`` names."""
+    # The meta-schema proved both are objects when the schema was built; absent, they name nothing.
+    properties = schema.get('properties')
+    named = properties if isinstance(properties, Mapping) else {}
+    pattern_properties = schema.get('patternProperties')
+    patterns = pattern_properties if isinstance(pattern_properties, Mapping) else {}
+    keys: list[object] = []
+    for key in instance:
+        if key in named:
+            continue
+        if isinstance(key, str) and any(re.search(str(pattern), key) for pattern in patterns):
+            continue
+        keys.append(key)
+    return keys
 
 
 def _schemas_within(schema: Mapping[str, object]) -> Iterator[Mapping[str, object]]:

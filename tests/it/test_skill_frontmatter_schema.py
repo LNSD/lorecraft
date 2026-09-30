@@ -1,9 +1,9 @@
 """The committed skill frontmatter schema is a JSON Schema every skill this repository carries passes.
 
 ``docs/schemas/skill-frontmatter.spec.json`` is rendered by ``just gen`` from ``SkillFrontmatter``, the pydantic model
-``parse_skill_frontmatter`` deserializes each ``SKILL.md`` with, so the schema and the parser cannot disagree about
-a shape; CI's ``gen-check`` job keeps the committed file current. What is left to hold is the file an editor reads:
-that it is a well-formed schema, and that it accepts every skill this repository writes, as the parser does.
+``SkillFrontmatterSchema`` holds each ``SKILL.md`` to, so the schema and the check cannot disagree about a shape;
+CI's ``gen-check`` job keeps the committed file current. What is left to hold is the file an editor reads: that it
+is a well-formed schema, and that it accepts every skill this repository writes, as the check does.
 """
 
 import json
@@ -13,8 +13,7 @@ from typing import Final
 import pytest
 from jsonschema import Draft202012Validator
 
-from lorecraft.core.path import RootRelativePath
-from lorecraft.project.schemas import parse_skill_frontmatter
+from lorecraft.project.schemas import SKILL_FRONTMATTER_SCHEMA
 from lorecraft.project.syntax import Frontmatter, parse_frontmatter
 
 REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
@@ -66,17 +65,18 @@ class TestSkillFrontmatterSchema:
             f'every skill follows the specification, so the schema must accept them: {schema_errors}'
         )
 
-    def test_every_repository_skill_parses(self) -> None:
+    def test_validate_with_every_repository_skill_returns_no_problems(self) -> None:
         #: Given
-        skills = repository_skills()
+        frontmatters = {
+            skill.parent.name: parse_frontmatter(skill.read_text(encoding='utf-8')) for skill in repository_skills()
+        }
+        data = {name: node.data for name, node in frontmatters.items() if isinstance(node, Frontmatter)}
 
         #: When
-        names = [
-            parse_skill_frontmatter(
-                RootRelativePath.parse(skill.relative_to(REPOSITORY_ROOT).as_posix()), skill.read_text(encoding='utf-8')
-            ).name.value
-            for skill in skills
-        ]
+        problems = {name: SKILL_FRONTMATTER_SCHEMA.validate(value) for name, value in data.items()}
 
         #: Then
-        assert names == [skill.parent.name for skill in skills], 'each skill is named after its directory'
+        assert data, 'the repository carries skills, so the comparison is not vacuous'
+        assert all(not found for found in problems.values()), (
+            f'every skill follows the specification, so the check must accept them as the schema does: {problems}'
+        )

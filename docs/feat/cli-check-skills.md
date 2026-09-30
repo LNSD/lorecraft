@@ -3,7 +3,7 @@ name: "cli-check-skills"
 description: "lorecraft check skills: validating the frontmatter of each agent skill's SKILL.md against the Agent Skills specification, the name-matches-directory rule, how a skill is named on the command line, and the rule identifiers it reports. Load when a skill finding needs explaining, when running the skill check on its own, or when a skill is not checked"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft.cli.commands.check.skills,module:lorecraft.checks.skill,module:lorecraft.project.schemas.skill_frontmatter,module:lorecraft.project.skill"
+components: "module:lorecraft.cli.commands.check.skills,module:lorecraft.checks.skill,module:lorecraft.project.schemas.skill,module:lorecraft.project.schemas.skill_frontmatter,module:lorecraft.project.schemas.frontmatter_problem,module:lorecraft.project.skill"
 ---
 
 # `lorecraft check skills`
@@ -84,7 +84,10 @@ absent, the key is not a string, or the whole block is at fault. A skill whose f
 or undecodable reports that one finding and nothing else.
 
 `name` is compared as written, with no Unicode normalisation, so a full-width letter is a `skill.name` finding.
-An optional field written with no value, such as `license:`, is read as absent and accepted.
+An optional field written with no value, such as `license:`, is read as absent and accepted. The name is
+compared with the directory first, then the specification is applied, as the
+[frontmatter check](cli-check-frontmatter.md#findings) does. Every message is Lorecraft's own, so it does not
+change with the version of the library that validates the fields.
 
 | Rule | Reported when |
 |------|---------------|
@@ -94,6 +97,7 @@ An optional field written with no value, such as `license:`, is read as absent a
 | `skill.name-matches-directory` | `name` is not the name of the skill's directory |
 | `skill.<field>` | The specification rejects that field, or requires it and it is absent |
 | `skill.unknown-field` | A field the specification does not define, such as `model`, or a key that is not a string, such as `123` |
+| `skill.frontmatter` | The specification rejects the frontmatter as a whole |
 
 ## References
 
@@ -105,5 +109,7 @@ An optional field written with no value, such as `license:`, is read as absent a
 
 - `src/lorecraft/cli/commands/check/skills.py` - Declares the command and registers the check with the group
 - `src/lorecraft/checks/skill.py` - The check of one skill's frontmatter
+- `src/lorecraft/project/schemas/skill.py` - Holds a frontmatter to the specification, in Lorecraft's words
 - `src/lorecraft/project/schemas/skill_frontmatter.py` - Declares the specification's fields and their limits
+- `src/lorecraft/project/schemas/frontmatter_problem.py` - The problem shape both frontmatter schemas report in
 - `src/lorecraft/project/skill/` - Finds the skills and reads a `SKILL.md`
