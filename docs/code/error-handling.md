@@ -124,7 +124,7 @@ The clause is where the mapping is visible: one lower failure in, one upper fail
 either class. Sibling variants make clause order carry no meaning. Where one caught class subclasses another, as
 `FileNotFoundError` does `OSError`, the subclass comes first ([§1](#1-catch-the-narrowest-exception-you-can-name)).
 Code that later branches on which variant a `source` holds uses `match`, closed by `assert_never`
-([python-typing](python-typing.md)), never an `isinstance` chain.
+([python-typing-unreachable](python-typing-unreachable.md)), never an `isinstance` chain.
 
 ```python
 # ✅ Good — one lower failure in, one upper failure out, per clause
@@ -324,7 +324,7 @@ Before committing code, verify:
   catch, match on and raise
 - [error-boundaries](error-boundaries.md) - Related: Owns the framework exception a command handler exits
   through, and the variant a foreign exception is translated into
-- [python-typing](python-typing.md) - Related: Owns the `match` closed by `assert_never` that branches on a
+- [python-typing-unreachable](python-typing-unreachable.md) - Related: Owns the `match` closed by `assert_never` that branches on a
   caught variant's `source`
 - [logging](logging.md) - Related: Owns how a handler logs, including `logger.exception` and its fields
 - [principle-least-surprise](principle-least-surprise.md) - Foundation: Why a swallowed failure that returns a

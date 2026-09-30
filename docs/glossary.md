@@ -38,6 +38,10 @@ A document in `docs/__meta__/` that defines the metadata, structure, and content
 
 An additional specification selected by a document's filename, when a namespace equals the name or is a hyphen-delimited prefix of it: `code-python.md` for `python-*` code rule documents, `feat-cli.md` for `cli-*` feature documents. It adds to the corpus specification and cannot relax it.
 
+### Facet
+
+What a document's name adds to a namespace that matches it: name = namespace + facet. The name `python-typing` is the namespace `python` plus the facet `typing`. A facet is relative to the namespace chosen: `python-typing-unreachable` has the facet `typing-unreachable` under `python`, and would have `unreachable` under a `python-typing` namespace. It is empty when the namespace is the whole name.
+
 ### Components
 
 A feature document's frontmatter list of related modules, skills, or specifications, each identified by a type prefix.

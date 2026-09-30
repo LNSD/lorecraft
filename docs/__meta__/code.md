@@ -287,7 +287,8 @@ grep -m 3 -E '^(description|type|scope):' docs/code/*.md
 
 **Principle:** prefix = group. Files sharing the same first kebab-case segment form a discoverable group.
 
-**Format:** `<prefix>-<aspect>.md`
+**Format:** `<prefix>-<facet>.md`, where the facet is what the name adds to its prefix
+([glossary](../glossary.md#facet))
 
 ### Group Shape
 
@@ -299,10 +300,10 @@ What the schema fixes is the **shape**. A group is a prefix, a member adds one s
 member that specializes another adds a further segment:
 
 ```
-<prefix>-*                   # the group: everything sharing a first segment
-├── <prefix>-<aspect>        # a member of the group
-│   └── <prefix>-<aspect>-<facet>   # a member that specializes its parent
-└── <prefix>-<aspect>
+<prefix>-*                          # the group: everything sharing a first segment
+├── <prefix>-<facet>                # a member of the group
+│   └── <prefix>-<facet>-<segment>  # a member that specializes its parent
+└── <prefix>-<facet>
 ```
 
 The groups in use are `principle-*` (universal principles), `pattern-*` (design patterns), `python-*`
