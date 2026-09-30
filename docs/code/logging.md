@@ -249,7 +249,7 @@ and log handlers, so an importing process remains free to configure its own outp
 
 ```python
 # ✅ Good — the child span records duration and links its event to the parent run
-with tracer.start_as_current_span('check.header.document') as span:
+with tracer.start_as_current_span('check.frontmatter.document') as span:
     span.set_attribute('document.path', path)
     logger.debug('document checked', extra={'fields': {'document': path}})
 ```

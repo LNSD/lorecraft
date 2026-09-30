@@ -42,11 +42,11 @@ def load_schema(path: Path) -> dict[str, object]:
 # ✅ Good — the cache lives as long as one run, and callers share an immutable value.
 class SchemaCache:
     def __init__(self) -> None:
-        self._loaded: dict[Path, HeaderSchema] = {}
+        self._loaded: dict[Path, FrontmatterSchema] = {}
 
-    def get(self, path: Path) -> HeaderSchema:
+    def get(self, path: Path) -> FrontmatterSchema:
         if path not in self._loaded:
-            self._loaded[path] = HeaderSchema.parse(path.read_text())
+            self._loaded[path] = FrontmatterSchema.parse(path.read_text())
         return self._loaded[path]
 ```
 

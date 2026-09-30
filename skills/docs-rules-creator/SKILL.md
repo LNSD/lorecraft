@@ -33,7 +33,7 @@ Every command below calls `lorecraft` directly. Where it is not on `PATH`, run `
 docs/__meta__/<stem>.md               the prose: the authority, written for a reader
 docs/__meta__/<stem>.structure.json   the section rules and word caps, read by lorecraft check structure;
                                       the tokens budget, read by lorecraft check budget;
-                                      the frontmatter schema, read by lorecraft check header
+                                      the frontmatter schema, read by lorecraft check frontmatter
 ```
 
 A **stem** is `<corpus>` or `<corpus>-<namespace>`. The corpus names a directory `docs/<corpus>/` in lowercase

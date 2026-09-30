@@ -33,7 +33,7 @@ def report_line(title: str, message: str) -> str:
     return f'{title}: {message}'
 
 
-report_line('Header check', 'Missing frontmatter')
+report_line('Frontmatter check', 'Missing frontmatter')
 ```
 
 ```python
@@ -48,7 +48,7 @@ def report_line(title: ReportTitle, message: FindingMessage) -> str:
     return f'{title}: {message}'
 
 
-title = ReportTitle('Header check')
+title = ReportTitle('Frontmatter check')
 message = FindingMessage('Missing frontmatter')
 report_line(title, message)
 ```

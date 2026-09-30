@@ -1,7 +1,7 @@
 """Run a check over documents of one database.
 
 A run asks the database for everything it reads: the model decides which aspects govern each document, and
-the part of the document the check reads is what the pure check validates — the frontmatter for the header
+the part of the document the check reads is what the pure check validates — the frontmatter for the frontmatter
 check, the parse tree's headings for the structure check, the whole file's token count for the budget check.
 Selecting which documents to check is the caller's business: a run checks the refs it is handed, in the order
 given, and reads only the governed ones. Every check reports in the same shape, so the ``check`` commands print
@@ -16,7 +16,7 @@ from lorecraft.project.syntax import FrontmatterNode, LineNumber, ParsedDocument
 
 from .budget import validate_budget
 from .database import Database
-from .header import validate_header
+from .frontmatter import validate_frontmatter
 from .reporting import Finding, Violation
 from .structure import validate_structure
 
@@ -59,7 +59,7 @@ class CheckRun:
         return tuple(findings)
 
 
-def run_header(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
+def run_frontmatter(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
     """Check each ref's frontmatter against the frontmatter schemas that govern it, in the order given.
 
     A document is governed when the structure specification of its corpus spec states a ``frontmatter`` schema;
@@ -88,7 +88,7 @@ def run_header(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
         if frontmatter is None:
             reports.append(DocumentReport(ref, governed=True, violations=(_undecodable('frontmatter'),)))
             continue
-        result = validate_header(schemas, frontmatter=frontmatter, filename=ref.filename, corpus=ref.corpus)
+        result = validate_frontmatter(schemas, frontmatter=frontmatter, filename=ref.filename, corpus=ref.corpus)
         reports.append(DocumentReport(ref, governed=True, violations=result.violations))
     return CheckRun(reports=tuple(reports))
 

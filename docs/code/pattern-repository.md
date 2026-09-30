@@ -11,7 +11,7 @@ scope: "global"
 
 A repository owns access to one kind of stored entity. Callers ask for entities in domain terms; the repository alone knows how filenames, JSON, or another storage format represent them. Use one when several callers need to discover and retrieve the same entity. A single read used by one caller can remain a function.
 
-Keep the repository concrete. Construct it with its storage location and inject it into callers that need it. A protocol or abstract base class earns its place only when a second real implementation exists. Its public methods should name useful operations, such as `list_schemas` and `get_header_schema`. Retrieval returns domain values; discovery may return a small record with the schema name and path so callers can identify files to inspect. Do not expose file handles, parser records, or filesystem exceptions.
+Keep the repository concrete. Construct it with its storage location and inject it into callers that need it. A protocol or abstract base class earns its place only when a second real implementation exists. Its public methods should name useful operations, such as `list_schemas` and `get_frontmatter_schema`. Retrieval returns domain values; discovery may return a small record with the schema name and path so callers can identify files to inspect. Do not expose file handles, parser records, or filesystem exceptions.
 
 Give each public method one exception family. That family may contain subclasses for failures callers handle differently. Translate I/O, decoding, and missing data at the repository boundary, retaining the original exception with `raise ... from exc`. Put the family beside the method that raises it. Callers can then handle one operation's failures without catching failures from another operation.
 
@@ -23,16 +23,16 @@ A checker needs a named schema. Passing a file path through the checker couples 
 
 ```python
 # ❌ Bad — the caller knows where the file lives and how it is decoded.
-def check_header(schema_path: Path, document: Document) -> list[Finding]:
+def check_frontmatter(schema_path: Path, document: Document) -> list[Finding]:
     schema = json.loads(schema_path.read_text())
     return validate(document, schema)
 ```
 
 ```python
 # ✅ Good — the repository returns the entity in domain terms. Its getter raises
-# GetHeaderSchemaError for read and decode failures; validation stays here.
-def check_header(schemas: Repository, corpus: CorpusName, document: Document) -> list[Finding]:
-    schema = schemas.get_header_schema(corpus)
+# GetFrontmatterSchemaError for read and decode failures; validation stays here.
+def check_frontmatter(schemas: Repository, corpus: CorpusName, document: Document) -> list[Finding]:
+    schema = schemas.get_frontmatter_schema(corpus)
     return validate(document, schema)
 ```
 

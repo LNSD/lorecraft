@@ -140,7 +140,7 @@ def _lorecraft_tree(root: Path) -> None:
             'feat.structure.json',
             'feat-cli.structure.json',
         ),
-        documents=('code/logging.md', 'code/python-typing.md', 'feat/cli-check.md', 'feat/cli-check-header.md'),
+        documents=('code/logging.md', 'code/python-typing.md', 'feat/cli-check.md', 'feat/cli-check-frontmatter.md'),
     )
     _write(root, 'docs/feat/.gitkeep')
     _write(root, 'docs/glossary.md')
@@ -300,8 +300,8 @@ class TestLoadWorkspaceLorecraft:
             'docs/code/logging.md',
             'docs/code/python-typing.md',
             'docs/feat/cli-check.md',
-            'docs/feat/cli-check-header.md',
-        ), 'documents sort by stem, so cli-check precedes cli-check-header; .gitkeep and the glossary are absent'
+            'docs/feat/cli-check-frontmatter.md',
+        ), 'documents sort by stem, so cli-check precedes cli-check-frontmatter; .gitkeep and the glossary are absent'
 
     def test_load_workspace_with_the_lorecraft_tree_loads_the_feat_cli_namespace(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
