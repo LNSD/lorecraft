@@ -43,6 +43,7 @@ bytes did not change.
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.document import Repository as DocumentRepository
+from lorecraft.project.layout import require_real_layout
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import FrontmatterNode, ParsedDocument, count_tokens, parse_document, parse_frontmatter
@@ -84,6 +85,18 @@ class Database:
         if self._model is None:
             self._model = load_model(self._fs)
         return self._model
+
+    def require_real_layout(self) -> None:
+        """Refuse a snapshot in which ``docs/`` or ``docs/__meta__/`` is a symlink; never cached.
+
+        Behind a linked ``docs/`` or ``docs/__meta__/`` the snapshot holds no specification, so the model has no
+        corpus, and a run over its documents would report success over nothing. Kept apart from ``model()``, which
+        also lists the skills: a caller that reads only skills has no reason to refuse a linked ``docs/``.
+
+        Raises:
+            LinkedLayoutError: If ``docs/`` is a symlink, or else if ``docs/__meta__/`` is one.
+        """
+        require_real_layout(self._fs)
 
     def resolve(self, path: RootRelativePath) -> RootRelativePath | None:
         """Where ``path`` leads in the snapshot, every recorded link on the way followed; never cached.

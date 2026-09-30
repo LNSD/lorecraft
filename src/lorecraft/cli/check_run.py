@@ -22,9 +22,9 @@ import typer
 from lorecraft.checks import CheckRun, Database, Finding, SkillCheckRun, format_finding
 from lorecraft.core.error import Error
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.layout import SNAPSHOT_SCOPE, require_real_layout
+from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.skill import SkillRef
-from lorecraft.vfs import VirtualFileSystem, take_snapshot
+from lorecraft.vfs import take_snapshot
 
 from .root import find_root, resolve_root
 from .select import select_document, select_skills_at
@@ -143,12 +143,11 @@ def select_documents(root: Path | None, paths: list[Path] | None) -> tuple[Datab
         Error: Any failure to take the snapshot or to load the model, as ``Database.model`` documents.
     """
     root_path = find_root(_working_directory()) if root is None else resolve_root(root)
-    snapshot = take_snapshot(root_path, SNAPSHOT_SCOPE)
+    database = Database(take_snapshot(root_path, SNAPSHOT_SCOPE))
     # Root discovery follows symlinks and the snapshot, under `docs/`, does not, so a linked `docs/__meta__/`
     # passes the first and is empty in the second. Refused here, before a run over no documents can report
     # success.
-    require_real_layout(VirtualFileSystem(snapshot))
-    database = Database(snapshot)
+    database.require_real_layout()
     model = database.model()
     if not paths:
         return database, model.documents()
