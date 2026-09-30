@@ -8,6 +8,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.agents import AgentName
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.ref import DocumentRef
@@ -18,6 +19,7 @@ from lorecraft.project.schemas import (
     parse_schema_name,
     schema_name_stem,
 )
+from lorecraft.project.skill import SkillRef, SkillsDir
 from lorecraft.vfs import RootRelativePath
 
 from ..model import Corpus, Governance, Spec, WorkspaceModel, namespace_order_key
@@ -520,6 +522,22 @@ def two_corpora_model() -> WorkspaceModel:
     return WorkspaceModel(corpora=(code, feat), skills_dirs=(), skills=())
 
 
+@pytest.fixture(scope='function')
+def skills_model() -> WorkspaceModel:
+    """No corpus; two agents reading ``.agents/skills``, one of them through the ``.claude/skills`` link."""
+    universal = RootRelativePath.parse('.agents/skills')
+    return WorkspaceModel(
+        corpora=(),
+        skills_dirs=(
+            SkillsDir(
+                agent=AgentName('claude-code'), path=RootRelativePath.parse('.claude/skills'), resolves_to=universal
+            ),
+            SkillsDir(agent=AgentName('codex'), path=universal, resolves_to=universal),
+        ),
+        skills=(SkillRef(RootRelativePath.parse('.agents/skills/review')),),
+    )
+
+
 @pytest.mark.unit
 class TestWorkspaceModel:
     def test_corpus_with_a_listed_name_returns_that_corpus(self, two_corpora_model: WorkspaceModel) -> None:
@@ -575,6 +593,32 @@ class TestWorkspaceModel:
 
         #: Then
         assert ref is None, 'a filename listed under another corpus does not match'
+
+    def test_skill_agents_with_two_directories_leading_to_the_skill_returns_both_agents(
+        self, skills_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        ref = SkillRef(RootRelativePath.parse('.agents/skills/review'))
+
+        #: When
+        agents = skills_model.skill_agents(ref)
+
+        #: Then
+        assert agents == (AgentName('claude-code'), AgentName('codex')), (
+            'an agent reads the skill whether its skills directory is the real one or a link to it'
+        )
+
+    def test_skill_agents_with_a_skill_no_skills_directory_leads_to_returns_empty(
+        self, skills_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        ref = SkillRef(RootRelativePath.parse('skills/review'))
+
+        #: When
+        agents = skills_model.skill_agents(ref)
+
+        #: Then
+        assert agents == (), 'no agent reads a skill outside every skills directory'
 
 
 @pytest.mark.unit

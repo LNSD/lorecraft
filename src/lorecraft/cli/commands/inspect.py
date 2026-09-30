@@ -30,14 +30,15 @@ def inspect(
         typer.Option('--json', help='Print the model as JSON instead of drawing it.'),
     ] = False,
 ) -> None:
-    """Show the workspace model of a root: its corpora, specs and documents.
+    """Show the workspace model of a root: its corpora, specs and documents, and its agent skills.
 
     The root is scanned once and the model is loaded from that snapshot, so what is printed is one moment of
     the tree even while files change under it.
 
     Raises:
-        typer.Exit: With code 1 when the scan or the load fails: an entry in scope that cannot be read, or a
-            structure specification that cannot be decoded or does not state usable rules.
+        typer.Exit: With code 1 when the scan or the load fails: an entry in scope that cannot be read, a
+            skills directory that cannot be resolved or listed, or a structure specification that cannot be
+            decoded or does not state usable rules.
     """
     try:
         snapshot = take_snapshot(root, SNAPSHOT_SCOPE)

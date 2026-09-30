@@ -1,7 +1,8 @@
 """Draw the workspace model: the text `lorecraft inspect` prints, and the JSON it prints with `--json`.
 
 Pure: the model arrives as a value, so nothing here reads the disk. The text form is a tree with one section
-per part of the model — today the corpora — and the JSON form carries the same content as nested objects.
+per part of the model — the corpora, the agent skills directories the root has, and the skills — and the JSON
+form carries the same content as nested objects.
 """
 
 import json
@@ -10,6 +11,7 @@ from pathlib import Path
 
 from lorecraft.project.layout import DOCS_DIR
 from lorecraft.project.schemas import schema_name_stem
+from lorecraft.project.skill import SkillsDir
 from lorecraft.project.workspace import Corpus, Spec, WorkspaceModel
 from lorecraft.vfs import RootRelativePath
 
@@ -37,25 +39,44 @@ class _Line:
 def render_text(root: Path, model: WorkspaceModel) -> str:
     """Draw the model as a tree headed by the root, one section per part of the model.
 
-    A document is followed by the stems of the specs that govern it, broad to narrow.
+    A document is followed by the stems of the specs that govern it, broad to narrow. An agent's skills
+    directory is followed by the real directory it leads to when it is a link, and a skill by the agents
+    that read it.
 
     Returns:
         The lines, newline-separated, without a trailing newline.
     """
-    sections = (_corpora_section(model.corpora),)
+    sections = (
+        _corpora_section(model.corpora),
+        _skills_dirs_section(model.skills_dirs),
+        _skills_section(model),
+    )
     lines = [str(root)]
     _draw(sections, '', lines)
     return '\n'.join(lines)
 
 
 def render_json(root: Path, model: WorkspaceModel) -> str:
-    """Encode the model as indented JSON, the root beside one key per section: ``{"root", "corpora"}``."""
+    """Encode the model as indented JSON, the root beside one key per section.
+
+    The keys are ``root``, ``corpora``, ``agent_skills_dirs`` and ``skills``.
+    """
     corpora: list[dict[str, object]] = []
     for corpus in model.corpora:
         corpora.append(_json_corpus(corpus))
+    skills_dirs: list[dict[str, object]] = []
+    for skills_dir in model.skills_dirs:
+        skills_dirs.append(
+            {'agent': skills_dir.agent, 'path': str(skills_dir.path), 'resolves_to': str(skills_dir.resolves_to)}
+        )
+    skills: list[dict[str, object]] = []
+    for ref in model.skills:
+        skills.append({'path': str(ref.path), 'agents': list(model.skill_agents(ref))})
     document = {
         'root': str(root),
         'corpora': corpora,
+        'agent_skills_dirs': skills_dirs,
+        'skills': skills,
     }
     return json.dumps(document, indent=2)
 
@@ -92,6 +113,29 @@ def _corpus_line(corpus: Corpus) -> _Line:
     parts.append(_Line(f'documents ({len(document_lines)})', tuple(document_lines)))
 
     return _Line(f'{corpus.name} ({DOCS_DIR / str(corpus.name)})', tuple(parts))
+
+
+def _skills_dirs_section(skills_dirs: tuple[SkillsDir, ...]) -> _Line:
+    """``agent skills directories (N)``, one line per agent and directory, as the model orders them.
+
+    A directory that is a link is drawn with the real directory it leads to: ``path -> resolves_to``.
+    """
+    lines: list[_Line] = []
+    for skills_dir in skills_dirs:
+        location = str(skills_dir.path)
+        if skills_dir.resolves_to != skills_dir.path:
+            location = f'{skills_dir.path} -> {skills_dir.resolves_to}'
+        lines.append(_Line(f'{skills_dir.agent}: {location}'))
+    return _Line(f'agent skills directories ({len(skills_dirs)})', tuple(lines))
+
+
+def _skills_section(model: WorkspaceModel) -> _Line:
+    """``skills (N)``, one line per skill: its directory, then the agents that read it in brackets."""
+    lines: list[_Line] = []
+    for ref in model.skills:
+        agents = model.skill_agents(ref)
+        lines.append(_Line(f'{ref.directory} [{", ".join(agents)}]'))
+    return _Line(f'skills ({len(model.skills)})', tuple(lines))
 
 
 def _json_corpus(corpus: Corpus) -> dict[str, object]:

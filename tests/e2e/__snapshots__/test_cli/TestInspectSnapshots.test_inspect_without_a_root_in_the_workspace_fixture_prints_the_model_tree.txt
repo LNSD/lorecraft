@@ -1,9 +1,16 @@
 <workspace>
-└── corpora (1)
-    └── code (docs/code)
-        ├── specs (2)
-        │   ├── code: code.md, code.structure.json
-        │   └── code-python: code-python.md, code-python.structure.json
-        └── documents (2)
-            ├── logging.md [code]
-            └── python-typing.md [code, code-python]
+├── corpora (1)
+│   └── code (docs/code)
+│       ├── specs (2)
+│       │   ├── code: code.md, code.structure.json
+│       │   └── code-python: code-python.md, code-python.structure.json
+│       └── documents (2)
+│           ├── logging.md [code]
+│           └── python-typing.md [code, code-python]
+├── agent skills directories (2)
+│   ├── claude-code: .claude/skills -> .agents/skills
+│   └── codex: .agents/skills
+└── skills (3)
+    ├── .agents/skills/alpha [claude-code, codex]
+    ├── .agents/skills/beta [claude-code, codex]
+    └── .agents/skills/gamma [claude-code, codex]
