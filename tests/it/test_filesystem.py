@@ -46,6 +46,12 @@ SNAPSHOT_SCOPE: Final[tuple[ScanRoot, ...]] = (
     ScanRoot(RootRelativePath.parse('.claude/skills'), depth=1),
 )
 
+# The skills directories alone, read through their links: what a scope that must see every skill passes.
+FOLLOWING_SCOPE: Final[tuple[ScanRoot, ...]] = (
+    ScanRoot(RootRelativePath.parse('.agents/skills'), depth=1, follow_links=True),
+    ScanRoot(RootRelativePath.parse('.claude/skills'), depth=1, follow_links=True),
+)
+
 # The parity tree: every kind of entry the scan records, inside SNAPSHOT_SCOPE. Links stay inside the scope,
 # since a chain that leaves it is unknown to a snapshot by design. ``docs/code/sub`` sits beyond the depth.
 PARITY_FILES: Final[Mapping[str, bytes]] = MappingProxyType(
@@ -175,6 +181,22 @@ def unresolved_claude_skills_tree(tmp_path: Path, request: pytest.FixtureRequest
         (tmp_path / '.claude' / 'skills').symlink_to('missing')
     else:
         (tmp_path / '.claude' / 'skills').write_bytes(b'not a directory\n')
+    return tmp_path
+
+
+@pytest.fixture(scope='function')
+def linked_skills_tree(tmp_path: Path) -> Path:
+    """A root whose one skill lives outside the skills directories, reached through two links.
+
+    ``skills/review/`` holds the files, ``.agents/skills/review`` links to it, and ``.claude/skills`` links to
+    ``.agents/skills``: the layout of a repository that ships a skill and also uses it.
+    """
+    (tmp_path / 'skills' / 'review').mkdir(parents=True)
+    (tmp_path / 'skills' / 'review' / 'SKILL.md').write_bytes(b'---\nname: review\n---\n')
+    (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+    (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
+    (tmp_path / '.claude').mkdir()
+    (tmp_path / '.claude' / 'skills').symlink_to('../.agents/skills')
     return tmp_path
 
 
@@ -668,6 +690,170 @@ class TestTakeSnapshot:
             files=(FileBytes(RootRelativePath.parse('docs/code/sub/x.md'), b'# X\n'),),
         ), 'a directory two roots reach is listed down to the deeper of their depths'
 
+    def test_take_snapshot_following_a_linked_scope_root_lists_the_directory_it_leads_to(self, tmp_path: Path) -> None:
+        #: Given
+        (tmp_path / 'skills' / 'review').mkdir(parents=True)
+        (tmp_path / 'skills' / 'review' / 'SKILL.md').write_bytes(b'---\n')
+        (tmp_path / '.claude').mkdir()
+        (tmp_path / '.claude' / 'skills').symlink_to('../skills')
+        scope = (ScanRoot(RootRelativePath.parse('.claude/skills'), depth=1, follow_links=True),)
+
+        #: When
+        snapshot = take_snapshot(tmp_path, scope)
+
+        #: Then
+        assert snapshot == Snapshot(
+            listings=(
+                Listing(RootRelativePath.parse('skills'), (DirEntry('review', EntryKind.DIRECTORY),)),
+                Listing(RootRelativePath.parse('skills/review'), (DirEntry('SKILL.md', EntryKind.FILE),)),
+            ),
+            files=(FileBytes(RootRelativePath.parse('skills/review/SKILL.md'), b'---\n'),),
+            links=(Link(RootRelativePath.parse('.claude/skills'), PurePosixPath('../skills')),),
+        ), 'the directory the scope root leads to is listed at its real path, down to the depth'
+
+    def test_take_snapshot_following_a_linked_entry_lists_the_directory_it_leads_to(self, tmp_path: Path) -> None:
+        #: Given
+        (tmp_path / 'skills' / 'review').mkdir(parents=True)
+        (tmp_path / 'skills' / 'review' / 'SKILL.md').write_bytes(b'---\n')
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
+        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=1, follow_links=True),)
+
+        #: When
+        snapshot = take_snapshot(tmp_path, scope)
+
+        #: Then
+        assert snapshot == Snapshot(
+            listings=(
+                Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('review', EntryKind.SYMLINK),)),
+                Listing(RootRelativePath.parse('skills/review'), (DirEntry('SKILL.md', EntryKind.FILE),)),
+            ),
+            files=(FileBytes(RootRelativePath.parse('skills/review/SKILL.md'), b'---\n'),),
+            links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),),
+        ), 'the entry stays a symlink, and the directory it leads to is listed at its real path'
+
+    def test_take_snapshot_following_a_linked_entry_beyond_the_depth_records_it_without_entering_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        (tmp_path / 'skills' / 'review').mkdir(parents=True)
+        (tmp_path / 'skills' / 'review' / 'SKILL.md').write_bytes(b'---\n')
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
+        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=0, follow_links=True),)
+
+        #: When
+        snapshot = take_snapshot(tmp_path, scope)
+
+        #: Then
+        assert snapshot == Snapshot(
+            listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('review', EntryKind.SYMLINK),)),),
+            files=(),
+            links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),),
+        ), 'a linked entry costs depth as a directory entry does, so at depth 0 it is recorded and not entered'
+
+    def test_take_snapshot_following_a_chain_of_links_records_every_link_of_it(self, tmp_path: Path) -> None:
+        #: Given
+        (tmp_path / 'skills' / 'review').mkdir(parents=True)
+        (tmp_path / 'current').symlink_to('skills')
+        (tmp_path / '.claude').mkdir()
+        (tmp_path / '.claude' / 'skills').symlink_to('../current')
+        scope = (ScanRoot(RootRelativePath.parse('.claude/skills'), depth=0, follow_links=True),)
+
+        #: When
+        snapshot = take_snapshot(tmp_path, scope)
+
+        #: Then
+        assert snapshot == Snapshot(
+            listings=(Listing(RootRelativePath.parse('skills'), (DirEntry('review', EntryKind.DIRECTORY),)),),
+            files=(),
+            links=(
+                Link(RootRelativePath.parse('.claude/skills'), PurePosixPath('../current')),
+                Link(RootRelativePath.parse('current'), PurePosixPath('skills')),
+            ),
+        ), 'both links of the chain are recorded, so the virtual view can walk it to the listed directory'
+
+    def test_take_snapshot_following_a_link_outside_the_root_records_it_without_listing_through_it(
+        self, tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
+    ) -> None:
+        #: Given
+        outside = tmp_path_factory.mktemp('outside')
+        (outside / 'SKILL.md').write_bytes(b'---\n')
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'review').symlink_to(outside)
+        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=1, follow_links=True),)
+
+        #: When
+        snapshot = take_snapshot(tmp_path, scope)
+
+        #: Then
+        assert snapshot == Snapshot(
+            listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('review', EntryKind.SYMLINK),)),),
+            files=(),
+            links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath(outside)),),
+        ), 'a link leading outside the root is recorded, and nothing outside the root is read'
+
+    def test_take_snapshot_following_a_looping_link_records_it_and_lists_nothing_through_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'loop').symlink_to('loop')
+        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=1, follow_links=True),)
+
+        #: When
+        snapshot = take_snapshot(tmp_path, scope)
+
+        #: Then
+        assert snapshot == Snapshot(
+            listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('loop', EntryKind.SYMLINK),)),),
+            files=(),
+            links=(Link(RootRelativePath.parse('.agents/skills/loop'), PurePosixPath('loop')),),
+        ), 'a link that leads back to itself ends the walk instead of the scan never returning'
+
+    def test_take_snapshot_following_a_link_to_a_file_records_it_without_reading_through_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        (tmp_path / 'REVIEW.md').write_bytes(b'---\n')
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'SKILL.md').symlink_to('../../REVIEW.md')
+        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=1, follow_links=True),)
+
+        #: When
+        snapshot = take_snapshot(tmp_path, scope)
+
+        #: Then
+        assert snapshot == Snapshot(
+            listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('SKILL.md', EntryKind.SYMLINK),)),),
+            files=(),
+            links=(Link(RootRelativePath.parse('.agents/skills/SKILL.md'), PurePosixPath('../../REVIEW.md')),),
+        ), 'only a link to a directory is followed: no bytes are read through a link to a file'
+
+    def test_take_snapshot_with_a_following_root_over_a_plain_one_follows_the_links_it_lists(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        (tmp_path / 'shared').mkdir()
+        (tmp_path / 'shared' / 'a.md').write_bytes(b'# A\n')
+        (tmp_path / 'docs').mkdir()
+        (tmp_path / 'docs' / 'shared').symlink_to('../shared')
+        # the plain root is scanned first, so the following one must list docs again to follow its link
+        scope = (ScanRoot(DOCS_DIR, depth=1, follow_links=True), ScanRoot(DOCS_DIR, depth=1))
+
+        #: When
+        snapshot = take_snapshot(tmp_path, scope)
+
+        #: Then
+        assert snapshot == Snapshot(
+            listings=(
+                Listing(RootRelativePath.parse('docs'), (DirEntry('shared', EntryKind.SYMLINK),)),
+                Listing(RootRelativePath.parse('shared'), (DirEntry('a.md', EntryKind.FILE),)),
+            ),
+            files=(FileBytes(RootRelativePath.parse('shared/a.md'), b'# A\n'),),
+            links=(Link(RootRelativePath.parse('docs/shared'), PurePosixPath('../shared')),),
+        ), 'a directory two roots reach has its links followed when either root asks for it'
+
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
     def test_take_snapshot_with_an_unreadable_directory_raises_take_snapshot_error(
         self, tmp_path: Path, unreadable_dir: Path
@@ -710,8 +896,9 @@ class TestVirtualFileSystemMatchesDisk:
         #: Then
         assert snapshot.entries() == expected, 'the parity tables cover every path the snapshot lists'
 
-    # list_dir: every listing, and every entry that is no directory. A symlink or an unentered directory is left
-    # out: the disk lists through it, while the snapshot never entered it.
+    # list_dir: every listing, every entry that is no directory, and a link to a listed directory. A link to a
+    # directory the scan did not list and an unentered directory are left out: the disk lists them, while the
+    # snapshot never entered them.
 
     def test_list_dir_over_a_snapshot_with_the_skills_listing_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
@@ -869,8 +1056,34 @@ class TestVirtualFileSystemMatchesDisk:
         #: Then
         assert virtual_answer == disk_answer, 'the missing docs/missing lists as nothing over the snapshot too'
 
-    # read_text: every file and directory entry. A symlink is left out (the disk reads through it) and so is the
-    # fifo (reading it on disk would block).
+    def test_list_dir_over_a_snapshot_with_the_linked_scope_root_agrees_with_disk(self, parity_tree: Path) -> None:
+        #: Given
+        disk = DiskFileSystem(parity_tree)
+        virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
+        path = '.claude/skills'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, '.claude/skills lists as .agents/skills, where it leads, on both'
+
+    def test_list_dir_over_a_snapshot_with_a_link_to_a_listed_directory_agrees_with_disk(
+        self, parity_tree: Path
+    ) -> None:
+        #: Given
+        disk = DiskFileSystem(parity_tree)
+        virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
+        path = 'docs/code-link'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'docs/code-link lists as docs/code, where it leads, on both'
+
+    # read_text: every file and directory entry, and a file behind a linked directory. A symlink to a file is
+    # left out (the disk reads through it) and so is the fifo (reading it on disk would block).
 
     def test_read_text_over_a_snapshot_with_a_skill_directory_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
@@ -897,6 +1110,20 @@ class TestVirtualFileSystemMatchesDisk:
 
         #: Then
         assert virtual_answer == disk_answer, 'SKILL.md reads as the same text over the snapshot'
+
+    def test_read_text_over_a_snapshot_with_a_file_behind_a_linked_directory_agrees_with_disk(
+        self, parity_tree: Path
+    ) -> None:
+        #: Given
+        disk = DiskFileSystem(parity_tree)
+        virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
+        path = '.claude/skills/alpha/SKILL.md'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.read_text, virtual.read_text, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'SKILL.md behind the linked .claude/skills reads as the same text'
 
     def test_read_text_over_a_snapshot_with_the_meta_directory_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
@@ -1425,3 +1652,64 @@ class TestVirtualFileSystemMatchesDisk:
 
         #: Then
         assert virtual_answer == disk_answer, '.claude/skills leads to no directory over the snapshot either'
+
+
+@pytest.mark.it
+class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
+    def test_resolve_dir_over_a_following_snapshot_with_a_skill_linked_out_of_the_scope_agrees_with_disk(
+        self, linked_skills_tree: Path
+    ) -> None:
+        #: Given
+        disk = DiskFileSystem(linked_skills_tree)
+        virtual = VirtualFileSystem(take_snapshot(linked_skills_tree, FOLLOWING_SCOPE))
+        path = '.agents/skills/review'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'the linked skill leads to skills/review over the snapshot too'
+
+    def test_resolve_dir_over_a_following_snapshot_with_a_skill_behind_two_links_agrees_with_disk(
+        self, linked_skills_tree: Path
+    ) -> None:
+        #: Given
+        disk = DiskFileSystem(linked_skills_tree)
+        virtual = VirtualFileSystem(take_snapshot(linked_skills_tree, FOLLOWING_SCOPE))
+        path = '.claude/skills/review'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, (
+            'through the linked skills directory and the linked skill, both views reach skills/review'
+        )
+
+    def test_list_dir_over_a_following_snapshot_with_a_skill_linked_out_of_the_scope_agrees_with_disk(
+        self, linked_skills_tree: Path
+    ) -> None:
+        #: Given
+        disk = DiskFileSystem(linked_skills_tree)
+        virtual = VirtualFileSystem(take_snapshot(linked_skills_tree, FOLLOWING_SCOPE))
+        path = '.claude/skills/review'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'the linked skill lists its SKILL.md over the snapshot too'
+
+    def test_read_text_over_a_following_snapshot_with_a_file_in_a_skill_linked_out_of_the_scope_agrees_with_disk(
+        self, linked_skills_tree: Path
+    ) -> None:
+        #: Given
+        disk = DiskFileSystem(linked_skills_tree)
+        virtual = VirtualFileSystem(take_snapshot(linked_skills_tree, FOLLOWING_SCOPE))
+        path = '.claude/skills/review/SKILL.md'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.read_text, virtual.read_text, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'SKILL.md reads as the same text through the path an agent uses'

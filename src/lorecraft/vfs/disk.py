@@ -13,7 +13,7 @@ from pathlib import Path, PurePosixPath
 from lorecraft.core.error import Error
 
 from .path import ROOT, RootRelativePath
-from .snapshot import FileBytes, Link, Listing, Snapshot
+from .snapshot import MAX_LINKS, FileBytes, Link, Listing, Snapshot
 from .view import DirEntry, EntryKind, FileSystem, ListDirError, ReadTextError, ResolveDirError, decode_text
 
 
@@ -92,16 +92,21 @@ class DiskFileSystem(FileSystem):
 
 @dataclass(frozen=True, slots=True)
 class ScanRoot:
-    """One directory a snapshot reads, and how deep.
+    """One directory a snapshot reads, how deep, and whether through symlinks.
 
     Attributes:
         directory: Root-relative directory the scan starts at.
         depth: 0 lists ``directory`` only; 1 also lists each DIRECTORY entry inside it, and so on. Never
             negative. Entries beyond the depth are listed by their parent and never entered.
+        follow_links: When true, a symlink that leads to a directory under the root is followed: one on the
+            way to ``directory``, and one listed within the depth, which is entered as a DIRECTORY entry is.
+            The directory it leads to is listed at its real path, wherever under the root that is. When
+            false, a symlink is recorded and never followed.
     """
 
     directory: RootRelativePath
     depth: int
+    follow_links: bool = False
 
     def __post_init__(self) -> None:
         """Reject a negative depth, which would list nothing and read nothing.
@@ -130,12 +135,16 @@ class TakeSnapshotError(Error):
 def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
     """Read every listing down to each root's depth, every FILE entry's bytes and every symlink's target, once.
 
-    A missing scope root is simply absent. A scope root with a symlink on the way to it is not listed: the
-    first symlink met is recorded as a link, so every listing sits at a real path. A file or symlink that
-    vanishes between its listing and its read (an editor's write-then-rename) is dropped from the listing
-    rather than failing the scan; a directory that vanishes is left unentered. Symlinks and OTHER entries
-    are recorded, never followed or read; an absolute link target under the root is recorded relative to
-    the link's directory (see ``Link``).
+    A missing scope root is simply absent. A file or symlink that vanishes between its listing and its read
+    (an editor's write-then-rename) is dropped from the listing rather than failing the scan; a directory
+    that vanishes is left unentered. OTHER entries are recorded, never read; an absolute link target under
+    the root is recorded relative to the link's directory (see ``Link``).
+
+    Every symlink met is recorded, and followed only under a scope root that asks for it
+    (``ScanRoot.follow_links``). Without it a scope root with a symlink on the way to it is not listed, and a
+    symlink entry is never entered. With it the scan lists the directory the link leads to, when that is a
+    directory under the root, at its real path and with the depth left at the link. Either way every listing
+    sits at a real path; a link to a file is never read through.
 
     Raises:
         TakeSnapshotError: If a directory in scope cannot be listed, or a file or symlink in it cannot be
@@ -144,17 +153,22 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
     listings: dict[RootRelativePath, tuple[DirEntry, ...]] = {}
     files: dict[RootRelativePath, bytes] = {}
     links: dict[RootRelativePath, PurePosixPath] = {}
-    # How deep each directory was listed, so overlapping scope roots list a directory again only when a
-    # later root asks for more depth under it.
+    # How deep each directory was listed, without following links and with, so overlapping scope roots list
+    # a directory again only when a later root asks for more under it: more depth, or its links followed.
     listed_depth: dict[RootRelativePath, int] = {}
-    pending: list[tuple[RootRelativePath, int]] = []
+    followed_depth: dict[RootRelativePath, int] = {}
+    pending: list[tuple[RootRelativePath, int, bool]] = []
     for scan in scope:
-        if _can_enter_scope_root(root, scan.directory, links):
-            pending.append((scan.directory, scan.depth))
+        scope_root = _walk_to_directory(root, scan.directory, links, follow_links=scan.follow_links)
+        if scope_root is not None:
+            pending.append((scope_root, scan.depth, scan.follow_links))
 
     while pending:
-        directory, depth = pending.pop()
-        if listed_depth.get(directory, -1) >= depth:
+        directory, depth, follow_links = pending.pop()
+        if followed_depth.get(directory, -1) >= depth:
+            continue  # a listing that followed links covers one that does not
+        # At depth 0 no entry is entered, so there is no link to follow and a plain listing covers it too.
+        if (not follow_links or depth == 0) and listed_depth.get(directory, -1) >= depth:
             continue
         try:
             entries = _scan(root, directory)
@@ -162,13 +176,16 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
             raise TakeSnapshotError(directory, exc.detail) from exc
         if entries is None:
             continue  # vanished after its parent was listed; see the docstring
-        listed_depth[directory] = depth
+        if follow_links:
+            followed_depth[directory] = depth
+        else:
+            listed_depth[directory] = depth
 
         kept: list[DirEntry] = []
         for entry in entries:
             path = directory / entry.name
             if entry.kind is EntryKind.DIRECTORY and depth > 0:
-                pending.append((path, depth - 1))
+                pending.append((path, depth - 1, follow_links))
             elif entry.kind is EntryKind.FILE:
                 data = _read_bytes(root, path)
                 if data is None:
@@ -179,6 +196,10 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
                 if target is None:
                     continue  # vanished after the listing; see the docstring
                 links[path] = target
+                if follow_links and depth > 0:
+                    leads_to = _walk_to_directory(root, path, links, follow_links=True)
+                    if leads_to is not None:
+                        pending.append((leads_to, depth - 1, follow_links))
             kept.append(entry)
         listings[directory] = tuple(kept)
 
@@ -189,31 +210,56 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
     )
 
 
-def _can_enter_scope_root(
-    root: Path, directory: RootRelativePath, links: dict[RootRelativePath, PurePosixPath]
-) -> bool:
-    """True when every component of ``directory`` is a real directory, so the scan may list it.
+def _walk_to_directory(
+    root: Path, path: RootRelativePath, links: dict[RootRelativePath, PurePosixPath], *, follow_links: bool
+) -> RootRelativePath | None:
+    """The real directory ``path`` leads to, so the scan may list it, or ``None`` when it may not.
 
-    Walks the components from the root with ``lstat``. The first symlink met is recorded in ``links`` and
-    not followed; a missing component, or one that is neither a directory nor a symlink, leaves the scope
-    root absent. A snapshot has no record for a lone file, so such a component is seen only through a
-    listing of its parent: a scope that must answer whether a root exists lists that parent too.
+    Walks the components from the root with ``lstat``, one real directory to the next, and records every
+    symlink met in ``links``. Without ``follow_links`` the walk ends at the first symlink, which leaves the
+    path unlisted. With it a symlink splices its target into the components still to walk, as the kernel
+    does and as ``VirtualFileSystem.resolve_dir`` does over the snapshot: recording each link of the chain
+    is what lets that view walk the same chain to the same directory.
+
+    A snapshot has no record for a lone file, so a component that is one is seen only through a listing of
+    its parent: a scope that must answer whether a root exists lists that parent too. Nor has it one for a
+    directory a chain only passes through and climbs back out of with ``..``, which the view does not know.
+
+    Returns:
+        The real directory, root-relative, or ``None`` when no directory under the root is there: a
+        component is missing or is neither a directory nor a symlink, a symlink is not followed, its
+        target is absolute (so outside the root, see ``_read_link``) or climbs above the root, or the
+        chain is longer than ``MAX_LINKS``.
 
     Raises:
         TakeSnapshotError: If a component exists but cannot be inspected, or its link cannot be read.
     """
-    prefix = ROOT
-    for part in directory.parts:
-        prefix = prefix / part
-        kind = _lstat_kind(root, prefix)
-        if kind is EntryKind.SYMLINK:
-            target = _read_link(root, prefix)
-            if target is not None:
-                links[prefix] = target
-            return False
-        if kind is not EntryKind.DIRECTORY:
-            return False
-    return True
+    resolved = ROOT
+    remaining = list(path.parts)
+    links_followed = 0
+    while remaining:
+        part = remaining.pop(0)
+        if part == '..':
+            if resolved == ROOT:
+                return None
+            resolved = resolved.parent
+            continue
+        candidate = resolved / part
+        kind = _lstat_kind(root, candidate)
+        if kind is EntryKind.DIRECTORY:
+            resolved = candidate
+            continue
+        if kind is not EntryKind.SYMLINK:
+            return None
+        target = _read_link(root, candidate)
+        if target is None:
+            return None  # vanished after the lstat, so nothing is there to follow
+        links[candidate] = target
+        links_followed += 1
+        if not follow_links or target.is_absolute() or links_followed > MAX_LINKS:
+            return None
+        remaining = list(target.parts) + remaining
+    return resolved
 
 
 def _lstat_kind(root: Path, path: RootRelativePath) -> EntryKind | None:
@@ -277,10 +323,10 @@ def _spell_relative_if_under_root(root: Path, link: RootRelativePath, target: Pu
     chain stays inside what the snapshot recorded. The root counts under both spellings: as given, and made
     real, since the disk view compares real paths.
 
-    The link's directory is a real path (every listing is, and the walk to a scope root stops at the first
-    symlink), so one ``..`` per component of it climbs exactly to the root. The rest of the target is kept
-    as written, ``..`` included, for the view to walk the way the kernel does. A relative target, or an
-    absolute one outside the root, is returned unchanged.
+    The link's directory is a real path (every listing is, and a walk to a directory steps from one real
+    directory to the next), so one ``..`` per component of it climbs exactly to the root. The rest of the
+    target is kept as written, ``..`` included, for the view to walk the way the kernel does. A relative
+    target, or an absolute one outside the root, is returned unchanged.
     """
     if not target.is_absolute():
         return target

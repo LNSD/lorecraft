@@ -255,7 +255,7 @@ class TestVirtualFileSystemListDir:
         #: Then
         assert entries == (), 'a symlink is never listed through, so it lists as nothing'
 
-    def test_list_dir_with_a_scope_root_symlink_returns_empty(self) -> None:
+    def test_list_dir_with_a_link_to_a_listed_directory_returns_the_directory_entries(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('.claude/skills')
@@ -264,7 +264,21 @@ class TestVirtualFileSystemListDir:
         entries = virtual.list_dir(path)
 
         #: Then
-        assert entries == (), 'a scope root that is a link is recorded as a link, never listed through'
+        assert entries == (
+            DirEntry('alpha', EntryKind.DIRECTORY),
+            DirEntry('beta', EntryKind.SYMLINK),
+        ), '.claude/skills leads to .agents/skills, which the scan listed, so it lists as that directory'
+
+    def test_list_dir_with_a_link_to_an_unlisted_directory_returns_empty(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code/up')
+
+        #: When
+        entries = virtual.list_dir(path)
+
+        #: Then
+        assert entries == (), 'docs/code/up leads to the root, which the scan never listed, so it lists as nothing'
 
     def test_list_dir_with_a_path_out_of_scope_returns_empty(self) -> None:
         #: Given
@@ -347,6 +361,19 @@ class TestVirtualFileSystemReadText:
 
         #: Then
         assert type(exc_info.value) is ReadTextError, 'no bytes are recorded through a symlink, so it reads as missing'
+
+    def test_read_text_with_a_file_behind_a_linked_directory_returns_its_text(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('.claude/skills/alpha/SKILL.md')
+
+        #: When
+        text = virtual.read_text(path)
+
+        #: Then
+        assert text == '---\nname: alpha\n---\n', (
+            '.claude/skills leads to .agents/skills, so the file reads as the one recorded at its real path'
+        )
 
     def test_read_text_with_an_other_entry_raises_read_text_error(self) -> None:
         #: Given

@@ -14,8 +14,10 @@ from typing import Final, Self
 from .path import ROOT, RootRelativePath
 from .view import DirEntry, EntryKind, FileSystem, ReadTextError, decode_text
 
-_MAX_LINKS: Final[int] = 40
-"""Links followed before a chain counts as a loop; Linux's MAXSYMLINKS, past which the disk reports ELOOP."""
+MAX_LINKS: Final[int] = 40
+"""Links followed before a chain counts as a loop; Linux's MAXSYMLINKS, past which the disk reports ELOOP.
+
+The scan and the virtual view share it, so both give up on the same chain."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,8 +72,8 @@ class Snapshot:
     Tuples only, so two snapshots compare and hash structurally; equality is the "nothing changed" test.
     Bytes, not text: a non-UTF-8 file stays here so ``read_text`` raises ``DecodeTextError`` exactly as the
     disk view does; byte equality is the change test mtime is not. What a scan reads is the scope it is given.
-    A link leading outside the scope is recorded, not followed, so what the disk view reads through it is not
-    here.
+    A link is always recorded, and followed only under a scan root that asks for it: where the scan did not
+    follow one that leads outside the scope, what the disk view reads through it is not here.
 
     Every listing sits at a real path, with no symlink on the way to it. That is what lets the virtual view
     treat every ancestor of a listing or a link as a directory when it follows a chain.
@@ -86,7 +88,8 @@ class Snapshot:
             its parent's listing and nowhere else.
         files: The bytes of every FILE entry of every listing, sorted by path.
         links: The target of every SYMLINK entry of every listing, and of a symlink met on the way to a
-            scope root, sorted by path. Empty when the snapshot was built by ``of_files``.
+            scope root or along a chain the scan followed, sorted by path. Empty when the snapshot was
+            built by ``of_files``.
     """
 
     listings: tuple[Listing, ...]
@@ -120,7 +123,8 @@ class Snapshot:
     def entries(self) -> dict[RootRelativePath, EntryKind]:
         """Every listed path (``listing.path / entry.name``) with its kind; what a diff compares.
 
-        A symlink met on the way to a scope root sits in no listing and is included as SYMLINK.
+        A symlink met on the way to a scope root, or along a chain the scan followed, may sit in no listing
+        and is included as SYMLINK.
         """
         found: dict[RootRelativePath, EntryKind] = {}
         for listing in self.listings:
@@ -151,7 +155,7 @@ class VirtualFileSystem(FileSystem):
             self._links[link.path] = link.target
 
         # A listing sits at a real path, so it and every ancestor of it are directories; a recorded link's
-        # ancestors are too, since the scan stops at the first symlink it meets.
+        # ancestors are too, since the scan meets a link only in a real directory.
         self._directories: set[RootRelativePath] = {ROOT}
         for path in self._listings:
             self._directories.add(path)
@@ -160,23 +164,37 @@ class VirtualFileSystem(FileSystem):
             self._directories.update(path.parents)
 
     def list_dir(self, path: RootRelativePath) -> tuple[DirEntry, ...]:
-        """The recorded listing; ``()`` for a missing, non-directory, unentered or out-of-scope path.
+        """The recorded listing of the directory ``path`` leads to; see ``FileSystem.list_dir``.
 
-        A symlink is never followed here, as the scan never followed it.
+        A recorded link on the way is followed, as ``resolve_dir`` follows it, so a linked directory lists
+        as the directory it leads to when the scan listed that one.
+
+        Returns:
+            The entries in name order, or ``()`` for a missing, non-directory, unentered or out-of-scope
+            path, and for a link the snapshot cannot follow to a listed directory.
 
         Raises:
             ListDirError: Never; kept in the contract for the disk implementation.
         """
-        return self._listings.get(path, ())
+        directory = self.resolve_dir(path)
+        if directory is None:
+            return ()
+        return self._listings.get(directory, ())
 
     def read_text(self, path: RootRelativePath) -> str:
-        """Decode the recorded bytes; a SYMLINK or OTHER entry has none and is a missing file here.
+        """Decode the recorded bytes of the file ``path`` names; see ``FileSystem.read_text``.
+
+        A recorded link on the way to the file's directory is followed, as ``resolve_dir`` follows it. The
+        file itself must be a regular one: a SYMLINK or OTHER entry has no bytes and is a missing file here.
 
         Raises:
             DecodeTextError: If the bytes are not UTF-8.
             ReadTextError: If no regular file at ``path`` is in the snapshot.
         """
-        data = self._files.get(path)
+        directory = self.resolve_dir(path.parent)
+        if directory is None:
+            raise ReadTextError(path, 'not in the snapshot')
+        data = self._files.get(directory / path.name)
         if data is None:
             raise ReadTextError(path, 'not in the snapshot')
         return decode_text(path, data)
@@ -213,7 +231,7 @@ class VirtualFileSystem(FileSystem):
             target = self._links.get(candidate)
             if target is not None:
                 links_followed += 1
-                if links_followed > _MAX_LINKS or target.is_absolute():
+                if links_followed > MAX_LINKS or target.is_absolute():
                     return None
                 remaining = list(target.parts) + remaining
                 continue
