@@ -17,7 +17,7 @@ from typing import Final, assert_never
 
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.schemas import FrontmatterProblem, FrontmatterProblemKind, FrontmatterSchema
+from lorecraft.project.schemas import FrontmatterSchema
 from lorecraft.project.syntax import (
     Frontmatter,
     FrontmatterNode,
@@ -27,10 +27,11 @@ from lorecraft.project.syntax import (
     NonMappingFrontmatter,
 )
 
+from .frontmatter_problem import field_line, problem_line, problem_rule
 from .reporting import Violation
 
 _FIRST_LINE: Final[LineNumber] = LineNumber(1)
-"""Where a violation with no more precise position is reported: a missing block, a missing field."""
+"""Where a frontmatter that cannot be checked is reported: a missing block, or one that is not a mapping."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,7 +92,7 @@ def validate_frontmatter(
     if name != expected_name:
         violations.append(
             Violation(
-                line=_field_line(frontmatter, 'name'),
+                line=field_line(frontmatter, 'name'),
                 rule='frontmatter.name-matches-filename',
                 message=f"`name` is {name!r}; expected {expected_name!r}, the document's filename",
             )
@@ -104,8 +105,8 @@ def validate_frontmatter(
         for problem in schema.validate(frontmatter.data):
             violations.append(
                 Violation(
-                    line=_field_line(frontmatter, problem.field),
-                    rule=_problem_rule(rule_namespace, problem),
+                    line=problem_line(frontmatter, problem),
+                    rule=problem_rule(rule_namespace, problem),
                     message=f'{problem.message} (per {schema.path})',
                     spec=schema.path,
                 )
@@ -117,30 +118,3 @@ def validate_frontmatter(
 def _one_violation(rule: str, message: str, line: LineNumber) -> FrontmatterCheckResult:
     """The result of a document whose frontmatter is unusable: one violation, on the line it is found at."""
     return FrontmatterCheckResult(violations=(Violation(line=line, rule=rule, message=message),))
-
-
-def _problem_rule(rule_namespace: str, problem: FrontmatterProblem) -> str:
-    """The rule a schema problem breaks.
-
-    ``<namespace>.unknown-field`` for a field the schema does not define, ``<namespace>.frontmatter`` for a
-    problem that concerns no field, and ``<namespace>.<field>`` otherwise.
-    """
-    match problem.kind:
-        case FrontmatterProblemKind.UNKNOWN_FIELD:
-            return f'{rule_namespace}.unknown-field'
-        case FrontmatterProblemKind.MISSING | FrontmatterProblemKind.WRONG_TYPE | FrontmatterProblemKind.INVALID_VALUE:
-            if problem.field is None:
-                return f'{rule_namespace}.frontmatter'
-            return f'{rule_namespace}.{problem.field}'
-        case _:
-            assert_never(problem.kind)
-
-
-def _field_line(frontmatter: Frontmatter, field: str | None) -> LineNumber:
-    """The line a top-level field is written on, or line 1 when there is no field or the frontmatter lacks it."""
-    if field is None:
-        return _FIRST_LINE
-    line = frontmatter.key_line(field)
-    if line is None:
-        return _FIRST_LINE
-    return line

@@ -35,7 +35,8 @@ knows the directory.
 A note on the pydantic hooks every value object carries. pydantic reports only its own error types as a field's
 validation error; any other exception escapes the model's validation whole, so each type rewraps its own rejection
 as a ``PydanticCustomError``. The message goes in the error's context rather than its template, because pydantic
-formats the template and a rejected text may hold braces.
+formats the template and a rejected text may hold braces. The template is ``'{reason}'``, so the formatted ``msg``
+is the message exactly, and it is read back from there, typed, rather than from the untyped context.
 """
 
 from dataclasses import dataclass
@@ -66,14 +67,11 @@ _COMPATIBILITY_ERROR_TYPE: Final[Literal['skill_compatibility']] = 'skill_compat
 def value_object_message(detail: ErrorDetails) -> str | None:
     """The message a value object rejected a field's value with, or ``None`` when ``detail`` is not such an error.
 
-    The message is carried in the error's context: see the note on the pydantic hooks above.
+    The message is the error's formatted ``msg``: see the note on the pydantic hooks above.
     """
     if detail['type'] not in (_NAME_ERROR_TYPE, _DESCRIPTION_ERROR_TYPE, _COMPATIBILITY_ERROR_TYPE):
         return None
-    reason = detail.get('ctx', {}).get('reason')
-    if isinstance(reason, str):
-        return reason
-    return None
+    return detail['msg']
 
 
 SKILL_NAME_MAX_LENGTH: Final[int] = 64

@@ -8,7 +8,14 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 
-from ..frontmatter_problem import FrontmatterProblem, FrontmatterProblemKind
+from ..frontmatter_problem import (
+    BlockProblem,
+    InvalidValueProblem,
+    MissingFieldProblem,
+    NonStringKeyProblem,
+    UnknownFieldProblem,
+    WrongTypeProblem,
+)
 from ..structure import (
     AdjacentAnyRunsError,
     AnySections,
@@ -824,8 +831,8 @@ class TestFrontmatterSchema:
 
         #: Then
         assert problems == (
-            FrontmatterProblem('name', FrontmatterProblemKind.MISSING, "'name' is a required property"),
-            FrontmatterProblem('type', FrontmatterProblemKind.MISSING, "'type' is a required property"),
+            MissingFieldProblem('name', "'name' is a required property"),
+            MissingFieldProblem('type', "'type' is a required property"),
         ), 'jsonschema reports each absent field once, however many the schema requires'
 
     def test_validate_with_fields_the_schema_does_not_allow_returns_one_unknown_field_problem_each(self) -> None:
@@ -844,19 +851,17 @@ class TestFrontmatterSchema:
 
         #: Then
         assert problems == (
-            FrontmatterProblem(
+            UnknownFieldProblem(
                 'model',
-                FrontmatterProblemKind.UNKNOWN_FIELD,
                 "Additional properties are not allowed ('model' was unexpected)",
             ),
-            FrontmatterProblem(
+            UnknownFieldProblem(
                 'tier',
-                FrontmatterProblemKind.UNKNOWN_FIELD,
                 "Additional properties are not allowed ('tier' was unexpected)",
             ),
         ), 'each field neither properties nor patternProperties names is its own problem'
 
-    def test_validate_with_a_key_that_is_not_a_string_returns_an_unknown_field_problem_on_no_field(self) -> None:
+    def test_validate_with_a_key_that_is_not_a_string_returns_a_non_string_key_problem(self) -> None:
         #: Given
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema={'type': 'object', 'additionalProperties': False})
         data: dict[object, object] = {123: 'x'}
@@ -865,11 +870,9 @@ class TestFrontmatterSchema:
         problems = frontmatter.validate(data)
 
         #: Then
-        assert problems == (
-            FrontmatterProblem(
-                None, FrontmatterProblemKind.UNKNOWN_FIELD, 'Additional properties are not allowed (123 was unexpected)'
-            ),
-        ), 'a key that is not a string names no field'
+        assert problems == (NonStringKeyProblem('Additional properties are not allowed (123 was unexpected)'),), (
+            'a key that is not a string names no field'
+        )
 
     def test_validate_with_a_value_of_the_wrong_type_returns_a_wrong_type_problem(self) -> None:
         #: Given
@@ -881,9 +884,9 @@ class TestFrontmatterSchema:
         problems = frontmatter.validate(data)
 
         #: Then
-        assert problems == (
-            FrontmatterProblem('name', FrontmatterProblemKind.WRONG_TYPE, "3 is not of type 'string'"),
-        ), "the message is the validator's, naming the constraint the schema wrote"
+        assert problems == (WrongTypeProblem('name', "3 is not of type 'string'"),), (
+            "the message is the validator's, naming the constraint the schema wrote"
+        )
 
     def test_validate_with_a_value_outside_an_enum_returns_an_invalid_value_problem(self) -> None:
         #: Given
@@ -895,11 +898,9 @@ class TestFrontmatterSchema:
         problems = frontmatter.validate(data)
 
         #: Then
-        assert problems == (
-            FrontmatterProblem(
-                'type', FrontmatterProblemKind.INVALID_VALUE, "'guide' is not one of ['rule', 'pattern']"
-            ),
-        ), 'a value of the right type breaking another rule is invalid'
+        assert problems == (InvalidValueProblem('type', "'guide' is not one of ['rule', 'pattern']"),), (
+            'a value of the right type breaking another rule is invalid'
+        )
 
     def test_validate_with_an_unknown_key_inside_a_field_returns_an_invalid_value_problem_on_the_field(self) -> None:
         #: Given
@@ -915,14 +916,13 @@ class TestFrontmatterSchema:
 
         #: Then
         assert problems == (
-            FrontmatterProblem(
+            InvalidValueProblem(
                 'metadata',
-                FrontmatterProblemKind.INVALID_VALUE,
                 "Additional properties are not allowed ('owner' was unexpected)",
             ),
         ), "a key inside a field makes that field's value invalid; the field itself is known"
 
-    def test_validate_with_a_rule_over_the_whole_block_returns_a_problem_on_no_field(self) -> None:
+    def test_validate_with_a_rule_over_the_whole_block_returns_a_block_problem(self) -> None:
         #: Given
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema={'type': 'object', 'minProperties': 1})
         data: dict[object, object] = {}
@@ -931,6 +931,4 @@ class TestFrontmatterSchema:
         problems = frontmatter.validate(data)
 
         #: Then
-        assert problems == (
-            FrontmatterProblem(None, FrontmatterProblemKind.INVALID_VALUE, '{} should be non-empty'),
-        ), 'a rule over the block concerns no field'
+        assert problems == (BlockProblem('{} should be non-empty'),), 'a rule over the block concerns no field'
