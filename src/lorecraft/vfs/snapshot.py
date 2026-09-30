@@ -1,7 +1,7 @@
 """What one scan of the workspace saw, as a value, and the view that answers from it.
 
 A ``Snapshot`` holds listings, file bytes and symlink targets, never a handle or a stat result, so two
-snapshots compare and hash structurally. ``VirtualFileSystem`` answers the four ``FileSystem`` operations
+snapshots compare and hash structurally. ``VirtualFileSystem`` answers every ``FileSystem`` operation
 from one snapshot without touching the disk. ``take_snapshot`` in ``disk.py`` is the producer that reads
 the disk; ``Snapshot.of_files`` builds one by hand.
 """
@@ -213,6 +213,40 @@ class VirtualFileSystem(FileSystem):
         if data is None:
             raise ReadTextError(path, 'not in the snapshot')
         return decode_text(path, data)
+
+    def entry_kind(self, path: RootRelativePath) -> EntryKind | None:
+        """What the recorded entry at ``path`` itself is; see ``FileSystem.entry_kind``.
+
+        A recorded link on the way to ``path`` is followed, as ``resolve_dir`` follows it; a recorded link at
+        ``path`` is SYMLINK.
+
+        Returns:
+            The kind the parent's listing gives the entry, or, for an entry the snapshot recorded outside a
+            listing of its parent, the kind ``Snapshot.entries`` gives it. ``None`` for a path the snapshot
+            recorded nothing at, and where the parent leads to no directory it knows of.
+
+        Raises:
+            EntryKindError: Never; kept in the contract for the disk implementation.
+        """
+        if path == ROOT:
+            return EntryKind.DIRECTORY
+        parent = self.resolve_dir(path.parent)
+        if parent is None:
+            return None
+        for entry in self._listings.get(parent, ()):
+            if entry.name == path.name:
+                return entry.kind
+
+        # Recorded outside a listing of its parent: a symlink met on the way to a scope root, a file a followed
+        # link leads to, or a scope root or an ancestor of something recorded.
+        real_path = parent / path.name
+        if real_path in self._links:
+            return EntryKind.SYMLINK
+        if real_path in self._files:
+            return EntryKind.FILE
+        if real_path in self._directories:
+            return EntryKind.DIRECTORY
+        return None
 
     def resolve_dir(self, path: RootRelativePath) -> RootRelativePath | None:
         """Follow the recorded links in ``path`` and return the real directory it leads to; see ``FileSystem``.

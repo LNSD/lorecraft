@@ -465,6 +465,148 @@ class TestVirtualFileSystemReadText:
 
 
 @pytest.mark.unit
+class TestVirtualFileSystemEntryKind:
+    def test_entry_kind_with_the_root_returns_directory(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+
+        #: When
+        kind = virtual.entry_kind(ROOT)
+
+        #: Then
+        assert kind is EntryKind.DIRECTORY, 'the root is a directory, whatever the scan listed'
+
+    def test_entry_kind_with_a_listed_file_returns_file(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code/a.md')
+
+        #: When
+        kind = virtual.entry_kind(path)
+
+        #: Then
+        assert kind is EntryKind.FILE, 'docs/code lists a.md as a file'
+
+    def test_entry_kind_with_an_unentered_directory_returns_directory(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code/sub')
+
+        #: When
+        kind = virtual.entry_kind(path)
+
+        #: Then
+        assert kind is EntryKind.DIRECTORY, 'docs/code lists sub as a directory, though the scan never entered it'
+
+    def test_entry_kind_with_a_listed_symlink_returns_symlink(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code/linked.md')
+
+        #: When
+        kind = virtual.entry_kind(path)
+
+        #: Then
+        assert kind is EntryKind.SYMLINK, 'linked.md is a symlink itself, whatever file it leads to'
+
+    def test_entry_kind_with_an_other_entry_returns_other(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code/pipe')
+
+        #: When
+        kind = virtual.entry_kind(path)
+
+        #: Then
+        assert kind is EntryKind.OTHER, 'the fifo pipe is neither a file nor a directory'
+
+    def test_entry_kind_with_a_linked_scope_root_in_no_listing_returns_symlink(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('.claude/skills')
+
+        #: When
+        kind = virtual.entry_kind(path)
+
+        #: Then
+        assert kind is EntryKind.SYMLINK, '.claude/skills sits in no listing, but the scan recorded it as a link'
+
+    def test_entry_kind_with_an_ancestor_of_a_recorded_link_returns_directory(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('.claude')
+
+        #: When
+        kind = virtual.entry_kind(path)
+
+        #: Then
+        assert kind is EntryKind.DIRECTORY, '.claude holds the recorded link .claude/skills, so it is a directory'
+
+    def test_entry_kind_behind_a_linked_parent_returns_the_listed_kind(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('.claude/skills/beta')
+
+        #: When
+        kind = virtual.entry_kind(path)
+
+        #: Then
+        assert kind is EntryKind.SYMLINK, (
+            '.claude/skills leads to .agents/skills, which lists beta as a link: the link on the way is followed'
+        )
+
+    def test_entry_kind_with_a_file_in_no_listing_returns_file(self) -> None:
+        #: Given
+        # What a scan records for `.agents/skills/SKILL.md -> ../../REVIEW.md` when it follows the link.
+        snapshot = Snapshot(
+            listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('SKILL.md', EntryKind.SYMLINK),)),),
+            files=(FileBytes(RootRelativePath.parse('REVIEW.md'), b'---\n'),),
+            links=(Link(RootRelativePath.parse('.agents/skills/SKILL.md'), PurePosixPath('../../REVIEW.md')),),
+        )
+        virtual = VirtualFileSystem(snapshot)
+        path = RootRelativePath.parse('REVIEW.md')
+
+        #: When
+        kind = virtual.entry_kind(path)
+
+        #: Then
+        assert kind is EntryKind.FILE, 'the root was never listed, but the scan recorded REVIEW.md as a file'
+
+    def test_entry_kind_with_a_missing_path_returns_none(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code/missing.md')
+
+        #: When
+        kind = virtual.entry_kind(path)
+
+        #: Then
+        assert kind is None, 'docs/code lists no missing.md, so there is nothing there'
+
+    def test_entry_kind_behind_a_dangling_link_returns_none(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code/dangling/a.md')
+
+        #: When
+        kind = virtual.entry_kind(path)
+
+        #: Then
+        assert kind is None, 'the parent leads nowhere, so nothing is inside it'
+
+    def test_entry_kind_with_a_path_out_of_scope_returns_none(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('src')
+
+        #: When
+        kind = virtual.entry_kind(path)
+
+        #: Then
+        assert kind is None, 'src lies outside the scanned scope, so the snapshot holds nothing there'
+
+
+@pytest.mark.unit
 class TestVirtualFileSystemResolveDir:
     def test_resolve_dir_with_the_root_returns_the_root(self) -> None:
         #: Given
