@@ -112,6 +112,15 @@ class Database:
             return directory
         return self._fs.resolve_file(path)
 
+    def resolve_file(self, path: RootRelativePath) -> RootRelativePath | None:
+        """The file ``path`` leads to in the snapshot, every recorded link on the way followed; never cached.
+
+        Returns:
+            The real file, root-relative, or ``None`` when the snapshot holds no file there: nothing, a
+            directory, or a link it did not follow.
+        """
+        return self._fs.resolve_file(path)
+
     def frontmatter(self, ref: DocumentRef) -> FrontmatterNode:
         """The frontmatter of one document, parsed from the snapshot on the first call for its ref.
 
