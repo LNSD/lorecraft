@@ -53,11 +53,11 @@ two groups flagging one line are reported once, citing both.
 
 Clean:
 
-> Rules check clean. Applied: `python-typing`, `python-errors-handling`, `python-docstrings`.
+> Rules check clean. Applied: `python-typing`, `error-handling`, `python-docstrings`.
 
 Violations, most severe first, one per line, with the fix:
 
-> `src/app/loader.py:118` — **python-errors-handling**: this `except Exception` neither logs nor re-raises, so
+> `src/app/loader.py:118` — **error-handling**: this `except Exception` neither logs nor re-raises, so
 > a failed parse is indistinguishable from an empty file. Log it, or raise a domain error from it.
 
 - **Every finding cites the document that states the rule.** A finding with no document behind it is a style

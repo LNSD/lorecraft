@@ -172,7 +172,7 @@ class CorpusSession:
             self._index = CorpusIndex(self._root)
         except OSError as exc:
             self._state = SessionState.FAILED
-            raise CorpusConnectionError(f'could not open corpus at {self._root}') from exc
+            raise CorpusConnectionError(self._root, source=exc) from exc
         self._state = SessionState.CONNECTED
         logger.info(f'connected session to corpus at {self._root}')
 
@@ -214,16 +214,16 @@ def connect(self) -> None:
     """Start the worker pool and load the frontmatter schema.
 
     Raises:
-        CorpusConnectionError: If the schema cannot be loaded.
+        SessionConnectError: If the frontmatter schema cannot be read or does not parse.
     """
     self._workers = ThreadPoolExecutor(max_workers=self._parallelism)
     try:
         self._schema = load_schema(self._schema_path)
-    except SchemaError as exc:
+    except (SchemaReadError, SchemaSyntaxError) as exc:
         self._workers.shutdown(wait=False)
         self._workers = None
         self._state = SessionState.FAILED
-        raise CorpusConnectionError(f'could not load schema at {self._schema_path}') from exc
+        raise SessionConnectError(self._schema_path, source=exc) from exc
     self._state = SessionState.CONNECTED
 ```
 
@@ -281,7 +281,8 @@ undocumented deviation is always wrong** — a release call outside a `finally`,
 - [ ] `disconnect` on an already-released resource returns without raising
 - [ ] The lifecycle is one state attribute, not a set of booleans that can disagree
 - [ ] A `connect` that acquires more than one thing unwinds the earlier acquisitions when a later one fails
-- [ ] Acquisition failures raise a domain exception chained with `raise ... from exc`, distinct from use failures
+- [ ] Acquisition failures raise a domain error that takes the underlying failure as `source`, distinct from use
+      failures
 - [ ] No lifecycle methods were added to a type that acquires nothing
 
 ## References

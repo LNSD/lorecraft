@@ -22,8 +22,9 @@ several implementations serve it; a single adapter does not need one. `@runtime_
 attributes exist, not that signatures or behavior match, so an `isinstance` check against a protocol does not
 prove an adapter works.
 
-Translate failures as well as values. The adapter catches the library's exceptions and raises the domain's,
-chained with `raise ... from exc`, so the consumer handles one vocabulary of errors.
+Translate failures as well as values. The adapter catches the library's exceptions and raises a domain error
+that takes the library's exception as its typed `source`, so the consumer handles one vocabulary of errors. How
+that error is declared is owned by [error-types](error-types.md).
 
 ## Examples
 
@@ -70,7 +71,8 @@ def check_frontmatter(text: str) -> list[Finding]:
 ```
 
 ```python
-# ✅ Good — the adapter raises the domain exception; checks depend on it alone.
+# ✅ Good — the adapter raises the domain error, with the parser's exception as its typed source;
+# checks depend on it alone.
 def read_frontmatter(text: str) -> Mapping[str, object]:
     """Parse a frontmatter block.
 
@@ -80,7 +82,7 @@ def read_frontmatter(text: str) -> Mapping[str, object]:
     try:
         return parse_frontmatter(text)
     except ParserError as exc:
-        raise FrontmatterError(f'invalid frontmatter: {exc}') from exc
+        raise FrontmatterError(source=exc) from exc
 ```
 
 ## Why It Matters
@@ -98,10 +100,11 @@ already the boundary. Do not mirror a library's whole API to have "our own" vers
 
 ## Checklist
 
-- [ ] Library-specific types, enums and exceptions do not appear in domain signatures
+- [ ] Library-specific types, enums and exceptions do not appear in domain signatures, except as the `source`
+      of the error that translates one
 - [ ] Translation of values and errors happens in one place per library seam
 - [ ] The adapter exposes only operations its consumer uses
-- [ ] Library exceptions are re-raised as domain exceptions with `raise ... from exc`
+- [ ] Library exceptions are re-raised as domain errors that take them as `source`, with `raise ... from exc`
 - [ ] A function is used unless the adapter must hold state or satisfy an object-shaped contract
 - [ ] No `isinstance` check against a `runtime_checkable` protocol stands in for testing the adapter
 
@@ -110,7 +113,7 @@ already the boundary. Do not mirror a library's whole API to have "our own" vers
 - [principle-information-hiding](principle-information-hiding.md) - Foundation: The library's shape is a decision hidden behind the adapter
 - [pattern-protocol](pattern-protocol.md) - Related: Describes the consumer's contract when several adapters serve it
 - [pattern-facade](pattern-facade.md) - Related: A facade coordinates a workflow; an adapter translates one interface
-- [python-exceptions](python-exceptions.md) - Related: Declares the domain exceptions an adapter raises
+- [error-types](error-types.md) - Related: Owns how the domain errors an adapter raises are declared
 
 ## External References
 

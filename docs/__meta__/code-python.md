@@ -44,8 +44,7 @@ H1 naming the construct the document governs, as a noun phrase: "Type Annotation
 "Exception Handling", "Name Choice". A stdlib API the document is wholly about may appear in the title, in
 backticks: "Structured Records (`dataclasses`)", "Context Managers (`contextlib`)".
 
-The title is not the filename respelled. `python-errors-handling` is "Error Handling", not "Python Errors
-Handling".
+The title is not the filename respelled. `python-typing` is "Type Annotations", not "Python Typing".
 
 #### Scope line (omitted)
 

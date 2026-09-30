@@ -114,7 +114,7 @@ def test_register_with_a_name_already_taken_raises_duplicate_command_error(self)
         register(name)(_other_handler)
 
     #: Then
-    assert name in str(exc_info.value)
+    assert exc_info.value.name == name
 ```
 
 ```python
@@ -265,7 +265,7 @@ context, and none of those are behaviour changes. A suite that string-matches on
 one of them, and the reflex that follows — paste the new wording into the test — means the test now asserts
 whatever the code currently says, which is no assertion at all. Match the class, and if the class is too
 coarse to distinguish two failures, the fix is a more specific exception type
-([python-exceptions](python-exceptions.md)), not a regex.
+([error-types](error-types.md)), not a regex.
 
 ```python
 # ❌ Bad — couples the suite to wording no contract promises; reflowing the message breaks it
@@ -417,7 +417,7 @@ Before committing code, verify:
 ## References
 
 - [test-organization](test-organization.md) - Related: Owns the tier, the directory, and the markers that select the test this document governs the inside of
-- [python-exceptions](python-exceptions.md) - Related: Owns the exception types `pytest.raises` matches on, and the granularity that makes `match=` unnecessary
+- [error-types](error-types.md) - Related: Owns the error types `pytest.raises` matches on, and the granularity that makes `match=` unnecessary
 - [python-naming](python-naming.md) - Related: Owns the naming rules the three-segment test name specialises
 - [pattern-resource-lifecycle](pattern-resource-lifecycle.md) - Related: Owns the acquire/release contract a scoped fixture mirrors
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One behaviour per test, for the same reason as one reason to change per class
