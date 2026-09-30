@@ -21,7 +21,7 @@ import typer
 from lorecraft.checks import CheckRun, Database, format_finding
 from lorecraft.core.error import Error
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.layout import SNAPSHOT_SCOPE
+from lorecraft.project.layout import SNAPSHOT_SCOPE, require_real_layout
 from lorecraft.vfs import take_snapshot
 
 from .root import find_root, resolve_root
@@ -99,11 +99,17 @@ def select_documents(root: Path | None, paths: list[Path] | None) -> tuple[Datab
     Raises:
         WorkingDirectoryError: If no root is given and the working directory cannot be read.
         RootError: If the root cannot be established.
+        LinkedLayoutError: If ``docs/`` or ``docs/__meta__/`` under the root is a symlink.
         DocumentPathError: If a named path is not a document the model lists.
         Error: Any failure to take the snapshot or to load the model, as ``Database.model`` documents.
     """
     root_path = find_root(_working_directory()) if root is None else resolve_root(root)
-    database = Database(take_snapshot(root_path, SNAPSHOT_SCOPE))
+    snapshot = take_snapshot(root_path, SNAPSHOT_SCOPE)
+    # Root discovery follows symlinks and the snapshot, under `docs/`, does not, so a linked `docs/__meta__/`
+    # passes the first and is empty in the second. Refused here, before a run over no documents can report
+    # success.
+    require_real_layout(snapshot)
+    database = Database(snapshot)
     model = database.model()
     if not paths:
         return database, model.documents()

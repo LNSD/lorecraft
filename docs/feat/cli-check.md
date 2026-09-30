@@ -46,6 +46,9 @@ Without `--root`, the root is the nearest of the working directory and its paren
 `docs/__meta__/` directory, as the [workspace layout](workspace.md#the-layout) places it. With `--root`, the given directory is the root, and it must exist. Either way it is
 resolved with symlinks followed, and every path printed is relative to it.
 
+Under the root, `docs/` and `docs/__meta__/` must be
+[real directories](workspace.md#one-snapshot): a root where either is a symlink is refused, however it was found.
+
 ### Document Selection
 
 A bare `lorecraft check` checks every document of the [workspace](workspace.md#documents). A named check
@@ -110,7 +113,7 @@ stating the rule, or `null` for a rule the check holds itself. `lorecraft check 
 |------|---------|
 | `0`  | No check reported a finding; ungoverned documents do not count |
 | `1`  | At least one finding |
-| `2`  | The run could not start: no root, a rejected path, an unreadable file, a malformed specification, or a usage error. Only the error is printed, on stderr |
+| `2`  | The run could not start: no root, a symlinked `docs/` or `docs/__meta__/`, a rejected path, an unreadable file, a malformed specification, or a usage error. Only the error is printed, on stderr |
 
 ## Limitations
 
