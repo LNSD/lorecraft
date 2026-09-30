@@ -1,9 +1,9 @@
-"""Discover skills directories and the skills in them through the filesystem boundary.
+"""Discover skills directories and the skills in them, and read a skill, through the filesystem boundary.
 
 Every path the repository takes or returns is root-relative: a skills directory is joined to the workspace root
-only inside ``FileSystem``. The repository finds which directories are skills and uses no ``SKILL.md``'s
-text; whether a skill's frontmatter has the shape the Agent Skills specification defines is decided above it,
-and so is which skills directories to look in, which the agents state.
+only inside ``FileSystem``. The repository finds which directories are skills and reads a ``SKILL.md`` as text;
+whether a skill's frontmatter has the shape the Agent Skills specification defines is decided above it, and so
+is which skills directories to look in, which the agents state.
 
 A skill is ``<skills directory>/<skill name>/SKILL.md`` and nothing else. Symlinks are followed here, unlike
 under ``docs/``: an agent's skills directory is commonly a link to another one, a skill entry a link to where
@@ -13,6 +13,8 @@ listed, under the real skills directory: the place a link leads to is not a skil
 Nothing here logs: the command that loads the model catches every ``Error`` that escapes it and reports it,
 so every handler below re-raises without logging.
 """
+
+from dataclasses import dataclass
 
 from lorecraft.agents import SKILL_ENTRY_FILENAME
 from lorecraft.core.error import Error
@@ -29,6 +31,19 @@ from lorecraft.vfs import (
 from .ref import SkillRef
 
 
+@dataclass(frozen=True, slots=True)
+class Skill:
+    """A skill's ``SKILL.md`` at the moment it was read.
+
+    Attributes:
+        ref: The skill's identity in the workspace model.
+        text: The whole ``SKILL.md`` decoded as UTF-8, frontmatter and body.
+    """
+
+    ref: SkillRef
+    text: str
+
+
 class ResolveSkillsDirError(Error):
     """A skills directory cannot be resolved because the operating system refused a lookup."""
 
@@ -37,8 +52,26 @@ class ListSkillsError(Error):
     """A skills directory, or a skill directory in it, exists but cannot be listed or resolved."""
 
 
+class GetSkillError(Error):
+    """A skill listed in the model cannot be read.
+
+    Attributes:
+        ref: The skill whose ``SKILL.md`` could not be read.
+    """
+
+    ref: SkillRef
+
+    def __init__(self, ref: SkillRef, detail: str) -> None:
+        self.ref = ref
+        super().__init__(f'cannot read skill {ref.path}: {detail}')
+
+
+class SkillDecodeError(GetSkillError):
+    """The skill's ``SKILL.md`` is not UTF-8; the check reports this as a finding."""
+
+
 class Repository:
-    """Discover skills directories and the skills directly inside them."""
+    """Discover skills directories and the skills directly inside them, and read a skill."""
 
     def __init__(self, fs: FileSystem) -> None:
         """Remember the seam; performs no I/O."""
@@ -98,6 +131,22 @@ class Repository:
             if files_directory is not None and self._has_skill_file(files_directory):
                 refs.append(SkillRef(directory))
         return tuple(refs)
+
+    def get_skill(self, ref: SkillRef) -> Skill:
+        """Read one skill's ``SKILL.md``, through the link its entry may be.
+
+        Raises:
+            SkillDecodeError: If the file is not UTF-8.
+            GetSkillError: If the file is missing or unreadable.
+        """
+        # DecodeTextError is a ReadTextError, so the narrower clause must come first.
+        try:
+            text = self._fs.read_text(ref.path)
+        except DecodeTextError as exc:
+            raise SkillDecodeError(ref, exc.detail) from exc
+        except ReadTextError as exc:
+            raise GetSkillError(ref, exc.detail) from exc
+        return Skill(ref, text)
 
     def _resolve_entry(self, entry: RootRelativePath) -> RootRelativePath | None:
         """The real directory a symlinked entry leads to, or ``None`` when no directory under the root is there.

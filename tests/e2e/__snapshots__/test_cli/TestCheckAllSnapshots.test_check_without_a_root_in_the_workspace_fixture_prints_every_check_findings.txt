@@ -6,3 +6,4 @@ docs/code/logging.md:1: [structure.outline] missing required section `Checklist`
 docs/code/python-typing.md:1: [structure.empty] section `Python typing` is empty; omit it rather than leaving it empty (per code.md)
 docs/code/python-typing.md:1: [structure.outline] missing required section `Checklist` (per code.md)
 docs/code/python-typing.md:1: [structure.outline] missing required section `References` (per code-python.md)
+.agents/skills/beta/SKILL.md:2: [skill.name-matches-directory] `name` is 'alpha'; expected 'beta', the name of the skill directory

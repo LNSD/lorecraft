@@ -14,13 +14,14 @@ standalone script per check. It is one Python package, `lorecraft`, managed with
 - `tests/` holds the integration tier in `tests/it/` and the end-to-end tier in `tests/e2e/`, with the
   end-to-end helper library in `tests/lib/`. None of it is built.
 
-**Three checks have moved into the command line so far: `lorecraft check frontmatter`, `lorecraft check structure`
-and `lorecraft check budget`.** All three read the structure spec: the structure check its outline and section word
-caps, the budget check its global `tokens` key, a whole-file token budget, and the frontmatter check its global
-`frontmatter` key, a JSON Schema; `lorecraft check header` is a hidden alias of the frontmatter check. A bare
-`lorecraft check` runs every check the command line carries, over one snapshot. The skill check still runs as a
-vendored script under `.agents/skills/*/scripts/`. Both are wired to `just check-docs` and `just check-skills` and
-gated in CI. Do not infer structure that is not on disk.
+**Four checks have moved into the command line so far: `lorecraft check frontmatter`, `lorecraft check structure`,
+`lorecraft check budget` and `lorecraft check skills`.** The first three read the structure spec: the structure
+check its outline and section word caps, the budget check its global `tokens` key, a whole-file token budget, and
+the frontmatter check its global `frontmatter` key, a JSON Schema; `lorecraft check header` is a hidden alias of the
+frontmatter check. The skill check holds the frontmatter of every `SKILL.md` to the Agent Skills specification. A
+bare `lorecraft check` runs every check the command line carries, over one snapshot. The rest of the skill check,
+the body length and the links, still runs as a vendored script under `.agents/skills/*/scripts/`. All are wired to
+`just check-docs` and `just check-skills` and gated in CI. Do not infer structure that is not on disk.
 
 The CLI is a router: `cli/app.py` declares the root application and the global options, and every subcommand
 lives in its own module under `cli/commands/`, joining by calling `@register(<name>)` beside its handler.
@@ -161,8 +162,8 @@ selection misses them.
 | Lint | `just check`, which also runs the import-layering contract; every finding fixed, none silenced with a bare `# noqa`. `just check-fix` first |
 | Types | `just typecheck`; clean, with no finding silenced by widening an annotation to `Any` |
 | Tests | `just test-unit` after lint is clean, then the tier the change touches — `just test-it`, `just test-e2e` — and `just test` when it earns the whole suite |
-| Documents | `just check-docs`; every document under `docs/` passes the frontmatter, structure and budget checks |
-| Skills | `just check-skills`; every skill passes the Agent Skills specification |
+| Documents | `just check-docs`; every document under `docs/` passes the frontmatter, structure and budget checks, and every skill the frontmatter check |
+| Skills | `just check-skills`; every skill passes the Agent Skills specification: `lorecraft check skills` for the frontmatter, then the vendored script for the body |
 | Codegen | `just gen` after changing a generator or what it models; it must leave the tree unchanged in CI |
 
 Do not run tests before lint is clean, do not treat a type error as a lint preference — it is a failed gate —
