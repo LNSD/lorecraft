@@ -69,13 +69,15 @@ line is refused with a reason, since it was asked for.
 ### One Snapshot
 
 A command reads `docs/` and the directories directly in it once, when it starts, and works from that copy,
-so it sees one moment of the tree even while files change. A symlink leading outside what the snapshot reads is
-recorded, not followed.
+so it sees one moment of the tree even while files change. It reads each agent's skills directory, such as
+`.agents/skills/`, and the skill directories in it the same way. Under `docs/` a symlink is recorded, not
+followed. Under a skills directory a symlink to a directory or a file in the repository is followed, so a skill
+linked to where its files live is read; one leading outside the repository is not.
 
 ## Limitations
 
 - The layout is fixed: `docs/` and `docs/__meta__/` cannot be renamed or moved, and a corpus cannot nest.
-- The model covers documentation corpora only; agent skills are not part of it.
+- The model lists the skills in the agents' skills directories, but no command shows or checks them yet.
 
 ## References
 

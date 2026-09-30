@@ -5,7 +5,7 @@ check can see, and never changed once built. Above it sit two kinds of cached da
 use and kept for as long as the database lives (pattern-memoization):
 
 - ``model()``: the workspace model, like the IDE's project model. It reads the structure of the snapshot, the
-  specifications and the corpus directories, and no document's contents.
+  specifications, the corpus directories and the skills directories, and no document's contents.
 - ``frontmatter(ref)``: one document's frontmatter node, like a stub: the part of a file the IDE reads without
   building its full syntax tree. It reads that document's bytes and nothing else.
 - ``parse(ref)``: one document's parse tree, like a PSI file or a per-file index entry. It reads that
@@ -23,10 +23,16 @@ Nothing here records what a cached value read, so no dependency is tracked. Inva
 the way the IDE drops per-file index entries on a file change event and resets structural caches on a project model
 change. Reserved, not implemented: ``advance(snapshot) -> Database``, the next state. It would ``diff`` the two
 snapshots and carry over each cached value the change set leaves valid: the frontmatter, the parse and the token
-count of every document whose bytes did not change, and the model unless an entry under ``docs/`` was added or
-deleted or a specification changed. That rule holds only while the frontmatter, the parse and the token count each
-read their own document and the model reads no document, so keep them that way: data drawn from several documents
-belongs in a new cache with its own rule.
+count of every document whose bytes did not change, and the model unless an entry was added or deleted under
+``docs/``, a skills directory or a directory a skill is linked to, a link on the way to a skill changed its
+target, or a specification changed. That rule holds only while the frontmatter, the parse and the token count
+each read their own document and the model reads no document, so keep them that way: data drawn from several
+documents belongs in a new cache with its own rule.
+
+A change names a real path, while a ref may name a path through a link: a skill's ``SKILL.md`` under a linked
+skill entry changes at the path the link leads to, not at the ref's. A snapshot maps a linked path to its real
+one and not back, so ``advance`` would resolve each cached ref's path to the real one before looking it up in
+the change set.
 """
 
 from lorecraft.project.document import DocumentRef
@@ -62,6 +68,8 @@ class Database:
             GetStructureSchemaError: If any structure specification cannot be read.
             InvalidStructureSchemaError: If any structure specification is not JSON in the dialect, or states no
                 usable rules, its frontmatter schema included.
+            ResolveSkillsDirError: If a skills directory cannot be resolved.
+            ListSkillsError: If a skills directory or a skill directory cannot be listed.
         """
         if self._model is None:
             self._model = load_model(self._fs)
