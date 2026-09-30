@@ -6,7 +6,7 @@ from typing import Annotated
 import typer
 
 from lorecraft.core.error import Error
-from lorecraft.project.layout import SNAPSHOT_SCOPE
+from lorecraft.project.layout import SNAPSHOT_SCOPE, require_real_layout
 from lorecraft.project.workspace import load_model
 from lorecraft.vfs import VirtualFileSystem, take_snapshot
 
@@ -37,11 +37,14 @@ def inspect(
 
     Raises:
         typer.Exit: With code 1 when the scan or the load fails: an entry in scope that cannot be read, a
-            skills directory that cannot be resolved or listed, or a structure specification that cannot be
-            decoded or does not state usable rules.
+            skills directory that cannot be resolved or listed, a ``docs/`` or ``docs/__meta__/`` that is a
+            symlink, or a structure specification that cannot be decoded or does not state usable rules.
     """
     try:
         snapshot = take_snapshot(root, SNAPSHOT_SCOPE)
+        # Under `docs/` the snapshot never reads through a symlink, so a linked `docs/` or `docs/__meta__/`
+        # would draw a model with no corpora. Refused instead of printed as if the root declared nothing.
+        require_real_layout(snapshot)
         model = load_model(VirtualFileSystem(snapshot))
     except Error as exc:
         typer.echo(f'error: {exc}', err=True)
