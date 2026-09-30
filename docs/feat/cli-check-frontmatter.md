@@ -28,7 +28,7 @@ and checks that the frontmatter `name` equals the filename. It is also one of th
 
 - **Frontmatter**: The YAML mapping between two `---` lines that opens a document.
 - **Frontmatter schema**: The `frontmatter` key of a `<stem>.structure.json` file; a JSON Schema the
-  frontmatter must satisfy, as [spec-frontmatter](spec-frontmatter.md) describes.
+  frontmatter must satisfy, as [spec-structure-frontmatter](spec-structure-frontmatter.md) describes.
 - **Layer**: Each frontmatter schema that applies to a document; every one is applied on its own, so a
   document governed by a corpus schema and a namespace schema must satisfy both.
 - **`check header`**: An alias of this command, kept for the name the check had when its schemas lived in
@@ -83,7 +83,7 @@ The `<corpus>` prefix is the document's corpus, whichever layer's schema the fin
 ## References
 
 - [cli-check](cli-check.md) - Base: root discovery, document selection, output and exit status
-- [spec-frontmatter](spec-frontmatter.md) - Dependency: the frontmatter schema this check reads
+- [spec-structure-frontmatter](spec-structure-frontmatter.md) - Dependency: the frontmatter schema this check reads
 
 ## Code References
 

@@ -1,5 +1,5 @@
 ---
-name: "spec-frontmatter"
+name: "spec-structure-frontmatter"
 description: "The frontmatter key of a structure specification: a Draft 2020-12 JSON Schema for a document's YAML frontmatter whose root states type object, checked against the meta-schema on load, with corpus and namespace schemas applied each on its own. Load when writing or changing a frontmatter schema, adding a frontmatter field, or a frontmatter schema is reported invalid"
 type: "feature"
 status: "experimental"
@@ -88,8 +88,7 @@ anywhere. A refused schema stops the command with an error naming the structure 
 
 ## References
 
-- [spec](spec.md) - Base: stems, aspects and how layers apply
-- [spec-structure](spec-structure.md) - Related: the structure dialect this key belongs to
+- [spec-structure](spec-structure.md) - Base: the file this key belongs to, its layers and its editor schema
 - [cli-check-frontmatter](cli-check-frontmatter.md) - Related: the check that applies this schema
 
 ## Code References

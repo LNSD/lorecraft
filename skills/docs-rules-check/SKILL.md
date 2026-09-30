@@ -3,7 +3,7 @@ name: docs-rules-check
 description: Review documents under docs/ and the Lorecraft specifications in docs/__meta__/ that govern them - run lorecraft check for frontmatter, section outline, word caps and token budget, walk each specification's checklist for what a machine cannot decide, and check that each changed specification loads, that its prose and JSON agree, and that it governs the documents intended. Use after editing anything under docs/, when reviewing a pull request that touches docs/, before committing, when lorecraft check exits 2 or a document is unexpectedly ungoverned, or when setting the checks up in CI. Not for writing documents or specifications; see /docs-rules and /docs-rules-creator
 compatibility: Requires the lorecraft command, on PATH or run through uvx lorecraft, or uv run lorecraft in a uv project that declares Lorecraft as a dependency, and a git checkout
 metadata:
-  references: docs/feat/cli-check.md docs/feat/cli-check-frontmatter.md docs/feat/cli-check-structure.md docs/feat/cli-check-budget.md docs/feat/cli-inspect.md docs/feat/spec.md docs/feat/spec-frontmatter.md docs/feat/spec-structure.md
+  references: docs/feat/cli-check.md docs/feat/cli-check-frontmatter.md docs/feat/cli-check-structure.md docs/feat/cli-check-budget.md docs/feat/cli-inspect.md docs/feat/spec.md docs/feat/spec-structure.md docs/feat/spec-structure-budget.md docs/feat/spec-structure-frontmatter.md docs/feat/spec-structure-outline.md
 allowed-tools: Bash(lorecraft check*) Bash(lorecraft inspect*) Bash(uvx lorecraft *) Bash(uv run lorecraft *) Bash(git diff *) Bash(git status *) Bash(git merge-base *) Bash(grep *) Bash(ls docs/*)
 ---
 
@@ -101,8 +101,10 @@ prose says, or whether a stem governs the documents its author meant. Check each
 specification must use only the dialect's keys and state usable rules, and its `frontmatter` key must satisfy
 the JSON Schema Draft 2020-12 meta-schema, state `"type": "object"` at its root, and carry no `$id` at any
 depth. A leftover `<stem>.header.json` is not read: its schema belongs in that key now. A file that fails stops
-the run with an error naming it: `inspect` exits `1`, `lorecraft check` exits `2`. That error is the finding; [spec-structure](references/spec-structure.md) and
-[spec-frontmatter](references/spec-frontmatter.md) say what is refused.
+the run with an error naming it: `inspect` exits `1`, `lorecraft check` exits `2`. That error is the finding; [spec-structure](references/spec-structure.md) says what is refused for any file, and
+[spec-structure-outline](references/spec-structure-outline.md),
+[spec-structure-budget](references/spec-structure-budget.md) and
+[spec-structure-frontmatter](references/spec-structure-frontmatter.md) what is refused for their keys.
 
 **Resolution.** In the `inspect` tree, compare what is governed with what was meant. [spec](references/spec.md)
 owns the rules.

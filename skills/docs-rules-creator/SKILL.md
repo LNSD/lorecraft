@@ -3,7 +3,7 @@ name: docs-rules-creator
 description: Write or change the Lorecraft specifications in docs/__meta__/ for any corpus under docs/ - a prose specification, and its structure specification for frontmatter schema, section outline, word caps and token budget. Use when adopting Lorecraft in a repository, adding a corpus or a namespace, adding a frontmatter field or a required section, changing a word cap or token budget, or fixing a specification that fails to load or that /docs-rules-check reported. Not for writing the documents a specification governs, see /docs-rules; not for reviewing a specification, see /docs-rules-check
 compatibility: Requires the lorecraft command, on PATH or run through uvx lorecraft, or uv run lorecraft in a uv project that declares Lorecraft as a dependency
 metadata:
-  references: docs/feat/spec.md docs/feat/spec-frontmatter.md docs/feat/spec-structure.md docs/feat/workspace.md
+  references: docs/feat/spec.md docs/feat/spec-structure.md docs/feat/spec-structure-budget.md docs/feat/spec-structure-frontmatter.md docs/feat/spec-structure-outline.md docs/feat/workspace.md
   assets: docs/schemas/structure.spec.json
 allowed-tools: Bash(lorecraft check*) Bash(lorecraft inspect*) Bash(uvx lorecraft *) Bash(uv run lorecraft *) Bash(grep *) Bash(ls docs/*)
 ---
@@ -16,8 +16,10 @@ the **writing path** for specifications: the files, their names, and the dialect
 `/docs-rules-check` is the review pass that validates the result.
 
 The rules below are summaries. The authorities are Lorecraft's guides, and each section says which to read:
-[spec](references/spec.md) for names and layering, [spec-structure](references/spec-structure.md) and
-[spec-frontmatter](references/spec-frontmatter.md) for the structure dialect and its frontmatter key,
+[spec](references/spec.md) for names and layering, [spec-structure](references/spec-structure.md) for the
+structure file, [spec-structure-frontmatter](references/spec-structure-frontmatter.md),
+[spec-structure-outline](references/spec-structure-outline.md) and
+[spec-structure-budget](references/spec-structure-budget.md) for its keys,
 [workspace](references/workspace.md) for the layout.
 
 ## Running lorecraft
@@ -77,7 +79,7 @@ it, if any, names Draft 2020-12. The corpus schema states the whole field set, w
 `"additionalProperties": false` so an undeclared field is a finding. A namespace schema leaves both out and
 narrows a field the corpus allows. The schema sees parsed YAML, so quoting is invisible to it; that `name`
 matches the filename is the check's own rule, not the schema's.
-Copy the shapes in [spec-frontmatter](references/spec-frontmatter.md).
+Copy the shapes in [spec-structure-frontmatter](references/spec-structure-frontmatter.md).
 
 ## 4. The structure specification
 
@@ -85,7 +87,9 @@ Copy the shapes in [spec-frontmatter](references/spec-frontmatter.md).
 `{"section": …}`, optionally `"optional": true`, or an `{"any": true}` run — with a `words` cap on any entry,
 `forbidden` sections, a whole-file `tokens` budget, and the `frontmatter` schema of §3. Every key is optional,
 but a file states at least one rule. A namespace file usually wraps its additions in `any` runs so the corpus outline still decides the rest.
-[spec-structure](references/spec-structure.md) has the keys, examples, and what is refused on load.
+[spec-structure-outline](references/spec-structure-outline.md) and
+[spec-structure-budget](references/spec-structure-budget.md) have the keys, examples, and what is refused on load;
+[spec-structure](references/spec-structure.md) covers the file as a whole.
 
 For editor validation, copy [the dialect's schema](assets/structure.spec.json) to `docs/schemas/structure.spec.json`
 and set `"$schema": "../schemas/structure.spec.json"` in each structure file. `docs/schemas/` has no

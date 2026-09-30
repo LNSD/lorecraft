@@ -1,19 +1,19 @@
 ---
 name: "spec-structure"
-description: "The structure dialect: a <stem>.structure.json file states a document's H1 title rule, section outline with optional sections and any runs, empty and forbidden sections, per-section word caps, whole-file token budget and frontmatter schema, is refused on load when its rules are unusable, and is validated in editors by the generated docs/schemas/structure.spec.json. Load when writing or changing a structure specification, or one is reported invalid"
+description: "The structure specification file: <stem>.structure.json as the machine-checkable half of a specification, its $schema and description keys, the rule that a file states at least one rule, how a namespace file adds to the corpus file, what is refused on load, and editor validation with the generated docs/schemas/structure.spec.json. Load when creating a structure specification, pointing an editor at the dialect's schema, or one is reported invalid"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft.project.schemas.structure,module:lorecraft.project.schemas.structure_file,module:lorecraft.checks.structure,module:lorecraft.checks.budget,spec:feat,spec:code"
+components: "module:lorecraft.project.schemas.structure,module:lorecraft.project.schemas.structure_file,spec:feat,spec:code"
 ---
 
 # Structure Specification Files
 
 ## Summary
 
-A `<stem>.structure.json` file states the section rules of the documents its stem governs: the title, the
-order of the sections, which may be empty or must not appear, how many prose words each may hold, and how many
-tokens the whole file may hold, beside a frontmatter schema. A section order cannot be said in JSON Schema, so
-this is a small dialect, with a generated JSON Schema that lets an editor validate it.
+A `<stem>.structure.json` file holds the rules of a specification that a check can decide, for the documents
+its stem governs. It is a small JSON dialect: each key states one kind of rule, every key is optional, and a
+check reads only the keys it applies. A generated JSON Schema of the dialect lets an editor validate a file as
+it is written.
 
 ## Table of Contents
 
@@ -26,90 +26,75 @@ this is a small dialect, with a generated JSON Schema that lets an editor valida
 
 ## Key Concepts
 
-- **Outline**: The order of a document's H2 sections, matched left to right.
-- **`any` run**: An outline entry matching any number of sections the outline does not name. The run stops at
-  a named section, wherever that section's entry sits.
-- **Word cap**: The most prose words a section may hold, its H3 subsections included; fenced code and table
-  rows are not counted. On an `any` entry it caps each section of the run alone.
-- **Token budget**: The most `o200k_base` tokens the whole file may hold, frontmatter, code and tables
-  included.
+- **Structure specification**: A `<stem>.structure.json` file in `docs/__meta__/`, the machine-checkable half
+  of the prose `<stem>.md` beside it.
+- **Rule key**: A top-level key that states one kind of rule. A file holds any subset of them.
+- **Layer**: Each structure specification that applies to a document: the corpus file, then every namespace
+  file whose stem matches, as [spec](spec.md#base-and-extension) resolves them. Every layer is applied on its
+  own.
+- **Editor schema**: `structure.spec.json`, the JSON Schema of the dialect's shape, generated from the model
+  the checks read a file with.
 
 ## Configuration
 
 | Key | Value | Meaning |
 |-----|-------|---------|
-| `$schema` | `"../schemas/structure.spec.json"` | Points an editor at the dialect's JSON Schema; not read by the checks |
+| `$schema` | `"../schemas/structure.spec.json"` | Points an editor at the editor schema; not read by the checks |
 | `description` | text | For whoever opens the file; not read by the checks |
-| `title` | `{"count": <n>, "first": <bool>}` | How many H1 titles a document holds, and whether one comes before any section |
-| `empty_sections` | `"forbidden"` | Every heading must have content under it |
-| `tokens` | integer | The token budget, applied by `lorecraft check budget` |
-| `frontmatter` | JSON Schema, root `"type": "object"` | The frontmatter schema, applied by `lorecraft check frontmatter`, as [spec-frontmatter](spec-frontmatter.md) describes |
-| `outline` | list of entries | `{"section": "<name>"}`, with `"optional": true` when it may be left out, or `{"any": true}`; either may add `"words": <n>` |
-| `forbidden` | list of names | Sections that must not appear anywhere |
+| a rule key | set by the key | One kind of rule, read by the check that applies it |
 
-Every key is optional, but a file must state at least one rule. Every number is at least `1`.
+Every key is optional, but a file must state at least one rule. The editor schema lists every key the dialect
+has, with its shape.
 
 ## Usage
 
-### A Corpus Specification
+### A Corpus File
 
 ```json
 {
   "$schema": "../schemas/structure.spec.json",
-  "description": "Section structure for a rule document in docs/code/.",
-  "title": { "count": 1, "first": true },
-  "empty_sections": "forbidden",
-  "tokens": 5000,
-  "outline": [
-    { "any": true, "words": 350 },
-    { "section": "Checklist", "words": 250 },
-    { "section": "References", "optional": true }
-  ]
+  "description": "Rules for a rule document in docs/code/.",
+  "tokens": 5000
 }
 ```
 
-### A Namespace Specification
+### A Namespace File
 
-A namespace specification is applied beside the corpus one, so it states only what it adds. Here
-`feat-cli.structure.json` makes `Configuration` required and caps it, and leaves where it sits to the corpus
-outline by surrounding it with `any` runs:
+A namespace file is applied beside the corpus file, never in place of it. It states only what it adds, and it
+cannot relax what the corpus file says: a document must pass every layer. Here a namespace file tightens the
+rule above for the documents its stem matches:
 
 ```json
 {
   "$schema": "../schemas/structure.spec.json",
-  "outline": [
-    { "any": true },
-    { "section": "Configuration", "words": 150 },
-    { "any": true }
-  ]
+  "description": "Narrows code.structure.json for docs/code/python-*.md.",
+  "tokens": 3000
 }
 ```
 
 ### Refused on Load
 
 A file is refused, and the command stops with an error naming it, when it is not JSON, holds a key or a value
-type the dialect does not have, states no rule, sets a number below `1`, names a section twice in its outline,
-places two `any` runs side by side, or forbids a section its own outline names.
+type the dialect does not have, or states no rule. A rule key adds refusals of its own, for a value no
+document could satisfy or that contradicts another.
 
 ### Validating in an Editor
 
 The dialect's shape is published as a JSON Schema, `docs/schemas/structure.spec.json` in the lorecraft
 repository, generated from the same model the checks read a file with. Keep a copy beside your specifications
 and point `$schema` at it, and an editor validates a structure specification as it is written. It states the
-shape only; the rules above that no shape can state are checked on load.
+shape only; a rule that no shape can state is checked on load.
 
 ## Limitations
 
-- The outline names H2 sections only; H3 subsections are counted in words, never required or ordered.
-- A section is matched on its exact heading text.
-- Structure is not selected by a document's `type`: one outline applies to every document a stem governs.
+- A file is selected by a document's path, never by its `type` or any other frontmatter value: its rules apply
+  to every document its stem governs.
+- A layer only adds rules. No key lets a namespace file release a document from the corpus file.
 
 ## References
 
 - [spec](spec.md) - Base: stems, aspects and how layers apply
-- [cli-check-structure](cli-check-structure.md) - Related: the check that applies the outline and the caps
-- [cli-check-budget](cli-check-budget.md) - Related: the check that applies the token budget
-- [spec-frontmatter](spec-frontmatter.md) - Related: the frontmatter key, which is JSON Schema
+- [cli-check](cli-check.md) - Related: the checks that read a structure specification
 
 ## Code References
 
