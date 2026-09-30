@@ -743,6 +743,21 @@ class TestLoadModel:
             'the scan follows the link, so the snapshot lists the skill the disk view lists'
         )
 
+    def test_load_model_over_a_snapshot_lists_a_skill_whose_skill_file_is_linked(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'shared/REVIEW.md')
+        (tmp_path / '.agents' / 'skills' / 'review').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').symlink_to('../../../shared/REVIEW.md')
+        snapshot = take_snapshot(tmp_path, SNAPSHOT_SCOPE)
+
+        #: When
+        model = load_model(VirtualFileSystem(snapshot))
+
+        #: Then
+        assert model.skills == (SkillRef(RootRelativePath.parse('.agents/skills/review')),), (
+            'the scan reads through the linked SKILL.md, so the snapshot lists the skill the disk view lists'
+        )
+
     def test_load_model_over_a_snapshot_with_a_skills_directory_linked_elsewhere_lists_its_skills(
         self, tmp_path: Path
     ) -> None:

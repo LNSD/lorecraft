@@ -28,6 +28,11 @@ count of every document whose bytes did not change, and the model unless an entr
 target, or a specification changed. That rule holds only while the frontmatter, the parse and the token count
 each read their own document and the model reads no document, so keep them that way: data drawn from several
 documents belongs in a new cache with its own rule.
+
+A change names a real path, while a ref may name a path through a link: a skill's ``SKILL.md`` under a linked
+skill entry changes at the path the link leads to, not at the ref's. A snapshot maps a linked path to its real
+one and not back, so ``advance`` would resolve each cached ref's path to the real one before looking it up in
+the change set.
 """
 
 from lorecraft.project.document import DocumentRef

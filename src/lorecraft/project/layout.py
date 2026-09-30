@@ -14,8 +14,8 @@ def _skills_scan_roots() -> list[ScanRoot]:
     """One scan root per project skills directory the agents read, each once: two agents may read the same one.
 
     A skills directory is read one level deep: the directory itself, and each skill directory in it. Links are
-    followed, since an agent's skills directory is commonly a link to another one and a skill entry a link to
-    where the skill's files live.
+    followed, since an agent's skills directory is commonly a link to another one, a skill entry a link to
+    where the skill's files live, and a ``SKILL.md`` a link to where its text lives.
     """
     scan_roots: list[ScanRoot] = []
     for agent in iter_agents():
@@ -34,8 +34,8 @@ repository lists each project skills directory the agents read and each skill di
 directories those are is the agents' statement, in ``lorecraft.agents``; the workspace model records the ones a
 repository has, with the agent that reads each.
 
-Under ``docs/`` a link is recorded, not followed. Under a skills directory a link to a directory in the
-repository is followed, so a skill linked to where its files live, such as
-``.agents/skills/review -> ../../skills/review``, is in the snapshot as it is on disk. A link leading outside
-the repository is never followed.
+Under ``docs/`` a link is recorded, not followed. Under a skills directory a link to a directory or a file in
+the repository is followed, so a skill linked to where its files live, such as
+``.agents/skills/review -> ../../skills/review``, or a ``SKILL.md`` linked to where its text lives, is in the
+snapshot as it is on disk. A link leading outside the repository is never followed.
 """

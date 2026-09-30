@@ -1,14 +1,14 @@
 """Discover skills directories and the skills in them through the filesystem boundary.
 
 Every path the repository takes or returns is root-relative: a skills directory is joined to the workspace root
-only inside ``FileSystem``. The repository finds which directories are skills and reads no ``SKILL.md``;
-whether a skill's frontmatter has the shape the Agent Skills specification defines is decided above it, and so
-is which skills directories to look in, which the agents state.
+only inside ``FileSystem``. The repository finds which directories are skills and uses no ``SKILL.md``'s
+text; whether a skill's frontmatter has the shape the Agent Skills specification defines is decided above it,
+and so is which skills directories to look in, which the agents state.
 
 A skill is ``<skills directory>/<skill name>/SKILL.md`` and nothing else. Symlinks are followed here, unlike
-under ``docs/``: an agent's skills directory is commonly a link to another one, and a skill entry a link to
-where the skill's files live. A skill is still named where it is listed, under the real skills directory: the
-place a link leads to is not a skill of its own.
+under ``docs/``: an agent's skills directory is commonly a link to another one, a skill entry a link to where
+the skill's files live, and a ``SKILL.md`` a link to where its text lives. A skill is still named where it is
+listed, under the real skills directory: the place a link leads to is not a skill of its own.
 
 Nothing here logs: the command that loads the model catches every ``Error`` that escapes it and reports it,
 so every handler below re-raises without logging.
@@ -16,7 +16,15 @@ so every handler below re-raises without logging.
 
 from lorecraft.agents import SKILL_ENTRY_FILENAME
 from lorecraft.core.error import Error
-from lorecraft.vfs import EntryKind, FileSystem, ListDirError, ResolveDirError, RootRelativePath
+from lorecraft.vfs import (
+    DecodeTextError,
+    EntryKind,
+    FileSystem,
+    ListDirError,
+    ReadTextError,
+    ResolveDirError,
+    RootRelativePath,
+)
 
 from .ref import SkillRef
 
@@ -55,13 +63,13 @@ class Repository:
     def list_skills(self, skills_dir: RootRelativePath) -> tuple[SkillRef, ...]:
         """Every skill directly inside one skills directory, sorted by name.
 
-        A skill is an entry that is, or leads to, a directory under the root holding a regular file named
-        ``SKILL.md``. The ref names the entry, ``<skills_dir>/<entry name>``, whether or not it is a symlink,
-        so two entries leading to one directory are two skills, as an agent sees them.
+        A skill is an entry that is, or leads to, a directory under the root holding a ``SKILL.md`` that is,
+        or leads to, a regular file. The ref names the entry, ``<skills_dir>/<entry name>``, whether or not
+        it is a symlink, so two entries leading to one directory are two skills, as an agent sees them.
 
         Left out silently: a file beside the skills, an entry whose link dangles, loops or leads outside the
-        root, and a directory with no ``SKILL.md`` or with one that is a symlink or a directory. A missing
-        skills directory lists as nothing.
+        root, and a directory with no ``SKILL.md`` or with one that is a directory or a link leading to no
+        file. A missing skills directory lists as nothing.
 
         Args:
             skills_dir: A real skills directory, as ``resolve_skills_dir`` returns it: a link is not followed
@@ -103,8 +111,8 @@ class Repository:
             raise ListSkillsError(f'cannot resolve skill entry {entry}: {exc.detail}') from exc
 
     def _has_skill_file(self, directory: RootRelativePath) -> bool:
-        """True when ``directory`` holds a regular file named ``SKILL.md``; a symlink or a directory of that
-        name does not count.
+        """True when ``directory`` holds a ``SKILL.md`` that is a regular file, or a symlink leading to one; a
+        directory of that name does not count.
 
         Raises:
             ListSkillsError: If the directory cannot be listed.
@@ -115,6 +123,25 @@ class Repository:
             raise ListSkillsError(f'cannot look for {SKILL_ENTRY_FILENAME} in {directory}: {exc.detail}') from exc
 
         for entry in entries:
-            if entry.name == SKILL_ENTRY_FILENAME and entry.kind is EntryKind.FILE:
+            if entry.name != SKILL_ENTRY_FILENAME:
+                continue
+            if entry.kind is EntryKind.FILE:
                 return True
+            if entry.kind is EntryKind.SYMLINK:
+                return self._leads_to_a_file(directory / SKILL_ENTRY_FILENAME)
         return False
+
+    def _leads_to_a_file(self, link: RootRelativePath) -> bool:
+        """True when the symlink ``link`` leads to a file the view can read.
+
+        The view has no operation that says what a link to a file leads to, so the file is read and its text
+        dropped: a link that dangles, loops, leads to a directory or leads where the view does not read is no
+        file. Text that is not UTF-8 still comes from a file, and the check that reads the skill reports it.
+        """
+        try:
+            self._fs.read_text(link)
+        except DecodeTextError as exc:  # noqa: F841 — the file is there; what it holds is not decided here
+            return True
+        except ReadTextError as exc:  # noqa: F841 — no file behind the link is a directory that is no skill
+            return False
+        return True

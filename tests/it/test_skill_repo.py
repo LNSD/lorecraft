@@ -224,7 +224,7 @@ class TestRepositoryListSkills:
         #: Then
         assert skills == (), 'only an entry directly inside a skills directory is looked at'
 
-    def test_list_skills_with_a_symlinked_skill_file_leaves_it_out(
+    def test_list_skills_with_a_symlinked_skill_file_returns_the_skill(
         self, tmp_path: Path, repository: Repository, universal_dir: Path
     ) -> None:
         #: Given
@@ -236,7 +236,52 @@ class TestRepositoryListSkills:
         skills = repository.list_skills(UNIVERSAL_DIR)
 
         #: Then
-        assert skills == (), 'only a regular SKILL.md makes a directory a skill'
+        assert skills == (SkillRef(UNIVERSAL_DIR / 'review'),), (
+            'a SKILL.md linked to where its text lives makes the directory a skill, as a regular one does'
+        )
+
+    def test_list_skills_with_a_symlinked_skill_file_that_is_not_utf8_returns_the_skill(
+        self, tmp_path: Path, repository: Repository, universal_dir: Path
+    ) -> None:
+        #: Given
+        (tmp_path / 'REVIEW.md').write_bytes(b'caf\xe9\n')
+        (universal_dir / 'review').mkdir()
+        (universal_dir / 'review' / 'SKILL.md').symlink_to('../../../REVIEW.md')
+
+        #: When
+        skills = repository.list_skills(UNIVERSAL_DIR)
+
+        #: Then
+        assert skills == (SkillRef(UNIVERSAL_DIR / 'review'),), (
+            'the link leads to a file, so the directory is a skill: what the file holds is decided above'
+        )
+
+    def test_list_skills_with_a_dangling_skill_file_link_leaves_it_out(
+        self, repository: Repository, universal_dir: Path
+    ) -> None:
+        #: Given
+        (universal_dir / 'review').mkdir()
+        (universal_dir / 'review' / 'SKILL.md').symlink_to('../../../REVIEW.md')
+
+        #: When
+        skills = repository.list_skills(UNIVERSAL_DIR)
+
+        #: Then
+        assert skills == (), 'a SKILL.md link that leads to no file does not make the directory a skill'
+
+    def test_list_skills_with_a_skill_file_linked_to_a_directory_leaves_it_out(
+        self, tmp_path: Path, repository: Repository, universal_dir: Path
+    ) -> None:
+        #: Given
+        (tmp_path / 'notes').mkdir()
+        (universal_dir / 'review').mkdir()
+        (universal_dir / 'review' / 'SKILL.md').symlink_to('../../../notes')
+
+        #: When
+        skills = repository.list_skills(UNIVERSAL_DIR)
+
+        #: Then
+        assert skills == (), 'a SKILL.md link that leads to a directory does not make the directory a skill'
 
     def test_list_skills_with_a_dangling_skill_entry_leaves_it_out(
         self, repository: Repository, universal_dir: Path

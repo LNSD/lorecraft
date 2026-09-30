@@ -71,8 +71,8 @@ line is refused with a reason, since it was asked for.
 A command reads `docs/` and the directories directly in it once, when it starts, and works from that copy,
 so it sees one moment of the tree even while files change. It reads each agent's skills directory, such as
 `.agents/skills/`, and the skill directories in it the same way. Under `docs/` a symlink is recorded, not
-followed. Under a skills directory a symlink to a directory in the repository is followed, so a skill linked
-to where its files live is read; one leading outside the repository is not.
+followed. Under a skills directory a symlink to a directory or a file in the repository is followed, so a skill
+linked to where its files live is read; one leading outside the repository is not.
 
 ## Limitations
 
