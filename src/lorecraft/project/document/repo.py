@@ -53,30 +53,58 @@ class Document:
     text: str
 
 
-class ListCorpusDirectoriesError(Error):
-    """The docs/ directory exists but cannot be listed."""
+class CorpusListError(Error):
+    """A corpus directory exists but cannot be listed.
+
+    Attributes:
+        corpus: The corpus whose documents were being listed.
+        source: The failure to list its directory.
+    """
+
+    corpus: CorpusName
+    source: ListDirError
+
+    def __init__(self, corpus: CorpusName, *, source: ListDirError) -> None:
+        self.corpus = corpus
+        self.source = source
+        super().__init__(f'cannot list the documents of corpus {corpus}')
+        self.__cause__ = source
 
 
-class ListDocumentsError(Error):
-    """A corpus directory exists but cannot be listed."""
-
-
-class GetDocumentError(Error):
-    """A document listed in the model cannot be read.
+class DocumentReadError(Error):
+    """A document listed in the model cannot be read: the file is missing or unreadable.
 
     Attributes:
         ref: The document that could not be read.
+        source: The failure to read its file.
     """
 
     ref: DocumentRef
+    source: ReadTextError
 
-    def __init__(self, ref: DocumentRef, detail: str) -> None:
+    def __init__(self, ref: DocumentRef, *, source: ReadTextError) -> None:
         self.ref = ref
-        super().__init__(f'cannot read document {ref.path}: {detail}')
+        self.source = source
+        super().__init__(f'cannot read document {ref.path}')
+        self.__cause__ = source
 
 
-class DocumentDecodeError(GetDocumentError):
-    """The document is not UTF-8; the CLI reports this as a finding."""
+class DocumentDecodeError(Error):
+    """A document's bytes are not UTF-8; a check reports this as a finding.
+
+    Attributes:
+        ref: The document that could not be decoded.
+        source: The failure to decode its file.
+    """
+
+    ref: DocumentRef
+    source: DecodeTextError
+
+    def __init__(self, ref: DocumentRef, *, source: DecodeTextError) -> None:
+        self.ref = ref
+        self.source = source
+        super().__init__(f'document {ref.path} is not UTF-8')
+        self.__cause__ = source
 
 
 class Repository:
@@ -93,12 +121,10 @@ class Repository:
         a corpus is a regular directory.
 
         Raises:
-            ListCorpusDirectoriesError: If docs/ cannot be listed.
+            ListDirError: If docs/ cannot be listed.
         """
-        try:
-            entries = self._fs.list_dir(DOCS_DIR)
-        except ListDirError as exc:
-            raise ListCorpusDirectoriesError(f'cannot list corpus directories in {DOCS_DIR}: {exc.detail}') from exc
+        # A failure to list docs/ is the listing's own, with docs/ as its path: this layer adds nothing to it.
+        entries = self._fs.list_dir(DOCS_DIR)
 
         names: list[str] = []
         for entry in entries:
@@ -113,13 +139,13 @@ class Repository:
         A missing directory lists as nothing.
 
         Raises:
-            ListDocumentsError: If the directory cannot be listed.
+            CorpusListError: If the directory cannot be listed.
         """
         corpus_dir = DOCS_DIR / str(corpus)
         try:
             entries = self._fs.list_dir(corpus_dir)
         except ListDirError as exc:
-            raise ListDocumentsError(f'cannot list documents for {corpus} in {corpus_dir}: {exc.detail}') from exc
+            raise CorpusListError(corpus, source=exc) from exc
 
         documents: list[DocumentFile] = []
         for entry in entries:
@@ -136,13 +162,13 @@ class Repository:
 
         Raises:
             DocumentDecodeError: If the file is not UTF-8.
-            GetDocumentError: If the file is missing or unreadable.
+            DocumentReadError: If the file is missing or unreadable.
         """
         # DecodeTextError is a ReadTextError, so the narrower clause must come first.
         try:
             text = self._fs.read_text(ref.path)
         except DecodeTextError as exc:
-            raise DocumentDecodeError(ref, exc.detail) from exc
+            raise DocumentDecodeError(ref, source=exc) from exc
         except ReadTextError as exc:
-            raise GetDocumentError(ref, exc.detail) from exc
+            raise DocumentReadError(ref, source=exc) from exc
         return Document(ref, text)

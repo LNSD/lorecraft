@@ -3,11 +3,9 @@ that reads them, and the skill frontmatter schema with its parser."""
 
 from .name import SchemaName, parse_schema_name, schema_name_stem
 from .repo import (
-    GetStructureSchemaError,
-    ListCorpusSchemasError,
-    ListSchemasError,
-    ListSpecsError,
+    CorpusSchemasListError,
     Repository,
+    StructureSchemaReadError,
 )
 from .skill import InvalidSkillFrontmatterError, parse_skill_frontmatter
 from .skill_frontmatter import (
@@ -73,10 +71,8 @@ __all__ = [
     'SectionEntry',
     'AnySections',
     'InvalidStructureSchemaError',
-    'GetStructureSchemaError',
-    'ListCorpusSchemasError',
-    'ListSchemasError',
-    'ListSpecsError',
+    'StructureSchemaReadError',
+    'CorpusSchemasListError',
     'Repository',
     'SkillFrontmatter',
     'SkillName',
