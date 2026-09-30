@@ -1,10 +1,11 @@
 """The database over a hand-built snapshot: the model, each frontmatter, each parse tree and each token count are
-computed once.
+computed once, and the layout guard reads the same snapshot.
 
-Every snapshot here is built in memory with ``Snapshot.of_files``, so no case reads the disk: the database is
-what wires the virtual view, the model loader and the parser together.
+Every snapshot here is built in memory, so no case reads the disk: the database is what wires the virtual view,
+the model loader, the layout guard and the parser together.
 """
 
+from pathlib import PurePosixPath
 from typing import Final
 
 import pytest
@@ -14,8 +15,9 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentDecodeError, DocumentRef
+from lorecraft.project.layout import LinkedLayoutError
 from lorecraft.project.syntax import Frontmatter, count_tokens
-from lorecraft.vfs import Snapshot
+from lorecraft.vfs import Link, Snapshot
 
 GUIDE: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('guide'))
 
@@ -53,6 +55,34 @@ class TestDatabase:
 
         #: Then
         assert second is first, 'the model is loaded once per database, then cached'
+
+    def test_require_real_layout_with_a_linked_docs_directory_raises_linked_layout_error(self) -> None:
+        #: Given
+        # What a scan records for a `docs -> documentation` link: the link on the way to the scope root, and
+        # nothing behind it.
+        snapshot = Snapshot(
+            listings=(),
+            files=(),
+            links=(Link(RootRelativePath.parse('docs'), PurePosixPath('documentation')),),
+        )
+        database = Database(snapshot)
+
+        #: When
+        with pytest.raises(LinkedLayoutError) as exc_info:
+            database.require_real_layout()
+
+        #: Then
+        assert exc_info.value.path == RootRelativePath.parse('docs'), 'the guard reads the snapshot the database holds'
+
+    def test_require_real_layout_with_real_directories_returns_without_raising(self) -> None:
+        #: Given
+        database = Database(_snapshot(b'---\nname: "guide"\n---\n'))
+
+        #: When
+        outcome = database.require_real_layout()
+
+        #: Then
+        assert outcome is None, 'a snapshot of real directories is accepted'
 
     def test_frontmatter_of_a_listed_document_returns_its_decoded_block(self) -> None:
         #: Given
