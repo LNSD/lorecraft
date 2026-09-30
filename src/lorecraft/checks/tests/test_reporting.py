@@ -2,8 +2,8 @@
 
 import pytest
 
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
-from lorecraft.vfs import RootRelativePath
 
 from ..reporting import Finding, Violation, format_finding
 

@@ -10,11 +10,12 @@ from typing import Final
 import pytest
 
 from lorecraft.checks import Database
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentDecodeError, DocumentRef
 from lorecraft.project.syntax import Frontmatter, count_tokens
-from lorecraft.vfs import RootRelativePath, Snapshot
+from lorecraft.vfs import Snapshot
 
 GUIDE: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('guide'))
 

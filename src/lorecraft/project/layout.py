@@ -4,7 +4,8 @@ from typing import Final
 
 from lorecraft.agents import iter_agents
 from lorecraft.core.error import Error
-from lorecraft.vfs import EntryKind, FileSystem, RootRelativePath, ScanRoot
+from lorecraft.core.path import RootRelativePath
+from lorecraft.vfs import EntryKind, FileSystem, ScanRoot
 
 DOCS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs')
 SPECS_DIR: Final[RootRelativePath] = DOCS_DIR / '__meta__'

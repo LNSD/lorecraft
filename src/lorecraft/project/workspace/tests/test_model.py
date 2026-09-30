@@ -10,6 +10,7 @@ from typing import Final
 import pytest
 
 from lorecraft.agents import AgentName
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.ref import DocumentRef
@@ -21,7 +22,6 @@ from lorecraft.project.schemas import (
     schema_name_stem,
 )
 from lorecraft.project.skill import SkillLocation, SkillRef, SkillsDir
-from lorecraft.vfs import RootRelativePath
 
 from ..model import Corpus, Governance, Spec, WorkspaceModel, namespace_order_key
 

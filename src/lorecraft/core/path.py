@@ -21,7 +21,7 @@ class RootRelativePathError(Error):
         super().__init__(f'{str(path)!r} is not root-relative: it must be neither absolute nor hold a ".." component')
 
 
-# order=True so a sorted listing, file set or link set sorts by path, as the snapshot's tuples must.
+# order=True so a collection of paths sorts by path.
 @dataclass(frozen=True, slots=True, order=True)
 class RootRelativePath:
     """A path under the workspace root, spelled relative to it with POSIX separators, such as ``docs/code/a.md``.
