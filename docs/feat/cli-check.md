@@ -123,7 +123,7 @@ stating the rule, or `null` for a rule the check holds itself. `lorecraft check 
 |------|---------|
 | `0`  | No check reported a finding; ungoverned documents do not count |
 | `1`  | At least one finding |
-| `2`  | The run could not start: no root, a symlinked `docs/` or `docs/__meta__/`, a rejected path, an unreadable file, a malformed specification, or a usage error. Only the error is printed, on stderr |
+| `2`  | The run could not start: no root, a symlinked `docs/` or `docs/__meta__/`, a rejected path, an unreadable file, a malformed specification, or a usage error. Only the error is printed, on stderr, prefixed `error:` and followed by its causes ([cli](cli.md)) |
 
 ## Limitations
 

@@ -17,6 +17,7 @@ import typer
 
 from lorecraft.checks import run_frontmatter
 from lorecraft.cli.check_run import DocumentCheck, print_run, register_check, select_documents
+from lorecraft.cli.failure import report_failure
 from lorecraft.core.error import Error
 
 from . import app
@@ -64,13 +65,13 @@ def frontmatter(
         database, refs = select_documents(root, paths)
         run = FRONTMATTER_CHECK.run(database, refs)
     except Error as exc:
-        typer.echo(str(exc), err=True)
+        report_failure(exc)
         raise typer.Exit(code=2) from exc
     except OSError as exc:
         # The flow converts its own OSErrors into an Error where each is raised. What is left is Python 3.12:
         # its Path.is_dir re-raises every failure but a missing path, a PermissionError for one, from
         # find_root and resolve_root, where 3.13 and later answer False.
-        typer.echo(f'cannot read input: {exc}', err=True)
+        typer.echo(f'error: cannot read input: {exc}', err=True)
         raise typer.Exit(code=2) from exc
 
     print_run(run, output_format, FRONTMATTER_CHECK.ungoverned)

@@ -111,7 +111,7 @@ skills, and both exit `0`.
 | Code | Meaning |
 |------|---------|
 | `0`  | The model was printed |
-| `1`  | The model could not be loaded: an entry that cannot be read, under `docs/` or a skills directory, a `docs/` or `docs/__meta__/` that is a [symlink](workspace.md#one-snapshot), or a specification file that cannot be decoded or states no usable rules. The error goes to stderr, prefixed `error:` |
+| `1`  | The model could not be loaded: an entry that cannot be read, under `docs/` or a skills directory, a `docs/` or `docs/__meta__/` that is a [symlink](workspace.md#one-snapshot), or a specification file that cannot be decoded or states no usable rules. The error goes to stderr, prefixed `error:` and followed by its causes ([cli](cli.md)) |
 | `2`  | A usage error, including a `ROOT` that is not an existing directory |
 
 ```text
