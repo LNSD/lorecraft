@@ -15,8 +15,8 @@ from typing import Final
 
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.aspect import AspectNamespaceError
-from lorecraft.project.corpus import CorpusName, CorpusNameError
+from lorecraft.project.aspect import EmptyAspectNamespaceError, InvalidAspectNamespaceCharacterError
+from lorecraft.project.corpus import CorpusName, EmptyCorpusNameError, InvalidCorpusNameCharacterError
 
 from .name import SchemaName, parse_schema_name, schema_name_stem
 
@@ -133,13 +133,13 @@ def parse_spec_file(path: RootRelativePath) -> SpecFile:
 
     try:
         name = parse_schema_name(stem)
-    except CorpusNameError as exc:
+    except (EmptyCorpusNameError, InvalidCorpusNameCharacterError) as exc:
         # A prose file whose first token is not a corpus name (README.md) is not a misnamed spec, it is simply
         # not a spec; a JSON file at such a stem can only be a misnaming.
         if aspect is None:
             raise NotASpecStemError(path) from exc
         raise InvalidSpecStemError(path, str(exc)) from exc
-    except AspectNamespaceError as exc:
+    except (EmptyAspectNamespaceError, InvalidAspectNamespaceCharacterError) as exc:
         raise InvalidSpecStemError(path, str(exc)) from exc
     return SpecFile(path=path, name=name, aspect=aspect)
 

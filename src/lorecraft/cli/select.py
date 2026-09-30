@@ -13,7 +13,7 @@ from pathlib import Path, PurePosixPath
 from lorecraft.checks import Database
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.corpus import CorpusName, CorpusNameError
+from lorecraft.project.corpus import CorpusName, EmptyCorpusNameError, InvalidCorpusNameCharacterError
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR
 from lorecraft.project.skill import SkillRef
@@ -116,7 +116,7 @@ def _require_document_placement(model: WorkspaceModel, argument: Path, path: Roo
 
     try:
         corpus = CorpusName.parse(parts[0])
-    except CorpusNameError as exc:
+    except (EmptyCorpusNameError, InvalidCorpusNameCharacterError) as exc:
         raise DocumentPathError(argument, DocumentPathProblem.INVALID_CORPUS_NAME, str(exc)) from exc
     if model.corpus(corpus) is None:
         raise DocumentPathError(argument, DocumentPathProblem.NOT_A_CORPUS)
