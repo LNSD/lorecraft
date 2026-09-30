@@ -13,7 +13,7 @@ above it, in ``checks.run`` and the database.
 from dataclasses import dataclass
 from typing import Final, assert_never
 
-from lorecraft.project.schemas import FrontmatterProblem, FrontmatterProblemKind, SkillFrontmatterSchema
+from lorecraft.project.schemas import SkillFrontmatterSchema
 from lorecraft.project.syntax import (
     Frontmatter,
     FrontmatterNode,
@@ -23,10 +23,11 @@ from lorecraft.project.syntax import (
     NonMappingFrontmatter,
 )
 
+from .frontmatter_problem import field_line, problem_line, problem_rule
 from .reporting import Violation
 
 _FIRST_LINE: Final[LineNumber] = LineNumber(1)
-"""Where a violation with no more precise position is reported: a missing block, a missing field."""
+"""Where a frontmatter that cannot be checked is reported: a missing block, or one that is not a mapping."""
 
 _RULE_NAMESPACE: Final[str] = 'skill'
 """The namespace of every rule the skill check reports, as the corpus is for the frontmatter check."""
@@ -82,7 +83,7 @@ def validate_skill(
     if isinstance(name, str) and name != directory_name:
         violations.append(
             Violation(
-                line=_field_line(frontmatter, 'name'),
+                line=field_line(frontmatter, 'name'),
                 rule='skill.name-matches-directory',
                 message=f'`name` is {name!r}; expected {directory_name!r}, the name of the skill directory',
             )
@@ -91,8 +92,8 @@ def validate_skill(
     for problem in schema.validate(frontmatter.data):
         violations.append(
             Violation(
-                line=_field_line(frontmatter, problem.field),
-                rule=_problem_rule(_RULE_NAMESPACE, problem),
+                line=problem_line(frontmatter, problem),
+                rule=problem_rule(_RULE_NAMESPACE, problem),
                 message=problem.message,
             )
         )
@@ -103,30 +104,3 @@ def validate_skill(
 def _one_violation(rule: str, message: str, line: LineNumber) -> SkillCheckResult:
     """The result of a skill whose frontmatter is unusable: one violation, on the line it is found at."""
     return SkillCheckResult(violations=(Violation(line=line, rule=rule, message=message),))
-
-
-def _problem_rule(rule_namespace: str, problem: FrontmatterProblem) -> str:
-    """The rule a schema problem breaks.
-
-    ``<namespace>.unknown-field`` for a field the schema does not define, ``<namespace>.frontmatter`` for a
-    problem that concerns no field, and ``<namespace>.<field>`` otherwise.
-    """
-    match problem.kind:
-        case FrontmatterProblemKind.UNKNOWN_FIELD:
-            return f'{rule_namespace}.unknown-field'
-        case FrontmatterProblemKind.MISSING | FrontmatterProblemKind.WRONG_TYPE | FrontmatterProblemKind.INVALID_VALUE:
-            if problem.field is None:
-                return f'{rule_namespace}.frontmatter'
-            return f'{rule_namespace}.{problem.field}'
-        case _:
-            assert_never(problem.kind)
-
-
-def _field_line(frontmatter: Frontmatter, field: str | None) -> LineNumber:
-    """The line a top-level field is written on, or line 1 when there is no field or the frontmatter lacks it."""
-    if field is None:
-        return _FIRST_LINE
-    line = frontmatter.key_line(field)
-    if line is None:
-        return _FIRST_LINE
-    return line
