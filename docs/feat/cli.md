@@ -53,6 +53,9 @@ one is added.
 - No command reads an environment variable or a configuration file: what a command does is decided by its
   command line and by the repository it reads.
 - Output a reader can script against goes to stdout; summaries and errors go to stderr.
+- A failure that stops a command is printed as `error: <message>`, then one indented `caused by: <message>` line
+  for each failure beneath it: what the command was doing first, then each step inside it that failed, down to
+  the one where the failure began.
 
 ## Configuration
 

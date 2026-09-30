@@ -13,6 +13,7 @@ import typer
 
 from lorecraft.checks import run_structure
 from lorecraft.cli.check_run import DocumentCheck, print_run, register_check, select_documents
+from lorecraft.cli.failure import report_failure
 from lorecraft.core.error import Error
 
 from . import app
@@ -57,12 +58,12 @@ def structure(
         database, refs = select_documents(root, paths)
         run = STRUCTURE_CHECK.run(database, refs)
     except Error as exc:
-        typer.echo(str(exc), err=True)
+        report_failure(exc)
         raise typer.Exit(code=2) from exc
     except OSError as exc:
         # As in `check frontmatter`: what is left is Python 3.12's Path.is_dir, which re-raises a PermissionError
         # from find_root and resolve_root where 3.13 and later answer False.
-        typer.echo(f'cannot read input: {exc}', err=True)
+        typer.echo(f'error: cannot read input: {exc}', err=True)
         raise typer.Exit(code=2) from exc
 
     print_run(run, output_format, STRUCTURE_CHECK.ungoverned)

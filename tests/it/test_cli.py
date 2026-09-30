@@ -505,7 +505,7 @@ class TestCheckFrontmatterCommand:
 
         #: Then
         assert result.exit_code == 2, result.output
-        assert result.stderr.startswith('cannot read the current directory:'), (
+        assert result.stderr.startswith('error: cannot read the current directory:'), (
             f'an unreadable working directory is the reported failure, got {result.stderr!r}'
         )
 
@@ -722,7 +722,8 @@ class TestCheckBudgetCommand:
         assert result.exit_code == 2, result.output
         assert result.stdout == '', 'no report is printed for a run that could not start'
         assert result.stderr == (
-            'docs/__meta__ is a symlink, which lorecraft does not follow: docs/__meta__/ must be a real directory\n'
+            'error: docs/__meta__ is a symlink, which lorecraft does not follow: '
+            'docs/__meta__/ must be a real directory\n'
         ), 'a named check refuses the linked directory instead of reporting zero documents checked'
 
 
@@ -1016,7 +1017,8 @@ class TestCheckAllCommand:
         assert result.exit_code == 2, result.output
         assert result.stdout == '', 'after an error nothing is printed but the error'
         assert result.stderr == (
-            'docs/__meta__ is a symlink, which lorecraft does not follow: docs/__meta__/ must be a real directory\n'
+            'error: docs/__meta__ is a symlink, which lorecraft does not follow: '
+            'docs/__meta__/ must be a real directory\n'
         ), 'the run is refused instead of reporting zero documents checked'
 
     def test_check_without_a_root_in_a_workspace_with_a_linked_specs_directory_exits_as_invalid_input(
@@ -1033,7 +1035,8 @@ class TestCheckAllCommand:
         #: Then
         assert result.exit_code == 2, result.output
         assert result.stderr == (
-            'docs/__meta__ is a symlink, which lorecraft does not follow: docs/__meta__/ must be a real directory\n'
+            'error: docs/__meta__ is a symlink, which lorecraft does not follow: '
+            'docs/__meta__/ must be a real directory\n'
         ), 'discovery follows the link to accept the root, and the run is then refused for it'
 
     def test_check_with_a_linked_docs_directory_exits_as_invalid_input(self, linked_docs_workspace: Path) -> None:
@@ -1048,7 +1051,8 @@ class TestCheckAllCommand:
         assert result.exit_code == 2, result.output
         assert result.stdout == '', 'after an error nothing is printed but the error'
         assert (
-            result.stderr == 'docs is a symlink, which lorecraft does not follow: docs/ must be a real directory\n'
+            result.stderr
+            == 'error: docs is a symlink, which lorecraft does not follow: docs/ must be a real directory\n'
         ), 'the run is refused instead of reporting zero documents checked'
 
     def test_check_with_a_dangling_specs_link_exits_as_invalid_input(self, tmp_path: Path) -> None:
@@ -1064,7 +1068,8 @@ class TestCheckAllCommand:
         #: Then
         assert result.exit_code == 2, result.output
         assert result.stderr == (
-            'docs/__meta__ is a symlink, which lorecraft does not follow: docs/__meta__/ must be a real directory\n'
+            'error: docs/__meta__ is a symlink, which lorecraft does not follow: '
+            'docs/__meta__/ must be a real directory\n'
         ), 'a link leading nowhere is refused like one leading to a directory'
 
     def test_check_with_a_root_without_a_specs_directory_exits_zero_and_checks_nothing(self, tmp_path: Path) -> None:
@@ -1095,7 +1100,7 @@ class TestCheckAllCommand:
 
         #: Then
         assert result.exit_code == 2, result.output
-        assert result.stderr == 'cannot find repository root: no parent contains docs/__meta__/\n', (
+        assert result.stderr == 'error: cannot find repository root: no parent contains docs/__meta__/\n', (
             'a working directory under no docs/__meta__/ has no root to discover'
         )
 

@@ -10,6 +10,7 @@ from lorecraft.core.error import Error
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.vfs import take_snapshot
 
+from ..failure import report_failure
 from ..registry import register
 from ..workspace_tree import render_json, render_text
 
@@ -47,7 +48,7 @@ def inspect(
         database.require_real_layout()
         model = database.model()
     except Error as exc:
-        typer.echo(f'error: {exc}', err=True)
+        report_failure(exc)
         raise typer.Exit(code=1) from exc
 
     if as_json:
