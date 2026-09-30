@@ -41,11 +41,11 @@ def inspect(
             symlink, or a structure specification that cannot be decoded or does not state usable rules.
     """
     try:
-        snapshot = take_snapshot(root, SNAPSHOT_SCOPE)
+        fs = VirtualFileSystem(take_snapshot(root, SNAPSHOT_SCOPE))
         # Under `docs/` the snapshot never reads through a symlink, so a linked `docs/` or `docs/__meta__/`
         # would draw a model with no corpora. Refused instead of printed as if the root declared nothing.
-        require_real_layout(snapshot)
-        model = load_model(VirtualFileSystem(snapshot))
+        require_real_layout(fs)
+        model = load_model(fs)
     except Error as exc:
         typer.echo(f'error: {exc}', err=True)
         raise typer.Exit(code=1) from exc
