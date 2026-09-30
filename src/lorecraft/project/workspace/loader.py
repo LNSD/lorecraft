@@ -1,12 +1,15 @@
-"""Build the workspace model from the specification directory and the corpus directories.
+"""Build the workspace model from the specification directory, the corpus directories and the skills directories.
 
 Discovery is spec-first: a directory under ``docs/`` is a corpus only when ``docs/__meta__/`` holds a file at
 its stem. The loader lists the specification directory, parses each filename once with ``parse_spec_file``,
 sorts the parsed files into corpus stems and namespace stems, keeps the corpora whose
 ``docs/<corpus>/`` is a regular directory, lists the Markdown files directly inside each, and builds a
 ``StructureAspect`` from every structure specification, which proves each one usable, its frontmatter schema
-included, before any document is read. An entry that does not fit the layout is left out of the
-model; nothing it leaves out fails the run.
+included, before any document is read.
+
+The skills come from the agents: the loader asks each agent in ``lorecraft.agents`` which project skills
+directories it reads, keeps the ones the repository has, and lists the skills in each real directory once. An
+entry that does not fit the layout is left out of the model; nothing it leaves out fails the run.
 
 Nothing here logs and nothing here catches broadly: a repository or schema error names its path already, so
 it propagates unchanged to the command that loads the model, which reports it.
@@ -14,6 +17,7 @@ it propagates unchanged to the command that loads the model, which reports it.
 
 from dataclasses import dataclass, field
 
+from lorecraft.agents import iter_agents
 from lorecraft.project.aspect import AspectFilename, AspectFilenameError, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.ref import DocumentRef
@@ -23,6 +27,9 @@ from lorecraft.project.schemas.name import SchemaName
 from lorecraft.project.schemas.repo import Repository as SchemaRepository
 from lorecraft.project.schemas.spec_file import SpecAspect, SpecFile, SpecFilenameError, parse_spec_file
 from lorecraft.project.schemas.structure import StructureAspect
+from lorecraft.project.skill.ref import SkillRef
+from lorecraft.project.skill.repo import Repository as SkillRepository
+from lorecraft.project.skill.skills_dir import SkillsDir
 from lorecraft.vfs import EntryKind, FileSystem, RootRelativePath
 
 from .model import Corpus, Spec, WorkspaceModel, namespace_order_key
@@ -41,9 +48,10 @@ class _CorpusFiles:
     namespaces: dict[AspectNamespace, list[SpecFile]] = field(default_factory=dict)
 
 
-def load_workspace(schemas: SchemaRepository, documents: DocumentRepository) -> WorkspaceModel:
+def load_workspace(schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository) -> WorkspaceModel:
     """Build the snapshot: parse the spec filenames, keep corpus stems whose docs/<corpus>/ is a directory, list
-    the Markdown files directly inside each, and build a structure aspect from every spec that has one.
+    the Markdown files directly inside each, build a structure aspect from every spec that has one, and find the
+    agents' skills directories and the skills in them.
 
     Raises:
         ListSpecsError: If the specification directory cannot be listed.
@@ -52,6 +60,8 @@ def load_workspace(schemas: SchemaRepository, documents: DocumentRepository) -> 
         GetStructureSchemaError: If any structure specification cannot be read.
         InvalidStructureSchemaError: If any structure specification is not JSON in the dialect, or states no usable
             rules, its frontmatter schema included.
+        ResolveSkillsDirError: If a skills directory cannot be resolved.
+        ListSkillsError: If a skills directory or a skill directory cannot be listed.
     """
     spec_paths = schemas.list_spec_paths()
     directories = documents.list_corpus_directories()
@@ -76,11 +86,13 @@ def load_workspace(schemas: SchemaRepository, documents: DocumentRepository) -> 
         refs = _list_document_refs(documents, corpus_name)
         corpora.append(_load_corpus(schemas, corpus_name, files, refs))
 
-    return WorkspaceModel(corpora=tuple(corpora))
+    skills_dirs = _load_skills_dirs(skills)
+    skill_refs = _list_skill_refs(skills, skills_dirs)
+    return WorkspaceModel(corpora=tuple(corpora), skills_dirs=skills_dirs, skills=skill_refs)
 
 
 def load_model(fs: FileSystem) -> WorkspaceModel:
-    """Wire one filesystem view into the two repositories and load the workspace model through them.
+    """Wire one filesystem view into the three repositories and load the workspace model through them.
 
     The view decides where the model comes from: a ``DiskFileSystem`` reads the disk as it is at each call,
     and a ``VirtualFileSystem`` answers from one snapshot, so the model reflects a single moment.
@@ -92,10 +104,13 @@ def load_model(fs: FileSystem) -> WorkspaceModel:
         GetStructureSchemaError: If any structure specification cannot be read.
         InvalidStructureSchemaError: If any structure specification is not JSON in the dialect, or states no usable
             rules, its frontmatter schema included.
+        ResolveSkillsDirError: If a skills directory cannot be resolved.
+        ListSkillsError: If a skills directory or a skill directory cannot be listed.
     """
     schemas = SchemaRepository(fs, SPECS_DIR)
     documents = DocumentRepository(fs)
-    return load_workspace(schemas, documents)
+    skills = SkillRepository(fs)
+    return load_workspace(schemas, documents, skills)
 
 
 def _group_spec_files(spec_paths: list[RootRelativePath]) -> dict[CorpusName, _CorpusFiles]:
@@ -178,3 +193,43 @@ def _list_document_refs(documents: DocumentRepository, corpus_name: CorpusName) 
             continue
         refs.append(DocumentRef(corpus=corpus_name, filename=filename))
     return refs
+
+
+def _load_skills_dirs(skills: SkillRepository) -> tuple[SkillsDir, ...]:
+    """One record per agent and project skills directory it reads, for the directories the repository has.
+
+    Sorted by agent then path, so the model does not depend on the order the agents are registered in.
+
+    Raises:
+        ResolveSkillsDirError: If a skills directory cannot be resolved.
+    """
+    skills_dirs: list[SkillsDir] = []
+    for agent in iter_agents():
+        for declared in agent.project_skills_dirs:
+            path = RootRelativePath(declared)
+            resolves_to = skills.resolve_skills_dir(path)
+            if resolves_to is None:
+                # The repository has no such directory, so the agent reads no skills from it.
+                continue
+            skills_dirs.append(SkillsDir(agent=agent.name, path=path, resolves_to=resolves_to))
+    skills_dirs.sort(key=lambda skills_dir: (str(skills_dir.agent), skills_dir.path))
+    return tuple(skills_dirs)
+
+
+def _list_skill_refs(skills: SkillRepository, skills_dirs: tuple[SkillsDir, ...]) -> tuple[SkillRef, ...]:
+    """Every skill in the real directories behind ``skills_dirs``, each once, sorted by directory.
+
+    Two agents reading one real directory add no second ref: the directory is listed once. The refs are
+    sorted as a whole, since one skills directory may sit inside another.
+
+    Raises:
+        ListSkillsError: If a skills directory or a skill directory cannot be listed.
+    """
+    real_directories: set[RootRelativePath] = set()
+    for skills_dir in skills_dirs:
+        real_directories.add(skills_dir.resolves_to)
+
+    refs: list[SkillRef] = []
+    for real_directory in real_directories:
+        refs.extend(skills.list_skills(real_directory))
+    return tuple(sorted(refs))

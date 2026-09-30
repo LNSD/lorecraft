@@ -2,8 +2,8 @@
 
 Each tree mirrors the ``docs/`` layout of one real target repository (amp, mono, tools, ampup and this one)
 with the document bodies left empty: the loader never reads a document, so only names and kinds matter. The
-repositories are wired to a real ``DiskFileSystem`` over ``tmp_path``, and every path in the model is
-root-relative to it.
+skill cases lay out the project skills directories the same way. The repositories are wired to a real
+``DiskFileSystem`` over ``tmp_path``, and every path in the model is root-relative to it.
 """
 
 from pathlib import Path
@@ -12,15 +12,23 @@ from typing import Final
 
 import pytest
 
+from lorecraft.agents import AgentName
 from lorecraft.project.aspect import AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.repo import Repository as DocumentRepository
-from lorecraft.project.layout import SPECS_DIR
+from lorecraft.project.layout import SNAPSHOT_SCOPE, SPECS_DIR
 from lorecraft.project.schemas import InvalidStructureSchemaError
 from lorecraft.project.schemas import Repository as SchemaRepository
-from lorecraft.project.workspace.loader import load_workspace
+from lorecraft.project.skill import Repository as SkillRepository
+from lorecraft.project.skill import SkillRef, SkillsDir
+from lorecraft.project.workspace.loader import load_model, load_workspace
 from lorecraft.project.workspace.model import WorkspaceModel
-from lorecraft.vfs import DiskFileSystem, RootRelativePath
+from lorecraft.vfs import DiskFileSystem, RootRelativePath, VirtualFileSystem, take_snapshot
+
+CLAUDE: Final[AgentName] = AgentName('claude-code')
+CODEX: Final[AgentName] = AgentName('codex')
+UNIVERSAL_SKILLS_DIR: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills')
+CLAUDE_SKILLS_DIR: Final[RootRelativePath] = RootRelativePath.parse('.claude/skills')
 
 CODE: Final[CorpusName] = CorpusName.parse('code')
 FEAT: Final[CorpusName] = CorpusName.parse('feat')
@@ -47,6 +55,12 @@ def schemas(tmp_path: Path) -> SchemaRepository:
 def documents(tmp_path: Path) -> DocumentRepository:
     """A document repository over the temporary root."""
     return DocumentRepository(DiskFileSystem(tmp_path))
+
+
+@pytest.fixture(scope='function')
+def skills(tmp_path: Path) -> SkillRepository:
+    """A skill repository over the temporary root."""
+    return SkillRepository(DiskFileSystem(tmp_path))
 
 
 def _write(root: Path, relative: str, text: str = '') -> None:
@@ -162,13 +176,13 @@ def _document_paths(model: WorkspaceModel) -> tuple[str, ...]:
 @pytest.mark.it
 class TestLoadWorkspaceAmp:
     def test_load_workspace_with_the_amp_tree_lists_code_and_feat_only(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         _amp_tree(tmp_path)
 
         #: When
-        model = load_workspace(schemas, documents)
+        model = load_workspace(schemas, documents, skills)
 
         #: Then
         assert tuple(corpus.name for corpus in model.corpora) == (CODE, FEAT), (
@@ -182,13 +196,13 @@ class TestLoadWorkspaceAmp:
         ), 'documents directly inside each corpus are listed, corpus order then filename order'
 
     def test_load_workspace_with_the_amp_tree_sorts_the_code_namespaces_broad_to_narrow(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         _amp_tree(tmp_path)
 
         #: When
-        model = load_workspace(schemas, documents)
+        model = load_workspace(schemas, documents, skills)
 
         #: Then
         assert _namespaces(model, CODE) == ('crate', 'pattern', 'principle', 'rust'), (
@@ -197,13 +211,13 @@ class TestLoadWorkspaceAmp:
         assert _namespaces(model, FEAT) == (), 'amp has no feat namespace spec'
 
     def test_load_workspace_with_the_amp_tree_loads_the_prose_less_crate_namespace(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         _amp_tree(tmp_path)
 
         #: When
-        model = load_workspace(schemas, documents)
+        model = load_workspace(schemas, documents, skills)
 
         #: Then
         code = model.corpus(CODE)
@@ -222,13 +236,13 @@ class TestLoadWorkspaceAmp:
 @pytest.mark.it
 class TestLoadWorkspaceMono:
     def test_load_workspace_with_the_mono_tree_builds_no_corpus_for_the_feat_spec_without_a_directory(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         _mono_tree(tmp_path)
 
         #: When
-        model = load_workspace(schemas, documents)
+        model = load_workspace(schemas, documents, skills)
 
         #: Then
         assert tuple(corpus.name for corpus in model.corpora) == (CODE,), (
@@ -236,13 +250,13 @@ class TestLoadWorkspaceMono:
         )
 
     def test_load_workspace_with_the_mono_tree_leaves_the_frontmatter_ungoverned(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         _mono_tree(tmp_path)
 
         #: When
-        model = load_workspace(schemas, documents)
+        model = load_workspace(schemas, documents, skills)
 
         #: Then
         ref = model.locate(RootRelativePath.parse('docs/code/rust-errors-handling.md'))
@@ -254,13 +268,13 @@ class TestLoadWorkspaceMono:
 @pytest.mark.it
 class TestLoadWorkspaceTools:
     def test_load_workspace_with_the_tools_tree_lists_code_alone(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         _tools_tree(tmp_path)
 
         #: When
-        model = load_workspace(schemas, documents)
+        model = load_workspace(schemas, documents, skills)
 
         #: Then
         assert tuple(corpus.name for corpus in model.corpora) == (CODE,), 'docs/schemas/ has no stem'
@@ -270,13 +284,13 @@ class TestLoadWorkspaceTools:
 @pytest.mark.it
 class TestLoadWorkspaceAmpup:
     def test_load_workspace_with_the_ampup_tree_builds_zero_corpora(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         _ampup_tree(tmp_path)
 
         #: When
-        model = load_workspace(schemas, documents)
+        model = load_workspace(schemas, documents, skills)
 
         #: Then
         assert model.corpora == (), 'a namespace spec creates no corpus on its own'
@@ -286,13 +300,13 @@ class TestLoadWorkspaceAmpup:
 @pytest.mark.it
 class TestLoadWorkspaceLorecraft:
     def test_load_workspace_with_the_lorecraft_tree_lists_code_and_feat(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         _lorecraft_tree(tmp_path)
 
         #: When
-        model = load_workspace(schemas, documents)
+        model = load_workspace(schemas, documents, skills)
 
         #: Then
         assert tuple(corpus.name for corpus in model.corpora) == (CODE, FEAT), 'docs/assets/ has no stem'
@@ -304,13 +318,13 @@ class TestLoadWorkspaceLorecraft:
         ), 'documents sort by stem, so cli-check precedes cli-check-frontmatter; .gitkeep and the glossary are absent'
 
     def test_load_workspace_with_the_lorecraft_tree_loads_the_feat_cli_namespace(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         _lorecraft_tree(tmp_path)
 
         #: When
-        model = load_workspace(schemas, documents)
+        model = load_workspace(schemas, documents, skills)
 
         #: Then
         assert _namespaces(model, FEAT) == ('cli',), 'feat-cli narrows the feat corpus'
@@ -320,7 +334,7 @@ class TestLoadWorkspaceLorecraft:
 @pytest.mark.it
 class TestLoadWorkspaceEdgeCases:
     def test_load_workspace_with_a_meta_stem_never_makes_the_specification_directory_a_corpus(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         _write_tree(
@@ -328,31 +342,31 @@ class TestLoadWorkspaceEdgeCases:
         )
 
         #: When
-        model = load_workspace(schemas, documents)
+        model = load_workspace(schemas, documents, skills)
 
         #: Then
         assert [corpus.name for corpus in model.corpora] == [CorpusName.parse('code')], 'only the real corpus loads'
 
     def test_load_workspace_with_a_nested_document_ignores_it(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         _write_tree(tmp_path, prose=('code',), schemas=(), documents=('code/logging.md', 'code/sub/x.md'))
 
         #: When
-        model = load_workspace(schemas, documents)
+        model = load_workspace(schemas, documents, skills)
 
         #: Then
         assert _document_paths(model) == ('docs/code/logging.md',), 'a subdirectory of a corpus is not listed'
 
     def test_load_workspace_with_an_unknown_json_aspect_leaves_it_out_and_loads_the_corpus(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         _write_tree(tmp_path, prose=('code',), schemas=('code.headers.json',), documents=('code/logging.md',))
 
         #: When
-        model = load_workspace(schemas, documents)
+        model = load_workspace(schemas, documents, skills)
 
         #: Then
         code = model.corpus(CODE)
@@ -360,13 +374,13 @@ class TestLoadWorkspaceEdgeCases:
         assert code.spec.files == (SPECS_DIR / 'code.md',), 'a misnamed aspect token is not part of the spec'
 
     def test_load_workspace_with_a_dotted_stem_leaves_it_out_of_the_corpus_spec(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         _write_tree(tmp_path, prose=('feat',), schemas=('feat.feature.structure.json',), documents=('feat/admin.md',))
 
         #: When
-        model = load_workspace(schemas, documents)
+        model = load_workspace(schemas, documents, skills)
 
         #: Then
         feat = model.corpus(FEAT)
@@ -374,50 +388,50 @@ class TestLoadWorkspaceEdgeCases:
         assert feat.spec.files == (SPECS_DIR / 'feat.md',), 'feat.feature is not a stem, so its file is not a spec'
 
     def test_load_workspace_with_a_dotted_stem_alone_builds_no_corpus(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         _write_tree(tmp_path, prose=(), schemas=('feat.feature.structure.json',), documents=('feat/admin.md',))
 
         #: When
-        model = load_workspace(schemas, documents)
+        model = load_workspace(schemas, documents, skills)
 
         #: Then
         assert model.corpora == (), 'a file at a dotted stem does not establish a corpus'
 
     def test_load_workspace_with_an_invalid_namespace_token_leaves_it_out(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         _write_tree(tmp_path, prose=('code', 'code-Python'), schemas=(), documents=('code/logging.md',))
 
         #: When
-        model = load_workspace(schemas, documents)
+        model = load_workspace(schemas, documents, skills)
 
         #: Then
         assert _namespaces(model, CODE) == (), 'the misnamed stem narrows nothing'
 
     def test_load_workspace_with_a_json_file_at_a_non_stem_leaves_it_out(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         _write_tree(tmp_path, prose=('code',), schemas=('README.structure.json',), documents=('code/logging.md',))
 
         #: When
-        model = load_workspace(schemas, documents)
+        model = load_workspace(schemas, documents, skills)
 
         #: Then
         assert tuple(corpus.name for corpus in model.corpora) == (CODE,), 'the misnamed JSON file makes no corpus'
 
     def test_load_workspace_with_a_header_file_leaves_it_out(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         # a header file from before the frontmatter schema moved into the structure specification
         _write_tree(tmp_path, prose=('code',), schemas=('code.header.json',), documents=('code/logging.md',))
 
         #: When
-        model = load_workspace(schemas, documents)
+        model = load_workspace(schemas, documents, skills)
 
         #: Then
         corpus = model.corpus(CODE)
@@ -426,7 +440,7 @@ class TestLoadWorkspaceEdgeCases:
         assert corpus.spec.structure is None, 'and it states no rules'
 
     def test_load_workspace_with_a_malformed_frontmatter_schema_raises_invalid_structure_schema_error(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         # the corpus directory exists and is empty: validation happens before any document matters
@@ -436,19 +450,19 @@ class TestLoadWorkspaceEdgeCases:
 
         #: When
         with pytest.raises(InvalidStructureSchemaError) as exc_info:
-            load_workspace(schemas, documents)
+            load_workspace(schemas, documents, skills)
 
         #: Then
         assert exc_info.value.path == SPECS_DIR / 'code.structure.json', 'the error names the rejected specification'
 
     def test_load_workspace_with_a_structure_spec_builds_the_structure_aspect(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         _write_tree(tmp_path, prose=('code',), schemas=('code.structure.json',), documents=('code/logging.md',))
 
         #: When
-        model = load_workspace(schemas, documents)
+        model = load_workspace(schemas, documents, skills)
 
         #: Then
         ref = model.locate(RootRelativePath.parse('docs/code/logging.md'))
@@ -459,7 +473,7 @@ class TestLoadWorkspaceEdgeCases:
         )
 
     def test_load_workspace_with_an_invalid_structure_spec_raises_invalid_structure_schema_error(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         # the corpus directory exists and is empty: validation happens before any document matters
@@ -469,13 +483,13 @@ class TestLoadWorkspaceEdgeCases:
 
         #: When
         with pytest.raises(InvalidStructureSchemaError) as exc_info:
-            load_workspace(schemas, documents)
+            load_workspace(schemas, documents, skills)
 
         #: Then
         assert exc_info.value.path == SPECS_DIR / 'code.structure.json', 'the error names the rejected specification'
 
     def test_load_workspace_with_a_broken_schema_in_an_unchecked_namespace_still_raises(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         _write_tree(tmp_path, prose=('code',), schemas=('code.structure.json',), documents=('code/logging.md',))
@@ -483,7 +497,7 @@ class TestLoadWorkspaceEdgeCases:
 
         #: When
         with pytest.raises(InvalidStructureSchemaError) as exc_info:
-            load_workspace(schemas, documents)
+            load_workspace(schemas, documents, skills)
 
         #: Then
         assert exc_info.value.path == SPECS_DIR / 'code-python.structure.json', (
@@ -491,7 +505,7 @@ class TestLoadWorkspaceEdgeCases:
         )
 
     def test_load_workspace_with_nested_namespaces_sorts_them_by_segment_count_then_value(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         _write_tree(
@@ -502,7 +516,7 @@ class TestLoadWorkspaceEdgeCases:
         )
 
         #: When
-        model = load_workspace(schemas, documents)
+        model = load_workspace(schemas, documents, skills)
 
         #: Then
         assert _namespaces(model, CODE) == ('pattern', 'python', 'python-errors', 'a-b-c'), (
@@ -510,13 +524,13 @@ class TestLoadWorkspaceEdgeCases:
         )
 
     def test_load_workspace_with_a_namespace_spec_records_its_parsed_name(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         _write_tree(tmp_path, prose=('code', 'code-python'), schemas=(), documents=('code/logging.md',))
 
         #: When
-        model = load_workspace(schemas, documents)
+        model = load_workspace(schemas, documents, skills)
 
         #: Then
         code = model.corpus(CODE)
@@ -526,32 +540,32 @@ class TestLoadWorkspaceEdgeCases:
         )
 
     def test_load_workspace_with_a_symlinked_document_leaves_it_out(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         _write_tree(tmp_path, prose=('code',), schemas=(), documents=('code/logging.md',))
         (tmp_path / 'docs' / 'code' / 'alias.md').symlink_to(tmp_path / 'docs' / 'code' / 'logging.md')
 
         #: When
-        model = load_workspace(schemas, documents)
+        model = load_workspace(schemas, documents, skills)
 
         #: Then
         assert _document_paths(model) == ('docs/code/logging.md',), 'the symlink is not a document'
 
     def test_load_workspace_with_an_invalid_document_stem_leaves_it_out(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         _write_tree(tmp_path, prose=('code',), schemas=(), documents=('code/logging.md', 'code/README.md'))
 
         #: When
-        model = load_workspace(schemas, documents)
+        model = load_workspace(schemas, documents, skills)
 
         #: Then
         assert _document_paths(model) == ('docs/code/logging.md',), 'the misnamed file is not a document'
 
     def test_load_workspace_with_a_symlinked_corpus_directory_builds_no_corpus_for_it(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         _write_tree(
@@ -560,21 +574,203 @@ class TestLoadWorkspaceEdgeCases:
         (tmp_path / 'docs' / 'rules').symlink_to(tmp_path / 'docs' / 'code')
 
         #: When
-        model = load_workspace(schemas, documents)
+        model = load_workspace(schemas, documents, skills)
 
         #: Then
         assert tuple(corpus.name for corpus in model.corpora) == (CODE,), 'the symlinked directory is no corpus'
 
     def test_load_workspace_with_no_docs_directory_builds_an_empty_model(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
         # nothing is created under the temporary root
         missing_docs = tmp_path / 'docs'
 
         #: When
-        model = load_workspace(schemas, documents)
+        model = load_workspace(schemas, documents, skills)
 
         #: Then
         assert not missing_docs.exists(), 'the case turns on docs/ being absent'
-        assert model == WorkspaceModel(corpora=()), 'a root without docs/ is an empty workspace'
+        assert model == WorkspaceModel(corpora=(), skills_dirs=(), skills=()), (
+            'a root without docs/ is an empty workspace'
+        )
+
+
+@pytest.mark.it
+class TestLoadWorkspaceSkills:
+    def test_load_workspace_with_skills_in_the_universal_directory_lists_them_by_directory(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/review/SKILL.md')
+        _write(tmp_path, '.agents/skills/commit/SKILL.md')
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert model.skills == (
+            SkillRef(RootRelativePath.parse('.agents/skills/commit')),
+            SkillRef(RootRelativePath.parse('.agents/skills/review')),
+        ), 'every skill is listed, sorted by directory'
+
+    def test_load_workspace_with_skills_and_a_corpus_keeps_the_skills_out_of_the_documents(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        _write_tree(tmp_path, prose=('code',), schemas=(), documents=('code/logging.md',))
+        _write(tmp_path, '.agents/skills/review/SKILL.md')
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert _document_paths(model) == ('docs/code/logging.md',), 'a skill belongs to no corpus'
+
+    def test_load_workspace_with_the_universal_directory_alone_records_it_for_the_agent_that_reads_it(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/review/SKILL.md')
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert model.skills_dirs == (
+            SkillsDir(agent=CODEX, path=UNIVERSAL_SKILLS_DIR, resolves_to=UNIVERSAL_SKILLS_DIR),
+        ), 'only the agent whose skills directory the repository has is recorded'
+
+    def test_load_workspace_with_a_directory_linked_to_another_records_both_agents_at_one_real_directory(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/review/SKILL.md')
+        (tmp_path / '.claude').mkdir()
+        (tmp_path / '.claude' / 'skills').symlink_to('../.agents/skills')
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert model.skills_dirs == (
+            SkillsDir(agent=CLAUDE, path=CLAUDE_SKILLS_DIR, resolves_to=UNIVERSAL_SKILLS_DIR),
+            SkillsDir(agent=CODEX, path=UNIVERSAL_SKILLS_DIR, resolves_to=UNIVERSAL_SKILLS_DIR),
+        ), 'each agent keeps its own record, and both name the one real directory'
+
+    def test_load_workspace_with_skills_in_two_agents_directories_lists_all_of_them(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/review/SKILL.md')
+        _write(tmp_path, '.claude/skills/commit/SKILL.md')
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert model.skills == (
+            SkillRef(RootRelativePath.parse('.agents/skills/review')),
+            SkillRef(RootRelativePath.parse('.claude/skills/commit')),
+        ), 'every agent directory is read, and the refs sort across them'
+
+    def test_load_workspace_with_one_skills_directory_inside_another_sorts_the_refs_as_a_whole(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/alpha/SKILL.md')
+        _write(tmp_path, '.agents/skills/zeta/SKILL.md')
+        _write(tmp_path, '.agents/skills/claude/inner/SKILL.md')
+        (tmp_path / '.claude').mkdir()
+        (tmp_path / '.claude' / 'skills').symlink_to('../.agents/skills/claude')
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert model.skills == (
+            SkillRef(RootRelativePath.parse('.agents/skills/alpha')),
+            SkillRef(RootRelativePath.parse('.agents/skills/claude/inner')),
+            SkillRef(RootRelativePath.parse('.agents/skills/zeta')),
+        ), 'the refs of a nested skills directory sort among the refs of the one holding it'
+
+    def test_load_workspace_with_no_skills_directory_records_none(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        # nothing is created under the temporary root
+        missing_skills_dir = tmp_path / '.agents' / 'skills'
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert not missing_skills_dir.exists(), 'the case turns on the skills directories being absent'
+        assert model.skills_dirs == (), 'an agent whose skills directory is absent is not recorded'
+
+
+@pytest.mark.it
+class TestLoadModel:
+    def test_load_model_over_a_snapshot_lists_the_skills_both_agents_read_once(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/review/SKILL.md')
+        (tmp_path / '.claude').mkdir()
+        (tmp_path / '.claude' / 'skills').symlink_to('../.agents/skills')
+        snapshot = take_snapshot(tmp_path, SNAPSHOT_SCOPE)
+
+        #: When
+        model = load_model(VirtualFileSystem(snapshot))
+
+        #: Then
+        assert model.skills == (SkillRef(RootRelativePath.parse('.agents/skills/review')),), (
+            'the snapshot scope covers the skills directories, and the linked directory adds no second ref'
+        )
+
+    def test_load_model_over_a_snapshot_lists_a_skill_linked_outside_the_skills_directories(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'skills/review/SKILL.md')
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
+        snapshot = take_snapshot(tmp_path, SNAPSHOT_SCOPE)
+
+        #: When
+        model = load_model(VirtualFileSystem(snapshot))
+
+        #: Then
+        assert model.skills == (SkillRef(RootRelativePath.parse('.agents/skills/review')),), (
+            'the scan follows the link, so the snapshot lists the skill the disk view lists'
+        )
+
+    def test_load_model_over_a_snapshot_with_a_skills_directory_linked_elsewhere_lists_its_skills(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'skills/review/SKILL.md')
+        (tmp_path / '.claude').mkdir()
+        (tmp_path / '.claude' / 'skills').symlink_to('../skills')
+        snapshot = take_snapshot(tmp_path, SNAPSHOT_SCOPE)
+
+        #: When
+        model = load_model(VirtualFileSystem(snapshot))
+
+        #: Then
+        assert model.skills == (SkillRef(RootRelativePath.parse('skills/review')),), (
+            'a skills directory linked to one no agent declares is read where it leads'
+        )
+
+    def test_load_model_over_the_disk_lists_a_skill_linked_outside_the_skills_directories(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'skills/review/SKILL.md')
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
+        fs = DiskFileSystem(tmp_path)
+
+        #: When
+        model = load_model(fs)
+
+        #: Then
+        assert model.skills == (SkillRef(RootRelativePath.parse('.agents/skills/review')),), (
+            'the disk view follows the link, and the ref names the entry under the skills directory'
+        )
