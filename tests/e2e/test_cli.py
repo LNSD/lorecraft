@@ -4,7 +4,8 @@
 at all. This suite runs from the checkout, so the verbose command must report its Git description as
 well as the installed version and environment. Every version output, and `inspect`, `check`, `check frontmatter`,
 `check structure` and `check budget` over a checked-in workspace fixture, is compared to a reviewed snapshot file
-under `__snapshots__/`.
+under `__snapshots__/`. So is what `check` and `inspect` print for a root whose `docs/` or `docs/__meta__/` is a
+symlink into that fixture.
 """
 
 from pathlib import Path
@@ -298,3 +299,101 @@ class TestCheckAllSnapshots:
         #: Then
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the JSON report of every check matches the reviewed snapshot'
+
+
+@pytest.fixture(scope='function')
+def linked_specs_root(tmp_path: Path) -> Path:
+    """A root whose `docs/__meta__` is a symlink to the workspace fixture's specifications, beside one document."""
+    (tmp_path / 'docs' / 'code').mkdir(parents=True)
+    (tmp_path / 'docs' / 'code' / 'logging.md').write_text('# Logging\n', encoding='utf-8')
+    (tmp_path / 'docs' / '__meta__').symlink_to(WORKSPACE_FIXTURE / 'docs' / '__meta__')
+    return tmp_path
+
+
+@pytest.fixture(scope='function')
+def linked_docs_root(tmp_path: Path) -> Path:
+    """A root whose `docs` is a symlink to the workspace fixture's `docs/`."""
+    (tmp_path / 'docs').symlink_to(WORKSPACE_FIXTURE / 'docs')
+    return tmp_path
+
+
+@pytest.mark.e2e
+class TestLinkedLayoutSnapshots:
+    # Read through the link, each root holds the fixture's findings. The snapshot a command takes never reads
+    # through it, so the command refuses the root rather than report a clean run over nothing. The error names
+    # the directory root-relative, so nothing is redacted.
+
+    def test_check_with_a_linked_specs_directory_prints_the_error_and_exits_two(
+        self, snapshot: SnapshotAssertion, linked_specs_root: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('check', '--root', str(linked_specs_root))
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 2, result.stderr
+        assert result.stdout == '', 'a run that could not start prints nothing on stdout'
+        assert result.stderr == expected, 'the error naming the linked directory matches the reviewed snapshot'
+
+    def test_check_with_a_linked_docs_directory_prints_the_error_and_exits_two(
+        self, snapshot: SnapshotAssertion, linked_docs_root: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('check', '--root', str(linked_docs_root))
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 2, result.stderr
+        assert result.stdout == '', 'a run that could not start prints nothing on stdout'
+        assert result.stderr == expected, 'the error naming the linked directory matches the reviewed snapshot'
+
+    def test_check_without_a_root_in_a_linked_specs_workspace_prints_the_error_and_exits_two(
+        self, snapshot: SnapshotAssertion, linked_specs_root: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('check',)
+
+        #: When
+        result = run_cli(*arguments, cwd=linked_specs_root)
+
+        #: Then
+        assert result.returncode == 2, result.stderr
+        assert result.stdout == '', 'a run that could not start prints nothing on stdout'
+        assert result.stderr == expected, 'the root discovered through the link is refused, as the snapshot shows'
+
+    def test_inspect_with_a_linked_specs_directory_prints_the_error_and_exits_one(
+        self, snapshot: SnapshotAssertion, linked_specs_root: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('inspect', str(linked_specs_root))
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == '', 'no model is drawn for a layout the snapshot could not read'
+        assert result.stderr == expected, 'the error naming the linked directory matches the reviewed snapshot'
+
+    def test_inspect_with_a_linked_docs_directory_prints_the_error_and_exits_one(
+        self, snapshot: SnapshotAssertion, linked_docs_root: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('inspect', str(linked_docs_root))
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == '', 'no model is drawn for a layout the snapshot could not read'
+        assert result.stderr == expected, 'the error naming the linked directory matches the reviewed snapshot'

@@ -80,6 +80,29 @@ def unreadable_workspace(tmp_path: Path) -> Iterator[Path]:
     docs.chmod(0o700)
 
 
+@pytest.fixture(scope='function')
+def linked_specs_workspace(tmp_path: Path) -> Path:
+    """A workspace root whose `docs/__meta__` is a symlink to a real directory holding a tight token budget.
+
+    Read through the link, the one document would break its budget; the snapshot never reads through it.
+    """
+    _write(tmp_path, 'specs/code.md', '# Code\n')
+    _write(tmp_path, 'specs/code.structure.json', TIGHT_BUDGET_STRUCTURE_SPEC)
+    _write(tmp_path, 'docs/code/guide.md', '## First\n\none two three\n\n## Second\n\nfour five six\n')
+    (tmp_path / 'docs' / '__meta__').symlink_to(Path('..') / 'specs')
+    return tmp_path
+
+
+@pytest.fixture(scope='function')
+def linked_docs_workspace(tmp_path: Path) -> Path:
+    """A workspace root whose `docs` is a symlink to a real directory holding a whole layout."""
+    _write(tmp_path, 'documentation/__meta__/code.md', '# Code\n')
+    _write(tmp_path, 'documentation/__meta__/code.structure.json', TIGHT_BUDGET_STRUCTURE_SPEC)
+    _write(tmp_path, 'documentation/code/guide.md', '## First\n\none two three\n\n## Second\n\nfour five six\n')
+    (tmp_path / 'docs').symlink_to('documentation')
+    return tmp_path
+
+
 def _unused_handler() -> None:
     """Stand-in handler for a registration that must be rejected before it is ever mounted."""
 
@@ -247,6 +270,52 @@ class TestInspectCommand:
         #: Then
         assert result.exit_code == 1, result.output
         assert 'error: cannot snapshot docs' in result.output, 'the failure names the path the scan stopped at'
+
+    def test_inspect_with_a_linked_specs_directory_exits_one_and_names_it(self, linked_specs_workspace: Path) -> None:
+        #: Given
+        app = build_app()
+        arguments = ['inspect', str(linked_specs_workspace)]
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert result.stdout == '', 'no model is drawn for a layout the snapshot could not read'
+        assert result.stderr == (
+            'error: docs/__meta__ is a symlink, which lorecraft does not follow: '
+            'docs/__meta__/ must be a real directory\n'
+        ), 'the failure names the linked directory instead of drawing a model with no corpora'
+
+    def test_inspect_with_a_linked_docs_directory_exits_one_and_names_it(self, linked_docs_workspace: Path) -> None:
+        #: Given
+        app = build_app()
+        arguments = ['inspect', str(linked_docs_workspace), '--json']
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert result.stdout == '', 'no JSON document is printed for a layout the snapshot could not read'
+        assert result.stderr == (
+            'error: docs is a symlink, which lorecraft does not follow: docs/ must be a real directory\n'
+        ), 'the failure names the linked directory instead of printing a model with no corpora'
+
+    def test_inspect_with_a_root_without_a_specs_directory_draws_a_model_with_no_corpora(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/code/guide.md', '# Guide\n')
+        app = build_app()
+        arguments = ['inspect', str(tmp_path)]
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stdout.splitlines()[1] == '├── corpora (0)', (
+            'a root that declares no specification is a model with no corpora, not an error'
+        )
 
 
 @pytest.mark.it
@@ -639,6 +708,23 @@ class TestCheckBudgetCommand:
             'docs/code/guide.md:1: [code.ungoverned] no token budget for this corpus; tokens unvalidated\n'
         ), 'a structure spec that sets no `tokens` leaves the document unvalidated, not failed'
 
+    def test_check_budget_with_a_linked_specs_directory_exits_as_invalid_input(
+        self, linked_specs_workspace: Path
+    ) -> None:
+        #: Given
+        app = build_app()
+        arguments = ['check', 'budget', '--root', str(linked_specs_workspace), '--format', 'json']
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stdout == '', 'no report is printed for a run that could not start'
+        assert result.stderr == (
+            'docs/__meta__ is a symlink, which lorecraft does not follow: docs/__meta__/ must be a real directory\n'
+        ), 'a named check refuses the linked directory instead of reporting zero documents checked'
+
 
 @pytest.mark.it
 class TestCheckAllCommand:
@@ -705,6 +791,101 @@ class TestCheckAllCommand:
         #: Then
         assert result.exit_code == 2, result.output
         assert result.stdout == '', 'after an error nothing is printed but the error'
+
+    def test_check_with_a_linked_specs_directory_exits_as_invalid_input(self, linked_specs_workspace: Path) -> None:
+        #: Given
+        app = build_app()
+        arguments = ['check', '--root', str(linked_specs_workspace)]
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stdout == '', 'after an error nothing is printed but the error'
+        assert result.stderr == (
+            'docs/__meta__ is a symlink, which lorecraft does not follow: docs/__meta__/ must be a real directory\n'
+        ), 'the run is refused instead of reporting zero documents checked'
+
+    def test_check_without_a_root_in_a_workspace_with_a_linked_specs_directory_exits_as_invalid_input(
+        self, linked_specs_workspace: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        #: Given
+        monkeypatch.chdir(linked_specs_workspace)
+        app = build_app()
+        arguments = ['check']
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stderr == (
+            'docs/__meta__ is a symlink, which lorecraft does not follow: docs/__meta__/ must be a real directory\n'
+        ), 'discovery follows the link to accept the root, and the run is then refused for it'
+
+    def test_check_with_a_linked_docs_directory_exits_as_invalid_input(self, linked_docs_workspace: Path) -> None:
+        #: Given
+        app = build_app()
+        arguments = ['check', '--root', str(linked_docs_workspace)]
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stdout == '', 'after an error nothing is printed but the error'
+        assert (
+            result.stderr == 'docs is a symlink, which lorecraft does not follow: docs/ must be a real directory\n'
+        ), 'the run is refused instead of reporting zero documents checked'
+
+    def test_check_with_a_dangling_specs_link_exits_as_invalid_input(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/code/guide.md', '# Guide\n')
+        (tmp_path / 'docs' / '__meta__').symlink_to('missing')
+        app = build_app()
+        arguments = ['check', '--root', str(tmp_path)]
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stderr == (
+            'docs/__meta__ is a symlink, which lorecraft does not follow: docs/__meta__/ must be a real directory\n'
+        ), 'a link leading nowhere is refused like one leading to a directory'
+
+    def test_check_with_a_root_without_a_specs_directory_exits_zero_and_checks_nothing(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/code/guide.md', '# Guide\n')
+        app = build_app()
+        arguments = ['check', '--root', str(tmp_path)]
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stderr == 'checked 0 file(s) with 3 check(s), 0 finding(s)\n', (
+            'an explicit root that declares no specification has nothing to check, which is not an error'
+        )
+
+    def test_check_without_a_root_outside_any_workspace_exits_as_invalid_input(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        #: Given
+        monkeypatch.chdir(tmp_path)
+        app = build_app()
+        arguments = ['check']
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stderr == 'cannot find repository root: no parent contains docs/__meta__/\n', (
+            'a working directory under no docs/__meta__/ has no root to discover'
+        )
 
     def test_check_with_an_option_before_a_named_check_exits_as_a_usage_error(self, tmp_path: Path) -> None:
         #: Given
