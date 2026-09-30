@@ -13,7 +13,7 @@ from typing import Final, Self
 
 from lorecraft.core.path import ROOT, RootRelativePath
 
-from .view import DirEntry, EntryKind, FileSystem, ReadTextError, decode_text
+from .view import DirEntry, EntryKind, FileSystem, UnrecordedFileError, decode_text
 
 MAX_LINKS: Final[int] = 40
 """Links followed before a chain counts as a loop; Linux's MAXSYMLINKS, past which the disk reports ELOOP.
@@ -71,7 +71,7 @@ class Snapshot:
     """What one scan saw: every listing, every FILE entry's bytes and every symlink's target. Never mutated.
 
     Tuples only, so two snapshots compare and hash structurally; equality is the "nothing changed" test.
-    Bytes, not text: a non-UTF-8 file stays here so ``read_text`` raises ``DecodeTextError`` exactly as the
+    Bytes, not text: a non-UTF-8 file stays here so ``read_text`` raises ``TextDecodeError`` exactly as the
     disk view does; byte equality is the change test mtime is not. What a scan reads is the scope it is given.
     A link is always recorded, and followed only under a scan root that asks for it: where the scan did not
     follow one that leads outside the scope, what the disk view reads through it is not here.
@@ -151,7 +151,7 @@ class VirtualFileSystem(FileSystem):
     """A ``FileSystem`` answering from one snapshot; never reads the disk, never changes.
 
     Anything the snapshot did not record answers like a missing path on disk: an empty listing, a
-    ``ReadTextError``, or no directory.
+    ``UnrecordedFileError``, or no directory.
     """
 
     def __init__(self, snapshot: Snapshot) -> None:
@@ -187,9 +187,6 @@ class VirtualFileSystem(FileSystem):
         Returns:
             The entries in name order, or ``()`` for a missing, non-directory, unentered or out-of-scope
             path, and for a link the snapshot cannot follow to a listed directory.
-
-        Raises:
-            ListDirError: Never; kept in the contract for the disk implementation.
         """
         directory = self.resolve_dir(path)
         if directory is None:
@@ -204,15 +201,15 @@ class VirtualFileSystem(FileSystem):
         as an OTHER entry does.
 
         Raises:
-            DecodeTextError: If the bytes are not UTF-8.
-            ReadTextError: If ``path`` leads to no regular file in the snapshot.
+            TextDecodeError: If the bytes are not UTF-8.
+            UnrecordedFileError: If ``path`` leads to no regular file in the snapshot.
         """
         real_path = self._resolve(path)
         if real_path is None:
-            raise ReadTextError(path, 'not in the snapshot')
+            raise UnrecordedFileError(path)
         data = self._files.get(real_path)
         if data is None:
-            raise ReadTextError(path, 'not in the snapshot')
+            raise UnrecordedFileError(path)
         return decode_text(path, data)
 
     def entry_kind(self, path: RootRelativePath) -> EntryKind | None:
@@ -225,9 +222,6 @@ class VirtualFileSystem(FileSystem):
             The kind the parent's listing gives the entry, or, for an entry the snapshot recorded outside a
             listing of its parent, the kind ``Snapshot.entries`` gives it. ``None`` for a path the snapshot
             recorded nothing at, and where the parent leads to no directory it knows of.
-
-        Raises:
-            EntryKindError: Never; kept in the contract for the disk implementation.
         """
         if path == ROOT:
             return EntryKind.DIRECTORY
@@ -257,9 +251,6 @@ class VirtualFileSystem(FileSystem):
             dangling or looping link, a file on the way or at the end) and also wherever the chain leaves
             what the snapshot recorded: above the root, an absolute target (one outside the root, since
             ``take_snapshot`` spells every target under it relative), or a directory outside the scope.
-
-        Raises:
-            ResolveDirError: Never; kept in the contract for the disk implementation.
         """
         real_path = self._resolve(path)
         if real_path is None or real_path in self._files:
@@ -273,9 +264,6 @@ class VirtualFileSystem(FileSystem):
             The real file, root-relative, or ``None`` where ``resolve_dir`` lists, and also for a directory and
             for a file whose bytes the snapshot did not record, such as one a link the scan did not follow
             leads to.
-
-        Raises:
-            ResolveFileError: Never; kept in the contract for the disk implementation.
         """
         real_path = self._resolve(path)
         if real_path is None or real_path not in self._files:

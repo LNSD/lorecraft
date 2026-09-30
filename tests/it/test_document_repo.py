@@ -23,7 +23,7 @@ from lorecraft.project.document.repo import (
     DocumentReadError,
     Repository,
 )
-from lorecraft.vfs import DecodeTextError, DiskFileSystem, ListDirError, ReadTextError
+from lorecraft.vfs import DirListError, DiskFileSystem, FileReadError, TextDecodeError
 
 
 @pytest.fixture(scope='function')
@@ -111,7 +111,7 @@ class TestRepositoryListCorpusDirectories:
         locked = locked_docs
 
         #: When
-        with pytest.raises(ListDirError) as exc_info:
+        with pytest.raises(DirListError) as exc_info:
             repository.list_corpus_directories()
 
         #: Then
@@ -234,7 +234,7 @@ class TestRepositoryGetDocument:
 
         #: Then
         assert exc_info.value.ref == ref, 'the error names the document that could not be read'
-        assert isinstance(exc_info.value.source, ReadTextError), 'its source is the failed read'
+        assert isinstance(exc_info.value.source, FileReadError), 'its source is the failed read'
 
     def test_get_document_with_non_utf8_bytes_raises_document_decode_error(
         self, code_dir: Path, repository: Repository
@@ -249,5 +249,5 @@ class TestRepositoryGetDocument:
 
         #: Then
         assert exc_info.value.ref == ref, 'the error names the document that could not be decoded'
-        assert isinstance(exc_info.value.source, DecodeTextError), 'its source is the failed decode'
+        assert isinstance(exc_info.value.source, TextDecodeError), 'its source is the failed decode'
         assert not isinstance(exc_info.value, DocumentReadError), 'a decode failure is a variant of its own'

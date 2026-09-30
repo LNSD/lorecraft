@@ -13,7 +13,7 @@ import pytest
 from lorecraft.core.path import RootRelativePath
 
 from ..snapshot import FileBytes, Link, Listing, Snapshot, VirtualFileSystem
-from ..view import DecodeTextError, DirEntry, EntryKind, FileSystem, ReadTextError
+from ..view import DirEntry, EntryKind, FileSystem, TextDecodeError, UnrecordedFileError
 
 ROOT: Final[RootRelativePath] = RootRelativePath.parse('.')
 
@@ -367,7 +367,7 @@ class TestVirtualFileSystemReadText:
         virtual = VirtualFileSystem(Snapshot.of_files({latin: b'caf\xe9\n'}))
 
         #: When
-        with pytest.raises(DecodeTextError) as exc_info:
+        with pytest.raises(TextDecodeError) as exc_info:
             virtual.read_text(latin)
 
         #: Then
@@ -379,11 +379,11 @@ class TestVirtualFileSystemReadText:
         path = RootRelativePath.parse('docs/code/missing.md')
 
         #: When
-        with pytest.raises(ReadTextError) as exc_info:
+        with pytest.raises(UnrecordedFileError) as exc_info:
             virtual.read_text(path)
 
         #: Then
-        assert type(exc_info.value) is ReadTextError, 'docs/code/missing.md was never recorded, so it is missing'
+        assert type(exc_info.value) is UnrecordedFileError, 'docs/code/missing.md was never recorded, so it is missing'
 
     def test_read_text_with_a_link_to_a_recorded_file_returns_its_text(self) -> None:
         #: Given
@@ -402,11 +402,11 @@ class TestVirtualFileSystemReadText:
         path = RootRelativePath.parse('docs/code/dangling')
 
         #: When
-        with pytest.raises(ReadTextError) as exc_info:
+        with pytest.raises(UnrecordedFileError) as exc_info:
             virtual.read_text(path)
 
         #: Then
-        assert type(exc_info.value) is ReadTextError, (
+        assert type(exc_info.value) is UnrecordedFileError, (
             'dangling leads to a path the snapshot holds no bytes for, so it reads as missing'
         )
 
@@ -446,11 +446,13 @@ class TestVirtualFileSystemReadText:
         path = RootRelativePath.parse('docs/code/pipe')
 
         #: When
-        with pytest.raises(ReadTextError) as exc_info:
+        with pytest.raises(UnrecordedFileError) as exc_info:
             virtual.read_text(path)
 
         #: Then
-        assert type(exc_info.value) is ReadTextError, 'the fifo pipe has no recorded bytes, so it reads as missing'
+        assert type(exc_info.value) is UnrecordedFileError, (
+            'the fifo pipe has no recorded bytes, so it reads as missing'
+        )
 
     def test_read_text_with_a_directory_raises_read_text_error(self) -> None:
         #: Given
@@ -458,11 +460,11 @@ class TestVirtualFileSystemReadText:
         path = RootRelativePath.parse('docs/code/sub')
 
         #: When
-        with pytest.raises(ReadTextError) as exc_info:
+        with pytest.raises(UnrecordedFileError) as exc_info:
             virtual.read_text(path)
 
         #: Then
-        assert type(exc_info.value) is ReadTextError, 'a directory has no bytes, so it reads as a missing file'
+        assert type(exc_info.value) is UnrecordedFileError, 'a directory has no bytes, so it reads as a missing file'
 
 
 @pytest.mark.unit

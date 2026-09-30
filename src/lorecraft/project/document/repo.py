@@ -17,11 +17,12 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX
 from lorecraft.vfs import (
-    DecodeTextError,
+    DirListError,
     EntryKind,
+    FileReadError,
     FileSystem,
-    ListDirError,
-    ReadTextError,
+    TextDecodeError,
+    UnrecordedFileError,
 )
 
 from .ref import DocumentRef
@@ -62,9 +63,9 @@ class CorpusListError(Error):
     """
 
     corpus: CorpusName
-    source: ListDirError
+    source: DirListError
 
-    def __init__(self, corpus: CorpusName, *, source: ListDirError) -> None:
+    def __init__(self, corpus: CorpusName, *, source: DirListError) -> None:
         self.corpus = corpus
         self.source = source
         super().__init__(f'cannot list the documents of corpus {corpus}')
@@ -80,9 +81,9 @@ class DocumentReadError(Error):
     """
 
     ref: DocumentRef
-    source: ReadTextError
+    source: FileReadError | UnrecordedFileError
 
-    def __init__(self, ref: DocumentRef, *, source: ReadTextError) -> None:
+    def __init__(self, ref: DocumentRef, *, source: FileReadError | UnrecordedFileError) -> None:
         self.ref = ref
         self.source = source
         super().__init__(f'cannot read document {ref.path}')
@@ -98,9 +99,9 @@ class DocumentDecodeError(Error):
     """
 
     ref: DocumentRef
-    source: DecodeTextError
+    source: TextDecodeError
 
-    def __init__(self, ref: DocumentRef, *, source: DecodeTextError) -> None:
+    def __init__(self, ref: DocumentRef, *, source: TextDecodeError) -> None:
         self.ref = ref
         self.source = source
         super().__init__(f'document {ref.path} is not UTF-8')
@@ -121,7 +122,7 @@ class Repository:
         a corpus is a regular directory.
 
         Raises:
-            ListDirError: If docs/ cannot be listed.
+            DirListError: If docs/ cannot be listed.
         """
         # A failure to list docs/ is the listing's own, with docs/ as its path: this layer adds nothing to it.
         entries = self._fs.list_dir(DOCS_DIR)
@@ -144,7 +145,7 @@ class Repository:
         corpus_dir = DOCS_DIR / str(corpus)
         try:
             entries = self._fs.list_dir(corpus_dir)
-        except ListDirError as exc:
+        except DirListError as exc:
             raise CorpusListError(corpus, source=exc) from exc
 
         documents: list[DocumentFile] = []
@@ -164,11 +165,10 @@ class Repository:
             DocumentDecodeError: If the file is not UTF-8.
             DocumentReadError: If the file is missing or unreadable.
         """
-        # DecodeTextError is a ReadTextError, so the narrower clause must come first.
         try:
             text = self._fs.read_text(ref.path)
-        except DecodeTextError as exc:
+        except TextDecodeError as exc:
             raise DocumentDecodeError(ref, source=exc) from exc
-        except ReadTextError as exc:
+        except (FileReadError, UnrecordedFileError) as exc:
             raise DocumentReadError(ref, source=exc) from exc
         return Document(ref, text)
