@@ -349,7 +349,7 @@ class TestGovernance:
         foreign_ref = _ref('feat', 'cli-check')
 
         #: When
-        with pytest.raises(KeyError):
+        with pytest.raises(ValueError):
             model.governance(foreign_ref)
 
         #: Then

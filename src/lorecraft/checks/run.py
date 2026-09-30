@@ -13,11 +13,20 @@ skill is never ungoverned. It reports in a shape of its own, a ``SkillCheckRun``
 """
 
 from dataclasses import dataclass
+from typing import assert_never
 
 from lorecraft.project.document import DocumentDecodeError, DocumentRef
 from lorecraft.project.schemas import StructureAspect
 from lorecraft.project.skill import SkillDecodeError, SkillRef
-from lorecraft.project.syntax import FrontmatterNode, LineNumber, ParsedDocument
+from lorecraft.project.syntax import (
+    Frontmatter,
+    FrontmatterNode,
+    InvalidYamlFrontmatter,
+    LineNumber,
+    MissingFrontmatter,
+    NonMappingFrontmatter,
+    ParsedDocument,
+)
 
 from .budget import validate_budget
 from .database import Database
@@ -149,11 +158,16 @@ def run_frontmatter(database: Database, refs: tuple[DocumentRef, ...]) -> CheckR
             reports.append(DocumentReport(ref, governed=False, violations=()))
             continue
         frontmatter = _frontmatter(database, ref)
-        if frontmatter is None:
-            reports.append(DocumentReport(ref, governed=True, violations=(_undecodable('frontmatter'),)))
-            continue
-        result = validate_frontmatter(schemas, frontmatter=frontmatter, filename=ref.filename, corpus=ref.corpus)
-        reports.append(DocumentReport(ref, governed=True, violations=result.violations))
+        match frontmatter:
+            case DocumentDecodeError():
+                reports.append(DocumentReport(ref, governed=True, violations=(_undecodable('frontmatter'),)))
+            case Frontmatter() | MissingFrontmatter() | InvalidYamlFrontmatter() | NonMappingFrontmatter():
+                result = validate_frontmatter(
+                    schemas, frontmatter=frontmatter, filename=ref.filename, corpus=ref.corpus
+                )
+                reports.append(DocumentReport(ref, governed=True, violations=result.violations))
+            case _:
+                assert_never(frontmatter)
     return CheckRun(reports=tuple(reports))
 
 
@@ -205,11 +219,14 @@ def run_structure(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun
             reports.append(DocumentReport(ref, governed=False, violations=()))
             continue
         document = _parse(database, ref)
-        if document is None:
-            reports.append(DocumentReport(ref, governed=True, violations=(_undecodable('structure'),)))
-            continue
-        result = validate_structure(aspects, headings=document.headings)
-        reports.append(DocumentReport(ref, governed=True, violations=result.violations))
+        match document:
+            case DocumentDecodeError():
+                reports.append(DocumentReport(ref, governed=True, violations=(_undecodable('structure'),)))
+            case ParsedDocument():
+                result = validate_structure(aspects, headings=document.headings)
+                reports.append(DocumentReport(ref, governed=True, violations=result.violations))
+            case _:
+                assert_never(document)
     return CheckRun(reports=tuple(reports))
 
 
@@ -263,11 +280,14 @@ def run_budget(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
             reports.append(DocumentReport(ref, governed=False, violations=()))
             continue
         token_count = _tokens(database, ref)
-        if token_count is None:
-            reports.append(DocumentReport(ref, governed=True, violations=(_undecodable('budget'),)))
-            continue
-        result = validate_budget(aspects, token_count=token_count)
-        reports.append(DocumentReport(ref, governed=True, violations=result.violations))
+        match token_count:
+            case DocumentDecodeError():
+                reports.append(DocumentReport(ref, governed=True, violations=(_undecodable('budget'),)))
+            case int():
+                result = validate_budget(aspects, token_count=token_count)
+                reports.append(DocumentReport(ref, governed=True, violations=result.violations))
+            case _:
+                assert_never(token_count)
     return CheckRun(reports=tuple(reports))
 
 
@@ -287,11 +307,14 @@ def run_skills(database: Database, refs: tuple[SkillRef, ...]) -> SkillCheckRun:
     reports: list[SkillReport] = []
     for ref in refs:
         frontmatter = _skill_frontmatter(database, ref)
-        if frontmatter is None:
-            reports.append(SkillReport(ref, violations=(_undecodable_skill(),)))
-            continue
-        result = validate_skill(frontmatter, directory_name=ref.directory.name)
-        reports.append(SkillReport(ref, violations=result.violations))
+        match frontmatter:
+            case SkillDecodeError():
+                reports.append(SkillReport(ref, violations=(_undecodable_skill(),)))
+            case Frontmatter() | MissingFrontmatter() | InvalidYamlFrontmatter() | NonMappingFrontmatter():
+                result = validate_skill(frontmatter, directory_name=ref.directory.name)
+                reports.append(SkillReport(ref, violations=result.violations))
+            case _:
+                assert_never(frontmatter)
     return SkillCheckRun(reports=tuple(reports))
 
 
@@ -304,26 +327,11 @@ def _budgeted(aspects: tuple[StructureAspect, ...]) -> tuple[StructureAspect, ..
     return tuple(budgeted)
 
 
-def _frontmatter(database: Database, ref: DocumentRef) -> FrontmatterNode | None:
-    """The document's frontmatter node, or ``None`` when its bytes are not UTF-8.
+def _frontmatter(database: Database, ref: DocumentRef) -> FrontmatterNode | DocumentDecodeError:
+    """The document's frontmatter node, or the decode failure when its bytes are not UTF-8.
 
     Returns:
-        The frontmatter node. ``None`` is the degraded return ``_parse`` documents, for the same reason.
-
-    Raises:
-        DocumentReadError: If the document is missing from the snapshot; a decode failure is not raised.
-    """
-    try:
-        return database.frontmatter(ref)
-    except DocumentDecodeError:
-        return None
-
-
-def _parse(database: Database, ref: DocumentRef) -> ParsedDocument | None:
-    """The document's parse tree, or ``None`` when its bytes are not UTF-8.
-
-    Returns:
-        The parse tree. ``None`` is the degraded return for bytes that are present but not UTF-8: those are on
+        The frontmatter node, or the decode failure when the document is present but not UTF-8: such bytes are on
         the same side of the line as invalid YAML, since the document is wrong, so the caller reports a finding
         rather than taking the exit-2 path an unreadable file takes.
 
@@ -331,39 +339,60 @@ def _parse(database: Database, ref: DocumentRef) -> ParsedDocument | None:
         DocumentReadError: If the document is missing from the snapshot; a decode failure is not raised.
     """
     try:
-        return database.parse(ref)
-    except DocumentDecodeError:
-        return None
+        return database.frontmatter(ref)
+    except DocumentDecodeError as exc:
+        return exc
 
 
-def _tokens(database: Database, ref: DocumentRef) -> int | None:
-    """The tokens in the document's whole file, or ``None`` when its bytes are not UTF-8.
+def _parse(database: Database, ref: DocumentRef) -> ParsedDocument | DocumentDecodeError:
+    """The document's parse tree, or the decode failure when its bytes are not UTF-8.
 
     Returns:
-        The token count. ``None`` is the degraded return ``_parse`` documents, for the same reason.
+        The parse tree, or the decode failure when the document is present but not UTF-8: such bytes are on the same
+        side of the line as invalid YAML, since the document is wrong, so the caller reports a finding rather than
+        taking the exit-2 path an unreadable file takes.
+
+    Raises:
+        DocumentReadError: If the document is missing from the snapshot; a decode failure is not raised.
+    """
+    try:
+        return database.parse(ref)
+    except DocumentDecodeError as exc:
+        return exc
+
+
+def _tokens(database: Database, ref: DocumentRef) -> int | DocumentDecodeError:
+    """The tokens in the document's whole file, or the decode failure when its bytes are not UTF-8.
+
+    Returns:
+        The token count, or the decode failure when the document is present but not UTF-8: such bytes are on the same
+        side of the line as invalid YAML, since the document is wrong, so the caller reports a finding rather than
+        taking the exit-2 path an unreadable file takes.
 
     Raises:
         DocumentReadError: If the document is missing from the snapshot; a decode failure is not raised.
     """
     try:
         return database.tokens(ref)
-    except DocumentDecodeError:
-        return None
+    except DocumentDecodeError as exc:
+        return exc
 
 
-def _skill_frontmatter(database: Database, ref: SkillRef) -> FrontmatterNode | None:
-    """The skill's frontmatter node, or ``None`` when its ``SKILL.md`` is not UTF-8.
+def _skill_frontmatter(database: Database, ref: SkillRef) -> FrontmatterNode | SkillDecodeError:
+    """The skill's frontmatter node, or the decode failure when its ``SKILL.md`` is not UTF-8.
 
     Returns:
-        The frontmatter node. ``None`` is the degraded return ``_parse`` documents, for the same reason.
+        The frontmatter node, or the decode failure when the ``SKILL.md`` is present but not UTF-8: such bytes are
+        on the same side of the line as invalid YAML, since the skill is wrong, so the caller reports a finding
+        rather than taking the exit-2 path an unreadable file takes.
 
     Raises:
         SkillReadError: If the skill's ``SKILL.md`` is missing from the snapshot; a decode failure is not raised.
     """
     try:
         return database.skill_frontmatter(ref)
-    except SkillDecodeError:
-        return None
+    except SkillDecodeError as exc:
+        return exc
 
 
 def _undecodable(rule_namespace: str) -> Violation:
