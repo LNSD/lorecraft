@@ -4,7 +4,7 @@ from typing import Final
 
 from lorecraft.agents import iter_agents
 from lorecraft.core.error import Error
-from lorecraft.vfs import RootRelativePath, ScanRoot, Snapshot
+from lorecraft.vfs import EntryKind, FileSystem, RootRelativePath, ScanRoot
 
 DOCS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs')
 SPECS_DIR: Final[RootRelativePath] = DOCS_DIR / '__meta__'
@@ -56,8 +56,8 @@ class LinkedLayoutError(Error):
         super().__init__(f'{path} is a symlink, which lorecraft does not follow: {path}/ must be a real directory')
 
 
-def require_real_layout(snapshot: Snapshot) -> None:
-    """Refuse a snapshot in which ``docs/`` or ``docs/__meta__/`` is a symlink.
+def require_real_layout(fs: FileSystem) -> None:
+    """Refuse a view in which ``docs/`` or ``docs/__meta__/`` is a symlink.
 
     Under ``docs/`` a snapshot records a symlink and never reads through it. Behind a linked ``docs/`` or
     ``docs/__meta__/`` it therefore holds no specification, and the model loaded from it has no corpus: a
@@ -66,9 +66,9 @@ def require_real_layout(snapshot: Snapshot) -> None:
 
     Raises:
         LinkedLayoutError: If ``docs/`` is a symlink, or else if ``docs/__meta__/`` is one.
+        EntryKindError: If the view cannot inspect either directory; a view over a snapshot never raises it.
     """
-    linked_paths = {link.path for link in snapshot.links}
-    # `docs/` first: a scan stops at a linked `docs/`, so it never sees what `docs/__meta__/` is.
+    # `docs/` first: a scan stops at a linked `docs/`, so a snapshot never knows what `docs/__meta__/` is.
     for directory in (DOCS_DIR, SPECS_DIR):
-        if directory in linked_paths:
+        if fs.entry_kind(directory) is EntryKind.SYMLINK:
             raise LinkedLayoutError(directory)
