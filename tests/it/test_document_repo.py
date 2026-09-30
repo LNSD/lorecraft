@@ -16,15 +16,14 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.ref import DocumentRef
 from lorecraft.project.document.repo import (
+    CorpusListError,
     Document,
     DocumentDecodeError,
     DocumentFile,
-    GetDocumentError,
-    ListCorpusDirectoriesError,
-    ListDocumentsError,
+    DocumentReadError,
     Repository,
 )
-from lorecraft.vfs import DiskFileSystem
+from lorecraft.vfs import DecodeTextError, DiskFileSystem, ListDirError, ReadTextError
 
 
 @pytest.fixture(scope='function')
@@ -105,18 +104,18 @@ class TestRepositoryListCorpusDirectories:
         assert directories == (), 'a root without docs/ has no corpora rather than failing'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
-    def test_list_corpus_directories_with_an_unreadable_docs_raises_list_corpus_directories_error(
+    def test_list_corpus_directories_with_an_unreadable_docs_raises_list_dir_error(
         self, repository: Repository, locked_docs: Path
     ) -> None:
         #: Given
         locked = locked_docs
 
         #: When
-        with pytest.raises(ListCorpusDirectoriesError) as exc_info:
+        with pytest.raises(ListDirError) as exc_info:
             repository.list_corpus_directories()
 
         #: Then
-        assert locked.name in str(exc_info.value), 'the error names the directory that refused listing'
+        assert str(exc_info.value.path) == locked.name, 'the listing failure passes through, naming docs/'
 
 
 @pytest.mark.it
@@ -195,18 +194,19 @@ class TestRepositoryListDocuments:
         assert documents == (), 'a missing corpus directory lists as nothing rather than failing'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
-    def test_list_documents_with_an_unreadable_corpus_directory_raises_list_documents_error(
+    def test_list_documents_with_an_unreadable_corpus_directory_raises_corpus_list_error(
         self, repository: Repository, locked_code_dir: Path
     ) -> None:
         #: Given
         corpus = CorpusName.parse(locked_code_dir.name)
 
         #: When
-        with pytest.raises(ListDocumentsError) as exc_info:
+        with pytest.raises(CorpusListError) as exc_info:
             repository.list_documents(corpus)
 
         #: Then
-        assert 'docs/code' in str(exc_info.value), 'the error names the root-relative corpus directory'
+        assert exc_info.value.corpus == corpus, 'the error names the corpus being listed'
+        assert str(exc_info.value.source.path) == 'docs/code', 'its source is the listing of the corpus directory'
 
 
 @pytest.mark.it
@@ -222,19 +222,19 @@ class TestRepositoryGetDocument:
         #: Then
         assert document == Document(ref, '---\nname: "logging"\n---\n'), 'the document carries its ref and text'
 
-    def test_get_document_with_a_missing_file_raises_get_document_error(
+    def test_get_document_with_a_missing_file_raises_document_read_error(
         self, code_dir: Path, repository: Repository
     ) -> None:
         #: Given
         ref = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('missing'))
 
         #: When
-        with pytest.raises(GetDocumentError) as exc_info:
+        with pytest.raises(DocumentReadError) as exc_info:
             repository.get_document(ref)
 
         #: Then
         assert exc_info.value.ref == ref, 'the error names the document that could not be read'
-        assert not isinstance(exc_info.value, DocumentDecodeError), 'a missing file is not a decode failure'
+        assert isinstance(exc_info.value.source, ReadTextError), 'its source is the failed read'
 
     def test_get_document_with_non_utf8_bytes_raises_document_decode_error(
         self, code_dir: Path, repository: Repository
@@ -249,4 +249,5 @@ class TestRepositoryGetDocument:
 
         #: Then
         assert exc_info.value.ref == ref, 'the error names the document that could not be decoded'
-        assert isinstance(exc_info.value, GetDocumentError), 'a decode failure is one kind of read failure'
+        assert isinstance(exc_info.value.source, DecodeTextError), 'its source is the failed decode'
+        assert not isinstance(exc_info.value, DocumentReadError), 'a decode failure is a variant of its own'

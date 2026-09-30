@@ -2,12 +2,11 @@
 
 from .ref import DocumentRef
 from .repo import (
+    CorpusListError,
     Document,
     DocumentDecodeError,
     DocumentFile,
-    GetDocumentError,
-    ListCorpusDirectoriesError,
-    ListDocumentsError,
+    DocumentReadError,
     Repository,
 )
 
@@ -16,8 +15,7 @@ __all__ = [
     'Document',
     'DocumentFile',
     'Repository',
-    'ListCorpusDirectoriesError',
-    'ListDocumentsError',
-    'GetDocumentError',
+    'CorpusListError',
+    'DocumentReadError',
     'DocumentDecodeError',
 ]

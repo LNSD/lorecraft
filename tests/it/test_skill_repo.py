@@ -15,16 +15,16 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.skill import (
-    GetSkillError,
-    ListSkillsError,
     Repository,
-    ResolveSkillsDirError,
     Skill,
     SkillDecodeError,
+    SkillDirListError,
     SkillLocation,
+    SkillReadError,
     SkillRef,
+    SkillsDirListError,
 )
-from lorecraft.vfs import DiskFileSystem
+from lorecraft.vfs import DiskFileSystem, ResolveDirError
 
 UNIVERSAL_DIR: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills')
 CLAUDE_DIR: Final[RootRelativePath] = RootRelativePath.parse('.claude/skills')
@@ -152,14 +152,14 @@ class TestRepositoryResolveSkillsDir:
         assert resolved is None, 'a link that leads to no directory is not a skills directory'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
-    def test_resolve_skills_dir_with_an_unsearchable_parent_raises_resolve_skills_dir_error(
+    def test_resolve_skills_dir_with_an_unsearchable_parent_raises_resolve_dir_error(
         self, repository: Repository, locked_agents_dir: Path
     ) -> None:
         #: Given
         locked = locked_agents_dir
 
         #: When
-        with pytest.raises(ResolveSkillsDirError) as exc_info:
+        with pytest.raises(ResolveDirError) as exc_info:
             repository.resolve_skills_dir(UNIVERSAL_DIR)
 
         #: Then
@@ -365,32 +365,32 @@ class TestRepositoryListSkills:
         assert skills == (), 'a missing skills directory has no skills rather than failing'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
-    def test_list_skills_with_an_unreadable_skills_directory_raises_list_skills_error(
+    def test_list_skills_with_an_unreadable_skills_directory_raises_skills_dir_list_error(
         self, repository: Repository, locked_universal_dir: Path
     ) -> None:
         #: Given
         locked = locked_universal_dir
 
         #: When
-        with pytest.raises(ListSkillsError) as exc_info:
+        with pytest.raises(SkillsDirListError) as exc_info:
             repository.list_skills(UNIVERSAL_DIR)
 
         #: Then
-        assert f'.agents/{locked.name}' in str(exc_info.value), 'the error names the directory that refused listing'
+        assert str(exc_info.value.skills_dir) == f'.agents/{locked.name}', 'the error names the skills directory'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
-    def test_list_skills_with_an_unreadable_skill_directory_raises_list_skills_error(
+    def test_list_skills_with_an_unreadable_skill_directory_raises_skill_dir_list_error(
         self, repository: Repository, locked_skill_dir: Path
     ) -> None:
         #: Given
         locked = locked_skill_dir
 
         #: When
-        with pytest.raises(ListSkillsError) as exc_info:
+        with pytest.raises(SkillDirListError) as exc_info:
             repository.list_skills(UNIVERSAL_DIR)
 
         #: Then
-        assert f'skills/{locked.name}' in str(exc_info.value), 'the error names the directory that refused listing'
+        assert str(exc_info.value.directory).endswith(f'skills/{locked.name}'), 'the error names the skill directory'
 
 
 @pytest.mark.it
@@ -437,7 +437,7 @@ class TestRepositoryGetSkill:
         #: Then
         assert exc_info.value.ref == ref, 'the error names the skill that is not UTF-8'
 
-    def test_get_skill_with_no_skill_file_raises_get_skill_error(
+    def test_get_skill_with_no_skill_file_raises_skill_read_error(
         self, repository: Repository, universal_dir: Path
     ) -> None:
         #: Given
@@ -445,8 +445,8 @@ class TestRepositoryGetSkill:
         ref = _ref('.agents/skills/review')
 
         #: When
-        with pytest.raises(GetSkillError) as exc_info:
+        with pytest.raises(SkillReadError) as exc_info:
             repository.get_skill(ref)
 
         #: Then
-        assert type(exc_info.value) is GetSkillError, 'a missing SKILL.md is unreadable, not undecodable'
+        assert type(exc_info.value) is SkillReadError, 'a missing SKILL.md is unreadable, not undecodable'

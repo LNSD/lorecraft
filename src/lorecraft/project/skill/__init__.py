@@ -6,7 +6,16 @@ carries its name; and its form is the Agent Skills specification's, not a corpus
 """
 
 from .ref import SkillLocation, SkillRef
-from .repo import GetSkillError, ListSkillsError, Repository, ResolveSkillsDirError, Skill, SkillDecodeError
+from .repo import (
+    Repository,
+    Skill,
+    SkillDecodeError,
+    SkillDirListError,
+    SkillEntryResolveError,
+    SkillFileResolveError,
+    SkillReadError,
+    SkillsDirListError,
+)
 from .skills_dir import SkillsDir
 
 __all__ = [
@@ -15,8 +24,10 @@ __all__ = [
     'SkillsDir',
     'Skill',
     'Repository',
-    'ResolveSkillsDirError',
-    'ListSkillsError',
-    'GetSkillError',
+    'SkillsDirListError',
+    'SkillEntryResolveError',
+    'SkillDirListError',
+    'SkillFileResolveError',
+    'SkillReadError',
     'SkillDecodeError',
 ]
