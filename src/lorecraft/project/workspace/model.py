@@ -19,7 +19,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.ref import DocumentRef
 from lorecraft.project.schemas.name import SchemaName
 from lorecraft.project.schemas.structure import FrontmatterSchema, StructureAspect
-from lorecraft.project.skill.ref import SkillRef
+from lorecraft.project.skill.ref import SkillLocation, SkillRef
 from lorecraft.project.skill.skills_dir import SkillsDir
 from lorecraft.vfs import RootRelativePath
 
@@ -184,14 +184,16 @@ class WorkspaceModel:
         skills_dirs: Every project skills directory an agent reads that the repository has, one record per
             agent and directory, sorted by agent then path. Two agents reading one real directory are two
             records with the same ``resolves_to``.
-        skills: Every skill directly inside the real directories those resolve to, each once, sorted by
-            directory; ``skill_agents`` says which agents read one. A skill belongs to no corpus, so no spec
-            governs it and ``documents()`` does not list it.
+        skill_locations: The location of every skill directly inside the real directories those resolve to,
+            each once, sorted by directory; ``skills()`` lists the refs alone, and ``skill_agents`` says which
+            agents read one. A skill belongs to no corpus, so no spec governs it and ``documents()`` does not
+            list it. The locations, not the refs, record where each link leads, so two models differ when a
+            link is retargeted even though every ref is the same.
     """
 
     corpora: tuple[Corpus, ...]
     skills_dirs: tuple[SkillsDir, ...]
-    skills: tuple[SkillRef, ...]
+    skill_locations: tuple[SkillLocation, ...]
 
     def corpus(self, name: CorpusName) -> Corpus | None:
         """The corpus with this name, or None when the model has none."""
@@ -213,6 +215,29 @@ class WorkspaceModel:
             if ref.path == path:
                 return ref
         return None
+
+    def skills(self) -> tuple[SkillRef, ...]:
+        """Every skill's ref, in directory order."""
+        refs: list[SkillRef] = []
+        for location in self.skill_locations:
+            refs.append(location.ref)
+        return tuple(refs)
+
+    def locate_skills(self, path: RootRelativePath) -> tuple[SkillRef, ...]:
+        """The skills whose files are at this real path: the directory they lead to, or their ``SKILL.md``.
+
+        Args:
+            path: A real path, root-relative, with no symlink on the way to it.
+
+        Returns:
+            Every such skill, in the model's order, or ``()`` when none is there. Two entries that lead to one
+            directory are both returned.
+        """
+        refs: list[SkillRef] = []
+        for location in self.skill_locations:
+            if path == location.resolves_to or path == location.file_resolves_to:
+                refs.append(location.ref)
+        return tuple(refs)
 
     def skill_agents(self, ref: SkillRef) -> tuple[AgentName, ...]:
         """The agents that read a skill: those with a skills directory that leads to the one holding it.

@@ -4,6 +4,7 @@ Nothing here touches the disk: every spec, corpus and ref is constructed directl
 structure specification paths standing in for the files the loader would have read.
 """
 
+from dataclasses import replace
 from typing import Final
 
 import pytest
@@ -19,7 +20,7 @@ from lorecraft.project.schemas import (
     parse_schema_name,
     schema_name_stem,
 )
-from lorecraft.project.skill import SkillRef, SkillsDir
+from lorecraft.project.skill import SkillLocation, SkillRef, SkillsDir
 from lorecraft.vfs import RootRelativePath
 
 from ..model import Corpus, Governance, Spec, WorkspaceModel, namespace_order_key
@@ -68,7 +69,7 @@ def _code_model(specs: tuple[Spec, ...], filenames: tuple[str, ...]) -> Workspac
         namespace_specs=specs[1:],
         documents=tuple(_ref('code', filename) for filename in filenames),
     )
-    return WorkspaceModel(corpora=(corpus,), skills_dirs=(), skills=())
+    return WorkspaceModel(corpora=(corpus,), skills_dirs=(), skill_locations=())
 
 
 @pytest.mark.unit
@@ -519,12 +520,37 @@ def two_corpora_model() -> WorkspaceModel:
         namespace_specs=(),
         documents=(_ref('feat', 'cli-check'),),
     )
-    return WorkspaceModel(corpora=(code, feat), skills_dirs=(), skills=())
+    return WorkspaceModel(corpora=(code, feat), skills_dirs=(), skill_locations=())
+
+
+def _regular_skill(directory: str) -> SkillLocation:
+    """The location of a skill whose directory and ``SKILL.md`` are no links."""
+    path = RootRelativePath.parse(directory)
+    return SkillLocation(SkillRef(path), resolves_to=path, file_resolves_to=path / 'SKILL.md')
+
+
+AUDIT: Final[SkillLocation] = SkillLocation(
+    SkillRef(RootRelativePath.parse('.agents/skills/audit')),
+    resolves_to=RootRelativePath.parse('skills/audit'),
+    file_resolves_to=RootRelativePath.parse('shared/audit.md'),
+)
+"""A skill linked to ``skills/audit/``, whose ``SKILL.md`` is a link to ``shared/audit.md``."""
+
+REVIEW: Final[SkillLocation] = _regular_skill('.agents/skills/review')
+"""A skill in a regular directory."""
+
+REVIEW_ALIAS: Final[SkillLocation] = SkillLocation(
+    SkillRef(RootRelativePath.parse('.agents/skills/reviewer')),
+    resolves_to=RootRelativePath.parse('.agents/skills/review'),
+    file_resolves_to=RootRelativePath.parse('.agents/skills/review/SKILL.md'),
+)
+"""A second entry linked to the ``review`` skill's directory."""
 
 
 @pytest.fixture(scope='function')
 def skills_model() -> WorkspaceModel:
-    """No corpus; two agents reading ``.agents/skills``, one of them through the ``.claude/skills`` link."""
+    """No corpus; two agents reading ``.agents/skills``, one of them through the ``.claude/skills`` link, and
+    the three skills above in it."""
     universal = RootRelativePath.parse('.agents/skills')
     return WorkspaceModel(
         corpora=(),
@@ -534,7 +560,7 @@ def skills_model() -> WorkspaceModel:
             ),
             SkillsDir(agent=AgentName('codex'), path=universal, resolves_to=universal),
         ),
-        skills=(SkillRef(RootRelativePath.parse('.agents/skills/review')),),
+        skill_locations=(AUDIT, REVIEW, REVIEW_ALIAS),
     )
 
 
@@ -594,11 +620,86 @@ class TestWorkspaceModel:
         #: Then
         assert ref is None, 'a filename listed under another corpus does not match'
 
+    def test_skills_with_three_skills_returns_their_refs_in_directory_order(self, skills_model: WorkspaceModel) -> None:
+        #: Given
+        model = skills_model
+
+        #: When
+        refs = model.skills()
+
+        #: Then
+        assert refs == (AUDIT.ref, REVIEW.ref, REVIEW_ALIAS.ref), 'one ref per location, in the stored order'
+
+    def test_eq_with_a_skill_link_retargeted_under_the_same_ref_returns_false(
+        self, skills_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        retargeted = SkillLocation(
+            AUDIT.ref,
+            resolves_to=RootRelativePath.parse('skills/review'),
+            file_resolves_to=RootRelativePath.parse('skills/review/SKILL.md'),
+        )
+        other = replace(skills_model, skill_locations=(retargeted, REVIEW, REVIEW_ALIAS))
+
+        #: When
+        equal = other == skills_model
+
+        #: Then
+        assert equal is False, 'the skill keeps its ref, and the model still changes with where its link leads'
+
+    def test_locate_skills_with_the_directory_of_a_regular_skill_returns_every_entry_there(
+        self, skills_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        path = RootRelativePath.parse('.agents/skills/review')
+
+        #: When
+        refs = skills_model.locate_skills(path)
+
+        #: Then
+        assert refs == (REVIEW.ref, REVIEW_ALIAS.ref), (
+            'the skill in the directory and the entry linked to it are both there, in the model order'
+        )
+
+    def test_locate_skills_with_the_real_directory_of_a_linked_skill_returns_its_ref(
+        self, skills_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        path = RootRelativePath.parse('skills/audit')
+
+        #: When
+        refs = skills_model.locate_skills(path)
+
+        #: Then
+        assert refs == (AUDIT.ref,), 'a linked skill is where its files live'
+
+    def test_locate_skills_with_the_file_a_linked_skill_file_leads_to_returns_its_ref(
+        self, skills_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        path = RootRelativePath.parse('shared/audit.md')
+
+        #: When
+        refs = skills_model.locate_skills(path)
+
+        #: Then
+        assert refs == (AUDIT.ref,), 'a skill whose SKILL.md is a link is at the file the link leads to'
+
+    def test_locate_skills_with_the_entry_of_a_linked_skill_returns_empty(self, skills_model: WorkspaceModel) -> None:
+        #: Given
+        path = RootRelativePath.parse('.agents/skills/audit')
+
+        #: When
+        refs = skills_model.locate_skills(path)
+
+        #: Then
+        assert refs == (), 'the entry is a link, not a real path, so no skill is at it'
+
     def test_skill_agents_with_two_directories_leading_to_the_skill_returns_both_agents(
         self, skills_model: WorkspaceModel
     ) -> None:
         #: Given
-        ref = SkillRef(RootRelativePath.parse('.agents/skills/review'))
+        ref = REVIEW.ref
 
         #: When
         agents = skills_model.skill_agents(ref)

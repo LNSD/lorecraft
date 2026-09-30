@@ -1,14 +1,17 @@
 """Explicit document and skill selection against a loaded model over a real tree.
 
-The model is loaded from ``tmp_path`` through the disk view, and every argument is a real path,
-so ``select_document`` and ``select_skills_at`` resolve it the way the command line does. Each rule of the
+Documents are selected against a model loaded from ``tmp_path`` through the disk view, and skills against a
+database over a snapshot of it, and every argument is a real path, so ``select_document`` and
+``select_skills_at`` resolve it the way the command line does. Each rule of the
 selection order has one test asserting the reason it produces, never the message.
 """
 
 from pathlib import Path
+from typing import Final
 
 import pytest
 
+from lorecraft.checks import Database
 from lorecraft.cli.select import (
     DocumentPathError,
     DocumentPathProblem,
@@ -20,9 +23,10 @@ from lorecraft.cli.select import (
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName, CorpusNameError
 from lorecraft.project.document import DocumentRef
+from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.workspace import WorkspaceModel, load_model
-from lorecraft.vfs import DiskFileSystem, RootRelativePath
+from lorecraft.vfs import DiskFileSystem, RootRelativePath, take_snapshot
 
 
 def _write(root: Path, relative: str, text: str = '') -> Path:
@@ -227,100 +231,213 @@ class TestSelectDocument:
         assert exc_info.value.reason is DocumentPathProblem.NOT_LISTED, 'the model is a snapshot'
 
 
-def _skill(directory: str) -> SkillRef:
-    return SkillRef(RootRelativePath.parse(directory))
+AUDIT: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/audit'))
+COMMIT: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/commit'))
+LINT: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/lint'))
+REVIEW: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/review'))
 
 
 @pytest.fixture(scope='function')
-def skills_model(tmp_path: Path) -> WorkspaceModel:
-    """A model over ``.agents/skills`` holding ``commit``, ``review`` linked to ``skills/review/``, and
-    ``audit`` linked to ``commit``; ``.claude/skills`` links to the directory, and ``drafts/`` is no skill."""
+def skills_database(tmp_path: Path) -> Database:
+    """A database over a snapshot of ``.agents/skills`` holding ``commit``, ``review`` linked to
+    ``skills/review/``, ``audit`` linked to ``commit``, and ``lint``, whose ``SKILL.md`` links to
+    ``shared/LINT.md``; ``.claude/skills`` links to the directory, and ``drafts/`` is no skill."""
     _write(tmp_path, '.agents/skills/commit/SKILL.md')
     _write(tmp_path, '.agents/skills/drafts/README.md')
     _write(tmp_path, 'skills/review/SKILL.md')
+    _write(tmp_path, 'shared/LINT.md')
+    (tmp_path / '.agents' / 'skills' / 'lint').mkdir()
+    (tmp_path / '.agents' / 'skills' / 'lint' / 'SKILL.md').symlink_to('../../../shared/LINT.md')
     (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
     (tmp_path / '.agents' / 'skills' / 'audit').symlink_to('commit')
     (tmp_path / '.claude').mkdir()
     (tmp_path / '.claude' / 'skills').symlink_to('../.agents/skills')
-    return load_model(DiskFileSystem(tmp_path))
+    return Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
 
 
 @pytest.mark.it
 class TestSelectSkillsAt:
     def test_select_skills_at_with_a_linked_skill_directory_returns_its_ref(
-        self, tmp_path: Path, skills_model: WorkspaceModel
+        self, tmp_path: Path, skills_database: Database
     ) -> None:
         #: Given
         argument = tmp_path / '.agents' / 'skills' / 'review'
 
         #: When
-        refs = select_skills_at(skills_model, tmp_path, argument)
+        refs = select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert refs == (_skill('.agents/skills/review'),), 'the argument maps onto the ref the model lists'
+        assert refs == (REVIEW,), 'the argument maps onto the ref the model lists'
 
     def test_select_skills_at_with_the_real_directory_of_a_linked_skill_returns_its_ref(
-        self, tmp_path: Path, skills_model: WorkspaceModel
+        self, tmp_path: Path, skills_database: Database
     ) -> None:
         #: Given
         argument = tmp_path / 'skills' / 'review'
 
         #: When
-        refs = select_skills_at(skills_model, tmp_path, argument)
+        refs = select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert refs == (_skill('.agents/skills/review'),), (
-            'a skill kept outside the skills directories is named by where its files live too'
-        )
+        assert refs == (REVIEW,), 'a skill kept outside the skills directories is named by where its files live too'
 
     def test_select_skills_at_with_a_skill_file_behind_a_linked_skills_directory_returns_its_ref(
-        self, tmp_path: Path, skills_model: WorkspaceModel
+        self, tmp_path: Path, skills_database: Database
     ) -> None:
         #: Given
         argument = tmp_path / '.claude' / 'skills' / 'review' / 'SKILL.md'
 
         #: When
-        refs = select_skills_at(skills_model, tmp_path, argument)
+        refs = select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert refs == (_skill('.agents/skills/review'),), 'a skill is named by its SKILL.md, through any link'
+        assert refs == (REVIEW,), 'a skill is named by its SKILL.md, through any link'
 
     def test_select_skills_at_with_a_directory_two_entries_lead_to_returns_both_refs(
-        self, tmp_path: Path, skills_model: WorkspaceModel
+        self, tmp_path: Path, skills_database: Database
     ) -> None:
         #: Given
         argument = tmp_path / '.agents' / 'skills' / 'commit'
 
         #: When
-        refs = select_skills_at(skills_model, tmp_path, argument)
+        refs = select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert refs == (_skill('.agents/skills/audit'), _skill('.agents/skills/commit')), (
+        assert refs == (AUDIT, COMMIT), (
             'every skill the model lists at the named directory is selected, in the model order'
         )
 
+    def test_select_skills_at_with_the_file_a_linked_skill_file_leads_to_returns_its_ref(
+        self, tmp_path: Path, skills_database: Database
+    ) -> None:
+        #: Given
+        argument = tmp_path / 'shared' / 'LINT.md'
+
+        #: When
+        refs = select_skills_at(skills_database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert refs == (LINT,), 'a skill whose SKILL.md is a link is named by the file the link leads to too'
+
+    def test_select_skills_at_with_a_skill_file_that_is_a_link_returns_its_ref(
+        self, tmp_path: Path, skills_database: Database
+    ) -> None:
+        #: Given
+        argument = tmp_path / '.agents' / 'skills' / 'lint' / 'SKILL.md'
+
+        #: When
+        refs = select_skills_at(skills_database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert refs == (LINT,), 'the linked SKILL.md resolves to the file the model records for the skill'
+
+    def test_select_skills_at_with_a_path_outside_the_root_raises_not_listed(
+        self, tmp_path: Path, skills_database: Database, tmp_path_factory: pytest.TempPathFactory
+    ) -> None:
+        #: Given
+        argument = tmp_path_factory.mktemp('outside')
+
+        #: When
+        with pytest.raises(SkillPathError) as exc_info:
+            select_skills_at(skills_database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert exc_info.value.reason is SkillPathProblem.NOT_LISTED, 'no skill the model lists is outside the root'
+
+    def test_select_skills_at_with_a_root_reached_through_a_link_above_it_returns_its_ref(
+        self, tmp_path: Path, skills_database: Database, tmp_path_factory: pytest.TempPathFactory
+    ) -> None:
+        #: Given
+        link = tmp_path_factory.mktemp('links') / 'workspace'
+        link.symlink_to(tmp_path)
+        argument = link / '.agents' / 'skills' / 'commit'
+
+        #: When
+        refs = select_skills_at(skills_database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert refs == (AUDIT, COMMIT), 'a link above the root is followed on disk, where the snapshot records nothing'
+
+    def test_select_skills_at_through_a_link_above_the_root_and_one_added_under_it_raises_not_listed(
+        self, tmp_path: Path, skills_database: Database, tmp_path_factory: pytest.TempPathFactory
+    ) -> None:
+        #: Given
+        link = tmp_path_factory.mktemp('links') / 'workspace'
+        link.symlink_to(tmp_path)
+        (tmp_path / 'self').symlink_to('.')
+        argument = link / 'self' / '.agents' / 'skills' / 'commit'
+
+        #: When
+        with pytest.raises(SkillPathError) as exc_info:
+            select_skills_at(skills_database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert exc_info.value.reason is SkillPathProblem.NOT_LISTED, (
+            'only the link above the root is followed on disk; self, added after the snapshot, leads nowhere'
+        )
+
     def test_select_skills_at_with_a_directory_that_is_no_skill_raises_not_listed(
-        self, tmp_path: Path, skills_model: WorkspaceModel
+        self, tmp_path: Path, skills_database: Database
     ) -> None:
         #: Given
         argument = tmp_path / '.agents' / 'skills' / 'drafts'
 
         #: When
         with pytest.raises(SkillPathError) as exc_info:
-            select_skills_at(skills_model, tmp_path, argument)
+            select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
         assert exc_info.value.reason is SkillPathProblem.NOT_LISTED, 'a directory with no SKILL.md is not a skill'
 
-    def test_select_skills_at_with_a_missing_path_raises_unreadable(
-        self, tmp_path: Path, skills_model: WorkspaceModel
+    def test_select_skills_at_with_a_missing_path_raises_not_listed(
+        self, tmp_path: Path, skills_database: Database
     ) -> None:
         #: Given
         argument = tmp_path / '.agents' / 'skills' / 'missing'
 
         #: When
         with pytest.raises(SkillPathError) as exc_info:
-            select_skills_at(skills_model, tmp_path, argument)
+            select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert exc_info.value.reason is SkillPathProblem.UNREADABLE, 'a path that does not exist cannot be resolved'
+        assert exc_info.value.reason is SkillPathProblem.NOT_LISTED, 'the snapshot holds nothing at the path'
+
+    def test_select_skills_at_with_a_relative_argument_resolves_it_from_the_working_directory(
+        self, tmp_path: Path, skills_database: Database
+    ) -> None:
+        #: Given
+        working_directory = tmp_path / '.agents' / 'skills'
+        argument = Path('../../skills/review')
+
+        #: When
+        refs = select_skills_at(skills_database, tmp_path, working_directory, argument)
+
+        #: Then
+        assert refs == (REVIEW,), 'a relative argument is spelled from the working directory, `..` included'
+
+    def test_select_skills_at_with_a_link_removed_after_the_snapshot_returns_the_ref_the_snapshot_saw(
+        self, tmp_path: Path, skills_database: Database
+    ) -> None:
+        #: Given
+        (tmp_path / '.agents' / 'skills' / 'review').unlink()
+        argument = tmp_path / '.agents' / 'skills' / 'review'
+
+        #: When
+        refs = select_skills_at(skills_database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert refs == (REVIEW,), 'the argument is resolved through the snapshot, not the disk'
+
+    def test_select_skills_at_with_a_link_added_after_the_snapshot_raises_not_listed(
+        self, tmp_path: Path, skills_database: Database
+    ) -> None:
+        #: Given
+        (tmp_path / '.agents' / 'skills' / 'lint-alias').symlink_to('lint')
+        argument = tmp_path / '.agents' / 'skills' / 'lint-alias'
+
+        #: When
+        with pytest.raises(SkillPathError) as exc_info:
+            select_skills_at(skills_database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert exc_info.value.reason is SkillPathProblem.NOT_LISTED, 'a link the snapshot never saw leads nowhere'

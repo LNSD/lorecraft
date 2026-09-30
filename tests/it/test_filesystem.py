@@ -29,6 +29,7 @@ from lorecraft.vfs import (
     Listing,
     ReadTextError,
     ResolveDirError,
+    ResolveFileError,
     RootRelativePath,
     ScanRoot,
     Snapshot,
@@ -567,6 +568,139 @@ class TestDiskFileSystemResolveDir:
 
         #: When
         resolved = filesystem.resolve_dir(RootRelativePath.parse('link'))
+
+        #: Then
+        assert resolved is None, 'a chain leading outside the root never fails, even where the lookup is refused'
+
+
+@pytest.mark.it
+class TestDiskFileSystemResolveFile:
+    def test_resolve_file_with_a_regular_file_returns_itself(self, tmp_path: Path) -> None:
+        #: Given
+        (tmp_path / 'notes.md').write_text('', encoding='utf-8')
+        filesystem = DiskFileSystem(tmp_path)
+
+        #: When
+        resolved = filesystem.resolve_file(RootRelativePath.parse('notes.md'))
+
+        #: Then
+        assert resolved == RootRelativePath.parse('notes.md'), 'a file with no link in its path resolves to itself'
+
+    def test_resolve_file_with_a_link_to_a_file_returns_the_target(self, tmp_path: Path) -> None:
+        #: Given
+        (tmp_path / 'shared').mkdir()
+        (tmp_path / 'shared' / 'REVIEW.md').write_text('', encoding='utf-8')
+        (tmp_path / 'review').mkdir()
+        (tmp_path / 'review' / 'SKILL.md').symlink_to('../shared/REVIEW.md')
+        filesystem = DiskFileSystem(tmp_path)
+
+        #: When
+        resolved = filesystem.resolve_file(RootRelativePath.parse('review/SKILL.md'))
+
+        #: Then
+        assert resolved == RootRelativePath.parse('shared/REVIEW.md'), (
+            'a link to a file resolves to the file it names, whatever that file is called'
+        )
+
+    def test_resolve_file_through_a_linked_parent_returns_the_real_file(self, tmp_path: Path) -> None:
+        #: Given
+        (tmp_path / '.agents' / 'skills' / 'review').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').write_text('', encoding='utf-8')
+        (tmp_path / '.claude').symlink_to('.agents')
+        filesystem = DiskFileSystem(tmp_path)
+
+        #: When
+        resolved = filesystem.resolve_file(RootRelativePath.parse('.claude/skills/review/SKILL.md'))
+
+        #: Then
+        assert resolved == RootRelativePath.parse('.agents/skills/review/SKILL.md'), (
+            'a link on a parent component is followed too'
+        )
+
+    def test_resolve_file_with_a_directory_returns_none(self, tmp_path: Path) -> None:
+        #: Given
+        (tmp_path / 'docs').mkdir()
+        filesystem = DiskFileSystem(tmp_path)
+
+        #: When
+        resolved = filesystem.resolve_file(RootRelativePath.parse('docs'))
+
+        #: Then
+        assert resolved is None, 'a directory is not a file'
+
+    def test_resolve_file_with_a_dangling_link_returns_none(self, tmp_path: Path) -> None:
+        #: Given
+        (tmp_path / 'link').symlink_to('missing.md')
+        filesystem = DiskFileSystem(tmp_path)
+
+        #: When
+        resolved = filesystem.resolve_file(RootRelativePath.parse('link'))
+
+        #: Then
+        assert resolved is None, 'a link to nothing leads to no file'
+
+    def test_resolve_file_with_a_link_loop_returns_none(self, tmp_path: Path) -> None:
+        #: Given
+        (tmp_path / 'first').symlink_to('second')
+        (tmp_path / 'second').symlink_to('first')
+        filesystem = DiskFileSystem(tmp_path)
+
+        #: When
+        resolved = filesystem.resolve_file(RootRelativePath.parse('first'))
+
+        #: Then
+        assert resolved is None, 'a looping link leads nowhere, like a dangling one'
+
+    def test_resolve_file_with_a_missing_path_returns_none(self, tmp_path: Path) -> None:
+        #: Given
+        filesystem = DiskFileSystem(tmp_path)
+
+        #: When
+        resolved = filesystem.resolve_file(RootRelativePath.parse('missing.md'))
+
+        #: Then
+        assert resolved is None, 'a missing path resolves to nothing rather than failing'
+
+    def test_resolve_file_with_a_link_outside_the_root_returns_none(
+        self, tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
+    ) -> None:
+        #: Given
+        outside = tmp_path_factory.mktemp('outside') / 'notes.md'
+        outside.write_text('', encoding='utf-8')
+        (tmp_path / 'link').symlink_to(outside)
+        filesystem = DiskFileSystem(tmp_path)
+
+        #: When
+        resolved = filesystem.resolve_file(RootRelativePath.parse('link'))
+
+        #: Then
+        assert resolved is None, 'a file outside the root has no root-relative spelling'
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
+    def test_resolve_file_under_an_unreadable_directory_raises_resolve_file_error(
+        self, tmp_path: Path, unreadable_dir: Path
+    ) -> None:
+        #: Given
+        filesystem = DiskFileSystem(tmp_path)
+        inside_locked = RootRelativePath.parse(unreadable_dir.name) / 'SKILL.md'
+
+        #: When
+        with pytest.raises(ResolveFileError) as exc_info:
+            filesystem.resolve_file(inside_locked)
+
+        #: Then
+        assert exc_info.value.path == inside_locked, 'the error names the root-relative path'
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
+    def test_resolve_file_with_a_link_into_an_unreadable_directory_outside_the_root_returns_none(
+        self, tmp_path: Path, unreadable_outside_dir: Path
+    ) -> None:
+        #: Given
+        (tmp_path / 'link').symlink_to(unreadable_outside_dir / 'SKILL.md')
+        filesystem = DiskFileSystem(tmp_path)
+
+        #: When
+        resolved = filesystem.resolve_file(RootRelativePath.parse('link'))
 
         #: Then
         assert resolved is None, 'a chain leading outside the root never fails, even where the lookup is refused'
@@ -1316,6 +1450,44 @@ class TestVirtualFileSystemMatchesDisk:
 
         #: Then
         assert virtual_answer == disk_answer, 'reading the missing docs/missing.md fails the same over the snapshot'
+
+    # resolve_file: a skill file, one reached through a linked skill entry, and a directory.
+
+    def test_resolve_file_over_a_snapshot_with_a_skill_file_agrees_with_disk(self, parity_tree: Path) -> None:
+        #: Given
+        disk = DiskFileSystem(parity_tree)
+        virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
+        path = '.agents/skills/alpha/SKILL.md'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.resolve_file, virtual.resolve_file, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'the file SKILL.md resolves to itself on both'
+
+    def test_resolve_file_over_a_snapshot_through_a_skill_link_agrees_with_disk(self, parity_tree: Path) -> None:
+        #: Given
+        disk = DiskFileSystem(parity_tree)
+        virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
+        path = '.agents/skills/beta/SKILL.md'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.resolve_file, virtual.resolve_file, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'the SKILL.md behind the link beta is the one in alpha on both'
+
+    def test_resolve_file_over_a_snapshot_with_a_skill_directory_agrees_with_disk(self, parity_tree: Path) -> None:
+        #: Given
+        disk = DiskFileSystem(parity_tree)
+        virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
+        path = '.agents/skills/alpha'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.resolve_file, virtual.resolve_file, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'the directory alpha is no file on either'
 
     # resolve_dir: every entry and listing, plus the chains that run through the recorded links. Three listings
     # are also directory entries, so their paths are checked twice, once as each.

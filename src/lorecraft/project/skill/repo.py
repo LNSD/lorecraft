@@ -8,7 +8,9 @@ is which skills directories to look in, which the agents state.
 A skill is ``<skills directory>/<skill name>/SKILL.md`` and nothing else. Symlinks are followed here, unlike
 under ``docs/``: an agent's skills directory is commonly a link to another one, a skill entry a link to where
 the skill's files live, and a ``SKILL.md`` a link to where its text lives. A skill is still named where it is
-listed, under the real skills directory: the place a link leads to is not a skill of its own.
+listed, under the real skills directory: the place a link leads to is not a skill of its own. Where each link
+leads is recorded beside the ref, in its location, so what a skill is named by and where its files live are both
+known.
 
 Nothing here logs: the command that loads the model catches every ``Error`` that escapes it and reports it,
 so every handler below re-raises without logging.
@@ -25,10 +27,11 @@ from lorecraft.vfs import (
     ListDirError,
     ReadTextError,
     ResolveDirError,
+    ResolveFileError,
     RootRelativePath,
 )
 
-from .ref import SkillRef
+from .ref import SkillLocation, SkillRef
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,16 +96,17 @@ class Repository:
         except ResolveDirError as exc:
             raise ResolveSkillsDirError(f'cannot resolve skills directory {skills_dir}: {exc.detail}') from exc
 
-    def list_skills(self, skills_dir: RootRelativePath) -> tuple[SkillRef, ...]:
-        """Every skill directly inside one skills directory, sorted by name.
+    def list_skills(self, skills_dir: RootRelativePath) -> tuple[SkillLocation, ...]:
+        """The location of every skill directly inside one skills directory, sorted by name.
 
         A skill is an entry that is, or leads to, a directory under the root holding a ``SKILL.md`` that is,
-        or leads to, a regular file. The ref names the entry, ``<skills_dir>/<entry name>``, whether or not
-        it is a symlink, so two entries leading to one directory are two skills, as an agent sees them.
+        or leads to, a regular file under the root. The ref names the entry, ``<skills_dir>/<entry name>``,
+        whether or not it is a symlink, so two entries leading to one directory are two skills, as an agent
+        sees them; its location records the real directory and the real ``SKILL.md`` each leads to.
 
         Left out silently: a file beside the skills, an entry whose link dangles, loops or leads outside the
         root, and a directory with no ``SKILL.md`` or with one that is a directory or a link leading to no
-        file. A missing skills directory lists as nothing.
+        file under the root. A missing skills directory lists as nothing.
 
         Args:
             skills_dir: A real skills directory, as ``resolve_skills_dir`` returns it: a link is not followed
@@ -117,8 +121,8 @@ class Repository:
         except ListDirError as exc:
             raise ListSkillsError(f'cannot list skills in {skills_dir}: {exc.detail}') from exc
 
-        # The seam lists entries in name order, so the refs come out sorted.
-        refs: list[SkillRef] = []
+        # The seam lists entries in name order, so the locations come out sorted.
+        locations: list[SkillLocation] = []
         for entry in entries:
             directory = skills_dir / entry.name
             if entry.kind is EntryKind.DIRECTORY:
@@ -128,9 +132,14 @@ class Repository:
                 files_directory = self._resolve_entry(directory)
             else:
                 files_directory = None
-            if files_directory is not None and self._has_skill_file(files_directory):
-                refs.append(SkillRef(directory))
-        return tuple(refs)
+            if files_directory is None:
+                continue
+            skill_file = self._skill_file(files_directory)
+            if skill_file is not None:
+                locations.append(
+                    SkillLocation(SkillRef(directory), resolves_to=files_directory, file_resolves_to=skill_file)
+                )
+        return tuple(locations)
 
     def get_skill(self, ref: SkillRef) -> Skill:
         """Read one skill's ``SKILL.md``, through the link its entry may be.
@@ -159,38 +168,33 @@ class Repository:
         except ResolveDirError as exc:
             raise ListSkillsError(f'cannot resolve skill entry {entry}: {exc.detail}') from exc
 
-    def _has_skill_file(self, directory: RootRelativePath) -> bool:
-        """True when ``directory`` holds a ``SKILL.md`` that is a regular file, or a symlink leading to one; a
-        directory of that name does not count.
+    def _skill_file(self, directory: RootRelativePath) -> RootRelativePath | None:
+        """The real file of the ``SKILL.md`` in ``directory``, or ``None`` when it holds none.
+
+        A ``SKILL.md`` that is a regular file is its own real file. One that is a symlink counts when it leads
+        to a regular file under the root, and that file is its real one; a directory of that name counts for
+        nothing.
+
+        Args:
+            directory: A real directory, so a ``SKILL.md`` listed in it sits at a real path.
 
         Raises:
-            ListSkillsError: If the directory cannot be listed.
+            ListSkillsError: If the directory cannot be listed, or a linked ``SKILL.md`` cannot be resolved.
         """
         try:
             entries = self._fs.list_dir(directory)
         except ListDirError as exc:
             raise ListSkillsError(f'cannot look for {SKILL_ENTRY_FILENAME} in {directory}: {exc.detail}') from exc
 
+        skill_file = directory / SKILL_ENTRY_FILENAME
         for entry in entries:
             if entry.name != SKILL_ENTRY_FILENAME:
                 continue
             if entry.kind is EntryKind.FILE:
-                return True
+                return skill_file
             if entry.kind is EntryKind.SYMLINK:
-                return self._leads_to_a_file(directory / SKILL_ENTRY_FILENAME)
-        return False
-
-    def _leads_to_a_file(self, link: RootRelativePath) -> bool:
-        """True when the symlink ``link`` leads to a file the view can read.
-
-        The view has no operation that says what a link to a file leads to, so the file is read and its text
-        dropped: a link that dangles, loops, leads to a directory or leads where the view does not read is no
-        file. Text that is not UTF-8 still comes from a file, and the check that reads the skill reports it.
-        """
-        try:
-            self._fs.read_text(link)
-        except DecodeTextError as exc:  # noqa: F841 — the file is there; what it holds is not decided here
-            return True
-        except ReadTextError as exc:  # noqa: F841 — no file behind the link is a directory that is no skill
-            return False
-        return True
+                try:
+                    return self._fs.resolve_file(skill_file)
+                except ResolveFileError as exc:
+                    raise ListSkillsError(f'cannot resolve {skill_file}: {exc.detail}') from exc
+        return None
