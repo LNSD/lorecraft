@@ -1,8 +1,9 @@
-"""The workspace model: an immutable snapshot of which corpora, specs and documents a repository declares.
+"""The workspace model: an immutable snapshot of which corpora, specs, documents and skills a repository declares.
 
-The loader builds one model per run from ``docs/__meta__/`` and the corpus directories; every query here is
-pure. The model holds structure (corpora, document refs) and configuration (decoded specs), never document
-content: text stays behind the document repository and is read on demand through a ``DocumentRef``.
+The loader builds one model per run from ``docs/__meta__/``, the corpus directories and the project skills
+directories; every query here is pure. The model holds structure (corpora, document refs, skills directories,
+skill refs) and configuration (decoded specs), never document content: text stays behind the document
+repository and is read on demand through a ``DocumentRef``, and the model reads no ``SKILL.md``.
 
 Governance is the one computation the model owns. A document is governed by its corpus spec first, then by
 every namespace spec whose namespace matches its filename, broad to narrow. A namespace spec narrows a
@@ -17,6 +18,8 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.ref import DocumentRef
 from lorecraft.project.schemas.name import SchemaName
 from lorecraft.project.schemas.structure import FrontmatterSchema, StructureAspect
+from lorecraft.project.skill.ref import SkillRef
+from lorecraft.project.skill.skills_dir import SkillsDir
 from lorecraft.vfs import RootRelativePath
 
 
@@ -177,9 +180,17 @@ class WorkspaceModel:
 
     Attributes:
         corpora: Every corpus, sorted by name.
+        skills_dirs: Every project skills directory an agent reads that the repository has, one record per
+            agent and directory, sorted by agent then path. Two agents reading one real directory are two
+            records with the same ``resolves_to``.
+        skills: Every skill directly inside the real directories those resolve to, each once, sorted by
+            directory. The agents that read a skill are the ones whose ``resolves_to`` is its parent.
+            A skill belongs to no corpus, so no spec governs it and ``documents()`` does not list it.
     """
 
     corpora: tuple[Corpus, ...]
+    skills_dirs: tuple[SkillsDir, ...]
+    skills: tuple[SkillRef, ...]
 
     def corpus(self, name: CorpusName) -> Corpus | None:
         """The corpus with this name, or None when the model has none."""

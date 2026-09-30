@@ -7,7 +7,7 @@ guide. This package declares the shape of each; an agent's own package states it
 from .agent import Agent
 from .agents_md import UNIVERSAL_PROJECT_AGENTS_MD_FILE, AgentsMdFiles
 from .name import AgentName
-from .skills import UNIVERSAL_PROJECT_SKILLS_DIR, UNIVERSAL_USER_SKILLS_DIR, SkillsDirs
+from .skills import SKILL_ENTRY_FILENAME, UNIVERSAL_PROJECT_SKILLS_DIR, UNIVERSAL_USER_SKILLS_DIR, SkillsDirs
 
 __all__: list[str] = [
     'Agent',
@@ -15,6 +15,7 @@ __all__: list[str] = [
     'SkillsDirs',
     'UNIVERSAL_PROJECT_SKILLS_DIR',
     'UNIVERSAL_USER_SKILLS_DIR',
+    'SKILL_ENTRY_FILENAME',
     'AgentsMdFiles',
     'UNIVERSAL_PROJECT_AGENTS_MD_FILE',
 ]
