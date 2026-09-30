@@ -79,8 +79,9 @@ ungoverned, and `ungoverned` is always empty in the JSON report.
 ## Findings
 
 A finding is reported at the skill's `SKILL.md`, as listed under the skills directory, on the line of the field
-it concerns, or on line 1 when the field is absent, the key is not a string, or the whole block is at fault. A
-skill whose frontmatter is missing, unparseable or undecodable reports that one finding and nothing else.
+it concerns, on the line the YAML parser stopped at when the block does not parse, or on line 1 when the field is
+absent, the key is not a string, or the whole block is at fault. A skill whose frontmatter is missing, unparseable
+or undecodable reports that one finding and nothing else.
 
 `name` is compared as written, with no Unicode normalisation, so a full-width letter is a `skill.name` finding.
 An optional field written with no value, such as `license:`, is read as absent and accepted.
