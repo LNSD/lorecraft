@@ -3,7 +3,7 @@ name: "cli-check-frontmatter"
 description: "lorecraft check frontmatter, and its hidden alias check header: validating each document's YAML frontmatter against the frontmatter schemas of the structure specifications its path selects, the name-matches-filename rule, and the rule identifiers it reports. Load when a frontmatter finding needs explaining, or when running the frontmatter check on its own"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft.cli.commands.check.frontmatter,module:lorecraft.checks.frontmatter,module:lorecraft.project.schemas.structure,spec:feat,spec:code"
+components: "module:lorecraft.cli.commands.check.frontmatter,module:lorecraft.checks.frontmatter,module:lorecraft.project.schemas.structure,module:lorecraft.project.schemas.frontmatter_problem,spec:feat,spec:code"
 ---
 
 # `lorecraft check frontmatter`
@@ -66,8 +66,11 @@ key is listed as `<corpus>.ungoverned` with the reason
 ## Findings
 
 A finding is reported on the line of the key it concerns, on the line the YAML parser stopped at when the block
-does not parse, or on line 1 when the key is absent or the whole block is at fault. A document whose frontmatter
-is missing, unparseable or undecodable reports that one finding and nothing else.
+does not parse, or on line 1 when the key is absent, is not a string, or the whole block is at fault. A document
+whose frontmatter is missing, unparseable or undecodable reports that one finding and nothing else. The name is
+compared first, then each schema is applied; a schema finding keeps the validator's own wording, since it names
+a constraint the specification's authors wrote. The rules mirror the
+[skill check](cli-check-skills.md#findings)'s, under the corpus instead of `skill`.
 
 | Rule | Reported when |
 |------|---------------|
@@ -76,7 +79,8 @@ is missing, unparseable or undecodable reports that one finding and nothing else
 | `frontmatter.undecodable` | The file is not valid UTF-8 |
 | `frontmatter.name-matches-filename` | `name` is not the filename without `.md` |
 | `<corpus>.<field>` | A frontmatter schema rejects that field, or requires it and it is absent; the message names the specification |
-| `<corpus>.frontmatter` | A frontmatter schema rejects the frontmatter as a whole, such as a key it does not allow |
+| `<corpus>.unknown-field` | A frontmatter schema does not allow that field, such as `model` under `"additionalProperties": false` |
+| `<corpus>.frontmatter` | A frontmatter schema rejects the frontmatter as a whole, such as with `minProperties` |
 
 The `<corpus>` prefix is the document's corpus, whichever layer's schema the finding comes from.
 
@@ -91,4 +95,5 @@ The `<corpus>` prefix is the document's corpus, whichever layer's schema the fin
   registers the check with the group
 - `src/lorecraft/checks/frontmatter.py` - The check of one document's frontmatter
 - `src/lorecraft/project/schemas/structure.py` - Loads and validates the frontmatter schema with the rest of the
-  structure specification
+  structure specification, and holds a frontmatter to it
+- `src/lorecraft/project/schemas/frontmatter_problem.py` - The problem shape both frontmatter schemas report in

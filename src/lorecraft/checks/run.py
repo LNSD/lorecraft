@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import assert_never
 
 from lorecraft.project.document import DocumentDecodeError, DocumentRef
-from lorecraft.project.schemas import StructureAspect
+from lorecraft.project.schemas import SKILL_FRONTMATTER_SCHEMA, StructureAspect
 from lorecraft.project.skill import SkillDecodeError, SkillRef
 from lorecraft.project.syntax import (
     Frontmatter,
@@ -311,7 +311,9 @@ def run_skills(database: Database, refs: tuple[SkillRef, ...]) -> SkillCheckRun:
             case SkillDecodeError():
                 reports.append(SkillReport(ref, violations=(_undecodable_skill(),)))
             case Frontmatter() | MissingFrontmatter() | InvalidYamlFrontmatter() | NonMappingFrontmatter():
-                result = validate_skill(frontmatter, directory_name=ref.directory.name)
+                result = validate_skill(
+                    SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name=ref.directory.name
+                )
                 reports.append(SkillReport(ref, violations=result.violations))
             case _:
                 assert_never(frontmatter)

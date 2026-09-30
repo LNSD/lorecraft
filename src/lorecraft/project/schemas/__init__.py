@@ -1,19 +1,14 @@
 """Specification filenames and stems, the structure aspect with the frontmatter schema it carries, the repository
-that reads them, and the skill frontmatter schema with its parser."""
+that reads them, the skill frontmatter schema, and the problems both frontmatter schemas report."""
 
+from .frontmatter_problem import FrontmatterProblem, FrontmatterProblemKind
 from .name import SchemaName, parse_schema_name, schema_name_stem
 from .repo import (
     CorpusSchemasListError,
     Repository,
     StructureSchemaReadError,
 )
-from .skill import (
-    InvalidSkillFrontmatterError,
-    MissingSkillFrontmatterError,
-    NonMappingSkillFrontmatterError,
-    UnparseableSkillFrontmatterError,
-    parse_skill_frontmatter,
-)
+from .skill import SKILL_FRONTMATTER_SCHEMA, SkillFrontmatterSchema
 from .skill_frontmatter import (
     EmptySkillCompatibilityError,
     EmptySkillDescriptionError,
@@ -114,9 +109,8 @@ __all__ = [
     'EmptySkillCompatibilityError',
     'OverlongSkillCompatibilityError',
     'SkillAllowedTools',
-    'parse_skill_frontmatter',
-    'MissingSkillFrontmatterError',
-    'UnparseableSkillFrontmatterError',
-    'NonMappingSkillFrontmatterError',
-    'InvalidSkillFrontmatterError',
+    'SkillFrontmatterSchema',
+    'SKILL_FRONTMATTER_SCHEMA',
+    'FrontmatterProblem',
+    'FrontmatterProblemKind',
 ]

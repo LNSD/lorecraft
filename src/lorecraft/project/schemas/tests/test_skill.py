@@ -1,177 +1,216 @@
-"""Parsing a ``SKILL.md`` into its frontmatter: the specification's fields are kept, and every way a document
-falls short of them is refused with an error naming the file."""
-
-from textwrap import dedent
-from typing import Final
+"""The Agent Skills specification as a frontmatter schema: each way a decoded frontmatter falls short of it is one
+problem, in Lorecraft's words, on the field it concerns."""
 
 import pytest
 
-from lorecraft.core.path import RootRelativePath
-
-from ..skill import (
-    InvalidSkillFrontmatterError,
-    MissingSkillFrontmatterError,
-    NonMappingSkillFrontmatterError,
-    parse_skill_frontmatter,
-)
-from ..skill_frontmatter import (
-    SkillAllowedTools,
-    SkillCompatibility,
-    SkillDescription,
-    SkillFrontmatter,
-    SkillLicense,
-    SkillName,
-)
-
-SKILL_PATH: Final[RootRelativePath] = RootRelativePath.parse('skills/pdf-processing/SKILL.md')
+from ..frontmatter_problem import FrontmatterProblem, FrontmatterProblemKind
+from ..skill import SKILL_FRONTMATTER_SCHEMA
 
 
 @pytest.mark.unit
-class TestParseSkillFrontmatter:
-    def test_parse_skill_frontmatter_with_the_required_fields_returns_them(self) -> None:
+class TestSkillFrontmatterSchemaValidate:
+    def test_validate_with_every_field_returns_no_problems(self) -> None:
         #: Given
-        text = dedent(
-            """\
-            ---
-            name: skill-name
-            description: A description of what this skill does and when to use it.
-            ---
-
-            # Skill
-            """
-        )
+        data: dict[object, object] = {
+            'name': 'pdf-processing',
+            'description': 'Extract PDF text, fill forms, merge files. Use when handling PDFs.',
+            'license': 'Apache-2.0',
+            'compatibility': 'Requires Python 3.14+ and uv',
+            'metadata': {'author': 'example-org', 'version': '1.0'},
+            'allowed-tools': 'Bash(git add *) Read',
+        }
 
         #: When
-        frontmatter = parse_skill_frontmatter(SKILL_PATH, text)
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
 
         #: Then
-        assert frontmatter == SkillFrontmatter(
-            name=SkillName('skill-name'),
-            description=SkillDescription('A description of what this skill does and when to use it.'),
-        )
+        assert problems == (), 'a frontmatter with every field, each valid, conforms'
 
-    def test_parse_skill_frontmatter_with_every_field_returns_them(self) -> None:
+    def test_validate_without_the_required_fields_returns_one_missing_problem_each(self) -> None:
         #: Given
-        text = dedent(
-            """\
-            ---
-            name: pdf-processing
-            description: Extract PDF text, fill forms, merge files. Use when handling PDFs.
-            license: Apache-2.0
-            compatibility: Requires Python 3.14+ and uv
-            metadata:
-              author: example-org
-              version: "1.0"
-            allowed-tools: Bash(git add *) Read
-            ---
-            """
-        )
+        data: dict[object, object] = {}
 
         #: When
-        frontmatter = parse_skill_frontmatter(SKILL_PATH, text)
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
 
         #: Then
-        assert frontmatter.license == SkillLicense('Apache-2.0'), 'license is kept'
-        assert frontmatter.compatibility == SkillCompatibility('Requires Python 3.14+ and uv'), 'compatibility is kept'
-        assert frontmatter.metadata == {'author': 'example-org', 'version': '1.0'}, 'metadata is kept'
-        assert frontmatter.allowed_tools == SkillAllowedTools('Bash(git add *) Read'), 'allowed-tools is read by alias'
+        assert problems == (
+            FrontmatterProblem('name', FrontmatterProblemKind.MISSING, '`name` is required'),
+            FrontmatterProblem('description', FrontmatterProblemKind.MISSING, '`description` is required'),
+        ), 'each required field is its own problem, in the order the specification declares them'
 
-    def test_parse_skill_frontmatter_without_a_block_raises_missing_skill_frontmatter(self) -> None:
+    def test_validate_with_a_field_outside_the_specification_returns_an_unknown_field_problem(self) -> None:
         #: Given
-        text = '# Skill\n'
+        data: dict[object, object] = {'name': 'review', 'description': 'Review code.', 'model': 'opus'}
 
         #: When
-        with pytest.raises(MissingSkillFrontmatterError) as exc_info:
-            parse_skill_frontmatter(SKILL_PATH, text)
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
 
         #: Then
-        assert exc_info.value.path == SKILL_PATH, 'the error names the file'
-        assert type(exc_info.value) is MissingSkillFrontmatterError, 'the missing block is its own failure'
+        assert problems == (
+            FrontmatterProblem(
+                'model',
+                FrontmatterProblemKind.UNKNOWN_FIELD,
+                '`model` is not a field of the Agent Skills specification',
+            ),
+        ), 'a field the specification does not define is named'
 
-    def test_parse_skill_frontmatter_with_a_non_mapping_block_raises_non_mapping_skill_frontmatter(self) -> None:
+    def test_validate_with_a_key_that_is_not_a_string_returns_an_unknown_field_problem_on_no_field(self) -> None:
         #: Given
-        text = '---\n- name\n---\n'
+        data: dict[object, object] = {'name': 'review', 'description': 'Review code.', 123: 'x'}
 
         #: When
-        with pytest.raises(NonMappingSkillFrontmatterError) as exc_info:
-            parse_skill_frontmatter(SKILL_PATH, text)
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
 
         #: Then
-        assert exc_info.value.path == SKILL_PATH, 'the error names the file whose block is not a mapping'
+        assert problems == (
+            FrontmatterProblem(
+                None,
+                FrontmatterProblemKind.UNKNOWN_FIELD,
+                'a key that is not a string is not a field of the Agent Skills specification',
+            ),
+        ), 'a key that is not a string names no field'
 
-    @pytest.mark.parametrize(
-        'name',
-        [
-            pytest.param('PDF-Processing', id='uppercase'),
-            pytest.param('-pdf', id='leading-hyphen'),
-            pytest.param('pdf-', id='trailing-hyphen'),
-            pytest.param('pdf--processing', id='consecutive-hyphens'),
-            pytest.param('a' * 65, id='too-long'),
-        ],
-    )
-    def test_parse_skill_frontmatter_with_an_invalid_name_raises_invalid_skill_frontmatter(self, name: str) -> None:
+    def test_validate_with_a_name_that_is_not_a_string_returns_a_wrong_type_problem(self) -> None:
         #: Given
-        text = f'---\nname: {name}\ndescription: Does a thing.\n---\n'
+        data: dict[object, object] = {'name': None, 'description': 'Review code.'}
 
         #: When
-        with pytest.raises(InvalidSkillFrontmatterError) as exc_info:
-            parse_skill_frontmatter(SKILL_PATH, text)
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
 
         #: Then
-        assert any(problem.startswith('name:') for problem in exc_info.value.problems), (
-            f'the name field is reported, got {exc_info.value}'
-        )
+        assert problems == (
+            FrontmatterProblem('name', FrontmatterProblemKind.WRONG_TYPE, '`name` must be a string'),
+        ), 'a field written with no value is null, which a required string field does not accept'
 
-    def test_parse_skill_frontmatter_without_a_description_raises_invalid_skill_frontmatter(self) -> None:
+    def test_validate_with_metadata_that_is_not_a_mapping_returns_a_wrong_type_problem(self) -> None:
         #: Given
-        text = '---\nname: pdf-processing\n---\n'
+        data: dict[object, object] = {'name': 'review', 'description': 'Review code.', 'metadata': 'author'}
 
         #: When
-        with pytest.raises(InvalidSkillFrontmatterError) as exc_info:
-            parse_skill_frontmatter(SKILL_PATH, text)
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
 
         #: Then
-        assert any(problem.startswith('description:') for problem in exc_info.value.problems), (
-            f'the missing description is reported, got {exc_info.value}'
-        )
+        assert problems == (
+            FrontmatterProblem(
+                'metadata', FrontmatterProblemKind.WRONG_TYPE, '`metadata` must be a mapping of strings to strings'
+            ),
+        ), 'metadata is a mapping, not a string'
 
-    def test_parse_skill_frontmatter_with_a_description_over_the_limit_raises_invalid_skill_frontmatter(self) -> None:
+    def test_validate_with_an_unquoted_metadata_number_returns_an_invalid_value_problem(self) -> None:
         #: Given
-        text = f'---\nname: pdf-processing\ndescription: {"x" * 1025}\n---\n'
+        data: dict[object, object] = {'name': 'review', 'description': 'Review code.', 'metadata': {'version': 1.0}}
 
         #: When
-        with pytest.raises(InvalidSkillFrontmatterError) as exc_info:
-            parse_skill_frontmatter(SKILL_PATH, text)
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
 
         #: Then
-        assert any(problem.startswith('description:') for problem in exc_info.value.problems), (
-            f'the long description is reported, got {exc_info.value}'
-        )
+        assert problems == (
+            FrontmatterProblem('metadata', FrontmatterProblemKind.INVALID_VALUE, '`metadata.version` must be a string'),
+        ), 'a value inside metadata is named by its path, and makes the metadata field invalid'
 
-    def test_parse_skill_frontmatter_with_an_unquoted_metadata_number_raises_invalid_skill_frontmatter(self) -> None:
+    def test_validate_with_a_metadata_key_that_is_not_a_string_returns_an_invalid_value_problem(self) -> None:
         #: Given
-        text = '---\nname: pdf-processing\ndescription: Does a thing.\nmetadata:\n  version: 1.0\n---\n'
+        data: dict[object, object] = {'name': 'review', 'description': 'Review code.', 'metadata': {1: 'one'}}
 
         #: When
-        with pytest.raises(InvalidSkillFrontmatterError) as exc_info:
-            parse_skill_frontmatter(SKILL_PATH, text)
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
 
         #: Then
-        assert any(problem.startswith('metadata.version:') for problem in exc_info.value.problems), (
-            f'a YAML float is not coerced, got {exc_info.value}'
-        )
+        assert problems == (
+            FrontmatterProblem('metadata', FrontmatterProblemKind.INVALID_VALUE, '`metadata` keys must be strings'),
+        ), 'a key inside metadata is at fault, not a value'
 
-    def test_parse_skill_frontmatter_with_a_field_outside_the_specification_raises_invalid_skill_frontmatter(
-        self,
-    ) -> None:
+    def test_validate_with_an_empty_name_returns_the_value_objects_own_message(self) -> None:
         #: Given
-        text = '---\nname: pdf-processing\ndescription: Does a thing.\nargument-hint: <file>\n---\n'
+        data: dict[object, object] = {'name': '', 'description': 'Review code.'}
 
         #: When
-        with pytest.raises(InvalidSkillFrontmatterError) as exc_info:
-            parse_skill_frontmatter(SKILL_PATH, text)
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
 
         #: Then
-        assert any(problem.startswith('argument-hint:') for problem in exc_info.value.problems), (
-            f'the unknown field is reported, got {exc_info.value}'
-        )
+        assert problems == (
+            FrontmatterProblem('name', FrontmatterProblemKind.INVALID_VALUE, 'skill name cannot be empty'),
+        ), 'an empty name is worded by SkillName, not by pydantic'
+
+    def test_validate_with_a_name_over_64_characters_returns_the_value_objects_own_message(self) -> None:
+        #: Given
+        name = 'a' * 65
+        data: dict[object, object] = {'name': name, 'description': 'Review code.'}
+
+        #: When
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
+
+        #: Then
+        assert problems == (
+            FrontmatterProblem(
+                'name',
+                FrontmatterProblemKind.INVALID_VALUE,
+                f'skill name {name!r} is 65 characters; the limit is 64',
+            ),
+        ), 'a name over the length limit is worded by SkillName, not by pydantic'
+
+    def test_validate_with_an_uppercase_name_returns_the_value_objects_own_message(self) -> None:
+        #: Given
+        data: dict[object, object] = {'name': 'PDF', 'description': 'Review code.'}
+
+        #: When
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
+
+        #: Then
+        assert problems == (
+            FrontmatterProblem(
+                'name',
+                FrontmatterProblemKind.INVALID_VALUE,
+                "skill name 'PDF' must be lowercase letters, digits and single hyphens, "
+                'neither starting nor ending with a hyphen',
+            ),
+        ), 'a name outside the allowed format is worded by SkillName, not by pydantic'
+
+    def test_validate_with_a_description_over_the_limit_returns_an_invalid_value_problem(self) -> None:
+        #: Given
+        data: dict[object, object] = {'name': 'review', 'description': 'x' * 1025}
+
+        #: When
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
+
+        #: Then
+        assert problems == (
+            FrontmatterProblem(
+                'description',
+                FrontmatterProblemKind.INVALID_VALUE,
+                'skill description is 1025 characters; the limit is 1024',
+            ),
+        ), 'the length limit is worded by SkillDescription'
+
+    def test_validate_with_a_blank_compatibility_returns_an_invalid_value_problem(self) -> None:
+        #: Given
+        data: dict[object, object] = {'name': 'review', 'description': 'Review code.', 'compatibility': ' '}
+
+        #: When
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
+
+        #: Then
+        assert problems == (
+            FrontmatterProblem(
+                'compatibility',
+                FrontmatterProblemKind.INVALID_VALUE,
+                'skill compatibility cannot be empty; leave the field out instead',
+            ),
+        ), 'a blank note is worded by SkillCompatibility'
+
+    def test_validate_with_allowed_tools_spelt_with_an_underscore_returns_an_unknown_field_problem(self) -> None:
+        #: Given
+        data: dict[object, object] = {'name': 'review', 'description': 'Review code.', 'allowed_tools': 'Read'}
+
+        #: When
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
+
+        #: Then
+        assert problems == (
+            FrontmatterProblem(
+                'allowed_tools',
+                FrontmatterProblemKind.UNKNOWN_FIELD,
+                '`allowed_tools` is not a field of the Agent Skills specification',
+            ),
+        ), 'the field is read by its alias only, as the specification spells it'
