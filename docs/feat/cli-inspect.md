@@ -59,8 +59,8 @@ brackets. An excerpt, from this repository:
 ```text
 └── feat (docs/feat)
     ├── specs (2)
-    │   ├── feat: feat.header.json, feat.md, feat.structure.json
-    │   └── feat-cli: feat-cli.header.json, feat-cli.md, feat-cli.structure.json
+    │   ├── feat: feat.md, feat.structure.json
+    │   └── feat-cli: feat-cli.md, feat-cli.structure.json
     └── documents (5)
         ├── cli.md [feat, feat-cli]
         ├── cli-check.md [feat, feat-cli]
@@ -75,10 +75,8 @@ root-relative.
 {
   "path": "docs/feat/cli-check.md",
   "governed_by": [
-    "docs/__meta__/feat.header.json",
     "docs/__meta__/feat.md",
     "docs/__meta__/feat.structure.json",
-    "docs/__meta__/feat-cli.header.json",
     "docs/__meta__/feat-cli.md",
     "docs/__meta__/feat-cli.structure.json"
   ]
@@ -96,7 +94,7 @@ A root with no `docs/__meta__/` prints a model with no corpora, and exits `0`.
 | `2`  | A usage error, including a `ROOT` that is not an existing directory |
 
 ```text
-error: invalid JSON in schema docs/__meta__/feat.header.json: Expecting property name enclosed in double quotes
+error: invalid JSON in schema docs/__meta__/feat.structure.json: Expecting property name enclosed in double quotes
 ```
 
 ## Limitations

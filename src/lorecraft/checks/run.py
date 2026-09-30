@@ -60,9 +60,11 @@ class CheckRun:
 
 
 def run_header(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
-    """Check each ref against the header schemas that govern it, in the order given.
+    """Check each ref's frontmatter against the frontmatter schemas that govern it, in the order given.
 
-    A governed document that is not UTF-8 carries the single violation ``frontmatter.undecodable`` at line 1.
+    A document is governed when the structure specification of its corpus spec states a ``frontmatter`` schema;
+    one whose corpus spec states none is ungoverned, and its text is never read. A governed document that is not
+    UTF-8 carries the single violation ``frontmatter.undecodable`` at line 1.
 
     Args:
         database: The snapshot state the refs come from; its model decides which schemas govern each document.
@@ -73,22 +75,20 @@ def run_header(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
         ListSpecsError: If the model is not loaded yet and the specification directory cannot be listed.
         ListCorpusDirectoriesError: If the model is not loaded yet and docs/ cannot be listed.
         ListDocumentsError: If the model is not loaded yet and a corpus directory cannot be listed.
-        GetHeaderSchemaError: If the model is not loaded yet and a header schema cannot be read or decoded.
-        InvalidHeaderSchemaError: If the model is not loaded yet and a header schema is malformed.
         GetStructureSchemaError: If the model is not loaded yet and a structure specification cannot be read.
         InvalidStructureSchemaError: If the model is not loaded yet and a structure specification is malformed.
     """
     reports: list[DocumentReport] = []
     for ref in refs:
-        aspects = database.model().governance(ref).header_schemas()
-        if not aspects:
+        schemas = database.model().governance(ref).frontmatter_schemas()
+        if not schemas:
             reports.append(DocumentReport(ref, governed=False, violations=()))
             continue
         frontmatter = _frontmatter(database, ref)
         if frontmatter is None:
             reports.append(DocumentReport(ref, governed=True, violations=(_undecodable('frontmatter'),)))
             continue
-        result = validate_header(aspects, frontmatter=frontmatter, filename=ref.filename, corpus=ref.corpus)
+        result = validate_header(schemas, frontmatter=frontmatter, filename=ref.filename, corpus=ref.corpus)
         reports.append(DocumentReport(ref, governed=True, violations=result.violations))
     return CheckRun(reports=tuple(reports))
 
@@ -108,8 +108,6 @@ def run_structure(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun
         ListSpecsError: If the model is not loaded yet and the specification directory cannot be listed.
         ListCorpusDirectoriesError: If the model is not loaded yet and docs/ cannot be listed.
         ListDocumentsError: If the model is not loaded yet and a corpus directory cannot be listed.
-        GetHeaderSchemaError: If the model is not loaded yet and a header schema cannot be read or decoded.
-        InvalidHeaderSchemaError: If the model is not loaded yet and a header schema is malformed.
         GetStructureSchemaError: If the model is not loaded yet and a structure specification cannot be read.
         InvalidStructureSchemaError: If the model is not loaded yet and a structure specification is malformed.
     """
@@ -145,8 +143,6 @@ def run_budget(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
         ListSpecsError: If the model is not loaded yet and the specification directory cannot be listed.
         ListCorpusDirectoriesError: If the model is not loaded yet and docs/ cannot be listed.
         ListDocumentsError: If the model is not loaded yet and a corpus directory cannot be listed.
-        GetHeaderSchemaError: If the model is not loaded yet and a header schema cannot be read or decoded.
-        InvalidHeaderSchemaError: If the model is not loaded yet and a header schema is malformed.
         GetStructureSchemaError: If the model is not loaded yet and a structure specification cannot be read.
         InvalidStructureSchemaError: If the model is not loaded yet and a structure specification is malformed.
     """

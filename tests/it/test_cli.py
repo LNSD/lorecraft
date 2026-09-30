@@ -2,8 +2,8 @@
 
 These run the command line in process through Typer's `CliRunner`, so they cross module boundaries —
 root application, registry, command module, version strings, the scan and the model load behind `inspect`,
-the checks behind `check header` and `check structure` — without needing the console script that `tests/e2e/`
-exercises. `inspect` and the checks read a real tree under `tmp_path`.
+the checks behind `check header`, `check structure` and `check budget` — without needing the console script
+that `tests/e2e/` exercises. `inspect` and the checks read a real tree under `tmp_path`.
 """
 
 import json
@@ -23,8 +23,9 @@ from lorecraft.cli.registry import DuplicateCommandError, register, register_gro
 
 runner = CliRunner()
 
-# A well-formed Draft 2020-12 schema that accepts any frontmatter; the cases below turn on the tree, not the schema.
-ACCEPT_ANY_HEADER_SCHEMA: Final[str] = '{"type": "object"}'
+# A structure specification whose frontmatter schema accepts any frontmatter, and which states no other rule; the
+# cases below turn on the tree, not the schema.
+ACCEPT_ANY_FRONTMATTER_SPEC: Final[str] = '{"frontmatter": {"type": "object"}}'
 
 # A structure specification requiring a Checklist after the document's own sections, with a token budget every
 # document below fits.
@@ -32,6 +33,17 @@ CHECKLIST_STRUCTURE_SPEC: Final[str] = dedent(
     """
     {
       "tokens": 1000,
+      "outline": [{"any": true}, {"section": "Checklist"}]
+    }
+    """
+)
+
+# The Checklist specification above, with a frontmatter schema that accepts any frontmatter as well.
+CHECKLIST_AND_FRONTMATTER_SPEC: Final[str] = dedent(
+    """
+    {
+      "tokens": 1000,
+      "frontmatter": {"type": "object"},
       "outline": [{"any": true}, {"section": "Checklist"}]
     }
     """
@@ -53,8 +65,8 @@ def workspace(tmp_path: Path) -> Path:
 
 @pytest.fixture(scope='function')
 def malformed_schema_workspace(workspace: Path) -> Path:
-    """The workspace with a `code` header schema that is valid JSON but not a well-formed JSON Schema."""
-    (workspace / 'docs' / '__meta__' / 'code.header.json').write_text('{"type": 5}\n')
+    """The workspace with a `code` frontmatter schema that is valid JSON but not a well-formed JSON Schema."""
+    (workspace / 'docs' / '__meta__' / 'code.structure.json').write_text('{"frontmatter": {"type": 5}}\n')
     return workspace
 
 
@@ -149,7 +161,7 @@ class TestInspectCommand:
         assert document['root'] == str(workspace.resolve()), 'the root is reported resolved'
         assert [corpus['name'] for corpus in document['corpora']] == ['code'], 'the one spec-backed corpus is found'
 
-    def test_inspect_with_a_malformed_header_schema_exits_one_and_names_it(
+    def test_inspect_with_a_malformed_frontmatter_schema_exits_one_and_names_it(
         self, malformed_schema_workspace: Path
     ) -> None:
         #: Given
@@ -161,8 +173,8 @@ class TestInspectCommand:
 
         #: Then
         assert result.exit_code == 1, result.output
-        assert 'error: invalid schema docs/__meta__/code.header.json' in result.output, (
-            'the failure names the schema the load rejected'
+        assert 'error: invalid structure schema docs/__meta__/code.structure.json' in result.output, (
+            'the failure names the specification the load rejected'
         )
 
     def test_inspect_without_a_root_scans_the_current_directory(
@@ -209,7 +221,7 @@ class TestInspectCommand:
 class TestCheckHeaderCommand:
     def test_check_header_with_a_clean_corpus_exits_zero_and_counts_the_documents(self, tmp_path: Path) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.header.json', ACCEPT_ANY_HEADER_SCHEMA)
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n')
         app = build_app()
 
@@ -225,7 +237,7 @@ class TestCheckHeaderCommand:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.header.json', ACCEPT_ANY_HEADER_SCHEMA)
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
         nested = tmp_path / 'src' / 'nested'
         nested.mkdir(parents=True)
@@ -241,7 +253,9 @@ class TestCheckHeaderCommand:
             'the root is discovered upward from the working directory, and findings print root-relative'
         )
 
-    def test_check_header_with_a_corpus_without_a_header_schema_reports_it_ungoverned(self, tmp_path: Path) -> None:
+    def test_check_header_with_a_corpus_without_a_frontmatter_schema_reports_it_ungoverned(
+        self, tmp_path: Path
+    ) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/feat.md', '# Feat\n')
         _write(tmp_path, 'docs/feat/overview.md', '# No frontmatter\n')
@@ -253,7 +267,8 @@ class TestCheckHeaderCommand:
         #: Then
         assert result.exit_code == 0, result.output
         assert result.stdout == (
-            'docs/feat/overview.md:1: [feat.ungoverned] no header schema for this corpus; frontmatter unvalidated\n'
+            'docs/feat/overview.md:1: [feat.ungoverned] '
+            'no frontmatter schema for this corpus; frontmatter unvalidated\n'
         ), 'an ungoverned document is reported as unvalidated, not as a finding'
 
     def test_check_header_with_invalid_corpus_name_exits_as_invalid_input(self, tmp_path: Path) -> None:
@@ -296,7 +311,7 @@ class TestCheckHeaderCommand:
         assert result.exit_code == 2, result.output
         assert 'not a corpus' in result.output, 'the CLI reports that the directory has no specification'
 
-    def test_check_header_with_a_malformed_header_schema_exits_as_invalid_input(
+    def test_check_header_with_a_malformed_frontmatter_schema_exits_as_invalid_input(
         self, malformed_schema_workspace: Path
     ) -> None:
         #: Given
@@ -307,15 +322,15 @@ class TestCheckHeaderCommand:
 
         #: Then
         assert result.exit_code == 2, result.output
-        assert 'invalid schema docs/__meta__/code.header.json' in result.stderr, (
-            'the failure names the schema the load rejected'
+        assert 'invalid structure schema docs/__meta__/code.structure.json' in result.stderr, (
+            'the failure names the specification the load rejected'
         )
 
     def test_check_header_with_a_non_utf8_governed_document_exits_with_an_undecodable_finding(
         self, tmp_path: Path
     ) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.header.json', ACCEPT_ANY_HEADER_SCHEMA)
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
         document = tmp_path / 'docs' / 'code' / 'guide.md'
         document.parent.mkdir(parents=True)
         document.write_bytes(b'---\nname: "gu\xffide"\n---\n')
@@ -334,7 +349,7 @@ class TestCheckHeaderCommand:
         self, tmp_path: Path
     ) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.header.json', ACCEPT_ANY_HEADER_SCHEMA)
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n')
         _write(tmp_path, 'docs/blog/post.md', '---\nname: "post"\n---\n')
         app = build_app()
@@ -353,7 +368,7 @@ class TestCheckHeaderCommand:
         self, tmp_path: Path
     ) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.header.json', ACCEPT_ANY_HEADER_SCHEMA)
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
         app = build_app()
 
@@ -549,8 +564,7 @@ class TestCheckBudgetCommand:
 class TestCheckAllCommand:
     def test_check_with_a_clean_corpus_exits_zero_and_counts_the_documents_and_checks(self, tmp_path: Path) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.header.json', ACCEPT_ANY_HEADER_SCHEMA)
-        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_STRUCTURE_SPEC)
+        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n## Checklist\n\n- [ ] item\n')
         app = build_app()
 
@@ -566,8 +580,7 @@ class TestCheckAllCommand:
 
     def test_check_with_findings_from_two_checks_exits_one_and_prints_them_check_by_check(self, tmp_path: Path) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.header.json', ACCEPT_ANY_HEADER_SCHEMA)
-        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_STRUCTURE_SPEC)
+        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
         app = build_app()
 
@@ -583,7 +596,7 @@ class TestCheckAllCommand:
 
     def test_check_with_json_format_reports_each_check_under_its_name(self, tmp_path: Path) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.header.json', ACCEPT_ANY_HEADER_SCHEMA)
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n')
         app = build_app()
 
@@ -596,11 +609,11 @@ class TestCheckAllCommand:
             'checks': {
                 'budget': {'checked': 1, 'findings': [], 'ungoverned': ['docs/code/guide.md']},
                 'header': {'checked': 1, 'findings': [], 'ungoverned': []},
-                'structure': {'checked': 1, 'findings': [], 'ungoverned': ['docs/code/guide.md']},
+                'structure': {'checked': 1, 'findings': [], 'ungoverned': []},
             },
         }, f'each check keeps the report its own subcommand prints, got {result.stdout!r}'
 
-    def test_check_with_a_malformed_header_schema_exits_as_invalid_input(
+    def test_check_with_a_malformed_frontmatter_schema_exits_as_invalid_input(
         self, malformed_schema_workspace: Path
     ) -> None:
         #: Given
@@ -615,7 +628,7 @@ class TestCheckAllCommand:
 
     def test_check_with_an_option_before_a_named_check_exits_as_a_usage_error(self, tmp_path: Path) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.header.json', ACCEPT_ANY_HEADER_SCHEMA)
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
         app = build_app()
 
         #: When

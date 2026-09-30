@@ -28,7 +28,7 @@ also one of the checks a bare `lorecraft check` runs.
 ## Key Concepts
 
 - **Token budget**: The most tokens a whole document file may hold, set by the `tokens` key of a
-  `<stem>.structure.json` file, as [spec-structure](spec-structure.md) describes.
+  `<stem>.structure.json` file, as [spec-structure-budget](spec-structure-budget.md) describes.
 - **Token count**: The number of OpenAI `o200k_base` tokens in the file's text. It is the same whichever agent
   reads the document, and needs no network access.
 - **Governed**: A document is governed by this check only when one of its structure specifications sets a
@@ -80,7 +80,7 @@ reason `no token budget for this corpus; tokens unvalidated`.
 ## References
 
 - [cli-check](cli-check.md) - Base: root discovery, document selection, output and exit status
-- [spec-structure](spec-structure.md) - Dependency: the `tokens` key this check reads
+- [spec-structure-budget](spec-structure-budget.md) - Dependency: the `tokens` key this check reads
 - [cli-check-structure](cli-check-structure.md) - Related: the per-section word caps from the same specification
 
 ## Code References

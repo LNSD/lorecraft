@@ -37,7 +37,7 @@ def inspect(
 
     Raises:
         typer.Exit: With code 1 when the scan or the load fails: an entry in scope that cannot be read, or a
-            header schema or structure specification that cannot be decoded or does not state usable rules.
+            structure specification that cannot be decoded or does not state usable rules.
     """
     try:
         snapshot = take_snapshot(root, SNAPSHOT_SCOPE)

@@ -27,11 +27,14 @@ shares the root discovery, the output formats and the exit status documented her
 
 ## Key Concepts
 
-- **Check**: One subcommand of the group, validating one aspect of a document against the matching
-  `<stem>.<aspect>.json` specification files.
+- **Check**: One subcommand of the group, validating one part of a document against the
+  `<stem>.<aspect>.json` specification files its path selects.
 - **Finding**: One broken rule, located: a root-relative path, a line, a rule identifier and a message.
-- **Governed**: A document is governed by a check when at least one specification file for that check's
-  aspect applies to it; an ungoverned document is listed, never failed.
+- **Governed**: A document is governed by a check when its corpus specification has a structure file and at
+  least one structure file that applies to it states what the check reads. The structure check reads any
+  file, so one stating only `tokens` or `frontmatter` governs the outline with no rule to hold it to. The
+  header check asks more: the corpus file must state `frontmatter` itself. An ungoverned document is
+  listed, never failed.
 - **Workspace**: The root, its corpora and their documents, read once from one snapshot, as
   [workspace](workspace.md) lays out.
 
@@ -87,7 +90,7 @@ stderr. A document no specification governs for the check is listed as `<path>:1
 <reason>`, which is not a finding.
 
 ```text
-docs/feat/spec-demo.md:3: [feat.description] 'A demo' does not match 'Load when' (per docs/__meta__/feat.header.json)
+docs/feat/spec-demo.md:3: [feat.description] 'A demo' does not match 'Load when' (per docs/__meta__/feat.structure.json)
 docs/feat/spec-demo.md:15: [structure.empty] section `Key Concepts` is empty; omit it rather than leaving it empty (per feat.md)
 docs/feat/spec-demo.md:15: [structure.outline] expected section `Table of Contents`, found `Key Concepts` (per feat.md)
 checked 1 file(s) with 3 check(s), 3 finding(s)
@@ -98,7 +101,7 @@ prints every report under `checks`, keyed by check name. `spec` is the root-rela
 stating the rule, or `null` for a rule the check holds itself. `lorecraft check header --format json`:
 
 ```json
-{"checked": 1, "findings": [{"file": "docs/feat/spec-demo.md", "line": 3, "rule": "feat.description", "message": "'A demo' does not match 'Load when' (per docs/__meta__/feat.header.json)", "spec": "docs/__meta__/feat.header.json"}], "ungoverned": []}
+{"checked": 1, "findings": [{"file": "docs/feat/spec-demo.md", "line": 3, "rule": "feat.description", "message": "'A demo' does not match 'Load when' (per docs/__meta__/feat.structure.json)", "spec": "docs/__meta__/feat.structure.json"}], "ungoverned": []}
 ```
 
 ### Exit Status

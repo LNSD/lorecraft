@@ -1,5 +1,12 @@
 {
-  "description": "The corpus layer: one title first, no empty section, a Checklist after the document's own sections, and a token budget each document fits.",
+  "description": "The corpus layer: a frontmatter carrying a name, one title first, no empty section, a Checklist after the document's own sections, and a token budget each document fits.",
+  "frontmatter": {
+    "type": "object",
+    "required": ["name"],
+    "properties": {
+      "name": { "type": "string" }
+    }
+  },
   "title": { "count": 1, "first": true },
   "empty_sections": "forbidden",
   "tokens": 100,
