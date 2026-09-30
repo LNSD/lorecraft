@@ -1,9 +1,8 @@
-"""Explicit document and skill selection against a loaded model over a real tree.
+"""Explicit document and skill selection against a database over a snapshot of a real tree.
 
-Documents are selected against a model loaded from ``tmp_path`` through the disk view, and skills against a
-database over a snapshot of it, and every argument is a real path, so ``select_document`` and
-``select_skills_at`` resolve it the way the command line does. Each rule of the
-selection order has one test asserting the reason it produces, never the message.
+Documents and skills are each selected against a database over a snapshot of ``tmp_path``, and every argument is
+a real path, so ``select_document`` and ``select_skills_at`` resolve it the way the command line does. Each rule
+of the selection order has one test asserting the reason it produces, never the message.
 """
 
 from pathlib import Path
@@ -26,8 +25,7 @@ from lorecraft.project.corpus import CorpusName, CorpusNameError
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.skill import SkillRef
-from lorecraft.project.workspace import WorkspaceModel, load_model
-from lorecraft.vfs import DiskFileSystem, take_snapshot
+from lorecraft.vfs import take_snapshot
 
 
 def _write(root: Path, relative: str, text: str = '') -> Path:
@@ -39,8 +37,9 @@ def _write(root: Path, relative: str, text: str = '') -> Path:
 
 
 @pytest.fixture(scope='function')
-def model(tmp_path: Path) -> WorkspaceModel:
-    """A model over one corpus ``code`` holding ``logging.md`` and a misnamed ``README.md``.
+def documents_database(tmp_path: Path) -> Database:
+    """A database over a snapshot of one corpus ``code`` holding ``logging.md``, a misnamed ``README.md`` and
+    ``alias.md``, a link to ``logging.md``.
 
     Beside the corpus sit the paths the rules reject: a nested file, a spec-less directory, an invalid
     corpus name, a file directly under ``docs/`` and a non-Markdown file.
@@ -53,122 +52,172 @@ def model(tmp_path: Path) -> WorkspaceModel:
     _write(tmp_path, 'docs/schemas/tables/x.md')
     _write(tmp_path, 'docs/bad-name/guide.md')
     _write(tmp_path, 'docs/architecture.md')
-    return load_model(DiskFileSystem(tmp_path))
+    (tmp_path / 'docs' / 'code' / 'alias.md').symlink_to('logging.md')
+    return Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
 
 
 @pytest.mark.it
 class TestSelectDocument:
     def test_select_document_with_a_listed_document_returns_its_ref(
-        self, tmp_path: Path, model: WorkspaceModel
+        self, tmp_path: Path, documents_database: Database
     ) -> None:
         #: Given
         argument = tmp_path / 'docs' / 'code' / 'logging.md'
 
         #: When
-        ref = select_document(model, tmp_path, argument)
+        ref = select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
         assert ref == DocumentRef(CorpusName.parse('code'), AspectFilename.parse('logging')), (
             'the argument maps onto the ref the model lists'
         )
 
-    def test_select_document_with_a_symlinked_argument_returns_the_target_ref(
-        self, tmp_path: Path, model: WorkspaceModel
+    def test_select_document_with_a_link_in_the_snapshot_returns_the_target_ref(
+        self, tmp_path: Path, documents_database: Database
     ) -> None:
         #: Given
-        alias = tmp_path / 'alias.md'
-        alias.symlink_to(tmp_path / 'docs' / 'code' / 'logging.md')
+        argument = tmp_path / 'docs' / 'code' / 'alias.md'
 
         #: When
-        ref = select_document(model, tmp_path, alias)
+        ref = select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
         assert ref == DocumentRef(CorpusName.parse('code'), AspectFilename.parse('logging')), (
-            'symlinks are followed once, so the alias names its target'
+            'the snapshot follows the link it recorded, so the alias names its target'
         )
 
-    def test_select_document_with_a_missing_file_raises_unreadable(self, tmp_path: Path, model: WorkspaceModel) -> None:
+    def test_select_document_with_a_link_outside_the_snapshot_raises_outside_docs(
+        self, tmp_path: Path, documents_database: Database
+    ) -> None:
+        #: Given
+        argument = tmp_path / 'alias.md'
+        argument.symlink_to(tmp_path / 'docs' / 'code' / 'logging.md')
+
+        #: When
+        with pytest.raises(DocumentPathError) as exc_info:
+            select_document(documents_database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert exc_info.value.reason is DocumentPathProblem.OUTSIDE_DOCS, (
+            'the scan never read the link, so it is judged by its spelling, which lies outside docs/'
+        )
+
+    def test_select_document_with_a_relative_argument_resolves_it_from_the_working_directory(
+        self, tmp_path: Path, documents_database: Database
+    ) -> None:
+        #: Given
+        working_directory = tmp_path / 'docs' / 'code'
+        argument = Path('logging.md')
+
+        #: When
+        ref = select_document(documents_database, tmp_path, working_directory, argument)
+
+        #: Then
+        assert ref == DocumentRef(CorpusName.parse('code'), AspectFilename.parse('logging')), (
+            'a relative argument is spelled from the working directory'
+        )
+
+    def test_select_document_with_a_path_outside_the_root_raises_outside_docs(
+        self, tmp_path: Path, documents_database: Database
+    ) -> None:
+        #: Given
+        argument = tmp_path.parent / 'elsewhere.md'
+
+        #: When
+        with pytest.raises(DocumentPathError) as exc_info:
+            select_document(documents_database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert exc_info.value.reason is DocumentPathProblem.OUTSIDE_DOCS, 'a path outside the root is outside docs/'
+
+    def test_select_document_with_a_missing_file_raises_not_found(
+        self, tmp_path: Path, documents_database: Database
+    ) -> None:
         #: Given
         argument = tmp_path / 'docs' / 'code' / 'missing.md'
 
         #: When
         with pytest.raises(DocumentPathError) as exc_info:
-            select_document(model, tmp_path, argument)
+            select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert exc_info.value.reason is DocumentPathProblem.UNREADABLE, 'a path that does not resolve is unreadable'
+        assert exc_info.value.reason is DocumentPathProblem.NOT_FOUND, 'the snapshot holds no file there'
         assert exc_info.value.argument == argument, 'the error quotes the argument as typed'
 
-    def test_select_document_with_a_directory_raises_not_a_file(self, tmp_path: Path, model: WorkspaceModel) -> None:
+    def test_select_document_with_a_directory_raises_not_a_file(
+        self, tmp_path: Path, documents_database: Database
+    ) -> None:
         #: Given
         argument = tmp_path / 'docs' / 'code'
 
         #: When
         with pytest.raises(DocumentPathError) as exc_info:
-            select_document(model, tmp_path, argument)
+            select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
         assert exc_info.value.reason is DocumentPathProblem.NOT_A_FILE, 'a directory is not a document'
 
-    def test_select_document_with_a_txt_file_raises_not_markdown(self, tmp_path: Path, model: WorkspaceModel) -> None:
+    def test_select_document_with_a_txt_file_raises_not_markdown(
+        self, tmp_path: Path, documents_database: Database
+    ) -> None:
         #: Given
         argument = tmp_path / 'docs' / 'code' / 'notes.txt'
 
         #: When
         with pytest.raises(DocumentPathError) as exc_info:
-            select_document(model, tmp_path, argument)
+            select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
         assert exc_info.value.reason is DocumentPathProblem.NOT_MARKDOWN, 'only .md files are documents'
 
     def test_select_document_with_a_specification_file_raises_outside_docs(
-        self, tmp_path: Path, model: WorkspaceModel
+        self, tmp_path: Path, documents_database: Database
     ) -> None:
         #: Given
         argument = tmp_path / 'docs' / '__meta__' / 'code.md'
 
         #: When
         with pytest.raises(DocumentPathError) as exc_info:
-            select_document(model, tmp_path, argument)
+            select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
         assert exc_info.value.reason is DocumentPathProblem.OUTSIDE_DOCS, 'docs/__meta__/ holds no documents'
 
     def test_select_document_with_a_file_outside_docs_raises_outside_docs(
-        self, tmp_path: Path, model: WorkspaceModel
+        self, tmp_path: Path, documents_database: Database
     ) -> None:
         #: Given
         argument = _write(tmp_path, 'README.md')
 
         #: When
         with pytest.raises(DocumentPathError) as exc_info:
-            select_document(model, tmp_path, argument)
+            select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
         assert exc_info.value.reason is DocumentPathProblem.OUTSIDE_DOCS, 'a file outside docs/ is no document'
 
     def test_select_document_with_a_file_directly_under_docs_raises_not_in_corpus(
-        self, tmp_path: Path, model: WorkspaceModel
+        self, tmp_path: Path, documents_database: Database
     ) -> None:
         #: Given
         argument = tmp_path / 'docs' / 'architecture.md'
 
         #: When
         with pytest.raises(DocumentPathError) as exc_info:
-            select_document(model, tmp_path, argument)
+            select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
         assert exc_info.value.reason is DocumentPathProblem.NOT_IN_CORPUS, 'a file directly under docs/ has no corpus'
 
     def test_select_document_with_an_invalid_corpus_name_raises_invalid_corpus_name(
-        self, tmp_path: Path, model: WorkspaceModel
+        self, tmp_path: Path, documents_database: Database
     ) -> None:
         #: Given
         argument = tmp_path / 'docs' / 'bad-name' / 'guide.md'
 
         #: When
         with pytest.raises(DocumentPathError) as exc_info:
-            select_document(model, tmp_path, argument)
+            select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
         assert exc_info.value.reason is DocumentPathProblem.INVALID_CORPUS_NAME, 'the first segment must parse'
@@ -176,14 +225,14 @@ class TestSelectDocument:
         assert exc_info.value.detail != '', 'the parser message is carried as the detail'
 
     def test_select_document_with_a_nested_path_under_a_spec_less_directory_raises_not_a_corpus(
-        self, tmp_path: Path, model: WorkspaceModel
+        self, tmp_path: Path, documents_database: Database
     ) -> None:
         #: Given
         argument = tmp_path / 'docs' / 'schemas' / 'tables' / 'x.md'
 
         #: When
         with pytest.raises(DocumentPathError) as exc_info:
-            select_document(model, tmp_path, argument)
+            select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
         assert exc_info.value.reason is DocumentPathProblem.NOT_A_CORPUS, (
@@ -191,45 +240,76 @@ class TestSelectDocument:
         )
 
     def test_select_document_with_a_nested_path_in_a_corpus_raises_nested(
-        self, tmp_path: Path, model: WorkspaceModel
+        self, tmp_path: Path, documents_database: Database
     ) -> None:
         #: Given
         argument = tmp_path / 'docs' / 'code' / 'sub' / 'x.md'
 
         #: When
         with pytest.raises(DocumentPathError) as exc_info:
-            select_document(model, tmp_path, argument)
+            select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
         assert exc_info.value.reason is DocumentPathProblem.NESTED, 'corpora are flat'
 
     def test_select_document_with_a_document_the_loader_left_out_raises_not_listed(
-        self, tmp_path: Path, model: WorkspaceModel
+        self, tmp_path: Path, documents_database: Database
     ) -> None:
         #: Given
         argument = tmp_path / 'docs' / 'code' / 'README.md'
 
         #: When
         with pytest.raises(DocumentPathError) as exc_info:
-            select_document(model, tmp_path, argument)
+            select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
         assert exc_info.value.reason is DocumentPathProblem.NOT_LISTED, (
             'a file whose stem is not a valid document name is not a listed document'
         )
 
-    def test_select_document_with_a_file_added_after_loading_raises_not_listed(
-        self, tmp_path: Path, model: WorkspaceModel
+    def test_select_document_with_a_file_added_after_the_snapshot_raises_not_found(
+        self, tmp_path: Path, documents_database: Database
     ) -> None:
         #: Given
         argument = _write(tmp_path, 'docs/code/later.md')
 
         #: When
         with pytest.raises(DocumentPathError) as exc_info:
-            select_document(model, tmp_path, argument)
+            select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert exc_info.value.reason is DocumentPathProblem.NOT_LISTED, 'the model is a snapshot'
+        assert exc_info.value.reason is DocumentPathProblem.NOT_FOUND, 'the argument is resolved in the snapshot'
+
+    def test_select_document_with_a_file_removed_after_the_snapshot_returns_the_ref_the_snapshot_saw(
+        self, tmp_path: Path, documents_database: Database
+    ) -> None:
+        #: Given
+        argument = tmp_path / 'docs' / 'code' / 'logging.md'
+        argument.unlink()
+
+        #: When
+        ref = select_document(documents_database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert ref == DocumentRef(CorpusName.parse('code'), AspectFilename.parse('logging')), (
+            'the argument is resolved through the snapshot, not the disk'
+        )
+
+    def test_select_document_with_a_link_retargeted_after_the_snapshot_returns_the_ref_the_snapshot_saw(
+        self, tmp_path: Path, documents_database: Database
+    ) -> None:
+        #: Given
+        argument = tmp_path / 'docs' / 'code' / 'alias.md'
+        argument.unlink()
+        argument.symlink_to('README.md')
+
+        #: When
+        ref = select_document(documents_database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert ref == DocumentRef(CorpusName.parse('code'), AspectFilename.parse('logging')), (
+            'the link is followed where the snapshot saw it lead'
+        )
 
 
 AUDIT: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/audit'))
