@@ -4,7 +4,8 @@ Every path crossing this boundary is a ``RootRelativePath`` such as ``docs/code/
 never holding a ``..`` component, so no argument can name a file outside the root. The type carries that
 proof, so no implementation checks it again. Nothing above the boundary sees a ``Path``, a handle, a stat
 result or an mtime. ``resolve_dir`` is the one operation that reports where a symlink chain leads, as a
-root-relative directory; ``list_dir`` and ``read_text`` never report or classify a link's target. Every
+root-relative directory; ``list_dir`` and ``read_text`` reach through a link on the way to the path they are
+given, or at it, and never report or classify a link's target. Every
 implementation of the view is this package's own: ``DiskFileSystem`` reads the disk under the workspace
 root, and ``VirtualFileSystem`` answers from a ``Snapshot``.
 """
@@ -123,8 +124,11 @@ class FileSystem(ABC):
     def list_dir(self, path: RootRelativePath) -> tuple[DirEntry, ...]:
         """List one directory non-recursively, sorted by name.
 
+        A symlink on the way to the directory, or at it, is followed; a symlink among its entries is
+        listed as SYMLINK, whatever it points at.
+
         Returns:
-            The entries in name order, or ``()`` when the path is missing or is not a directory.
+            The entries in name order, or ``()`` when the path is missing or leads to no directory.
 
         Raises:
             ListDirError: If the directory exists but cannot be read.
@@ -132,7 +136,7 @@ class FileSystem(ABC):
 
     @abstractmethod
     def read_text(self, path: RootRelativePath) -> str:
-        """Read one file as UTF-8 text.
+        """Read one file as UTF-8 text; a symlink on the way to the file, or at it, is followed.
 
         Raises:
             DecodeTextError: If the bytes are not UTF-8.
@@ -143,9 +147,9 @@ class FileSystem(ABC):
     def resolve_dir(self, path: RootRelativePath) -> RootRelativePath | None:
         """Follow every symlink in ``path`` and return the real directory it leads to, root-relative.
 
-        The one place the package follows a symlink, and only per directory: ``list_dir`` reports links
-        and ``read_text`` opens whatever the path names. A regular directory resolves to itself, and the
-        root resolves to ``.``.
+        The one operation that says where a symlink leads, and only per directory: ``list_dir`` and
+        ``read_text`` follow a link without naming the real path. A regular directory resolves to itself,
+        and the root resolves to ``.``.
 
         Returns:
             The real directory, root-relative, or ``None`` when no directory under the root sits at the
