@@ -10,7 +10,7 @@ import pytest
 
 from ..changes import Change, ChangeKind, ChangeSet, diff
 from ..path import RootRelativePath
-from ..snapshot import Link, Listing, Snapshot
+from ..snapshot import FileBytes, Link, Listing, Snapshot
 from ..view import DirEntry, EntryKind
 
 
@@ -23,6 +23,28 @@ def _docs_link(name: str, target: str) -> Snapshot:
         ),
         files=(),
         links=(Link(RootRelativePath.parse('docs') / name, PurePosixPath(target)),),
+    )
+
+
+def _linked_skill(listings: tuple[Listing, ...]) -> Snapshot:
+    """A scan-shaped snapshot whose one skill entry links to ``skills/review``, plus the listings given.
+
+    ``listings`` is what the scan listed where the link leads: nothing when it dangles.
+    """
+    skills_dir = Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('review', EntryKind.SYMLINK),))
+    return Snapshot(
+        listings=(skills_dir, *listings),
+        files=(),
+        links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),),
+    )
+
+
+def _linked_skill_file(data: bytes) -> Snapshot:
+    """A scan-shaped snapshot whose ``.agents/skills/SKILL.md`` links to ``REVIEW.md``, read through the link."""
+    return Snapshot(
+        listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('SKILL.md', EntryKind.SYMLINK),)),),
+        files=(FileBytes(RootRelativePath.parse('REVIEW.md'), data),),
+        links=(Link(RootRelativePath.parse('.agents/skills/SKILL.md'), PurePosixPath('../../REVIEW.md')),),
     )
 
 
@@ -182,3 +204,41 @@ class TestDiff:
 
         #: Then
         assert changes == expected, 'a symlink pointing at a new target is reported MODIFIED'
+
+    def test_diff_with_an_empty_linked_directory_removed_returns_it_deleted(self) -> None:
+        #: Given
+        # What a following scan records for `.agents/skills/review -> ../../skills/review`: the directory is
+        # listed at its real path, and no listing of `skills` names it.
+        old = _linked_skill(listings=(Listing(RootRelativePath.parse('skills/review'), ()),))
+        new = _linked_skill(listings=())
+        expected = frozenset({Change(RootRelativePath.parse('skills/review'), ChangeKind.DELETED)})
+
+        #: When
+        changes = diff(old, new)
+
+        #: Then
+        assert changes == expected, 'a listed directory with no listed parent is an entry, so its removal is seen'
+
+    def test_diff_with_an_empty_linked_directory_created_returns_it_added(self) -> None:
+        #: Given
+        old = _linked_skill(listings=())
+        new = _linked_skill(listings=(Listing(RootRelativePath.parse('skills/review'), ()),))
+        expected = frozenset({Change(RootRelativePath.parse('skills/review'), ChangeKind.ADDED)})
+
+        #: When
+        changes = diff(old, new)
+
+        #: Then
+        assert changes == expected, 'a directory appearing where the link dangled is reported ADDED'
+
+    def test_diff_with_changed_bytes_behind_a_linked_file_returns_the_real_path_modified(self) -> None:
+        #: Given
+        old = _linked_skill_file(b'old')
+        new = _linked_skill_file(b'new')
+        expected = frozenset({Change(RootRelativePath.parse('REVIEW.md'), ChangeKind.MODIFIED)})
+
+        #: When
+        changes = diff(old, new)
+
+        #: Then
+        assert changes == expected, 'the file a followed link leads to is compared at its real path'
