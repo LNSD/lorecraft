@@ -22,13 +22,14 @@ from lorecraft.agents import SKILL_ENTRY_FILENAME
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
 from lorecraft.vfs import (
-    DecodeTextError,
+    DirListError,
+    DirResolveError,
     EntryKind,
+    FileReadError,
+    FileResolveError,
     FileSystem,
-    ListDirError,
-    ReadTextError,
-    ResolveDirError,
-    ResolveFileError,
+    TextDecodeError,
+    UnrecordedFileError,
 )
 
 from .ref import SkillLocation, SkillRef
@@ -56,9 +57,9 @@ class SkillsDirListError(Error):
     """
 
     skills_dir: RootRelativePath
-    source: ListDirError
+    source: DirListError
 
-    def __init__(self, skills_dir: RootRelativePath, *, source: ListDirError) -> None:
+    def __init__(self, skills_dir: RootRelativePath, *, source: DirListError) -> None:
         self.skills_dir = skills_dir
         self.source = source
         super().__init__(f'cannot list the skills in {skills_dir}')
@@ -74,9 +75,9 @@ class SkillEntryResolveError(Error):
     """
 
     entry: RootRelativePath
-    source: ResolveDirError
+    source: DirResolveError
 
-    def __init__(self, entry: RootRelativePath, *, source: ResolveDirError) -> None:
+    def __init__(self, entry: RootRelativePath, *, source: DirResolveError) -> None:
         self.entry = entry
         self.source = source
         super().__init__(f'cannot resolve skill entry {entry}')
@@ -92,9 +93,9 @@ class SkillDirListError(Error):
     """
 
     directory: RootRelativePath
-    source: ListDirError
+    source: DirListError
 
-    def __init__(self, directory: RootRelativePath, *, source: ListDirError) -> None:
+    def __init__(self, directory: RootRelativePath, *, source: DirListError) -> None:
         self.directory = directory
         self.source = source
         super().__init__(f'cannot look for {SKILL_ENTRY_FILENAME} in {directory}')
@@ -110,9 +111,9 @@ class SkillFileResolveError(Error):
     """
 
     skill_file: RootRelativePath
-    source: ResolveFileError
+    source: FileResolveError
 
-    def __init__(self, skill_file: RootRelativePath, *, source: ResolveFileError) -> None:
+    def __init__(self, skill_file: RootRelativePath, *, source: FileResolveError) -> None:
         self.skill_file = skill_file
         self.source = source
         super().__init__(f'cannot resolve {skill_file}')
@@ -128,9 +129,9 @@ class SkillReadError(Error):
     """
 
     ref: SkillRef
-    source: ReadTextError
+    source: FileReadError | UnrecordedFileError
 
-    def __init__(self, ref: SkillRef, *, source: ReadTextError) -> None:
+    def __init__(self, ref: SkillRef, *, source: FileReadError | UnrecordedFileError) -> None:
         self.ref = ref
         self.source = source
         super().__init__(f'cannot read skill {ref.path}')
@@ -146,9 +147,9 @@ class SkillDecodeError(Error):
     """
 
     ref: SkillRef
-    source: DecodeTextError
+    source: TextDecodeError
 
-    def __init__(self, ref: SkillRef, *, source: DecodeTextError) -> None:
+    def __init__(self, ref: SkillRef, *, source: TextDecodeError) -> None:
         self.ref = ref
         self.source = source
         super().__init__(f'skill {ref.path} is not UTF-8')
@@ -171,7 +172,7 @@ class Repository:
             the root.
 
         Raises:
-            ResolveDirError: If the operating system refuses the lookup.
+            DirResolveError: If the operating system refuses the lookup.
         """
         # A refused lookup is the resolve's own, with the skills directory as its path: nothing to add here.
         return self._fs.resolve_dir(skills_dir)
@@ -200,7 +201,7 @@ class Repository:
         """
         try:
             entries = self._fs.list_dir(skills_dir)
-        except ListDirError as exc:
+        except DirListError as exc:
             raise SkillsDirListError(skills_dir, source=exc) from exc
 
         # The seam lists entries in name order, so the locations come out sorted.
@@ -230,12 +231,11 @@ class Repository:
             SkillDecodeError: If the file is not UTF-8.
             SkillReadError: If the file is missing or unreadable.
         """
-        # DecodeTextError is a ReadTextError, so the narrower clause must come first.
         try:
             text = self._fs.read_text(ref.path)
-        except DecodeTextError as exc:
+        except TextDecodeError as exc:
             raise SkillDecodeError(ref, source=exc) from exc
-        except ReadTextError as exc:
+        except (FileReadError, UnrecordedFileError) as exc:
             raise SkillReadError(ref, source=exc) from exc
         return Skill(ref, text)
 
@@ -247,7 +247,7 @@ class Repository:
         """
         try:
             return self._fs.resolve_dir(entry)
-        except ResolveDirError as exc:
+        except DirResolveError as exc:
             raise SkillEntryResolveError(entry, source=exc) from exc
 
     def _skill_file(self, directory: RootRelativePath) -> RootRelativePath | None:
@@ -266,7 +266,7 @@ class Repository:
         """
         try:
             entries = self._fs.list_dir(directory)
-        except ListDirError as exc:
+        except DirListError as exc:
             raise SkillDirListError(directory, source=exc) from exc
 
         skill_file = directory / SKILL_ENTRY_FILENAME
@@ -278,6 +278,6 @@ class Repository:
             if entry.kind is EntryKind.SYMLINK:
                 try:
                     return self._fs.resolve_file(skill_file)
-                except ResolveFileError as exc:
+                except FileResolveError as exc:
                     raise SkillFileResolveError(skill_file, source=exc) from exc
         return None

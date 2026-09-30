@@ -16,13 +16,14 @@ from lorecraft.core.path import ROOT, RootRelativePath
 from .snapshot import MAX_LINKS, FileBytes, Link, Listing, Snapshot
 from .view import (
     DirEntry,
+    DirListError,
+    DirResolveError,
+    EntryInspectError,
     EntryKind,
-    EntryKindError,
+    FileReadError,
+    FileResolveError,
     FileSystem,
-    ListDirError,
-    ReadTextError,
-    ResolveDirError,
-    ResolveFileError,
+    OsRefusal,
     decode_text,
 )
 
@@ -56,9 +57,12 @@ class DiskFileSystem(FileSystem):
         """List one directory on disk; see ``FileSystem.list_dir``.
 
         Raises:
-            ListDirError: If the directory exists but cannot be read.
+            DirListError: If the directory exists but cannot be read.
         """
-        entries = _scan(self._root, path)
+        try:
+            entries = _scan(self._root, path)
+        except OSError as exc:
+            raise DirListError(path, OsRefusal.of(exc), source=exc) from exc
         if entries is None:
             return ()
         return entries
@@ -67,41 +71,41 @@ class DiskFileSystem(FileSystem):
         """Read one file on disk as UTF-8 text; see ``FileSystem.read_text``.
 
         Raises:
-            DecodeTextError: If the bytes are not UTF-8.
-            ReadTextError: If the file is missing or cannot be read.
+            TextDecodeError: If the bytes are not UTF-8.
+            FileReadError: If the file is missing or cannot be read.
         """
         try:
             data = disk_location(self._root, path).read_bytes()
         except OSError as exc:
-            raise ReadTextError(path, exc.strerror or str(exc)) from exc
+            raise FileReadError(path, OsRefusal.of(exc), source=exc) from exc
         return decode_text(path, data)
 
     def entry_kind(self, path: RootRelativePath) -> EntryKind | None:
         """What the entry at ``path`` itself is on disk, from ``os.lstat``; see ``FileSystem.entry_kind``.
 
         Raises:
-            EntryKindError: If the entry exists but cannot be inspected.
+            EntryInspectError: If the entry exists but cannot be inspected.
         """
         try:
             mode = os.lstat(disk_location(self._root, path)).st_mode
-        except (FileNotFoundError, NotADirectoryError) as exc:  # noqa: F841 — a missing path has no kind, by contract
+        except (FileNotFoundError, NotADirectoryError):  # a missing path has no kind, by contract
             return None
         except OSError as exc:
             if exc.errno == errno.ELOOP:  # a looping link on the way leads to no directory, like a dangling one
                 return None
-            raise EntryKindError(path, exc.strerror or str(exc)) from exc
+            raise EntryInspectError(path, OsRefusal.of(exc), source=exc) from exc
         return _kind_of_mode(mode)
 
     def resolve_dir(self, path: RootRelativePath) -> RootRelativePath | None:
         """Resolve a directory's symlink chain on disk; see ``FileSystem.resolve_dir``.
 
         Raises:
-            ResolveDirError: If the operating system refuses the lookup, such as a permission error on a
+            DirResolveError: If the operating system refuses the lookup, such as a permission error on a
                 component, and the chain does not lead outside the root.
         """
         try:
             real = os.path.realpath(disk_location(self._root, path), strict=True)
-        except (FileNotFoundError, NotADirectoryError) as exc:  # noqa: F841 — missing or through a file resolves to None, by contract
+        except (FileNotFoundError, NotADirectoryError):  # missing or through a file resolves to None, by contract
             return None
         except OSError as exc:
             if exc.errno == errno.ELOOP:  # a looping link leads nowhere, exactly like a dangling one
@@ -111,14 +115,14 @@ class DiskFileSystem(FileSystem):
             leads_to = Path(os.path.realpath(disk_location(self._root, path)))
             if not leads_to.is_relative_to(self._root):
                 return None
-            raise ResolveDirError(path, exc.strerror or str(exc)) from exc
+            raise DirResolveError(path, OsRefusal.of(exc), source=exc) from exc
         # Asked of the path as given, not of ``real``: ``realpath`` follows a chain of any length, while the
         # operating system gives up past its own limit, and then nothing opens the directory through it.
         if not os.path.isdir(disk_location(self._root, path)):
             return None
         try:
             relative = Path(real).relative_to(self._root)
-        except ValueError as exc:  # noqa: F841 — a target outside the root has no root-relative spelling
+        except ValueError:  # a target outside the root has no root-relative spelling
             return None
         return RootRelativePath.parse(relative.as_posix())
 
@@ -126,12 +130,12 @@ class DiskFileSystem(FileSystem):
         """Resolve a file's symlink chain on disk; see ``FileSystem.resolve_file``.
 
         Raises:
-            ResolveFileError: If the operating system refuses the lookup, such as a permission error on a
+            FileResolveError: If the operating system refuses the lookup, such as a permission error on a
                 component, and the chain does not lead outside the root.
         """
         try:
             real = os.path.realpath(disk_location(self._root, path), strict=True)
-        except (FileNotFoundError, NotADirectoryError) as exc:  # noqa: F841 — missing or through a file resolves to None, by contract
+        except (FileNotFoundError, NotADirectoryError):  # missing or through a file resolves to None, by contract
             return None
         except OSError as exc:
             if exc.errno == errno.ELOOP:  # a looping link leads nowhere, exactly like a dangling one
@@ -141,14 +145,14 @@ class DiskFileSystem(FileSystem):
             leads_to = Path(os.path.realpath(disk_location(self._root, path)))
             if not leads_to.is_relative_to(self._root):
                 return None
-            raise ResolveFileError(path, exc.strerror or str(exc)) from exc
+            raise FileResolveError(path, OsRefusal.of(exc), source=exc) from exc
         # Asked of the path as given, as in ``resolve_dir``: nothing opens the file through a chain longer than
         # the operating system follows.
         if not os.path.isfile(disk_location(self._root, path)):
             return None
         try:
             relative = Path(real).relative_to(self._root)
-        except ValueError as exc:  # noqa: F841 — a target outside the root has no root-relative spelling
+        except ValueError:  # a target outside the root has no root-relative spelling
             return None
         return RootRelativePath.parse(relative.as_posix())
 
@@ -182,18 +186,88 @@ class ScanRoot:
             raise ValueError(f'depth must be 0 or more, got {self.depth}')
 
 
-class TakeSnapshotError(Error):
-    """A directory, file or symlink inside the scan scope exists but cannot be read.
+class SnapshotDirListError(Error):
+    """A directory inside the scan scope exists but cannot be listed.
 
     Attributes:
-        path: The root-relative path the scan stopped at.
+        path: The root-relative directory the scan stopped at.
+        refusal: Why the operating system refused the listing.
+        source: The operating system's failure.
     """
 
     path: RootRelativePath
+    refusal: OsRefusal
+    source: OSError
 
-    def __init__(self, path: RootRelativePath, detail: str) -> None:
+    def __init__(self, path: RootRelativePath, refusal: OsRefusal, *, source: OSError) -> None:
         self.path = path
-        super().__init__(f'cannot snapshot {path}: {detail}')
+        self.refusal = refusal
+        self.source = source
+        super().__init__(f'cannot snapshot directory {path}: {refusal.value}')
+        self.__cause__ = source
+
+
+class SnapshotEntryInspectError(Error):
+    """An entry on the way to a scope root, or along a followed link, exists but cannot be inspected.
+
+    Attributes:
+        path: The root-relative entry the scan stopped at.
+        refusal: Why the operating system refused the inspection.
+        source: The operating system's failure.
+    """
+
+    path: RootRelativePath
+    refusal: OsRefusal
+    source: OSError
+
+    def __init__(self, path: RootRelativePath, refusal: OsRefusal, *, source: OSError) -> None:
+        self.path = path
+        self.refusal = refusal
+        self.source = source
+        super().__init__(f'cannot snapshot entry {path}: {refusal.value}')
+        self.__cause__ = source
+
+
+class SnapshotFileReadError(Error):
+    """A file inside the scan scope, or one a followed link leads to, exists but cannot be read.
+
+    Attributes:
+        path: The root-relative file the scan stopped at.
+        refusal: Why the operating system refused the read.
+        source: The operating system's failure.
+    """
+
+    path: RootRelativePath
+    refusal: OsRefusal
+    source: OSError
+
+    def __init__(self, path: RootRelativePath, refusal: OsRefusal, *, source: OSError) -> None:
+        self.path = path
+        self.refusal = refusal
+        self.source = source
+        super().__init__(f'cannot snapshot file {path}: {refusal.value}')
+        self.__cause__ = source
+
+
+class SnapshotLinkReadError(Error):
+    """A symlink inside the scan scope, or on the way to it, exists but its target cannot be read.
+
+    Attributes:
+        path: The root-relative symlink the scan stopped at.
+        refusal: Why the operating system refused the read.
+        source: The operating system's failure.
+    """
+
+    path: RootRelativePath
+    refusal: OsRefusal
+    source: OSError
+
+    def __init__(self, path: RootRelativePath, refusal: OsRefusal, *, source: OSError) -> None:
+        self.path = path
+        self.refusal = refusal
+        self.source = source
+        super().__init__(f'cannot snapshot link {path}: {refusal.value}')
+        self.__cause__ = source
 
 
 def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
@@ -211,8 +285,12 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
     file has its bytes recorded at its real path. Either way every listing and every file sits at a real path.
 
     Raises:
-        TakeSnapshotError: If a directory in scope cannot be listed, or a file or symlink in it cannot be
-            read, for a reason other than having vanished.
+        SnapshotDirListError: If a directory in scope cannot be listed.
+        SnapshotEntryInspectError: If an entry on the way to a scope root, or along a followed link, cannot be
+            inspected.
+        SnapshotFileReadError: If a file in scope, or one a followed link leads to, cannot be read for a reason
+            other than having vanished.
+        SnapshotLinkReadError: If a symlink's target cannot be read for a reason other than having vanished.
     """
     listings: dict[RootRelativePath, tuple[DirEntry, ...]] = {}
     files: dict[RootRelativePath, bytes] = {}
@@ -235,8 +313,8 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
             continue
         try:
             entries = _scan(root, directory)
-        except ListDirError as exc:
-            raise TakeSnapshotError(directory, exc.detail) from exc
+        except OSError as exc:
+            raise SnapshotDirListError(directory, OsRefusal.of(exc), source=exc) from exc
         if entries is None:
             continue  # vanished after its parent was listed; see the docstring
         if follow_links:
@@ -286,7 +364,9 @@ def _follow_listed_link(
     depth, as a FILE entry has. A link that leads nowhere under the root is left as recorded.
 
     Raises:
-        TakeSnapshotError: If a component of the chain, or the file it leads to, exists but cannot be read.
+        SnapshotEntryInspectError: If a component of the chain exists but cannot be inspected.
+        SnapshotLinkReadError: If a link of the chain exists but its target cannot be read.
+        SnapshotFileReadError: If the file the chain leads to exists but cannot be read.
     """
     leads_to = _walk_to_real_path(root, link, links, follow_links=True)
     if leads_to is None:
@@ -340,7 +420,8 @@ def _walk_to_real_path(
         the walk stepped into, or the chain is longer than ``MAX_LINKS``.
 
     Raises:
-        TakeSnapshotError: If a component exists but cannot be inspected, or its link cannot be read.
+        SnapshotEntryInspectError: If a component exists but cannot be inspected.
+        SnapshotLinkReadError: If a component is a link whose target cannot be read.
     """
     resolved = ROOT
     remaining = list(path.parts)
@@ -379,14 +460,14 @@ def _lstat_kind(root: Path, path: RootRelativePath) -> EntryKind | None:
     """What ``path`` itself is, a final symlink not followed; ``None`` when it is missing.
 
     Raises:
-        TakeSnapshotError: If the path exists but cannot be inspected.
+        SnapshotEntryInspectError: If the path exists but cannot be inspected.
     """
     try:
         mode = os.lstat(disk_location(root, path)).st_mode
-    except (FileNotFoundError, NotADirectoryError) as exc:  # noqa: F841 — a missing path has no kind, by contract
+    except (FileNotFoundError, NotADirectoryError):  # a missing path has no kind, by contract
         return None
     except OSError as exc:
-        raise TakeSnapshotError(path, exc.strerror or str(exc)) from exc
+        raise SnapshotEntryInspectError(path, OsRefusal.of(exc), source=exc) from exc
     return _kind_of_mode(mode)
 
 
@@ -405,14 +486,14 @@ def _read_bytes(root: Path, path: RootRelativePath) -> bytes | None:
     """A listed file's bytes; ``None`` when it vanished after the listing.
 
     Raises:
-        TakeSnapshotError: If the file exists but cannot be read.
+        SnapshotFileReadError: If the file exists but cannot be read.
     """
     try:
         return disk_location(root, path).read_bytes()
-    except FileNotFoundError as exc:  # noqa: F841 — a vanished file is dropped by the caller, by contract
+    except FileNotFoundError:  # a vanished file is dropped by the caller, by contract
         return None
     except OSError as exc:
-        raise TakeSnapshotError(path, exc.strerror or str(exc)) from exc
+        raise SnapshotFileReadError(path, OsRefusal.of(exc), source=exc) from exc
 
 
 def _read_link(root: Path, path: RootRelativePath) -> PurePosixPath | None:
@@ -422,14 +503,14 @@ def _read_link(root: Path, path: RootRelativePath) -> PurePosixPath | None:
     ``_spell_relative_if_under_root``.
 
     Raises:
-        TakeSnapshotError: If the symlink exists but cannot be read.
+        SnapshotLinkReadError: If the symlink exists but cannot be read.
     """
     try:
         target = PurePosixPath(os.readlink(disk_location(root, path)))
-    except FileNotFoundError as exc:  # noqa: F841 — a vanished link is dropped by the caller, by contract
+    except FileNotFoundError:  # a vanished link is dropped by the caller, by contract
         return None
     except OSError as exc:
-        raise TakeSnapshotError(path, exc.strerror or str(exc)) from exc
+        raise SnapshotLinkReadError(path, OsRefusal.of(exc), source=exc) from exc
     return _spell_relative_if_under_root(root, path, target)
 
 
@@ -464,17 +545,18 @@ def _scan(root: Path, path: RootRelativePath) -> tuple[DirEntry, ...] | None:
         that loops.
 
     Raises:
-        ListDirError: If the directory exists but cannot be read.
+        OSError: If the directory exists but cannot be read. ``list_dir`` and ``take_snapshot`` each translate it
+            into a variant of their own, since each is a different operation failing.
     """
     try:
         with os.scandir(disk_location(root, path)) as scan:
             entries = [DirEntry(entry.name, _entry_kind(entry)) for entry in scan]
-    except (FileNotFoundError, NotADirectoryError) as exc:  # noqa: F841 — a missing path is None, by contract
+    except (FileNotFoundError, NotADirectoryError):  # a missing path is None, by contract
         return None
     except OSError as exc:
         if exc.errno == errno.ELOOP:  # a looping link leads to no directory, exactly like a dangling one
             return None
-        raise ListDirError(path, exc.strerror or str(exc)) from exc
+        raise
     entries.sort(key=lambda entry: entry.name)
     return tuple(entries)
 
