@@ -10,7 +10,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.layout import DOCS_DIR
 from lorecraft.project.schemas import schema_name_stem
 from lorecraft.project.skill import SkillsDir
 from lorecraft.project.workspace import Corpus, Spec, WorkspaceModel
@@ -112,7 +111,7 @@ def _corpus_line(corpus: Corpus) -> _Line:
         document_lines.append(_Line(f'{ref.path.name} [{", ".join(stems)}]'))
     parts.append(_Line(f'documents ({len(document_lines)})', tuple(document_lines)))
 
-    return _Line(f'{corpus.name} ({DOCS_DIR / str(corpus.name)})', tuple(parts))
+    return _Line(f'{corpus.name} ({corpus.directory})', tuple(parts))
 
 
 def _skills_dirs_section(skills_dirs: tuple[SkillsDir, ...]) -> _Line:
@@ -150,7 +149,7 @@ def _json_corpus(corpus: Corpus) -> dict[str, object]:
         )
     return {
         'name': str(corpus.name),
-        'directory': str(DOCS_DIR / str(corpus.name)),
+        'directory': str(corpus.directory),
         'specs': specs,
         'documents': documents,
     }
