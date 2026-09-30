@@ -54,11 +54,6 @@ def skills(
     except Error as exc:
         report_failure(exc)
         raise typer.Exit(code=2) from exc
-    except OSError as exc:
-        # As in each document check command: what is left is Python 3.12's Path.is_dir, which re-raises a
-        # PermissionError from find_root and resolve_root where 3.13 and later answer False.
-        typer.echo(f'error: cannot read input: {exc}', err=True)
-        raise typer.Exit(code=2) from exc
 
     print_skill_run(run, output_format)
     if run.findings():

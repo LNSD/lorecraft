@@ -12,10 +12,16 @@ import pytest
 
 from lorecraft.checks import Database
 from lorecraft.cli.select import (
-    DocumentPathError,
-    DocumentPathProblem,
-    SkillPathError,
-    SkillPathProblem,
+    CorpuslessDocumentPathError,
+    InvalidCorpusDocumentPathError,
+    MissingDocumentPathError,
+    NestedDocumentPathError,
+    NonFileDocumentPathError,
+    NonMarkdownDocumentPathError,
+    OutsideDocsDocumentPathError,
+    UnknownCorpusDocumentPathError,
+    UnlistedDocumentPathError,
+    UnlistedSkillPathError,
     select_document,
     select_skills_at,
 )
@@ -94,11 +100,11 @@ class TestSelectDocument:
         argument.symlink_to(tmp_path / 'docs' / 'code' / 'logging.md')
 
         #: When
-        with pytest.raises(DocumentPathError) as exc_info:
+        with pytest.raises(OutsideDocsDocumentPathError) as exc_info:
             select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert exc_info.value.reason is DocumentPathProblem.OUTSIDE_DOCS, (
+        assert exc_info.value.argument == argument, (
             'the scan never read the link, so it is judged by its spelling, which lies outside docs/'
         )
 
@@ -124,11 +130,11 @@ class TestSelectDocument:
         argument = tmp_path.parent / 'elsewhere.md'
 
         #: When
-        with pytest.raises(DocumentPathError) as exc_info:
+        with pytest.raises(OutsideDocsDocumentPathError) as exc_info:
             select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert exc_info.value.reason is DocumentPathProblem.OUTSIDE_DOCS, 'a path outside the root is outside docs/'
+        assert exc_info.value.argument == argument, 'a path outside the root is outside docs/'
 
     def test_select_document_with_a_missing_file_raises_not_found(
         self, tmp_path: Path, documents_database: Database
@@ -137,11 +143,11 @@ class TestSelectDocument:
         argument = tmp_path / 'docs' / 'code' / 'missing.md'
 
         #: When
-        with pytest.raises(DocumentPathError) as exc_info:
+        with pytest.raises(MissingDocumentPathError) as exc_info:
             select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert exc_info.value.reason is DocumentPathProblem.NOT_FOUND, 'the snapshot holds no file there'
+        assert exc_info.value.argument == argument, 'the snapshot holds no file there'
         assert exc_info.value.argument == argument, 'the error quotes the argument as typed'
 
     def test_select_document_with_a_directory_raises_not_a_file(
@@ -151,11 +157,11 @@ class TestSelectDocument:
         argument = tmp_path / 'docs' / 'code'
 
         #: When
-        with pytest.raises(DocumentPathError) as exc_info:
+        with pytest.raises(NonFileDocumentPathError) as exc_info:
             select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert exc_info.value.reason is DocumentPathProblem.NOT_A_FILE, 'a directory is not a document'
+        assert exc_info.value.argument == argument, 'a directory is not a document'
 
     def test_select_document_with_a_txt_file_raises_not_markdown(
         self, tmp_path: Path, documents_database: Database
@@ -164,11 +170,11 @@ class TestSelectDocument:
         argument = tmp_path / 'docs' / 'code' / 'notes.txt'
 
         #: When
-        with pytest.raises(DocumentPathError) as exc_info:
+        with pytest.raises(NonMarkdownDocumentPathError) as exc_info:
             select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert exc_info.value.reason is DocumentPathProblem.NOT_MARKDOWN, 'only .md files are documents'
+        assert exc_info.value.argument == argument, 'only .md files are documents'
 
     def test_select_document_with_a_specification_file_raises_outside_docs(
         self, tmp_path: Path, documents_database: Database
@@ -177,11 +183,11 @@ class TestSelectDocument:
         argument = tmp_path / 'docs' / '__meta__' / 'code.md'
 
         #: When
-        with pytest.raises(DocumentPathError) as exc_info:
+        with pytest.raises(OutsideDocsDocumentPathError) as exc_info:
             select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert exc_info.value.reason is DocumentPathProblem.OUTSIDE_DOCS, 'docs/__meta__/ holds no documents'
+        assert exc_info.value.argument == argument, 'docs/__meta__/ holds no documents'
 
     def test_select_document_with_a_file_outside_docs_raises_outside_docs(
         self, tmp_path: Path, documents_database: Database
@@ -190,11 +196,11 @@ class TestSelectDocument:
         argument = _write(tmp_path, 'README.md')
 
         #: When
-        with pytest.raises(DocumentPathError) as exc_info:
+        with pytest.raises(OutsideDocsDocumentPathError) as exc_info:
             select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert exc_info.value.reason is DocumentPathProblem.OUTSIDE_DOCS, 'a file outside docs/ is no document'
+        assert exc_info.value.argument == argument, 'a file outside docs/ is no document'
 
     def test_select_document_with_a_file_directly_under_docs_raises_not_in_corpus(
         self, tmp_path: Path, documents_database: Database
@@ -203,11 +209,11 @@ class TestSelectDocument:
         argument = tmp_path / 'docs' / 'architecture.md'
 
         #: When
-        with pytest.raises(DocumentPathError) as exc_info:
+        with pytest.raises(CorpuslessDocumentPathError) as exc_info:
             select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert exc_info.value.reason is DocumentPathProblem.NOT_IN_CORPUS, 'a file directly under docs/ has no corpus'
+        assert exc_info.value.argument == argument, 'a file directly under docs/ has no corpus'
 
     def test_select_document_with_an_invalid_corpus_name_raises_invalid_corpus_name(
         self, tmp_path: Path, documents_database: Database
@@ -216,15 +222,14 @@ class TestSelectDocument:
         argument = tmp_path / 'docs' / 'bad-name' / 'guide.md'
 
         #: When
-        with pytest.raises(DocumentPathError) as exc_info:
+        with pytest.raises(InvalidCorpusDocumentPathError) as exc_info:
             select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert exc_info.value.reason is DocumentPathProblem.INVALID_CORPUS_NAME, 'the first segment must parse'
-        assert isinstance(exc_info.value.__cause__, InvalidCorpusNameCharacterError), (
-            'the parser failure is chained as the cause'
+        assert exc_info.value.argument == argument, 'the first segment must parse'
+        assert isinstance(exc_info.value.source, InvalidCorpusNameCharacterError), (
+            'the parser failure is the typed source'
         )
-        assert exc_info.value.detail != '', 'the parser message is carried as the detail'
 
     def test_select_document_with_a_nested_path_under_a_spec_less_directory_raises_not_a_corpus(
         self, tmp_path: Path, documents_database: Database
@@ -233,11 +238,11 @@ class TestSelectDocument:
         argument = tmp_path / 'docs' / 'schemas' / 'tables' / 'x.md'
 
         #: When
-        with pytest.raises(DocumentPathError) as exc_info:
+        with pytest.raises(UnknownCorpusDocumentPathError) as exc_info:
             select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert exc_info.value.reason is DocumentPathProblem.NOT_A_CORPUS, (
+        assert exc_info.value.argument == argument, (
             'the first segment is judged before depth, so the missing spec is the cause, not the nesting'
         )
 
@@ -248,11 +253,11 @@ class TestSelectDocument:
         argument = tmp_path / 'docs' / 'code' / 'sub' / 'x.md'
 
         #: When
-        with pytest.raises(DocumentPathError) as exc_info:
+        with pytest.raises(NestedDocumentPathError) as exc_info:
             select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert exc_info.value.reason is DocumentPathProblem.NESTED, 'corpora are flat'
+        assert exc_info.value.argument == argument, 'corpora are flat'
 
     def test_select_document_with_a_document_the_loader_left_out_raises_not_listed(
         self, tmp_path: Path, documents_database: Database
@@ -261,11 +266,11 @@ class TestSelectDocument:
         argument = tmp_path / 'docs' / 'code' / 'README.md'
 
         #: When
-        with pytest.raises(DocumentPathError) as exc_info:
+        with pytest.raises(UnlistedDocumentPathError) as exc_info:
             select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert exc_info.value.reason is DocumentPathProblem.NOT_LISTED, (
+        assert exc_info.value.argument == argument, (
             'a file whose stem is not a valid document name is not a listed document'
         )
 
@@ -276,11 +281,11 @@ class TestSelectDocument:
         argument = _write(tmp_path, 'docs/code/later.md')
 
         #: When
-        with pytest.raises(DocumentPathError) as exc_info:
+        with pytest.raises(MissingDocumentPathError) as exc_info:
             select_document(documents_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert exc_info.value.reason is DocumentPathProblem.NOT_FOUND, 'the argument is resolved in the snapshot'
+        assert exc_info.value.argument == argument, 'the argument is resolved in the snapshot'
 
     def test_select_document_with_a_file_removed_after_the_snapshot_returns_the_ref_the_snapshot_saw(
         self, tmp_path: Path, documents_database: Database
@@ -421,11 +426,11 @@ class TestSelectSkillsAt:
         argument = tmp_path_factory.mktemp('outside')
 
         #: When
-        with pytest.raises(SkillPathError) as exc_info:
+        with pytest.raises(UnlistedSkillPathError) as exc_info:
             select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert exc_info.value.reason is SkillPathProblem.NOT_LISTED, 'no skill the model lists is outside the root'
+        assert exc_info.value.argument == argument, 'no skill the model lists is outside the root'
 
     def test_select_skills_at_with_a_root_reached_through_a_link_above_it_returns_its_ref(
         self, tmp_path: Path, skills_database: Database, tmp_path_factory: pytest.TempPathFactory
@@ -451,11 +456,11 @@ class TestSelectSkillsAt:
         argument = link / 'self' / '.agents' / 'skills' / 'commit'
 
         #: When
-        with pytest.raises(SkillPathError) as exc_info:
+        with pytest.raises(UnlistedSkillPathError) as exc_info:
             select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert exc_info.value.reason is SkillPathProblem.NOT_LISTED, (
+        assert exc_info.value.argument == argument, (
             'only the link above the root is followed on disk; self, added after the snapshot, leads nowhere'
         )
 
@@ -466,11 +471,11 @@ class TestSelectSkillsAt:
         argument = tmp_path / '.agents' / 'skills' / 'drafts'
 
         #: When
-        with pytest.raises(SkillPathError) as exc_info:
+        with pytest.raises(UnlistedSkillPathError) as exc_info:
             select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert exc_info.value.reason is SkillPathProblem.NOT_LISTED, 'a directory with no SKILL.md is not a skill'
+        assert exc_info.value.argument == argument, 'a directory with no SKILL.md is not a skill'
 
     def test_select_skills_at_with_a_missing_path_raises_not_listed(
         self, tmp_path: Path, skills_database: Database
@@ -479,11 +484,11 @@ class TestSelectSkillsAt:
         argument = tmp_path / '.agents' / 'skills' / 'missing'
 
         #: When
-        with pytest.raises(SkillPathError) as exc_info:
+        with pytest.raises(UnlistedSkillPathError) as exc_info:
             select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert exc_info.value.reason is SkillPathProblem.NOT_LISTED, 'the snapshot holds nothing at the path'
+        assert exc_info.value.argument == argument, 'the snapshot holds nothing at the path'
 
     def test_select_skills_at_with_a_relative_argument_resolves_it_from_the_working_directory(
         self, tmp_path: Path, skills_database: Database
@@ -519,8 +524,8 @@ class TestSelectSkillsAt:
         argument = tmp_path / '.agents' / 'skills' / 'lint-alias'
 
         #: When
-        with pytest.raises(SkillPathError) as exc_info:
+        with pytest.raises(UnlistedSkillPathError) as exc_info:
             select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert exc_info.value.reason is SkillPathProblem.NOT_LISTED, 'a link the snapshot never saw leads nowhere'
+        assert exc_info.value.argument == argument, 'a link the snapshot never saw leads nowhere'
