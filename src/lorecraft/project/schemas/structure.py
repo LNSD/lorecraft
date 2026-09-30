@@ -68,7 +68,15 @@ from referencing.jsonschema import DRAFT202012
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
 
-from .frontmatter_problem import FrontmatterProblem, FrontmatterProblemKind
+from .frontmatter_problem import (
+    BlockProblem,
+    FrontmatterProblem,
+    InvalidValueProblem,
+    MissingFieldProblem,
+    NonStringKeyProblem,
+    UnknownFieldProblem,
+    WrongTypeProblem,
+)
 from .spec_file import (
     DottedSpecStemError,
     InvalidSpecStemError,
@@ -453,7 +461,7 @@ class FrontmatterSchema:
         )
         problems: list[FrontmatterProblem] = []
         for error in errors:
-            for problem in _frontmatter_problems(error):
+            for problem in _frontmatter_problems(error, data):
                 # One `required` error names one absent field, but its record lists all the schema requires, so
                 # every such error below would report every absent field again.
                 if problem not in problems:
@@ -461,38 +469,39 @@ class FrontmatterSchema:
         return tuple(problems)
 
 
-def _frontmatter_problems(error: SchemaValidationError) -> list[FrontmatterProblem]:
-    """The problems one ``jsonschema`` error reports, each on the top-level field it concerns."""
+def _frontmatter_problems(error: SchemaValidationError, data: Mapping[object, object]) -> list[FrontmatterProblem]:
+    """The problems one ``jsonschema`` error in ``data`` reports, each on the top-level field it concerns."""
     if error.path:
         # Anything wrong below the top-level field, such as a key its value lacks, is that field's value at fault.
+        field = str(error.path[0])
         if len(error.path) == 1 and error.validator == 'type':
-            kind = FrontmatterProblemKind.WRONG_TYPE
-        else:
-            kind = FrontmatterProblemKind.INVALID_VALUE
-        return [FrontmatterProblem(str(error.path[0]), kind, error.message)]
-    if error.validator == 'required' and isinstance(error.instance, dict):
+            return [WrongTypeProblem(field, error.message)]
+        return [InvalidValueProblem(field, error.message)]
+    # Past this point the error has no path, so the value it is about is `data` itself: read that rather than
+    # `error.instance`, which `jsonschema` types as `Any`.
+    if error.validator == 'required':
         problems: list[FrontmatterProblem] = []
         for required in error.validator_value:
             field = str(required)
-            if field not in error.instance:
+            if field not in data:
                 message = f'{field!r} is a required property'
-                problems.append(FrontmatterProblem(field, FrontmatterProblemKind.MISSING, message))
+                problems.append(MissingFieldProblem(field, message))
         return problems
-    # `error.schema` is typed to allow a boolean schema, but `additionalProperties` only runs inside an object one.
-    if (
-        error.validator == 'additionalProperties'
-        and isinstance(error.schema, Mapping)
-        and isinstance(error.instance, dict)
-    ):
+    if error.validator == 'additionalProperties':
+        # `jsonschema` types `error.schema` to allow a boolean schema, which no type narrowing can rule out here.
+        if not isinstance(error.schema, Mapping):
+            raise AssertionError('unreachable: `additionalProperties` only runs inside an object schema')
         problems = []
-        for key in _additional_keys(error.schema, error.instance):
+        for key in _additional_keys(error.schema, data):
             # `jsonschema`'s wording for one unexpected key; a key that is not a string names no field.
             message = f'Additional properties are not allowed ({key!r} was unexpected)'
-            field = key if isinstance(key, str) else None
-            problems.append(FrontmatterProblem(field, FrontmatterProblemKind.UNKNOWN_FIELD, message))
+            if isinstance(key, str):
+                problems.append(UnknownFieldProblem(key, message))
+            else:
+                problems.append(NonStringKeyProblem(message))
         return problems
     # A rule over the whole block, such as `minProperties`, concerns no field.
-    return [FrontmatterProblem(None, FrontmatterProblemKind.INVALID_VALUE, error.message)]
+    return [BlockProblem(error.message)]
 
 
 def _additional_keys(schema: Mapping[str, object], instance: Mapping[object, object]) -> list[object]:

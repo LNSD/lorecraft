@@ -5,41 +5,133 @@ Two kinds of schema govern a frontmatter: the JSON Schema a structure specificat
 ``SkillFrontmatterSchema`` applies with pydantic. Each translates its validator's errors into
 ``FrontmatterProblem`` values at its own seam, so a check reads the same shape from either and never reads a
 validator's error record.
+
+Each cause is its own class. A problem on a top-level field names it; the two causes that concern no field,
+a key that is not a string and a rule over the whole block, have no ``field`` at all.
 """
 
 from dataclasses import dataclass
-from enum import Enum
-
-
-class FrontmatterProblemKind(Enum):
-    """What is wrong with the top-level field a problem concerns; anything wrong inside its value is that value's."""
-
-    MISSING = 'missing'
-    """A field the schema requires is absent."""
-    UNKNOWN_FIELD = 'unknown-field'
-    """A field the schema does not define, or a top-level key that is not a string."""
-    WRONG_TYPE = 'wrong-type'
-    """The field's value is of a type the schema does not accept, such as a number where a string is required."""
-    INVALID_VALUE = 'invalid-value'
-    """The field's value breaks another rule, such as a length limit or a pattern.
-
-    Also something inside the value that is missing, unknown or of the wrong type, and a rule over the whole
-    block, which concerns no field.
-    """
 
 
 @dataclass(frozen=True, slots=True)
-class FrontmatterProblem:
-    """One thing a frontmatter schema rejects.
+class MissingFieldProblem:
+    """A field the schema requires is absent.
 
     Attributes:
-        field: The top-level field the problem concerns, as written in the frontmatter, or ``None`` when it
-            concerns no field: the whole block, or a key that is not a string.
-        kind: With ``field`` set to ``None``, ``UNKNOWN_FIELD`` for a key that is not a string and
-            ``INVALID_VALUE`` for a rule over the whole block; no other kind comes without a field.
+        field: The absent field, as the schema names it.
+        message: What a reader is told, naming the field.
+    """
+
+    field: str
+    message: str
+
+
+@dataclass(frozen=True, slots=True)
+class UnknownFieldProblem:
+    """A field the schema does not define.
+
+    Attributes:
+        field: The field as written in the frontmatter.
+        message: What a reader is told, naming the field.
+    """
+
+    field: str
+    message: str
+
+
+@dataclass(frozen=True, slots=True)
+class NonStringKeyProblem:
+    """A top-level key that is not a string, and so names no field.
+
+    Attributes:
+        message: What a reader is told, naming the key where the validator reports it as written.
+    """
+
+    message: str
+
+
+@dataclass(frozen=True, slots=True)
+class NotAStringProblem:
+    """The field's value is not the string the schema requires.
+
+    Attributes:
+        field: The field as written in the frontmatter.
+    """
+
+    field: str
+
+    @property
+    def message(self) -> str:
+        """What a reader is told, naming the field."""
+        return f'`{self.field}` must be a string'
+
+
+@dataclass(frozen=True, slots=True)
+class NotAStringMappingProblem:
+    """The field's value is not the mapping of strings to strings the schema requires.
+
+    Attributes:
+        field: The field as written in the frontmatter.
+    """
+
+    field: str
+
+    @property
+    def message(self) -> str:
+        """What a reader is told, naming the field."""
+        return f'`{self.field}` must be a mapping of strings to strings'
+
+
+@dataclass(frozen=True, slots=True)
+class WrongTypeProblem:
+    """The field's value is of a type the schema does not accept, as a JSON Schema ``type`` keyword reports it.
+
+    The JSON Schema types are an open set to this package, so the validator's message names the type expected.
+
+    Attributes:
+        field: The field as written in the frontmatter.
+        message: What a reader is told, naming the type expected.
+    """
+
+    field: str
+    message: str
+
+
+@dataclass(frozen=True, slots=True)
+class InvalidValueProblem:
+    """The field's value breaks another rule, such as a length limit or a pattern.
+
+    Also something inside the value that is missing, unknown or of the wrong type: anything wrong below a
+    top-level field is that field's value at fault.
+
+    Attributes:
+        field: The field as written in the frontmatter.
         message: What a reader is told, naming the field and, below it, the key at fault.
     """
 
-    field: str | None
-    kind: FrontmatterProblemKind
+    field: str
     message: str
+
+
+@dataclass(frozen=True, slots=True)
+class BlockProblem:
+    """A rule over the whole block, such as a least number of fields, which concerns no field.
+
+    Attributes:
+        message: What a reader is told.
+    """
+
+    message: str
+
+
+type FrontmatterProblem = (
+    MissingFieldProblem
+    | UnknownFieldProblem
+    | NonStringKeyProblem
+    | NotAStringProblem
+    | NotAStringMappingProblem
+    | WrongTypeProblem
+    | InvalidValueProblem
+    | BlockProblem
+)
+"""One thing a frontmatter schema rejects."""

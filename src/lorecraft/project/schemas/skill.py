@@ -14,7 +14,16 @@ from typing import Final
 from pydantic import ValidationError
 from pydantic_core import ErrorDetails
 
-from .frontmatter_problem import FrontmatterProblem, FrontmatterProblemKind
+from .frontmatter_problem import (
+    BlockProblem,
+    FrontmatterProblem,
+    InvalidValueProblem,
+    MissingFieldProblem,
+    NonStringKeyProblem,
+    NotAStringMappingProblem,
+    NotAStringProblem,
+    UnknownFieldProblem,
+)
 from .skill_frontmatter import SkillFrontmatter, value_object_message
 
 _KEY_LOCATION: Final[str] = '[key]'
@@ -56,36 +65,31 @@ def _frontmatter_problem(detail: ErrorDetails) -> FrontmatterProblem:
     location = detail['loc']
     if not location:
         # pydantic locates every problem of a mapping at a key; one that names none concerns the block.
-        return FrontmatterProblem(
-            None,
-            FrontmatterProblemKind.INVALID_VALUE,
-            'the frontmatter does not satisfy the Agent Skills specification',
-        )
+        return BlockProblem('the frontmatter does not satisfy the Agent Skills specification')
     if detail['type'] == 'invalid_key':
         # No field is named by such a key, and pydantic reports the decoded value rather than what was written
         # (`yes` comes back as `1`), so the message names no key.
         message = 'a key that is not a string is not a field of the Agent Skills specification'
-        return FrontmatterProblem(None, FrontmatterProblemKind.UNKNOWN_FIELD, message)
+        return NonStringKeyProblem(message)
 
     field = str(location[0])
     if len(location) > 1:
-        return FrontmatterProblem(field, FrontmatterProblemKind.INVALID_VALUE, _nested_message(field, detail))
+        return InvalidValueProblem(field, _nested_message(field, detail))
     value_object_reason = value_object_message(detail)
     if value_object_reason is not None:
-        return FrontmatterProblem(field, FrontmatterProblemKind.INVALID_VALUE, value_object_reason)
+        return InvalidValueProblem(field, value_object_reason)
     match detail['type']:
         case 'missing':
-            return FrontmatterProblem(field, FrontmatterProblemKind.MISSING, f'`{field}` is required')
+            return MissingFieldProblem(field, f'`{field}` is required')
         case 'extra_forbidden':
             message = f'`{field}` is not a field of the Agent Skills specification'
-            return FrontmatterProblem(field, FrontmatterProblemKind.UNKNOWN_FIELD, message)
+            return UnknownFieldProblem(field, message)
         case 'string_type':
-            return FrontmatterProblem(field, FrontmatterProblemKind.WRONG_TYPE, f'`{field}` must be a string')
+            return NotAStringProblem(field)
         case 'dict_type':
-            message = f'`{field}` must be a mapping of strings to strings'
-            return FrontmatterProblem(field, FrontmatterProblemKind.WRONG_TYPE, message)
+            return NotAStringMappingProblem(field)
         case _:
-            return FrontmatterProblem(field, FrontmatterProblemKind.INVALID_VALUE, _unspecified_message(field))
+            return InvalidValueProblem(field, _unspecified_message(field))
 
 
 def _nested_message(field: str, detail: ErrorDetails) -> str:

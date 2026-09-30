@@ -3,7 +3,14 @@ problem, in Lorecraft's words, on the field it concerns."""
 
 import pytest
 
-from ..frontmatter_problem import FrontmatterProblem, FrontmatterProblemKind
+from ..frontmatter_problem import (
+    InvalidValueProblem,
+    MissingFieldProblem,
+    NonStringKeyProblem,
+    NotAStringMappingProblem,
+    NotAStringProblem,
+    UnknownFieldProblem,
+)
 from ..skill import SKILL_FRONTMATTER_SCHEMA
 
 
@@ -35,8 +42,8 @@ class TestSkillFrontmatterSchemaValidate:
 
         #: Then
         assert problems == (
-            FrontmatterProblem('name', FrontmatterProblemKind.MISSING, '`name` is required'),
-            FrontmatterProblem('description', FrontmatterProblemKind.MISSING, '`description` is required'),
+            MissingFieldProblem('name', '`name` is required'),
+            MissingFieldProblem('description', '`description` is required'),
         ), 'each required field is its own problem, in the order the specification declares them'
 
     def test_validate_with_a_field_outside_the_specification_returns_an_unknown_field_problem(self) -> None:
@@ -48,14 +55,13 @@ class TestSkillFrontmatterSchemaValidate:
 
         #: Then
         assert problems == (
-            FrontmatterProblem(
+            UnknownFieldProblem(
                 'model',
-                FrontmatterProblemKind.UNKNOWN_FIELD,
                 '`model` is not a field of the Agent Skills specification',
             ),
         ), 'a field the specification does not define is named'
 
-    def test_validate_with_a_key_that_is_not_a_string_returns_an_unknown_field_problem_on_no_field(self) -> None:
+    def test_validate_with_a_key_that_is_not_a_string_returns_a_non_string_key_problem(self) -> None:
         #: Given
         data: dict[object, object] = {'name': 'review', 'description': 'Review code.', 123: 'x'}
 
@@ -64,14 +70,10 @@ class TestSkillFrontmatterSchemaValidate:
 
         #: Then
         assert problems == (
-            FrontmatterProblem(
-                None,
-                FrontmatterProblemKind.UNKNOWN_FIELD,
-                'a key that is not a string is not a field of the Agent Skills specification',
-            ),
+            NonStringKeyProblem('a key that is not a string is not a field of the Agent Skills specification'),
         ), 'a key that is not a string names no field'
 
-    def test_validate_with_a_name_that_is_not_a_string_returns_a_wrong_type_problem(self) -> None:
+    def test_validate_with_a_name_that_is_not_a_string_returns_a_not_a_string_problem(self) -> None:
         #: Given
         data: dict[object, object] = {'name': None, 'description': 'Review code.'}
 
@@ -79,11 +81,11 @@ class TestSkillFrontmatterSchemaValidate:
         problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
 
         #: Then
-        assert problems == (
-            FrontmatterProblem('name', FrontmatterProblemKind.WRONG_TYPE, '`name` must be a string'),
-        ), 'a field written with no value is null, which a required string field does not accept'
+        assert problems == (NotAStringProblem('name'),), (
+            'a field written with no value is null, which a required string field does not accept'
+        )
 
-    def test_validate_with_metadata_that_is_not_a_mapping_returns_a_wrong_type_problem(self) -> None:
+    def test_validate_with_metadata_that_is_not_a_mapping_returns_a_not_a_string_mapping_problem(self) -> None:
         #: Given
         data: dict[object, object] = {'name': 'review', 'description': 'Review code.', 'metadata': 'author'}
 
@@ -91,11 +93,7 @@ class TestSkillFrontmatterSchemaValidate:
         problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
 
         #: Then
-        assert problems == (
-            FrontmatterProblem(
-                'metadata', FrontmatterProblemKind.WRONG_TYPE, '`metadata` must be a mapping of strings to strings'
-            ),
-        ), 'metadata is a mapping, not a string'
+        assert problems == (NotAStringMappingProblem('metadata'),), 'metadata is a mapping, not a string'
 
     def test_validate_with_an_unquoted_metadata_number_returns_an_invalid_value_problem(self) -> None:
         #: Given
@@ -105,9 +103,9 @@ class TestSkillFrontmatterSchemaValidate:
         problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
 
         #: Then
-        assert problems == (
-            FrontmatterProblem('metadata', FrontmatterProblemKind.INVALID_VALUE, '`metadata.version` must be a string'),
-        ), 'a value inside metadata is named by its path, and makes the metadata field invalid'
+        assert problems == (InvalidValueProblem('metadata', '`metadata.version` must be a string'),), (
+            'a value inside metadata is named by its path, and makes the metadata field invalid'
+        )
 
     def test_validate_with_a_metadata_key_that_is_not_a_string_returns_an_invalid_value_problem(self) -> None:
         #: Given
@@ -117,9 +115,9 @@ class TestSkillFrontmatterSchemaValidate:
         problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
 
         #: Then
-        assert problems == (
-            FrontmatterProblem('metadata', FrontmatterProblemKind.INVALID_VALUE, '`metadata` keys must be strings'),
-        ), 'a key inside metadata is at fault, not a value'
+        assert problems == (InvalidValueProblem('metadata', '`metadata` keys must be strings'),), (
+            'a key inside metadata is at fault, not a value'
+        )
 
     def test_validate_with_an_empty_name_returns_the_value_objects_own_message(self) -> None:
         #: Given
@@ -129,9 +127,9 @@ class TestSkillFrontmatterSchemaValidate:
         problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
 
         #: Then
-        assert problems == (
-            FrontmatterProblem('name', FrontmatterProblemKind.INVALID_VALUE, 'skill name cannot be empty'),
-        ), 'an empty name is worded by SkillName, not by pydantic'
+        assert problems == (InvalidValueProblem('name', 'skill name cannot be empty'),), (
+            'an empty name is worded by SkillName, not by pydantic'
+        )
 
     def test_validate_with_a_name_over_64_characters_returns_the_value_objects_own_message(self) -> None:
         #: Given
@@ -143,9 +141,8 @@ class TestSkillFrontmatterSchemaValidate:
 
         #: Then
         assert problems == (
-            FrontmatterProblem(
+            InvalidValueProblem(
                 'name',
-                FrontmatterProblemKind.INVALID_VALUE,
                 f'skill name {name!r} is 65 characters; the limit is 64',
             ),
         ), 'a name over the length limit is worded by SkillName, not by pydantic'
@@ -159,13 +156,28 @@ class TestSkillFrontmatterSchemaValidate:
 
         #: Then
         assert problems == (
-            FrontmatterProblem(
+            InvalidValueProblem(
                 'name',
-                FrontmatterProblemKind.INVALID_VALUE,
                 "skill name 'PDF' must be lowercase letters, digits and single hyphens, "
                 'neither starting nor ending with a hyphen',
             ),
         ), 'a name outside the allowed format is worded by SkillName, not by pydantic'
+
+    def test_validate_with_braces_in_a_rejected_name_returns_the_braces_unformatted(self) -> None:
+        #: Given
+        data: dict[object, object] = {'name': '{reason}', 'description': 'Review code.'}
+
+        #: When
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
+
+        #: Then
+        assert problems == (
+            InvalidValueProblem(
+                'name',
+                "skill name '{reason}' must be lowercase letters, digits and single hyphens, "
+                'neither starting nor ending with a hyphen',
+            ),
+        ), 'pydantic formats the template once, so braces in the rejected text reach the reader as written'
 
     def test_validate_with_a_description_over_the_limit_returns_an_invalid_value_problem(self) -> None:
         #: Given
@@ -176,9 +188,8 @@ class TestSkillFrontmatterSchemaValidate:
 
         #: Then
         assert problems == (
-            FrontmatterProblem(
+            InvalidValueProblem(
                 'description',
-                FrontmatterProblemKind.INVALID_VALUE,
                 'skill description is 1025 characters; the limit is 1024',
             ),
         ), 'the length limit is worded by SkillDescription'
@@ -192,9 +203,8 @@ class TestSkillFrontmatterSchemaValidate:
 
         #: Then
         assert problems == (
-            FrontmatterProblem(
+            InvalidValueProblem(
                 'compatibility',
-                FrontmatterProblemKind.INVALID_VALUE,
                 'skill compatibility cannot be empty; leave the field out instead',
             ),
         ), 'a blank note is worded by SkillCompatibility'
@@ -208,9 +218,8 @@ class TestSkillFrontmatterSchemaValidate:
 
         #: Then
         assert problems == (
-            FrontmatterProblem(
+            UnknownFieldProblem(
                 'allowed_tools',
-                FrontmatterProblemKind.UNKNOWN_FIELD,
                 '`allowed_tools` is not a field of the Agent Skills specification',
             ),
         ), 'the field is read by its alias only, as the specification spells it'
