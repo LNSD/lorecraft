@@ -372,7 +372,7 @@ A change to modules directly in `src/lorecraft/` scopes to `lorecraft`.
 | `docs(feat)` | feature documents under `docs/feat/` |
 | `docs` | documentation outside those named corpora when a narrower scope adds useful information |
 | `skills` | `skills/`, `.agents/skills/` with its `scripts/`, and the `.claude/skills` symlink |
-| `agents` | `AGENTS.md` and the `CLAUDE.md` pointer |
+| `agents` | `AGENTS.md` |
 | `build` | packaging and release metadata in `pyproject.toml` |
 | `ci` | `.github/`: workflows, pre-commit config, Renovate config |
 | `justfile` | task-runner recipes |
