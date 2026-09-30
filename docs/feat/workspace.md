@@ -80,8 +80,8 @@ specification, so a command stops with an error naming the linked directory rath
 ## Limitations
 
 - The layout is fixed: `docs/` and `docs/__meta__/` cannot be renamed or moved, and a corpus cannot nest.
-- The model lists the skills in the agents' skills directories, and [inspect](cli-inspect.md) shows them, but
-  no command checks them yet.
+- For a skill, only the frontmatter of its `SKILL.md` is checked, by
+  [check skills](cli-check-skills.md); the model reads nothing else in a skill directory.
 
 ## References
 

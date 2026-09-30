@@ -2,7 +2,7 @@
 name: skills-check
 description: Write skills that comply with the Agent Skills specification, and check skills under .agents/skills/ and skills/ against it. Use before creating or editing a SKILL.md or any file in a skill directory, when reviewing a skill change, or before committing one
 compatibility: Requires uv to run the script in scripts/; it declares its own dependencies and resolves them on the first run. Nothing is built and no service is contacted.
-allowed-tools: Bash(.agents/skills/skills-check/scripts/check_skill.py*) Bash(just check-skills*) Bash(git diff*) Bash(git status*) Bash(git merge-base*) Bash(ls .agents/skills/*) Bash(ls skills/*)
+allowed-tools: Bash(uv run lorecraft check skills*) Bash(.agents/skills/skills-check/scripts/check_skill.py*) Bash(just check-skills*) Bash(git diff*) Bash(git status*) Bash(git merge-base*) Bash(ls .agents/skills/*) Bash(ls skills/*)
 ---
 
 # Skills Check
@@ -21,15 +21,15 @@ A skill's location decides the rules it is held to.
 
 | Location | Kind | Loaded by | Rules |
 |---|---|---|---|
-| `.agents/skills/<name>/` | Workspace skill | Agents working in this repository | The specification, plus the frontmatter extensions below, and links into the repository |
+| `.agents/skills/<name>/` | Workspace skill | Agents working in this repository | The specification, plus the body extensions below, and links into the repository |
 | `skills/<name>/` | Project skill | Agents in other repositories, after the skill is installed there | The specification only; nothing may depend on this repository's agent or layout |
 
 Project skills live in `skills/`, and each is linked into `.agents/skills/` by a symlink so this repository's
 agents use it too. The script resolves the symlink and checks the skill once, as a project skill.
 
-Workspace skills may use these Claude Code extensions, because only this repository's agents load them:
+Workspace skills may use these Claude Code extensions in the body, because only this repository's agents load
+them. None is a frontmatter field: every skill's frontmatter is held to the specification alone (§2).
 
-- Frontmatter fields `argument-hint`, `disable-model-invocation`, `user-invocable`, and `model`
 - Dynamic context: a `!` followed by a backticked command, which Claude Code runs before loading the skill (see
   §5 for one). Follow each with a line telling the agent to run the command itself if it arrives as literal text
 - Comma-separated `allowed-tools`
@@ -54,9 +54,9 @@ must be quoted, and a value containing `"` is quoted with `'`.
 | `metadata` | No | A map from string keys to string values. Quote numbers (`version: "1.0"`) and join lists with spaces |
 | `allowed-tools` | No | A string of pre-approved tools. Experimental: support varies between agents. Space-separated in project skills |
 
-No other field is allowed in a project skill. Add a field to a workspace skill only when it is in the list in §1;
-a new extension is added to that list and to `WORKSPACE_EXTENSION_FIELDS` in `scripts/check_skill.py` in the
-same change.
+No other field is allowed in any skill, workspace or project: `lorecraft check skills` holds every skill to
+these six and reports anything else as `skill.unknown-field`, including a field Claude Code reads such as
+`model` or `argument-hint`.
 
 **The `description` is the only part of the skill an agent reads before deciding to load it**, so it carries
 the whole discovery burden:
@@ -126,12 +126,22 @@ those instead. A change to any file in a skill directory is a change to that ski
 A change under `docs/` is also a change to every project skill that links the file. Add those skills to the
 subject: `scripts/check_skill.py --linking <path>` (one `--linking` per file) prints them, one per line.
 
-## 6. Run the script
+## 6. Run the checks
 
-**`scripts/check_skill.py`** decides every mechanical rule: frontmatter fields and limits, `name` against the
-directory, YAML validity, the 500-line budget, `metadata` value types, `metadata` linked files existing and
+Two checks decide every mechanical rule between them. Do not check those rules by hand.
+
+**`lorecraft check skills`** decides the frontmatter: YAML validity, the six fields and their limits,
+`metadata` value types, and `name` against the directory.
+
+```bash
+uv run lorecraft check skills                           # every skill
+uv run lorecraft check skills .agents/skills/code-test  # named skills
+uv run lorecraft check skills --format json             # machine-readable
+```
+
+**`scripts/check_skill.py`** decides the rest: the 500-line budget, `metadata` linked files existing and
 unique, every relative link resolving including its `#fragment`, links escaping a project skill, and Claude
-Code syntax in a project skill. Do not check those by hand.
+Code syntax in a project skill.
 
 It is executable and declares its own dependencies, so run it directly; `uv` resolves them on the first run.
 It finds the repository root by walking up, so the working directory does not matter:
@@ -149,9 +159,9 @@ findings, 1 means findings, 2 means bad usage.
 
 Name skill directories, not the directory that holds them: a bare `.agents/skills/` is read as one skill and
 reports `skill.location`. Pass no paths to check them all — that is what `just check-skills`, the repository's
-gate, runs.
+gate, runs, after `lorecraft check skills`.
 
-## 7. Walk what the script cannot decide
+## 7. Walk what the checks cannot decide
 
 For each changed skill, check:
 

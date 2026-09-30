@@ -13,7 +13,15 @@ from typing import Final
 
 import pytest
 
-from lorecraft.project.skill import ListSkillsError, Repository, ResolveSkillsDirError, SkillRef
+from lorecraft.project.skill import (
+    GetSkillError,
+    ListSkillsError,
+    Repository,
+    ResolveSkillsDirError,
+    Skill,
+    SkillDecodeError,
+    SkillRef,
+)
 from lorecraft.vfs import DiskFileSystem, RootRelativePath
 
 UNIVERSAL_DIR: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills')
@@ -349,3 +357,62 @@ class TestRepositoryListSkills:
 
         #: Then
         assert f'skills/{locked.name}' in str(exc_info.value), 'the error names the directory that refused listing'
+
+
+@pytest.mark.it
+class TestRepositoryGetSkill:
+    def test_get_skill_with_a_listed_skill_returns_its_text(self, repository: Repository, universal_dir: Path) -> None:
+        #: Given
+        (universal_dir / 'review').mkdir()
+        (universal_dir / 'review' / 'SKILL.md').write_text('---\nname: review\n---\n', encoding='utf-8')
+        ref = _ref('.agents/skills/review')
+
+        #: When
+        skill = repository.get_skill(ref)
+
+        #: Then
+        assert skill == Skill(ref, '---\nname: review\n---\n'), 'the whole SKILL.md is read, frontmatter and body'
+
+    def test_get_skill_with_a_linked_skill_entry_reads_the_file_the_link_leads_to(
+        self, tmp_path: Path, repository: Repository, universal_dir: Path
+    ) -> None:
+        #: Given
+        (tmp_path / 'skills' / 'review').mkdir(parents=True)
+        (tmp_path / 'skills' / 'review' / 'SKILL.md').write_text('---\nname: review\n---\n', encoding='utf-8')
+        (universal_dir / 'review').symlink_to('../../skills/review')
+        ref = _ref('.agents/skills/review')
+
+        #: When
+        skill = repository.get_skill(ref)
+
+        #: Then
+        assert skill.text == '---\nname: review\n---\n', 'a skill is read at the path it is listed at'
+
+    def test_get_skill_with_a_non_utf8_skill_file_raises_skill_decode_error(
+        self, repository: Repository, universal_dir: Path
+    ) -> None:
+        #: Given
+        (universal_dir / 'review').mkdir()
+        (universal_dir / 'review' / 'SKILL.md').write_bytes(b'caf\xe9\n')
+        ref = _ref('.agents/skills/review')
+
+        #: When
+        with pytest.raises(SkillDecodeError) as exc_info:
+            repository.get_skill(ref)
+
+        #: Then
+        assert exc_info.value.ref == ref, 'the error names the skill that is not UTF-8'
+
+    def test_get_skill_with_no_skill_file_raises_get_skill_error(
+        self, repository: Repository, universal_dir: Path
+    ) -> None:
+        #: Given
+        (universal_dir / 'review').mkdir()
+        ref = _ref('.agents/skills/review')
+
+        #: When
+        with pytest.raises(GetSkillError) as exc_info:
+            repository.get_skill(ref)
+
+        #: Then
+        assert type(exc_info.value) is GetSkillError, 'a missing SKILL.md is unreadable, not undecodable'

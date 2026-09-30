@@ -1,4 +1,4 @@
-"""Map an explicit document argument from the command line onto the workspace model.
+"""Map an explicit document or skill argument from the command line onto the workspace model.
 
 A CLI argument is a disk path by definition, so the argument is resolved once, symlinks followed, and
 everything after that is a pure question to the model. An explicit path is a boundary, so it is rejected with
@@ -12,6 +12,7 @@ from lorecraft.core.error import Error
 from lorecraft.project.corpus import CorpusName, CorpusNameError
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR
+from lorecraft.project.skill import SkillRef
 from lorecraft.project.workspace import WorkspaceModel
 from lorecraft.vfs import disk_location
 
@@ -100,3 +101,68 @@ def select_document(model: WorkspaceModel, root: Path, argument: Path) -> Docume
     if ref is None:
         raise DocumentPathError(argument, DocumentPathProblem.NOT_LISTED)
     return ref
+
+
+class SkillPathProblem(Enum):
+    """Which rule an explicit skill argument failed; the message of each is its value."""
+
+    UNREADABLE = 'cannot read path'
+    NOT_LISTED = 'not a skill the workspace lists; name a skill directory or its SKILL.md'
+
+
+class SkillPathError(Error):
+    """An explicit skill argument does not name a skill the model lists.
+
+    Attributes:
+        argument: The path exactly as typed.
+        reason: Which rule it failed; tests compare this, never the message.
+        detail: Extra text from the underlying failure (strerror), or ''.
+    """
+
+    argument: Path
+    reason: SkillPathProblem
+    detail: str
+
+    def __init__(self, argument: Path, reason: SkillPathProblem, detail: str = '') -> None:
+        self.argument = argument
+        self.reason = reason
+        self.detail = detail
+        super().__init__(f'{argument}: {detail or reason.value}')
+
+
+def select_skills_at(model: WorkspaceModel, root: Path, argument: Path) -> tuple[SkillRef, ...]:
+    """Resolve one CLI argument (symlinks followed, one realpath) and map it onto the model's skills.
+
+    The argument names a skill by its directory or by its ``SKILL.md``, through a link or not: a skill kept in
+    ``skills/review/`` and linked from ``.agents/skills/review`` is named by either path. Every skill the
+    model lists that leads to the named directory is returned, so a directory two entries link to selects both.
+
+    Args:
+        model: The model the argument must name a skill of.
+        root: The resolved workspace root; the model's skills are located under it.
+        argument: The path as typed; quoted verbatim in the error message.
+
+    Returns:
+        The skills at the named directory, in the model's order; never empty.
+
+    Raises:
+        SkillPathError: UNREADABLE when the path cannot be resolved, NOT_LISTED when no skill the model lists
+            is there.
+    """
+    try:
+        named = argument.resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        # Python 3.12 raises RuntimeError, not OSError, for a symlink loop under strict resolution.
+        detail = exc.strerror if isinstance(exc, OSError) and exc.strerror else str(exc)
+        raise SkillPathError(argument, SkillPathProblem.UNREADABLE, detail) from exc
+
+    refs: list[SkillRef] = []
+    for ref in model.skills:
+        directory = disk_location(root, ref.directory).resolve()
+        # Resolved as the argument was: a ``SKILL.md`` may itself be a link to where its text lives.
+        skill_file = (directory / ref.path.name).resolve()
+        if named == directory or named == skill_file:
+            refs.append(ref)
+    if not refs:
+        raise SkillPathError(argument, SkillPathProblem.NOT_LISTED)
+    return tuple(refs)

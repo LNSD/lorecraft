@@ -1,6 +1,6 @@
 ---
 name: "cli-check"
-description: "The lorecraft check command group and a bare lorecraft check: repository root discovery, document selection, the text and JSON output every check prints, and the 0/1/2 exit status. Load when running the documentation checks, wiring them into CI or a pre-commit hook, or parsing their output"
+description: "The lorecraft check command group and a bare lorecraft check: repository root discovery, document selection, the text and JSON output every check prints, and the 0/1/2 exit status. Load when running the documentation or skill checks, wiring them into CI or a pre-commit hook, or parsing their output"
 type: "feature"
 status: "experimental"
 components: "module:lorecraft.cli.commands.check,module:lorecraft.cli.check_run,module:lorecraft.cli.root,module:lorecraft.cli.select,module:lorecraft.checks.run,module:lorecraft.checks.reporting"
@@ -11,9 +11,10 @@ components: "module:lorecraft.cli.commands.check,module:lorecraft.cli.check_run,
 ## Summary
 
 `lorecraft check` validates the documents under a repository's `docs/` against the specifications in its
-`docs/__meta__/`. Named with a check, such as `lorecraft check frontmatter`, it runs that one check; bare, it runs
-every check the command line carries over the same documents and prints their findings together. Every check
-shares the root discovery, the output formats and the exit status documented here.
+`docs/__meta__/`, and its agent skills against the Agent Skills specification. Named with a check, such as
+`lorecraft check frontmatter`, it runs that one check; bare, it runs every check the command line carries, the
+document checks over the same documents and [the skill check](cli-check-skills.md) over every skill, and prints
+their findings together. Every check shares the root discovery, output formats and exit status documented here.
 
 ## Table of Contents
 
@@ -47,12 +48,13 @@ Without `--root`, the root is the nearest of the working directory and its paren
 resolved with symlinks followed, and every path printed is relative to it.
 
 Under the root, `docs/` and `docs/__meta__/` must be
-[real directories](workspace.md#one-snapshot): a root where either is a symlink is refused, however it was found.
+[real directories](workspace.md#one-snapshot): a root where either is a symlink is refused by every run that
+reads documents, however it was found.
 
 ### Document Selection
 
-A bare `lorecraft check` checks every document of the [workspace](workspace.md#documents). A named check
-does the same when given no paths. Given paths, it checks exactly those, and refuses the run when one is not such a
+A bare `lorecraft check` checks every document of the [workspace](workspace.md#documents), and every skill. A
+named document check does the same when given no paths. Given paths, it checks exactly those, and refuses the run when one is not such a
 document — outside `docs/`, inside `docs/__meta__/`, not Markdown, in a directory no specification names, or in
 a subdirectory of a corpus. Paths are relative to the working directory, not to the root.
 
@@ -96,11 +98,14 @@ stderr. A document no specification governs for the check is listed as `<path>:1
 docs/feat/spec-demo.md:3: [feat.description] 'A demo' does not match 'Load when' (per docs/__meta__/feat.structure.json)
 docs/feat/spec-demo.md:15: [structure.empty] section `Key Concepts` is empty; omit it rather than leaving it empty (per feat.md)
 docs/feat/spec-demo.md:15: [structure.outline] expected section `Table of Contents`, found `Key Concepts` (per feat.md)
-checked 1 file(s) with 3 check(s), 3 finding(s)
+checked 1 file(s) and 16 skill(s) with 4 check(s), 3 finding(s)
 ```
 
+A named check counts only what it checks: `checked 1 file(s), 1 finding(s)`, or `checked 16 skill(s), 0
+finding(s)` for the skill check.
+
 In `json` format stdout is one JSON object and stderr is empty. A named check prints its report; a bare run
-prints every report under `checks`, keyed by check name. `spec` is the root-relative specification file
+prints every report under `checks`, keyed by check name, the skill check's among them. `spec` is the root-relative specification file
 stating the rule, or `null` for a rule the check holds itself. `lorecraft check frontmatter --format json`:
 
 ```json
@@ -117,7 +122,7 @@ stating the rule, or `null` for a rule the check holds itself. `lorecraft check 
 
 ## Limitations
 
-- A bare `lorecraft check` takes no paths: it always checks every document.
+- A bare `lorecraft check` takes no paths: it always checks every document and every skill.
 - A check covers what a machine can decide. Whether a section says what it should stays with review.
 
 ## References
@@ -125,6 +130,7 @@ stating the rule, or `null` for a rule the check holds itself. `lorecraft check 
 - [cli](cli.md) - Base: the command line and the options every command shares
 - [workspace](workspace.md) - Dependency: the corpora and documents the checks select
 - [spec](spec.md) - Dependency: the specification files the checks read
+- [cli-check-skills](cli-check-skills.md) - Related: the check over agent skills, which a bare run includes
 
 ## Code References
 
@@ -132,4 +138,4 @@ stating the rule, or `null` for a rule the check holds itself. `lorecraft check 
 - `src/lorecraft/cli/check_run.py` - Check registration, selection and both output formats
 - `src/lorecraft/cli/root.py` - Root discovery
 - `src/lorecraft/cli/select.py` - The rules a path argument is refused by
-- `src/lorecraft/checks/run.py` - A check's run over the selected documents
+- `src/lorecraft/checks/run.py` - A check's run over the selected documents, or skills

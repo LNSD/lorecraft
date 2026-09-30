@@ -727,6 +727,184 @@ class TestCheckBudgetCommand:
 
 
 @pytest.mark.it
+class TestCheckSkillsCommand:
+    def test_check_skills_with_json_format_over_clean_skills_reports_them_checked(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/commit/SKILL.md', '---\nname: commit\ndescription: Write a commit\n---\n')
+        _write(tmp_path, '.agents/skills/review/SKILL.md', '---\nname: review\ndescription: Review a change\n---\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == {'checked': 2, 'findings': [], 'ungoverned': []}, (
+            'every skill is checked, none is ungoverned, and a clean run has no finding'
+        )
+
+    def test_check_skills_with_json_format_over_broken_skills_reports_each_finding(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/bare/SKILL.md', '# No frontmatter\n')
+        _write(tmp_path, '.agents/skills/review/SKILL.md', '---\ndescription: Review\nname: audit\nmodel: opus\n---\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 2,
+            'findings': [
+                {
+                    'file': '.agents/skills/bare/SKILL.md',
+                    'line': 1,
+                    'rule': 'skill.frontmatter-missing',
+                    'message': 'no `---` delimited frontmatter block',
+                    'spec': None,
+                },
+                {
+                    'file': '.agents/skills/review/SKILL.md',
+                    'line': 4,
+                    'rule': 'skill.unknown-field',
+                    'message': '`model` is not a field of the Agent Skills specification',
+                    'spec': None,
+                },
+                {
+                    'file': '.agents/skills/review/SKILL.md',
+                    'line': 3,
+                    'rule': 'skill.name-matches-directory',
+                    'message': "`name` is 'audit'; expected 'review', the name of the skill directory",
+                    'spec': None,
+                },
+            ],
+            'ungoverned': [],
+        }, 'each finding names its SKILL.md from the root, its line as a number and its rule'
+
+    def test_check_skills_with_json_format_over_a_skill_linked_outside_the_skills_directories_checks_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'skills/review/SKILL.md', '---\nname: audit\ndescription: Review a change\n---\n')
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 1,
+            'findings': [
+                {
+                    'file': '.agents/skills/review/SKILL.md',
+                    'line': 2,
+                    'rule': 'skill.name-matches-directory',
+                    'message': "`name` is 'audit'; expected 'review', the name of the skill directory",
+                    'spec': None,
+                }
+            ],
+            'ungoverned': [],
+        }, 'the skill is read through its link and reported where an agent finds it'
+
+    def test_check_skills_with_json_format_and_a_named_skill_checks_that_skill_alone(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/bare/SKILL.md', '# No frontmatter\n')
+        named = _write(tmp_path, '.agents/skills/review/SKILL.md', '---\nname: review\ndescription: Review\n---\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills', str(named), '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == {'checked': 1, 'findings': [], 'ungoverned': []}, (
+            'only the named skill is checked, so the broken one beside it is not reported'
+        )
+
+    def test_check_skills_with_json_format_and_a_linked_skill_file_named_checks_that_skill(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'shared/REVIEW.md', '---\nname: review\ndescription: Review\n---\n')
+        (tmp_path / '.agents' / 'skills' / 'review').mkdir(parents=True)
+        named = tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md'
+        named.symlink_to('../../../shared/REVIEW.md')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills', str(named), '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == {'checked': 1, 'findings': [], 'ungoverned': []}, (
+            'a SKILL.md that is a link to its text names its skill, as the skill directory does'
+        )
+
+    def test_check_skills_with_a_non_utf8_skill_exits_with_an_undecodable_finding(self, tmp_path: Path) -> None:
+        #: Given
+        skill_file = tmp_path / '.agents' / 'skills' / 'latin' / 'SKILL.md'
+        skill_file.parent.mkdir(parents=True)
+        skill_file.write_bytes(b'---\nname: caf\xe9\n---\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path)])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert '.agents/skills/latin/SKILL.md:1: [skill.undecodable] SKILL.md is not valid UTF-8' in result.stdout, (
+            'a skill that is not UTF-8 is a finding that names the file as a skill, not a document'
+        )
+
+    def test_check_skills_with_a_linked_specs_directory_checks_the_skills(self, linked_specs_workspace: Path) -> None:
+        #: Given
+        _write(
+            linked_specs_workspace, '.agents/skills/review/SKILL.md', '---\nname: review\ndescription: Review\n---\n'
+        )
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills', '--root', str(linked_specs_workspace), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == {'checked': 1, 'findings': [], 'ungoverned': []}, (
+            'the skill check reads no document, so a linked docs/__meta__ does not stop it'
+        )
+
+    def test_check_skills_with_json_format_over_a_root_without_skills_reports_none_checked(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == {'checked': 0, 'findings': [], 'ungoverned': []}, (
+            'a root with no skills directory has no skill to check, which is clean'
+        )
+
+    def test_check_skills_with_a_path_that_is_no_skill_exits_as_invalid_input(self, tmp_path: Path) -> None:
+        #: Given
+        not_a_skill = _write(tmp_path, '.agents/skills/drafts/README.md', '# Drafts\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills', str(not_a_skill.parent), '--root', str(tmp_path)])
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stdout == '', 'after an error nothing is printed but the error'
+
+
+@pytest.mark.it
 class TestCheckAllCommand:
     def test_check_with_a_clean_corpus_exits_zero_and_counts_the_documents_and_checks(self, tmp_path: Path) -> None:
         #: Given
@@ -740,7 +918,7 @@ class TestCheckAllCommand:
         #: Then
         assert result.exit_code == 0, result.output
         assert result.stdout == '', 'a clean run prints no finding lines'
-        assert result.stderr == 'checked 1 file(s) with 3 check(s), 0 finding(s)\n', (
+        assert result.stderr == 'checked 1 file(s) and 0 skill(s) with 4 check(s), 0 finding(s)\n', (
             'one summary line covers every check the run made'
         )
 
@@ -775,9 +953,43 @@ class TestCheckAllCommand:
             'checks': {
                 'budget': {'checked': 1, 'findings': [], 'ungoverned': ['docs/code/guide.md']},
                 'frontmatter': {'checked': 1, 'findings': [], 'ungoverned': []},
+                'skills': {'checked': 0, 'findings': [], 'ungoverned': []},
                 'structure': {'checked': 1, 'findings': [], 'ungoverned': []},
             },
         }, f'each check keeps the report its own subcommand prints, got {result.stdout!r}'
+
+    def test_check_with_json_format_over_a_broken_skill_reports_it_under_the_skills_check(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n')
+        _write(tmp_path, '.agents/skills/review/SKILL.md', '---\nname: review\n---\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checks': {
+                'budget': {'checked': 1, 'findings': [], 'ungoverned': ['docs/code/guide.md']},
+                'frontmatter': {'checked': 1, 'findings': [], 'ungoverned': []},
+                'skills': {
+                    'checked': 1,
+                    'findings': [
+                        {
+                            'file': '.agents/skills/review/SKILL.md',
+                            'line': 1,
+                            'rule': 'skill.description',
+                            'message': '`description`: Field required',
+                            'spec': None,
+                        }
+                    ],
+                    'ungoverned': [],
+                },
+                'structure': {'checked': 1, 'findings': [], 'ungoverned': []},
+            },
+        }, 'a skill finding alone fails the bare run, and sits under the skills check beside the document checks'
 
     def test_check_with_a_malformed_frontmatter_schema_exits_as_invalid_input(
         self, malformed_schema_workspace: Path
@@ -866,7 +1078,7 @@ class TestCheckAllCommand:
 
         #: Then
         assert result.exit_code == 0, result.output
-        assert result.stderr == 'checked 0 file(s) with 3 check(s), 0 finding(s)\n', (
+        assert result.stderr == 'checked 0 file(s) and 0 skill(s) with 4 check(s), 0 finding(s)\n', (
             'an explicit root that declares no specification has nothing to check, which is not an error'
         )
 
