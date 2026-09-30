@@ -3,7 +3,7 @@ name: docs-rules-check
 description: Review documents under docs/ and the Lorecraft specifications in docs/__meta__/ that govern them - run lorecraft check for frontmatter, section outline, word caps and token budget, walk each specification's checklist for what a machine cannot decide, and check that each changed specification loads, that its prose and JSON agree, and that it governs the documents intended. Use after editing anything under docs/, when reviewing a pull request that touches docs/, before committing, when lorecraft check exits 2 or a document is unexpectedly ungoverned, or when setting the checks up in CI. Not for writing documents or specifications; see /docs-rules and /docs-rules-creator
 compatibility: Requires the lorecraft command, on PATH or run through uvx lorecraft, or uv run lorecraft in a uv project that declares Lorecraft as a dependency, and a git checkout
 metadata:
-  references: docs/feat/cli-check.md docs/feat/cli-check-header.md docs/feat/cli-check-structure.md docs/feat/cli-check-budget.md docs/feat/cli-inspect.md docs/feat/spec.md docs/feat/spec-structure.md docs/feat/spec-structure-budget.md docs/feat/spec-structure-frontmatter.md docs/feat/spec-structure-outline.md
+  references: docs/feat/cli-check.md docs/feat/cli-check-frontmatter.md docs/feat/cli-check-structure.md docs/feat/cli-check-budget.md docs/feat/cli-inspect.md docs/feat/spec.md docs/feat/spec-structure.md docs/feat/spec-structure-budget.md docs/feat/spec-structure-frontmatter.md docs/feat/spec-structure-outline.md
 allowed-tools: Bash(lorecraft check*) Bash(lorecraft inspect*) Bash(uvx lorecraft *) Bash(uv run lorecraft *) Bash(git diff *) Bash(git status *) Bash(git merge-base *) Bash(grep *) Bash(ls docs/*)
 ---
 
@@ -56,7 +56,7 @@ token budget. Do not check those by hand.
 
 ```bash
 lorecraft check                              # every check over every document, one read of the tree
-lorecraft check header <files>               # frontmatter, the structure spec's frontmatter key
+lorecraft check frontmatter <files>          # frontmatter, the structure spec's frontmatter key
 lorecraft check structure <files>            # sections and word caps, against <stem>.structure.json
 lorecraft check budget <files>               # the whole-file token budget, the structure spec's tokens key
 lorecraft check --format json                # machine-readable
@@ -66,7 +66,7 @@ Findings print as `path:line: [rule] message`. Exit `0` means no findings, `1` f
 could not happen: a rejected path, or a specification that cannot be loaded — §6 covers that one. A
 `<corpus>.ungoverned` line is not a failure; report the corpus as unvalidated for that check. Each check's rule
 identifiers are explained in its guide: [check](references/cli-check.md),
-[header](references/cli-check-header.md), [structure](references/cli-check-structure.md),
+[frontmatter](references/cli-check-frontmatter.md), [structure](references/cli-check-structure.md),
 [budget](references/cli-check-budget.md).
 
 A word cap or budget finding on a section the change added to blocks, like any other finding. One on a section

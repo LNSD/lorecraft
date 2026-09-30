@@ -56,12 +56,12 @@ def documents_to_recheck(changes: list[PathChange]) -> set[Path]:
 ```
 
 2. **Translating a library's failure**
-   A parser raises its own error type; the header check reports frontmatter defects as findings.
+   A parser raises its own error type; the frontmatter check reports frontmatter defects as findings.
 
 ```python
 # ❌ Bad — every caller catches the parser library's exception, so replacing the parser means
 # editing every check that reads frontmatter.
-def check_header(text: str) -> list[Finding]:
+def check_frontmatter(text: str) -> list[Finding]:
     try:
         data = parse_frontmatter(text)
     except ParserError as exc:

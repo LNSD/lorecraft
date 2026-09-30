@@ -25,26 +25,26 @@ A checker needs stored schemas. Make the dependency visible at construction:
 
 ```python
 # ❌ Bad — the checker silently chooses a storage location and constructs its own dependency.
-class HeaderChecks:
+class FrontmatterChecks:
     def __init__(self) -> None:
         self._schemas = Repository(Path('docs/__meta__'))
 
-    def schema_for(self, corpus: CorpusName) -> HeaderSchema:
-        return self._schemas.get_header_schema(corpus)
+    def schema_for(self, corpus: CorpusName) -> FrontmatterSchema:
+        return self._schemas.get_frontmatter_schema(corpus)
 ```
 
 ```python
 # ✅ Good — setup chooses the repository; the checker states the collaborator it needs.
-class HeaderChecks:
+class FrontmatterChecks:
     def __init__(self, schemas: Repository) -> None:
         self._schemas = schemas
 
-    def schema_for(self, corpus: CorpusName) -> HeaderSchema:
-        return self._schemas.get_header_schema(corpus)
+    def schema_for(self, corpus: CorpusName) -> FrontmatterSchema:
+        return self._schemas.get_frontmatter_schema(corpus)
 
 
 schemas = Repository(specs_dir)
-checks = HeaderChecks(schemas)
+checks = FrontmatterChecks(schemas)
 ```
 
 ## Why It Matters

@@ -32,7 +32,7 @@ path says which files govern it. Every command that reads a repository loads the
   schema, each read by its own check.
 - **Prose**: `<stem>.md`, the specification written for a reader. It is the authority; the JSON beside it is
   the same rules in a form a check applies.
-- **Base**: The document an extension adds to: `cli-check.md` is the base of `cli-check-header.md`, and the
+- **Base**: The document an extension adds to: `cli-check.md` is the base of `cli-check-frontmatter.md`, and the
   corpus specification `feat.md` is the base of `feat-cli.md`.
 - **Extension**: A document that adds to its base, which its name alone identifies.
 
@@ -64,7 +64,7 @@ an error naming the file.
 ## Base and Extension
 
 Within a corpus, **a name's base is the longest existing name it continues with a hyphen**, and the name
-extends it: `cli-check-header.md` extends `cli-check.md`, which extends `cli.md`.
+extends it: `cli-check-frontmatter.md` extends `cli-check.md`, which extends `cli.md`.
 
 A specification's stem is not read that way from its first character. Its corpus is the name of a directory
 under `docs/`, not a shorter name the stem continues, so the corpus is set aside first. The **corpus
@@ -77,7 +77,7 @@ follows the rule above: `feat-cli` governs `cli` and would be extended by a `fea
 |------|------------|---------|
 | `feat` | `feat-cli` | `feat` is the corpus `docs/feat/` |
 | `feat-cli` | `feat-cli-check`, were it added | Namespace `cli-check` continues `cli` |
-| `cli-check.md` | `cli-check-header.md`, `cli-check-structure.md` | The names continue `cli-check` |
+| `cli-check.md` | `cli-check-frontmatter.md`, `cli-check-structure.md` | The names continue `cli-check` |
 
 A document is governed by its corpus specification, then by each namespace specification whose namespace equals
 its filename or is a hyphen-delimited prefix of it, broad to narrow: `feat-cli` governs `cli.md` and
@@ -88,7 +88,7 @@ keys it reads, is ungoverned for that check and reported as such; frontmatter ne
 ### References Point to the Base
 
 An extension names its base; a base never names its extensions, neither in its references nor inline.
-`feat-cli.md` links to `feat.md` and `cli-check-header.md` to `cli-check.md`; neither base links back. For a
+`feat-cli.md` links to `feat.md` and `cli-check-frontmatter.md` to `cli-check.md`; neither base links back. For a
 specification this covers its aspect files too: a base's `description` names no extension, and `feat.md` does
 not point at any `feat-cli.*.json`. A base is written without knowing what extends it, so adding, renaming or
 removing an extension never edits the base, and the base carries no list of extensions to go stale.

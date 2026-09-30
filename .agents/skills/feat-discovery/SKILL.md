@@ -44,7 +44,7 @@ command or go hunting for the documents somewhere else.
 Compare query against frontmatter fields:
 
 - `name` - exact or partial match (e.g. "budget-check", "spec-dialect")
-- `description` - semantic match (e.g. "frontmatter" -> the header check, "too long" -> the length budget)
+- `description` - semantic match (e.g. "frontmatter" -> the frontmatter check, "too long" -> the length budget)
 - `components` - the identifiers a document lists for the parts of the toolkit it covers: a checker module,
   a command surface, a specification dialect. The corpus specification, `docs/__meta__/feat.md`, fixes that
   vocabulary; match on the identifier itself rather than on its prefix.

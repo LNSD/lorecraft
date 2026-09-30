@@ -98,7 +98,7 @@ files in `docs/__meta__/`:
 | File | Governs | Read by |
 |---|---|---|
 | `feat.md` | Everything. This document is the authority | A person, and an agent before it writes |
-| `feat.structure.json` | The frontmatter fields under its `frontmatter` key; the section outline, its order, the caps, the token budget | `lorecraft check header`, `lorecraft check structure`, `lorecraft check budget` |
+| `feat.structure.json` | The frontmatter fields under its `frontmatter` key; the section outline, its order, the caps, the token budget | `lorecraft check frontmatter`, `lorecraft check structure`, `lorecraft check budget` |
 
 A **namespace layer** adds to that base for a group of documents: `feat-<namespace>.md` states its rules in
 prose, and `feat-<namespace>.structure.json` beside it holds the parts a check
@@ -237,12 +237,12 @@ these three prefixes:
 
 A `module:` entry always starts with the import package, because two layers can hold a subpackage of the
 same name and a shorter name would not say which:
-`src/lorecraft/checks/header.py` is `module:lorecraft.checks.header`. A `spec:` entry names
+`src/lorecraft/checks/frontmatter.py` is `module:lorecraft.checks.frontmatter`. A `spec:` entry names
 the stem, not one of its files: `spec:feat` stands for `feat.md` and every `feat.*.json` beside it.
 
 **Example:**
 ```yaml
-components: "module:lorecraft.checks.header,spec:feat,skill:docs-rules-check"
+components: "module:lorecraft.checks.frontmatter,spec:feat,skill:docs-rules-check"
 ```
 
 The schema enforces the prefix vocabulary and the character set of each entry. Which separator a given prefix
@@ -387,7 +387,7 @@ Use a simple list, with the relationship named before the description:
 ```markdown
 ## References
 
-- [cli-check-header](cli-check-header.md) - Dependency: frontmatter validation
+- [cli-check-frontmatter](cli-check-frontmatter.md) - Dependency: frontmatter validation
 - [spec-structure-frontmatter](spec-structure-frontmatter.md) - Related: the dialect this check reads
 - [cli-check](cli-check.md) - Base: the CLI namespace this check belongs to
 ```

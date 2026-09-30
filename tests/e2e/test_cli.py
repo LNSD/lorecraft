@@ -2,7 +2,7 @@
 
 `version --verbose` shells out to `git describe`, so this is the only tier that can observe the probe
 at all. This suite runs from the checkout, so the verbose command must report its Git description as
-well as the installed version and environment. Every version output, and `inspect`, `check`, `check header`,
+well as the installed version and environment. Every version output, and `inspect`, `check`, `check frontmatter`,
 `check structure` and `check budget` over a checked-in workspace fixture, is compared to a reviewed snapshot file
 under `__snapshots__/`.
 """
@@ -166,16 +166,16 @@ class TestInspectSnapshots:
 
 
 @pytest.mark.e2e
-class TestCheckHeaderSnapshots:
+class TestCheckFrontmatterSnapshots:
     # Every finding prints root-relative, so the output is the same in every checkout and nothing is redacted.
     # The fixture's documents carry no frontmatter, so each run reports findings and exits 1.
 
-    def test_check_header_without_a_root_in_the_workspace_fixture_prints_the_findings(
+    def test_check_frontmatter_without_a_root_in_the_workspace_fixture_prints_the_findings(
         self, snapshot: SnapshotAssertion
     ) -> None:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'header')
+        arguments = ('check', 'frontmatter')
 
         #: When
         result = run_cli(*arguments, cwd=WORKSPACE_FIXTURE)
@@ -184,12 +184,12 @@ class TestCheckHeaderSnapshots:
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the findings found from the working directory match the reviewed snapshot'
 
-    def test_check_header_with_json_over_the_workspace_fixture_prints_the_report(
+    def test_check_frontmatter_with_json_over_the_workspace_fixture_prints_the_report(
         self, snapshot: SnapshotAssertion
     ) -> None:
         #: Given
         expected = snapshot.use_extension(JsonTextSnapshotExtension)
-        arguments = ('check', 'header', '--root', str(WORKSPACE_FIXTURE), '--format', 'json')
+        arguments = ('check', 'frontmatter', '--root', str(WORKSPACE_FIXTURE), '--format', 'json')
 
         #: When
         result = run_cli(*arguments)
