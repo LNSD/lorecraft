@@ -1,7 +1,17 @@
 """Specification filenames and stems, the structure aspect with the frontmatter schema it carries, the repository
 that reads them, the skill frontmatter schema, and the problems both frontmatter schemas report."""
 
-from .frontmatter_problem import FrontmatterProblem, FrontmatterProblemKind
+from .frontmatter_problem import (
+    BlockProblem,
+    FrontmatterProblem,
+    InvalidValueProblem,
+    MissingFieldProblem,
+    NonStringKeyProblem,
+    NotAStringMappingProblem,
+    NotAStringProblem,
+    UnknownFieldProblem,
+    WrongTypeProblem,
+)
 from .name import SchemaName, parse_schema_name, schema_name_stem
 from .repo import (
     CorpusSchemasListError,
@@ -112,5 +122,12 @@ __all__ = [
     'SkillFrontmatterSchema',
     'SKILL_FRONTMATTER_SCHEMA',
     'FrontmatterProblem',
-    'FrontmatterProblemKind',
+    'MissingFieldProblem',
+    'UnknownFieldProblem',
+    'NonStringKeyProblem',
+    'NotAStringProblem',
+    'NotAStringMappingProblem',
+    'WrongTypeProblem',
+    'InvalidValueProblem',
+    'BlockProblem',
 ]
