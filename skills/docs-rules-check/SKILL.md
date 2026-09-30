@@ -3,7 +3,7 @@ name: docs-rules-check
 description: Review documents under docs/ and the Lorecraft specifications in docs/__meta__/ that govern them - run lorecraft check for frontmatter, section outline, word caps and token budget, walk each specification's checklist for what a machine cannot decide, and check that each changed specification loads, that its prose and JSON agree, and that it governs the documents intended. Use after editing anything under docs/, when reviewing a pull request that touches docs/, before committing, when lorecraft check exits 2 or a document is unexpectedly ungoverned, or when setting the checks up in CI. Not for writing documents or specifications; see /docs-rules and /docs-rules-creator
 compatibility: Requires the lorecraft command, on PATH or run through uvx lorecraft, or uv run lorecraft in a uv project that declares Lorecraft as a dependency, and a git checkout
 metadata:
-  references: docs/feat/cli-check.md docs/feat/cli-check-header.md docs/feat/cli-check-structure.md docs/feat/cli-check-budget.md docs/feat/cli-inspect.md docs/feat/spec.md docs/feat/spec-header.md docs/feat/spec-structure.md
+  references: docs/feat/cli-check.md docs/feat/cli-check-header.md docs/feat/cli-check-structure.md docs/feat/cli-check-budget.md docs/feat/cli-inspect.md docs/feat/spec.md docs/feat/spec-structure.md docs/feat/spec-structure-budget.md docs/feat/spec-structure-frontmatter.md docs/feat/spec-structure-outline.md
 allowed-tools: Bash(lorecraft check*) Bash(lorecraft inspect*) Bash(uvx lorecraft *) Bash(uv run lorecraft *) Bash(git diff *) Bash(git status *) Bash(git merge-base *) Bash(grep *) Bash(ls docs/*)
 ---
 
@@ -45,7 +45,7 @@ lorecraft inspect
 Each document is followed by the stems governing it, broad to narrow; stem `<stem>` is the prose at
 `docs/__meta__/<stem>.md`. [cli-inspect](references/cli-inspect.md) describes the output. Read every
 specification listed for a document **before** the document, so its checklist is in hand while reading. A
-document with no stem for an aspect is ungoverned for it: report it as unvalidated rather than borrowing
+document with no stem stating what a check reads is ungoverned for that check: report it as unvalidated rather than borrowing
 another corpus's rules.
 
 ## 3. Run the checks
@@ -56,7 +56,7 @@ token budget. Do not check those by hand.
 
 ```bash
 lorecraft check                              # every check over every document, one read of the tree
-lorecraft check header <files>               # frontmatter, against <stem>.header.json
+lorecraft check header <files>               # frontmatter, the structure spec's frontmatter key
 lorecraft check structure <files>            # sections and word caps, against <stem>.structure.json
 lorecraft check budget <files>               # the whole-file token budget, the structure spec's tokens key
 lorecraft check --format json                # machine-readable
@@ -97,29 +97,32 @@ list already out of sync is a finding.
 Lorecraft loads and validates each JSON file on its own, but it cannot tell whether the JSON says what the
 prose says, or whether a stem governs the documents its author meant. Check each changed stem for both.
 
-**Load.** `lorecraft inspect` validates every specification before any document is read. A header schema must
-satisfy the JSON Schema Draft 2020-12 meta-schema; a structure specification must use only the dialect's keys
-and state usable rules. A file that fails stops the run with an error naming it: `inspect` exits `1`,
-`lorecraft check` exits `2`. That error is the finding; [spec-header](references/spec-header.md) and
-[spec-structure](references/spec-structure.md) say what each dialect refuses.
+**Load.** `lorecraft inspect` validates every specification before any document is read. A structure
+specification must use only the dialect's keys and state usable rules, and its `frontmatter` key must satisfy
+the JSON Schema Draft 2020-12 meta-schema, state `"type": "object"` at its root, and carry no `$id` at any
+depth. A leftover `<stem>.header.json` is not read: its schema belongs in that key now. A file that fails stops
+the run with an error naming it: `inspect` exits `1`, `lorecraft check` exits `2`. That error is the finding; [spec-structure](references/spec-structure.md) says what is refused for any file, and
+[spec-structure-outline](references/spec-structure-outline.md),
+[spec-structure-budget](references/spec-structure-budget.md) and
+[spec-structure-frontmatter](references/spec-structure-frontmatter.md) what is refused for their keys.
 
 **Resolution.** In the `inspect` tree, compare what is governed with what was meant. [spec](references/spec.md)
 owns the rules.
 
 - Each changed stem appears under its corpus. A file whose name does not parse — a hyphen in a corpus name,
-  a dot in a stem, an unknown aspect — is left out silently, and so is a namespace stem whose corpus has no
-  file of its own or no directory under `docs/`.
+  a dot in a stem, an unknown aspect — is left out silently, and so is
+  a namespace stem whose corpus has no file of its own or no directory under `docs/`.
 - Each document lists the stems intended. A namespace matches a filename that equals it or continues it with a
   hyphen: `code-python` governs `python-typing.md`, not `pythonic.md`.
 - A namespace stem matches at least one document. One that matches none still loads and governs nothing,
   usually after a rename.
-- Every aspect a corpus means to check has a file at the corpus stem. A namespace file alone leaves the aspect
-  unchecked.
+- Every rule a corpus means to check has its key in the file at the corpus stem. A namespace file alone,
+  or a namespace `frontmatter` key without a corpus one, leaves it unchecked.
 
 **Agreement.** Nothing detects drift between a specification's prose and its JSON, so read both:
 
-- Header: every frontmatter field the prose describes is in the schema's `properties`, and none is only in the
-  schema; required fields, vocabularies and patterns match the prose's wording.
+- Frontmatter: every frontmatter field the prose describes is in the `frontmatter` schema's `properties`, and
+  none is only in the schema; required fields, vocabularies and patterns match the prose's wording.
 - Structure: the prose's section list, order, and optional sections match `outline`; any word cap, token
   budget, forbidden section or empty-section rule in one is in the other, with the same number.
 - Layering: a namespace file states only what it adds, and does not restate or contradict its base. A
@@ -142,8 +145,8 @@ Findings, per document or stem, most severe first, one per line, with the fix:
 > `docs/code/python-typing.md:3` — **code.md, Frontmatter**: `description` has no trigger clause. Name the
 > situations the document should be read in.
 >
-> `docs/__meta__/code.header.json` — **drift**: allows `status`, which `code.md`'s frontmatter section does not
-> describe. Describe it in the prose, or remove it from the schema.
+> `docs/__meta__/code.structure.json` — **drift**: its `frontmatter` schema allows `status`, which `code.md`'s
+> frontmatter section does not describe. Describe it in the prose, or remove it from the schema.
 
 - **Every document finding cites the specification and section that states the rule.** A finding with no
   specification behind it is a style opinion — drop it.

@@ -59,11 +59,9 @@ class Database:
             ListSpecsError: If the specification directory cannot be listed.
             ListCorpusDirectoriesError: If docs/ cannot be listed.
             ListDocumentsError: If a corpus directory cannot be listed.
-            GetHeaderSchemaError: If any header schema cannot be read or decoded.
-            InvalidHeaderSchemaError: If any header schema is not a well-formed JSON Schema.
             GetStructureSchemaError: If any structure specification cannot be read.
             InvalidStructureSchemaError: If any structure specification is not JSON in the dialect, or states no
-                usable rules.
+                usable rules, its frontmatter schema included.
         """
         if self._model is None:
             self._model = load_model(self._fs)

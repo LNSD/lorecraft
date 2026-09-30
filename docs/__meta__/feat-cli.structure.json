@@ -1,6 +1,16 @@
 {
   "$schema": "../schemas/structure.spec.json",
-  "description": "Narrows feat.structure.json for docs/feat/cli.md and docs/feat/cli-*.md, which is applied as well. The prose authority is docs/__meta__/feat-cli.md section 4; this file is its machine-checkable half. Every command takes an argument or an option, so Configuration, which the base leaves optional, is required here, and holds the command's argument and option table. Its cap is tighter than the base's, since the table costs no words and the prose around it only states precedence. Where Configuration sits is feat.structure.json's business, so the runs on either side of it match whatever the base allows.",
+  "description": "Narrows feat.structure.json for docs/feat/cli.md and docs/feat/cli-*.md, which is applied as well. The prose authorities are docs/__meta__/feat-cli.md section 3 for the frontmatter and section 4 for the structure; this file is their machine-checkable half. The frontmatter adds that components names the command's module. Every command takes an argument or an option, so Configuration, which the base leaves optional, is required here, and holds the command's argument and option table. Its cap is tighter than the base's, since the table costs no words and the prose around it only states precedence. Where Configuration sits is feat.structure.json's business, so the runs on either side of it match whatever the base allows.",
+  "frontmatter": {
+    "type": "object",
+    "properties": {
+      "components": {
+        "type": "string",
+        "pattern": "(?:^|,)\\s*module:lorecraft\\.cli(?:\\.[a-z0-9_]+)+\\s*(?:,|$)",
+        "description": "Holds at least one module:lorecraft.cli entry: the module that declares the command, under lorecraft.cli.commands, or lorecraft.cli.app for cli.md. Which module is the right one is verified by reading."
+      }
+    }
+  },
   "outline": [
     { "any": true },
     { "section": "Configuration", "words": 150 },

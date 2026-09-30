@@ -34,9 +34,9 @@ lorecraft inspect --json   # the same model; each document's governed_by lists i
 ```
 
 In the tree, each document is followed by the stems governing it, broad to narrow: `pattern-state.md [code,
-code-pattern]` answers to `docs/__meta__/code.md`, then `docs/__meta__/code-pattern.md`. The `.json` files at
-the same stem are the machine-checkable halves the checks run: `<stem>.header.json` for the frontmatter,
-`<stem>.structure.json` for the sections, word caps and token budget. [cli-inspect](references/cli-inspect.md)
+code-pattern]` answers to `docs/__meta__/code.md`, then `docs/__meta__/code-pattern.md`. The `.json` file at
+the same stem is the machine-checkable half the checks run: `<stem>.structure.json`, for the frontmatter
+under its `frontmatter` key, the sections, the word caps and the token budget. [cli-inspect](references/cli-inspect.md)
 describes the output.
 
 A document not yet written is not listed: create the file, empty if need be, and run it again. A file that
@@ -64,10 +64,10 @@ If it needs a corpus that does not exist yet, that is a new specification: use `
 2. **Read a neighbour.** Open the closest existing document in the corpus. The specification states the rules;
    a neighbour shows the register and depth the corpus settled on.
 3. **Write the frontmatter first.** Deciding it forces you to decide what the document is. The
-   `<stem>.header.json` files state the fields exactly, and `name`, where a schema governs, matches the
+   `frontmatter` key of each `<stem>.structure.json` states the fields exactly, and `name`, where a schema governs, matches the
    filename without `.md`.
 4. **Write the body** from the specification's template or outline, keeping its sections in order.
-5. **Run the checks** on the files you wrote, the header as soon as the frontmatter exists:
+5. **Run the checks** on the files you wrote, the frontmatter as soon as it exists:
 
    ```bash
    lorecraft check header <files>

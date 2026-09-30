@@ -64,7 +64,7 @@ refactor.
 ### One Document, One Subject
 
 **A feature document has exactly one reason to change.** Split by subject, not by size: a document that
-covers both the header dialect and the structure dialect is rewritten whenever either changes, and neither
+covers both the frontmatter schema and the section outline is rewritten whenever either changes, and neither
 change can be reviewed on its own.
 
 Decide a document's home by asking what would force it to be rewritten:
@@ -92,17 +92,16 @@ A feature document describes behaviour that **exists in this repository**, not b
 
 Nothing registers a feature document with a specification: the document's own path resolves them.
 
-**This specification is the base layer.** It governs every document at `docs/feat/<name>.md`, through three
+**This specification is the base layer.** It governs every document at `docs/feat/<name>.md`, through two
 files in `docs/__meta__/`:
 
-| File                  | Governs                                                  | Read by                                            |
-|-----------------------|----------------------------------------------------------|----------------------------------------------------|
-| `feat.md`             | Everything. This document is the authority               | A person, and an agent before it writes            |
-| `feat.header.json`    | Frontmatter fields, vocabularies, patterns               | `lorecraft check header`                           |
-| `feat.structure.json` | The section outline, its order, the caps, the token budget | `lorecraft check structure`, `lorecraft check budget` |
+| File | Governs | Read by |
+|---|---|---|
+| `feat.md` | Everything. This document is the authority | A person, and an agent before it writes |
+| `feat.structure.json` | The frontmatter fields under its `frontmatter` key; the section outline, its order, the caps, the token budget | `lorecraft check header`, `lorecraft check structure`, `lorecraft check budget` |
 
 A **namespace layer** adds to that base for a group of documents: `feat-<namespace>.md` states its rules in
-prose, and `feat-<namespace>.header.json` or `feat-<namespace>.structure.json` beside it hold the parts a check
+prose, and `feat-<namespace>.structure.json` beside it holds the parts a check
 can decide. A layer applies when the namespace equals the document's name or is a hyphen-delimited prefix of
 it, and may span several segments: `feat-<a>-<b>` governs `<a>-<b>.md` and `<a>-<b>-*.md`. Every layer is
 applied on its own, broad to narrow, so a layer states only what it adds: it can require a section the base
@@ -139,8 +138,8 @@ is what [§6](#6-word-caps-and-token-budget) puts a number on.
 
 ## 2. Frontmatter Requirements
 
-The rules in this section are held in machine-checkable form in
-[feat.header.json](feat.header.json), which `just check-docs` runs against every document in the corpus.
+The rules in this section are held in machine-checkable form under the `frontmatter` key of
+[feat.structure.json](feat.structure.json), which `just check-docs` runs against every document in the corpus.
 
 **CRITICAL**: Every feature document MUST begin with valid YAML frontmatter:
 
@@ -297,8 +296,10 @@ found by one glob.
 **Specification features:**
 ```
 spec                              # Meta: the specification files under docs/__meta__/
-├── spec-header                   # The header dialect, JSON Schema
-└── spec-structure                # The structure dialect: outline, word caps, token budget
+└── spec-structure                # The structure specification file, its layers and its editor schema
+    ├── spec-structure-budget       # Its word caps and token budget
+    ├── spec-structure-frontmatter  # Its frontmatter key, JSON Schema
+    └── spec-structure-outline      # Its title rule, section outline and forbidden sections
 ```
 
 A domain with a namespace layer takes its naming from that layer, which may tie the segments after the domain
@@ -387,7 +388,7 @@ Use a simple list, with the relationship named before the description:
 ## References
 
 - [cli-check-header](cli-check-header.md) - Dependency: frontmatter validation
-- [spec-header](spec-header.md) - Related: the dialect this check reads
+- [spec-structure-frontmatter](spec-structure-frontmatter.md) - Related: the dialect this check reads
 - [cli-check](cli-check.md) - Base: the CLI namespace this check belongs to
 ```
 
@@ -396,7 +397,8 @@ Use a simple list, with the relationship named before the description:
 ### Reference Direction Rules
 
 A document's **base** is the document whose name is the longest hyphen-delimited prefix of its own name that
-exists in the corpus, and the document is an **extension** of it: `spec.md` is the base of `spec-header.md`.
+exists in the corpus, and the document is an **extension** of it: `spec-structure.md` is the base of
+`spec-structure-frontmatter.md`, and `spec.md` the base of `spec-structure.md`.
 The shorter name is always the base, the rule a specification's namespace follows once its corpus prefix is
 set aside. A base is usually a `meta` document, but a `feature` can be the base of the features that extend
 it, when what it documents works on its own and each extension adds to it.
@@ -425,9 +427,10 @@ whenever an extension is added, removed or renamed; it couples a stable document
 circular references between documents.
 
 **Examples:**
-- ✅ `spec-header.md` (feature) → `spec.md` (meta) — extension to base
+- ✅ `spec-structure.md` (feature) → `spec.md` (meta) — extension to base
+- ✅ `spec-structure-frontmatter.md` (feature) → `spec-structure.md` (feature) — extension to base
 - ✅ `check-structure.md` (component) → `spec-structure.md` (feature) — component to the feature it serves
-- ❌ `spec.md` (meta) → `spec-header.md` (feature) — FORBIDDEN: base to extension
+- ❌ `spec-structure.md` (feature) → `spec-structure-frontmatter.md` (feature) — FORBIDDEN: base to extension
 - ❌ `spec.md` (meta) → lists every `spec-*.md` — FORBIDDEN: base to extension, and an inventory besides
 
 Direction is a judgment the checker does not make. It is on the author, and on review.

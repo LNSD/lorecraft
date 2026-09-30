@@ -21,7 +21,7 @@ HEADER_CHECK: Final[DocumentCheck] = register_check(
     DocumentCheck(
         name='header',
         run=run_header,
-        ungoverned='no header schema for this corpus; frontmatter unvalidated',
+        ungoverned='no frontmatter schema for this corpus; frontmatter unvalidated',
     )
 )
 
@@ -46,7 +46,7 @@ def header(
         typer.Option('--format', help='Output format: text or json.'),
     ] = 'text',
 ) -> None:
-    """Check frontmatter against the target repository's schemas.
+    """Check frontmatter against the `frontmatter` schemas in the target repository's structure specifications.
 
     Exit 0 when clean, 1 when findings exist, and 2 for invalid input or schemas.
 

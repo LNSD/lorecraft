@@ -20,9 +20,9 @@ from lorecraft import __version__
 # The labelled lines of `version --verbose` whose values differ per checkout, interpreter, machine and install.
 _VARYING_FIELDS: Final[tuple[str, ...]] = ('Commit', 'Python', 'Platform', 'Install')
 
-# A checked-in workspace root holding each part of the model `inspect` draws: a corpus with a header schema
-# and a structure specification, a namespace spec with a structure layer, a document each governs, and a README
-# beside the specifications that is not one.
+# A checked-in workspace root holding each part of the model `inspect` draws: a corpus with a structure
+# specification that states a frontmatter schema, a namespace spec with a structure layer, a document each governs,
+# and a README beside the specifications that is not one.
 # Resolved, because the CLI prints the resolved root and the tests swap exactly that string for a placeholder.
 WORKSPACE_FIXTURE: Final[Path] = (Path(__file__).parent / 'fixtures' / 'workspace').resolve()
 _ROOT_PLACEHOLDER: Final[str] = '<workspace>'

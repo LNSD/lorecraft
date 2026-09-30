@@ -15,9 +15,8 @@ from dataclasses import dataclass
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.ref import DocumentRef
-from lorecraft.project.schemas.header import HeaderAspect
 from lorecraft.project.schemas.name import SchemaName
-from lorecraft.project.schemas.structure import StructureAspect
+from lorecraft.project.schemas.structure import FrontmatterSchema, StructureAspect
 from lorecraft.vfs import RootRelativePath
 
 
@@ -25,18 +24,17 @@ from lorecraft.vfs import RootRelativePath
 class Spec:
     """One specification stem in docs/__meta__ and the aspects decoded from it.
 
-    Not hashable: ``HeaderAspect`` holds a dict, so instances must not be put in a set or used as a key.
+    Not hashable: a structure aspect's ``FrontmatterSchema`` holds a dict, so instances must not be put in a set or
+    used as a key.
 
     Attributes:
         name: The stem, parsed.
         files: Every root-relative file at this stem (prose and JSON), sorted; may be prose only.
-        header: The header aspect, or None when ``<stem>.header.json`` does not exist.
         structure: The structure aspect, or None when ``<stem>.structure.json`` does not exist.
     """
 
     name: SchemaName
     files: tuple[RootRelativePath, ...]
-    header: HeaderAspect | None
     structure: StructureAspect | None
 
     @property
@@ -79,25 +77,11 @@ class Governance:
         if not self.specs:
             raise ValueError(f'document {self.ref.path} must be governed by at least its corpus spec')
 
-    def header_schemas(self) -> tuple[HeaderAspect, ...]:
-        """Header aspects to apply in order; ``()`` means ungoverned for the header aspect.
-
-        A corpus spec without a header aspect leaves the document ungoverned even when a matching namespace
-        spec carries one: a namespace narrows a base, it cannot supply one.
-        """
-        if self.specs[0].header is None:
-            return ()
-        aspects: list[HeaderAspect] = []
-        for spec in self.specs:
-            if spec.header is not None:
-                aspects.append(spec.header)
-        return tuple(aspects)
-
     def structure_specs(self) -> tuple[StructureAspect, ...]:
         """Structure aspects to apply in order; ``()`` means ungoverned for the structure aspect.
 
-        As with ``header_schemas``, a corpus spec without a structure aspect leaves the document ungoverned
-        even when a matching namespace spec carries one.
+        A corpus spec without a structure aspect leaves the document ungoverned even when a matching namespace
+        spec carries one: a namespace narrows a base, it cannot supply one.
         """
         if self.specs[0].structure is None:
             return ()
@@ -106,6 +90,22 @@ class Governance:
             if spec.structure is not None:
                 aspects.append(spec.structure)
         return tuple(aspects)
+
+    def frontmatter_schemas(self) -> tuple[FrontmatterSchema, ...]:
+        """Frontmatter schemas to apply in order; ``()`` means ungoverned for frontmatter.
+
+        Each comes from the ``frontmatter`` key of a structure aspect. As with ``structure_specs``, a corpus spec
+        whose structure aspect states no frontmatter schema leaves the document ungoverned even when a matching
+        namespace spec states one.
+        """
+        corpus_structure = self.specs[0].structure
+        if corpus_structure is None or corpus_structure.frontmatter is None:
+            return ()
+        schemas: list[FrontmatterSchema] = []
+        for aspect in self.structure_specs():
+            if aspect.frontmatter is not None:
+                schemas.append(aspect.frontmatter)
+        return tuple(schemas)
 
 
 def namespace_order_key(namespace: AspectNamespace) -> tuple[int, str]:

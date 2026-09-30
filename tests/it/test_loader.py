@@ -16,7 +16,7 @@ from lorecraft.project.aspect import AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.repo import Repository as DocumentRepository
 from lorecraft.project.layout import SPECS_DIR
-from lorecraft.project.schemas import GetHeaderSchemaError, InvalidHeaderSchemaError, InvalidStructureSchemaError
+from lorecraft.project.schemas import InvalidStructureSchemaError
 from lorecraft.project.schemas import Repository as SchemaRepository
 from lorecraft.project.workspace.loader import load_workspace
 from lorecraft.project.workspace.model import WorkspaceModel
@@ -25,15 +25,13 @@ from lorecraft.vfs import DiskFileSystem, RootRelativePath
 CODE: Final[CorpusName] = CorpusName.parse('code')
 FEAT: Final[CorpusName] = CorpusName.parse('feat')
 
-# A well-formed Draft 2020-12 schema that accepts any frontmatter; the loader validates the dialect, not
-# the documents.
-VALID_HEADER_SCHEMA: Final[str] = '{"type": "object"}'
-
-# A structure specification stating one rule, the least the structure dialect accepts.
+# A structure specification stating one structure rule and a frontmatter schema that accepts any frontmatter; the
+# loader validates the specifications, not the documents.
 VALID_STRUCTURE_SPEC: Final[str] = dedent(
     """
     {
-      "empty_sections": "forbidden"
+      "empty_sections": "forbidden",
+      "frontmatter": {"type": "object"}
     }
     """
 )
@@ -61,16 +59,13 @@ def _write(root: Path, relative: str, text: str = '') -> None:
 def _write_tree(root: Path, prose: tuple[str, ...], schemas: tuple[str, ...], documents: tuple[str, ...]) -> None:
     """Lay out ``docs/__meta__/<prose>.md``, ``docs/__meta__/<schema>`` and ``docs/<document>`` files.
 
-    A ``*.structure.json`` file holds a valid structure specification; any other schema file holds a valid header
-    schema.
+    Every schema file holds a valid structure specification; one whose name is not a structure specification's is
+    never read, so what it holds does not matter.
     """
     for stem in prose:
         _write(root, f'docs/__meta__/{stem}.md')
     for filename in schemas:
-        if filename.endswith('.structure.json'):
-            _write(root, f'docs/__meta__/{filename}', VALID_STRUCTURE_SPEC)
-        else:
-            _write(root, f'docs/__meta__/{filename}', VALID_HEADER_SCHEMA)
+        _write(root, f'docs/__meta__/{filename}', VALID_STRUCTURE_SPEC)
     for relative in documents:
         _write(root, f'docs/{relative}')
 
@@ -81,16 +76,12 @@ def _amp_tree(root: Path) -> None:
         root,
         prose=('README', 'code', 'code-pattern', 'code-principle', 'code-rust', 'feat'),
         schemas=(
-            'code.header.json',
             'code.structure.json',
-            'code-crate.header.json',
-            'code-pattern.header.json',
+            'code-crate.structure.json',
             'code-pattern.structure.json',
-            'code-principle.header.json',
             'code-principle.structure.json',
-            'code-rust.header.json',
             'code-rust.structure.json',
-            'feat.header.json',
+            'feat.structure.json',
         ),
         documents=(
             'code/crates.md',
@@ -142,17 +133,12 @@ def _lorecraft_tree(root: Path) -> None:
         root,
         prose=('README', 'code', 'code-pattern', 'code-principle', 'code-python', 'feat', 'feat-cli'),
         schemas=(
-            'code.header.json',
             'code.structure.json',
-            'code-pattern.header.json',
             'code-pattern.structure.json',
-            'code-principle.header.json',
             'code-principle.structure.json',
-            'code-python.header.json',
             'code-python.structure.json',
-            'feat.header.json',
             'feat.structure.json',
-            'feat-cli.header.json',
+            'feat-cli.structure.json',
         ),
         documents=('code/logging.md', 'code/python-typing.md', 'feat/cli-check.md', 'feat/cli-check-header.md'),
     )
@@ -223,11 +209,14 @@ class TestLoadWorkspaceAmp:
         code = model.corpus(CODE)
         assert code is not None, 'the model lists the code corpus'
         crate = code.namespace_specs[0]
-        assert crate.files == (SPECS_DIR / 'code-crate.header.json',), (
+        assert crate.files == (SPECS_DIR / 'code-crate.structure.json',), (
             'a namespace spec with JSON files and no prose still loads'
         )
-        assert crate.header is not None, 'the header aspect is decoded'
-        assert crate.header.path == SPECS_DIR / 'code-crate.header.json', 'the aspect carries its file path'
+        assert crate.structure is not None, 'the structure aspect is decoded'
+        assert crate.structure.frontmatter is not None, 'the frontmatter schema is decoded with it'
+        assert crate.structure.frontmatter.path == SPECS_DIR / 'code-crate.structure.json', (
+            'the frontmatter schema carries the path of the specification it is written in'
+        )
 
 
 @pytest.mark.it
@@ -246,7 +235,7 @@ class TestLoadWorkspaceMono:
             'a corpus spec without docs/<corpus>/ creates no corpus'
         )
 
-    def test_load_workspace_with_the_mono_tree_leaves_the_header_aspect_ungoverned(
+    def test_load_workspace_with_the_mono_tree_leaves_the_frontmatter_ungoverned(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
     ) -> None:
         #: Given
@@ -258,7 +247,7 @@ class TestLoadWorkspaceMono:
         #: Then
         ref = model.locate(RootRelativePath.parse('docs/code/rust-errors-handling.md'))
         assert ref is not None, 'the document is listed'
-        assert model.governance(ref).header_schemas() == (), 'prose-only specs carry no header schema'
+        assert model.governance(ref).frontmatter_schemas() == (), 'prose-only specs carry no frontmatter schema'
         assert _namespaces(model, CODE) == ('pattern', 'principle', 'rust'), 'prose-only namespace specs load'
 
 
@@ -335,7 +324,7 @@ class TestLoadWorkspaceEdgeCases:
     ) -> None:
         #: Given
         _write_tree(
-            tmp_path, prose=('code', '__meta__'), schemas=('__meta__.header.json',), documents=('code/logging.md',)
+            tmp_path, prose=('code', '__meta__'), schemas=('__meta__.structure.json',), documents=('code/logging.md',)
         )
 
         #: When
@@ -412,7 +401,7 @@ class TestLoadWorkspaceEdgeCases:
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
     ) -> None:
         #: Given
-        _write_tree(tmp_path, prose=('code',), schemas=('README.header.json',), documents=('code/logging.md',))
+        _write_tree(tmp_path, prose=('code',), schemas=('README.structure.json',), documents=('code/logging.md',))
 
         #: When
         model = load_workspace(schemas, documents)
@@ -420,35 +409,37 @@ class TestLoadWorkspaceEdgeCases:
         #: Then
         assert tuple(corpus.name for corpus in model.corpora) == (CODE,), 'the misnamed JSON file makes no corpus'
 
-    def test_load_workspace_with_broken_json_raises_get_header_schema_error(
+    def test_load_workspace_with_a_header_file_leaves_it_out(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
     ) -> None:
         #: Given
-        _write_tree(tmp_path, prose=('code',), schemas=(), documents=('code/logging.md',))
-        _write(tmp_path, 'docs/__meta__/code.header.json', '{')
+        # a header file from before the frontmatter schema moved into the structure specification
+        _write_tree(tmp_path, prose=('code',), schemas=('code.header.json',), documents=('code/logging.md',))
 
         #: When
-        with pytest.raises(GetHeaderSchemaError) as exc_info:
-            load_workspace(schemas, documents)
+        model = load_workspace(schemas, documents)
 
         #: Then
-        assert 'docs/__meta__/code.header.json' in str(exc_info.value), 'the error names the broken schema'
+        corpus = model.corpus(CODE)
+        assert corpus is not None, 'the corpus still loads from its prose stem'
+        assert corpus.spec.files == (SPECS_DIR / 'code.md',), 'the header file is not one of the spec files'
+        assert corpus.spec.structure is None, 'and it states no rules'
 
-    def test_load_workspace_with_an_invalid_json_schema_raises_invalid_header_schema_error(
+    def test_load_workspace_with_a_malformed_frontmatter_schema_raises_invalid_structure_schema_error(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
     ) -> None:
         #: Given
         # the corpus directory exists and is empty: validation happens before any document matters
         _write_tree(tmp_path, prose=('code',), schemas=(), documents=())
         (tmp_path / 'docs' / 'code').mkdir()
-        _write(tmp_path, 'docs/__meta__/code.header.json', '{"type": "nonsense"}')
+        _write(tmp_path, 'docs/__meta__/code.structure.json', '{"frontmatter": {"type": "nonsense"}}')
 
         #: When
-        with pytest.raises(InvalidHeaderSchemaError) as exc_info:
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
             load_workspace(schemas, documents)
 
         #: Then
-        assert exc_info.value.path == SPECS_DIR / 'code.header.json', 'the error names the rejected schema'
+        assert exc_info.value.path == SPECS_DIR / 'code.structure.json', 'the error names the rejected specification'
 
     def test_load_workspace_with_a_structure_spec_builds_the_structure_aspect(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
@@ -487,15 +478,17 @@ class TestLoadWorkspaceEdgeCases:
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
     ) -> None:
         #: Given
-        _write_tree(tmp_path, prose=('code',), schemas=('code.header.json',), documents=('code/logging.md',))
-        _write(tmp_path, 'docs/__meta__/code-python.header.json', 'not json')
+        _write_tree(tmp_path, prose=('code',), schemas=('code.structure.json',), documents=('code/logging.md',))
+        _write(tmp_path, 'docs/__meta__/code-python.structure.json', 'not json')
 
         #: When
-        with pytest.raises(GetHeaderSchemaError) as exc_info:
+        with pytest.raises(InvalidStructureSchemaError) as exc_info:
             load_workspace(schemas, documents)
 
         #: Then
-        assert 'code-python.header.json' in str(exc_info.value), 'every header schema is decoded eagerly'
+        assert exc_info.value.path == SPECS_DIR / 'code-python.structure.json', (
+            'every structure specification is decoded eagerly'
+        )
 
     def test_load_workspace_with_nested_namespaces_sorts_them_by_segment_count_then_value(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
@@ -561,7 +554,9 @@ class TestLoadWorkspaceEdgeCases:
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository
     ) -> None:
         #: Given
-        _write_tree(tmp_path, prose=('code', 'rules'), schemas=('rules.header.json',), documents=('code/logging.md',))
+        _write_tree(
+            tmp_path, prose=('code', 'rules'), schemas=('rules.structure.json',), documents=('code/logging.md',)
+        )
         (tmp_path / 'docs' / 'rules').symlink_to(tmp_path / 'docs' / 'code')
 
         #: When
