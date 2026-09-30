@@ -188,7 +188,7 @@ and do not broaden scope for convenience.
 **`docs/__meta__/code.md` is the authority for the `docs/code/` corpus.** Read it before adding or editing a
 rule document; this section is a summary and defers to it on every detail. Three prefix specifications narrow
 it — `code-principle.md`, `code-pattern.md` and `code-python.md` fix the section outline for `principle-*`,
-`pattern-*` and `python-*`. A prefix with none of its own, `test-*` and `logging` today, follows `code.md`.
+`pattern-*` and `python-*`. A prefix with none of its own, `error-*`, `test-*` and `logging` today, follows `code.md`.
 
 The shape in brief:
 

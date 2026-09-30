@@ -213,7 +213,9 @@ accumulator — a findings buffer, a running counter — is not frozen, and is n
 ## 6. A Numeric Limit Validates in `__post_init__`
 
 A field with a meaningful range — a line budget, a heading depth, a finding limit, a line number — is checked
-in `__post_init__` and raises `ValueError` naming the field and the offending value.
+in `__post_init__` and raises `ValueError` naming the field and the offending value. That holds for a record
+only code builds; a record built from input, such as a budget read from a specification, raises an `Error`
+variant instead, because the user fixes it ([error-types](error-types.md)).
 
 The check is **mandatory, not optional**, and the reason is that Python offers nothing stronger. In a
 type-driven design the constraint would live in the type, so an out-of-range value would be unconstructible and
@@ -313,8 +315,8 @@ Before committing code, verify:
 - [ ] No field is `X | None` merely because it is assigned after construction; each optional field is one that
       can legitimately be absent
 - [ ] Every record used as a dict key, set member, or compared identity is `frozen=True`
-- [ ] Every field with a meaningful numeric range has a `__post_init__` check raising `ValueError` with the
-      field name and the received value
+- [ ] Every field with a meaningful numeric range has a `__post_init__` check naming the field and the
+      received value, raising `ValueError`, or an `Error` variant where input supplies the value
 - [ ] Every record's class docstring lists all public fields under `Attributes:` with units and constraints
 
 ## References
@@ -327,8 +329,8 @@ Before committing code, verify:
   forward references
 - [python-naming](python-naming.md) - Related: Field and class naming, and `ClassVar` capability constants
 - [python-docstrings](python-docstrings.md) - Related: Docstring sections beyond `Attributes:`
-- [python-exceptions](python-exceptions.md) - Related: When a validation failure warrants a domain
-  exception rather than `ValueError`
+- [error-types](error-types.md) - Related: When a validation failure warrants a domain
+  error rather than `ValueError`
 
 ## External References
 

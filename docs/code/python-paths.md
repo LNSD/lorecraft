@@ -10,8 +10,8 @@ scope: "global"
 A filesystem path stays a `Path`, or a domain type backed by `Path`, while code joins, inspects, or traverses
 it. Convert it to text only at a boundary that requires text, such as a report field. This document owns path
 identity and discovery order.
-Reading file contents is owned by the code at the I/O boundary; exception selection is owned by
-[python-exceptions](python-exceptions.md).
+Reading file contents is owned by the code at the I/O boundary; the error it raises is owned by
+[error-types](error-types.md).
 
 ## 1. Keep Filesystem Paths as `Path` Values
 
@@ -81,7 +81,7 @@ Before committing code, verify:
 
 ## References
 
-- [python-exceptions](python-exceptions.md) - Related: Owns the error raised when a path is missing or invalid
+- [error-types](error-types.md) - Related: Owns the error raised when a path is missing or invalid
 - [pattern-resource-lifecycle](pattern-resource-lifecycle.md) - Related: Owns acquisition and release of open
   filesystem resources
 

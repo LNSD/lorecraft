@@ -10,7 +10,7 @@ scope: "global"
 A docstring says what a caller gets and what a caller must uphold, in the timeless present. Everything else —
 why the code is shaped this way, what it used to be, the argument for an exception — belongs in a `#` comment
 beside the line that needs it. Log lines are owned by [logging](logging.md); the error types a `Raises:`
-section names are owned by [python-exceptions](python-exceptions.md); the annotations a docstring
+section names are owned by [error-types](error-types.md); the annotations a docstring
 deliberately does not restate are owned by [python-typing](python-typing.md).
 
 **This document keeps `Args:` and `Returns:`, against a real argument for dropping them.** That argument is
@@ -161,7 +161,8 @@ def findings_per_document(self, report: Report) -> dict[str, int]:
 
 Every function that can raise documents each exception type a caller can reach, and the condition that
 produces it. That includes exceptions raised directly and exceptions raised by a callee and allowed to
-propagate as part of this function's contract.
+propagate as part of this function's contract. An error union is not an exception type: the section lists
+each of its variants, since a variant is what a caller names in an `except`.
 
 This is the strongest rule in the document, because Python gives a caller **no other way to find out**. There
 are no checked exceptions, no `Result` in the return type, and no compiler that notices the new `raise` you
@@ -239,7 +240,7 @@ def overlong_spans(lines: list[int]) -> list[tuple[int, int]]:
 A dataclass, config object, or any class whose fields are part of its public surface documents them in an
 `Attributes:` section, under the same rule as `Args:`: a field earns a line when the line carries a unit, a
 bound, a default's meaning, or a relationship to another field. A field whose name is the whole story gets no
-line.
+line. An error variant is the exception: it lists every field ([error-types](error-types.md)).
 
 A config record is read far more often than it is constructed, usually by someone deciding what to put in a
 configuration file, and the class docstring is where they look. That reader has no call site to learn from and
@@ -304,7 +305,7 @@ Before committing code, verify:
 - [python-typing](python-typing.md) - Related: Owns the annotations a docstring deliberately does not restate
 - [python-naming](python-naming.md) - Related: Owns the names that make an `Args:` line unnecessary
 - [python-modules](python-modules.md) - Related: Owns module boundaries; this document owns the `"""` block at the top of one
-- [python-exceptions](python-exceptions.md) - Related: Owns the exception types a `Raises:` section names
+- [error-types](error-types.md) - Related: Owns the error types a `Raises:` section names
 - [python-dataclasses](python-dataclasses.md) - Related: Owns the record whose fields an `Attributes:` section documents
 - [pattern-value-object](pattern-value-object.md) - Related: The replacement for a parameter that needs a paragraph
 - [test-organization](test-organization.md) - Related: Where a contract that must be guaranteed is actually guaranteed
