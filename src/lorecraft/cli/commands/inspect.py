@@ -5,10 +5,10 @@ from typing import Annotated
 
 import typer
 
+from lorecraft.checks import Database
 from lorecraft.core.error import Error
-from lorecraft.project.layout import SNAPSHOT_SCOPE, require_real_layout
-from lorecraft.project.workspace import load_model
-from lorecraft.vfs import VirtualFileSystem, take_snapshot
+from lorecraft.project.layout import SNAPSHOT_SCOPE
+from lorecraft.vfs import take_snapshot
 
 from ..registry import register
 from ..workspace_tree import render_json, render_text
@@ -41,11 +41,11 @@ def inspect(
             symlink, or a structure specification that cannot be decoded or does not state usable rules.
     """
     try:
-        fs = VirtualFileSystem(take_snapshot(root, SNAPSHOT_SCOPE))
+        database = Database(take_snapshot(root, SNAPSHOT_SCOPE))
         # Under `docs/` the snapshot never reads through a symlink, so a linked `docs/` or `docs/__meta__/`
         # would draw a model with no corpora. Refused instead of printed as if the root declared nothing.
-        require_real_layout(fs)
-        model = load_model(fs)
+        database.require_real_layout()
+        model = database.model()
     except Error as exc:
         typer.echo(f'error: {exc}', err=True)
         raise typer.Exit(code=1) from exc

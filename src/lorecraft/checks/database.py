@@ -1,4 +1,4 @@
-"""One frozen state of a workspace: its snapshot, and the cached data every check reads through.
+"""One frozen state of a workspace: its snapshot, and the cached data every check, and every command, reads through.
 
 The layering follows the IntelliJ Platform's. The ``Snapshot`` plays the virtual file system: every byte a
 check can see, and never changed once built. Above it sit two kinds of cached data, each computed on first
