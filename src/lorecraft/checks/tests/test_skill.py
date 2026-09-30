@@ -1,11 +1,12 @@
 """Skill validation over a ``SKILL.md``'s frontmatter node.
 
-``validate_skill`` is pure, so every case here is a text literal parsed in memory and a directory name; no
-``SKILL.md`` is read.
+``validate_skill`` is pure, so every case here is a text literal parsed in memory and a directory name, held to
+the one Agent Skills specification; no ``SKILL.md`` is read.
 """
 
 import pytest
 
+from lorecraft.project.schemas import SKILL_FRONTMATTER_SCHEMA
 from lorecraft.project.syntax import LineNumber, parse_frontmatter
 
 from ..reporting import Violation
@@ -19,7 +20,7 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\nname: review\ndescription: Review a change. Use before a PR\n---\n')
 
         #: When
-        result = validate_skill(frontmatter, directory_name='review')
+        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
 
         #: Then
         assert result.violations == (), 'a skill with the two required fields, named for its directory, is clean'
@@ -39,7 +40,7 @@ class TestValidateSkill:
         )
 
         #: When
-        result = validate_skill(frontmatter, directory_name='review')
+        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
 
         #: Then
         assert result.violations == (), 'all six fields of the specification are accepted'
@@ -49,7 +50,7 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('# Review\n')
 
         #: When
-        result = validate_skill(frontmatter, directory_name='review')
+        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
 
         #: Then
         assert result.violations == (
@@ -63,7 +64,7 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\nname: [review\n---\n')
 
         #: When
-        result = validate_skill(frontmatter, directory_name='review')
+        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
 
         #: Then
         assert [violation.rule for violation in result.violations] == ['skill.frontmatter-unparseable'], (
@@ -75,7 +76,7 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\n- review\n---\n')
 
         #: When
-        result = validate_skill(frontmatter, directory_name='review')
+        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
 
         #: Then
         assert result.violations == (
@@ -89,12 +90,12 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\nlicense: MIT\n---\n')
 
         #: When
-        result = validate_skill(frontmatter, directory_name='review')
+        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
 
         #: Then
         assert result.violations == (
-            Violation(line=LineNumber(1), rule='skill.name', message='`name`: Field required'),
-            Violation(line=LineNumber(1), rule='skill.description', message='`description`: Field required'),
+            Violation(line=LineNumber(1), rule='skill.name', message='`name` is required'),
+            Violation(line=LineNumber(1), rule='skill.description', message='`description` is required'),
         ), 'each missing required field is its own violation, at line 1 since it has no line of its own'
 
     def test_validate_skill_with_a_malformed_name_reports_the_name_rule_on_the_name_line(self) -> None:
@@ -102,7 +103,7 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\ndescription: Review a change\nname: Code--Review\n---\n')
 
         #: When
-        result = validate_skill(frontmatter, directory_name='Code--Review')
+        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='Code--Review')
 
         #: Then
         assert [(violation.line, violation.rule) for violation in result.violations] == [
@@ -114,7 +115,7 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\nname: review\ndescription: Review a change\n---\n')
 
         #: When
-        result = validate_skill(frontmatter, directory_name='audit')
+        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='audit')
 
         #: Then
         assert result.violations == (
@@ -130,7 +131,7 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\nname: review\ndescription: Review a change\nmodel: opus\n---\n')
 
         #: When
-        result = validate_skill(frontmatter, directory_name='review')
+        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
 
         #: Then
         assert result.violations == (
@@ -146,7 +147,7 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\nname: review\ndescription: Review a change\n123: opus\n---\n')
 
         #: When
-        result = validate_skill(frontmatter, directory_name='review')
+        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
 
         #: Then
         assert result.violations == (
@@ -164,14 +165,14 @@ class TestValidateSkill:
         )
 
         #: When
-        result = validate_skill(frontmatter, directory_name='review')
+        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
 
         #: Then
         assert result.violations == (
             Violation(
                 line=LineNumber(4),
                 rule='skill.metadata',
-                message='`metadata.version`: Input should be a valid string',
+                message='`metadata.version` must be a string',
             ),
         ), 'the violation names the nested key and sits on the line of the field that holds it'
 
@@ -180,9 +181,22 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\nname: 3\ndescription: Review a change\n---\n')
 
         #: When
-        result = validate_skill(frontmatter, directory_name='review')
+        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
 
         #: Then
         assert [violation.rule for violation in result.violations] == ['skill.name'], (
             'a name of the wrong type is the specification violation alone: there is no name to compare'
         )
+
+    def test_validate_skill_with_a_name_unlike_the_directory_and_an_unknown_field_reports_the_name_first(self) -> None:
+        #: Given
+        frontmatter = parse_frontmatter('---\nmodel: opus\nname: review\ndescription: Review a change\n---\n')
+
+        #: When
+        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='audit')
+
+        #: Then
+        assert [violation.rule for violation in result.violations] == [
+            'skill.name-matches-directory',
+            'skill.unknown-field',
+        ], 'the name is compared before the specification is applied, as in the frontmatter check'

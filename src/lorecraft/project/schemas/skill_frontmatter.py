@@ -3,10 +3,10 @@ its fields.
 
 The specification is https://agentskills.io/specification. ``SkillFrontmatter`` states its six fields and the
 limits it puts on them, and nothing else: an extension some agent reads beyond them, such as Claude Code's
-``argument-hint``, is not a field here. ``parse_skill_frontmatter`` deserializes a document's frontmatter
-straight into it, so a skill that gets past it has this shape exactly. And ``just gen`` renders it into
+``argument-hint``, is not a field here. ``SkillFrontmatterSchema`` holds a document's frontmatter to it, so a
+skill that passes has this shape exactly. And ``just gen`` renders it into
 ``docs/schemas/skill-frontmatter.spec.json``, the JSON Schema an editor validates the frontmatter against while it
-is written, so the editor and the parser hold a skill to the same declaration.
+is written, so the editor and the check hold a skill to the same declaration.
 
 Unlike a header specification, whose JSON Schema is written by hand and applied with the ``jsonschema`` package,
 this schema is fixed by the specification, so it is declared once here as a pydantic model: pydantic validates a
@@ -39,7 +39,7 @@ formats the template and a rejected text may hold braces.
 """
 
 from dataclasses import dataclass
-from typing import Annotated, Final, Self
+from typing import Annotated, Final, Literal, Self
 
 from pydantic import (
     BaseModel,
@@ -52,9 +52,29 @@ from pydantic import (
     ValidationError,
 )
 from pydantic.json_schema import JsonSchemaValue
-from pydantic_core import PydanticCustomError, core_schema
+from pydantic_core import ErrorDetails, PydanticCustomError, core_schema
 
 from lorecraft.core.error import Error
+
+# The pydantic error type each value object raises its rejection under, typed as literals because
+# `PydanticCustomError` takes only a literal string. `value_object_message` reads them back.
+_NAME_ERROR_TYPE: Final[Literal['skill_name']] = 'skill_name'
+_DESCRIPTION_ERROR_TYPE: Final[Literal['skill_description']] = 'skill_description'
+_COMPATIBILITY_ERROR_TYPE: Final[Literal['skill_compatibility']] = 'skill_compatibility'
+
+
+def value_object_message(detail: ErrorDetails) -> str | None:
+    """The message a value object rejected a field's value with, or ``None`` when ``detail`` is not such an error.
+
+    The message is carried in the error's context: see the note on the pydantic hooks above.
+    """
+    if detail['type'] not in (_NAME_ERROR_TYPE, _DESCRIPTION_ERROR_TYPE, _COMPATIBILITY_ERROR_TYPE):
+        return None
+    reason = detail.get('ctx', {}).get('reason')
+    if isinstance(reason, str):
+        return reason
+    return None
+
 
 SKILL_NAME_MAX_LENGTH: Final[int] = 64
 """The most characters a skill name may have."""
@@ -189,7 +209,7 @@ class SkillName:
         try:
             return cls.parse(value)
         except (EmptySkillNameError, OverlongSkillNameError, InvalidSkillNameFormatError) as exc:
-            raise PydanticCustomError('skill_name', '{reason}', {'reason': str(exc)}) from exc
+            raise PydanticCustomError(_NAME_ERROR_TYPE, '{reason}', {'reason': str(exc)}) from exc
 
     @classmethod
     def __get_pydantic_json_schema__(
@@ -308,7 +328,7 @@ class SkillDescription:
         try:
             return cls.parse(value)
         except (EmptySkillDescriptionError, OverlongSkillDescriptionError) as exc:
-            raise PydanticCustomError('skill_description', '{reason}', {'reason': str(exc)}) from exc
+            raise PydanticCustomError(_DESCRIPTION_ERROR_TYPE, '{reason}', {'reason': str(exc)}) from exc
 
     @classmethod
     def __get_pydantic_json_schema__(
@@ -474,7 +494,7 @@ class SkillCompatibility:
         try:
             return cls.parse(value)
         except (EmptySkillCompatibilityError, OverlongSkillCompatibilityError) as exc:
-            raise PydanticCustomError('skill_compatibility', '{reason}', {'reason': str(exc)}) from exc
+            raise PydanticCustomError(_COMPATIBILITY_ERROR_TYPE, '{reason}', {'reason': str(exc)}) from exc
 
     @classmethod
     def __get_pydantic_json_schema__(

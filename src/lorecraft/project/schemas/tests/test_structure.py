@@ -8,6 +8,7 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 
+from ..frontmatter_problem import FrontmatterProblem, FrontmatterProblemKind
 from ..structure import (
     AdjacentAnyRunsError,
     AnySections,
@@ -801,3 +802,135 @@ class TestFrontmatterSchema:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a nested schema may not switch dialect either'
+
+    def test_validate_with_a_conforming_frontmatter_returns_no_problems(self) -> None:
+        #: Given
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema={'type': 'object', 'required': ['name']})
+        data: dict[object, object] = {'name': 'guide'}
+
+        #: When
+        problems = frontmatter.validate(data)
+
+        #: Then
+        assert problems == (), 'a frontmatter the schema accepts has no problems'
+
+    def test_validate_without_two_required_fields_returns_one_missing_problem_each(self) -> None:
+        #: Given
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema={'type': 'object', 'required': ['name', 'type']})
+        data: dict[object, object] = {}
+
+        #: When
+        problems = frontmatter.validate(data)
+
+        #: Then
+        assert problems == (
+            FrontmatterProblem('name', FrontmatterProblemKind.MISSING, "'name' is a required property"),
+            FrontmatterProblem('type', FrontmatterProblemKind.MISSING, "'type' is a required property"),
+        ), 'jsonschema reports each absent field once, however many the schema requires'
+
+    def test_validate_with_fields_the_schema_does_not_allow_returns_one_unknown_field_problem_each(self) -> None:
+        #: Given
+        schema: dict[str, object] = {
+            'type': 'object',
+            'properties': {'name': {}},
+            'patternProperties': {'^x-': {}},
+            'additionalProperties': False,
+        }
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=schema)
+        data: dict[object, object] = {'name': 'guide', 'x-owner': 'me', 'model': 'opus', 'tier': 1}
+
+        #: When
+        problems = frontmatter.validate(data)
+
+        #: Then
+        assert problems == (
+            FrontmatterProblem(
+                'model',
+                FrontmatterProblemKind.UNKNOWN_FIELD,
+                "Additional properties are not allowed ('model' was unexpected)",
+            ),
+            FrontmatterProblem(
+                'tier',
+                FrontmatterProblemKind.UNKNOWN_FIELD,
+                "Additional properties are not allowed ('tier' was unexpected)",
+            ),
+        ), 'each field neither properties nor patternProperties names is its own problem'
+
+    def test_validate_with_a_key_that_is_not_a_string_returns_an_unknown_field_problem_on_no_field(self) -> None:
+        #: Given
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema={'type': 'object', 'additionalProperties': False})
+        data: dict[object, object] = {123: 'x'}
+
+        #: When
+        problems = frontmatter.validate(data)
+
+        #: Then
+        assert problems == (
+            FrontmatterProblem(
+                None, FrontmatterProblemKind.UNKNOWN_FIELD, 'Additional properties are not allowed (123 was unexpected)'
+            ),
+        ), 'a key that is not a string names no field'
+
+    def test_validate_with_a_value_of_the_wrong_type_returns_a_wrong_type_problem(self) -> None:
+        #: Given
+        schema: dict[str, object] = {'type': 'object', 'properties': {'name': {'type': 'string'}}}
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=schema)
+        data: dict[object, object] = {'name': 3}
+
+        #: When
+        problems = frontmatter.validate(data)
+
+        #: Then
+        assert problems == (
+            FrontmatterProblem('name', FrontmatterProblemKind.WRONG_TYPE, "3 is not of type 'string'"),
+        ), "the message is the validator's, naming the constraint the schema wrote"
+
+    def test_validate_with_a_value_outside_an_enum_returns_an_invalid_value_problem(self) -> None:
+        #: Given
+        schema: dict[str, object] = {'type': 'object', 'properties': {'type': {'enum': ['rule', 'pattern']}}}
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=schema)
+        data: dict[object, object] = {'type': 'guide'}
+
+        #: When
+        problems = frontmatter.validate(data)
+
+        #: Then
+        assert problems == (
+            FrontmatterProblem(
+                'type', FrontmatterProblemKind.INVALID_VALUE, "'guide' is not one of ['rule', 'pattern']"
+            ),
+        ), 'a value of the right type breaking another rule is invalid'
+
+    def test_validate_with_an_unknown_key_inside_a_field_returns_an_invalid_value_problem_on_the_field(self) -> None:
+        #: Given
+        schema: dict[str, object] = {
+            'type': 'object',
+            'properties': {'metadata': {'type': 'object', 'properties': {'author': {}}, 'additionalProperties': False}},
+        }
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=schema)
+        data: dict[object, object] = {'metadata': {'owner': 'me'}}
+
+        #: When
+        problems = frontmatter.validate(data)
+
+        #: Then
+        assert problems == (
+            FrontmatterProblem(
+                'metadata',
+                FrontmatterProblemKind.INVALID_VALUE,
+                "Additional properties are not allowed ('owner' was unexpected)",
+            ),
+        ), "a key inside a field makes that field's value invalid; the field itself is known"
+
+    def test_validate_with_a_rule_over_the_whole_block_returns_a_problem_on_no_field(self) -> None:
+        #: Given
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema={'type': 'object', 'minProperties': 1})
+        data: dict[object, object] = {}
+
+        #: When
+        problems = frontmatter.validate(data)
+
+        #: Then
+        assert problems == (
+            FrontmatterProblem(None, FrontmatterProblemKind.INVALID_VALUE, '{} should be non-empty'),
+        ), 'a rule over the block concerns no field'
