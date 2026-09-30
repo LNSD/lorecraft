@@ -24,7 +24,7 @@ from lorecraft.core.error import Error
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.skill import SkillRef
-from lorecraft.vfs import take_snapshot
+from lorecraft.vfs import OsRefusal, take_snapshot
 
 from .root import find_root, resolve_root
 from .select import select_document, select_skills_at
@@ -67,7 +67,17 @@ class SkillCheck:
 
 
 class DuplicateCheckError(RuntimeError):
-    """Two different checks were registered under one name."""
+    """Two different checks were registered under one name: a defect in the package, never the user's input.
+
+    Attributes:
+        name: The name both checks claim.
+    """
+
+    name: str
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        super().__init__(f'check {name!r} is already registered')
 
 
 _CHECKS: dict[str, DocumentCheck] = {}
@@ -83,7 +93,7 @@ def register_check(check: DocumentCheck) -> DocumentCheck:
     """
     registered = _CHECKS.get(check.name)
     if (registered is not None and registered != check) or check.name in _SKILL_CHECKS:
-        raise DuplicateCheckError(f'check {check.name!r} is already registered')
+        raise DuplicateCheckError(check.name)
     _CHECKS[check.name] = check
     return check
 
@@ -102,7 +112,7 @@ def register_skill_check(check: SkillCheck) -> SkillCheck:
     """
     registered = _SKILL_CHECKS.get(check.name)
     if (registered is not None and registered != check) or check.name in _CHECKS:
-        raise DuplicateCheckError(f'check {check.name!r} is already registered')
+        raise DuplicateCheckError(check.name)
     _SKILL_CHECKS[check.name] = check
     return check
 
@@ -112,19 +122,23 @@ def registered_skill_checks() -> tuple[SkillCheck, ...]:
     return tuple(_SKILL_CHECKS[name] for name in sorted(_SKILL_CHECKS))
 
 
-class WorkingDirectoryError(Error):
+class WorkingDirectoryReadError(Error):
     """The current working directory cannot be read, such as after it was deleted, so no root can be searched
     for from it.
 
     Attributes:
-        detail: The operating system's reason.
+        refusal: Why the operating system refused to report it.
+        source: The operating system's failure.
     """
 
-    detail: str
+    refusal: OsRefusal
+    source: OSError
 
-    def __init__(self, detail: str) -> None:
-        self.detail = detail
-        super().__init__(f'cannot read the current directory: {detail}')
+    def __init__(self, refusal: OsRefusal, *, source: OSError) -> None:
+        self.refusal = refusal
+        self.source = source
+        super().__init__(f'cannot read the current directory: {refusal.value}')
+        self.__cause__ = source
 
 
 def select_documents(root: Path | None, paths: list[Path] | None) -> tuple[Database, tuple[DocumentRef, ...]]:
@@ -136,11 +150,46 @@ def select_documents(root: Path | None, paths: list[Path] | None) -> tuple[Datab
             lists.
 
     Raises:
-        WorkingDirectoryError: If no root is given, or a path is named, and the working directory cannot be read.
-        RootError: If the root cannot be established.
+        WorkingDirectoryReadError: If no root is given, or a path is named, and the working directory cannot be read.
+        RootNotFoundError: If no root is given and no directory upward holds docs/__meta__/.
+        RootCandidateInspectError: If no root is given and a directory upward cannot be inspected.
+        InvalidRootError: If the given root is not an existing directory.
+        RootInspectError: If the given root cannot be inspected.
+        SnapshotDirListError: If a directory in scope cannot be listed.
+        SnapshotEntryInspectError: If an entry on the way to a scope root cannot be inspected.
+        SnapshotFileReadError: If a file in scope cannot be read.
+        SnapshotLinkReadError: If a symlink's target cannot be read.
         LinkedLayoutError: If ``docs/`` or ``docs/__meta__/`` under the root is a symlink.
-        DocumentPathError: If a named path is not a document the model lists.
-        Error: Any failure to take the snapshot or to load the model, as ``Database.model`` documents.
+        DirListError: If the specification directory or docs/ cannot be listed.
+        CorpusListError: If a corpus directory cannot be listed.
+        StructureSchemaReadError: If any structure specification cannot be read.
+        StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
+        StructureSpecFilenameError: If a structure specification is not at a specification filename.
+        EmptyStructureSpecError: If a structure specification states no rule.
+        InvalidTitleCountError: If a title count is below 1.
+        InvalidTokenBudgetError: If a token budget is below 1.
+        InvalidWordCapError: If an outline word cap is below 1.
+        RepeatedOutlineSectionError: If an outline names a section twice.
+        ForbiddenOutlineSectionError: If a specification forbids a section its outline names.
+        AdjacentAnyRunsError: If an outline places two ``any`` runs side by side.
+        InvalidFrontmatterSchemaError: If a frontmatter schema is rejected by the meta-schema.
+        FrontmatterSchemaIdError: If a schema in a frontmatter schema carries ``$id``.
+        ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
+        UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
+        DirResolveError: If a skills directory cannot be resolved.
+        SkillsDirListError: If a skills directory cannot be listed.
+        SkillEntryResolveError: If a symlinked skill entry cannot be resolved.
+        SkillDirListError: If a skill directory cannot be listed.
+        SkillFileResolveError: If a symlinked SKILL.md cannot be resolved.
+        NonFileDocumentPathError: If a named path leads to a directory.
+        NonMarkdownDocumentPathError: If a named path is not a ``.md`` file.
+        OutsideDocsDocumentPathError: If a named path lies outside ``docs/`` or inside ``docs/__meta__/``.
+        CorpuslessDocumentPathError: If a named path sits directly in ``docs/``.
+        InvalidCorpusDocumentPathError: If a named path's corpus directory is not a valid corpus name.
+        UnknownCorpusDocumentPathError: If a named path's corpus directory is not a corpus.
+        NestedDocumentPathError: If a named path sits in a subdirectory of its corpus.
+        MissingDocumentPathError: If the snapshot holds no file at a named path.
+        UnlistedDocumentPathError: If a named path is not a document the model lists.
     """
     root_path = find_root(_working_directory()) if root is None else resolve_root(root)
     database = Database(take_snapshot(root_path, SNAPSHOT_SCOPE))
@@ -167,10 +216,38 @@ def select_skills(root: Path | None, paths: list[Path] | None) -> tuple[Database
             empty selects every skill the model lists. A skill two paths name is selected once.
 
     Raises:
-        WorkingDirectoryError: If no root is given, or a path is named, and the working directory cannot be read.
-        RootError: If the root cannot be established.
-        SkillPathError: If a named path is not a skill the model lists.
-        Error: Any failure to take the snapshot or to load the model, as ``Database.model`` documents.
+        WorkingDirectoryReadError: If no root is given, or a path is named, and the working directory cannot be read.
+        RootNotFoundError: If no root is given and no directory upward holds docs/__meta__/.
+        RootCandidateInspectError: If no root is given and a directory upward cannot be inspected.
+        InvalidRootError: If the given root is not an existing directory.
+        RootInspectError: If the given root cannot be inspected.
+        SnapshotDirListError: If a directory in scope cannot be listed.
+        SnapshotEntryInspectError: If an entry on the way to a scope root cannot be inspected.
+        SnapshotFileReadError: If a file in scope cannot be read.
+        SnapshotLinkReadError: If a symlink's target cannot be read.
+        LinkedLayoutError: If ``docs/`` or ``docs/__meta__/`` under the root is a symlink.
+        DirListError: If the specification directory or docs/ cannot be listed.
+        CorpusListError: If a corpus directory cannot be listed.
+        StructureSchemaReadError: If any structure specification cannot be read.
+        StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
+        StructureSpecFilenameError: If a structure specification is not at a specification filename.
+        EmptyStructureSpecError: If a structure specification states no rule.
+        InvalidTitleCountError: If a title count is below 1.
+        InvalidTokenBudgetError: If a token budget is below 1.
+        InvalidWordCapError: If an outline word cap is below 1.
+        RepeatedOutlineSectionError: If an outline names a section twice.
+        ForbiddenOutlineSectionError: If a specification forbids a section its outline names.
+        AdjacentAnyRunsError: If an outline places two ``any`` runs side by side.
+        InvalidFrontmatterSchemaError: If a frontmatter schema is rejected by the meta-schema.
+        FrontmatterSchemaIdError: If a schema in a frontmatter schema carries ``$id``.
+        ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
+        UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
+        DirResolveError: If a skills directory cannot be resolved.
+        SkillsDirListError: If a skills directory cannot be listed.
+        SkillEntryResolveError: If a symlinked skill entry cannot be resolved.
+        SkillDirListError: If a skill directory cannot be listed.
+        SkillFileResolveError: If a symlinked SKILL.md cannot be resolved.
+        UnlistedSkillPathError: If a named path is not a skill the model lists.
     """
     root_path = find_root(_working_directory()) if root is None else resolve_root(root)
     database = Database(take_snapshot(root_path, SNAPSHOT_SCOPE))
@@ -311,9 +388,9 @@ def _working_directory() -> Path:
     """The current working directory, where the root search starts when no ``--root`` is given.
 
     Raises:
-        WorkingDirectoryError: If the operating system cannot report it, such as after it was deleted.
+        WorkingDirectoryReadError: If the operating system cannot report it, such as after it was deleted.
     """
     try:
         return Path.cwd()
     except OSError as exc:
-        raise WorkingDirectoryError(exc.strerror or str(exc)) from exc
+        raise WorkingDirectoryReadError(OsRefusal.of(exc), source=exc) from exc
