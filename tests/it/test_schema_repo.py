@@ -14,7 +14,6 @@ import pytest
 from lorecraft.project.aspect import AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas import (
-    GetHeaderSchemaError,
     GetStructureSchemaError,
     ListCorpusSchemasError,
     ListSchemasError,
@@ -108,7 +107,7 @@ class TestRepository:
         self, tmp_path: Path, repository: Repository
     ) -> None:
         #: Given
-        for filename in ('feat.structure.json', 'code.header.json', 'README.md'):
+        for filename in ('feat.structure.json', 'code.structure.json', 'code.header.json', 'README.md'):
             (tmp_path / filename).write_text('{}', encoding='utf-8')
 
         #: When
@@ -116,9 +115,9 @@ class TestRepository:
 
         #: Then
         assert schemas == [
-            SpecFile(RootRelativePath.parse('code.header.json'), (CODE,), SpecAspect.HEADER),
+            SpecFile(RootRelativePath.parse('code.structure.json'), (CODE,), SpecAspect.STRUCTURE),
             SpecFile(RootRelativePath.parse('feat.structure.json'), (CorpusName.parse('feat'),), SpecAspect.STRUCTURE),
-        ], 'every aspect is listed with its root-relative path; prose is not a schema'
+        ], 'every aspect is listed with its root-relative path; prose and a stale header file are not schemas'
 
     def test_list_schemas_with_misnamed_json_files_leaves_them_out(
         self, tmp_path: Path, repository: Repository
@@ -136,10 +135,10 @@ class TestRepository:
     def test_list_schemas_by_corpus_excludes_other_corpora(self, tmp_path: Path, repository: Repository) -> None:
         #: Given
         for filename in (
-            'code.header.json',
+            'code.structure.json',
             'code-python.structure.json',
             'code.component.structure.json',
-            'codebook.header.json',
+            'codebook.structure.json',
         ):
             (tmp_path / filename).write_text('{}', encoding='utf-8')
 
@@ -149,21 +148,8 @@ class TestRepository:
         #: Then
         assert schemas == [
             SpecFile(RootRelativePath.parse('code-python.structure.json'), CODE_PYTHON, SpecAspect.STRUCTURE),
-            SpecFile(RootRelativePath.parse('code.header.json'), (CODE,), SpecAspect.HEADER),
+            SpecFile(RootRelativePath.parse('code.structure.json'), (CODE,), SpecAspect.STRUCTURE),
         ], 'the corpus is read from the parsed stem, so codebook is another corpus and a dotted stem is none'
-
-    def test_get_header_schema_with_namespace_loads_the_header_file(
-        self, tmp_path: Path, repository: Repository
-    ) -> None:
-        #: Given
-        (tmp_path / 'code-python.header.json').write_text('{"title": "Python"}', encoding='utf-8')
-        name = CODE_PYTHON
-
-        #: When
-        schema = repository.get_header_schema(name)
-
-        #: Then
-        assert schema == {'title': 'Python'}, 'get_header_schema loads code-python.header.json'
 
     def test_get_structure_schema_with_namespace_reads_the_structure_file_text(
         self, tmp_path: Path, repository: Repository
@@ -180,22 +166,6 @@ class TestRepository:
             'get_structure_schema reads code-python.structure.json, leaving the parse to StructureAspect'
         )
 
-    def test_get_header_schema_with_invalid_json_raises_get_header_schema_error(
-        self, tmp_path: Path, repository: Repository
-    ) -> None:
-        #: Given
-        (tmp_path / 'code.header.json').write_text('{', encoding='utf-8')
-        name: SchemaName = (CODE,)
-
-        #: When
-        with pytest.raises(GetHeaderSchemaError) as exc_info:
-            repository.get_header_schema(name)
-
-        #: Then
-        assert 'invalid JSON' in str(exc_info.value), (
-            'GetHeaderSchemaError identifies malformed JSON in code.header.json'
-        )
-
     def test_get_structure_schema_with_missing_file_raises_get_structure_schema_error(
         self, repository: Repository
     ) -> None:
@@ -210,17 +180,6 @@ class TestRepository:
         assert 'cannot read schema' in str(exc_info.value), (
             "the repository fails only on a file it cannot read; malformed JSON is the parse's to refuse"
         )
-
-    def test_get_header_schema_with_missing_file_raises_get_header_schema_error(self, repository: Repository) -> None:
-        #: Given
-        name: SchemaName = (CODE,)
-
-        #: When
-        with pytest.raises(GetHeaderSchemaError) as exc_info:
-            repository.get_header_schema(name)
-
-        #: Then
-        assert 'cannot read schema code.header.json' in str(exc_info.value), 'the error names the missing file'
 
     def test_list_schemas_with_missing_directory_returns_empty(self, tmp_path: Path) -> None:
         #: Given

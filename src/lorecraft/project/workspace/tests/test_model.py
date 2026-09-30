@@ -1,7 +1,7 @@
 """Workspace model queries and invariants over hand-built in-memory models.
 
 Nothing here touches the disk: every spec, corpus and ref is constructed directly, with the
-header schema paths standing in for the files the loader would have read.
+structure specification paths standing in for the files the loader would have read.
 """
 
 from typing import Final
@@ -13,8 +13,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.ref import DocumentRef
 from lorecraft.project.layout import SPECS_DIR
 from lorecraft.project.schemas import (
-    HeaderAspect,
-    HeaderSchema,
+    FrontmatterSchema,
     StructureAspect,
     parse_schema_name,
     schema_name_stem,
@@ -27,30 +26,30 @@ CODE: Final[CorpusName] = CorpusName.parse('code')
 FEAT: Final[CorpusName] = CorpusName.parse('feat')
 
 
-def _spec(stem: str, header: bool = True, structure: bool = False) -> Spec:
-    """A spec at ``docs/__meta__/<stem>.md``, with ``<stem>.header.json`` beside it when ``header`` is set and
-    ``<stem>.structure.json`` when ``structure`` is."""
+def _spec(stem: str, *, frontmatter: bool = True, structure: bool = False) -> Spec:
+    """A spec at ``docs/__meta__/<stem>.md``, with ``<stem>.structure.json`` beside it when either flag is set: its
+    ``frontmatter`` key states a schema when ``frontmatter`` is set, and it forbids empty sections when ``structure``
+    is."""
     files = [SPECS_DIR / f'{stem}.md']
-    header_aspect: HeaderAspect | None = None
-    if header:
-        header_aspect = HeaderAspect(path=SPECS_DIR / f'{stem}.header.json', schema=HeaderSchema({}))
-        files.append(header_aspect.path)
     structure_aspect: StructureAspect | None = None
-    if structure:
+    if frontmatter or structure:
+        path = SPECS_DIR / f'{stem}.structure.json'
+        frontmatter_schema: FrontmatterSchema | None = None
+        if frontmatter:
+            frontmatter_schema = FrontmatterSchema(path=path, schema={'type': 'object'})
         structure_aspect = StructureAspect(
-            path=SPECS_DIR / f'{stem}.structure.json',
+            path=path,
             title=None,
-            forbid_empty_sections=True,
+            forbid_empty_sections=structure,
             outline=(),
             forbidden=(),
             tokens=None,
-            frontmatter=None,
+            frontmatter=frontmatter_schema,
         )
-        files.append(structure_aspect.path)
+        files.append(path)
     return Spec(
         name=parse_schema_name(stem),
         files=tuple(sorted(files, key=str)),
-        header=header_aspect,
         structure=structure_aspect,
     )
 
@@ -138,9 +137,9 @@ class TestGovernance:
             'python is not a hyphen-delimited prefix of pythonic, so only the corpus spec governs'
         )
 
-    def test_governance_with_a_corpus_spec_without_a_header_still_lists_the_corpus_spec_first(self) -> None:
+    def test_governance_with_a_prose_only_corpus_spec_still_lists_the_corpus_spec_first(self) -> None:
         #: Given
-        specs = (_spec('code', header=False), _spec('code-python'))
+        specs = (_spec('code', frontmatter=False), _spec('code-python'))
         filename = 'python-typing'
         model = _code_model(specs, (filename,))
         ref = _ref('code', filename)
@@ -151,12 +150,12 @@ class TestGovernance:
         #: Then
         assert governance.ref == ref, 'the governance names the python-typing document it was asked about'
         assert tuple(schema_name_stem(spec.name) for spec in governance.specs) == ('code', 'code-python'), (
-            'the corpus spec still governs first even without a header aspect, then the python namespace'
+            'the corpus spec still governs first even without a structure aspect, then the python namespace'
         )
 
     def test_governance_with_a_prose_only_namespace_includes_the_prose_only_namespace(self) -> None:
         #: Given
-        specs = (_spec('code'), _spec('code-python', header=False))
+        specs = (_spec('code'), _spec('code-python', frontmatter=False))
         filename = 'python-typing'
         model = _code_model(specs, (filename,))
         ref = _ref('code', filename)
@@ -170,7 +169,7 @@ class TestGovernance:
             'a prose-only namespace spec still governs the document after the corpus spec'
         )
 
-    def test_header_schemas_with_the_corpus_spec_alone_returns_the_corpus_header(self) -> None:
+    def test_frontmatter_schemas_with_the_corpus_spec_alone_returns_the_corpus_schema(self) -> None:
         #: Given
         specs = (_spec('code'),)
         filename = 'logging'
@@ -178,14 +177,14 @@ class TestGovernance:
         governance = model.governance(_ref('code', filename))
 
         #: When
-        aspects = governance.header_schemas()
+        schemas = governance.frontmatter_schemas()
 
         #: Then
-        assert tuple(aspect.path for aspect in aspects) == (SPECS_DIR / 'code.header.json',), (
-            'the corpus header aspect is the only one when the corpus spec governs alone'
+        assert tuple(schema.path for schema in schemas) == (SPECS_DIR / 'code.structure.json',), (
+            'the corpus frontmatter schema is the only one when the corpus spec governs alone'
         )
 
-    def test_header_schemas_with_nested_namespaces_returns_the_headers_broad_to_narrow(self) -> None:
+    def test_frontmatter_schemas_with_nested_namespaces_returns_the_schemas_broad_to_narrow(self) -> None:
         #: Given
         specs = (_spec('code'), _spec('code-pattern'), _spec('code-python'), _spec('code-python-errors'))
         filename = 'python-errors-reporting'
@@ -193,16 +192,16 @@ class TestGovernance:
         governance = model.governance(_ref('code', filename))
 
         #: When
-        aspects = governance.header_schemas()
+        schemas = governance.frontmatter_schemas()
 
         #: Then
-        assert tuple(aspect.path for aspect in aspects) == (
-            SPECS_DIR / 'code.header.json',
-            SPECS_DIR / 'code-python.header.json',
-            SPECS_DIR / 'code-python-errors.header.json',
-        ), 'the header aspects follow the corpus, python and python-errors specs, broad to narrow'
+        assert tuple(schema.path for schema in schemas) == (
+            SPECS_DIR / 'code.structure.json',
+            SPECS_DIR / 'code-python.structure.json',
+            SPECS_DIR / 'code-python-errors.structure.json',
+        ), 'the frontmatter schemas follow the corpus, python and python-errors specs, broad to narrow'
 
-    def test_header_schemas_with_a_namespace_equal_to_the_filename_includes_the_namespace_header(self) -> None:
+    def test_frontmatter_schemas_with_a_namespace_equal_to_the_filename_includes_the_namespace_schema(self) -> None:
         #: Given
         specs = (_spec('code'), _spec('code-python'))
         filename = 'python'
@@ -210,15 +209,15 @@ class TestGovernance:
         governance = model.governance(_ref('code', filename))
 
         #: When
-        aspects = governance.header_schemas()
+        schemas = governance.frontmatter_schemas()
 
         #: Then
-        assert tuple(aspect.path for aspect in aspects) == (
-            SPECS_DIR / 'code.header.json',
-            SPECS_DIR / 'code-python.header.json',
-        ), 'the namespace header follows the corpus header when the namespace equals the filename'
+        assert tuple(schema.path for schema in schemas) == (
+            SPECS_DIR / 'code.structure.json',
+            SPECS_DIR / 'code-python.structure.json',
+        ), 'the namespace schema follows the corpus schema when the namespace equals the filename'
 
-    def test_header_schemas_with_a_namespace_that_is_only_a_prefix_excludes_the_namespace_header(self) -> None:
+    def test_frontmatter_schemas_with_a_namespace_that_is_only_a_prefix_excludes_the_namespace_schema(self) -> None:
         #: Given
         specs = (_spec('code'), _spec('code-python'))
         filename = 'pythonic'
@@ -226,41 +225,56 @@ class TestGovernance:
         governance = model.governance(_ref('code', filename))
 
         #: When
-        aspects = governance.header_schemas()
+        schemas = governance.frontmatter_schemas()
 
         #: Then
-        assert tuple(aspect.path for aspect in aspects) == (SPECS_DIR / 'code.header.json',), (
-            'the python namespace header does not apply to pythonic, only the corpus header does'
+        assert tuple(schema.path for schema in schemas) == (SPECS_DIR / 'code.structure.json',), (
+            'the python namespace schema does not apply to pythonic, only the corpus schema does'
         )
 
-    def test_header_schemas_with_a_corpus_spec_without_a_header_returns_no_headers(self) -> None:
+    def test_frontmatter_schemas_with_a_prose_only_corpus_spec_returns_no_schemas(self) -> None:
         #: Given
-        specs = (_spec('code', header=False), _spec('code-python'))
+        specs = (_spec('code', frontmatter=False), _spec('code-python'))
         filename = 'python-typing'
         model = _code_model(specs, (filename,))
         governance = model.governance(_ref('code', filename))
 
         #: When
-        aspects = governance.header_schemas()
+        schemas = governance.frontmatter_schemas()
 
         #: Then
-        assert tuple(aspect.path for aspect in aspects) == (), (
-            'a namespace never governs alone: no header applies when the corpus spec has no header aspect'
+        assert schemas == (), (
+            'a namespace never governs alone: no frontmatter schema applies without a corpus structure aspect'
         )
 
-    def test_header_schemas_with_a_prose_only_namespace_adds_no_namespace_header(self) -> None:
+    def test_frontmatter_schemas_with_a_corpus_structure_without_a_schema_returns_no_schemas(self) -> None:
         #: Given
-        specs = (_spec('code'), _spec('code-python', header=False))
+        specs = (_spec('code', frontmatter=False, structure=True), _spec('code-python'))
         filename = 'python-typing'
         model = _code_model(specs, (filename,))
         governance = model.governance(_ref('code', filename))
 
         #: When
-        aspects = governance.header_schemas()
+        schemas = governance.frontmatter_schemas()
 
         #: Then
-        assert tuple(aspect.path for aspect in aspects) == (SPECS_DIR / 'code.header.json',), (
-            'a prose-only namespace adds no header schema, so only the corpus header applies'
+        assert schemas == (), (
+            'a namespace never governs alone: no frontmatter schema applies when the corpus structure states none'
+        )
+
+    def test_frontmatter_schemas_with_a_namespace_structure_without_a_schema_adds_no_namespace_schema(self) -> None:
+        #: Given
+        specs = (_spec('code'), _spec('code-python', frontmatter=False, structure=True))
+        filename = 'python-typing'
+        model = _code_model(specs, (filename,))
+        governance = model.governance(_ref('code', filename))
+
+        #: When
+        schemas = governance.frontmatter_schemas()
+
+        #: Then
+        assert tuple(schema.path for schema in schemas) == (SPECS_DIR / 'code.structure.json',), (
+            'a namespace structure stating no frontmatter schema adds none, so only the corpus schema applies'
         )
 
     def test_structure_specs_with_nested_namespaces_returns_the_structures_broad_to_narrow(self) -> None:
@@ -281,7 +295,7 @@ class TestGovernance:
 
     def test_structure_specs_with_a_corpus_spec_without_a_structure_returns_no_structures(self) -> None:
         #: Given
-        specs = (_spec('code'), _spec('code-python', structure=True))
+        specs = (_spec('code', frontmatter=False), _spec('code-python', structure=True))
         filename = 'python-typing'
         model = _code_model(specs, (filename,))
         governance = model.governance(_ref('code', filename))
@@ -296,7 +310,7 @@ class TestGovernance:
 
     def test_structure_specs_with_a_namespace_without_a_structure_returns_the_corpus_structure(self) -> None:
         #: Given
-        specs = (_spec('code', structure=True), _spec('code-python'))
+        specs = (_spec('code', structure=True), _spec('code-python', frontmatter=False))
         filename = 'python-typing'
         model = _code_model(specs, (filename,))
         governance = model.governance(_ref('code', filename))
@@ -308,6 +322,23 @@ class TestGovernance:
         assert tuple(aspect.path for aspect in aspects) == (SPECS_DIR / 'code.structure.json',), (
             'a namespace spec without a structure file adds nothing, so only the corpus structure applies'
         )
+
+    def test_structure_specs_with_a_corpus_structure_stating_only_frontmatter_returns_both_structures(self) -> None:
+        #: Given
+        # the corpus file states only a frontmatter schema; the namespace file states only an outline rule
+        specs = (_spec('code'), _spec('code-python', frontmatter=False, structure=True))
+        filename = 'python-typing'
+        model = _code_model(specs, (filename,))
+        governance = model.governance(_ref('code', filename))
+
+        #: When
+        aspects = governance.structure_specs()
+
+        #: Then
+        assert tuple(aspect.path for aspect in aspects) == (
+            SPECS_DIR / 'code.structure.json',
+            SPECS_DIR / 'code-python.structure.json',
+        ), 'a structure file is a base whatever rule it states, as a tokens-only file is, so the namespace applies'
 
     def test_governance_with_a_ref_of_a_corpus_the_model_lacks_raises_key_error(self) -> None:
         #: Given

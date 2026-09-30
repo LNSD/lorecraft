@@ -1,9 +1,9 @@
 ---
 name: docs-rules-creator
-description: Write or change the Lorecraft specifications in docs/__meta__/ for any corpus under docs/ - a prose specification, its header schema for frontmatter, and its structure specification for section outline, word caps and token budget. Use when adopting Lorecraft in a repository, adding a corpus or a namespace, adding a frontmatter field or a required section, changing a word cap or token budget, or fixing a specification that fails to load or that /docs-rules-check reported. Not for writing the documents a specification governs, see /docs-rules; not for reviewing a specification, see /docs-rules-check
+description: Write or change the Lorecraft specifications in docs/__meta__/ for any corpus under docs/ - a prose specification, and its structure specification for frontmatter schema, section outline, word caps and token budget. Use when adopting Lorecraft in a repository, adding a corpus or a namespace, adding a frontmatter field or a required section, changing a word cap or token budget, or fixing a specification that fails to load or that /docs-rules-check reported. Not for writing the documents a specification governs, see /docs-rules; not for reviewing a specification, see /docs-rules-check
 compatibility: Requires the lorecraft command, on PATH or run through uvx lorecraft, or uv run lorecraft in a uv project that declares Lorecraft as a dependency
 metadata:
-  references: docs/feat/spec.md docs/feat/spec-header.md docs/feat/spec-structure.md docs/feat/workspace.md
+  references: docs/feat/spec.md docs/feat/spec-structure.md docs/feat/spec-structure-budget.md docs/feat/spec-structure-frontmatter.md docs/feat/spec-structure-outline.md docs/feat/workspace.md
   assets: docs/schemas/structure.spec.json
 allowed-tools: Bash(lorecraft check*) Bash(lorecraft inspect*) Bash(uvx lorecraft *) Bash(uv run lorecraft *) Bash(grep *) Bash(ls docs/*)
 ---
@@ -11,14 +11,16 @@ allowed-tools: Bash(lorecraft check*) Bash(lorecraft inspect*) Bash(uvx lorecraf
 # Docs Rules Creator
 
 A specification is the set of rules for one group of documents under `docs/` — code rules, feature docs, or any
-other corpus — kept in `docs/__meta__/` as a prose file and the machine-checkable files beside it. This skill is
-the **writing path** for specifications: the files, their names, and the two dialects the checks read.
+other corpus — kept in `docs/__meta__/` as a prose file and the machine-checkable file beside it. This skill is
+the **writing path** for specifications: the files, their names, and the dialect the checks read.
 `/docs-rules-check` is the review pass that validates the result.
 
 The rules below are summaries. The authorities are Lorecraft's guides, and each section says which to read:
-[spec](references/spec.md) for names and layering, [spec-header](references/spec-header.md) and
-[spec-structure](references/spec-structure.md) for the two dialects, [workspace](references/workspace.md) for
-the layout.
+[spec](references/spec.md) for names and layering, [spec-structure](references/spec-structure.md) for the
+structure file, [spec-structure-frontmatter](references/spec-structure-frontmatter.md),
+[spec-structure-outline](references/spec-structure-outline.md) and
+[spec-structure-budget](references/spec-structure-budget.md) for its keys,
+[workspace](references/workspace.md) for the layout.
 
 ## Running lorecraft
 
@@ -29,8 +31,9 @@ Every command below calls `lorecraft` directly. Where it is not on `PATH`, run `
 
 ```text
 docs/__meta__/<stem>.md               the prose: the authority, written for a reader
-docs/__meta__/<stem>.header.json      the frontmatter rules, read by lorecraft check header
-docs/__meta__/<stem>.structure.json   the section rules, word caps and token budget, read by lorecraft check structure and budget
+docs/__meta__/<stem>.structure.json   the section rules and word caps, read by lorecraft check structure;
+                                      the tokens budget, read by lorecraft check budget;
+                                      the frontmatter schema, read by lorecraft check header
 ```
 
 A **stem** is `<corpus>` or `<corpus>-<namespace>`. The corpus names a directory `docs/<corpus>/` in lowercase
@@ -40,8 +43,9 @@ binding. A directory under `docs/` becomes a corpus the moment a file at its ste
 
 **Layers only add.** A document answers to its corpus stem, then to every namespace stem matching its name,
 broad to narrow, each applied on its own. So a namespace file states only what it adds, and cannot relax what
-the corpus file says. A namespace file never governs alone: without the corpus file for the same aspect, that
-aspect is unchecked for the whole corpus.
+the corpus file says. A namespace file never governs alone: without the corpus file, every aspect is unchecked
+for the whole corpus, and without the `frontmatter` key in it, frontmatter is. A namespace `tokens` or outline
+still applies once the corpus file exists.
 
 **A base never names its extensions.** `code.md` does not mention `code-python.md` or its JSON, in its
 references, its description, or inline; the extension names its base. Adding or removing a namespace then never
@@ -67,21 +71,25 @@ A corpus specification that works with `/docs-rules` and `/docs-rules-check` cov
 
 A namespace specification states only what it adds to its base, and links to it.
 
-## 3. The header schema
+## 3. The frontmatter schema
 
-`<stem>.header.json` is a JSON Schema, Draft 2020-12, for the parsed frontmatter mapping. The corpus schema
-states the whole field set, with `required` and `"additionalProperties": false` so an undeclared field is a
-finding. A namespace schema leaves both out and narrows a field the corpus allows. The schema sees parsed YAML,
-so quoting is invisible to it; that `name` matches the filename is the check's own rule, not the schema's.
-Copy the shapes in [spec-header](references/spec-header.md).
+The `frontmatter` key of `<stem>.structure.json` is a JSON Schema, Draft 2020-12, for the parsed frontmatter
+mapping. Its root states `"type": "object"` outright, and no schema in it carries `$id`; a `$schema` inside
+it, if any, names Draft 2020-12. The corpus schema states the whole field set, with `required` and
+`"additionalProperties": false` so an undeclared field is a finding. A namespace schema leaves both out and
+narrows a field the corpus allows. The schema sees parsed YAML, so quoting is invisible to it; that `name`
+matches the filename is the check's own rule, not the schema's.
+Copy the shapes in [spec-structure-frontmatter](references/spec-structure-frontmatter.md).
 
 ## 4. The structure specification
 
 `<stem>.structure.json` states the H1 `title` rule, `empty_sections`, an `outline` of H2 sections — each
 `{"section": …}`, optionally `"optional": true`, or an `{"any": true}` run — with a `words` cap on any entry,
-`forbidden` sections, and a whole-file `tokens` budget. Every key is optional, but a file states at least one
-rule. A namespace file usually wraps its additions in `any` runs so the corpus outline still decides the rest.
-[spec-structure](references/spec-structure.md) has the keys, examples, and what is refused on load.
+`forbidden` sections, a whole-file `tokens` budget, and the `frontmatter` schema of §3. Every key is optional,
+but a file states at least one rule. A namespace file usually wraps its additions in `any` runs so the corpus outline still decides the rest.
+[spec-structure-outline](references/spec-structure-outline.md) and
+[spec-structure-budget](references/spec-structure-budget.md) have the keys, examples, and what is refused on load;
+[spec-structure](references/spec-structure.md) covers the file as a whole.
 
 For editor validation, copy [the dialect's schema](assets/structure.spec.json) to `docs/schemas/structure.spec.json`
 and set `"$schema": "../schemas/structure.spec.json"` in each structure file. `docs/schemas/` has no
@@ -92,13 +100,14 @@ say in the prose why each number is what it is. Never raise one to silence a fin
 
 ## 5. Recipes
 
-**Adopt Lorecraft, or add a corpus.** Create `docs/<corpus>/`, then `docs/__meta__/<corpus>.md`, then one JSON
-file for each aspect you want checked. An aspect without a file is unchecked for the whole corpus. Write the
-first document only after the files exist, then follow `/docs-rules` for it. If the repository has an agent
+**Adopt Lorecraft, or add a corpus.** Create `docs/<corpus>/`, then `docs/__meta__/<corpus>.md`, then
+`<corpus>.structure.json` with a key for each rule you want checked. A rule without its key there is unchecked
+for the whole corpus, unless a namespace file states it; the `frontmatter` key is unchecked without it there.
+Write the first document only after the files exist, then follow `/docs-rules` for it. If the repository has an agent
 guide, name the corpus there, and whether its documents are binding.
 
 **Add a namespace.** Only when a group's documents genuinely share rules the rest of the corpus does not: a
-prefix alone is not a reason. Create `<corpus>-<namespace>.md` and only the JSON files that add something.
+prefix alone is not a reason. Create `<corpus>-<namespace>.md` and, when it adds a checkable rule, its structure file.
 
 **Change a rule.** Edit the prose, then the JSON, then run the checks and fix what the change breaks in existing
 documents in the same change, or say why they are left.

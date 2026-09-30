@@ -1,22 +1,18 @@
 """Read specification files from one directory through the filesystem boundary.
 
 Every path the repository takes or returns is root-relative: the specification directory is joined to the
-workspace root only inside ``FileSystem``. The repository reads and decodes; the JSON it returns is typed as
-decoded and nothing more. Whether a decoded header schema is well-formed is proved by building a
-``HeaderAspect`` from it, and a decoded structure specification by ``StructureAspect.parse``; which documents
-a specification governs is decided above the repository.
+workspace root only inside ``FileSystem``. The repository reads; the text it returns is typed as
+read and nothing more. Whether a structure specification states usable rules, its frontmatter schema included, is
+proved by ``StructureAspect.parse``; which documents a specification governs is decided above the repository.
 
 Nothing here logs: the command that loads the model catches every ``Error`` that escapes it and reports it,
 so every handler below re-raises without logging.
 """
 
-import json
-
 from lorecraft.core.error import Error
 from lorecraft.project.corpus import CorpusName
 from lorecraft.vfs import EntryKind, FileSystem, ListDirError, ReadTextError, RootRelativePath
 
-from .header import HeaderSchema
 from .name import SchemaName
 from .spec_file import SpecAspect, SpecFile, SpecFilenameError, parse_spec_file, schema_filename
 from .structure import StructureSchema
@@ -32,10 +28,6 @@ class ListSpecsError(Error):
 
 class ListCorpusSchemasError(Error):
     """Schemas for a corpus cannot be listed."""
-
-
-class GetHeaderSchemaError(Error):
-    """A requested header schema cannot be loaded."""
 
 
 class GetStructureSchemaError(Error):
@@ -93,25 +85,6 @@ class Repository:
                 f'cannot list schemas for {corpus} in {self._specs_dir}: {exc.detail}'
             ) from exc
         return [schema for schema in files if schema.corpus == corpus]
-
-    def get_header_schema(self, name: SchemaName) -> HeaderSchema:
-        """Read and JSON-decode one header schema; ``HeaderAspect`` is what proves it well-formed.
-
-        Raises:
-            GetHeaderSchemaError: If the file cannot be read, is not JSON, or is not a JSON object.
-        """
-        path = self._specs_dir / schema_filename(name, SpecAspect.HEADER)
-        try:
-            text = self._fs.read_text(path)
-        except ReadTextError as exc:
-            raise GetHeaderSchemaError(f'cannot read schema {path}: {exc.detail}') from exc
-        try:
-            definition: object = json.loads(text)
-        except json.JSONDecodeError as exc:
-            raise GetHeaderSchemaError(f'invalid JSON in schema {path}: {exc.msg}') from exc
-        if not isinstance(definition, dict):
-            raise GetHeaderSchemaError(f'expected a JSON object in schema {path}')
-        return HeaderSchema(definition)
 
     def get_structure_schema(self, name: SchemaName) -> StructureSchema:
         """Read one structure schema's text, undecoded: ``StructureAspect.parse`` deserializes and validates it in

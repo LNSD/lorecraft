@@ -14,16 +14,21 @@ from lorecraft.checks import CheckRun, Database, run_header
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.vfs import RootRelativePath, take_snapshot
 
-# Requires a string ``description``, so a document without one yields a schema finding.
-DESCRIPTION_HEADER_SCHEMA: Final[str] = dedent(
+# A frontmatter schema requiring a string ``description``, so a document without one yields a schema finding.
+DESCRIPTION_STRUCTURE_SPEC: Final[str] = dedent(
     """
     {
-      "type": "object",
-      "required": ["description"],
-      "properties": {"description": {"type": "string"}}
+      "frontmatter": {
+        "type": "object",
+        "required": ["description"],
+        "properties": {"description": {"type": "string"}}
+      }
     }
     """
 )
+
+# A structure rule and no frontmatter schema, so a corpus governed by it is ungoverned for frontmatter.
+NO_FRONTMATTER_STRUCTURE_SPEC: Final[str] = '{"empty_sections": "forbidden"}'
 
 
 def _write(root: Path, relative: str, data: bytes = b'') -> Path:
@@ -45,12 +50,13 @@ def lorecraft_tree(tmp_path: Path) -> Path:
 
     Corpus ``code`` is governed: one clean document, one misnamed, one without a description, one without
     frontmatter and one that is not UTF-8, plus a nested document the loader never lists. Corpus ``feat``
-    has a spec but no header schema, so its document is ungoverned. Beside them sits a loose file under
-    ``docs/``.
+    has a structure specification but no frontmatter schema in it, so its document is ungoverned. Beside them
+    sits a loose file under ``docs/``.
     """
     _write(tmp_path, 'docs/__meta__/code.md', b'# Code\n')
-    _write(tmp_path, 'docs/__meta__/code.header.json', DESCRIPTION_HEADER_SCHEMA.encode())
+    _write(tmp_path, 'docs/__meta__/code.structure.json', DESCRIPTION_STRUCTURE_SPEC.encode())
     _write(tmp_path, 'docs/__meta__/feat.md', b'# Feat\n')
+    _write(tmp_path, 'docs/__meta__/feat.structure.json', NO_FRONTMATTER_STRUCTURE_SPEC.encode())
     _write(tmp_path, 'docs/code/clean.md', b'---\nname: "clean"\ndescription: "A clean document"\n---\n')
     _write(tmp_path, 'docs/code/misnamed.md', b'---\nname: "other"\ndescription: "Named wrong"\n---\n')
     _write(tmp_path, 'docs/code/undescribed.md', b'---\nname: "undescribed"\n---\n')
@@ -80,7 +86,7 @@ class TestRunHeader:
             ('docs/code/undescribed.md', 'code.description'),
         ], 'each broken document yields exactly the finding its defect names'
 
-    def test_run_header_over_a_snapshot_reports_a_corpus_without_a_header_schema_as_ungoverned(
+    def test_run_header_over_a_snapshot_reports_a_corpus_without_a_frontmatter_schema_as_ungoverned(
         self, lorecraft_tree: Path
     ) -> None:
         #: Given
@@ -92,7 +98,7 @@ class TestRunHeader:
         #: Then
         ungoverned = [report.ref.path for report in run.reports if not report.governed]
         assert ungoverned == [RootRelativePath.parse('docs/feat/overview.md')], (
-            'the feat corpus has a spec but no header schema, so its one document is ungoverned'
+            'the feat structure specification states no frontmatter schema, so its one document is ungoverned'
         )
 
     def test_run_header_after_the_disk_changes_reports_the_tree_the_snapshot_saw(self, lorecraft_tree: Path) -> None:
