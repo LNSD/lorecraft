@@ -73,12 +73,12 @@ class Database:
         A load that fails is not cached, so each call raises the same error again.
 
         Raises:
-            ListDirError: If the specification directory or docs/ cannot be listed.
+            DirListError: If the specification directory or docs/ cannot be listed.
             CorpusListError: If a corpus directory cannot be listed.
             StructureSchemaReadError: If any structure specification cannot be read.
             InvalidStructureSchemaError: If any structure specification is not JSON in the dialect, or states no
                 usable rules, its frontmatter schema included.
-            ResolveDirError: If a skills directory cannot be resolved.
+            DirResolveError: If a skills directory cannot be resolved.
             SkillsDirListError: If a skills directory cannot be listed.
             SkillEntryResolveError: If a symlinked skill entry cannot be resolved.
             SkillDirListError: If a skill directory cannot be listed.

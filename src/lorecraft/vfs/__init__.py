@@ -6,18 +6,29 @@ of ``ScanRoot``; which directories matter is the project model's business, not t
 """
 
 from .changes import Change, ChangeKind, ChangeSet, diff
-from .disk import DiskFileSystem, ScanRoot, TakeSnapshotError, disk_location, take_snapshot
+from .disk import (
+    DiskFileSystem,
+    ScanRoot,
+    SnapshotDirListError,
+    SnapshotEntryInspectError,
+    SnapshotFileReadError,
+    SnapshotLinkReadError,
+    disk_location,
+    take_snapshot,
+)
 from .snapshot import FileBytes, Link, Listing, Snapshot, VirtualFileSystem
 from .view import (
-    DecodeTextError,
     DirEntry,
+    DirListError,
+    DirResolveError,
+    EntryInspectError,
     EntryKind,
-    EntryKindError,
+    FileReadError,
+    FileResolveError,
     FileSystem,
-    ListDirError,
-    ReadTextError,
-    ResolveDirError,
-    ResolveFileError,
+    OsRefusal,
+    TextDecodeError,
+    UnrecordedFileError,
 )
 
 __all__ = [
@@ -31,15 +42,20 @@ __all__ = [
     'Link',
     'ScanRoot',
     'take_snapshot',
-    'TakeSnapshotError',
+    'SnapshotDirListError',
+    'SnapshotEntryInspectError',
+    'SnapshotFileReadError',
+    'SnapshotLinkReadError',
     'EntryKind',
-    'EntryKindError',
     'DirEntry',
-    'ListDirError',
-    'ReadTextError',
-    'DecodeTextError',
-    'ResolveDirError',
-    'ResolveFileError',
+    'OsRefusal',
+    'DirListError',
+    'FileReadError',
+    'UnrecordedFileError',
+    'TextDecodeError',
+    'EntryInspectError',
+    'DirResolveError',
+    'FileResolveError',
     'ChangeKind',
     'Change',
     'ChangeSet',

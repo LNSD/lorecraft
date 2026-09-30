@@ -60,12 +60,12 @@ def load_workspace(schemas: SchemaRepository, documents: DocumentRepository, ski
     agents' skills directories and the skills in them.
 
     Raises:
-        ListDirError: If the specification directory or docs/ cannot be listed.
+        DirListError: If the specification directory or docs/ cannot be listed.
         CorpusListError: If a corpus directory cannot be listed.
         StructureSchemaReadError: If any structure specification cannot be read.
         InvalidStructureSchemaError: If any structure specification is not JSON in the dialect, or states no usable
             rules, its frontmatter schema included.
-        ResolveDirError: If a skills directory cannot be resolved.
+        DirResolveError: If a skills directory cannot be resolved.
         SkillsDirListError: If a skills directory cannot be listed.
         SkillEntryResolveError: If a symlinked skill entry cannot be resolved.
         SkillDirListError: If a skill directory cannot be listed.
@@ -104,12 +104,12 @@ def load_model(fs: FileSystem) -> WorkspaceModel:
     and a ``VirtualFileSystem`` answers from one snapshot, so the model reflects a single moment.
 
     Raises:
-        ListDirError: If the specification directory or docs/ cannot be listed.
+        DirListError: If the specification directory or docs/ cannot be listed.
         CorpusListError: If a corpus directory cannot be listed.
         StructureSchemaReadError: If any structure specification cannot be read.
         InvalidStructureSchemaError: If any structure specification is not JSON in the dialect, or states no usable
             rules, its frontmatter schema included.
-        ResolveDirError: If a skills directory cannot be resolved.
+        DirResolveError: If a skills directory cannot be resolved.
         SkillsDirListError: If a skills directory cannot be listed.
         SkillEntryResolveError: If a symlinked skill entry cannot be resolved.
         SkillDirListError: If a skill directory cannot be listed.
@@ -207,7 +207,7 @@ def _load_skills_dirs(skills: SkillRepository) -> tuple[SkillsDir, ...]:
     Sorted by agent then path, so the model does not depend on the order the agents are registered in.
 
     Raises:
-        ResolveDirError: If a skills directory cannot be resolved.
+        DirResolveError: If a skills directory cannot be resolved.
     """
     skills_dirs: list[SkillsDir] = []
     for agent in iter_agents():
