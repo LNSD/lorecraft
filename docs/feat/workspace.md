@@ -77,7 +77,8 @@ linked to where its files live is read; one leading outside the repository is no
 ## Limitations
 
 - The layout is fixed: `docs/` and `docs/__meta__/` cannot be renamed or moved, and a corpus cannot nest.
-- The model lists the skills in the agents' skills directories, but no command shows or checks them yet.
+- The model lists the skills in the agents' skills directories, and [inspect](cli-inspect.md) shows them, but
+  no command checks them yet.
 
 ## References
 

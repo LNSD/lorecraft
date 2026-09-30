@@ -5,10 +5,12 @@ from pathlib import Path
 
 import pytest
 
+from lorecraft.agents import AgentName
 from lorecraft.cli.workspace_tree import render_json, render_text
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
+from lorecraft.project.skill import SkillRef, SkillsDir
 from lorecraft.project.workspace import Corpus, Spec, WorkspaceModel
 from lorecraft.vfs import RootRelativePath
 
@@ -42,6 +44,19 @@ def _empty_model() -> WorkspaceModel:
     return WorkspaceModel(corpora=(), skills_dirs=(), skills=())
 
 
+def _skills_model() -> WorkspaceModel:
+    """No corpus; two agents reading one real skills directory, one of them through a link, and two skills."""
+    universal = _path('.agents/skills')
+    return WorkspaceModel(
+        corpora=(),
+        skills_dirs=(
+            SkillsDir(agent=AgentName('claude-code'), path=_path('.claude/skills'), resolves_to=universal),
+            SkillsDir(agent=AgentName('codex'), path=universal, resolves_to=universal),
+        ),
+        skills=(SkillRef(_path('.agents/skills/commit')), SkillRef(_path('.agents/skills/review'))),
+    )
+
+
 @pytest.mark.unit
 class TestRenderText:
     def test_render_text_with_a_code_model_draws_each_section_under_the_root(self) -> None:
@@ -50,14 +65,16 @@ class TestRenderText:
         expected = '\n'.join(
             [
                 '/work',
-                '└── corpora (1)',
-                '    └── code (docs/code)',
-                '        ├── specs (2)',
-                '        │   ├── code: code.md',
-                '        │   └── code-python: code-python.md',
-                '        └── documents (2)',
-                '            ├── logging.md [code]',
-                '            └── python-typing.md [code, code-python]',
+                '├── corpora (1)',
+                '│   └── code (docs/code)',
+                '│       ├── specs (2)',
+                '│       │   ├── code: code.md',
+                '│       │   └── code-python: code-python.md',
+                '│       └── documents (2)',
+                '│           ├── logging.md [code]',
+                '│           └── python-typing.md [code, code-python]',
+                '├── agent skills directories (0)',
+                '└── skills (0)',
             ]
         )
 
@@ -70,7 +87,7 @@ class TestRenderText:
     def test_render_text_with_an_empty_model_draws_every_section_with_a_zero_count(self) -> None:
         #: Given
         model = _empty_model()
-        expected = '\n'.join(['/work', '└── corpora (0)'])
+        expected = '\n'.join(['/work', '├── corpora (0)', '├── agent skills directories (0)', '└── skills (0)'])
 
         #: When
         text = render_text(Path('/work'), model)
@@ -96,3 +113,24 @@ class TestRenderJson:
             'path': 'docs/code/python-typing.md',
             'governed_by': ['docs/__meta__/code.md', 'docs/__meta__/code-python.md'],
         }, 'a document lists the files of its governing specs as root-relative paths, broad to narrow'
+
+    def test_render_json_with_a_skills_model_carries_each_directory_and_each_skill_with_its_agents(self) -> None:
+        #: Given
+        model = _skills_model()
+
+        #: When
+        text = render_json(Path('/work'), model)
+
+        #: Then
+        assert json.loads(text) == {
+            'root': '/work',
+            'corpora': [],
+            'agent_skills_dirs': [
+                {'agent': 'claude-code', 'path': '.claude/skills', 'resolves_to': '.agents/skills'},
+                {'agent': 'codex', 'path': '.agents/skills', 'resolves_to': '.agents/skills'},
+            ],
+            'skills': [
+                {'path': '.agents/skills/commit/SKILL.md', 'agents': ['claude-code', 'codex']},
+                {'path': '.agents/skills/review/SKILL.md', 'agents': ['claude-code', 'codex']},
+            ],
+        }, 'a skills directory names its agent and where it leads, and a skill its SKILL.md and who reads it'
