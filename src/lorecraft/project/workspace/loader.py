@@ -30,7 +30,7 @@ from lorecraft.project.schemas.structure import StructureAspect
 from lorecraft.project.skill.ref import SkillLocation
 from lorecraft.project.skill.repo import Repository as SkillRepository
 from lorecraft.project.skill.skills_dir import SkillsDir
-from lorecraft.vfs import EntryKind, FileSystem, RootRelativePath
+from lorecraft.vfs import FileSystem, RootRelativePath
 
 from .model import Corpus, Spec, WorkspaceModel, namespace_order_key
 
@@ -64,10 +64,9 @@ def load_workspace(schemas: SchemaRepository, documents: DocumentRepository, ski
         ListSkillsError: If a skills directory or a skill directory cannot be listed.
     """
     spec_paths = schemas.list_spec_paths()
-    directories = documents.list_corpus_directories()
+    corpus_directories = documents.list_corpus_directories()
 
     groups = _group_spec_files(spec_paths)
-    directory_kinds: dict[str, EntryKind] = {entry.name: entry.kind for entry in directories}
 
     corpora: list[Corpus] = []
     for corpus_name in sorted(groups, key=str):
@@ -79,9 +78,8 @@ def load_workspace(schemas: SchemaRepository, documents: DocumentRepository, ski
         if not files.spec:
             # A namespace spec narrows a corpus spec; without one there is nothing to narrow.
             continue
-        directory_kind = directory_kinds.get(str(corpus_name))
-        if directory_kind is None or directory_kind is EntryKind.SYMLINK:
-            # A corpus is a regular directory under docs/; a missing one has no documents to list.
+        if str(corpus_name) not in corpus_directories:
+            # A corpus is a regular directory under docs/; a missing or linked one has no documents to list.
             continue
         refs = _list_document_refs(documents, corpus_name)
         corpora.append(_load_corpus(schemas, corpus_name, files, refs))
@@ -178,15 +176,13 @@ def _load_spec(schemas: SchemaRepository, name: SchemaName, spec_files: list[Spe
 
 
 def _list_document_refs(documents: DocumentRepository, corpus_name: CorpusName) -> list[DocumentRef]:
-    """The refs of the regular, validly named Markdown files directly inside the corpus; the rest are left out.
+    """The refs of the validly named Markdown files the repository lists in the corpus; the rest are left out.
 
     Raises:
         ListDocumentsError: If the corpus directory cannot be listed.
     """
     refs: list[DocumentRef] = []
     for document_file in documents.list_documents(corpus_name):
-        if document_file.kind is EntryKind.SYMLINK:
-            continue
         try:
             filename = AspectFilename.parse(document_file.stem)
         except AspectFilenameError:
