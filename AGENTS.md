@@ -14,12 +14,13 @@ standalone script per check. It is one Python package, `lorecraft`, managed with
 - `tests/` holds the integration tier in `tests/it/` and the end-to-end tier in `tests/e2e/`, with the
   end-to-end helper library in `tests/lib/`. None of it is built.
 
-**Three checks have moved into the command line so far: `lorecraft check header`, `lorecraft check structure`
+**Three checks have moved into the command line so far: `lorecraft check frontmatter`, `lorecraft check structure`
 and `lorecraft check budget`.** All three read the structure spec: the structure check its outline and section word
-caps, the budget check its global `tokens` key, a whole-file token budget, and the header check its global
-`frontmatter` key, a JSON Schema. A bare `lorecraft check` runs every check the command line carries, over one
-snapshot. The skill check still runs as a vendored script under `.agents/skills/*/scripts/`. Both are wired to
-`just check-docs` and `just check-skills` and gated in CI. Do not infer structure that is not on disk.
+caps, the budget check its global `tokens` key, a whole-file token budget, and the frontmatter check its global
+`frontmatter` key, a JSON Schema; `lorecraft check header` is a hidden alias of the frontmatter check. A bare
+`lorecraft check` runs every check the command line carries, over one snapshot. The skill check still runs as a
+vendored script under `.agents/skills/*/scripts/`. Both are wired to `just check-docs` and `just check-skills` and
+gated in CI. Do not infer structure that is not on disk.
 
 The CLI is a router: `cli/app.py` declares the root application and the global options, and every subcommand
 lives in its own module under `cli/commands/`, joining by calling `@register(<name>)` beside its handler.
@@ -161,7 +162,7 @@ selection misses them.
 | Lint | `just check`, which also runs the import-layering contract; every finding fixed, none silenced with a bare `# noqa`. `just check-fix` first |
 | Types | `just typecheck`; clean, with no finding silenced by widening an annotation to `Any` |
 | Tests | `just test-unit` after lint is clean, then the tier the change touches — `just test-it`, `just test-e2e` — and `just test` when it earns the whole suite |
-| Documents | `just check-docs`; every document under `docs/` passes the header, structure and budget checks |
+| Documents | `just check-docs`; every document under `docs/` passes the frontmatter, structure and budget checks |
 | Skills | `just check-skills`; every skill passes the Agent Skills specification |
 | Codegen | `just gen` after changing a generator or what it models; it must leave the tree unchanged in CI |
 
@@ -200,7 +201,7 @@ The shape in brief:
 
 Each specification is prose plus the machine-checkable half beside it — `<stem>.structure.json`, with the section
 outline and word caps read by `lorecraft check structure`, the `tokens` budget read by `lorecraft check budget`,
-and the `frontmatter` JSON Schema read by `lorecraft check header`. The prose is the authority and the JSON
+and the `frontmatter` JSON Schema read by `lorecraft check frontmatter`. The prose is the authority and the JSON
 is the same rules in a form a check applies, so **change both in the same commit**: nothing detects the drift
 when they disagree. `docs/__meta__/README.md` explains how a document's own path selects the files that govern
 it.

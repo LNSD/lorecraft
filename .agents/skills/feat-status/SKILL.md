@@ -52,13 +52,13 @@ Feature Status Report
 ================================================================================
 
 stable (3)
-┌─────────────────┬─────────┬──────────────────────────────────────────────────────────┐
-│ Name            │ Type    │ Description                                              │
-├─────────────────┼─────────┼──────────────────────────────────────────────────────────┤
-│ budget-check    │ feature │ Prose checked against a per-section length budget        │
-│ header-check    │ feature │ Frontmatter checked against the schema a corpus declares │
-│ structure-check │ feature │ Section outline checked against a structure spec         │
-└─────────────────┴─────────┴──────────────────────────────────────────────────────────┘
+┌───────────────────┬─────────┬──────────────────────────────────────────────────────────┐
+│ Name              │ Type    │ Description                                              │
+├───────────────────┼─────────┼──────────────────────────────────────────────────────────┤
+│ budget-check      │ feature │ Prose checked against a per-section length budget        │
+│ frontmatter-check │ feature │ Frontmatter checked against the schema a corpus declares │
+│ structure-check   │ feature │ Section outline checked against a structure spec         │
+└───────────────────┴─────────┴──────────────────────────────────────────────────────────┘
 
 experimental (2)
 ┌──────────────┬───────────┬───────────────────────────────────────────────────────┐

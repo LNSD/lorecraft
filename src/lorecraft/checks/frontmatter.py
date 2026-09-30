@@ -33,8 +33,8 @@ _FIRST_LINE: Final[LineNumber] = LineNumber(1)
 
 
 @dataclass(frozen=True, slots=True)
-class HeaderCheckResult:
-    """What the header check found in one document.
+class FrontmatterCheckResult:
+    """What the frontmatter check found in one document.
 
     Attributes:
         violations: In the order the check finds them; empty when the document conforms.
@@ -43,13 +43,13 @@ class HeaderCheckResult:
     violations: tuple[Violation, ...]
 
 
-def validate_header(
+def validate_frontmatter(
     schemas: tuple[FrontmatterSchema, ...],
     *,
     frontmatter: FrontmatterNode,
     filename: AspectFilename,
     corpus: CorpusName,
-) -> HeaderCheckResult:
+) -> FrontmatterCheckResult:
     """Check one document's frontmatter against the frontmatter schemas that govern it. Pure: raises nothing.
 
     Args:
@@ -60,7 +60,7 @@ def validate_header(
         corpus: The document's corpus, which namespaces the rule of every schema violation.
     """
     if not schemas:
-        return HeaderCheckResult(violations=())
+        return FrontmatterCheckResult(violations=())
 
     if isinstance(frontmatter, MissingFrontmatter):
         return _one_violation('frontmatter.missing', 'no `---` delimited frontmatter block')
@@ -100,12 +100,12 @@ def validate_header(
                     )
                 )
 
-    return HeaderCheckResult(violations=tuple(violations))
+    return FrontmatterCheckResult(violations=tuple(violations))
 
 
-def _one_violation(rule: str, message: str) -> HeaderCheckResult:
+def _one_violation(rule: str, message: str) -> FrontmatterCheckResult:
     """The result of a document whose frontmatter is unusable: one violation on its first line."""
-    return HeaderCheckResult(violations=(Violation(line=_FIRST_LINE, rule=rule, message=message),))
+    return FrontmatterCheckResult(violations=(Violation(line=_FIRST_LINE, rule=rule, message=message),))
 
 
 def _key_line(frontmatter: Frontmatter, key: str) -> LineNumber:

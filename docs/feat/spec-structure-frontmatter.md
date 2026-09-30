@@ -3,7 +3,7 @@ name: "spec-structure-frontmatter"
 description: "The frontmatter key of a structure specification: a Draft 2020-12 JSON Schema for a document's YAML frontmatter whose root states type object, checked against the meta-schema on load, with corpus and namespace schemas applied each on its own. Load when writing or changing a frontmatter schema, adding a frontmatter field, or a frontmatter schema is reported invalid"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft.project.schemas.structure,module:lorecraft.project.schemas.structure_file,module:lorecraft.checks.header,spec:feat,spec:code"
+components: "module:lorecraft.project.schemas.structure,module:lorecraft.project.schemas.structure_file,module:lorecraft.checks.frontmatter,spec:feat,spec:code"
 ---
 
 # Frontmatter Schemas
@@ -13,7 +13,7 @@ components: "module:lorecraft.project.schemas.structure,module:lorecraft.project
 The `frontmatter` key of a `<stem>.structure.json` file states the frontmatter rules of the documents its stem
 governs, as a JSON Schema the frontmatter mapping must satisfy. Unlike the rest of the structure dialect, its
 value is JSON Schema Draft 2020-12 itself, so any editor and any JSON Schema tool reads it.
-`lorecraft check header` applies it, as `lorecraft check budget` applies the `tokens` key of the same
+`lorecraft check frontmatter` applies it, as `lorecraft check budget` applies the `tokens` key of the same
 file.
 
 ## Table of Contents
@@ -89,10 +89,10 @@ anywhere. A refused schema stops the command with an error naming the structure 
 ## References
 
 - [spec-structure](spec-structure.md) - Base: the file this key belongs to, its layers and its editor schema
-- [cli-check-header](cli-check-header.md) - Related: the check that applies this schema
+- [cli-check-frontmatter](cli-check-frontmatter.md) - Related: the check that applies this schema
 
 ## Code References
 
 - `src/lorecraft/project/schemas/structure.py` - The frontmatter schema and its checks on load
 - `src/lorecraft/project/schemas/structure_file.py` - The key's shape in the published editor schema
-- `src/lorecraft/checks/header.py` - Applies the schemas to a document's frontmatter
+- `src/lorecraft/checks/frontmatter.py` - Applies the schemas to a document's frontmatter
