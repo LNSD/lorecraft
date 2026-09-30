@@ -11,8 +11,9 @@ from typing import Final
 import pytest
 
 from lorecraft.checks import CheckRun, Database, run_budget
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.layout import SNAPSHOT_SCOPE
-from lorecraft.vfs import RootRelativePath, take_snapshot
+from lorecraft.vfs import take_snapshot
 
 # A rule document: at most 40 tokens for the whole file, and a Checklist, so the structure check has a rule too.
 CODE_STRUCTURE_SPEC: Final[str] = dedent(

@@ -10,8 +10,9 @@ so every handler below re-raises without logging.
 """
 
 from lorecraft.core.error import Error
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName
-from lorecraft.vfs import EntryKind, FileSystem, ListDirError, ReadTextError, RootRelativePath
+from lorecraft.vfs import EntryKind, FileSystem, ListDirError, ReadTextError
 
 from .name import SchemaName
 from .spec_file import SpecAspect, SpecFile, SpecFilenameError, parse_spec_file, schema_filename

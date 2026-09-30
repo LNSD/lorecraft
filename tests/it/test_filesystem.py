@@ -16,6 +16,7 @@ from typing import Final
 import pytest
 
 from lorecraft.core.error import Error
+from lorecraft.core.path import RootRelativePath
 from lorecraft.vfs import (
     Change,
     ChangeKind,
@@ -31,7 +32,6 @@ from lorecraft.vfs import (
     ReadTextError,
     ResolveDirError,
     ResolveFileError,
-    RootRelativePath,
     ScanRoot,
     Snapshot,
     TakeSnapshotError,

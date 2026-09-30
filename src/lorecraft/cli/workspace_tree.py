@@ -9,11 +9,11 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.layout import DOCS_DIR
 from lorecraft.project.schemas import schema_name_stem
 from lorecraft.project.skill import SkillsDir
 from lorecraft.project.workspace import Corpus, Spec, WorkspaceModel
-from lorecraft.vfs import RootRelativePath
 
 # The box-drawing prefixes `tree` uses: one for an entry with siblings after it, one for the last entry, and
 # the matching indent each leaves for the entries nested under it.
