@@ -5,6 +5,7 @@ project skills directories the modelled agents read; its file is always named ``
 carries its name; and its form is the Agent Skills specification's, not a corpus specification's.
 """
 
+from .kind import SkillKind
 from .ref import SkillLocation, SkillRef
 from .repo import (
     Repository,
@@ -21,6 +22,7 @@ from .skills_dir import SkillsDir
 __all__ = [
     'SkillRef',
     'SkillLocation',
+    'SkillKind',
     'SkillsDir',
     'Skill',
     'Repository',

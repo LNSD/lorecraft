@@ -25,7 +25,7 @@ from lorecraft.project.schemas import (
 )
 from lorecraft.project.schemas import Repository as SchemaRepository
 from lorecraft.project.skill import Repository as SkillRepository
-from lorecraft.project.skill import SkillLocation, SkillRef, SkillsDir
+from lorecraft.project.skill import SkillKind, SkillLocation, SkillRef, SkillsDir
 from lorecraft.project.workspace.loader import load_model, load_workspace
 from lorecraft.project.workspace.model import WorkspaceModel
 from lorecraft.vfs import DiskFileSystem, VirtualFileSystem, take_snapshot
@@ -179,6 +179,16 @@ def _lorecraft_tree(root: Path) -> None:
     _write(root, 'docs/feat/.gitkeep')
     _write(root, 'docs/glossary.md')
     _write(root, 'docs/assets/logo.svg')
+
+
+def _lorecraft_skills_tree(root: Path) -> None:
+    """This repository's skills layout: a workspace skill ``x`` in ``.agents/skills``, a project skill ``y``
+    linked into it from ``skills/``, and ``.claude/skills`` a link to ``.agents/skills``."""
+    _write(root, '.agents/skills/x/SKILL.md')
+    _write(root, 'skills/y/SKILL.md')
+    (root / '.agents' / 'skills' / 'y').symlink_to('../../skills/y')
+    (root / '.claude').mkdir()
+    (root / '.claude' / 'skills').symlink_to('../.agents/skills')
 
 
 def _namespaces(model: WorkspaceModel, corpus: CorpusName) -> tuple[str, ...]:
@@ -727,6 +737,34 @@ class TestLoadWorkspaceSkills:
         #: Then
         assert not missing_skills_dir.exists(), 'the case turns on the skills directories being absent'
         assert model.skills_dirs == (), 'an agent whose skills directory is absent is not recorded'
+
+    def test_skill_kind_with_the_lorecraft_skills_tree_and_a_plain_skill_returns_workspace(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        _lorecraft_skills_tree(tmp_path)
+        model = load_workspace(schemas, documents, skills)
+        ref = SkillRef(RootRelativePath.parse('.agents/skills/x'))
+
+        #: When
+        kind = model.skill_kind(ref)
+
+        #: Then
+        assert kind is SkillKind.WORKSPACE, 'a regular directory in the skills directory is a workspace skill'
+
+    def test_skill_kind_with_the_lorecraft_skills_tree_and_a_skill_linked_from_skills_returns_project(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        _lorecraft_skills_tree(tmp_path)
+        model = load_workspace(schemas, documents, skills)
+        ref = SkillRef(RootRelativePath.parse('.agents/skills/y'))
+
+        #: When
+        kind = model.skill_kind(ref)
+
+        #: Then
+        assert kind is SkillKind.PROJECT, 'an entry linked to skills/, outside every skills directory, is shipped'
 
 
 @pytest.mark.it

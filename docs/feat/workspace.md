@@ -3,7 +3,7 @@ name: "workspace"
 description: "The fixed repository layout lorecraft reads: the root holding docs/__meta__/, corpus directories under docs/, the flat Markdown documents inside them, what is left out without a report, and the one snapshot every command reads. Load when laying out a repository for lorecraft, or asking why a directory or a file is not checked"
 type: "meta"
 status: "experimental"
-components: "module:lorecraft.project.layout,module:lorecraft.project.workspace,module:lorecraft.project.corpus,module:lorecraft.project.aspect"
+components: "module:lorecraft.project.layout,module:lorecraft.project.workspace,module:lorecraft.project.corpus,module:lorecraft.project.aspect,module:lorecraft.project.skill"
 ---
 
 # Workspace Layout
@@ -29,6 +29,13 @@ document. What lorecraft finds in that layout is the workspace model, which ever
   directory.
 - **Document**: A Markdown file directly inside a corpus directory.
 - **Workspace model**: The corpora, their specifications and their documents, as found in one snapshot.
+- **Skills directory**: A directory an agent reads skills from, such as `.agents/skills/`; a skill is a
+  directory in it holding a `SKILL.md`.
+- **Workspace skill**: A skill that serves the repository it sits in: a real directory inside a skills
+  directory, or a link to a directory inside any skills directory, at any depth.
+- **Project skill**: A skill shipped to other repositories: its entry in a skills directory is a link to a
+  directory outside every skills directory, such as `.agents/skills/review -> ../../skills/review`. Where the
+  linked directory lives is the repository's choice; no directory name makes a skill a project skill.
 
 ## Architecture
 

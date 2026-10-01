@@ -21,7 +21,7 @@ from lorecraft.project.schemas import (
     parse_schema_name,
     schema_name_stem,
 )
-from lorecraft.project.skill import SkillLocation, SkillRef, SkillsDir
+from lorecraft.project.skill import SkillKind, SkillLocation, SkillRef, SkillsDir
 
 from ..model import Corpus, Governance, Spec, WorkspaceModel, namespace_order_key
 
@@ -574,6 +574,43 @@ def skills_model() -> WorkspaceModel:
     )
 
 
+def _linked_skill(directory: str, resolves_to: str) -> SkillLocation:
+    """The location of a skill whose entry is a link to ``resolves_to``, holding a regular ``SKILL.md``."""
+    real = RootRelativePath.parse(resolves_to)
+    return SkillLocation(
+        SkillRef(RootRelativePath.parse(directory)), resolves_to=real, file_resolves_to=real / 'SKILL.md'
+    )
+
+
+CROSS_LINKED: Final[SkillLocation] = _linked_skill('.claude/skills/lint', '.agents/skills/lint')
+"""An entry in one skills directory linked to a skill in another."""
+
+NESTED: Final[SkillLocation] = _linked_skill('.agents/skills/deploy', '.agents/skills/ops/deploy')
+"""An entry linked to a directory nested deeper inside its own skills directory."""
+
+
+@pytest.fixture(scope='function')
+def two_skills_dirs_model() -> WorkspaceModel:
+    """No corpus; two regular skills directories, ``.claude/skills`` and ``.agents/skills``, and the two linked
+    skills above in them."""
+    return WorkspaceModel(
+        corpora=(),
+        skills_dirs=(
+            SkillsDir(
+                agent=AgentName('claude-code'),
+                path=RootRelativePath.parse('.claude/skills'),
+                resolves_to=RootRelativePath.parse('.claude/skills'),
+            ),
+            SkillsDir(
+                agent=AgentName('codex'),
+                path=RootRelativePath.parse('.agents/skills'),
+                resolves_to=RootRelativePath.parse('.agents/skills'),
+            ),
+        ),
+        skill_locations=(NESTED, CROSS_LINKED),
+    )
+
+
 @pytest.mark.unit
 class TestWorkspaceModel:
     def test_corpus_with_a_listed_name_returns_that_corpus(self, two_corpora_model: WorkspaceModel) -> None:
@@ -730,6 +767,102 @@ class TestWorkspaceModel:
 
         #: Then
         assert agents == (), 'no agent reads a skill outside every skills directory'
+
+    def test_skill_kind_with_a_skill_in_a_regular_directory_returns_workspace(
+        self, skills_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        ref = REVIEW.ref
+
+        #: When
+        kind = skills_model.skill_kind(ref)
+
+        #: Then
+        assert kind is SkillKind.WORKSPACE, 'a skill whose directory is no link serves this repository'
+
+    def test_skill_kind_with_an_entry_linked_outside_every_skills_directory_returns_project(
+        self, skills_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        ref = AUDIT.ref
+
+        #: When
+        kind = skills_model.skill_kind(ref)
+
+        #: Then
+        assert kind is SkillKind.PROJECT, 'a skill linked in from outside every skills directory is shipped'
+
+    def test_skill_kind_with_an_entry_linked_to_a_sibling_skill_returns_workspace(
+        self, skills_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        ref = REVIEW_ALIAS.ref
+
+        #: When
+        kind = skills_model.skill_kind(ref)
+
+        #: Then
+        assert kind is SkillKind.WORKSPACE, 'a link to another skill in the same skills directory leads inside it'
+
+    def test_skill_kind_with_a_skill_reached_only_through_a_linked_skills_directory_returns_workspace(
+        self,
+    ) -> None:
+        #: Given
+        universal = RootRelativePath.parse('.agents/skills')
+        model = WorkspaceModel(
+            corpora=(),
+            skills_dirs=(
+                SkillsDir(
+                    agent=AgentName('claude-code'),
+                    path=RootRelativePath.parse('.claude/skills'),
+                    resolves_to=universal,
+                ),
+            ),
+            skill_locations=(REVIEW,),
+        )
+
+        #: When
+        kind = model.skill_kind(REVIEW.ref)
+
+        #: Then
+        assert kind is SkillKind.WORKSPACE, 'a skills directory that is a link is judged by the directory it leads to'
+
+    def test_skill_kind_with_an_entry_linked_into_another_skills_directory_returns_workspace(
+        self, two_skills_dirs_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        ref = CROSS_LINKED.ref
+
+        #: When
+        kind = two_skills_dirs_model.skill_kind(ref)
+
+        #: Then
+        assert kind is SkillKind.WORKSPACE, 'a link to a skill in any skills directory leads inside one'
+
+    def test_skill_kind_with_an_entry_linked_deeper_inside_a_skills_directory_returns_workspace(
+        self, two_skills_dirs_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        ref = NESTED.ref
+
+        #: When
+        kind = two_skills_dirs_model.skill_kind(ref)
+
+        #: Then
+        assert kind is SkillKind.WORKSPACE, 'inside a skills directory means at any depth, not only directly'
+
+    def test_skill_kind_with_a_ref_the_model_does_not_list_raises_value_error(
+        self, skills_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        ref = SkillRef(RootRelativePath.parse('.agents/skills/missing'))
+
+        #: When
+        with pytest.raises(ValueError):
+            skills_model.skill_kind(ref)
+
+        #: Then
+        assert ref not in skills_model.skills(), 'the rejected ref is no skill of the model, so it has no kind'
 
 
 @pytest.mark.unit

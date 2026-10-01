@@ -21,6 +21,7 @@ from lorecraft.project.document.ref import DocumentRef
 from lorecraft.project.layout import DOCS_DIR
 from lorecraft.project.schemas.name import SchemaName
 from lorecraft.project.schemas.structure import FrontmatterSchema, StructureAspect
+from lorecraft.project.skill.kind import SkillKind
 from lorecraft.project.skill.ref import SkillLocation, SkillRef
 from lorecraft.project.skill.skills_dir import SkillsDir
 
@@ -191,10 +192,11 @@ class WorkspaceModel:
             agent and directory, sorted by agent then path. Two agents reading one real directory are two
             records with the same ``resolves_to``.
         skill_locations: The location of every skill directly inside the real directories those resolve to,
-            each once, sorted by directory; ``skills()`` lists the refs alone, and ``skill_agents`` says which
-            agents read one. A skill belongs to no corpus, so no spec governs it and ``documents()`` does not
-            list it. The locations, not the refs, record where each link leads, so two models differ when a
-            link is retargeted even though every ref is the same.
+            each once, sorted by directory; ``skills()`` lists the refs alone, ``skill_agents`` says which
+            agents read one, and ``skill_kind`` whether it is a workspace or a project skill. A skill belongs
+            to no corpus, so no spec governs it and ``documents()`` does not list it. The locations, not the
+            refs, record where each link leads, so two models differ when a link is retargeted even though every
+            ref is the same.
     """
 
     corpora: tuple[Corpus, ...]
@@ -256,6 +258,30 @@ class WorkspaceModel:
             if skills_dir.resolves_to == ref.directory.parent and skills_dir.agent not in agents:
                 agents.append(skills_dir.agent)
         return tuple(agents)
+
+    def skill_kind(self, ref: SkillRef) -> SkillKind:
+        """Whether a skill this model lists is a workspace skill or a project skill; ``SkillKind`` defines both.
+
+        The skill is a project skill when the real directory its entry leads to is inside no real skills
+        directory. Inside means at any depth, not only directly: an entry linked to a directory nested deeper
+        in a skills directory leads inside one, so it is a workspace skill.
+
+        Raises:
+            ValueError: If the model lists no skill with this ref (refs from the model never trigger it).
+        """
+        for location in self.skill_locations:
+            if location.ref == ref:
+                if self._is_inside_a_skills_dir(location.resolves_to):
+                    return SkillKind.WORKSPACE
+                return SkillKind.PROJECT
+        raise ValueError(f'skill {ref.path} is not a skill of this model')
+
+    def _is_inside_a_skills_dir(self, path: RootRelativePath) -> bool:
+        """True when a real path is the real directory of some skills directory or lies under one."""
+        for skills_dir in self.skills_dirs:
+            if path.is_relative_to(skills_dir.resolves_to):
+                return True
+        return False
 
     def governance(self, ref: DocumentRef) -> Governance:
         """The specs governing a document this model lists.
