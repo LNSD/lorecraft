@@ -96,6 +96,7 @@ dev = [
     "mutmut>=3.8.0",
     "ruff>=0.16.0",
     "pytest>=9.0.3",
+    "pytest-cov>=7.1.0",
     "syrupy>=6.1.1",
     "ty>=0.0.83,<0.1",
 ]
@@ -121,6 +122,18 @@ markers = [
     "it: Integration tests (the package's own modules wired together, in process)",
     "e2e: End-to-end tests (the installed console script, in a subprocess)",
 ]
+
+[tool.coverage.run]
+source = ["src/lorecraft"]
+# Unit tests sit beside their module under src/; their own lines are not what coverage measures.
+omit = ["*/tests/*"]
+branch = true
+# The e2e tier runs the installed console script in a subprocess; this measures it there too.
+patch = ["subprocess"]
+
+[tool.coverage.report]
+skip_covered = true
+sort = "Cover"
 
 # mutmut swaps a mutant in inside the pytest process, so the e2e tier, which runs the installed console script
 # in a subprocess, can never kill one; collection leaves tests/e2e/ out.
