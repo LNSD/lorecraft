@@ -35,7 +35,9 @@ from lorecraft.vfs import (
     ScanRoot,
     Snapshot,
     SnapshotDirListError,
+    SnapshotEntryInspectError,
     SnapshotFileReadError,
+    SnapshotLinkReadError,
     TextDecodeError,
     UnrecordedFileError,
     VirtualFileSystem,
@@ -135,6 +137,21 @@ def unreadable_outside_dir(tmp_path_factory: pytest.TempPathFactory) -> Iterator
     directory = tmp_path_factory.mktemp('outside') / 'locked'
     directory.mkdir()
     directory.chmod(0o000)
+    yield directory
+    directory.chmod(0o700)
+
+
+@pytest.fixture(scope='function')
+def unsearchable_dir_with_a_link(tmp_path: Path) -> Iterator[Path]:
+    """``docs/``, holding the link ``linked.md``, readable but not searchable, restored afterwards for cleanup.
+
+    Read permission lets the directory be listed, so the link shows up as an entry; without search permission
+    nothing inside it can be reached, so its target cannot be read.
+    """
+    directory = tmp_path / 'docs'
+    directory.mkdir()
+    (directory / 'linked.md').symlink_to('missing.md')
+    directory.chmod(0o444)
     yield directory
     directory.chmod(0o700)
 
@@ -371,6 +388,9 @@ class TestDiskFileSystemListDir:
 
         #: Then
         assert exc_info.value.path == locked, 'the error names the root-relative directory'
+        assert exc_info.value.refusal is OsRefusal.PERMISSION_DENIED, 'the refusal is classified from the errno'
+        assert isinstance(exc_info.value.source, PermissionError), 'the error keeps the operating system failure'
+        assert str(locked) in str(exc_info.value), 'the message names the directory that could not be listed'
 
 
 @pytest.mark.it
@@ -398,6 +418,8 @@ class TestDiskFileSystemReadText:
 
         #: Then
         assert exc_info.value.path == latin, 'the error names the root-relative file'
+        assert isinstance(exc_info.value.source, UnicodeDecodeError), 'the error keeps the decoder failure'
+        assert str(latin) in str(exc_info.value), 'the message names the file that is not UTF-8'
 
     def test_read_text_with_a_missing_file_raises_file_read_error(self, tmp_path: Path) -> None:
         #: Given
@@ -411,7 +433,9 @@ class TestDiskFileSystemReadText:
         #: Then
         assert exc_info.value.path == missing, 'the error names the root-relative file'
         assert exc_info.value.refusal is OsRefusal.NOT_FOUND, 'the refusal is classified from the errno'
+        assert isinstance(exc_info.value.source, FileNotFoundError), 'the error keeps the operating system failure'
         assert not isinstance(exc_info.value, TextDecodeError), 'a missing file is not a decode failure'
+        assert str(missing) in str(exc_info.value), 'the message names the file that could not be read'
 
 
 @pytest.mark.it
@@ -541,6 +565,9 @@ class TestDiskFileSystemEntryKind:
 
         #: Then
         assert exc_info.value.path == inside, 'the error names the root-relative path that could not be inspected'
+        assert exc_info.value.refusal is OsRefusal.PERMISSION_DENIED, 'the refusal is classified from the errno'
+        assert isinstance(exc_info.value.source, PermissionError), 'the error keeps the operating system failure'
+        assert str(inside) in str(exc_info.value), 'the message names the entry that could not be inspected'
 
 
 @pytest.mark.it
@@ -700,6 +727,8 @@ class TestDiskFileSystemResolveDir:
 
         #: Then
         assert exc_info.value.path == inside_locked, 'the error names the root-relative path'
+        assert exc_info.value.refusal is OsRefusal.PERMISSION_DENIED, 'the refusal is classified from the errno'
+        assert isinstance(exc_info.value.source, PermissionError), 'the error keeps the operating system failure'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
     def test_resolve_dir_with_a_link_into_an_unreadable_directory_outside_the_root_returns_none(
@@ -833,6 +862,9 @@ class TestDiskFileSystemResolveFile:
 
         #: Then
         assert exc_info.value.path == inside_locked, 'the error names the root-relative path'
+        assert exc_info.value.refusal is OsRefusal.PERMISSION_DENIED, 'the refusal is classified from the errno'
+        assert isinstance(exc_info.value.source, PermissionError), 'the error keeps the operating system failure'
+        assert str(inside_locked) in str(exc_info.value), 'the message names the path that could not be resolved'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
     def test_resolve_file_with_a_link_into_an_unreadable_directory_outside_the_root_returns_none(
@@ -1229,6 +1261,8 @@ class TestTakeSnapshot:
 
         #: Then
         assert exc_info.value.path == locked, 'the error names the root-relative directory the scan stopped at'
+        assert exc_info.value.refusal is OsRefusal.PERMISSION_DENIED, 'the refusal is classified from the errno'
+        assert isinstance(exc_info.value.source, PermissionError), 'the error keeps the operating system failure'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores file permissions')
     def test_take_snapshot_with_an_unreadable_file_raises_snapshot_file_read_error(
@@ -1243,6 +1277,45 @@ class TestTakeSnapshot:
 
         #: Then
         assert exc_info.value.path == locked, 'the error names the root-relative file the scan stopped at'
+        assert exc_info.value.refusal is OsRefusal.PERMISSION_DENIED, 'the refusal is classified from the errno'
+        assert isinstance(exc_info.value.source, PermissionError), 'the error keeps the operating system failure'
+        assert str(locked) in str(exc_info.value), 'the message names the file the scan stopped at'
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
+    def test_take_snapshot_with_a_scope_root_under_an_unreadable_directory_raises_snapshot_entry_inspect_error(
+        self, tmp_path: Path, unreadable_dir: Path
+    ) -> None:
+        #: Given
+        inside_locked = RootRelativePath.parse(unreadable_dir.name) / 'inner'
+        scope = (ScanRoot(inside_locked, depth=0),)
+
+        #: When
+        with pytest.raises(SnapshotEntryInspectError) as exc_info:
+            take_snapshot(tmp_path, scope)
+
+        #: Then
+        assert exc_info.value.path == inside_locked, 'the error names the root-relative entry the walk stopped at'
+        assert exc_info.value.refusal is OsRefusal.PERMISSION_DENIED, 'the refusal is classified from the errno'
+        assert isinstance(exc_info.value.source, PermissionError), 'the error keeps the operating system failure'
+        assert str(inside_locked) in str(exc_info.value), 'the message names the entry the walk stopped at'
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
+    def test_take_snapshot_with_a_link_in_an_unsearchable_directory_raises_snapshot_link_read_error(
+        self, tmp_path: Path, unsearchable_dir_with_a_link: Path
+    ) -> None:
+        #: Given
+        link = RootRelativePath.parse(unsearchable_dir_with_a_link.relative_to(tmp_path).as_posix()) / 'linked.md'
+        scope = (ScanRoot(link.parent, depth=0),)
+
+        #: When
+        with pytest.raises(SnapshotLinkReadError) as exc_info:
+            take_snapshot(tmp_path, scope)
+
+        #: Then
+        assert exc_info.value.path == link, 'the error names the root-relative link the scan stopped at'
+        assert exc_info.value.refusal is OsRefusal.PERMISSION_DENIED, 'the refusal is classified from the errno'
+        assert isinstance(exc_info.value.source, PermissionError), 'the error keeps the operating system failure'
+        assert str(link) in str(exc_info.value), 'the message names the link the scan stopped at'
 
 
 @pytest.mark.it

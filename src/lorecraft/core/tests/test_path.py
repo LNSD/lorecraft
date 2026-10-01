@@ -71,6 +71,7 @@ class TestRootRelativePath:
 
         #: Then
         assert exc_info.value.path == PurePosixPath(invalid_path), 'the error retains the rejected absolute path'
+        assert invalid_path in str(exc_info.value), 'the message names the rejected path'
 
     def test_parse_with_the_filesystem_root_raises_root_relative_path_error(self) -> None:
         #: Given
