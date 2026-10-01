@@ -4,6 +4,8 @@
 literal whose first line is document line 2. Finding the block in a document is covered in ``test_document``.
 """
 
+import sys
+
 import pytest
 
 from ..frontmatter import (
@@ -215,6 +217,230 @@ class TestDecodeFrontmatter:
         assert node == InvalidYamlFrontmatter(problem='special characters are not allowed', line=LineNumber(2)), (
             'a character the reader refuses is a finding on its line, not a crash'
         )
+
+    def test_decode_frontmatter_with_an_escape_beyond_unicode_returns_invalid_yaml_on_the_escapes_line(
+        self,
+    ) -> None:
+        #: Given
+        # the quoted scalar starts on line 3 and its escape, above U+10FFFF, sits on line 4
+        block = 'name: guide\ndescription: "a guide\n  \\UFFFFFFFF"\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found an escape sequence that names no Unicode character', line=LineNumber(4)
+        ), 'an escape that names no character is a finding on its own line, not a crash'
+
+    def test_decode_frontmatter_with_an_escape_just_beyond_unicode_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        # the first code point above U+10FFFF, which fits a C int, unlike `\UFFFFFFFF`
+        block = 'name: guide\ndescription: "\\U00110000"\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found an escape sequence that names no Unicode character', line=LineNumber(3)
+        ), 'an escape one above the last code point is a finding on its line, not a crash'
+
+    def test_decode_frontmatter_with_a_yaml_version_too_long_to_read_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        # one digit more than the interpreter converts to an int, read from it rather than assumed to be 4300
+        digits = '1' * (sys.get_int_max_str_digits() + 1)
+        block = f'%YAML 1.{digits}\nname: guide\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found a YAML version number too long to read', line=LineNumber(2)
+        ), 'a version number too long to read is a finding on the directive line, not a crash'
+
+    def test_decode_frontmatter_with_flow_collections_nested_too_deeply_returns_invalid_yaml_with_no_line(
+        self,
+    ) -> None:
+        #: Given
+        # the composer spends at least one frame per level, so as many levels as the recursion limit always
+        # exhaust the stack, whatever the limit is
+        depth = sys.getrecursionlimit()
+        block = f'name: guide\ndescription: {"[" * depth}{"]" * depth}\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(problem='found collections nested too deeply to parse', line=None), (
+            'flow collections nested past the stack are a finding with no line, not a crash'
+        )
+
+    def test_decode_frontmatter_with_block_mappings_nested_too_deeply_returns_invalid_yaml_with_no_line(
+        self,
+    ) -> None:
+        #: Given
+        # the composer spends at least one frame per level, so as many levels as the recursion limit always
+        # exhaust the stack, whatever the limit is
+        depth = sys.getrecursionlimit()
+        block = 'name: guide\n' + ''.join(f'{" " * level}nested:\n' for level in range(depth)) + f'{" " * depth}a: b\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(problem='found collections nested too deeply to parse', line=None), (
+            'block mappings nested past the stack are a finding with no line, not a crash'
+        )
+
+    def test_decode_frontmatter_with_an_int_tagged_value_that_is_not_an_int_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = 'name: guide\ncount: !!int many\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="could not construct a value for the tag 'tag:yaml.org,2002:int'", line=LineNumber(3)
+        ), 'a value the int tag cannot construct is a finding on its line, not a crash'
+
+    def test_decode_frontmatter_with_an_int_tagged_key_that_is_not_an_int_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = 'name: guide\n!!int count: 1\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="could not construct a value for the tag 'tag:yaml.org,2002:int'", line=LineNumber(3)
+        ), 'a key the int tag cannot construct is a finding on its line, not a crash'
+
+    def test_decode_frontmatter_with_an_empty_int_tagged_value_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'name: guide\ncount: !!int ""\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="could not construct a value for the tag 'tag:yaml.org,2002:int'", line=LineNumber(3)
+        ), 'empty text under the int tag is a finding on its line, not a crash'
+
+    def test_decode_frontmatter_with_a_bool_tagged_value_that_is_not_a_bool_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = 'name: guide\ndraft: !!bool maybe\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="could not construct a value for the tag 'tag:yaml.org,2002:bool'", line=LineNumber(3)
+        ), 'a value the bool tag cannot construct is a finding on its line, not a crash'
+
+    def test_decode_frontmatter_with_a_bool_tagged_key_that_is_not_a_bool_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = 'name: guide\n!!bool draft: true\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="could not construct a value for the tag 'tag:yaml.org,2002:bool'", line=LineNumber(3)
+        ), 'a key the bool tag cannot construct is a finding on its line, not a crash'
+
+    def test_decode_frontmatter_with_a_float_tagged_value_that_is_not_a_float_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = 'name: guide\nweight: !!float heavy\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="could not construct a value for the tag 'tag:yaml.org,2002:float'", line=LineNumber(3)
+        ), 'a value the float tag cannot construct is a finding on its line, not a crash'
+
+    def test_decode_frontmatter_with_a_float_tagged_key_that_is_not_a_float_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = 'name: guide\n!!float weight: 1.5\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="could not construct a value for the tag 'tag:yaml.org,2002:float'", line=LineNumber(3)
+        ), 'a key the float tag cannot construct is a finding on its line, not a crash'
+
+    def test_decode_frontmatter_with_a_timestamp_tagged_value_that_is_not_a_date_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = 'name: guide\ncreated: !!timestamp yesterday\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="could not construct a value for the tag 'tag:yaml.org,2002:timestamp'", line=LineNumber(3)
+        ), 'a value the timestamp tag cannot construct is a finding on its line, not a crash'
+
+    def test_decode_frontmatter_with_a_timestamp_tagged_key_that_is_not_a_date_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = 'name: guide\n!!timestamp created: 2024-01-01\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="could not construct a value for the tag 'tag:yaml.org,2002:timestamp'", line=LineNumber(3)
+        ), 'a key the timestamp tag cannot construct is a finding on its line, not a crash'
+
+    def test_decode_frontmatter_with_a_timestamp_tagged_mapping_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'name: guide\ncreated: !!timestamp {=: 2024-01-01}\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="could not construct a value for the tag 'tag:yaml.org,2002:timestamp'", line=LineNumber(3)
+        ), 'a mapping under the timestamp tag, read through its `=` key, is a finding on its line, not a crash'
+
+    def test_decode_frontmatter_with_an_untagged_date_out_of_range_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'name: guide\ncreated: 2024-13-01\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="could not construct a value for the tag 'tag:yaml.org,2002:timestamp'", line=LineNumber(3)
+        ), 'a plain scalar YAML reads as a date, with no such month, is a finding on its line, not a crash'
 
     def test_decode_frontmatter_with_a_yaml_list_returns_non_mapping(self) -> None:
         #: Given

@@ -166,3 +166,29 @@ class TestRunSkills:
                 ),
             )
         ], 'the decoder kept the right name, so the overwritten wrong one is reported only as a repetition'
+
+    def test_run_skills_with_a_scalar_its_tag_cannot_construct_reports_it_and_checks_the_rest(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/clean/SKILL.md', b'---\nname: clean\ndescription: A clean skill\n---\n')
+        _write(tmp_path, '.agents/skills/review/SKILL.md', b'---\nname: review\ndescription: !!bool maybe\n---\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert [report.violations for report in run.reports] == [
+            (),
+            (
+                Violation(
+                    line=LineNumber(3),
+                    rule='skill.frontmatter-unparseable',
+                    message=(
+                        'frontmatter is not valid YAML: '
+                        "could not construct a value for the tag 'tag:yaml.org,2002:bool'"
+                    ),
+                ),
+            ),
+        ], 'the scalar is one finding on its line, and the run goes on to check the other skill'
