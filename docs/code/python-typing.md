@@ -253,7 +253,8 @@ Before committing code, verify:
 
 - [python-dataclasses](python-dataclasses.md) - Related: Field declaration, defaults, and `__post_init__`
   validation on annotated records
-- [python-naming](python-naming.md) - Related: What the annotated functions and attributes are called
+- [python-naming](python-naming.md) - Related: What the annotated attributes and classes are called
+- [python-fn-names](python-fn-names.md) - Related: The return type a function's name promises
 - [python-docstrings](python-docstrings.md) - Related: The `Args:`/`Returns:` prose that accompanies a
   signature
 - [python-constants](python-constants.md) - Related: When a module-level name is annotated `Final[...]`
