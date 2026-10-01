@@ -40,14 +40,16 @@ def is_read(roots: tuple[ReadRoot, ...], symlinks: tuple[SymlinkRecord, ...], pa
 
 A document or a skill is identified by a ref, named where it is listed. Where its symlinks lead is its location,
 recorded beside the ref in the model. A symlink retargeted to another file leaves the ref as it was and changes
-the location, so whatever is keyed by the ref reads a different file without any bytes changing.
+the location, so whatever is keyed by the ref reads a different file without any bytes changing. A skill resource
+is identified by a ref too, and its location is recorded in its skill's resource listing, not in the model.
 
 ## Checklist
 
 Before committing code, verify:
 
 - [ ] A question about what the scan reads is answered from the declaration, never from what the snapshot holds
-- [ ] Code that reads a document's or skill's file reaches it through the location the model records for its ref
+- [ ] Code that reads a document's or skill's file reaches it through the location the model records for its ref,
+      and a skill resource's through the location its skill's resource listing records
 
 ## References
 

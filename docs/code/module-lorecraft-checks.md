@@ -21,8 +21,8 @@ and locates each violation in its document.
 
 ## Belongs Here
 
-- A query over one revision: the project model, the scope index, a frontmatter node, a parse tree, a token count,
-  memoized on first use.
+- A query over one revision: the project model, the scope index, a skill's resource listing, a frontmatter node,
+  a parse tree, a token count, memoized on first use.
 - The carry-over rule: which change to a revision's inputs invalidates which query.
 - What a persisted result is keyed by, and its validation against a new revision's inputs before the database
   keeps it.
@@ -46,8 +46,8 @@ and locates each violation in its document.
 - Every memoized query reads one input: one file's bytes, or the structure: listings, symlink targets, the declared
   scope and specifications. A value drawn from
   several files is a query of its own, with its own rule.
-- A per-file query is keyed by an identity, a ref, and carries over only when the next model locates the ref at
-  the same real file and its bytes are unchanged.
+- A per-file query is keyed by an identity, a ref, and carries over only when the next model, or for a resource
+  the next resource listing of its skill, locates the ref at the same real file and its bytes are unchanged.
 - Each query's docstring states its carry-over rule: the changes that invalidate it. It is written or updated in
   the same change that adds or alters the query; the module docstring keeps only what holds for every query.
 - A check takes the values it judges, its subject's identity values included, such as a filename, a corpus name

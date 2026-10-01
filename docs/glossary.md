@@ -24,6 +24,10 @@ A document in `docs/feat/` describing existing toolkit behavior, such as a capab
 
 A reusable set of agent instructions, sometimes with supporting scripts.
 
+### Resource
+
+A Markdown file inside an [agent skill](#agent-skill) other than its top-level `SKILL.md`, at any depth, such as a reference the skill loads on demand. It is named where an agent reaches it, through any symlink inside the skill, and located at the real file that path leads to.
+
 ## Metadata and specifications
 
 ### Frontmatter

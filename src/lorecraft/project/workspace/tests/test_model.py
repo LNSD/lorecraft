@@ -693,6 +693,29 @@ class TestWorkspaceModel:
         #: Then
         assert equal is False, 'the skill keeps its ref, and the model still changes with where its link leads'
 
+    def test_skill_location_with_a_listed_skill_returns_where_its_files_live(
+        self, skills_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        ref = AUDIT.ref
+
+        #: When
+        location = skills_model.skill_location(ref)
+
+        #: Then
+        assert location == AUDIT, 'the location the model records for the ref is returned'
+
+    def test_skill_location_with_a_skill_the_model_lacks_raises_value_error(self, skills_model: WorkspaceModel) -> None:
+        #: Given
+        ref = SkillRef(RootRelativePath.parse('.agents/skills/commit'))
+
+        #: When
+        with pytest.raises(ValueError) as exc_info:
+            skills_model.skill_location(ref)
+
+        #: Then
+        assert '.agents/skills/commit' in str(exc_info.value), 'the error names the skill the model does not list'
+
     def test_locate_skills_with_the_directory_of_a_regular_skill_returns_every_entry_there(
         self, skills_model: WorkspaceModel
     ) -> None:
