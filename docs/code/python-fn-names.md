@@ -1,6 +1,6 @@
 ---
 name: "python-fn-names"
-description: "What a function or method name promises: is_/has_/supports_ predicates, verb-first effects and mutators returning None, no get_ on a plain accessor, find_ versus a raising lookup, iter_ versus a materialized sequence, idempotent ensure_, and the connect/disconnect lifecycle pair. Load when naming a function or method, or reviewing what a name promises"
+description: "What a function or method name promises: is_/has_/supports_ predicates, verb-first effects and mutators returning None, no get_ on a plain accessor, find_ versus a raising lookup, iter_ versus a materialized sequence, idempotent ensure_, reject_ guards, and the connect/disconnect lifecycle pair. Load when naming a function or method, or reviewing what a name promises"
 type: "core"
 scope: "global"
 ---
@@ -132,7 +132,17 @@ plain name and the tolerance as a keyword, the way `Path.unlink(missing_ok=True)
 `os.makedirs(exist_ok=True)` do, rather than as a second name (`set.remove`/`set.discard`) the reader must
 already know.
 
-## 7. `connect`/`disconnect` Is the Lifecycle Pair
+## 7. A Guard Is `reject_<what it rejects>` and Returns `None`
+
+A function that returns nothing and raises when its input is unacceptable is named for the case it rejects:
+`reject_linked_layout`, `reject_invalid_namespace`. It is not `require_`, which is a lookup that returns what
+it found ([§4](#4-the-name-says-what-absence-does)), and not `validate_`, which names a check that returns its
+findings rather than raising the first one.
+
+Naming the rejected case tells the reader what makes the call raise without opening the body; a name for the
+accepted case (`require_real_layout`) leaves them to guess which of its many failures are refused.
+
+## 8. `connect`/`disconnect` Is the Lifecycle Pair
 
 A component that holds an external resource opens it with `connect()` and releases it with `disconnect()`.
 Not `open`/`close`, not `start`/`stop`, not `connect`/`close`.
@@ -185,6 +195,8 @@ Before committing code, verify:
       no name starts with `try_`
 - [ ] Every `iter_` returns an `Iterator`; every `list_` or plural name returns a `tuple` or `list`
 - [ ] Every `ensure_` is idempotent create-if-absent; tolerant effects take a keyword such as `missing_ok=`
+- [ ] Every function that returns `None` and raises on unacceptable input is `reject_<the rejected case>`,
+      never `require_` or `validate_`
 - [ ] A component holding an external resource spells its lifecycle `connect`/`disconnect`, and both are safe
       to call twice
 
