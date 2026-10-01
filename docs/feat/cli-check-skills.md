@@ -11,11 +11,11 @@ components: "module:lorecraft.cli.commands.check.skills,module:lorecraft.checks.
 ## Summary
 
 `lorecraft check skills` validates the YAML frontmatter that opens each skill's `SKILL.md` against the
-[Agent Skills specification](https://agentskills.io/specification), and checks that the frontmatter `name`
-equals the name of the skill's directory. It also reports an absolute link in the body, a fragment link to no
-heading, and a file name listed twice under one `metadata` subkey. It reads the skills the
-[workspace](workspace.md) lists, through whichever link reaches them. It is one check a bare
-`lorecraft check` runs.
+[Agent Skills specification](https://agentskills.io/specification), and checks that its `name` equals the
+skill's directory name. It also reports an absolute link in the body, a fragment link to no heading, and a
+`metadata` path that repeats a listed file name or lies outside what the command reads. It reads the skills the
+[workspace](workspace.md) lists, through whichever link reaches them. It is one check a bare `lorecraft check`
+runs.
 
 ## Table of Contents
 
@@ -97,7 +97,10 @@ compared with the directory first, then the specification is applied, then repea
 [frontmatter check](cli-check-frontmatter.md#findings) does. Every message is Lorecraft's own, so it does not
 change with the version of the library that validates the fields.
 
-A `skill.metadata-*` finding is on the line of the `metadata` key.
+A `skill.metadata-*` finding is on the line of the `metadata` key. A listed path is in scope when the
+[snapshot](workspace.md#one-snapshot) holds it or lists the directory holding it; one that is absolute or climbs
+with `..` is outside it. Within a subkey, repeated file names come first, then each path outside the scope in the
+order written, once per occurrence: a path written twice outside it is a repeated name and two scope findings.
 
 A top-level key written again is a `skill.duplicate-key` finding, on the line of each occurrence after the first,
 and it suppresses no other finding; any other finding about that key is on the line of its last occurrence. The
@@ -116,6 +119,7 @@ and it suppresses no other finding; any other finding about that key is on the l
 | `skill.link-absolute` | A link or image in the body has a destination that starts with `/`; the message shows the link decoded and asks for a link relative to the skill root |
 | `skill.link-fragment` | A link whose destination is only a `#fragment` names no heading of the `SKILL.md`, at any depth, by GitHub's anchors, regardless of case; the message shows the link decoded, and a bare `#` is not reported |
 | `skill.metadata-duplicate-name` | A path under a `metadata` subkey has the file name of an earlier one, so both link in as one path; the message names both |
+| `skill.metadata-outside-scope` | A listed path is in a directory the command does not read, or is absolute or climbs with `..` |
 
 ## References
 
@@ -129,7 +133,7 @@ and it suppresses no other finding; any other finding about that key is on the l
 - `src/lorecraft/checks/skill.py` - The check of one skill's frontmatter
 - `src/lorecraft/checks/frontmatter_duplicate.py` - Reports a key written twice, for this check and the frontmatter check
 - `src/lorecraft/checks/skill_link.py` - Reports an absolute link or a dangling fragment link in the body of a `SKILL.md`
-- `src/lorecraft/checks/skill_metadata.py` - Reports a duplicate file name in a skill's `metadata`
+- `src/lorecraft/checks/skill_metadata.py` - Reports a duplicate or out-of-scope file in a skill's `metadata`
 - `src/lorecraft/project/schemas/skill.py` - Holds a frontmatter to the specification, in Lorecraft's words
 - `src/lorecraft/project/schemas/skill_frontmatter.py` - Declares the specification's fields and their limits
 - `src/lorecraft/project/schemas/frontmatter_problem.py` - The problem shape both frontmatter schemas report in

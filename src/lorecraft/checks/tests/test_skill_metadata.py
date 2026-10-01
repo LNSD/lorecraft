@@ -1,7 +1,7 @@
 """Metadata validation over the frontmatter of a skill that links files in through ``metadata``.
 
-``validate_skill_metadata`` is pure, so every case here is a text literal parsed in memory; no snapshot is taken
-and no ``SKILL.md`` is read.
+``listed_by_subkey`` and ``validate_skill_metadata`` are pure, so every case here is a text literal parsed in
+memory, and the listed files with their states are built by hand; no snapshot is taken and no ``SKILL.md`` is read.
 """
 
 import pytest
@@ -9,7 +9,7 @@ import pytest
 from lorecraft.project.syntax import Frontmatter, LineNumber, parse_frontmatter
 
 from ..reporting import Violation
-from ..skill_metadata import validate_skill_metadata
+from ..skill_metadata import ListedFile, ListedFiles, ListedFileState, listed_by_subkey, validate_skill_metadata
 
 
 def _mapping(text: str) -> Frontmatter:
@@ -19,26 +19,197 @@ def _mapping(text: str) -> Frontmatter:
     return frontmatter
 
 
+def _in_scope(written: str) -> ListedFile:
+    """A listed path the snapshot read."""
+    return ListedFile(written=written, state=ListedFileState.IN_SCOPE)
+
+
+def _outside_scope(written: str) -> ListedFile:
+    """A listed path the snapshot never read."""
+    return ListedFile(written=written, state=ListedFileState.OUTSIDE_SCOPE)
+
+
+@pytest.mark.unit
+class TestListedBySubkey:
+    def test_listed_by_subkey_with_every_subkey_returns_them_in_subkey_order(self) -> None:
+        #: Given
+        frontmatter = _mapping(
+            '---\nname: x\nmetadata:\n'
+            '  assets: docs/__meta__/code.md\n'
+            '  references: docs/code/a.md docs/code/b.md\n'
+            '  scripts: skills/x/run.py\n'
+            '---\n'
+        )
+
+        #: When
+        listed = listed_by_subkey(frontmatter)
+
+        #: Then
+        assert listed == (
+            ('references', ('docs/code/a.md', 'docs/code/b.md')),
+            ('scripts', ('skills/x/run.py',)),
+            ('assets', ('docs/__meta__/code.md',)),
+        ), 'references, then scripts, then assets, whatever order the mapping writes them in'
+
+    def test_listed_by_subkey_with_a_path_written_twice_returns_it_twice(self) -> None:
+        #: Given
+        frontmatter = _mapping('---\nmetadata:\n  references: docs/code/a.md docs/code/a.md\n---\n')
+
+        #: When
+        listed = listed_by_subkey(frontmatter)
+
+        #: Then
+        assert listed == (('references', ('docs/code/a.md', 'docs/code/a.md')),), (
+            'every path is kept as written, so a repeat is there for the check to report'
+        )
+
+    def test_listed_by_subkey_with_a_block_scalar_list_splits_it_on_newlines(self) -> None:
+        #: Given
+        frontmatter = _mapping('---\nmetadata:\n  scripts: |\n    skills/a/run.py\n    skills/b/run.py\n---\n')
+
+        #: When
+        listed = listed_by_subkey(frontmatter)
+
+        #: Then
+        assert listed == (('scripts', ('skills/a/run.py', 'skills/b/run.py')),), (
+            'a block scalar separates the paths by newlines, which split as any whitespace does'
+        )
+
+    def test_listed_by_subkey_with_a_tab_separated_list_splits_it_on_the_tab(self) -> None:
+        #: Given
+        frontmatter = _mapping('---\nmetadata:\n  assets: "docs/a/x.json\\tdocs/b/x.json"\n---\n')
+
+        #: When
+        listed = listed_by_subkey(frontmatter)
+
+        #: Then
+        assert listed == (('assets', ('docs/a/x.json', 'docs/b/x.json')),), 'a tab separates two paths as a space does'
+
+    def test_listed_by_subkey_with_a_non_string_subkey_returns_nothing(self) -> None:
+        #: Given
+        frontmatter = _mapping('---\nmetadata:\n  references: 3\n---\n')
+
+        #: When
+        listed = listed_by_subkey(frontmatter)
+
+        #: Then
+        assert listed == (), 'a non-string value is the specification schema finding, not a list of paths'
+
+    def test_listed_by_subkey_with_a_list_subkey_returns_nothing(self) -> None:
+        #: Given
+        frontmatter = _mapping('---\nmetadata:\n  references:\n    - docs/code/a.md\n    - docs/feat/a.md\n---\n')
+
+        #: When
+        listed = listed_by_subkey(frontmatter)
+
+        #: Then
+        assert listed == (), 'a list is the specification schema finding, not a list of paths'
+
+    def test_listed_by_subkey_with_other_metadata_keys_returns_nothing(self) -> None:
+        #: Given
+        frontmatter = _mapping('---\nmetadata:\n  author: a.md\n  version: a.md\n---\n')
+
+        #: When
+        listed = listed_by_subkey(frontmatter)
+
+        #: Then
+        assert listed == (), 'only references, scripts and assets link files in'
+
+    def test_listed_by_subkey_with_a_non_mapping_metadata_returns_nothing(self) -> None:
+        #: Given
+        frontmatter = _mapping('---\nmetadata:\n  - docs/code/a.md\n  - docs/feat/a.md\n---\n')
+
+        #: When
+        listed = listed_by_subkey(frontmatter)
+
+        #: Then
+        assert listed == (), 'a metadata that is not a mapping is the specification schema finding'
+
+    def test_listed_by_subkey_with_metadata_written_twice_returns_the_last_value(self) -> None:
+        #: Given
+        frontmatter = _mapping(
+            '---\nmetadata:\n  references: docs/code/a.md\nname: x\n'
+            'metadata:\n  references: docs/code/a.md docs/feat/a.md\n---\n'
+        )
+
+        #: When
+        listed = listed_by_subkey(frontmatter)
+
+        #: Then
+        assert listed == (('references', ('docs/code/a.md', 'docs/feat/a.md')),), (
+            'the value read is the last one written, as the YAML loader keeps it'
+        )
+
+    def test_listed_by_subkey_without_metadata_returns_nothing(self) -> None:
+        #: Given
+        frontmatter = _mapping('---\nname: x\ndescription: y\n---\n')
+
+        #: When
+        listed = listed_by_subkey(frontmatter)
+
+        #: Then
+        assert listed == (), 'a skill without metadata lists no files'
+
+
 @pytest.mark.unit
 class TestValidateSkillMetadata:
     def test_validate_skill_metadata_with_distinct_file_names_returns_no_violations(self) -> None:
         #: Given
         frontmatter = _mapping('---\nname: x\nmetadata:\n  references: docs/code/a.md docs/code/b.md\n---\n')
+        listed = (ListedFiles(subkey='references', files=(_in_scope('docs/code/a.md'), _in_scope('docs/code/b.md'))),)
 
         #: When
-        result = validate_skill_metadata(frontmatter=frontmatter)
+        result = validate_skill_metadata(frontmatter=frontmatter, listed=listed)
 
         #: Then
         assert result.violations == (), 'distinct names link in at distinct paths, which is what the rule asks for'
+
+    def test_validate_skill_metadata_with_a_path_outside_the_scope_reports_it_on_the_metadata_line(self) -> None:
+        #: Given
+        frontmatter = _mapping('---\nname: x\nmetadata:\n  scripts: src/tool.py\n---\n')
+        listed = (ListedFiles(subkey='scripts', files=(_outside_scope('src/tool.py'),)),)
+
+        #: When
+        result = validate_skill_metadata(frontmatter=frontmatter, listed=listed)
+
+        #: Then
+        assert result.violations == (
+            Violation(
+                line=LineNumber(3),
+                rule='skill.metadata-outside-scope',
+                message=(
+                    '`metadata.scripts` lists `src/tool.py`, which lorecraft does not read; list a file directly '
+                    'in docs/, in a real directory directly in docs/, or directly in a skill directory'
+                ),
+            ),
+        ), 'a path the snapshot never read is one violation, on the line of the metadata key'
+
+    def test_validate_skill_metadata_with_a_repeated_path_outside_the_scope_reports_the_repeat_and_both_paths(
+        self,
+    ) -> None:
+        #: Given
+        frontmatter = _mapping('---\nmetadata:\n  references: src/a.md src/a.md\n---\n')
+        listed = (ListedFiles(subkey='references', files=(_outside_scope('src/a.md'), _outside_scope('src/a.md'))),)
+
+        #: When
+        result = validate_skill_metadata(frontmatter=frontmatter, listed=listed)
+
+        #: Then
+        assert [violation.rule for violation in result.violations] == [
+            'skill.metadata-duplicate-name',
+            'skill.metadata-outside-scope',
+            'skill.metadata-outside-scope',
+        ], 'within a subkey the repeated name comes first, then each path outside the scope, in the order written'
 
     def test_validate_skill_metadata_with_a_repeated_file_name_reports_the_later_path_against_the_first(
         self,
     ) -> None:
         #: Given
         frontmatter = _mapping('---\nname: x\nmetadata:\n  references: docs/code/a.md docs/feat/a.md\n---\n')
+        listed = (ListedFiles(subkey='references', files=(_in_scope('docs/code/a.md'), _in_scope('docs/feat/a.md'))),)
 
         #: When
-        result = validate_skill_metadata(frontmatter=frontmatter)
+        result = validate_skill_metadata(frontmatter=frontmatter, listed=listed)
 
         #: Then
         assert result.violations == (
@@ -55,9 +226,15 @@ class TestValidateSkillMetadata:
     def test_validate_skill_metadata_with_a_name_repeated_twice_reports_each_repeat_against_the_first(self) -> None:
         #: Given
         frontmatter = _mapping('---\nmetadata:\n  assets: docs/a/x.md docs/b/x.md docs/c/x.md\n---\n')
+        listed = (
+            ListedFiles(
+                subkey='assets',
+                files=(_in_scope('docs/a/x.md'), _in_scope('docs/b/x.md'), _in_scope('docs/c/x.md')),
+            ),
+        )
 
         #: When
-        result = validate_skill_metadata(frontmatter=frontmatter)
+        result = validate_skill_metadata(frontmatter=frontmatter, listed=listed)
 
         #: Then
         assert [violation.message for violation in result.violations] == [
@@ -68,72 +245,36 @@ class TestValidateSkillMetadata:
     def test_validate_skill_metadata_with_one_name_under_two_subkeys_returns_no_violations(self) -> None:
         #: Given
         frontmatter = _mapping('---\nmetadata:\n  references: docs/code/a.md\n  assets: docs/feat/a.md\n---\n')
+        listed = (
+            ListedFiles(subkey='references', files=(_in_scope('docs/code/a.md'),)),
+            ListedFiles(subkey='assets', files=(_in_scope('docs/feat/a.md'),)),
+        )
 
         #: When
-        result = validate_skill_metadata(frontmatter=frontmatter)
+        result = validate_skill_metadata(frontmatter=frontmatter, listed=listed)
 
         #: Then
         assert result.violations == (), 'references/a.md and assets/a.md are two paths, so the subkeys are independent'
 
-    def test_validate_skill_metadata_with_several_subkeys_reports_them_in_subkey_order(self) -> None:
+    def test_validate_skill_metadata_with_several_subkeys_reports_them_in_the_order_listed(self) -> None:
         #: Given
         frontmatter = _mapping(
-            '---\nmetadata:\n'
-            '  assets: docs/a/x.json docs/b/x.json\n'
-            '  scripts: skills/a/run.py skills/b/run.py\n'
-            '  references: docs/a/y.md docs/b/y.md\n'
-            '---\n'
+            '---\nmetadata:\n  references: docs/a/y.md docs/b/y.md\n  scripts: skills/a/run.py src/run.py\n---\n'
+        )
+        listed = (
+            ListedFiles(subkey='references', files=(_in_scope('docs/a/y.md'), _in_scope('docs/b/y.md'))),
+            ListedFiles(subkey='scripts', files=(_in_scope('skills/a/run.py'), _outside_scope('src/run.py'))),
         )
 
         #: When
-        result = validate_skill_metadata(frontmatter=frontmatter)
+        result = validate_skill_metadata(frontmatter=frontmatter, listed=listed)
 
         #: Then
-        assert [violation.message.split(' lists ')[0] for violation in result.violations] == [
-            '`metadata.references`',
-            '`metadata.scripts`',
-            '`metadata.assets`',
-        ], 'references, then scripts, then assets, whatever order the mapping writes them in'
-
-    def test_validate_skill_metadata_with_a_non_string_subkey_returns_no_violations(self) -> None:
-        #: Given
-        frontmatter = _mapping('---\nmetadata:\n  references: 3\n---\n')
-
-        #: When
-        result = validate_skill_metadata(frontmatter=frontmatter)
-
-        #: Then
-        assert result.violations == (), 'a non-string value is the specification schema finding, not this check'
-
-    def test_validate_skill_metadata_with_a_list_subkey_returns_no_violations(self) -> None:
-        #: Given
-        frontmatter = _mapping('---\nmetadata:\n  references:\n    - docs/code/a.md\n    - docs/feat/a.md\n---\n')
-
-        #: When
-        result = validate_skill_metadata(frontmatter=frontmatter)
-
-        #: Then
-        assert result.violations == (), 'a list is the specification schema finding, not a list of paths'
-
-    def test_validate_skill_metadata_with_other_metadata_keys_returns_no_violations(self) -> None:
-        #: Given
-        frontmatter = _mapping('---\nmetadata:\n  author: a.md\n  version: a.md\n---\n')
-
-        #: When
-        result = validate_skill_metadata(frontmatter=frontmatter)
-
-        #: Then
-        assert result.violations == (), 'only references, scripts and assets link files in'
-
-    def test_validate_skill_metadata_with_a_non_mapping_metadata_returns_no_violations(self) -> None:
-        #: Given
-        frontmatter = _mapping('---\nmetadata:\n  - docs/code/a.md\n  - docs/feat/a.md\n---\n')
-
-        #: When
-        result = validate_skill_metadata(frontmatter=frontmatter)
-
-        #: Then
-        assert result.violations == (), 'a metadata that is not a mapping is the specification schema finding'
+        assert [(violation.rule, violation.message.split(' lists ')[0]) for violation in result.violations] == [
+            ('skill.metadata-duplicate-name', '`metadata.references`'),
+            ('skill.metadata-duplicate-name', '`metadata.scripts`'),
+            ('skill.metadata-outside-scope', '`metadata.scripts`'),
+        ], 'each subkey is checked whole, in the order listed, before the next'
 
     def test_validate_skill_metadata_with_metadata_written_twice_reports_on_the_last_occurrence(self) -> None:
         #: Given
@@ -141,52 +282,23 @@ class TestValidateSkillMetadata:
             '---\nmetadata:\n  references: docs/code/a.md\nname: x\n'
             'metadata:\n  references: docs/code/a.md docs/feat/a.md\n---\n'
         )
+        listed = (ListedFiles(subkey='references', files=(_in_scope('docs/code/a.md'), _in_scope('docs/feat/a.md'))),)
 
         #: When
-        result = validate_skill_metadata(frontmatter=frontmatter)
+        result = validate_skill_metadata(frontmatter=frontmatter, listed=listed)
 
         #: Then
         assert [violation.line for violation in result.violations] == [LineNumber(5)], (
             'the value checked is the last one written, so the finding is on its line'
         )
 
-    def test_validate_skill_metadata_with_a_block_scalar_list_reports_the_repeat(self) -> None:
-        #: Given
-        frontmatter = _mapping('---\nmetadata:\n  scripts: |\n    skills/a/run.py\n    skills/b/run.py\n---\n')
-
-        #: When
-        result = validate_skill_metadata(frontmatter=frontmatter)
-
-        #: Then
-        assert result.violations == (
-            Violation(
-                line=LineNumber(2),
-                rule='skill.metadata-duplicate-name',
-                message=(
-                    '`metadata.scripts` lists `skills/a/run.py` and `skills/b/run.py`, '
-                    'which both link in as `scripts/run.py`'
-                ),
-            ),
-        ), 'a block scalar separates the paths by newlines, which split as any whitespace does'
-
-    def test_validate_skill_metadata_with_a_tab_separated_list_reports_the_repeat(self) -> None:
-        #: Given
-        frontmatter = _mapping('---\nmetadata:\n  assets: "docs/a/x.json\\tdocs/b/x.json"\n---\n')
-
-        #: When
-        result = validate_skill_metadata(frontmatter=frontmatter)
-
-        #: Then
-        assert [violation.message for violation in result.violations] == [
-            '`metadata.assets` lists `docs/a/x.json` and `docs/b/x.json`, which both link in as `assets/x.json`',
-        ], 'a tab separates two paths as a space does'
-
-    def test_validate_skill_metadata_without_metadata_returns_no_violations(self) -> None:
+    def test_validate_skill_metadata_with_nothing_listed_returns_no_violations(self) -> None:
         #: Given
         frontmatter = _mapping('---\nname: x\ndescription: y\n---\n')
+        listed: tuple[ListedFiles, ...] = ()
 
         #: When
-        result = validate_skill_metadata(frontmatter=frontmatter)
+        result = validate_skill_metadata(frontmatter=frontmatter, listed=listed)
 
         #: Then
         assert result.violations == (), 'a skill that lists no files under metadata has none to repeat'

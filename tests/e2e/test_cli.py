@@ -7,7 +7,8 @@ well as the installed version and environment. Every version output, and `inspec
 snapshot file under `__snapshots__/`. So is what `check` and `inspect` print for a root whose `docs/` or
 `docs/__meta__/` is a symlink into that fixture, what `check frontmatter` and `check skills` print for a root
 whose frontmatter writes a key twice, and what `check skills` prints for a skill linking to an absolute path, for
-one linking to a heading it does not have, and for one whose `metadata` repeats a file name.
+one linking to a heading it does not have, and for one whose `metadata` repeats a file name or lists a path
+outside what the command reads.
 """
 
 from pathlib import Path
@@ -243,6 +244,15 @@ def duplicate_name_root(tmp_path: Path) -> Path:
     return tmp_path
 
 
+@pytest.fixture(scope='function')
+def outside_scope_root(tmp_path: Path) -> Path:
+    """A root holding one skill whose ``metadata`` lists a source file, which no check reads."""
+    (tmp_path / 'src').mkdir()
+    (tmp_path / 'src' / 'tool.py').write_text('', encoding='utf-8')
+    _write_review_skill(tmp_path, '  scripts: src/tool.py\n')
+    return tmp_path
+
+
 @pytest.mark.e2e
 class TestCheckFrontmatterSnapshots:
     # Every finding prints root-relative, so the output is the same in every checkout and nothing is redacted.
@@ -447,6 +457,20 @@ class TestCheckSkillsSnapshots:
         #: Then
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the metadata-duplicate-name finding matches the reviewed snapshot'
+
+    def test_check_skills_with_a_metadata_path_outside_the_scope_prints_the_outside_scope_finding(
+        self, snapshot: SnapshotAssertion, outside_scope_root: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('check', 'skills', '--root', str(outside_scope_root))
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, 'the metadata-outside-scope finding matches the reviewed snapshot'
 
 
 @pytest.mark.e2e
