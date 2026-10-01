@@ -112,7 +112,11 @@ class Repository:
     """Discover and read documents in the flat ``docs/<corpus>/`` directories."""
 
     def __init__(self, fs: FileSystem) -> None:
-        """Remember the seam; performs no I/O."""
+        """Remember the seam; performs no I/O.
+
+        Args:
+            fs: View of the repository every listing and read goes through; a disk or a snapshot.
+        """
         self._fs = fs
 
     def list_corpus_directories(self) -> tuple[str, ...]:
@@ -134,10 +138,13 @@ class Repository:
         return tuple(names)
 
     def list_documents(self, corpus: CorpusName) -> tuple[DocumentFile, ...]:
-        """Regular ``.md`` files directly inside docs/<corpus>/, sorted by name.
+        """Regular `.md` files directly inside docs/<corpus>/, sorted by name.
 
-        Subdirectories, non-``.md`` entries and symlinks are dropped silently: a document is a regular file.
+        Subdirectories, non-`.md` entries and symlinks are dropped silently: a document is a regular file.
         A missing directory lists as nothing.
+
+        Args:
+            corpus: Corpus whose directory under docs/ is listed; the directory need not exist.
 
         Raises:
             CorpusListError: If the directory cannot be listed.
@@ -160,6 +167,9 @@ class Repository:
 
     def get_document(self, ref: DocumentRef) -> Document:
         """Read one document's text.
+
+        Args:
+            ref: Document to read, as `list_documents` locates it; its path is read through the seam.
 
         Raises:
             DocumentDecodeError: If the file is not UTF-8.

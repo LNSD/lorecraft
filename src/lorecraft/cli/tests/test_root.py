@@ -22,7 +22,11 @@ from ..root import (
 
 @pytest.fixture(scope='function')
 def directory_under_a_locked_parent(tmp_path: Path) -> Iterator[Path]:
-    """A directory whose parent refuses search, so nothing below it can be inspected; unlocked afterwards."""
+    """A directory whose parent refuses search, so nothing below it can be inspected; unlocked afterwards.
+
+    Args:
+        tmp_path: The test's temporary directory, under which the locked parent is created.
+    """
     locked = tmp_path / 'locked'
     directory = locked / 'sub'
     directory.mkdir(parents=True)

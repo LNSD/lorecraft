@@ -40,7 +40,12 @@ class Repository:
     """Expose specification files under one directory by schema name."""
 
     def __init__(self, fs: FileSystem, specs_dir: RootRelativePath) -> None:
-        """Remember the seam and the root-relative directory; performs no I/O."""
+        """Remember the seam and the root-relative directory; performs no I/O.
+
+        Args:
+            fs: Filesystem boundary every read goes through.
+            specs_dir: Root-relative directory holding the specification files. It need not exist.
+        """
         self._fs = fs
         self._specs_dir = specs_dir
 
@@ -58,8 +63,13 @@ class Repository:
         return [self._specs_dir / entry.name for entry in entries if entry.kind is EntryKind.FILE]
 
     def get_structure_schema(self, name: SchemaName) -> StructureSchema:
-        """Read one structure schema's text, undecoded: ``StructureAspect.parse`` deserializes and validates it in
-        one step, so the JSON is read once, by the model that states its shape.
+        """Read one structure schema's text, undecoded.
+
+        `StructureAspect.parse` deserializes and validates it in one step, so the JSON is read once, by the
+        model that states its shape.
+
+        Args:
+            name: Schema whose `<stem>.structure.json` file is read from the specification directory.
 
         Raises:
             StructureSchemaReadError: If the file cannot be read.

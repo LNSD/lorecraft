@@ -66,9 +66,12 @@ class ListedFiles:
 def listed_by_subkey(frontmatter: Frontmatter) -> tuple[tuple[str, tuple[str, ...]], ...]:
     """Each linking subkey written as a string, with the paths it lists in the order written.
 
-    The one place the ``metadata`` convention is read. The subkeys come as references, then scripts, then assets,
-    whatever order the mapping writes them in. A ``metadata`` that is not a mapping, or a subkey whose value is not
+    The one place the `metadata` convention is read. The subkeys come as references, then scripts, then assets,
+    whatever order the mapping writes them in. A `metadata` that is not a mapping, or a subkey whose value is not
     a string, lists none: the Agent Skills specification already reports either.
+
+    Args:
+        frontmatter: The skill's decoded frontmatter, whose `metadata` mapping is read.
     """
     metadata = frontmatter.data.get('metadata')
     if not isinstance(metadata, dict):
@@ -128,9 +131,12 @@ def validate_skill_metadata(*, frontmatter: Frontmatter, listed: tuple[ListedFil
 
 
 def _repeated_names(files: tuple[ListedFile, ...]) -> tuple[tuple[str, str], ...]:
-    """Each path whose file name an earlier path already has, as ``(first, repeat)``, in the order written.
+    """Each path whose file name an earlier path already has, as `(first, repeat)`, in the order written.
 
-    ``first`` is the earliest path with that file name, so every later repeat is paired with the same one.
+    `first` is the earliest path with that file name, so every later repeat is paired with the same one.
+
+    Args:
+        files: The files one subkey lists, in the order written; their states are not read.
     """
     first_by_name: dict[str, str] = {}
     repeats: list[tuple[str, str]] = []
@@ -145,7 +151,11 @@ def _repeated_names(files: tuple[ListedFile, ...]) -> tuple[tuple[str, str], ...
 
 
 def _outside_scope(files: tuple[ListedFile, ...]) -> tuple[str, ...]:
-    """Each path the snapshot never read, as written, in the order written; a path written twice comes twice."""
+    """Each path the snapshot never read, as written, in the order written; a path written twice comes twice.
+
+    Args:
+        files: The files one subkey lists, in the order written, each with its state.
+    """
     outside: list[str] = []
     for file in files:
         state = file.state

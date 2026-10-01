@@ -1,5 +1,7 @@
-"""The steps every ``check`` command shares: the checks it can run, selecting the documents or the skills of one
-snapshot, and printing what the checks found.
+"""The steps every ``check`` command shares.
+
+They are the checks it can run, selecting the documents or the skills of one snapshot, and printing what the
+checks found.
 
 A check command is the composition root of its check: it calls ``select_documents``, hands what comes back to
 its run, and hands the run to ``print_run``. Everything a check reads comes from the one snapshot
@@ -85,7 +87,10 @@ _SKILL_CHECKS: dict[str, SkillCheck] = {}
 
 
 def register_check(check: DocumentCheck) -> DocumentCheck:
-    """Add a check to the ones a bare ``lorecraft check`` runs, and return it unchanged.
+    """Add a check to the ones a bare `lorecraft check` runs, and return it unchanged.
+
+    Args:
+        check: The document check to register, keyed by its `name`.
 
     Raises:
         DuplicateCheckError: If a different check already holds the name. Registering the same check again is
@@ -104,7 +109,10 @@ def registered_checks() -> tuple[DocumentCheck, ...]:
 
 
 def register_skill_check(check: SkillCheck) -> SkillCheck:
-    """Add a skill check to the ones a bare ``lorecraft check`` runs, and return it unchanged.
+    """Add a skill check to the ones a bare `lorecraft check` runs, and return it unchanged.
+
+    Args:
+        check: The skill check to register, keyed by its `name`, which document checks share.
 
     Raises:
         DuplicateCheckError: If a different check, over skills or over documents, already holds the name.
@@ -123,8 +131,9 @@ def registered_skill_checks() -> tuple[SkillCheck, ...]:
 
 
 class WorkingDirectoryReadError(Error):
-    """The current working directory cannot be read, such as after it was deleted, so no root can be searched
-    for from it.
+    """The current working directory cannot be read, so no root can be searched for from it.
+
+    That happens, for one, after the directory was deleted.
 
     Attributes:
         refusal: Why the operating system refused to report it.
@@ -263,8 +272,10 @@ def select_skills(root: Path | None, paths: list[Path] | None) -> tuple[Database
 
 
 def print_run(run: CheckRun, output_format: Literal['text', 'json'], ungoverned: str) -> None:
-    """Print one run: the JSON report on stdout, or a line per ungoverned document and finding on stdout and
-    the summary line on stderr, both in the run's report order.
+    """Print one run, in the run's report order.
+
+    The JSON report goes to stdout. As text, a line per ungoverned document and finding goes to stdout and the
+    summary line to stderr.
 
     Args:
         run: The run to print.
@@ -280,8 +291,9 @@ def print_run(run: CheckRun, output_format: Literal['text', 'json'], ungoverned:
 
 
 def print_skill_run(run: SkillCheckRun, output_format: Literal['text', 'json']) -> None:
-    """Print one skill run: the JSON report on stdout, or a line per finding on stdout and the summary line on
-    stderr, both in the run's report order.
+    """Print one skill run, in the run's report order.
+
+    The JSON report goes to stdout. As text, a line per finding goes to stdout and the summary line to stderr.
 
     Args:
         run: The run to print.
@@ -337,7 +349,11 @@ def print_runs(
 
 
 def _json_report(run: CheckRun) -> dict[str, object]:
-    """One run as its JSON report: the documents checked, every finding, and the ungoverned documents."""
+    """One run as its JSON report: the documents checked, every finding, and the ungoverned documents.
+
+    Args:
+        run: The run to report; its reports give the checked count and which documents are ungoverned.
+    """
     return {
         'checked': len(run.reports),
         'findings': _json_findings(run.findings()),
@@ -348,8 +364,11 @@ def _json_report(run: CheckRun) -> dict[str, object]:
 def _json_skill_report(run: SkillCheckRun) -> dict[str, object]:
     """One skill run as its JSON report, in the shape of a document check's.
 
-    ``ungoverned`` is always empty, since the Agent Skills specification governs every skill; it is kept so a
-    reader of a bare ``lorecraft check`` report reads every check the same way.
+    `ungoverned` is always empty, since the Agent Skills specification governs every skill; it is kept so a
+    reader of a bare `lorecraft check` report reads every check the same way.
+
+    Args:
+        run: The skill run to report; its reports give the checked count.
     """
     ungoverned: list[str] = []
     return {
@@ -360,7 +379,11 @@ def _json_skill_report(run: SkillCheckRun) -> dict[str, object]:
 
 
 def _json_findings(findings: tuple[Finding, ...]) -> list[dict[str, object]]:
-    """The findings as JSON objects, in the order given."""
+    """The findings as JSON objects, in the order given.
+
+    Args:
+        findings: The findings to encode; each becomes one object, in this order.
+    """
     objects: list[dict[str, object]] = []
     for finding in findings:
         objects.append(
@@ -376,7 +399,12 @@ def _json_findings(findings: tuple[Finding, ...]) -> list[dict[str, object]]:
 
 
 def _echo_lines(run: CheckRun, ungoverned: str) -> None:
-    """Print a line per ungoverned document and per finding on stdout, in the run's report order."""
+    """Print a line per ungoverned document and per finding on stdout, in the run's report order.
+
+    Args:
+        run: The run whose reports are printed.
+        ungoverned: Text of an ungoverned document's line after its rule, as `DocumentCheck.ungoverned` states it.
+    """
     for report in run.reports:
         if not report.governed:
             typer.echo(f'{report.ref.path}:1: [{report.ref.corpus}.ungoverned] {ungoverned}')

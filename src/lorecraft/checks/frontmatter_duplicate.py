@@ -19,12 +19,13 @@ def duplicate_key_violations(frontmatter: Frontmatter, *, rule: str) -> tuple[Vi
     """One violation per occurrence of a top-level key after its first, on its own line. Pure: raises nothing.
 
     Each names the line of the key's first occurrence, so the third occurrence of a key points back at the first,
-    not at the second. The key is printed as its ``repr``, as the name and schema messages print a value: it is
+    not at the second. The key is printed as its `repr`, as the name and schema messages print a value: it is
     the key as decoded, so a key holding a newline would otherwise split the finding over two lines, one holding a
     lone surrogate could not be written to the terminal at all, and an escape sequence would vanish into the
     character it stands for.
 
     Args:
+        frontmatter: The decoded frontmatter whose top-level keys are compared; read, never changed.
         rule: The identifier every violation is reported under, which names the check that reports it.
     """
     first_lines: dict[str, LineNumber] = {}

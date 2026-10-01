@@ -1,5 +1,7 @@
-"""The database over a hand-built snapshot: the model, each frontmatter, each parse tree, each token count and each
-skill's parse tree are computed once, and the layout guard reads the same snapshot.
+"""The database over a hand-built snapshot.
+
+The model, each frontmatter, each parse tree, each token count and each skill's parse tree are computed once, and
+the layout guard reads the same snapshot.
 
 Every snapshot here is built in memory, so no case reads the disk: the database is what wires the virtual view,
 the model loader, the layout guard and the parser together.
@@ -26,7 +28,11 @@ REVIEW: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/review
 
 
 def _snapshot(guide: bytes) -> Snapshot:
-    """A snapshot of one ``code`` corpus, with a spec and a frontmatter schema, holding ``guide.md``."""
+    """A snapshot of one `code` corpus, with a spec and a frontmatter schema, holding `guide.md`.
+
+    Args:
+        guide: Bytes of `docs/code/guide.md`, the one document in the snapshot.
+    """
     return Snapshot.of_files(
         {
             RootRelativePath.parse('docs/__meta__/code.md'): b'# Code\n',
@@ -37,7 +43,11 @@ def _snapshot(guide: bytes) -> Snapshot:
 
 
 def _skill_snapshot(skill: bytes) -> Snapshot:
-    """A snapshot holding one skill, ``.agents/skills/review/``, whose ``SKILL.md`` holds ``skill``."""
+    """A snapshot holding one skill, `.agents/skills/review/`, whose `SKILL.md` holds `skill`.
+
+    Args:
+        skill: Bytes of the skill's `SKILL.md`.
+    """
     return Snapshot.of_files({RootRelativePath.parse('.agents/skills/review/SKILL.md'): skill})
 
 

@@ -203,13 +203,19 @@ def select_document(database: Database, root: Path, working_directory: Path, arg
 
 
 def _require_document_placement(model: WorkspaceModel, argument: Path, path: RootRelativePath) -> None:
-    """Refuse ``path`` unless it is a Markdown file directly inside a corpus the model lists; the first rule it
-    fails, in the order ``select_document`` gives, selects the error.
+    """Refuse `path` unless it is a Markdown file directly inside a corpus the model lists.
+
+    The first rule it fails, in the order `select_document` gives, selects the error.
+
+    Args:
+        model: The workspace model whose corpora the path's corpus directory is looked up in.
+        argument: The path as typed; carried into the error raised, so the message quotes what the user wrote.
+        path: The root-relative path the rules are judged on, which may differ from `argument`.
 
     Raises:
-        NonMarkdownDocumentPathError: If ``path`` is not ``.md``.
-        OutsideDocsDocumentPathError: If it lies outside ``docs/`` or inside ``docs/__meta__/``.
-        CorpuslessDocumentPathError: If it sits directly in ``docs/``.
+        NonMarkdownDocumentPathError: If `path` is not `.md`.
+        OutsideDocsDocumentPathError: If it lies outside `docs/` or inside `docs/__meta__/`.
+        CorpuslessDocumentPathError: If it sits directly in `docs/`.
         InvalidCorpusDocumentPathError: If its corpus directory is not a valid corpus name.
         UnknownCorpusDocumentPathError: If its corpus directory is not a corpus.
         NestedDocumentPathError: If it sits in a subdirectory of its corpus.
@@ -233,8 +239,9 @@ def _require_document_placement(model: WorkspaceModel, argument: Path, path: Roo
 
 
 class UnlistedSkillPathError(Error):
-    """An explicit skill argument does not name a skill the model lists: it lies outside the root, the snapshot
-    holds nothing at it, or no skill the model lists is there.
+    """An explicit skill argument does not name a skill the model lists.
+
+    It lies outside the root, the snapshot holds nothing at it, or no skill the model lists is there.
 
     Attributes:
         argument: The path exactly as typed.

@@ -42,7 +42,13 @@ PYTHON_STRUCTURE_SPEC: Final[str] = dedent(
 
 
 def _write(root: Path, relative: str, data: bytes = b'') -> Path:
-    """Write one file under the root, creating its parents, and return its path."""
+    """Write one file under the root, creating its parents, and return its path.
+
+    Args:
+        root: Directory the file is written under, as the repository root.
+        relative: Path of the file below `root`, with `/` separators.
+        data: Bytes written to the file, so a test can write content that is not UTF-8. Empty by default.
+    """
     path = root / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
@@ -50,7 +56,11 @@ def _write(root: Path, relative: str, data: bytes = b'') -> Path:
 
 
 def _run_every_document(database: Database) -> CheckRun:
-    """Check every document the database's model lists."""
+    """Check every document the database's model lists.
+
+    Args:
+        database: Database over the snapshot whose documents are checked.
+    """
     return run_structure(database, database.model().documents())
 
 
@@ -58,9 +68,12 @@ def _run_every_document(database: Database) -> CheckRun:
 def lorecraft_tree(tmp_path: Path) -> Path:
     """A tree shaped like this repository, built to produce every kind of report.
 
-    Corpus ``code`` is governed by a corpus structure and a ``python`` layer: one clean document, one without
+    Corpus `code` is governed by a corpus structure and a `python` layer: one clean document, one without
     a Checklist, one whose Checklist is over its word cap, one python document without References, and one that
-    is not UTF-8. Corpus ``feat`` has a spec but no structure file, so its document is ungoverned.
+    is not UTF-8. Corpus `feat` has a spec but no structure file, so its document is ungoverned.
+
+    Args:
+        tmp_path: Directory the tree is written into, as the repository root; returned.
     """
     _write(tmp_path, 'docs/__meta__/code.md', b'# Code\n')
     _write(tmp_path, 'docs/__meta__/code.structure.json', CODE_STRUCTURE_SPEC.encode())

@@ -14,9 +14,13 @@ from ..budget import validate_budget
 
 
 def _aspect(tokens: int | None, stem: str = 'code') -> StructureAspect:
-    """A structure aspect at ``docs/__meta__/<stem>.structure.json`` with the given budget.
+    """A structure aspect at `docs/__meta__/<stem>.structure.json` with the given budget.
 
     It forbids empty sections as well, so an aspect without a budget still states a rule and can be built.
+
+    Args:
+        tokens: The aspect's whole-file token budget; `None` sets no budget.
+        stem: File stem of the specification the aspect is written in.
     """
     return StructureAspect(
         path=SPECS_DIR / f'{stem}.structure.json',

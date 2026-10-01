@@ -66,6 +66,9 @@ def require_real_layout(fs: FileSystem) -> None:
     command would report a clean run over a repository it never read. A root with neither directory is not
     refused; it declares nothing, which is a model with no corpora.
 
+    Args:
+        fs: View of the repository whose `docs/` and `docs/__meta__/` entries are inspected, not followed.
+
     Raises:
         LinkedLayoutError: If ``docs/`` is a symlink, or else if ``docs/__meta__/`` is one.
         EntryInspectError: If the view cannot inspect either directory; a view over a snapshot never raises it.

@@ -42,6 +42,9 @@ class SkillFrontmatterSchema:
     def validate(self, data: Mapping[object, object]) -> tuple[FrontmatterProblem, ...]:
         """Hold one decoded frontmatter to the specification. Pure: raises nothing.
 
+        Args:
+            data: The decoded frontmatter mapping. Keys that are not strings are reported, not rejected.
+
         Returns:
             One problem per field at fault, in the order the specification declares its fields, or ``()`` when
             the frontmatter conforms.
@@ -61,7 +64,11 @@ SKILL_FRONTMATTER_SCHEMA: Final[SkillFrontmatterSchema] = SkillFrontmatterSchema
 
 
 def _frontmatter_problem(detail: ErrorDetails) -> FrontmatterProblem:
-    """One pydantic error, as the problem it reports on the top-level field it concerns."""
+    """One pydantic error, as the problem it reports on the top-level field it concerns.
+
+    Args:
+        detail: One entry of a pydantic `ValidationError`; its `loc` and `type` pick the problem reported.
+    """
     location = detail['loc']
     if not location:
         # pydantic locates every problem of a mapping at a key; one that names none concerns the block.
@@ -93,7 +100,12 @@ def _frontmatter_problem(detail: ErrorDetails) -> FrontmatterProblem:
 
 
 def _nested_message(field: str, detail: ErrorDetails) -> str:
-    """What is wrong inside a field's value: only ``metadata`` has one, a mapping of strings to strings."""
+    """What is wrong inside a field's value: only `metadata` has one, a mapping of strings to strings.
+
+    Args:
+        field: Top-level field the error sits inside.
+        detail: The pydantic error, whose `loc` runs past the field into its value.
+    """
     if _KEY_LOCATION in detail['loc']:
         return f'`{field}` keys must be strings'
     path = '.'.join(str(part) for part in detail['loc'])
@@ -103,6 +115,10 @@ def _nested_message(field: str, detail: ErrorDetails) -> str:
 
 
 def _unspecified_message(path: str) -> str:
-    """The message of an error no rule above words."""
+    """The message of an error no rule above words.
+
+    Args:
+        path: Dotted location of the value at fault, quoted in the message.
+    """
     # Never pydantic's text, which changes with its version.
     return f'`{path}` does not satisfy the Agent Skills specification'

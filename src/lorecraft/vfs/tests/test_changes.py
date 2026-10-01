@@ -16,7 +16,12 @@ from ..view import DirEntry, EntryKind
 
 
 def _docs_link(name: str, target: str) -> Snapshot:
-    """A scan-shaped snapshot whose ``docs`` directory holds one symlink and nothing else."""
+    """A scan-shaped snapshot whose `docs` directory holds one symlink and nothing else.
+
+    Args:
+        name: The symlink's name inside `docs`.
+        target: The link's target as a scan would record it, relative to the link's directory.
+    """
     return Snapshot(
         listings=(
             Listing(RootRelativePath.parse('.'), (DirEntry('docs', EntryKind.DIRECTORY),)),
@@ -28,9 +33,10 @@ def _docs_link(name: str, target: str) -> Snapshot:
 
 
 def _linked_skill(listings: tuple[Listing, ...]) -> Snapshot:
-    """A scan-shaped snapshot whose one skill entry links to ``skills/review``, plus the listings given.
+    """A scan-shaped snapshot whose one skill entry links to `skills/review`, plus the listings given.
 
-    ``listings`` is what the scan listed where the link leads: nothing when it dangles.
+    Args:
+        listings: What the scan listed where the link leads; empty when the link dangles.
     """
     skills_dir = Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('review', EntryKind.SYMLINK),))
     return Snapshot(
@@ -41,7 +47,11 @@ def _linked_skill(listings: tuple[Listing, ...]) -> Snapshot:
 
 
 def _linked_skill_file(data: bytes) -> Snapshot:
-    """A scan-shaped snapshot whose ``.agents/skills/SKILL.md`` links to ``REVIEW.md``, read through the link."""
+    """A scan-shaped snapshot whose `.agents/skills/SKILL.md` links to `REVIEW.md`, read through the link.
+
+    Args:
+        data: The bytes recorded for `REVIEW.md`, the file the link leads to.
+    """
     return Snapshot(
         listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('SKILL.md', EntryKind.SYMLINK),)),),
         files=(FileBytes(RootRelativePath.parse('REVIEW.md'), data),),

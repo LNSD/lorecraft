@@ -63,12 +63,15 @@ class Frontmatter:
     keys: tuple[FrontmatterKey, ...]
 
     def key_line(self, name: str) -> LineNumber | None:
-        """The line the last top-level key called ``name`` is written on, or ``None`` when there is none.
+        """The line the last top-level key called `name` is written on, or `None` when there is none.
 
-        The last, because a key written twice decodes to the value of its last occurrence: ``yaml.safe_load``
-        replaces the earlier value with the later one, so the last line is where the value in ``data`` is written.
-        A key the mapping writes also wins over the same key supplied by a ``<<`` merge, so its line is the right
+        The last, because a key written twice decodes to the value of its last occurrence: `yaml.safe_load`
+        replaces the earlier value with the later one, so the last line is where the value in `data` is written.
+        A key the mapping writes also wins over the same key supplied by a `<<` merge, so its line is the right
         one even then.
+
+        Args:
+            name: Key to look up, spelled as written; a key only a `<<` merge supplies is never found.
         """
         line: LineNumber | None = None
         for key in self.keys:
@@ -152,7 +155,7 @@ def decode_frontmatter(block: str) -> FrontmatterNode:
 
 
 class _SafeLoader(yaml.SafeLoader):
-    """PyYAML's safe loader, raising its own error for every block it cannot read, never a plain Python exception.
+    r"""PyYAML's safe loader, raising its own error for every block it cannot read, never a plain Python exception.
 
     PyYAML lets a plain Python exception escape in four places, and each is raised here as the loader's error,
     which ``decode_frontmatter`` already turns into invalid YAML:
@@ -161,7 +164,7 @@ class _SafeLoader(yaml.SafeLoader):
       Python: ``!!int x`` raises a ``ValueError`` and ``!!bool x`` a ``KeyError``, and an untagged scalar YAML
       resolves to one of those tags fails the same way, such as the date ``9999-99-99``. Each is a
       ``ConstructorError`` on the scalar's line.
-    - A double-quoted ``\\U`` escape above ``U+10FFFF`` names no character, and ``chr`` raises a ``ValueError``,
+    - A double-quoted ``\U`` escape above ``U+10FFFF`` names no character, and ``chr`` raises a ``ValueError``,
       or an ``OverflowError`` for one too large for a C ``int``. It is a ``ScannerError`` on the escape's line.
     - A ``%YAML`` directive whose version number has more digits than Python converts to an ``int``, 4300 by
       default, raises a ``ValueError``. It is a ``ScannerError`` on the directive's line.
@@ -191,6 +194,10 @@ class _SafeLoader(yaml.SafeLoader):
     def scan_flow_scalar_non_spaces(self, double: bool, start_mark: Mark) -> list[str]:
         """Scan the text of a quoted scalar up to its next space, as the safe loader does.
 
+        Args:
+            double: True for a double-quoted scalar, whose backslash escapes are decoded; False for a single-quoted one.
+            start_mark: Where the scalar starts, for the scanner's own error messages.
+
         Raises:
             ScannerError: An escape names no Unicode character, or the text is not valid YAML.
         """
@@ -206,7 +213,10 @@ class _SafeLoader(yaml.SafeLoader):
             raise ScannerError(None, None, problem, self.get_mark()) from exc
 
     def scan_yaml_directive_number(self, start_mark: Mark) -> int:
-        """Scan one number of a ``%YAML`` directive's version, as the safe loader does.
+        """Scan one number of a `%YAML` directive's version, as the safe loader does.
+
+        Args:
+            start_mark: Where the directive starts, for the scanner's own error messages.
 
         Raises:
             ScannerError: The number is too long to read, or the text is not a number.
@@ -221,7 +231,12 @@ class _SafeLoader(yaml.SafeLoader):
             raise ScannerError(None, None, problem, self.get_mark()) from exc
 
     def construct_object(self, node: yaml.Node, deep: bool = False) -> object:
-        """Construct the value of one node, as the safe loader does, or raise a ``ConstructorError`` marked at it."""
+        """Construct the value of one node, as the safe loader does, or raise a `ConstructorError` marked at it.
+
+        Args:
+            node: Node to construct a value from; it is the node marked when its scalar cannot be converted.
+            deep: Whether to construct the node's children now rather than later, as the safe loader's flag does.
+        """
         # The classes caught are the ones the safe constructors raise for a scalar's text: a `ValueError` from
         # `int`, `float` or `datetime` for text or a field out of range, a `KeyError` from the `bool` lookup, an
         # `IndexError` from reading the sign of empty text, an `AttributeError` from a timestamp that does not
@@ -236,7 +251,11 @@ class _SafeLoader(yaml.SafeLoader):
 
 
 def _invalid_yaml(error: yaml.MarkedYAMLError) -> InvalidYamlFrontmatter:
-    """The parser's facts about a block that does not parse: its problem, and the line it marked."""
+    """The parser's facts about a block that does not parse: its problem, and the line it marked.
+
+    Args:
+        error: Failure PyYAML raised while composing or constructing the block; its mark may be absent.
+    """
     # The parser names the problem, or, for a few errors, only the construct it was reading when it stopped.
     problem = error.problem or error.context or 'the block is not valid YAML'
     mark = error.problem_mark or error.context_mark
@@ -251,10 +270,13 @@ def _keys(mapping: yaml.MappingNode) -> tuple[FrontmatterKey, ...]:
 
     Read from a node no value has been constructed from yet, which still holds every pair as it is written. A key
     written more than once is listed once per occurrence, where the constructed mapping keeps only one value. A
-    scalar key tagged as a value key, such as a plain ``=``, is listed as well, because construction has not yet
+    scalar key tagged as a value key, such as a plain `=`, is listed as well, because construction has not yet
     retagged it to the string it decodes to. A key the mapping spells some other way, such as a list or a number,
-    has no name a check could ask for, so it is left out, and so is a ``<<`` merge key, which is tagged as a merge
+    has no name a check could ask for, so it is left out, and so is a `<<` merge key, which is tagged as a merge
     rather than a string.
+
+    Args:
+        mapping: The block's top-level mapping node, before any value is constructed from it.
     """
     keys: list[FrontmatterKey] = []
     for key_node, _value_node in mapping.value:

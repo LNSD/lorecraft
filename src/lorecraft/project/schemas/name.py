@@ -16,6 +16,9 @@ type SchemaName = tuple[CorpusName] | tuple[CorpusName, AspectNamespace]
 def parse_schema_name(stem: str) -> SchemaName:
     """Read the token before the first hyphen as the corpus and the rest as one namespace.
 
+    Args:
+        stem: Specification filename without its aspect suffix, such as `code` or `code-python`.
+
     Raises:
         EmptyCorpusNameError: If the corpus token is empty.
         InvalidCorpusNameCharacterError: If a character of the corpus token falls outside lowercase snake case.
@@ -30,7 +33,11 @@ def parse_schema_name(stem: str) -> SchemaName:
 
 
 def schema_name_stem(name: SchemaName) -> str:
-    """Join the parts back into the on-disk stem; never raises."""
+    """Join the parts back into the on-disk stem; never raises.
+
+    Args:
+        name: Corpus alone, or corpus and namespace, as `parse_schema_name` returns it.
+    """
     if len(name) == 1:
         return str(name[0])
     return f'{name[0]}-{name[1]}'

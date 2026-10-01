@@ -171,7 +171,7 @@ def check_corpus_status(self) -> CorpusStatus:
     so a calling report receives an answer rather than an exception.
 
     Returns:
-        A status whose ``failure`` is set when the corpus cannot be loaded.
+        A status whose `failure` is set when the corpus cannot be loaded.
     """
     try:
         self._load_spec()
@@ -280,8 +280,8 @@ def check_document(self, path: Path) -> DocumentOutcome:
     decide whether to continue or stop.
 
     Returns:
-        An outcome whose ``findings`` holds what the checkers reported on success, and
-        whose ``failure`` holds the exception and ``findings`` is empty when a checker
+        An outcome whose `findings` holds what the checkers reported on success, and
+        whose `failure` holds the exception and `findings` is empty when a checker
         could not run against the document.
     """
     try:

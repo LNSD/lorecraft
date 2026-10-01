@@ -1,5 +1,7 @@
-"""The check registry a bare ``lorecraft check`` reads: what a check module's registration may and may not do;
-then the selection's refusal of an unreadable working directory, and the summary of a bare run with no checks.
+"""The check registry a bare ``lorecraft check`` reads, the selection, and the summary of a bare run.
+
+What a check module's registration may and may not do; then the selection's refusal of an unreadable working
+directory, and the summary of a bare run with no checks.
 
 The registry is process-wide, so these cases register only the frontmatter check itself, or a rival under its name
 that is refused before it is stored; a new name would join every later bare run in the same process.
@@ -30,7 +32,12 @@ from ..commands.check.skills import SKILLS_CHECK
 
 
 def _rival_skill_run(database: Database, refs: tuple[SkillRef, ...]) -> SkillCheckRun:
-    """Stand-in run for a rival skill check that must be refused before it is ever run."""
+    """Stand-in run for a rival skill check that must be refused before it is ever run.
+
+    Args:
+        database: Unused; the check is refused at registration and never run.
+        refs: Unused, for the same reason.
+    """
     raise AssertionError('a refused check is never run')
 
 

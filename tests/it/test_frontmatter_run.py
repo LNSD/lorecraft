@@ -35,7 +35,13 @@ NO_FRONTMATTER_STRUCTURE_SPEC: Final[str] = '{"empty_sections": "forbidden"}'
 
 
 def _write(root: Path, relative: str, data: bytes = b'') -> Path:
-    """Write one file under the root, creating its parents, and return its path."""
+    """Write one file under the root, creating its parents, and return its path.
+
+    Args:
+        root: Directory the file is written under.
+        relative: Slash-separated path of the file, relative to `root`.
+        data: Bytes the file holds. The file is empty when omitted.
+    """
     path = root / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
@@ -43,7 +49,11 @@ def _write(root: Path, relative: str, data: bytes = b'') -> Path:
 
 
 def _run_every_document(database: Database) -> CheckRun:
-    """Check every document the database's model lists."""
+    """Check every document the database's model lists.
+
+    Args:
+        database: Snapshot database whose model supplies the documents and whose files the check reads.
+    """
     return run_frontmatter(database, database.model().documents())
 
 
@@ -51,10 +61,13 @@ def _run_every_document(database: Database) -> CheckRun:
 def lorecraft_tree(tmp_path: Path) -> Path:
     """A tree shaped like this repository, built to produce every kind of report.
 
-    Corpus ``code`` is governed: one clean document, one misnamed, one without a description, one without
-    frontmatter and one that is not UTF-8, plus a nested document the loader never lists. Corpus ``feat``
+    Corpus `code` is governed: one clean document, one misnamed, one without a description, one without
+    frontmatter and one that is not UTF-8, plus a nested document the loader never lists. Corpus `feat`
     has a structure specification but no frontmatter schema in it, so its document is ungoverned. Beside them
-    sits a loose file under ``docs/``.
+    sits a loose file under `docs/`.
+
+    Args:
+        tmp_path: Directory the specifications and documents are written into, as the repository root.
     """
     _write(tmp_path, 'docs/__meta__/code.md', b'# Code\n')
     _write(tmp_path, 'docs/__meta__/code.structure.json', DESCRIPTION_STRUCTURE_SPEC.encode())
