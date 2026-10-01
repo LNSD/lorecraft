@@ -83,7 +83,7 @@ class RootInspectError(Error):
         self.__cause__ = source
 
 
-def find_root(start: Path) -> Path:
+def get_root(start: Path) -> Path:
     """The first of `start` and its parents holding `docs/__meta__/` as a directory, resolved.
 
     Args:
@@ -122,7 +122,7 @@ def resolve_root(path: Path) -> Path:
     try:
         is_directory = resolved.is_dir()
     except OSError as exc:
-        # As in `find_root`: through Python 3.13 `is_dir` raises a failure other than absence, where 3.14 answers False.
+        # As in `get_root`: through Python 3.13 `is_dir` raises a failure other than absence, where 3.14 answers False.
         raise RootInspectError(resolved, OsRefusal.of(exc), source=exc) from exc
     if not is_directory:
         raise InvalidRootError(resolved)
