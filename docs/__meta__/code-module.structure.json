@@ -1,0 +1,24 @@
+{
+  "$schema": "../schemas/structure.spec.json",
+  "description": "Narrows code.structure.json for docs/code/module-*.md, which is applied as well. The prose authority is docs/__meta__/code-module.md. The frontmatter fixes type, and the form of name and scope: both spell a package under the lorecraft import package, and that they spell the same one is checked by hand. The six rule sections open the document, in this order, with a tighter cap on Responsibility and Role, which each state one thing; the Checklist follows as code.structure.json places it, and References closes it, required here though optional in the corpus, since every module document links the architecture document it takes its role from. The token budget is tighter than the corpus one, since a module document is loaded beside the rules for the code being written.",
+  "frontmatter": {
+    "type": "object",
+    "properties": {
+      "name": { "type": "string", "pattern": "^module-lorecraft(?:-[a-z0-9]+)*$" },
+      "type": { "const": "pkg" },
+      "scope": { "type": "string", "pattern": "^pkg:lorecraft(?:\\.[a-z_][a-z0-9_]*)*$" }
+    }
+  },
+  "tokens": 3500,
+  "outline": [
+    { "section": "Responsibility", "words": 120 },
+    { "section": "Role", "words": 150 },
+    { "section": "Belongs Here" },
+    { "section": "Belongs Elsewhere" },
+    { "section": "Invariants" },
+    { "section": "Examples" },
+    { "any": true },
+    { "section": "References" },
+    { "section": "External References", "optional": true }
+  ]
+}
