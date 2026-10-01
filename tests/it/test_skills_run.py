@@ -231,7 +231,8 @@ class TestRunSkills:
                 Violation(
                     line=LineNumber(7),
                     rule='skill.link-absolute',
-                    message='`/docs/guide.md` is absolute; link relative to the skill root',
+                    message='`/docs/guide.md` is absolute',
+                    notes=(Note(NoteKind.HELP, 'link relative to the skill root'),),
                 ),
             )
         ], 'the link is checked beside the frontmatter, and its finding follows the frontmatter findings'
@@ -258,7 +259,8 @@ class TestRunSkills:
                 path=RootRelativePath.parse('.agents/skills/review/SKILL.md'),
                 line=LineNumber(5),
                 rule='skill.link-absolute',
-                message='`/assets/flow.png` is absolute; link relative to the skill root',
+                message='`/assets/flow.png` is absolute',
+                notes=(Note(NoteKind.HELP, 'link relative to the skill root'),),
             ),
         ), 'the linked skill is parsed through its link, and the finding names the SKILL.md under the skills directory'
 
@@ -756,35 +758,29 @@ class TestRunSkillsResources:
                 path=RootRelativePath.parse(f'{skill}/SKILL.md'),
                 line=LineNumber(7),
                 rule='skill.link-escapes',
-                message=(
-                    '`../../docs/guide.md` leaves the skill directory; link a file inside the skill, '
-                    'relative to the skill root'
-                ),
+                message='`../../docs/guide.md` leaves the skill directory',
+                notes=(Note(NoteKind.HELP, 'link a file inside the skill, relative to the skill root'),),
             ),
             Finding(
                 path=RootRelativePath.parse(f'{skill}/references/a.md'),
                 line=LineNumber(1),
                 rule='skill.link-escapes',
-                message=(
-                    '`../a.md` leaves the skill directory; link a file inside the skill, relative to the skill root'
-                ),
+                message='`../a.md` leaves the skill directory',
+                notes=(Note(NoteKind.HELP, 'link a file inside the skill, relative to the skill root'),),
             ),
             Finding(
                 path=RootRelativePath.parse(f'{skill}/references/a.md'),
                 line=LineNumber(3),
                 rule='skill.link-escapes',
-                message=(
-                    '`../../flow.png` leaves the skill directory; link a file inside the skill, '
-                    'relative to the skill root'
-                ),
+                message='`../../flow.png` leaves the skill directory',
+                notes=(Note(NoteKind.HELP, 'link a file inside the skill, relative to the skill root'),),
             ),
             Finding(
                 path=RootRelativePath.parse(f'{skill}/references/deep/guide.md'),
                 line=LineNumber(3),
                 rule='skill.link-escapes',
-                message=(
-                    '`../SKILL.md` leaves the skill directory; link a file inside the skill, relative to the skill root'
-                ),
+                message='`../SKILL.md` leaves the skill directory',
+                notes=(Note(NoteKind.HELP, 'link a file inside the skill, relative to the skill root'),),
             ),
         ), 'the SKILL.md first, then each resource by path, each read from the skill root and located in its own file'
 
@@ -807,9 +803,8 @@ class TestRunSkillsResources:
                 path=RootRelativePath.parse('.agents/skills/review/references/a.md'),
                 line=LineNumber(1),
                 rule='skill.link-escapes',
-                message=(
-                    '`../SKILL.md` leaves the skill directory; link a file inside the skill, relative to the skill root'
-                ),
+                message='`../SKILL.md` leaves the skill directory',
+                notes=(Note(NoteKind.HELP, 'link a file inside the skill, relative to the skill root'),),
             ),
         ), 'the resource is read through the linked entry, and the finding names it under the skills directory'
 
@@ -853,9 +848,8 @@ class TestRunSkillsResources:
                 path=RootRelativePath.parse('.agents/skills/review/references/a.md'),
                 line=LineNumber(1),
                 rule='skill.link-escapes',
-                message=(
-                    '`../a.md` leaves the skill directory; link a file inside the skill, relative to the skill root'
-                ),
+                message='`../a.md` leaves the skill directory',
+                notes=(Note(NoteKind.HELP, 'link a file inside the skill, relative to the skill root'),),
             ),
         ), 'each resource is a file of its own, checked whatever bytes the SKILL.md holds'
 

@@ -1165,9 +1165,9 @@ class TestCheckSkillsCommand:
                     'file': '.agents/skills/review/SKILL.md',
                     'line': 7,
                     'rule': 'skill.link-absolute',
-                    'message': '`/docs/guide.md` is absolute; link relative to the skill root',
+                    'message': '`/docs/guide.md` is absolute',
                     'spec': None,
-                    'notes': [],
+                    'notes': [{'kind': 'help', 'text': 'link relative to the skill root'}],
                 }
             ],
             'ungoverned': [],
@@ -1224,12 +1224,9 @@ class TestCheckSkillsCommand:
                     'file': '.agents/skills/review/references/guide.md',
                     'line': 3,
                     'rule': 'skill.link-escapes',
-                    'message': (
-                        '`../SKILL.md` leaves the skill directory; link a file inside the skill, '
-                        'relative to the skill root'
-                    ),
+                    'message': '`../SKILL.md` leaves the skill directory',
                     'spec': None,
-                    'notes': [],
+                    'notes': [{'kind': 'help', 'text': 'link a file inside the skill, relative to the skill root'}],
                 }
             ],
             'ungoverned': [],
