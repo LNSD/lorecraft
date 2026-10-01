@@ -105,7 +105,8 @@ def mount(app: typer.Typer) -> None:
             app.command(name=name)(_HANDLERS[name])
 
 
-def _discover() -> None:
+# Runs once per process, before mutmut swaps a mutant in, so no test can ever see a mutant of it.
+def _discover() -> None:  # pragma: no mutate block
     """Import every module under `commands`, so that each one's `register` call runs.
 
     Runs once per process; later calls return immediately. An import failure propagates because
