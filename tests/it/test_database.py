@@ -107,7 +107,7 @@ class TestDatabase:
         #: Then
         assert second is first, 'the model is loaded once per database, then cached'
 
-    def test_require_real_layout_with_a_linked_docs_directory_raises_linked_layout_error(self) -> None:
+    def test_reject_linked_layout_with_a_linked_docs_directory_raises_linked_layout_error(self) -> None:
         #: Given
         # What a scan records for a `docs -> documentation` link: the link on the way to the scope root, and
         # nothing behind it.
@@ -120,17 +120,17 @@ class TestDatabase:
 
         #: When
         with pytest.raises(LinkedLayoutError) as exc_info:
-            database.require_real_layout()
+            database.reject_linked_layout()
 
         #: Then
         assert exc_info.value.path == RootRelativePath.parse('docs'), 'the guard reads the snapshot the database holds'
 
-    def test_require_real_layout_with_real_directories_returns_without_raising(self) -> None:
+    def test_reject_linked_layout_with_real_directories_returns_without_raising(self) -> None:
         #: Given
         database = Database(_snapshot(b'---\nname: "guide"\n---\n'))
 
         #: When
-        outcome = database.require_real_layout()
+        outcome = database.reject_linked_layout()
 
         #: Then
         assert outcome is None, 'a snapshot of real directories is accepted'

@@ -68,7 +68,7 @@ class AspectNamespace:
             EmptyAspectNamespaceError: If the namespace is empty.
             InvalidAspectNamespaceCharacterError: If a character falls outside kebab case.
         """
-        _validate_namespace(self.value)
+        _reject_invalid_namespace(self.value)
 
     def is_prefix_of(self, document_name: str) -> bool:
         """Return whether this namespace is the whole name or its hyphen-delimited prefix.
@@ -83,7 +83,7 @@ class AspectNamespace:
         return self.value
 
 
-def _validate_namespace(namespace: str) -> None:
+def _reject_invalid_namespace(namespace: str) -> None:
     if not namespace:
         raise EmptyAspectNamespaceError()
     if namespace[0] not in ascii_lowercase:
