@@ -54,7 +54,7 @@ class Spec:
             return None
         return self.name[1]
 
-    def governs(self, filename: AspectFilename) -> bool:
+    def is_governing(self, filename: AspectFilename) -> bool:
         """True for a corpus stem always; for a namespace stem when the namespace matches.
 
         Args:
@@ -62,7 +62,7 @@ class Spec:
         """
         if self.namespace is None:
             return True
-        return self.namespace.matches(str(filename))
+        return self.namespace.is_prefix_of(str(filename))
 
 
 @dataclass(frozen=True, slots=True)
@@ -186,7 +186,7 @@ class Corpus:
             raise ValueError(f'document {ref.path} is not in corpus {self.name}')
         specs: list[Spec] = [self.spec]
         for namespace_spec in self.namespace_specs:
-            if namespace_spec.governs(ref.filename):
+            if namespace_spec.is_governing(ref.filename):
                 specs.append(namespace_spec)
         return Governance(ref, tuple(specs))
 

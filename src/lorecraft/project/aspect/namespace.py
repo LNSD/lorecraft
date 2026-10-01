@@ -70,7 +70,7 @@ class AspectNamespace:
         """
         _validate_namespace(self.value)
 
-    def matches(self, document_name: str) -> bool:
+    def is_prefix_of(self, document_name: str) -> bool:
         """Return whether this namespace is the whole name or its hyphen-delimited prefix.
 
         Args:
