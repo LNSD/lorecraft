@@ -124,10 +124,9 @@ class TestValidateFrontmatter:
         result = validate_frontmatter(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
 
         #: Then
-        assert [violation.rule for violation in result.violations] == ['frontmatter.unparseable'], (
-            'a YAML list is not a frontmatter mapping'
-        )
-        assert result.violations[0].message == 'frontmatter is not a YAML mapping', 'the message names the shape'
+        assert result.violations == (
+            Violation(line=LineNumber(1), rule='frontmatter.unparseable', message='frontmatter is not a YAML mapping'),
+        ), 'a YAML list is not a frontmatter mapping, reported on the line the block opens'
 
     def test_validate_frontmatter_with_missing_required_field_reports_it_under_the_corpus_with_the_schema(self) -> None:
         #: Given
