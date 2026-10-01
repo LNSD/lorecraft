@@ -1,7 +1,10 @@
 """The version strings themselves: pure formatting, with no git and no CLI around it."""
 
+from pathlib import Path
+
 import pytest
 
+import lorecraft
 from lorecraft import __version__
 from lorecraft.cli.version import detailed_version, short_version
 
@@ -56,3 +59,16 @@ class TestDetailedVersion:
         assert 'Python:' in text, 'the interpreter is what a reproduction usually turns on'
         assert 'Platform:' in text, 'the platform is reported for the same reason'
         assert 'Install:' in text, 'the install path distinguishes a checkout from a wheel'
+
+    def test_detailed_version_without_a_commit_ends_with_the_package_directory_as_the_install_path(self) -> None:
+        #: Given
+        commit = None
+        package_directory = Path(lorecraft.__file__).resolve().parent
+
+        #: When
+        text = detailed_version(commit)
+
+        #: Then
+        assert text.splitlines()[-1] == f'Install:  {package_directory}', (
+            'the install path is the directory the lorecraft package was loaded from'
+        )

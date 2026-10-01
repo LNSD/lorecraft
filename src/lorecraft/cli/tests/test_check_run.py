@@ -95,6 +95,7 @@ class TestRegisterSkillCheck:
 
         #: Then
         assert exc_info.value.name == SKILLS_CHECK.name, 'the error names the contested check'
+        assert SKILLS_CHECK.name in str(exc_info.value), 'the message names the contested check'
 
     def test_register_skill_check_under_the_name_of_a_document_check_raises_duplicate_check_error(self) -> None:
         #: Given
