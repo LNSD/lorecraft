@@ -1,8 +1,8 @@
 ---
 name: code-test
-description: Run targeted tests after format and lint are green. Defaults to the unit tier; widens to the integration, end-to-end or whole suite only on explicit signals. Use after editing Python code under src/ or tests/, or when the user asks to run tests. Also runs mutation testing, an expensive run that scores how effective the tests are at catching faults, only when asked how strong the tests are or whether they pin what they claim. No tier here needs a container, an external service, or credentials.
+description: Run targeted tests after format and lint are green. Defaults to the unit tier; widens to the integration, end-to-end or whole suite only on explicit signals. Use after editing Python code under src/ or tests/, or when the user asks to run tests. Also measures coverage, which lines and branches each tier runs, when asked what the tests reach; and runs mutation testing, an expensive run that scores how effective the tests are at catching faults, only when asked how strong the tests are or whether they pin what they claim. No tier here needs a container, an external service, or credentials.
 compatibility: Requires the just task runner and uv. pytest is invoked through the project environment rather than a system install. Nothing else is needed — this repository has no container-backed, networked or credentialed tests.
-allowed-tools: Bash(just test-unit *) Bash(just test-it *) Bash(just test-e2e *) Bash(just test *) Bash(just test-mut *) Bash(just test-unit-mut *) Bash(just test-it-mut *) Bash(just test-mut-report *) Bash(uv run mutmut results*) Bash(uv run mutmut show *) Bash(just snapshot-review) Bash(uv run pytest src/*) Bash(uv run pytest tests/*)
+allowed-tools: Bash(just test-unit *) Bash(just test-it *) Bash(just test-e2e *) Bash(just test *) Bash(just test-cov *) Bash(just test-unit-cov *) Bash(just test-it-cov *) Bash(just test-e2e-cov *) Bash(just test-cov-report *) Bash(just test-mut *) Bash(just test-unit-mut *) Bash(just test-it-mut *) Bash(just test-mut-report *) Bash(uv run mutmut results*) Bash(uv run mutmut show *) Bash(just snapshot-review) Bash(uv run pytest src/*) Bash(uv run pytest tests/*)
 ---
 
 # Code Testing Skill
@@ -88,6 +88,24 @@ A failing snapshot is a finding, not a chore: when output changed on purpose, ru
 read `just snapshot-review`, and commit the snapshot with the change. Never update to turn a run green
 without reading the diff. Updating one tier alone reads the other tiers' snapshots as unused, so the recipe
 never filters.
+
+## Coverage
+
+Coverage says which lines and branches a tier runs — not whether a test checks what they do; that is
+[mutation testing](#mutation-testing)'s question. It costs one ordinary run of the tier, so measure it when
+asked what the tests reach, or to find the code no test runs before writing tests for a module.
+
+| Command | Purpose |
+|---|---|
+| `just test-cov` | Every tier together: the suite's coverage. |
+| `just test-unit-cov` | The unit tier alone: the pure logic its own tests reach. |
+| `just test-it-cov` | The integration tier alone. |
+| `just test-e2e-cov` | The e2e tier alone, measured inside the console script's subprocess. |
+| `just test-cov-report [TITLE]` | The last run as Markdown: the total, and the files below full coverage. |
+
+Each run overwrites `.coverage`. `uv run coverage report` reads it again, with the missing lines per file;
+`uv run coverage html` writes a browsable copy to `htmlcov/`. CI runs all four on every pull request and
+posts the report as one comment; it never fails the build.
 
 ## Mutation testing
 

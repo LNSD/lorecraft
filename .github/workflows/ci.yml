@@ -99,6 +99,66 @@ jobs:
       - name: Run tests
         run: just test
 
+  # Report only: coverage shows what the tests run, so it never fails the build.
+  test-cov:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # hatch-vcs derives the version from the tags a shallow clone lacks.
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+
+      - name: Sync the development environment
+        run: just sync
+
+      - name: Start the report
+        run: |
+          {
+            echo '## Coverage'
+            echo
+            echo 'The share of lines and branches each test tier runs. Running a line is not checking it; the mutation report says how much the tests catch.'
+            echo
+          } | tee report.md >> "$GITHUB_STEP_SUMMARY"
+
+      # Each recipe overwrites .coverage, so each tier's report is rendered before the next starts.
+      - name: Measure the coverage of every tier
+        run: |
+          just test-cov
+          just test-cov-report 'unit + it + e2e' | tee -a report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Measure the coverage of the unit tier
+        run: |
+          just test-unit-cov
+          just test-cov-report 'unit' | tee -a report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Measure the coverage of the integration tier
+        run: |
+          just test-it-cov
+          just test-cov-report 'it' | tee -a report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Measure the coverage of the end-to-end tier
+        run: |
+          just test-e2e-cov
+          just test-cov-report 'e2e' | tee -a report.md >> "$GITHUB_STEP_SUMMARY"
+
+      # A pull request from a fork gets a read-only token, so it has the step summary and no comment.
+      - name: Comment on the pull request
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
+        with:
+          header: test-cov
+          path: report.md
+
   # Report only: mutation testing scores the tests, so it never fails the build.
   test-mut:
     runs-on: ubuntu-latest
