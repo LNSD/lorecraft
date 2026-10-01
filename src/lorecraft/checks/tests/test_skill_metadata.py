@@ -1,15 +1,25 @@
 """Metadata validation over the frontmatter of a skill that links files in through ``metadata``.
 
-``listed_by_subkey`` and ``validate_skill_metadata`` are pure, so every case here is a text literal parsed in
-memory, and the listed files with their states are built by hand; no snapshot is taken and no ``SKILL.md`` is read.
+``listed_by_subkey``, ``linked_in_paths`` and ``validate_skill_metadata`` are pure, so every case here is a text
+literal parsed in memory, and the listed files with their states are built by hand; no snapshot is taken and no
+``SKILL.md`` is read.
 """
+
+from pathlib import PurePosixPath
 
 import pytest
 
 from lorecraft.project.syntax import Frontmatter, LineNumber, parse_frontmatter
 
 from ..reporting import Violation
-from ..skill_metadata import ListedFile, ListedFiles, ListedFileState, listed_by_subkey, validate_skill_metadata
+from ..skill_metadata import (
+    ListedFile,
+    ListedFiles,
+    ListedFileState,
+    linked_in_paths,
+    listed_by_subkey,
+    validate_skill_metadata,
+)
 
 
 def _mapping(text: str) -> Frontmatter:
@@ -170,6 +180,39 @@ class TestListedBySubkey:
 
         #: Then
         assert listed == (), 'a skill without metadata lists no files'
+
+
+@pytest.mark.unit
+class TestLinkedInPaths:
+    def test_linked_in_paths_with_files_under_each_subkey_returns_each_under_its_subkey_by_name(self) -> None:
+        #: Given
+        frontmatter = _mapping(
+            '---\nmetadata:\n  references: docs/code/logging.md docs/feat/a.md\n'
+            '  assets: docs/__meta__/code.md\n  scripts: tools/run.py\n---\n'
+        )
+
+        #: When
+        paths = linked_in_paths(frontmatter)
+
+        #: Then
+        assert paths == frozenset(
+            {
+                PurePosixPath('references/logging.md'),
+                PurePosixPath('references/a.md'),
+                PurePosixPath('assets/code.md'),
+                PurePosixPath('scripts/run.py'),
+            }
+        ), 'each listed file lands in the directory its subkey names, under its file name alone'
+
+    def test_linked_in_paths_without_linking_subkeys_returns_no_paths(self) -> None:
+        #: Given
+        frontmatter = _mapping('---\nname: x\nmetadata:\n  author: someone\n---\n')
+
+        #: When
+        paths = linked_in_paths(frontmatter)
+
+        #: Then
+        assert paths == frozenset(), 'a metadata with no references, scripts or assets links nothing in'
 
 
 @pytest.mark.unit

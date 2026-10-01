@@ -88,7 +88,8 @@ the whole `SKILL.md` body on activation, and other files only when the body send
 
 Link relative to the skill root, from every file in the skill, never with a leading `/`: the specification
 reads a skill's paths from its root. From `SKILL.md` that is `references/workflow-raw.md`; from a file in
-`references/`, the entry file is still `SKILL.md`; `../SKILL.md` leaves the skill.
+`references/`, the entry file is still `SKILL.md`; `../SKILL.md` leaves the skill. A link inside the skill names
+a file or a directory the skill holds, or a file its `metadata` links in, below.
 
 **Keep references one level deep.** `SKILL.md` links to a reference file; a reference file should not send
 the agent on to a third file for something it needs to finish the task.
@@ -134,14 +135,16 @@ subject: `scripts/check_skill.py --linking <path>` (one `--linking` per file) pr
 Two checks decide every mechanical rule between them. Do not check those rules by hand.
 
 **`lorecraft check skills`** decides the frontmatter: YAML validity, the six fields and their limits,
-`metadata` value types, and `name` against the directory. It also reports three kinds of link, each in the file
+`metadata` value types, and `name` against the directory. It also reports four kinds of link, each in the file
 holding it:
 
 - In every Markdown file of the skill, a relative link that, read from the skill root, climbs above it, as
   `skill.link-escapes`.
+- In every Markdown file of the skill, a relative link inside it that names no file or directory the skill
+  holds, and no file `metadata` links in, as `skill.link-broken`.
 - In `SKILL.md` only, an absolute link, a url that starts with `/`, as `skill.link-absolute`.
 - In `SKILL.md` only, a `#fragment` link that names no heading of the file, as `skill.link-fragment`. A
-  fragment into another file is checked by neither check.
+  fragment into another file is not checked.
 
 For a skill
 that links files in through `metadata`, it reports linked files that share a name under one subkey
@@ -154,8 +157,7 @@ uv run lorecraft check skills .agents/skills/code-test  # named skills
 uv run lorecraft check skills --format json             # machine-readable
 ```
 
-**`scripts/check_skill.py`** decides the rest: the 500-line budget, and every relative link inside the skill
-resolving, read from the skill root.
+**`scripts/check_skill.py`** decides the rest: the 500-line budget. It checks no link.
 
 It is executable and declares its own dependencies, so run it directly; `uv` resolves them on the first run.
 It finds the repository root by walking up, so the working directory does not matter:
