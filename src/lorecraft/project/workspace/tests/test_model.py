@@ -343,13 +343,13 @@ class TestGovernance:
             SPECS_DIR / 'code-python.structure.json',
         ), 'a structure file is a base whatever rule it states, as a tokens-only file is, so the namespace applies'
 
-    def test_governance_with_a_ref_of_a_corpus_the_model_lacks_raises_key_error(self) -> None:
+    def test_governance_with_a_ref_of_a_corpus_the_model_lacks_raises_value_error(self) -> None:
         #: Given
         model = _code_model((_spec('code'),), ('logging',))
         foreign_ref = _ref('feat', 'cli-check')
 
         #: When
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match='cli-check'):
             model.governance(foreign_ref)
 
         #: Then
@@ -374,7 +374,7 @@ class TestCorpus:
         foreign_ref = _ref('feat', 'cli-check')
 
         #: When
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match='cli-check'):
             corpus.governance(foreign_ref)
 
         #: Then
@@ -403,7 +403,7 @@ class TestCorpus:
         namespace_stem = _spec('code-python')
 
         #: When
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match='code'):
             Corpus(name=CODE, spec=namespace_stem, namespace_specs=(), documents=())
 
         #: Then
@@ -414,7 +414,7 @@ class TestCorpus:
         feat_spec = _spec('feat')
 
         #: When
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match='code'):
             Corpus(name=CODE, spec=feat_spec, namespace_specs=(), documents=())
 
         #: Then
@@ -425,7 +425,7 @@ class TestCorpus:
         corpus_stem = _spec('code')
 
         #: When
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match='code'):
             Corpus(name=CODE, spec=corpus_stem, namespace_specs=(corpus_stem,), documents=())
 
         #: Then
@@ -436,7 +436,7 @@ class TestCorpus:
         feat_namespace = _spec('feat-cli')
 
         #: When
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match='code'):
             Corpus(name=CODE, spec=_spec('code'), namespace_specs=(feat_namespace,), documents=())
 
         #: Then
@@ -448,7 +448,7 @@ class TestCorpus:
         narrow_first = (broad_to_narrow[1], broad_to_narrow[0])
 
         #: When
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match='code'):
             Corpus(name=CODE, spec=_spec('code'), namespace_specs=narrow_first, documents=())
 
         #: Then
@@ -460,7 +460,7 @@ class TestCorpus:
         unsorted_siblings = (value_order[1], value_order[0])
 
         #: When
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match='code'):
             Corpus(name=CODE, spec=_spec('code'), namespace_specs=unsorted_siblings, documents=())
 
         #: Then
@@ -471,7 +471,7 @@ class TestCorpus:
         foreign_ref = _ref('feat', 'cli-check')
 
         #: When
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match='cli-check'):
             Corpus(name=CODE, spec=_spec('code'), namespace_specs=(), documents=(foreign_ref,))
 
         #: Then
@@ -485,11 +485,25 @@ class TestGovernanceConstruction:
         ref = _ref('code', 'logging')
 
         #: When
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match='logging'):
             Governance(ref, ())
 
         #: Then
         assert Governance(ref, (_spec('code'),)).specs != (), 'the corpus spec alone is the smallest governance'
+
+
+@pytest.mark.unit
+class TestSpec:
+    def test_governs_with_a_corpus_stem_returns_true_for_any_filename(self) -> None:
+        #: Given
+        corpus_stem = _spec('code')
+        filename = AspectFilename.parse('logging')
+
+        #: When
+        governs = corpus_stem.governs(filename)
+
+        #: Then
+        assert governs, 'a corpus stem governs every document of its corpus, whatever the filename'
 
 
 @pytest.mark.unit
