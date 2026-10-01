@@ -1,9 +1,9 @@
 ---
 name: "cli-check-skills"
-description: "lorecraft check skills: validating the frontmatter of each agent skill's SKILL.md against the Agent Skills specification, the name-matches-directory rule, duplicate keys, absolute and dangling fragment links in the body, how a skill is named on the command line, and the rule identifiers it reports. Load when a skill finding needs explaining, when running the skill check on its own, or when a skill is not checked"
+description: "lorecraft check skills: validating the frontmatter of each agent skill's SKILL.md against the Agent Skills specification, the name-matches-directory rule, duplicate keys, absolute and dangling fragment links in the body, the files a skill links in through `metadata`, how a skill is named on the command line, and the rule identifiers it reports. Load when a skill finding needs explaining, when running the skill check on its own, or when a skill is not checked"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft.cli.commands.check.skills,module:lorecraft.checks.skill,module:lorecraft.checks.frontmatter_duplicate,module:lorecraft.checks.skill_link,module:lorecraft.project.schemas.skill,module:lorecraft.project.schemas.skill_frontmatter,module:lorecraft.project.schemas.frontmatter_problem,module:lorecraft.project.skill"
+components: "module:lorecraft.cli.commands.check.skills,module:lorecraft.checks.skill,module:lorecraft.checks.frontmatter_duplicate,module:lorecraft.checks.skill_link,module:lorecraft.checks.skill_metadata,module:lorecraft.project.schemas.skill,module:lorecraft.project.schemas.skill_frontmatter,module:lorecraft.project.schemas.frontmatter_problem,module:lorecraft.project.skill"
 ---
 
 # `lorecraft check skills`
@@ -12,9 +12,10 @@ components: "module:lorecraft.cli.commands.check.skills,module:lorecraft.checks.
 
 `lorecraft check skills` validates the YAML frontmatter that opens each skill's `SKILL.md` against the
 [Agent Skills specification](https://agentskills.io/specification), and checks that the frontmatter `name`
-equals the name of the skill's directory. It also reports a link in the body that is absolute, and a fragment-only
-link that names no heading of the `SKILL.md`. It reads the skills the [workspace](workspace.md) lists, through
-whichever link an agent reaches them by. It is also one of the checks a bare `lorecraft check` runs.
+equals the name of the skill's directory. It also reports an absolute link in the body, a fragment link to no
+heading, and a file name listed twice under one `metadata` subkey. It reads the skills the
+[workspace](workspace.md) lists, through whichever link reaches them. It is one check a bare
+`lorecraft check` runs.
 
 ## Table of Contents
 
@@ -69,19 +70,19 @@ ungoverned, and `ungoverned` is always empty in the JSON report.
 
 ## Limitations
 
-- Beyond the frontmatter, only `SKILL.md`'s Markdown links are checked: for being absolute, or a bare `#fragment`
-  naming no heading. Neither `other.md#x` nor a fragment link in another skill file is checked.
-- A heading written as an HTML block (`<h2>`) has no anchor.
+- Beyond the frontmatter, only `SKILL.md`'s Markdown links are checked, as absolute or a bare `#fragment` naming
+  no heading. Neither `other.md#x` nor a fragment link in another file is checked.
+- An HTML heading (`<h2>`) has no anchor.
+- Only the `metadata` subkeys `references`, `scripts` and `assets` are read.
 - A skill entry or `SKILL.md` that is a symlink is read where it leads; one that dangles or leads outside the
   repository is not a skill, and is not reported.
 - Without `--root`, the root is found by its `docs/__meta__/`, so a repository with skills and no specifications
   needs `--root`.
 - A key repeated inside a nested mapping such as `metadata`, or a non-string key, is not reported as repeated.
 - A field supplied only through a YAML merge (`<<`) has no line of its own, so a finding about it is on line 1.
-- A key written as a YAML alias (`*k`) is placed on its anchor's line, so a finding about it, a repeated key
-  included, is there rather than on the alias's line.
+- A key written as a YAML alias (`*k`) is placed on its anchor's line, so a finding about it is there.
 - Run on its own, the check reads no document, so it accepts a root whose `docs/` or `docs/__meta__/` is a
-  symlink, which a check over documents refuses.
+  symlink; a check over documents refuses it.
 
 ## Findings
 
@@ -95,6 +96,8 @@ An optional field written with no value, such as `license:`, is read as absent a
 compared with the directory first, then the specification is applied, then repeated keys are reported, as the
 [frontmatter check](cli-check-frontmatter.md#findings) does. Every message is Lorecraft's own, so it does not
 change with the version of the library that validates the fields.
+
+A `skill.metadata-*` finding is on the line of the `metadata` key.
 
 A top-level key written again is a `skill.duplicate-key` finding, on the line of each occurrence after the first,
 and it suppresses no other finding; any other finding about that key is on the line of its last occurrence. The
@@ -112,6 +115,7 @@ and it suppresses no other finding; any other finding about that key is on the l
 | `skill.frontmatter` | The specification rejects the frontmatter as a whole |
 | `skill.link-absolute` | A link or image in the body has a destination that starts with `/`; the message shows the link decoded and asks for a link relative to the skill root |
 | `skill.link-fragment` | A link whose destination is only a `#fragment` names no heading of the `SKILL.md`, at any depth, by GitHub's anchors, regardless of case; the message shows the link decoded, and a bare `#` is not reported |
+| `skill.metadata-duplicate-name` | A path under a `metadata` subkey has the file name of an earlier one, so both link in as one path; the message names both |
 
 ## References
 
@@ -125,6 +129,7 @@ and it suppresses no other finding; any other finding about that key is on the l
 - `src/lorecraft/checks/skill.py` - The check of one skill's frontmatter
 - `src/lorecraft/checks/frontmatter_duplicate.py` - Reports a key written twice, for this check and the frontmatter check
 - `src/lorecraft/checks/skill_link.py` - Reports an absolute link or a dangling fragment link in the body of a `SKILL.md`
+- `src/lorecraft/checks/skill_metadata.py` - Reports a duplicate file name in a skill's `metadata`
 - `src/lorecraft/project/schemas/skill.py` - Holds a frontmatter to the specification, in Lorecraft's words
 - `src/lorecraft/project/schemas/skill_frontmatter.py` - Declares the specification's fields and their limits
 - `src/lorecraft/project/schemas/frontmatter_problem.py` - The problem shape both frontmatter schemas report in

@@ -1,0 +1,1 @@
+.agents/skills/review/SKILL.md:4: [skill.metadata-duplicate-name] `metadata.references` lists `docs/code/guide.md` and `docs/feat/guide.md`, which both link in as `references/guide.md`

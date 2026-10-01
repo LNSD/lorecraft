@@ -334,3 +334,53 @@ class TestRunSkills:
         assert [finding.rule for finding in run.findings()] == ['skill.undecodable'], (
             'a skill that is not UTF-8 is never parsed, so no link finding joins the undecodable one'
         )
+
+
+def _write_skill(root: Path, metadata: str) -> None:
+    """Write the skill ``.agents/skills/x/``, a plain directory, with its ``metadata`` block on line 4.
+
+    Args:
+        metadata: The lines of the ``metadata`` mapping, each indented and ending in a newline.
+    """
+    _write(
+        root, '.agents/skills/x/SKILL.md', f'---\nname: x\ndescription: A skill\nmetadata:\n{metadata}---\n'.encode()
+    )
+
+
+@pytest.mark.it
+class TestRunSkillsMetadata:
+    def test_run_skills_with_a_skill_repeating_a_file_name_reports_it_on_the_metadata_line(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/code/a.md')
+        _write(tmp_path, 'docs/feat/a.md')
+        _write_skill(tmp_path, '  references: docs/code/a.md docs/feat/a.md\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (
+            Finding(
+                path=RootRelativePath.parse('.agents/skills/x/SKILL.md'),
+                line=LineNumber(4),
+                rule='skill.metadata-duplicate-name',
+                message=(
+                    '`metadata.references` lists `docs/code/a.md` and `docs/feat/a.md`, '
+                    'which both link in as `references/a.md`'
+                ),
+            ),
+        ), 'writing a references list opts the skill into the convention, so the later path is reported'
+
+    def test_run_skills_with_metadata_listing_no_files_reports_nothing(self, tmp_path: Path) -> None:
+        #: Given
+        _write_skill(tmp_path, '  author: someone\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (), 'a skill whose metadata has no references, scripts or assets links nothing in'

@@ -1101,6 +1101,40 @@ class TestCheckSkillsCommand:
             'ungoverned': [],
         }, 'the skill is read through its link and reported where an agent finds it'
 
+    def test_check_skills_with_json_format_over_a_skill_repeating_a_file_name_reports_it(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/code/guide.md', '# Guide\n')
+        _write(tmp_path, 'docs/feat/guide.md', '# Guide\n')
+        _write(
+            tmp_path,
+            '.agents/skills/review/SKILL.md',
+            '---\nname: review\ndescription: Review a change\nmetadata:\n'
+            '  references: docs/code/guide.md docs/feat/guide.md\n---\n',
+        )
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 1,
+            'findings': [
+                {
+                    'file': '.agents/skills/review/SKILL.md',
+                    'line': 4,
+                    'rule': 'skill.metadata-duplicate-name',
+                    'message': (
+                        '`metadata.references` lists `docs/code/guide.md` and `docs/feat/guide.md`, '
+                        'which both link in as `references/guide.md`'
+                    ),
+                    'spec': None,
+                }
+            ],
+            'ungoverned': [],
+        }, 'the repeated file name is reported on the line of the metadata key'
+
     def test_check_skills_with_json_format_and_a_named_skill_checks_that_skill_alone(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, '.agents/skills/bare/SKILL.md', '# No frontmatter\n')
