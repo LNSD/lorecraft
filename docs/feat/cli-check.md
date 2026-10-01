@@ -30,7 +30,8 @@ their findings together. Every check shares the root discovery, output formats a
 
 - **Check**: One subcommand of the group, validating one part of a document against the
   `<stem>.<aspect>.json` specification files its path selects.
-- **Finding**: One broken rule, located: a root-relative path, a line, a rule identifier and a message.
+- **Finding**: One broken rule, located: a root-relative path, a line, a rule identifier and a message, and optionally
+  notes that help fix it.
 - **Governed**: A document is governed by a check when its corpus specification has a structure file and at
   least one structure file that applies to it states what the check reads. The structure check reads any
   file, so one stating only `tokens` or `frontmatter` governs the outline with no rule to hold it to. The
@@ -106,15 +107,33 @@ docs/feat/spec-demo.md:15: [structure.outline] expected section `Table of Conten
 checked 1 file(s) and 16 skill(s) with 4 check(s), 3 finding(s)
 ```
 
+A check may attach notes to a finding, each a `help` or a `note`. In text they follow the finding line, indented
+as `  = help: <text>` or `  = note: <text>`, with a multi-line text aligned under its first line. A note is not
+part of the message.
+
+```text
+docs/feat/spec-demo.md:1: [structure.outline] missing required section `Key Concepts` (per feat.md)
+  = help: The terms the document uses, defined once, in one line each; a term the whole toolkit uses is linked to the glossary instead of defined again.
+  = note: for example:
+          ## Key Concepts
+
+          - **Root**: The directory that holds `docs/__meta__/`; every path lorecraft prints is relative to it.
+          - **Corpus**: A directory directly under `docs/` whose documents specifications govern, named by the
+            directory.
+          - **Document**: A Markdown file directly inside a corpus directory.
+          - **Workspace model**: The corpora, their specifications and their documents, as found in one snapshot.
+```
+
 A named check counts only what it checks: `checked 1 file(s), 1 finding(s)`, or `checked 16 skill(s), 0
 finding(s)` for the skill check.
 
 In `json` format stdout is one JSON object and stderr is empty. A named check prints its report; a bare run
 prints every report under `checks`, keyed by check name, the skill check's among them. `spec` is the root-relative specification file
-stating the rule, or `null` for a rule the check holds itself. `lorecraft check frontmatter --format json`:
+stating the rule, or `null` for a rule the check holds itself. `notes` lists the finding's notes as `{"kind",
+"text"}` objects, and is empty when there are none. `lorecraft check frontmatter --format json`:
 
 ```json
-{"checked": 1, "findings": [{"file": "docs/feat/spec-demo.md", "line": 3, "rule": "feat.description", "message": "'A demo' does not match 'Load when' (per docs/__meta__/feat.structure.json)", "spec": "docs/__meta__/feat.structure.json"}], "ungoverned": []}
+{"checked": 1, "findings": [{"file": "docs/feat/spec-demo.md", "line": 3, "rule": "feat.description", "message": "'A demo' does not match 'Load when' (per docs/__meta__/feat.structure.json)", "spec": "docs/__meta__/feat.structure.json", "notes": []}], "ungoverned": []}
 ```
 
 ### Exit Status

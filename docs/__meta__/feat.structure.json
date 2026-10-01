@@ -1,6 +1,6 @@
 {
   "$schema": "../schemas/structure.spec.json",
-  "description": "Frontmatter, section structure, section word caps and token budget for a feature document in docs/feat/. The prose authorities are docs/__meta__/feat.md section 2 for the frontmatter, section 4 for the structure and section 6 for the caps and the budget; this file is their machine-checkable half. It is the base layer: a namespace layer, feat-<namespace>.structure.json, is applied on its own beside it and can only add to it. It states what every feature document carries whatever its type or namespace: Summary, Table of Contents and Key Concepts open it, the optional sections keep their relative order, sections the document invents for itself follow them, and References then Code References close it, both being references: one to other documents, one to the code. Usage and Code References are optional here for every type; which type requires or forbids them is a prose rule in feat.md section 4, checked by review, never a condition here. The word caps keep each section's prose concise: a word is a whitespace-delimited token of prose, and fenced code blocks and table rows are not counted, since examples and reference tables are what a feature document is for. A section's cap covers its H3 children, and the cap on the `any` run applies to each of its sections alone. Table of Contents, References and Code References carry no cap: each is a list of links. The token budget is on the whole file, frontmatter, code and tables included: what loading it costs an agent, in o200k_base tokens whichever agent reads it.",
+  "description": "Frontmatter, section structure, section word caps and token budget for a feature document in docs/feat/. The prose authorities are docs/__meta__/feat.md section 2 for the frontmatter, section 4 for the structure and section 6 for the caps and the budget; this file is their machine-checkable half. It is the base layer: a namespace layer, feat-<namespace>.structure.json, is applied on its own beside it and can only add to it. It states what every feature document carries whatever its type or namespace: Summary, Table of Contents and Key Concepts open it, the optional sections keep their relative order, sections the document invents for itself follow them, and References then Code References close it, both being references: one to other documents, one to the code. Usage and Code References are optional here for every type; which type requires or forbids them is a prose rule in feat.md section 4, checked by review, never a condition here. The word caps keep each section's prose concise: a word is a whitespace-delimited token of prose, and fenced code blocks and table rows are not counted, since examples and reference tables are what a feature document is for. A section's cap covers its H3 children, and the cap on the `any` run applies to each of its sections alone. Table of Contents, References and Code References carry no cap: each is a list of links. Each named section also carries a `description`, what the section holds, and `examples`, samples of its body drawn from the corpus's own documents: an author whose document lacks the section is shown the description and the first example, and the rest serve a reader of this file. The token budget is on the whole file, frontmatter, code and tables included: what loading it costs an agent, in o200k_base tokens whichever agent reads it.",
   "frontmatter": {
     "type": "object",
     "required": ["name", "description", "type", "status", "components"],
@@ -44,15 +44,66 @@
   "empty_sections": "forbidden",
   "tokens": 4000,
   "outline": [
-    { "section": "Summary", "words": 80 },
-    { "section": "Table of Contents" },
-    { "section": "Key Concepts", "words": 200 },
-    { "section": "Architecture", "optional": true, "words": 400 },
-    { "section": "Configuration", "optional": true, "words": 300 },
-    { "section": "Usage", "optional": true, "words": 400 },
-    { "section": "Limitations", "optional": true, "words": 200 },
+    {
+      "section": "Summary",
+      "words": 80,
+      "description": "Two to four sentences expanding on the frontmatter description: what the feature does, why it exists and its primary use.",
+      "examples": ["`lorecraft check budget` counts the tokens in each document's whole file and compares the count with the\n`tokens` budget of every structure specification that applies to the document. The count is what loading the\ndocument costs an agent, so it includes the frontmatter, code blocks and tables that word caps leave out. It is\nalso one of the checks a bare `lorecraft check` runs."]
+    },
+    {
+      "section": "Table of Contents",
+      "description": "Links to the sections below it, one numbered entry per section, starting at Key Concepts.",
+      "examples": ["1. [Key Concepts](#key-concepts)\n2. [Configuration](#configuration)\n3. [Usage](#usage)\n4. [Limitations](#limitations)\n5. [Findings](#findings)\n6. [References](#references)\n7. [Code References](#code-references)"]
+    },
+    {
+      "section": "Key Concepts",
+      "words": 200,
+      "description": "The terms the document uses, defined once, in one line each; a term the whole toolkit uses is linked to the glossary instead of defined again.",
+      "examples": ["- **Root**: The directory that holds `docs/__meta__/`; every path lorecraft prints is relative to it.\n- **Corpus**: A directory directly under `docs/` whose documents specifications govern, named by the\n  directory.\n- **Document**: A Markdown file directly inside a corpus directory.\n- **Workspace model**: The corpora, their specifications and their documents, as found in one snapshot."]
+    },
+    {
+      "section": "Architecture",
+      "optional": true,
+      "words": 400,
+      "description": "How the feature fits together: data flow and component interaction. Included only when the flow is not obvious from the usage examples.",
+      "examples": ["### Root Discovery\n\nWithout `--root`, the root is the nearest of the working directory and its parents that holds a\n`docs/__meta__/` directory. With `--root`, the given directory is the root, and it must exist. Either way it is\nresolved with symlinks followed, and every path printed is relative to it.\n\n### One Run, One Snapshot\n\nEvery check in a run reads the same snapshot. Every specification is loaded and validated before any check\nruns, so one malformed specification file stops the whole run rather than one document."]
+    },
+    {
+      "section": "Configuration",
+      "optional": true,
+      "words": 300,
+      "description": "Options, their defaults and where they are read from, usually as a table.",
+      "examples": ["| Key | Value | Meaning |\n|-----|-------|---------|\n| `title` | `{\"count\": <n>, \"first\": <bool>}` | How many H1 titles a document holds, and whether one comes before any section |\n| `empty_sections` | `\"forbidden\"` | Every heading must have content under it |\n| `outline` | list of entries | `{\"section\": \"<name>\"}`, with `\"optional\": true` when it may be left out, or `{\"any\": true}` |\n| `forbidden` | list of names | Sections that must not appear anywhere |\n\nEvery key is optional."]
+    },
+    {
+      "section": "Usage",
+      "optional": true,
+      "words": 400,
+      "description": "How to invoke the feature, with working examples in fenced blocks: the command a reader types and what it prints. Required for a feature document, forbidden for a meta document.",
+      "examples": [
+        "```bash\n# Check the token budget of every document\nlorecraft check budget\n\n# Check one document just written\nlorecraft check budget docs/feat/cli-check-budget.md\n```\n\nA document over budget reports one finding on line 1 for each specification whose budget it exceeds, naming\nthe count, the budget and the specification file. With a `feat` budget of 100:\n\n```text\ndocs/feat/cli-check-budget.md:1: [budget.tokens] 1001 tokens; the budget is 100 (per feat.structure.json)\nchecked 1 file(s), 1 finding(s)\n```",
+        "### Caps and a Budget\n\n```json\n{\n  \"$schema\": \"../schemas/structure.spec.json\",\n  \"tokens\": 5000,\n  \"outline\": [\n    { \"any\": true, \"words\": 350 },\n    { \"section\": \"Checklist\", \"words\": 250 },\n    { \"section\": \"References\", \"optional\": true }\n  ]\n}\n```\n\nEach section a document names for itself holds at most 350 words, `Checklist` at most 250, and `References`\nis not capped. The whole file holds at most 5000 tokens."
+      ]
+    },
+    {
+      "section": "Limitations",
+      "optional": true,
+      "words": 200,
+      "description": "The feature's known constraints, as a short list.",
+      "examples": ["- The outline is matched on H2 headings only; H3 subsections are counted in their section's words but never\n  required, ordered or forbidden.\n- The outline reports its first divergence and stops, since every later section would be measured against an\n  entry it was never meant to match. Fix it and run again to see the next.\n- The `tokens` budget a structure specification may set is not read here; `lorecraft check budget` applies it."]
+    },
     { "any": true, "words": 300 },
-    { "section": "References", "optional": true },
-    { "section": "Code References", "optional": true }
+    {
+      "section": "References",
+      "optional": true,
+      "description": "Cross-references to other feature documents, one per line with the relationship named first (Dependency, Alternative, Related, Extended by or Base), linking up to the base and never down to an extension.",
+      "examples": ["- [cli-check](cli-check.md) - Base: root discovery, document selection, output and exit status\n- [spec-structure-budget](spec-structure-budget.md) - Dependency: the `tokens` key this check reads\n- [cli-check-structure](cli-check-structure.md) - Related: the per-section word caps from the same specification"]
+    },
+    {
+      "section": "Code References",
+      "optional": true,
+      "description": "The source files behind the feature, one entry per line and never wrapped, each naming a file and how it relates to the feature without explaining its logic. Required for a component document, forbidden for a meta document.",
+      "examples": ["- `src/lorecraft/cli/commands/check/budget.py` - Declares the command and registers the check with the group\n- `src/lorecraft/checks/budget.py` - The check of one document's token count\n- `src/lorecraft/project/syntax/tokens.py` - Counts tokens, with the vocabulary shipped in the package"]
+    }
   ]
 }

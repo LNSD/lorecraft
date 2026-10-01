@@ -9,10 +9,26 @@
     }
   },
   "outline": [
-    { "section": "Rule" },
-    { "section": "Examples" },
-    { "section": "Why It Matters" },
-    { "section": "Pragmatism Caveat" },
+    {
+      "section": "Rule",
+      "description": "A clear, actionable statement of what to do and what not to do, including guidance on how to recognize violations.",
+      "examples": ["A function or method may only talk to its immediate collaborators. Do not reach through chains of values to\nget at something buried deep in the object graph. A method `m` of a class `T` may only call methods on `T`\nitself (`self`), on values passed as arguments to `m`, on values `m` created, and on values held in `T`'s own\nattributes.\n\nIf you write `a.b().c().do_something()` — or `a.b.c.do_something()` — you are violating the principle. Stop at\n`a.b()`: if you need something from `c`, ask `a` (or `b`) to hand you the value, or accept the value as a\nparameter."]
+    },
+    {
+      "section": "Examples",
+      "description": "At least one and recommended no more than five Bad/Good pairs in Python, Bad first, idiomatic for this project (Python 3.12, single-quoted strings, type annotations on every signature), each with a brief context and comments saying why it is bad or good. Examples are fabricated and cite no module; several are a numbered list.",
+      "examples": ["1. **Ask the collaborator, don't navigate its internals**\n   A registry owns a `dict[str, FormatSpec]`, the key scheme, and the \"is this corpus specified\" decision.\n\n```python\n# ❌ Bad — reaches through the registry into its dict and through the spec into its schema.\n# This caller now depends on the key being the corpus name, on specs being stored in a plain\n# dict, and on the spec exposing a raw schema. Any of the three changing breaks it.\ndef check_frontmatter(registry: SpecRegistry, document: Document) -> list[Finding]:\n    spec = registry._specs[document.corpus]\n    return spec._schema.validate(document.frontmatter)\n```\n\n```python\n# ✅ Good — one call to the immediate collaborator, which answers the question completely.\ndef check_frontmatter(registry: SpecRegistry, document: Document) -> list[Finding]:\n    binding = registry.spec_for(document.corpus)\n    if binding.status is SpecStatus.UNSPECIFIED:\n        raise UnspecifiedCorpusError(binding.reason)\n    return binding.spec.validate(document.frontmatter)\n```"]
+    },
+    {
+      "section": "Why It Matters",
+      "description": "The practical consequences of violating the principle and the benefits of following it, focused on maintenance burden, coupling, bug risk and testability.",
+      "examples": ["Reach-through chains turn a private implementation detail into a public contract by accident. When a registry\nchanges its lookup key from the corpus name to `(corpus, document_type)`, every caller that read its dict\nbreaks — and nothing told you those callers existed. Keeping to immediate collaborators lets a module\nrestructure its internals as long as its methods keep their meaning."]
+    },
+    {
+      "section": "Pragmatism Caveat",
+      "description": "When deviation from the principle is acceptable and what documentation it requires; it must state that undocumented violations are always wrong.",
+      "examples": ["A short reach-through is occasionally the honest choice: navigating a plain data structure you own (a parsed\nfrontmatter mapping, an outline you just built) is reading data, not coupling. The rule targets navigation\nthrough _behavioral_ values that could hide their internals. When you deliberately reach through one, add a\ncomment explaining why the alternatives (a delegating method on the direct collaborator, or passing the value\nin) were rejected. An undocumented violation is always wrong."]
+    },
     { "any": true }
   ]
 }

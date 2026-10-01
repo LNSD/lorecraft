@@ -9,10 +9,26 @@
     }
   },
   "outline": [
-    { "section": "Rule" },
-    { "section": "Examples" },
-    { "section": "Why It Matters" },
-    { "section": "Pragmatism Caveat" },
+    {
+      "section": "Rule",
+      "description": "A clear, actionable statement of what the pattern solves and when to apply it, including how to recognize the situations where the pattern is needed.",
+      "examples": ["When independently defined handlers join an open set of commands, register each handler under its public name beside its definition. Discover the handler modules once before mounting commands. The router reads the registered names in a stable order and does not contain a branch or import for each command.\n\nReject a name already bound to a different handler. Import failures for built-in commands must propagate: silently skipping a module would publish an incomplete command surface. Keep registration separate from execution; a registration decorator returns the original callable unchanged."]
+    },
+    {
+      "section": "Examples",
+      "description": "At least one and recommended no more than five Bad/Good pairs in Python, Bad first, each with a brief context and comments saying why it is bad or good. Examples are fabricated and cite no module; several are a numbered list.",
+      "examples": ["A command family grows without changing the router:\n\n```python\n# ❌ Bad — every command adds another branch to the central router.\ndef run_command(name: str) -> None:\n    if name == 'check':\n        check()\n    elif name == 'version':\n        version()\n    else:\n        raise ValueError(f'unknown command: {name}')\n```\n\n```python\n# ✅ Good — each handler registers its name where it is defined.\nfrom collections.abc import Callable\n\nHandler = Callable[[], None]\nhandlers: dict[str, Handler] = {}\n\n\ndef register(name: str, handler: Handler) -> None:\n    if name in handlers and handlers[name] is not handler:\n        raise ValueError(f'duplicate command: {name}')\n    handlers[name] = handler\n\n\ndef run_command(name: str) -> None:\n    handlers[name]()\n\n\nregister('check', check)\nregister('version', version)\n```"]
+    },
+    {
+      "section": "Why It Matters",
+      "description": "The practical consequences of not using the pattern and the benefits of applying it, focused on type safety, failure modes caught early, maintainability and correctness.",
+      "examples": ["A central branch or import list makes every new command edit the same file. Registration keeps the new name beside its handler, while duplicate detection prevents one handler from silently replacing another. One-time discovery makes registration available before dispatch and avoids repeated import work."]
+    },
+    {
+      "section": "Pragmatism Caveat",
+      "description": "When the pattern is overkill and a simpler alternative suffices; every pattern must acknowledge when not to use it.",
+      "examples": ["Use a direct call or a small fixed mapping for a closed set of choices. Package discovery is useful when commands live in separate modules and can grow independently. It adds indirection, so keep the registration path simple and let failures from built-in modules surface immediately."]
+    },
     { "any": true }
   ]
 }

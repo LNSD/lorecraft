@@ -1,5 +1,5 @@
 {
-  "description": "The corpus layer: a frontmatter carrying a name, one title first, no empty section, a Checklist after the document's own sections, and a token budget each document fits.",
+  "description": "The corpus layer: a frontmatter carrying a name, one title first, no empty section, a Checklist after the document's own sections, described with examples, and a token budget each document fits.",
   "frontmatter": {
     "type": "object",
     "required": ["name"],
@@ -12,7 +12,14 @@
   "tokens": 100,
   "outline": [
     { "any": true },
-    { "section": "Checklist" },
+    {
+      "section": "Checklist",
+      "description": "The items a reviewer verifies before committing a change the rule document governs.",
+      "examples": [
+        "Before committing code, verify:\n\n- [ ] Every module that logs has exactly one `logger = logging.getLogger(__name__)` after its imports\n- [ ] No logger is stored as `self.logger` or any other instance or class attribute\n- [ ] Every log call inside an `except` block uses `logger.exception(...)`",
+        "Before committing code, verify:\n\n- [ ] Every public function, method, and `__init__` has annotated parameters and an explicit return type\n- [ ] Each `Any` is an opaque third-party value, a `**kwargs` passthrough, or unvalidated input, and the reason is stated\n- [ ] An alternative constructor that constructs `cls` returns `Self`"
+      ]
+    },
     { "section": "References", "optional": true }
   ]
 }

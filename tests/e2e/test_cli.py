@@ -339,6 +339,8 @@ class TestCheckFrontmatterSnapshots:
 class TestCheckStructureSnapshots:
     # Every finding prints root-relative, so the output is the same in every checkout and nothing is redacted.
     # The fixture's documents are a bare title, so each run reports findings, from both layers, and exits 1.
+    # The corpus layer describes its Checklist and gives an example of it, and the python layer describes its
+    # References alone, so each missing section prints the notes its entry states.
 
     def test_check_structure_without_a_root_in_the_workspace_fixture_prints_the_findings(
         self, snapshot: SnapshotAssertion

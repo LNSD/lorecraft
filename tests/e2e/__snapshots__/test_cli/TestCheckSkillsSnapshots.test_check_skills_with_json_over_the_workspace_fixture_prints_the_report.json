@@ -1,1 +1,1 @@
-{"checked": 3, "findings": [{"file": ".agents/skills/beta/SKILL.md", "line": 2, "rule": "skill.name-matches-directory", "message": "`name` is 'alpha'; expected 'beta', the name of the skill directory", "spec": null}], "ungoverned": []}
+{"checked": 3, "findings": [{"file": ".agents/skills/beta/SKILL.md", "line": 2, "rule": "skill.name-matches-directory", "message": "`name` is 'alpha'; expected 'beta', the name of the skill directory", "spec": null, "notes": []}], "ungoverned": []}

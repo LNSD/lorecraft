@@ -1,9 +1,9 @@
 {
-  "description": "The python layer, applied as well as the corpus one: References is required, and a token budget of 3 tightens the corpus one below what its document holds.",
+  "description": "The python layer, applied as well as the corpus one: References is required and described, and a token budget of 3 tightens the corpus one below what its document holds.",
   "tokens": 3,
   "outline": [
     { "any": true },
-    { "section": "References" },
+    { "section": "References", "description": "Links to the documents this one builds on." },
     { "any": true }
   ]
 }

@@ -381,11 +381,16 @@ def _json_skill_report(run: SkillCheckRun) -> dict[str, object]:
 def _json_findings(findings: tuple[Finding, ...]) -> list[dict[str, object]]:
     """The findings as JSON objects, in the order given.
 
+    Every object carries `notes`, an empty list for a finding without any, so each has the same keys.
+
     Args:
         findings: The findings to encode; each becomes one object, in this order.
     """
     objects: list[dict[str, object]] = []
     for finding in findings:
+        notes: list[dict[str, str]] = []
+        for note in finding.notes:
+            notes.append({'kind': note.kind.value, 'text': note.text})
         objects.append(
             {
                 'file': str(finding.path),
@@ -393,6 +398,7 @@ def _json_findings(findings: tuple[Finding, ...]) -> list[dict[str, object]]:
                 'rule': finding.rule,
                 'message': finding.message,
                 'spec': None if finding.spec is None else str(finding.spec),
+                'notes': notes,
             }
         )
     return objects

@@ -1,4 +1,4 @@
-"""Structure validation over a document's headings, with each section's prose words.
+"""Structure validation over a document's headings, with each section's prose words, and a missing section's notes.
 
 ``validate_structure`` is pure, so every case here is a text literal parsed in memory and an in-memory
 structure aspect; no document and no specification file is read.
@@ -12,6 +12,7 @@ from lorecraft.project.layout import SPECS_DIR
 from lorecraft.project.schemas import AnySections, OutlineEntry, SectionEntry, StructureAspect, TitleRule
 from lorecraft.project.syntax import LineNumber, parse_document
 
+from ..reporting import Note, NoteKind
 from ..structure import validate_structure
 
 # The outline of a rule document: its own sections, then the Checklist, then an optional References.
@@ -19,6 +20,43 @@ RULE_OUTLINE: Final[tuple[OutlineEntry, ...]] = (
     AnySections(),
     SectionEntry(name='Checklist'),
     SectionEntry(name='References', optional=True),
+)
+
+# What a rule document's Checklist holds, as the outline entry naming it states it.
+CHECKLIST_DESCRIPTION: Final[str] = (
+    'The items a reviewer verifies before committing a change the rule document governs.'
+)
+
+# The body of the Checklist of docs/code/logging.md, trimmed: an example of a rule document's Checklist.
+LOGGING_CHECKLIST: Final[str] = (
+    'Before committing code, verify:\n'
+    '\n'
+    '- [ ] Every module that logs has exactly one `logger = logging.getLogger(__name__)` after its imports\n'
+    '- [ ] No logger is stored as `self.logger` or any other instance or class attribute\n'
+    '- [ ] No log call sits in a per-line loop, whatever its level'
+)
+
+# The body of the Checklist of docs/code/python-docstrings.md, trimmed: a second example of the same section.
+DOCSTRINGS_CHECKLIST: Final[str] = (
+    'Before committing code, verify:\n'
+    '\n'
+    '- [ ] Every new class and public function has a docstring whose first line is a one-line summary\n'
+    '- [ ] No `Returns:` section restates the return annotation\n'
+    '- [ ] A generator documents `Yields:`, never `Returns:`'
+)
+
+# What a feature document's Usage holds, as the outline entry naming it states it.
+USAGE_DESCRIPTION: Final[str] = 'How to run the feature, each invocation commented with what it does.'
+
+# The body of the Usage of docs/feat/cli-check-budget.md, trimmed: an example of a feature document's Usage.
+BUDGET_USAGE: Final[str] = (
+    '```bash\n'
+    '# Check the token budget of every document\n'
+    'lorecraft check budget\n'
+    '\n'
+    '# Check one document just written\n'
+    'lorecraft check budget docs/feat/cli-check-budget.md\n'
+    '```'
 )
 
 
@@ -382,3 +420,106 @@ class TestValidateStructure:
         assert [violation.message for violation in result.violations] == [
             'section `Rule` is 3 prose words; the cap is 2 (per code-python.md)',
         ], 'the namespace layer tightens the corpus cap, and the violation quotes the layer that set it'
+
+
+@pytest.mark.unit
+class TestValidateStructureOutlineNotes:
+    def test_validate_structure_without_a_described_section_reports_its_description_and_example(self) -> None:
+        #: Given
+        text = '## Rule\n\ntext\n'
+        document = parse_document(text)
+        checklist = SectionEntry(name='Checklist', description=CHECKLIST_DESCRIPTION, examples=(LOGGING_CHECKLIST,))
+        aspects = (_aspect(outline=(AnySections(), checklist)),)
+
+        #: When
+        result = validate_structure(aspects, headings=document.headings)
+
+        #: Then
+        assert [violation.notes for violation in result.violations] == [
+            (
+                Note(NoteKind.HELP, CHECKLIST_DESCRIPTION),
+                Note(NoteKind.NOTE, f'for example:\n## Checklist\n\n{LOGGING_CHECKLIST}'),
+            )
+        ], 'a missing section carries its description as help, then its example under its heading as a note'
+
+    def test_validate_structure_without_a_section_stating_several_examples_reports_only_the_first(self) -> None:
+        #: Given
+        text = '## Rule\n\ntext\n'
+        document = parse_document(text)
+        checklist = SectionEntry(name='Checklist', examples=(LOGGING_CHECKLIST, DOCSTRINGS_CHECKLIST))
+        aspects = (_aspect(outline=(AnySections(), checklist)),)
+
+        #: When
+        result = validate_structure(aspects, headings=document.headings)
+
+        #: Then
+        assert [violation.notes for violation in result.violations] == [
+            (Note(NoteKind.NOTE, f'for example:\n## Checklist\n\n{LOGGING_CHECKLIST}'),)
+        ], 'only the first example is reported; the rest are for a reader of the specification'
+
+    def test_validate_structure_with_another_section_where_a_described_one_belongs_reports_its_notes(
+        self,
+    ) -> None:
+        #: Given
+        text = '## Summary\n\ntext\n\n## Rule\n\ntext\n'
+        document = parse_document(text)
+        usage = SectionEntry(name='Usage', description=USAGE_DESCRIPTION, examples=(BUDGET_USAGE,))
+        aspects = (_aspect(outline=(SectionEntry(name='Summary'), usage)),)
+
+        #: When
+        result = validate_structure(aspects, headings=document.headings)
+
+        #: Then
+        assert [(violation.message, violation.notes) for violation in result.violations] == [
+            (
+                'expected section `Usage`, found `Rule` (per code.md)',
+                (
+                    Note(NoteKind.HELP, USAGE_DESCRIPTION),
+                    Note(NoteKind.NOTE, f'for example:\n## Usage\n\n{BUDGET_USAGE}'),
+                ),
+            )
+        ], 'a section found where the described one belongs carries the same notes as a missing one'
+
+    def test_validate_structure_without_a_section_stating_only_a_description_reports_only_help(self) -> None:
+        #: Given
+        text = '## Rule\n\ntext\n'
+        document = parse_document(text)
+        checklist = SectionEntry(name='Checklist', description=CHECKLIST_DESCRIPTION)
+        aspects = (_aspect(outline=(AnySections(), checklist)),)
+
+        #: When
+        result = validate_structure(aspects, headings=document.headings)
+
+        #: Then
+        assert [violation.notes for violation in result.violations] == [
+            (Note(NoteKind.HELP, CHECKLIST_DESCRIPTION),)
+        ], 'an entry without an example adds no example note'
+
+    def test_validate_structure_without_a_section_stating_only_an_example_reports_only_the_example(self) -> None:
+        #: Given
+        text = '## Rule\n\ntext\n'
+        document = parse_document(text)
+        checklist = SectionEntry(name='Checklist', examples=(LOGGING_CHECKLIST,))
+        aspects = (_aspect(outline=(AnySections(), checklist)),)
+
+        #: When
+        result = validate_structure(aspects, headings=document.headings)
+
+        #: Then
+        assert [violation.notes for violation in result.violations] == [
+            (Note(NoteKind.NOTE, f'for example:\n## Checklist\n\n{LOGGING_CHECKLIST}'),)
+        ], 'an entry without a description adds no help'
+
+    def test_validate_structure_without_a_section_stating_neither_reports_no_notes(self) -> None:
+        #: Given
+        text = '## Rule\n\ntext\n'
+        document = parse_document(text)
+        aspects = (_aspect(outline=RULE_OUTLINE),)
+
+        #: When
+        result = validate_structure(aspects, headings=document.headings)
+
+        #: Then
+        assert [violation.notes for violation in result.violations] == [()], (
+            'an entry stating neither key reports the bare finding, as before'
+        )

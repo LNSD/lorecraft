@@ -13,7 +13,11 @@
   },
   "outline": [
     { "any": true },
-    { "section": "References" },
+    {
+      "section": "References",
+      "description": "Links to the document's neighbours, one entry each: a parent it specializes as Extends, first in the list; siblings as Related; a principle document as Foundation. Each description says what the reader gets by following the link.",
+      "examples": ["- [python-fn](python-fn.md) - Extends: Owns parameter kinds and defaults of the functions named here\n- [python-fn-conv](python-fn-conv.md) - Related: Owns `as_`/`to_`, `from_`/`parse_`/`load_`, and `with_`\n- [python-fn-unchecked](python-fn-unchecked.md) - Related: Owns the `_unchecked` constructor and its proof\n- [python-naming](python-naming.md) - Related: Owns casing and the leading-underscore privacy boundary\n- [principle-least-surprise](principle-least-surprise.md) - Foundation: Why a name that contradicts its cost\n  or its effect is a defect"]
+    },
     { "any": true }
   ]
 }
