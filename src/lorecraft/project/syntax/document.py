@@ -66,8 +66,11 @@ def parse_document(text: str) -> ParsedDocument:
 
     The frontmatter block is found by wenmode's frontmatter plugin: a ``---`` line as the document's first line,
     closed by the next ``---`` line, each allowing trailing whitespace only. The plugin hands the lines between
-    them to ``decode_frontmatter``, which never raises, so a broken block cannot fail the parse. A document with
-    no such block has ``MissingFrontmatter``.
+    them to `decode_frontmatter`, which never raises, so a broken block cannot fail the parse. A document with
+    no such block has `MissingFrontmatter`.
+
+    Args:
+        text: The document's whole text, frontmatter block included; empty parses to a document with none.
     """
     # A parser is built per call rather than shared: wenmode parsers are mutable, and one costs a small fraction
     # of what parsing a document does.
@@ -85,22 +88,29 @@ def parse_document(text: str) -> ParsedDocument:
 def parse_frontmatter(text: str) -> FrontmatterNode:
     """Parse only the frontmatter block of one document's text. Pure: raises nothing.
 
-    Equal to ``parse_document(text).frontmatter`` for every text. The block is found by the same wenmode plugin,
+    Equal to `parse_document(text).frontmatter` for every text. The block is found by the same wenmode plugin,
     and the plugin only ever claims the document's first line, where it is tried before every Markdown rule, so
     what it finds does not depend on the rules. This parser loads none of them: the rest of the text is read as plain
     paragraphs, which costs a small fraction of the full parse.
+
+    Args:
+        text: The document's whole text, frontmatter block included.
     """
     markdown = Wenmode(rules=(), plugins=[_frontmatter_plugin()])
     return _frontmatter(markdown.parse(text))
 
 
 def _frontmatter_plugin() -> FrontmatterPlugin:
-    """wenmode's frontmatter plugin, decoding the block with ``decode_frontmatter`` into the root's data."""
+    """The frontmatter plugin of wenmode, decoding the block with ``decode_frontmatter`` into the root's data."""
     return frontmatter.configure(load=decode_frontmatter, data_key=_FRONTMATTER_KEY)
 
 
 def _frontmatter(root: Root) -> FrontmatterNode:
-    """The frontmatter node the plugin left on a parsed root, or ``MissingFrontmatter`` when it found no block."""
+    """The frontmatter node the plugin left on a parsed root, or `MissingFrontmatter` when it found no block.
+
+    Args:
+        root: Root of a tree parsed with the frontmatter plugin; its `data` holds the decoded block, if any.
+    """
     if root.data is None or _FRONTMATTER_KEY not in root.data:
         return MissingFrontmatter()
     # The plugin stores whatever its loader returned, and the loader is `decode_frontmatter`.
@@ -144,9 +154,12 @@ def _anchors(root: Root) -> frozenset[Anchor]:
 
     The whole tree is read, unlike for ``_headings``: a heading in a list item or a blockquote still renders with
     an anchor a link can name. Headings take their anchors in document order. The first heading to take an anchor
-    keeps it bare; the next one with the same anchor gets ``-1`` added, the one after that ``-2``, and so on. A
-    numbered anchor another heading already holds is skipped, so ``Foo 1``, ``Foo``, ``Foo`` give ``foo-1``,
-    ``foo`` and ``foo-2``: no two headings share an anchor.
+    keeps it bare; the next one with the same anchor gets `-1` added, the one after that `-2`, and so on. A
+    numbered anchor another heading already holds is skipped, so `Foo 1`, `Foo`, `Foo` give `foo-1`,
+    `foo` and `foo-2`: no two headings share an anchor.
+
+    Args:
+        root: Root of the parsed document, whose whole tree is read.
     """
     # Every anchor taken so far, each mapped to how many times it has been numbered as a bare anchor.
     occurrences: dict[Anchor, int] = {}
@@ -165,7 +178,10 @@ def _rendered_text(nodes: list[Node]) -> str:
 
     Text and inline code give their text, and emphasis, a link and any other container give their children's.
     Inline HTML gives nothing, since GitHub renders it as markup rather than text, and neither does an image: the
-    rendered ``<img>`` holds no text. That is where this differs from wenmode's ``plain_text``, which keeps both.
+    rendered `<img>` holds no text. That is where this differs from wenmode's `plain_text`, which keeps both.
+
+    Args:
+        nodes: Inline children of a heading, in order; nested containers are read recursively.
     """
     parts: list[str] = []
     for node in nodes:
@@ -179,7 +195,11 @@ def _rendered_text(nodes: list[Node]) -> str:
 
 
 def _heading_nodes(node: Node) -> list[WenmodeHeading]:
-    """Every wenmode heading in the node and below it, the node itself included, in document order."""
+    """Every wenmode heading in the node and below it, the node itself included, in document order.
+
+    Args:
+        node: Root of the subtree to search; a leaf is searched as itself.
+    """
     headings: list[WenmodeHeading] = []
     if isinstance(node, WenmodeHeading):
         headings.append(node)
@@ -194,6 +214,10 @@ def _links(text: str, node: Node) -> list[Link]:
 
     The whole tree is walked, unlike for the headings: a link in a list item or a blockquote is as much the
     document's as one in a top-level paragraph. An image inside a link's text comes after that link.
+
+    Args:
+        text: The document's text, which the nodes' positions index into to give each link its line.
+        node: Root of the subtree to search; a leaf is searched as itself.
     """
     links: list[Link] = []
     if isinstance(node, WenmodeLink | Image):
@@ -231,6 +255,10 @@ def _prose_words(text: str, block: Node) -> int:
     A heading and a code block, fenced or indented, hold none, and neither does a code block nested in the block,
     such as one inside a list item. The rest is counted from its source text rather than from its parsed inlines,
     so a link counts as the words its source is written with.
+
+    Args:
+        text: The document's text, which the block's position indexes into.
+        block: One of the root's own blocks; it must carry a position.
     """
     if isinstance(block, WenmodeHeading):
         return 0
@@ -249,6 +277,9 @@ def _code_spans(node: Node) -> list[Position]:
     """Where each code block in the node sits, the node itself included, in document order.
 
     A code block holds text, never another block, so no span found here contains another.
+
+    Args:
+        node: Root of the subtree to search; a leaf is searched as itself.
     """
     if isinstance(node, Code):
         if node.position is None:
@@ -265,7 +296,11 @@ def _code_spans(node: Node) -> list[Position]:
 
 
 def _source_words(source: str) -> int:
-    """The whitespace-delimited tokens of a stretch of Markdown source, table rows left out."""
+    """The whitespace-delimited tokens of a stretch of Markdown source, table rows left out.
+
+    Args:
+        source: Markdown source with no code block in it; a line starting with `|` is skipped as a table row.
+    """
     words = 0
     for line in source.splitlines():
         # The parser has no table extension, so a table is read as a paragraph of `|` lines. Those lines are
@@ -277,10 +312,14 @@ def _source_words(source: str) -> int:
 
 
 def _line(text: str, node: Node) -> LineNumber:
-    """The document line a node starts on, a block or an inline alike.
+    r"""The document line a node starts on, a block or an inline alike.
 
     wenmode reports a node's position as a character offset into the text; every line before the offset ends in
-    a ``\\n``, a ``\\r\\n`` included.
+    a `\n`, a `\r\n` included.
+
+    Args:
+        text: The document's text, which the node's position indexes into.
+        node: Node to locate; it must carry a position.
     """
     if node.position is None:
         raise AssertionError('unreachable: the parser is built with positions=True, so every node has a position')

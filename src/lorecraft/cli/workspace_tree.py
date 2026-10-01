@@ -42,6 +42,10 @@ def render_text(root: Path, model: WorkspaceModel) -> str:
     directory is followed by the real directory it leads to when it is a link, and a skill by the agents
     that read it.
 
+    Args:
+        root: The workspace root, drawn as the first line.
+        model: Corpora, agent skills directories and skills to draw, each in the order the model lists them.
+
     Returns:
         The lines, newline-separated, without a trailing newline.
     """
@@ -58,7 +62,11 @@ def render_text(root: Path, model: WorkspaceModel) -> str:
 def render_json(root: Path, model: WorkspaceModel) -> str:
     """Encode the model as indented JSON, the root beside one key per section.
 
-    The keys are ``root``, ``corpora``, ``agent_skills_dirs`` and ``skills``.
+    The keys are `root`, `corpora`, `agent_skills_dirs` and `skills`.
+
+    Args:
+        root: The workspace root, written under the `root` key.
+        model: Corpora, agent skills directories and skills to encode, one key per section.
     """
     corpora: list[dict[str, object]] = []
     for corpus in model.corpora:
@@ -81,7 +89,13 @@ def render_json(root: Path, model: WorkspaceModel) -> str:
 
 
 def _draw(nodes: tuple[_Line, ...], prefix: str, lines: list[str]) -> None:
-    """Append one line per node, and recurse into each node's children with the indent it leaves."""
+    """Append one line per node, and recurse into each node's children with the indent it leaves.
+
+    Args:
+        nodes: The sibling lines to draw at this depth; the last one takes the closing branch.
+        prefix: The indent text already accumulated from the ancestors, written before each branch.
+        lines: The output, to which the drawn lines are appended in place.
+    """
     for index, node in enumerate(nodes):
         is_last = index == len(nodes) - 1
         branch = _LAST_BRANCH if is_last else _BRANCH
@@ -91,7 +105,11 @@ def _draw(nodes: tuple[_Line, ...], prefix: str, lines: list[str]) -> None:
 
 
 def _corpora_section(corpora: tuple[Corpus, ...]) -> _Line:
-    """``corpora (N)``, then per corpus its specs and its documents."""
+    """`corpora (N)`, then per corpus its specs and its documents.
+
+    Args:
+        corpora: The corpora to draw, in the order the model lists them.
+    """
     corpus_lines: list[_Line] = []
     for corpus in corpora:
         corpus_lines.append(_corpus_line(corpus))
@@ -99,7 +117,11 @@ def _corpora_section(corpora: tuple[Corpus, ...]) -> _Line:
 
 
 def _corpus_line(corpus: Corpus) -> _Line:
-    """One corpus: the directory it reads, its specs and its governed documents."""
+    """One corpus: the directory it reads, its specs and its governed documents.
+
+    Args:
+        corpus: Corpus drawn as one line, with its specs and documents as children.
+    """
     spec_lines: list[_Line] = []
     for spec in (corpus.spec, *corpus.namespace_specs):
         spec_lines.append(_Line(f'{schema_name_stem(spec.name)}: {_file_names(spec.files)}'))
@@ -115,9 +137,12 @@ def _corpus_line(corpus: Corpus) -> _Line:
 
 
 def _skills_dirs_section(skills_dirs: tuple[SkillsDir, ...]) -> _Line:
-    """``agent skills directories (N)``, one line per agent and directory, as the model orders them.
+    """`agent skills directories (N)`, one line per agent and directory, as the model orders them.
 
-    A directory that is a link is drawn with the real directory it leads to: ``path -> resolves_to``.
+    A directory that is a link is drawn with the real directory it leads to: `path -> resolves_to`.
+
+    Args:
+        skills_dirs: The agent skills directories to draw.
     """
     lines: list[_Line] = []
     for skills_dir in skills_dirs:
@@ -129,7 +154,11 @@ def _skills_dirs_section(skills_dirs: tuple[SkillsDir, ...]) -> _Line:
 
 
 def _skills_section(model: WorkspaceModel) -> _Line:
-    """``skills (N)``, one line per skill: its directory, then the agents that read it in brackets."""
+    """`skills (N)`, one line per skill: its directory, then the agents that read it in brackets.
+
+    Args:
+        model: The workspace model, which lists the skills and the agents that read each.
+    """
     lines: list[_Line] = []
     for ref in model.skills():
         agents = model.skill_agents(ref)
@@ -138,7 +167,11 @@ def _skills_section(model: WorkspaceModel) -> _Line:
 
 
 def _json_corpus(corpus: Corpus) -> dict[str, object]:
-    """One corpus as a JSON object: its specs, and its documents with the spec files that govern each."""
+    """One corpus as a JSON object: its specs, and its documents with the spec files that govern each.
+
+    Args:
+        corpus: Corpus whose specs and documents become the object's keys.
+    """
     specs: list[dict[str, object]] = []
     for spec in (corpus.spec, *corpus.namespace_specs):
         specs.append({'stem': schema_name_stem(spec.name), 'files': _paths(spec.files)})
@@ -156,7 +189,11 @@ def _json_corpus(corpus: Corpus) -> dict[str, object]:
 
 
 def _governing_stems(specs: tuple[Spec, ...]) -> list[str]:
-    """The stems of the governing specs, broad to narrow, as the model orders them."""
+    """The stems of the governing specs, broad to narrow, as the model orders them.
+
+    Args:
+        specs: A document's governing specs, in the order the model gives them.
+    """
     stems: list[str] = []
     for spec in specs:
         stems.append(schema_name_stem(spec.name))
@@ -164,7 +201,11 @@ def _governing_stems(specs: tuple[Spec, ...]) -> list[str]:
 
 
 def _governing_files(specs: tuple[Spec, ...]) -> list[str]:
-    """Every file of the governing specs as a root-relative path, broad to narrow, each spec's files sorted."""
+    """Every file of the governing specs as a root-relative path, broad to narrow, each spec's files sorted.
+
+    Args:
+        specs: A document's governing specs, in the order the model gives them.
+    """
     paths: list[str] = []
     for spec in specs:
         paths.extend(_paths(spec.files))
@@ -172,7 +213,11 @@ def _governing_files(specs: tuple[Spec, ...]) -> list[str]:
 
 
 def _file_names(files: tuple[RootRelativePath, ...]) -> str:
-    """The file names, comma-separated: every spec file sits in the one specification directory."""
+    """The file names, comma-separated: every spec file sits in the one specification directory.
+
+    Args:
+        files: The spec's files; only the final name of each is written, since the directory is shared.
+    """
     names: list[str] = []
     for file in files:
         names.append(file.name)
@@ -180,7 +225,11 @@ def _file_names(files: tuple[RootRelativePath, ...]) -> str:
 
 
 def _paths(files: tuple[RootRelativePath, ...]) -> list[str]:
-    """The root-relative paths as strings."""
+    """The root-relative paths as strings.
+
+    Args:
+        files: The paths to convert, kept in order.
+    """
     paths: list[str] = []
     for file in files:
         paths.append(str(file))

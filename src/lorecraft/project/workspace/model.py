@@ -55,7 +55,11 @@ class Spec:
         return self.name[1]
 
     def governs(self, filename: AspectFilename) -> bool:
-        """True for a corpus stem always; for a namespace stem when the namespace matches."""
+        """True for a corpus stem always; for a namespace stem when the namespace matches.
+
+        Args:
+            filename: Document filename stem whose governance is asked; matched by hyphen-delimited prefix.
+        """
         if self.namespace is None:
             return True
         return self.namespace.matches(str(filename))
@@ -118,6 +122,9 @@ def namespace_order_key(namespace: AspectNamespace) -> tuple[int, str]:
 
     Every namespace matching one filename is a prefix of that filename, so segment count is broadness and two
     matches never tie; the value tiebreak only orders non-matching siblings.
+
+    Args:
+        namespace: Namespace of one spec, whose hyphens give its segment count.
     """
     value = str(namespace)
     return (value.count('-'), value)
@@ -169,8 +176,11 @@ class Corpus:
     def governance(self, ref: DocumentRef) -> Governance:
         """Corpus spec, then every namespace spec that matches, in stored order. Pure.
 
+        Args:
+            ref: Document whose governing specs are wanted; it must belong to this corpus.
+
         Raises:
-            ValueError: If ``ref.corpus != name``.
+            ValueError: If `ref.corpus != name`.
         """
         if ref.corpus != self.name:
             raise ValueError(f'document {ref.path} is not in corpus {self.name}')
@@ -202,7 +212,11 @@ class WorkspaceModel:
     skill_locations: tuple[SkillLocation, ...]
 
     def corpus(self, name: CorpusName) -> Corpus | None:
-        """The corpus with this name, or None when the model has none."""
+        """The corpus with this name, or None when the model has none.
+
+        Args:
+            name: Corpus directory name under docs/.
+        """
         for corpus in self.corpora:
             if corpus.name == name:
                 return corpus
@@ -216,7 +230,11 @@ class WorkspaceModel:
         return tuple(refs)
 
     def locate(self, path: RootRelativePath) -> DocumentRef | None:
-        """The ref whose ``path`` equals this root-relative path, or None."""
+        """The ref whose `path` equals this root-relative path, or None.
+
+        Args:
+            path: Document path to look up, compared whole and lexically.
+        """
         for ref in self.documents():
             if ref.path == path:
                 return ref
@@ -248,6 +266,9 @@ class WorkspaceModel:
     def skill_agents(self, ref: SkillRef) -> tuple[AgentName, ...]:
         """The agents that read a skill: those with a skills directory that leads to the one holding it.
 
+        Args:
+            ref: Skill whose directory's parent is matched against each skills directory's real directory.
+
         Returns:
             The agents in name order, each once, or ``()`` when no skills directory leads there.
         """
@@ -260,8 +281,11 @@ class WorkspaceModel:
     def governance(self, ref: DocumentRef) -> Governance:
         """The specs governing a document this model lists.
 
+        Args:
+            ref: Document to look up; its corpus must be one of this model's.
+
         Raises:
-            ValueError: If ``ref.corpus`` is not a corpus of this model (refs from the model never trigger it).
+            ValueError: If `ref.corpus` is not a corpus of this model (refs from the model never trigger it).
         """
         corpus = self.corpus(ref.corpus)
         if corpus is None:

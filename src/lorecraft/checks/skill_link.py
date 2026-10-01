@@ -60,15 +60,23 @@ def validate_skill_links(*, links: tuple[Link, ...], anchors: frozenset[Anchor])
 
 
 def _is_absolute(url: str) -> bool:
-    """Whether a link's destination starts at a filesystem root rather than at the file it is written in."""
+    """Whether a link's destination starts at a filesystem root rather than at the file it is written in.
+
+    Args:
+        url: The link's destination as the parser encoded it.
+    """
     return url.startswith('/')
 
 
 def _is_dangling_fragment(url: str, anchors: frozenset[Anchor]) -> bool:
     """Whether a link is fragment-only and its fragment names a heading the file does not have.
 
-    A bare ``#`` names no heading at all, so it does not dangle. A fragment no heading can have, such as one
+    A bare `#` names no heading at all, so it does not dangle. A fragment no heading can have, such as one
     holding a space, dangles whatever the anchors are.
+
+    Args:
+        url: The link's destination as the parser encoded it; one not starting with `#` never dangles.
+        anchors: The heading anchors of the file the link is written in.
     """
     if not url.startswith('#'):
         return False

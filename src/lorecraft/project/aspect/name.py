@@ -57,6 +57,9 @@ class AspectName:
     def parse(cls, raw: str) -> Self:
         """Return a validated aspect name.
 
+        Args:
+            raw: Candidate name, kept exactly as spelled.
+
         Raises:
             EmptyAspectNameError: If the name is empty.
             InvalidAspectNameCharacterError: If a character is not lowercase with valid separators.
@@ -73,6 +76,7 @@ class AspectName:
         _validate_aspect_name(self.value)
 
     def __str__(self) -> str:
+        """The aspect name exactly as supplied, as findings print it."""
         return self.value
 
 

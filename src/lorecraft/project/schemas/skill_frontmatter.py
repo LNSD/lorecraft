@@ -1,5 +1,6 @@
-"""The frontmatter of a skill's ``SKILL.md``, as the Agent Skills specification defines it: the one declaration of
-its fields.
+"""The frontmatter of a skill's ``SKILL.md``, as the Agent Skills specification defines it.
+
+This is the one declaration of its fields.
 
 The specification is https://agentskills.io/specification. ``SkillFrontmatter`` states its six fields and the
 limits it puts on them, and nothing else: an extension some agent reads beyond them, such as Claude Code's
@@ -65,9 +66,12 @@ _COMPATIBILITY_ERROR_TYPE: Final[Literal['skill_compatibility']] = 'skill_compat
 
 
 def value_object_message(detail: ErrorDetails) -> str | None:
-    """The message a value object rejected a field's value with, or ``None`` when ``detail`` is not such an error.
+    """The message a value object rejected a field's value with, or `None` when `detail` is not such an error.
 
-    The message is the error's formatted ``msg``: see the note on the pydantic hooks above.
+    The message is the error's formatted `msg`: see the note on the pydantic hooks above.
+
+    Args:
+        detail: One entry of a pydantic `ValidationError`; only the three value-object error types yield a message.
     """
     if detail['type'] not in (_NAME_ERROR_TYPE, _DESCRIPTION_ERROR_TYPE, _COMPATIBILITY_ERROR_TYPE):
         return None
@@ -142,8 +146,9 @@ class InvalidSkillNameFormatError(Error):
 
 @dataclass(frozen=True, slots=True)
 class SkillName:
-    """The ``name`` field: at most 64 lowercase ASCII letters, digits and hyphens, neither starting nor ending with
-    a hyphen, and never two in a row.
+    """The ``name`` field: at most 64 lowercase ASCII letters, digits and hyphens.
+
+    It neither starts nor ends with a hyphen, and never holds two in a row.
 
     Parsing preserves the spelling. Whether the name matches the skill's directory is not checked here: that needs
     the directory.
@@ -157,6 +162,9 @@ class SkillName:
     @classmethod
     def parse(cls, raw: str) -> Self:
         """Return a validated skill name.
+
+        Args:
+            raw: Candidate skill name, as written in the frontmatter.
 
         Raises:
             EmptySkillNameError: If the name is empty.
@@ -186,20 +194,30 @@ class SkillName:
                     raise InvalidSkillNameFormatError(self.value, source=exc) from exc
 
     def __str__(self) -> str:
+        """The name exactly as written in the frontmatter."""
         return self.value
 
     @classmethod
     def __get_pydantic_core_schema__(
         cls, source: type[object], handler: GetCoreSchemaHandler
     ) -> core_schema.CoreSchema:
-        """How pydantic validates and serializes a field of this type: see the module's note."""
+        """How pydantic validates and serializes a field of this type: see the module's note.
+
+        Args:
+            source: The annotated type pydantic is building a schema for; unused.
+            handler: Pydantic's schema generator; unused, because the schema is a plain validator function.
+        """
         return core_schema.no_info_plain_validator_function(
             cls._from_pydantic, serialization=core_schema.plain_serializer_function_ser_schema(str)
         )
 
     @classmethod
     def _from_pydantic(cls, value: object) -> Self:
-        """Take a ``SkillName`` as it is and parse a string into one, raising pydantic's own error for anything else."""
+        """Take a `SkillName` as it is and parse a string into one, raising pydantic's own error for anything else.
+
+        Args:
+            value: The input pydantic holds for the field: an instance, a string, or anything else.
+        """
         if isinstance(value, cls):
             return value
         if not isinstance(value, str):
@@ -213,7 +231,12 @@ class SkillName:
     def __get_pydantic_json_schema__(
         cls, schema: core_schema.CoreSchema, handler: GetJsonSchemaHandler
     ) -> JsonSchemaValue:
-        """The JSON Schema of a field of this type: the rules ``__post_init__`` checks."""
+        """The JSON Schema of a field of this type: the rules `__post_init__` checks.
+
+        Args:
+            schema: The core schema pydantic built for the field; unused, because the JSON Schema is fixed.
+            handler: Pydantic's JSON Schema generator; unused for the same reason.
+        """
         return _SKILL_NAME_RULES.json_schema()
 
 
@@ -279,6 +302,9 @@ class SkillDescription:
     def parse(cls, raw: str) -> Self:
         """Return a validated skill description.
 
+        Args:
+            raw: Candidate skill description, as written in the frontmatter.
+
         Raises:
             EmptySkillDescriptionError: If the description is empty or only whitespace.
             OverlongSkillDescriptionError: If the description has more characters than the specification allows.
@@ -304,21 +330,32 @@ class SkillDescription:
                     raise EmptySkillDescriptionError(source=exc) from exc
 
     def __str__(self) -> str:
+        """The description exactly as written in the frontmatter."""
         return self.value
 
     @classmethod
     def __get_pydantic_core_schema__(
         cls, source: type[object], handler: GetCoreSchemaHandler
     ) -> core_schema.CoreSchema:
-        """How pydantic validates and serializes a field of this type: see the module's note."""
+        """How pydantic validates and serializes a field of this type: see the module's note.
+
+        Args:
+            source: The annotated type pydantic is building a schema for; unused.
+            handler: Pydantic's schema generator; unused, because the schema is a plain validator function.
+        """
         return core_schema.no_info_plain_validator_function(
             cls._from_pydantic, serialization=core_schema.plain_serializer_function_ser_schema(str)
         )
 
     @classmethod
     def _from_pydantic(cls, value: object) -> Self:
-        """Take a ``SkillDescription`` as it is and parse a string into one, raising pydantic's own error for
-        anything else."""
+        """Take a `SkillDescription` as it is and parse a string into one.
+
+        Anything else raises pydantic's own error.
+
+        Args:
+            value: The input pydantic holds for the field: an instance, a string, or anything else.
+        """
         if isinstance(value, cls):
             return value
         if not isinstance(value, str):
@@ -332,7 +369,12 @@ class SkillDescription:
     def __get_pydantic_json_schema__(
         cls, schema: core_schema.CoreSchema, handler: GetJsonSchemaHandler
     ) -> JsonSchemaValue:
-        """The JSON Schema of a field of this type: the rules ``__post_init__`` checks."""
+        """The JSON Schema of a field of this type: the rules `__post_init__` checks.
+
+        Args:
+            schema: The core schema pydantic built for the field; unused, because the JSON Schema is fixed.
+            handler: Pydantic's JSON Schema generator; unused for the same reason.
+        """
         return _SKILL_DESCRIPTION_RULES.json_schema()
 
 
@@ -351,25 +393,40 @@ class SkillLicense:
 
     @classmethod
     def parse(cls, raw: str) -> Self:
-        """Return the license; every string is one."""
+        """Return the license; every string is one.
+
+        Args:
+            raw: License text, as written in the frontmatter.
+        """
         return cls(raw)
 
     def __str__(self) -> str:
+        """The license exactly as written in the frontmatter."""
         return self.value
 
     @classmethod
     def __get_pydantic_core_schema__(
         cls, source: type[object], handler: GetCoreSchemaHandler
     ) -> core_schema.CoreSchema:
-        """How pydantic validates and serializes a field of this type: see the module's note."""
+        """How pydantic validates and serializes a field of this type: see the module's note.
+
+        Args:
+            source: The annotated type pydantic is building a schema for; unused.
+            handler: Pydantic's schema generator; unused, because the schema is a plain validator function.
+        """
         return core_schema.no_info_plain_validator_function(
             cls._from_pydantic, serialization=core_schema.plain_serializer_function_ser_schema(str)
         )
 
     @classmethod
     def _from_pydantic(cls, value: object) -> Self:
-        """Take a ``SkillLicense`` as it is and wrap a string in one, raising pydantic's own error for anything
-        else."""
+        """Take a `SkillLicense` as it is and wrap a string in one.
+
+        Anything else raises pydantic's own error.
+
+        Args:
+            value: The input pydantic holds for the field: an instance, a string, or anything else.
+        """
         if isinstance(value, cls):
             return value
         if not isinstance(value, str):
@@ -380,7 +437,12 @@ class SkillLicense:
     def __get_pydantic_json_schema__(
         cls, schema: core_schema.CoreSchema, handler: GetJsonSchemaHandler
     ) -> JsonSchemaValue:
-        """The JSON Schema of a field of this type: any string."""
+        """The JSON Schema of a field of this type: any string.
+
+        Args:
+            schema: The core schema pydantic built for the field; unused, because the JSON Schema is fixed.
+            handler: Pydantic's JSON Schema generator; unused for the same reason.
+        """
         return {'type': 'string'}
 
 
@@ -432,8 +494,9 @@ class OverlongSkillCompatibilityError(Error):
 
 @dataclass(frozen=True, slots=True)
 class SkillCompatibility:
-    """The ``compatibility`` field, the environment the skill needs: at least one character that is not
-    whitespace, and at most 500 characters.
+    """The ``compatibility`` field, the environment the skill needs.
+
+    It holds at least one character that is not whitespace, and at most 500 characters.
 
     Attributes:
         value: The validated note, exactly as supplied.
@@ -444,6 +507,9 @@ class SkillCompatibility:
     @classmethod
     def parse(cls, raw: str) -> Self:
         """Return a validated compatibility note.
+
+        Args:
+            raw: Candidate compatibility note, as written in the frontmatter.
 
         Raises:
             EmptySkillCompatibilityError: If the note is empty or only whitespace.
@@ -470,21 +536,32 @@ class SkillCompatibility:
                     raise EmptySkillCompatibilityError(source=exc) from exc
 
     def __str__(self) -> str:
+        """The compatibility note exactly as written in the frontmatter."""
         return self.value
 
     @classmethod
     def __get_pydantic_core_schema__(
         cls, source: type[object], handler: GetCoreSchemaHandler
     ) -> core_schema.CoreSchema:
-        """How pydantic validates and serializes a field of this type: see the module's note."""
+        """How pydantic validates and serializes a field of this type: see the module's note.
+
+        Args:
+            source: The annotated type pydantic is building a schema for; unused.
+            handler: Pydantic's schema generator; unused, because the schema is a plain validator function.
+        """
         return core_schema.no_info_plain_validator_function(
             cls._from_pydantic, serialization=core_schema.plain_serializer_function_ser_schema(str)
         )
 
     @classmethod
     def _from_pydantic(cls, value: object) -> Self:
-        """Take a ``SkillCompatibility`` as it is and parse a string into one, raising pydantic's own error for
-        anything else."""
+        """Take a `SkillCompatibility` as it is and parse a string into one.
+
+        Anything else raises pydantic's own error.
+
+        Args:
+            value: The input pydantic holds for the field: an instance, a string, or anything else.
+        """
         if isinstance(value, cls):
             return value
         if not isinstance(value, str):
@@ -498,7 +575,12 @@ class SkillCompatibility:
     def __get_pydantic_json_schema__(
         cls, schema: core_schema.CoreSchema, handler: GetJsonSchemaHandler
     ) -> JsonSchemaValue:
-        """The JSON Schema of a field of this type: the rules ``__post_init__`` checks."""
+        """The JSON Schema of a field of this type: the rules `__post_init__` checks.
+
+        Args:
+            schema: The core schema pydantic built for the field; unused, because the JSON Schema is fixed.
+            handler: Pydantic's JSON Schema generator; unused for the same reason.
+        """
         return _SKILL_COMPATIBILITY_RULES.json_schema()
 
 
@@ -518,25 +600,40 @@ class SkillAllowedTools:
 
     @classmethod
     def parse(cls, raw: str) -> Self:
-        """Return the allowed tools; every string is a list of them."""
+        """Return the allowed tools; every string is a list of them.
+
+        Args:
+            raw: The `allowed-tools` text, as written in the frontmatter. Kept whole.
+        """
         return cls(raw)
 
     def __str__(self) -> str:
+        """The tools exactly as written in the frontmatter, unsplit."""
         return self.value
 
     @classmethod
     def __get_pydantic_core_schema__(
         cls, source: type[object], handler: GetCoreSchemaHandler
     ) -> core_schema.CoreSchema:
-        """How pydantic validates and serializes a field of this type: see the module's note."""
+        """How pydantic validates and serializes a field of this type: see the module's note.
+
+        Args:
+            source: The annotated type pydantic is building a schema for; unused.
+            handler: Pydantic's schema generator; unused, because the schema is a plain validator function.
+        """
         return core_schema.no_info_plain_validator_function(
             cls._from_pydantic, serialization=core_schema.plain_serializer_function_ser_schema(str)
         )
 
     @classmethod
     def _from_pydantic(cls, value: object) -> Self:
-        """Take a ``SkillAllowedTools`` as it is and wrap a string in one, raising pydantic's own error for
-        anything else."""
+        """Take a `SkillAllowedTools` as it is and wrap a string in one.
+
+        Anything else raises pydantic's own error.
+
+        Args:
+            value: The input pydantic holds for the field: an instance, a string, or anything else.
+        """
         if isinstance(value, cls):
             return value
         if not isinstance(value, str):
@@ -547,7 +644,12 @@ class SkillAllowedTools:
     def __get_pydantic_json_schema__(
         cls, schema: core_schema.CoreSchema, handler: GetJsonSchemaHandler
     ) -> JsonSchemaValue:
-        """The JSON Schema of a field of this type: any string."""
+        """The JSON Schema of a field of this type: any string.
+
+        Args:
+            schema: The core schema pydantic built for the field; unused, because the JSON Schema is fixed.
+            handler: Pydantic's JSON Schema generator; unused for the same reason.
+        """
         return {'type': 'string'}
 
 

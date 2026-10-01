@@ -124,7 +124,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "A structure specification: the frontmatter schema, section outline and token budget a document governed by this file must follow.",
+  "description": "A structure specification: the frontmatter schema, outline and token budget a governed document follows.",
   "examples": [
     {
       "description": "Section structure, word caps and token budget for a rule document in docs/code/.",

@@ -38,7 +38,7 @@ class TenantName:
         """Wrap a tenant name without validating it.
 
         # Safety
-        The caller must ensure ``raw`` satisfies the invariant documented by ``TenantName``. This method performs
+        The caller must ensure `raw` satisfies the invariant documented by `TenantName`. This method performs
         no validation.
         """
         instance = object.__new__(cls)

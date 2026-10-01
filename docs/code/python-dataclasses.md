@@ -87,7 +87,7 @@ class RuleFrontmatter(BaseModel):
 ```python
 # ✅ Good — the helper lives beside the generated module and takes the model
 def qualified_name(frontmatter: RuleFrontmatter) -> str:
-    """Return the ``corpus/name`` identifier for a rule document."""
+    """Return the `corpus/name` identifier for a rule document."""
     return f'{frontmatter.corpus}/{frontmatter.name}'
 ```
 
@@ -245,7 +245,7 @@ class LengthBudget:
         """Validate budget bounds.
 
         Raises:
-            ValueError: If ``max_lines`` is below 1 or ``warn_ratio`` is outside ``(0, 1]``.
+            ValueError: If `max_lines` is below 1 or `warn_ratio` is outside `(0, 1]`.
         """
         if self.max_lines < 1:
             raise ValueError(f'max_lines must be at least 1, got {self.max_lines}')

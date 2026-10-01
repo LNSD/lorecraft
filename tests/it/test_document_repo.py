@@ -28,13 +28,21 @@ from lorecraft.vfs import DirListError, DiskFileSystem, FileReadError, TextDecod
 
 @pytest.fixture(scope='function')
 def repository(tmp_path: Path) -> Repository:
-    """A repository over the temporary root; ``docs/`` does not exist until a test creates it."""
+    """A repository over the temporary root; `docs/` does not exist until a test creates it.
+
+    Args:
+        tmp_path: Directory the repository reads from, as the repository root.
+    """
     return Repository(DiskFileSystem(tmp_path))
 
 
 @pytest.fixture(scope='function')
 def code_dir(tmp_path: Path) -> Path:
-    """An empty ``docs/code/`` corpus directory under the temporary root."""
+    """An empty `docs/code/` corpus directory under the temporary root.
+
+    Args:
+        tmp_path: Directory the corpus directory is created under, as the repository root.
+    """
     directory = tmp_path / 'docs' / 'code'
     directory.mkdir(parents=True)
     return directory
@@ -42,7 +50,11 @@ def code_dir(tmp_path: Path) -> Path:
 
 @pytest.fixture(scope='function')
 def locked_docs(tmp_path: Path) -> Iterator[Path]:
-    """A ``docs/`` whose permissions refuse listing, restored afterwards so pytest can clean it up."""
+    """A `docs/` whose permissions refuse listing, restored afterwards so pytest can clean it up.
+
+    Args:
+        tmp_path: Directory the locked `docs/` is created under, as the repository root.
+    """
     directory = tmp_path / 'docs'
     directory.mkdir()
     directory.chmod(0o000)
@@ -52,7 +64,11 @@ def locked_docs(tmp_path: Path) -> Iterator[Path]:
 
 @pytest.fixture(scope='function')
 def locked_code_dir(code_dir: Path) -> Iterator[Path]:
-    """A ``docs/code/`` whose permissions refuse listing, restored afterwards so pytest can clean it up."""
+    """A `docs/code/` whose permissions refuse listing, restored afterwards so pytest can clean it up.
+
+    Args:
+        code_dir: The corpus directory whose permissions are removed and later restored.
+    """
     code_dir.chmod(0o000)
     yield code_dir
     code_dir.chmod(0o700)

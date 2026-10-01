@@ -40,4 +40,5 @@ class LineNumber:
             raise InvalidLineNumberError(self.value)
 
     def __str__(self) -> str:
+        """The line number in decimal, as `path:line` output prints it."""
         return str(self.value)

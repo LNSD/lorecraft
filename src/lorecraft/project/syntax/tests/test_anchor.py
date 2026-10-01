@@ -1,5 +1,7 @@
-"""A heading's anchor: the github-slugger rule that derives one from a heading's text, the numbering of a repeat,
-the normalisation a link's fragment goes through before it is compared with one, and the format every anchor holds.
+"""A heading's anchor.
+
+The github-slugger rule that derives one from a heading's text, the numbering of a repeat, the normalisation a
+link's fragment goes through before it is compared with one, and the format every anchor holds.
 """
 
 import pytest

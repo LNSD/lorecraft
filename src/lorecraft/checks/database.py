@@ -54,11 +54,18 @@ from lorecraft.vfs import Snapshot, VirtualFileSystem
 
 
 class Database:
-    """The workspace model, the frontmatter, the parse trees and the token counts of the documents, and the
-    frontmatter and the parse trees of the skills, of one snapshot, each cached for its lifetime."""
+    """What the checks read from one snapshot, each computed once and cached for the snapshot's lifetime.
+
+    That is the workspace model, the frontmatter, the parse trees and the token counts of the documents, and the
+    frontmatter and the parse trees of the skills.
+    """
 
     def __init__(self, snapshot: Snapshot) -> None:
-        """Index the snapshot for reading; performs no I/O and computes nothing yet."""
+        """Index the snapshot for reading; performs no I/O and computes nothing yet.
+
+        Args:
+            snapshot: The frozen state every query reads; kept for the database's lifetime and never changed.
+        """
         self._fs = VirtualFileSystem(snapshot)
         self._documents = DocumentRepository(self._fs)
         self._skills = SkillRepository(self._fs)
@@ -115,10 +122,13 @@ class Database:
         require_real_layout(self._fs)
 
     def resolve(self, path: RootRelativePath) -> RootRelativePath | None:
-        """Where ``path`` leads in the snapshot, every recorded link on the way followed; never cached.
+        """Where `path` leads in the snapshot, every recorded link on the way followed; never cached.
 
         Like the IDE's lookup of a path in its virtual file system: a path handed in from outside, such as a
         command line argument, is interpreted in the same frozen tree every check reads, not on the live disk.
+
+        Args:
+            path: The path to look up, relative to the snapshot root; it may name a directory or a file.
 
         Returns:
             The real directory or the real file, root-relative, or ``None`` when the snapshot holds neither there.
@@ -129,7 +139,10 @@ class Database:
         return self._fs.resolve_file(path)
 
     def resolve_file(self, path: RootRelativePath) -> RootRelativePath | None:
-        """The file ``path`` leads to in the snapshot, every recorded link on the way followed; never cached.
+        """The file `path` leads to in the snapshot, every recorded link on the way followed; never cached.
+
+        Args:
+            path: The path to look up, relative to the snapshot root; a directory leads to no file.
 
         Returns:
             The real file, root-relative, or ``None`` when the snapshot holds no file there: nothing, a
@@ -138,10 +151,13 @@ class Database:
         return self._fs.resolve_file(path)
 
     def is_listed(self, path: RootRelativePath) -> bool:
-        """Whether the snapshot holds a listing of the directory ``path`` leads to, links followed; never cached.
+        """Whether the snapshot holds a listing of the directory `path` leads to, links followed; never cached.
 
         It tells a file that is missing from one the snapshot never read: in a listed directory the snapshot
         holds every entry, so a name it lacks was not there when the scan ran, while outside one it cannot say.
+
+        Args:
+            path: The directory to ask about, relative to the snapshot root.
 
         Returns:
             True for a directory the scan listed, an empty one included; False for one it did not enter, and for a
@@ -152,10 +168,13 @@ class Database:
     def frontmatter(self, ref: DocumentRef) -> FrontmatterNode:
         """The frontmatter of one document, parsed from the snapshot on the first call for its ref.
 
-        Cached apart from ``parse(ref)`` and never read from it, so the answer does not depend on which of the two
-        was asked first; ``parse_frontmatter`` guarantees the two agree.
+        Cached apart from `parse(ref)` and never read from it, so the answer does not depend on which of the two
+        was asked first; `parse_frontmatter` guarantees the two agree.
 
         A document that cannot be read is not cached, so each call raises the same error again.
+
+        Args:
+            ref: The document to read; the cache key, so one ref is parsed once.
 
         Raises:
             DocumentDecodeError: If the document's bytes are not UTF-8.
@@ -173,6 +192,9 @@ class Database:
 
         A document that cannot be read is not cached, so each call raises the same error again.
 
+        Args:
+            ref: The document to parse; the cache key, so one ref is parsed once.
+
         Raises:
             DocumentDecodeError: If the document's bytes are not UTF-8.
             DocumentReadError: If the snapshot holds no regular file at the document's path.
@@ -187,10 +209,13 @@ class Database:
     def tokens(self, ref: DocumentRef) -> int:
         """The tokens in one document's whole file, counted from the snapshot on the first call for its ref.
 
-        Cached apart from ``parse(ref)`` and never read from it: the count needs the raw text, not the tree, so
+        Cached apart from `parse(ref)` and never read from it: the count needs the raw text, not the tree, so
         a check that needs only one of the two never pays for the other.
 
         A document that cannot be read is not cached, so each call raises the same error again.
+
+        Args:
+            ref: The document whose whole file is counted; the cache key, so one ref is counted once.
 
         Raises:
             DocumentDecodeError: If the document's bytes are not UTF-8.
@@ -204,9 +229,12 @@ class Database:
         return count
 
     def skill_frontmatter(self, ref: SkillRef) -> FrontmatterNode:
-        """The frontmatter of one skill's ``SKILL.md``, parsed from the snapshot on the first call for its ref.
+        """The frontmatter of one skill's `SKILL.md`, parsed from the snapshot on the first call for its ref.
 
         A skill that cannot be read is not cached, so each call raises the same error again.
+
+        Args:
+            ref: The skill whose `SKILL.md` is read; the cache key, so one ref is parsed once.
 
         Raises:
             SkillDecodeError: If the skill's bytes are not UTF-8.
@@ -220,12 +248,15 @@ class Database:
         return decoded
 
     def skill_parse(self, ref: SkillRef) -> ParsedDocument:
-        """The parse tree of one skill's ``SKILL.md``, parsed from the snapshot on the first call for its ref.
+        """The parse tree of one skill's `SKILL.md`, parsed from the snapshot on the first call for its ref.
 
-        Cached apart from ``skill_frontmatter(ref)`` and never read from it, as a document's parse is from its
+        Cached apart from `skill_frontmatter(ref)` and never read from it, as a document's parse is from its
         frontmatter.
 
         A skill that cannot be read is not cached, so each call raises the same error again.
+
+        Args:
+            ref: The skill whose `SKILL.md` is parsed; the cache key, so one ref is parsed once.
 
         Raises:
             SkillDecodeError: If the skill's bytes are not UTF-8.

@@ -52,37 +52,65 @@ VALID_STRUCTURE_SPEC: Final[str] = dedent(
 
 @pytest.fixture(scope='function')
 def schemas(tmp_path: Path) -> SchemaRepository:
-    """A schema repository over the temporary root's ``docs/__meta__/``."""
+    """A schema repository over the temporary root's `docs/__meta__/`.
+
+    Args:
+        tmp_path: Directory the repository reads through a real filesystem, as the repository root.
+    """
     return SchemaRepository(DiskFileSystem(tmp_path), SPECS_DIR)
 
 
 @pytest.fixture(scope='function')
 def documents(tmp_path: Path) -> DocumentRepository:
-    """A document repository over the temporary root."""
+    """A document repository over the temporary root.
+
+    Args:
+        tmp_path: Directory the repository reads through a real filesystem, as the repository root.
+    """
     return DocumentRepository(DiskFileSystem(tmp_path))
 
 
 @pytest.fixture(scope='function')
 def skills(tmp_path: Path) -> SkillRepository:
-    """A skill repository over the temporary root."""
+    """A skill repository over the temporary root.
+
+    Args:
+        tmp_path: Directory the repository reads through a real filesystem, as the repository root.
+    """
     return SkillRepository(DiskFileSystem(tmp_path))
 
 
 def _write(root: Path, relative: str, text: str = '') -> None:
-    """Write one file under the root, creating its parents."""
+    """Write one file under the root, creating its parents.
+
+    Args:
+        root: Directory the file is written under, as the repository root.
+        relative: Path of the file below `root`, with `/` separators.
+        text: Content of the file, written as UTF-8. Empty by default.
+    """
     path = root / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding='utf-8')
 
 
 def _skill_location(directory: str) -> SkillLocation:
-    """The location of a skill whose directory and ``SKILL.md`` are no links."""
+    """The location of a skill whose directory and `SKILL.md` are no links.
+
+    Args:
+        directory: Root-relative path of the skill directory; it and its `SKILL.md` resolve to themselves.
+    """
     path = RootRelativePath.parse(directory)
     return SkillLocation(SkillRef(path), resolves_to=path, file_resolves_to=path / 'SKILL.md')
 
 
 def _linked_skill_location(directory: str, resolves_to: str, file_resolves_to: str) -> SkillLocation:
-    """The location of a skill whose directory or ``SKILL.md`` is a link, with the real paths they lead to."""
+    """The location of a skill whose directory or `SKILL.md` is a link, with the real paths they lead to.
+
+    Args:
+        directory: Root-relative path of the skill directory as an agent reaches it.
+        resolves_to: Root-relative path the skill directory resolves to.
+        file_resolves_to: Root-relative path the skill's `SKILL.md` resolves to.
+    """
     return SkillLocation(
         SkillRef(RootRelativePath.parse(directory)),
         resolves_to=RootRelativePath.parse(resolves_to),
@@ -91,10 +119,16 @@ def _linked_skill_location(directory: str, resolves_to: str, file_resolves_to: s
 
 
 def _write_tree(root: Path, prose: tuple[str, ...], schemas: tuple[str, ...], documents: tuple[str, ...]) -> None:
-    """Lay out ``docs/__meta__/<prose>.md``, ``docs/__meta__/<schema>`` and ``docs/<document>`` files.
+    """Lay out `docs/__meta__/<prose>.md`, `docs/__meta__/<schema>` and `docs/<document>` files.
 
     Every schema file holds a valid structure specification; one whose name is not a structure specification's is
     never read, so what it holds does not matter.
+
+    Args:
+        root: Directory the tree is written under, as the repository root.
+        prose: Stems of the empty prose specifications, each written as `<stem>.md`.
+        schemas: Filenames of the schema files, each written with a valid structure specification.
+        documents: Paths of the empty documents, relative to `docs/`.
     """
     for stem in prose:
         _write(root, f'docs/__meta__/{stem}.md')
@@ -105,7 +139,11 @@ def _write_tree(root: Path, prose: tuple[str, ...], schemas: tuple[str, ...], do
 
 
 def _amp_tree(root: Path) -> None:
-    """amp: two governed corpora, a prose-less namespace spec, and two spec-less directories."""
+    """amp: two governed corpora, a prose-less namespace spec, and two spec-less directories.
+
+    Args:
+        root: Directory the tree is written under, as the repository root.
+    """
     _write_tree(
         root,
         prose=('README', 'code', 'code-pattern', 'code-principle', 'code-rust', 'feat'),
@@ -131,7 +169,11 @@ def _amp_tree(root: Path) -> None:
 
 
 def _mono_tree(root: Path) -> None:
-    """mono: prose-only specs, and a ``feat`` spec with no ``docs/feat/`` directory."""
+    """mono: prose-only specs, and a `feat` spec with no `docs/feat/` directory.
+
+    Args:
+        root: Directory the tree is written under, as the repository root.
+    """
     _write_tree(
         root,
         prose=('README', 'code', 'code-pattern', 'code-principle', 'code-rust', 'feat'),
@@ -141,7 +183,11 @@ def _mono_tree(root: Path) -> None:
 
 
 def _tools_tree(root: Path) -> None:
-    """tools: prose-only specs and a ``docs/schemas/`` directory holding no Markdown."""
+    """tools: prose-only specs and a `docs/schemas/` directory holding no Markdown.
+
+    Args:
+        root: Directory the tree is written under, as the repository root.
+    """
     _write_tree(
         root,
         prose=('README', 'code', 'code-pattern', 'code-principle', 'code-rust'),
@@ -152,7 +198,11 @@ def _tools_tree(root: Path) -> None:
 
 
 def _ampup_tree(root: Path) -> None:
-    """ampup: two namespace specs whose corpora have no spec of their own."""
+    """ampup: two namespace specs whose corpora have no spec of their own.
+
+    Args:
+        root: Directory the tree is written under, as the repository root.
+    """
     _write_tree(
         root,
         prose=('README', 'code-pattern-docs', 'feature-docs'),
@@ -162,7 +212,11 @@ def _ampup_tree(root: Path) -> None:
 
 
 def _lorecraft_tree(root: Path) -> None:
-    """lorecraft: a ``feat`` namespace spec and a glossary outside any corpus."""
+    """lorecraft: a `feat` namespace spec and a glossary outside any corpus.
+
+    Args:
+        root: Directory the tree is written under, as the repository root.
+    """
     _write_tree(
         root,
         prose=('README', 'code', 'code-pattern', 'code-principle', 'code-python', 'feat', 'feat-cli'),
@@ -182,14 +236,23 @@ def _lorecraft_tree(root: Path) -> None:
 
 
 def _namespaces(model: WorkspaceModel, corpus: CorpusName) -> tuple[str, ...]:
-    """The namespace stems of one corpus in stored order, as strings."""
+    """The namespace stems of one corpus in stored order, as strings.
+
+    Args:
+        model: Loaded workspace model to read the corpus from.
+        corpus: Name of the corpus whose namespace specs are listed; it must be in the model.
+    """
     loaded = model.corpus(corpus)
     assert loaded is not None, f'the model lists corpus {corpus}'
     return tuple(str(spec.namespace) for spec in loaded.namespace_specs)
 
 
 def _document_paths(model: WorkspaceModel) -> tuple[str, ...]:
-    """Every document path the model lists, in model order, as strings."""
+    """Every document path the model lists, in model order, as strings.
+
+    Args:
+        model: Loaded workspace model whose documents are listed.
+    """
     return tuple(str(ref.path) for ref in model.documents())
 
 

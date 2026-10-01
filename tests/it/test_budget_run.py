@@ -45,7 +45,13 @@ FEAT_STRUCTURE_SPEC: Final[str] = dedent(
 
 
 def _write(root: Path, relative: str, data: bytes = b'') -> Path:
-    """Write one file under the root, creating its parents, and return its path."""
+    """Write one file under the root, creating its parents, and return its path.
+
+    Args:
+        root: Directory the file is written under.
+        relative: Slash-separated path of the file, relative to `root`.
+        data: Bytes the file holds. The file is empty when omitted.
+    """
     path = root / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
@@ -53,7 +59,11 @@ def _write(root: Path, relative: str, data: bytes = b'') -> Path:
 
 
 def _run_every_document(database: Database) -> CheckRun:
-    """Check every document the database's model lists."""
+    """Check every document the database's model lists.
+
+    Args:
+        database: Snapshot database whose model supplies the documents and whose files the check reads.
+    """
     return run_budget(database, database.model().documents())
 
 
@@ -61,10 +71,13 @@ def _run_every_document(database: Database) -> CheckRun:
 def lorecraft_tree(tmp_path: Path) -> Path:
     """A tree shaped like this repository, built to produce every kind of report.
 
-    Corpus ``code`` is governed by a corpus budget and a tighter ``python`` layer: one document within its budget,
+    Corpus `code` is governed by a corpus budget and a tighter `python` layer: one document within its budget,
     one whose code block puts it over the budget though it holds little prose, one python document within the
-    corpus budget but over the python one, and one that is not UTF-8. Corpus ``feat`` has a structure spec that
+    corpus budget but over the python one, and one that is not UTF-8. Corpus `feat` has a structure spec that
     sets no budget, so its document is ungoverned.
+
+    Args:
+        tmp_path: Directory the specifications and documents are written into, as the repository root.
     """
     costly_example = b'```python\n' + b'value = compute(value)\n' * 8 + b'```\n'
     _write(tmp_path, 'docs/__meta__/code.md', b'# Code\n')

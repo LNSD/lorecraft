@@ -52,6 +52,9 @@ class AspectNamespace:
     def parse(cls, raw: str) -> Self:
         """Return a validated namespace.
 
+        Args:
+            raw: Candidate namespace, kept exactly as spelled.
+
         Raises:
             EmptyAspectNamespaceError: If the namespace is empty.
             InvalidAspectNamespaceCharacterError: If a character falls outside kebab case.
@@ -68,10 +71,15 @@ class AspectNamespace:
         _validate_namespace(self.value)
 
     def matches(self, document_name: str) -> bool:
-        """Return whether this namespace is the whole name or its hyphen-delimited prefix."""
+        """Return whether this namespace is the whole name or its hyphen-delimited prefix.
+
+        Args:
+            document_name: Document filename stem to test; not validated.
+        """
         return document_name == self.value or document_name.startswith(f'{self.value}-')
 
     def __str__(self) -> str:
+        """The namespace exactly as supplied, as findings print it."""
         return self.value
 
 

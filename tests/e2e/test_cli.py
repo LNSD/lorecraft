@@ -36,8 +36,11 @@ _ROOT_PLACEHOLDER: Final[str] = '<workspace>'
 def _redact(output: str) -> str:
     """Swap every value that differs per build, checkout or machine for a placeholder naming it.
 
-    The version becomes ``<version>`` wherever it appears, and each varying labelled line keeps its label and
-    its alignment, so the snapshot still pins the layout: ``Commit:   <commit>``.
+    The version becomes `<version>` wherever it appears, and each varying labelled line keeps its label and
+    its alignment, so the snapshot still pins the layout: `Commit:   <commit>`.
+
+    Args:
+        output: Text the command printed. Lines labelled with a per-machine field are rewritten; the rest pass through.
     """
     lines: list[str] = []
     for line in output.replace(__version__, '<version>').splitlines():
@@ -175,6 +178,9 @@ def duplicate_key_root(tmp_path: Path) -> Path:
     """A root holding one document and one skill, each of whose frontmatter writes a key twice.
 
     Apart from the repetition both are clean, so the duplicate-key finding is the only one either check prints.
+
+    Args:
+        tmp_path: Directory the document, its specification and the skill are written into, as the repository root.
     """
     (tmp_path / 'docs' / '__meta__').mkdir(parents=True)
     (tmp_path / 'docs' / '__meta__' / 'code.structure.json').write_text(
@@ -193,9 +199,12 @@ def duplicate_key_root(tmp_path: Path) -> Path:
 
 @pytest.fixture(scope='function')
 def absolute_link_root(tmp_path: Path) -> Path:
-    """A root holding one skill whose ``SKILL.md`` links to a file from the filesystem root.
+    """A root holding one skill whose `SKILL.md` links to a file from the filesystem root.
 
     Apart from the link the skill is clean, so the link-absolute finding is the only one the check prints.
+
+    Args:
+        tmp_path: Directory the skill is written into, as the repository root.
     """
     (tmp_path / '.agents' / 'skills' / 'review').mkdir(parents=True)
     (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').write_text(
@@ -207,9 +216,12 @@ def absolute_link_root(tmp_path: Path) -> Path:
 
 @pytest.fixture(scope='function')
 def missing_fragment_root(tmp_path: Path) -> Path:
-    """A root holding one skill whose ``SKILL.md`` links to a heading of its own that it does not have.
+    """A root holding one skill whose `SKILL.md` links to a heading of its own that it does not have.
 
     Apart from the link the skill is clean, so the link-fragment finding is the only one the check prints.
+
+    Args:
+        tmp_path: Directory the skill is written into, as the repository root.
     """
     (tmp_path / '.agents' / 'skills' / 'review').mkdir(parents=True)
     (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').write_text(
@@ -220,12 +232,13 @@ def missing_fragment_root(tmp_path: Path) -> Path:
 
 
 def _write_review_skill(root: Path, metadata: str) -> None:
-    """Write the skill ``.agents/skills/review/`` and give it ``metadata``.
+    """Write the skill `.agents/skills/review/` and give it `metadata`.
 
-    Apart from what ``metadata`` lists the skill is clean, so a metadata finding is the only one the check prints.
+    Apart from what `metadata` lists the skill is clean, so a metadata finding is the only one the check prints.
 
     Args:
-        metadata: The lines of the ``metadata`` mapping, each indented and ending in a newline.
+        root: Repository root the skill directory is created under.
+        metadata: The lines of the `metadata` mapping, each indented and ending in a newline.
     """
     (root / '.agents' / 'skills' / 'review').mkdir(parents=True)
     (root / '.agents' / 'skills' / 'review' / 'SKILL.md').write_text(
@@ -235,7 +248,11 @@ def _write_review_skill(root: Path, metadata: str) -> None:
 
 @pytest.fixture(scope='function')
 def duplicate_name_root(tmp_path: Path) -> Path:
-    """A root holding one skill whose ``metadata`` lists two documents with one file name."""
+    """A root holding one skill whose `metadata` lists two documents with one file name.
+
+    Args:
+        tmp_path: Directory the documents and the skill are written into, as the repository root.
+    """
     (tmp_path / 'docs' / 'code').mkdir(parents=True)
     (tmp_path / 'docs' / 'code' / 'guide.md').write_text('# Guide\n', encoding='utf-8')
     (tmp_path / 'docs' / 'feat').mkdir()
@@ -246,7 +263,11 @@ def duplicate_name_root(tmp_path: Path) -> Path:
 
 @pytest.fixture(scope='function')
 def outside_scope_root(tmp_path: Path) -> Path:
-    """A root holding one skill whose ``metadata`` lists a source file, which no check reads."""
+    """A root holding one skill whose `metadata` lists a source file, which no check reads.
+
+    Args:
+        tmp_path: Directory the source file and the skill are written into, as the repository root.
+    """
     (tmp_path / 'src').mkdir()
     (tmp_path / 'src' / 'tool.py').write_text('', encoding='utf-8')
     _write_review_skill(tmp_path, '  scripts: src/tool.py\n')
@@ -508,7 +529,11 @@ class TestCheckAllSnapshots:
 
 @pytest.fixture(scope='function')
 def linked_specs_root(tmp_path: Path) -> Path:
-    """A root whose `docs/__meta__` is a symlink to the workspace fixture's specifications, beside one document."""
+    """A root whose `docs/__meta__` is a symlink to the workspace fixture's specifications, beside one document.
+
+    Args:
+        tmp_path: Directory the link and the document are created in, as the repository root.
+    """
     (tmp_path / 'docs' / 'code').mkdir(parents=True)
     (tmp_path / 'docs' / 'code' / 'logging.md').write_text('# Logging\n', encoding='utf-8')
     (tmp_path / 'docs' / '__meta__').symlink_to(WORKSPACE_FIXTURE / 'docs' / '__meta__')
@@ -517,7 +542,11 @@ def linked_specs_root(tmp_path: Path) -> Path:
 
 @pytest.fixture(scope='function')
 def linked_docs_root(tmp_path: Path) -> Path:
-    """A root whose `docs` is a symlink to the workspace fixture's `docs/`."""
+    """A root whose `docs` is a symlink to the workspace fixture's `docs/`.
+
+    Args:
+        tmp_path: Directory the link is created in, as the repository root.
+    """
     (tmp_path / 'docs').symlink_to(WORKSPACE_FIXTURE / 'docs')
     return tmp_path
 

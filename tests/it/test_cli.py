@@ -64,7 +64,11 @@ TIGHT_BUDGET_STRUCTURE_SPEC: Final[str] = '{"tokens": 5}'
 
 @pytest.fixture(scope='function')
 def workspace(tmp_path: Path) -> Path:
-    """A workspace root with a `code` corpus of one document."""
+    """A workspace root with a `code` corpus of one document.
+
+    Args:
+        tmp_path: Directory the corpus is written into, as the workspace root.
+    """
     (tmp_path / 'docs' / '__meta__').mkdir(parents=True)
     (tmp_path / 'docs' / '__meta__' / 'code.md').write_text('# Code\n')
     (tmp_path / 'docs' / 'code').mkdir()
@@ -74,14 +78,22 @@ def workspace(tmp_path: Path) -> Path:
 
 @pytest.fixture(scope='function')
 def malformed_schema_workspace(workspace: Path) -> Path:
-    """The workspace with a `code` frontmatter schema that is valid JSON but not a well-formed JSON Schema."""
+    """The workspace with a `code` frontmatter schema that is valid JSON but not a well-formed JSON Schema.
+
+    Args:
+        workspace: Workspace root the malformed schema file is added to.
+    """
     (workspace / 'docs' / '__meta__' / 'code.structure.json').write_text('{"frontmatter": {"type": 5}}\n')
     return workspace
 
 
 @pytest.fixture(scope='function')
 def unreadable_workspace(tmp_path: Path) -> Iterator[Path]:
-    """A workspace root whose `docs/` refuses listing, restored afterwards so pytest can clean it up."""
+    """A workspace root whose `docs/` refuses listing, restored afterwards so pytest can clean it up.
+
+    Args:
+        tmp_path: Directory returned as the workspace root, holding the locked `docs/`.
+    """
     docs = tmp_path / 'docs'
     docs.mkdir()
     docs.chmod(0o000)
@@ -91,7 +103,11 @@ def unreadable_workspace(tmp_path: Path) -> Iterator[Path]:
 
 @pytest.fixture(scope='function')
 def directory_under_a_locked_parent(tmp_path: Path) -> Iterator[Path]:
-    """A directory whose parent refuses search, so nothing below it can be inspected; unlocked afterwards."""
+    """A directory whose parent refuses search, so nothing below it can be inspected; unlocked afterwards.
+
+    Args:
+        tmp_path: Directory the locked parent and the returned directory are created under.
+    """
     locked = tmp_path / 'locked'
     directory = locked / 'sub'
     directory.mkdir(parents=True)
@@ -102,7 +118,12 @@ def directory_under_a_locked_parent(tmp_path: Path) -> Iterator[Path]:
 
 @pytest.fixture(scope='function')
 def working_directory_under_a_locked_parent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
-    """The working directory, entered before its parent is made to refuse search; unlocked afterwards."""
+    """The working directory, entered before its parent is made to refuse search; unlocked afterwards.
+
+    Args:
+        tmp_path: Directory the locked parent and the working directory are created under.
+        monkeypatch: Changes the process's working directory to the new directory, undone at teardown.
+    """
     locked = tmp_path / 'locked'
     directory = locked / 'sub'
     directory.mkdir(parents=True)
@@ -117,6 +138,9 @@ def linked_specs_workspace(tmp_path: Path) -> Path:
     """A workspace root whose `docs/__meta__` is a symlink to a real directory holding a tight token budget.
 
     Read through the link, the one document would break its budget; the snapshot never reads through it.
+
+    Args:
+        tmp_path: Directory the specifications, the document and the link are written into, as the workspace root.
     """
     _write(tmp_path, 'specs/code.md', '# Code\n')
     _write(tmp_path, 'specs/code.structure.json', TIGHT_BUDGET_STRUCTURE_SPEC)
@@ -127,7 +151,11 @@ def linked_specs_workspace(tmp_path: Path) -> Path:
 
 @pytest.fixture(scope='function')
 def linked_docs_workspace(tmp_path: Path) -> Path:
-    """A workspace root whose `docs` is a symlink to a real directory holding a whole layout."""
+    """A workspace root whose `docs` is a symlink to a real directory holding a whole layout.
+
+    Args:
+        tmp_path: Directory the real layout and the link are written into, as the workspace root.
+    """
     _write(tmp_path, 'documentation/__meta__/code.md', '# Code\n')
     _write(tmp_path, 'documentation/__meta__/code.structure.json', TIGHT_BUDGET_STRUCTURE_SPEC)
     _write(tmp_path, 'documentation/code/guide.md', '## First\n\none two three\n\n## Second\n\nfour five six\n')
@@ -140,7 +168,13 @@ def _unused_handler() -> None:
 
 
 def _write(root: Path, relative: str, text: str = '') -> Path:
-    """Write one file under the root, creating its parents, and return its path."""
+    """Write one file under the root, creating its parents, and return its path.
+
+    Args:
+        root: Directory the file is written under.
+        relative: Slash-separated path of the file, relative to `root`.
+        text: UTF-8 text the file holds. The file is empty when omitted.
+    """
     path = root / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding='utf-8')

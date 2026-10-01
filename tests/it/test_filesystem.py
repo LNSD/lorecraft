@@ -123,7 +123,11 @@ PARITY_ENTRIES: Final[Mapping[str, EntryKind]] = MappingProxyType(
 
 @pytest.fixture(scope='function')
 def unreadable_dir(tmp_path: Path) -> Iterator[Path]:
-    """A directory whose permissions refuse listing, restored afterwards so pytest can clean it up."""
+    """A directory whose permissions refuse listing, restored afterwards so pytest can clean it up.
+
+    Args:
+        tmp_path: Directory the locked directory is created under, as the filesystem root.
+    """
     directory = tmp_path / 'locked'
     directory.mkdir()
     directory.chmod(0o000)
@@ -133,7 +137,11 @@ def unreadable_dir(tmp_path: Path) -> Iterator[Path]:
 
 @pytest.fixture(scope='function')
 def unreadable_outside_dir(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Path]:
-    """A directory outside the root whose permissions refuse searching, restored afterwards for cleanup."""
+    """A directory outside the root whose permissions refuse searching, restored afterwards for cleanup.
+
+    Args:
+        tmp_path_factory: Makes a temporary directory separate from the test's root, so the locked one lies outside it.
+    """
     directory = tmp_path_factory.mktemp('outside') / 'locked'
     directory.mkdir()
     directory.chmod(0o000)
@@ -143,10 +151,13 @@ def unreadable_outside_dir(tmp_path_factory: pytest.TempPathFactory) -> Iterator
 
 @pytest.fixture(scope='function')
 def unsearchable_dir_with_a_link(tmp_path: Path) -> Iterator[Path]:
-    """``docs/``, holding the link ``linked.md``, readable but not searchable, restored afterwards for cleanup.
+    """`docs/`, holding the link `linked.md`, readable but not searchable, restored afterwards for cleanup.
 
     Read permission lets the directory be listed, so the link shows up as an entry; without search permission
     nothing inside it can be reached, so its target cannot be read.
+
+    Args:
+        tmp_path: Directory `docs/` is created under, as the filesystem root.
     """
     directory = tmp_path / 'docs'
     directory.mkdir()
@@ -158,7 +169,11 @@ def unsearchable_dir_with_a_link(tmp_path: Path) -> Iterator[Path]:
 
 @pytest.fixture(scope='function')
 def unreadable_file(tmp_path: Path) -> Iterator[Path]:
-    """A file under ``docs/`` whose permissions refuse reading, restored afterwards for cleanup."""
+    """A file under `docs/` whose permissions refuse reading, restored afterwards for cleanup.
+
+    Args:
+        tmp_path: Directory `docs/` is created under, as the filesystem root.
+    """
     (tmp_path / 'docs').mkdir()
     file = tmp_path / 'docs' / 'locked.md'
     file.write_text('', encoding='utf-8')
@@ -169,7 +184,11 @@ def unreadable_file(tmp_path: Path) -> Iterator[Path]:
 
 @pytest.fixture(scope='function')
 def parity_tree(tmp_path: Path) -> Path:
-    """The parity tree under ``tmp_path``: the files, links and fifo of the ``PARITY_*`` tables."""
+    """The parity tree under `tmp_path`: the files, links and fifo of the `PARITY_*` tables.
+
+    Args:
+        tmp_path: Directory the tree is written into, as the filesystem root. Absolute links target paths under it.
+    """
     for path, data in PARITY_FILES.items():
         (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / path).write_bytes(data)
@@ -187,8 +206,12 @@ def parity_tree(tmp_path: Path) -> Path:
 def aliased_root_with_an_absolute_link(tmp_path: Path, request: pytest.FixtureRequest) -> Path:
     """A root reached through an alias link, returned as the alias.
 
-    It holds ``docs/code/`` and ``docs/absolute``, a link to ``docs/code`` by an absolute target spelled
+    It holds `docs/code/` and `docs/absolute`, a link to `docs/code` by an absolute target spelled
     either through the alias or through the real root.
+
+    Args:
+        tmp_path: Directory the real root and the alias link are created in.
+        request: Carries the parametrised spelling of the absolute target, through the alias or the real root.
     """
     real_root = tmp_path / 'real'
     (real_root / 'docs' / 'code').mkdir(parents=True)
@@ -203,7 +226,12 @@ def aliased_root_with_an_absolute_link(tmp_path: Path, request: pytest.FixtureRe
 
 @pytest.fixture(scope='function', params=['dangling-link', 'regular-file'])
 def unresolved_claude_skills_tree(tmp_path: Path, request: pytest.FixtureRequest) -> Path:
-    """A root whose ``.claude/skills`` exists but leads to no directory: a dangling link or a regular file."""
+    """A root whose `.claude/skills` exists but leads to no directory: a dangling link or a regular file.
+
+    Args:
+        tmp_path: Directory `.claude/` is created under, as the filesystem root.
+        request: Carries the parametrised form of the unresolved entry, a dangling link or a regular file.
+    """
     (tmp_path / '.claude').mkdir()
     if request.param == 'dangling-link':
         (tmp_path / '.claude' / 'skills').symlink_to('missing')
@@ -216,8 +244,11 @@ def unresolved_claude_skills_tree(tmp_path: Path, request: pytest.FixtureRequest
 def linked_skills_tree(tmp_path: Path) -> Path:
     """A root whose one skill lives outside the skills directories, reached through two links.
 
-    ``skills/review/`` holds the files, ``.agents/skills/review`` links to it, and ``.claude/skills`` links to
-    ``.agents/skills``: the layout of a repository that ships a skill and also uses it.
+    `skills/review/` holds the files, `.agents/skills/review` links to it, and `.claude/skills` links to
+    `.agents/skills`: the layout of a repository that ships a skill and also uses it.
+
+    Args:
+        tmp_path: Directory the skill and both links are written into, as the filesystem root.
     """
     (tmp_path / 'skills' / 'review').mkdir(parents=True)
     (tmp_path / 'skills' / 'review' / 'SKILL.md').write_bytes(b'---\nname: review\n---\n')
@@ -230,10 +261,13 @@ def linked_skills_tree(tmp_path: Path) -> Path:
 
 @pytest.fixture(scope='function')
 def chain_of_41_links(tmp_path: Path) -> str:
-    """A directory under ``tmp_path`` reached through 41 links, one more than Linux follows; returns the first link.
+    """A directory under `tmp_path` reached through 41 links, one more than Linux follows; returns the first link.
 
-    ``real/`` holds ``SKILL.md``; ``link-0`` leads to ``real`` and each later link to the one before it, so
-    ``link-40`` is the head of a chain that does not loop and is still too long to open.
+    `real/` holds `SKILL.md`; `link-0` leads to `real` and each later link to the one before it, so
+    `link-40` is the head of a chain that does not loop and is still too long to open.
+
+    Args:
+        tmp_path: Directory `real/` and the links are created in, as the filesystem root.
     """
     (tmp_path / 'real').mkdir()
     (tmp_path / 'real' / 'SKILL.md').write_bytes(b'---\n')
@@ -246,10 +280,13 @@ def chain_of_41_links(tmp_path: Path) -> str:
 
 @pytest.fixture(scope='function')
 def chain_of_40_links(tmp_path: Path) -> str:
-    """A directory under ``tmp_path`` reached through 40 links, as many as Linux follows; returns the first link.
+    """A directory under `tmp_path` reached through 40 links, as many as Linux follows; returns the first link.
 
-    Laid out as ``chain_of_41_links`` is, one link shorter: ``link-39`` is the head of the longest chain that
-    still opens ``real/``.
+    Laid out as `chain_of_41_links` is, one link shorter: `link-39` is the head of the longest chain that
+    still opens `real/`.
+
+    Args:
+        tmp_path: Directory `real/` and the links are created in, as the filesystem root.
     """
     (tmp_path / 'real').mkdir()
     (tmp_path / 'real' / 'SKILL.md').write_bytes(b'---\n')
@@ -268,7 +305,12 @@ UNREADABLE_FILE: Final[str] = 'the path leads to no file that can be read'
 
 
 def _answer(call: Callable[[RootRelativePath], object], path: RootRelativePath) -> object:
-    """What one view answers for ``path``: the return value, ``UNREADABLE_FILE``, or the class of the ``Error``."""
+    """What one view answers for `path`: the return value, `UNREADABLE_FILE`, or the class of the `Error`.
+
+    Args:
+        call: The view's operation to ask, such as its `read_text` or `list_dir`.
+        path: Path the operation is asked about.
+    """
     try:
         return call(path)
     except (FileReadError, UnrecordedFileError):
@@ -280,7 +322,13 @@ def _answer(call: Callable[[RootRelativePath], object], path: RootRelativePath) 
 def _answers(
     disk_call: Callable[[RootRelativePath], object], virtual_call: Callable[[RootRelativePath], object], path: str
 ) -> tuple[object, object]:
-    """The disk view's answer and the virtual view's answer for the same path, in that order."""
+    """The disk view's answer and the virtual view's answer for the same path, in that order.
+
+    Args:
+        disk_call: The disk view's operation to ask.
+        virtual_call: The snapshot view's operation to ask, the same one as `disk_call`.
+        path: Root-relative path, as text, both operations are asked about.
+    """
     return _answer(disk_call, RootRelativePath.parse(path)), _answer(virtual_call, RootRelativePath.parse(path))
 
 

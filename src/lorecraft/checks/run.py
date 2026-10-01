@@ -344,15 +344,23 @@ def _skill_links(database: Database, ref: SkillRef) -> SkillCheckResult:
     """The link violations of a skill whose frontmatter was already read and decoded. Raises nothing.
 
     The frontmatter was read and decoded from the same bytes the parse reads, so the parse cannot fail on them.
+
+    Args:
+        database: Where the skill's parse tree is read from.
+        ref: The skill whose `SKILL.md` links are checked.
     """
     parsed = database.skill_parse(ref)
     return validate_skill_links(links=parsed.links, anchors=parsed.anchors)
 
 
 def _listed_files(database: Database, frontmatter: Frontmatter) -> tuple[ListedFiles, ...]:
-    """The files a skill's ``metadata`` lists, subkey by subkey, each path with what the snapshot holds there.
+    """The files a skill's `metadata` lists, subkey by subkey, each path with what the snapshot holds there.
 
     A path written twice is located twice, so each of its entries carries its own state. Raises nothing.
+
+    Args:
+        database: Where each listed path is looked up in the snapshot.
+        frontmatter: The skill's decoded frontmatter, whose `metadata` is read.
     """
     listed: list[ListedFiles] = []
     for subkey, written_paths in listed_by_subkey(frontmatter):
@@ -364,13 +372,17 @@ def _listed_files(database: Database, frontmatter: Frontmatter) -> tuple[ListedF
 
 
 def _listed_file_state(database: Database, written: str) -> ListedFileState:
-    """What the snapshot can tell about one path a skill lists under ``metadata``, as written there.
+    """What the snapshot can tell about one path a skill lists under `metadata`, as written there.
 
-    The path is parsed here, once: one that is absolute or climbs with ``..`` names nothing under the root the
+    The path is parsed here, once: one that is absolute or climbs with `..` names nothing under the root the
     snapshot was taken of, so it is outside the scope like any other path the snapshot never read. A file is in
     the scope wherever the snapshot holds it, links followed, even in a directory it did not list, such as a file a
-    linked ``SKILL.md`` leads to. Otherwise the path's directory decides: listed, the path is in the scope; not,
+    linked `SKILL.md` leads to. Otherwise the path's directory decides: listed, the path is in the scope; not,
     the snapshot cannot tell, and the path is outside it.
+
+    Args:
+        database: Where the path is looked up in the snapshot.
+        written: The path exactly as the skill wrote it, unparsed and unresolved.
     """
     try:
         path = RootRelativePath.parse(written)
@@ -384,7 +396,11 @@ def _listed_file_state(database: Database, written: str) -> ListedFileState:
 
 
 def _budgeted(aspects: tuple[StructureAspect, ...]) -> tuple[StructureAspect, ...]:
-    """The structure aspects that set a ``tokens`` budget, in the order given."""
+    """The structure aspects that set a `tokens` budget, in the order given.
+
+    Args:
+        aspects: The structure aspects governing a document; those without a `tokens` budget are dropped.
+    """
     budgeted: list[StructureAspect] = []
     for aspect in aspects:
         if aspect.tokens is not None:
@@ -394,6 +410,10 @@ def _budgeted(aspects: tuple[StructureAspect, ...]) -> tuple[StructureAspect, ..
 
 def _frontmatter(database: Database, ref: DocumentRef) -> FrontmatterNode | DocumentDecodeError:
     """The document's frontmatter node, or the decode failure when its bytes are not UTF-8.
+
+    Args:
+        database: Where the frontmatter is read and cached.
+        ref: Document whose frontmatter is wanted; its bytes are decoded once, by the database.
 
     Returns:
         The frontmatter node, or the decode failure when the document is present but not UTF-8: such bytes are on
@@ -412,6 +432,10 @@ def _frontmatter(database: Database, ref: DocumentRef) -> FrontmatterNode | Docu
 def _parse(database: Database, ref: DocumentRef) -> ParsedDocument | DocumentDecodeError:
     """The document's parse tree, or the decode failure when its bytes are not UTF-8.
 
+    Args:
+        database: Where the parse tree is read and cached.
+        ref: Document whose parse tree is wanted; parsed once, by the database.
+
     Returns:
         The parse tree, or the decode failure when the document is present but not UTF-8: such bytes are on the same
         side of the line as invalid YAML, since the document is wrong, so the caller reports a finding rather than
@@ -429,6 +453,10 @@ def _parse(database: Database, ref: DocumentRef) -> ParsedDocument | DocumentDec
 def _tokens(database: Database, ref: DocumentRef) -> int | DocumentDecodeError:
     """The tokens in the document's whole file, or the decode failure when its bytes are not UTF-8.
 
+    Args:
+        database: Where the token count is computed and cached.
+        ref: Document whose whole file is counted, frontmatter and code included.
+
     Returns:
         The token count, or the decode failure when the document is present but not UTF-8: such bytes are on the same
         side of the line as invalid YAML, since the document is wrong, so the caller reports a finding rather than
@@ -444,15 +472,19 @@ def _tokens(database: Database, ref: DocumentRef) -> int | DocumentDecodeError:
 
 
 def _skill_frontmatter(database: Database, ref: SkillRef) -> FrontmatterNode | SkillDecodeError:
-    """The skill's frontmatter node, or the decode failure when its ``SKILL.md`` is not UTF-8.
+    """The skill's frontmatter node, or the decode failure when its `SKILL.md` is not UTF-8.
+
+    Args:
+        database: Where the frontmatter is read and cached.
+        ref: The skill whose `SKILL.md` is read.
 
     Returns:
-        The frontmatter node, or the decode failure when the ``SKILL.md`` is present but not UTF-8: such bytes are
+        The frontmatter node, or the decode failure when the `SKILL.md` is present but not UTF-8: such bytes are
         on the same side of the line as invalid YAML, since the skill is wrong, so the caller reports a finding
         rather than taking the exit-2 path an unreadable file takes.
 
     Raises:
-        SkillReadError: If the skill's ``SKILL.md`` is missing from the snapshot; a decode failure is not raised.
+        SkillReadError: If the skill's `SKILL.md` is missing from the snapshot; a decode failure is not raised.
     """
     try:
         return database.skill_frontmatter(ref)
@@ -461,7 +493,11 @@ def _skill_frontmatter(database: Database, ref: SkillRef) -> FrontmatterNode | S
 
 
 def _undecodable(rule_namespace: str) -> Violation:
-    """The violation a governed document that is not UTF-8 carries instead of the check's own."""
+    """The violation a governed document that is not UTF-8 carries instead of the check's own.
+
+    Args:
+        rule_namespace: Prefix of the `undecodable` rule: the document's corpus.
+    """
     return Violation(
         line=LineNumber(1),
         rule=f'{rule_namespace}.undecodable',

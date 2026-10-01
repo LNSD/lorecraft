@@ -50,8 +50,11 @@ class RootRelativePath:
     def parse(cls, raw: str) -> Self:
         """Return a validated root-relative path.
 
+        Args:
+            raw: Path as spelled, with POSIX separators. Normalized as `PurePosixPath` does; empty means the root.
+
         Raises:
-            RootRelativePathError: If the path is absolute or holds a ``..`` component.
+            RootRelativePathError: If the path is absolute or holds a `..` component.
         """
         return cls(PurePosixPath(raw))
 
@@ -65,13 +68,17 @@ class RootRelativePath:
             raise RootRelativePathError(self.value)
 
     def __str__(self) -> str:
+        """The path with POSIX separators, such as `docs/code/a.md`, as findings and the workspace tree print it."""
         return str(self.value)
 
     def __truediv__(self, name: str) -> 'RootRelativePath':
-        """This path joined with ``name``, checked again: a ``..`` or an absolute ``name`` is rejected.
+        """This path joined with `name`, checked again: a `..` or an absolute `name` is rejected.
+
+        Args:
+            name: Component, or `/`-separated components, to append below this path.
 
         Raises:
-            RootRelativePathError: If the joined path is absolute or holds a ``..`` component.
+            RootRelativePathError: If the joined path is absolute or holds a `..` component.
         """
         return RootRelativePath(self.value / name)
 
@@ -99,7 +106,11 @@ class RootRelativePath:
         return tuple(ancestors)
 
     def is_relative_to(self, other: 'RootRelativePath') -> bool:
-        """True when this path is ``other`` or lies under it; every path lies under the root."""
+        """True when this path is `other` or lies under it; every path lies under the root.
+
+        Args:
+            other: Candidate ancestor. Compared lexically, component by component, never as a string prefix.
+        """
         return self.value.is_relative_to(other.value)
 
 
