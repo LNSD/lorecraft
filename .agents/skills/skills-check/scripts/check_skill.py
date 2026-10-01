@@ -147,6 +147,7 @@ def linked_files(root: Path, rel: str, text: str, frontmatter: dict) -> tuple[di
 
     `references: docs/code/logging.md` makes `references/logging.md` resolve to
     `docs/code/logging.md`, which is how §4 of this skill's SKILL.md says the links resolve.
+    `lorecraft check skills` reports two listed files that share a name under one subkey.
     """
     metadata = frontmatter.get('metadata')
     if not isinstance(metadata, dict):
@@ -158,20 +159,8 @@ def linked_files(root: Path, rel: str, text: str, frontmatter: dict) -> tuple[di
         value = metadata.get(subkey)
         if not isinstance(value, str):
             continue
-        seen: dict[str, str] = {}
         for repo_path in value.split():
             file_name = Path(repo_path).name
-            if file_name in seen:
-                findings.append(
-                    Finding(
-                        rel,
-                        key_line(text, 'metadata'),
-                        'metadata.duplicate-name',
-                        f'`metadata.{subkey}` lists `{seen[file_name]}` and `{repo_path}`, '
-                        f'which both link as `{subkey}/{file_name}`',
-                    )
-                )
-            seen[file_name] = repo_path
             if not (root / repo_path).is_file():
                 findings.append(
                     Finding(
