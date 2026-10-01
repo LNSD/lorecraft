@@ -112,7 +112,7 @@ Nothing registers a rule document with a specification: the document's own path 
   group but not for the corpus goes there, and stays out of the corpus file rather than becoming a condition
   inside it.
 - **A namespace is a group only once a specification names it.** Documents no `code-<namespace>.md` matches,
-  `test-*` and the unprefixed `logging` today, are governed by `code.md` alone. That is the normal case, not a
+  `arch-*`, `error-*`, `test-*` and the unprefixed `logging` today, are governed by `code.md` alone. That is the normal case, not a
   gap to fill. Add a namespace specification when a group's members genuinely share rules the rest of the
   corpus does not.
 - **Matching is by name and nothing else.** A specification starts governing the moment its name resolves, and
@@ -159,7 +159,7 @@ Keep rule documents focused and concise. Agent entrypoint docs should NOT hardco
 
 This section is the operative rule, and the `frontmatter` key of [code.structure.json](code.structure.json)
 beside it is the same rule in a form a checker applies — `lorecraft check frontmatter` validates every document's
-frontmatter against it, and `just check-docs` runs that over this corpus. A `principle-*`, `pattern-*`, or `python-*` document is additionally
+frontmatter against it, and `just check-docs` runs that over this corpus. A document is additionally
 narrowed by every `code-<namespace>.md` specification whose namespace matches its name
 ([§1](#1-core-principles)); the narrowing adds to what this section requires and never relaxes it.
 
@@ -213,17 +213,18 @@ Most rules are `core`.
 
 #### `arch` - Architectural Rules
 
-High-level organizational and structural rules — the shape of the distribution, the contents of
-`pyproject.toml`, the layout a package follows. An `arch` rule governs where code lives rather than how it is
-written.
+High-level organizational and structural rules: how the packages fit together, the role each plays, the
+boundaries between them and what crosses them. An `arch` rule governs where code lives and what flows between
+packages, rather than how a line of code is written.
 
-**`arch` is reserved and currently unused.** No document in the corpus carries it; the first one would govern
-`pyproject.toml` and the layout under `src/`.
+An `arch` rule is `global`: it governs how the packages fit together, not one package. A rule about one
+package's place in that shape is a `pkg` rule.
 
 #### `pkg` - Package-Specific Rules
 
-Rules scoped to individual packages, using the `pkg-` prefix followed by the package's full import path. Two
-layers can hold a subpackage of the same name, so the path always starts at the import package: a doc
+Rules scoped to individual packages, named with a group prefix followed by the package's full import path:
+`pkg-` for the patterns code in the package follows, or the prefix of a group whose every member is scoped to
+one package. Two layers can hold a subpackage of the same name, so the path always starts at the import package: a doc
 governing `lorecraft/project/checks/` is scoped `pkg:lorecraft.project.checks`. A security companion takes the same name plus `-security`.
 
 `scope` carries the import path exactly as Python spells it — **snake_case**, dotted for nesting:
@@ -249,7 +250,7 @@ The two fields are not independent. A document that breaks one of these pairings
 |------------|---------|
 | `type: principle`, `core`, or `arch` | ⇒ `scope: "global"` |
 | `type: pkg` | ⇒ `scope: "pkg:<name>"` |
-| `name: pkg-<x>` | ⇔ `type: pkg` (a `pkg-` name implies the type, and the type implies the name) |
+| `name: pkg-<x>` | ⇒ `type: pkg` (a `pkg-` name implies the type; a group of package-scoped documents may carry it under its own prefix) |
 | `type: meta` | ⇒ `scope: "global"`, and the file lives in `docs/__meta__/` |
 
 ### Description Guidelines
@@ -307,7 +308,9 @@ member that specializes another adds a further segment:
 ```
 
 The groups in use are `principle-*` (universal principles), `pattern-*` (design patterns), `python-*`
-(language conventions), `error-*` (how this project declares and handles its errors), `test-*`, and unprefixed standalone documents such as `logging`. A
+(language conventions), `error-*` (how this project declares and handles its errors), `test-*`, `arch-*`
+(how the packages fit together), `module-*` (one package's responsibility), and unprefixed standalone documents
+such as `logging`. A
 rule document that fits none of them is standalone, and a new group is created by writing its first member.
 
 ### A Prefix Names The Subject, Not The Language
@@ -333,7 +336,7 @@ content, never a router to its children.
 3. **Progressively specific** - Add specificity per segment
 4. **Match filename** - `name` in frontmatter MUST match filename (minus `.md`)
 5. **Flat directory** - All files at `docs/code/` root (no subdirectories)
-6. **Package patterns** - Use the `pkg-` prefix followed by the package's full import path, with
+6. **Package rules** - Use a group prefix, `pkg-` by default, followed by the package's full import path, with
    underscores and dots converted to hyphens
 
 ### Benefits
@@ -354,7 +357,7 @@ Rule documents may reference other rule documents to establish relationships. Cr
 | Type | Meaning | Example |
 |---|---|---|
 | `Related` | Sibling in same prefix group | test-organization <-> test-functions |
-| `Foundation` | Core rule a pkg/arch rule builds on | pkg-lorecraft-project-checks -> error-types |
+| `Foundation` | Principle, core or arch rule a pkg/arch rule builds on | pkg-lorecraft-project-checks -> error-types |
 | `Companion` | Paired doc for same package | pkg-lorecraft-project-checks <-> pkg-lorecraft-project-checks-security |
 | `Extends` | Specializes/refines another rule document | python-async-tasks -> python-async |
 
@@ -404,9 +407,9 @@ Rule documents may reference other rule documents to establish relationships. Cr
 [code.structure.json](code.structure.json) beside this file holds the outline below in machine-checkable
 form, together with the word caps and token budget of [§1](#1-core-principles). `lorecraft check structure`
 applies the outline and the caps, and `lorecraft check budget` the budget. A
-`principle-*`, `pattern-*`, or `python-*` document takes its section outline from the narrowest
+document that a namespace specification matches takes its section outline from the narrowest
 `code-<namespace>.md` specification that matches its name instead of the general shape below; the general
-shape governs every document no namespace specification matches, `test-*` and `logging` today
+shape governs every document no namespace specification matches, `arch-*`, `error-*`, `test-*` and `logging` today
 ([§1](#1-core-principles)).
 
 Every rule document should follow this general structure:
@@ -487,8 +490,10 @@ So:
   comment says _why_ the example is good or bad, never _where_ it came from.
 - **Never assert, in prose, that a named module does the thing.** "`lorecraft/project/checks/base.py`
   states X" is a citation wearing a sentence, and it rots on the next rename. State the rule.
-- **Invent the names.** Illustrative subjects (`parse_frontmatter`, `OutlineSpec`, `load_corpus`) are
-  preferred precisely because they are obviously not an inventory of the project.
+- **Prefer invented names.** Illustrative subjects (`parse_frontmatter`, `OutlineSpec`, `load_corpus`) are
+  preferred precisely because they are obviously not an inventory of the project. A real type or function name
+  may appear where no invented one serves as well. It is used as vocabulary, and the example still claims nothing
+  about where the name lives or what its signature is.
 - **Stay as close to the real code as the rule allows.** Fabricated does not mean generic. An example should
   look like something this project would plausibly contain — the same domain vocabulary, the same shapes,
   the same exception types, the same threading style — so a reader recognizes their own code in it. `foo`/`bar`
@@ -505,8 +510,8 @@ Three things stay exact, because they are what the doc is teaching rather than e
   and a reader who cannot map an example onto the package it concerns has to translate before they can
   apply the rule, which is the same cost a toy domain imposes. Invented substitutes are at their worst
   in a doc whose subject **is** naming, where the fabrication defeats the lesson. What must not follow
-  the name is the package's **API**: do not import its types or reproduce its signatures, because those
-  drift and the name does not.
+  the name is the package's **API** as evidence: do not import from a real module path or copy a real
+  signature, because those drift and the name does not.
 - **A subpackage that a rule names as its subject.** A rule that says "every checker returns findings
   rather than raising" is stating the convention, not citing a module. The test is whether the name is
   the **rule** or the **proof**. Evidence rots; a rule is what the reader came for.
@@ -672,7 +677,7 @@ Before committing a rule document:
 - [ ] Filename uses kebab-case
 - [ ] Filename uses appropriate prefix for its group
 - [ ] Related documents share the same prefix
-- [ ] Package-specific documents follow `pkg-<package-name>.md` format
+- [ ] Package-specific documents are named `<prefix>-<package-name>.md`, `pkg-` unless their group has its own prefix
 - [ ] Internal cross-references use correct paths
 
 ### Cross-References
@@ -688,7 +693,8 @@ Before committing a rule document:
 - [ ] Code examples are Python and pass the project's Ruff configuration
 - [ ] Every example is fabricated — no example cites a module, and no prose points at one as evidence
 - [ ] Every example is labelled `# ✅ Good —`, `# ❌ Bad —`, or `# 🔶 Acceptable —`, with the reason after the dash
-- [ ] No example is a transcription of real code, and a rename anywhere in `src/` could not falsify the doc
+- [ ] No example is a transcription of real code, and a real type or function name appears only where no
+      invented one serves as well
 - [ ] Examples use this project's domain vocabulary and idioms, not toy domains a reader must translate
 - [ ] The doc states rules and shows shapes; it does not enumerate the documents that exist
 - [ ] Path patterns (`src/lorecraft/<pkg>/`, `src/lorecraft/<pkg>/tests/test_*.py`) appear only where the convention is about layout

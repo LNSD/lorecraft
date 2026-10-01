@@ -20,7 +20,7 @@ check its outline and section word caps, the budget check its global `tokens` ke
 the frontmatter check its global `frontmatter` key, a JSON Schema; `lorecraft check header` is a hidden alias of the
 frontmatter check. The skill check holds the frontmatter of every `SKILL.md` to the Agent Skills specification. A
 bare `lorecraft check` runs every check the command line carries, over one snapshot. The rest of the skill check,
-the body length and the links, still runs as a vendored script under `.agents/skills/*/scripts/`. All are wired to
+the body length and the Markdown links, still runs as a vendored script under `.agents/skills/*/scripts/`. All are wired to
 `just check-docs` and `just check-skills` and gated in CI. Do not infer structure that is not on disk.
 
 The CLI is a router: `cli/app.py` declares the root application and the global options, and every subcommand
@@ -140,10 +140,17 @@ run it and the rules for its output.
 2. Plan from what exists. If the repository does not yet define a convention the task needs, propose one
    explicitly rather than inventing it silently.
 3. Implement the smallest correct change. Prefer clear, typed, obvious code over clever abstractions.
-4. Format and lint with `just fmt` then `just check`; fix every finding, never a bare `# noqa`.
-5. Run the relevant tests: `just test-unit` always, and the tier the change reaches — `just test-it` for a module seam, `just test-e2e` for packaging or the console script.
-6. Run `just check-docs` and `just check-skills` when the change touches `docs/`, `.agents/skills/` or `skills/`.
-7. Close by stating what was skipped and any residual risk.
+4. Update, in the same change, the documents it makes untrue:
+   - **User-facing behaviour** — a new or changed command, option, output or specification dialect — creates or
+     updates its feature docs in `docs/feat/`; find them through `/feat-discovery`.
+   - **A package's responsibility.** Code is written against its package's `module-*` code rules in `docs/code/`.
+     A change that fits them updates nothing there. A deliberate decision that changes what a package is
+     responsible for, or contradicts its rules, updates those rules in the same change. That is the less common
+     case: code that does not fit its package usually belongs in another one, not in a rewritten rule.
+5. Format and lint with `just fmt` then `just check`; fix every finding, never a bare `# noqa`.
+6. Run the relevant tests: `just test-unit` always, and the tier the change reaches — `just test-it` for a module seam, `just test-e2e` for packaging or the console script.
+7. Run `just check-docs` and `just check-skills` when the change touches `docs/`, `.agents/skills/` or `skills/`.
+8. Close by stating what was skipped and any residual risk.
 
 A plan is grounded in what the repository actually contains, and that holds equally when the user asks for one:
 confirm which files exist, name the conventions the change depends on, and ask a concise question where
@@ -186,9 +193,10 @@ and do not broaden scope for convenience.
 ## Rule Document Contract
 
 **`docs/__meta__/code.md` is the authority for the `docs/code/` corpus.** Read it before adding or editing a
-rule document; this section is a summary and defers to it on every detail. Three prefix specifications narrow
-it — `code-principle.md`, `code-pattern.md` and `code-python.md` fix the section outline for `principle-*`,
-`pattern-*` and `python-*`. A prefix with none of its own, `error-*`, `test-*` and `logging` today, follows `code.md`.
+rule document; this section is a summary and defers to it on every detail. Four prefix specifications narrow
+it — `code-principle.md`, `code-pattern.md`, `code-python.md` and `code-module.md` fix the section outline for
+`principle-*`, `pattern-*`, `python-*` and `module-*`, the last one document per package defending its single
+responsibility. A prefix with none of its own, `arch-*`, `error-*`, `test-*` and `logging` today, follows `code.md`.
 
 The shape in brief:
 
@@ -246,7 +254,8 @@ cannot be relaxed:
 
 ## Essential Conventions
 
-- Keep docs and code in sync in the same change.
+- Keep docs and code in sync in the same change: feature docs for behaviour, `module-*` code rules for a
+  package's responsibility ([Development Workflow](#development-workflow), step 4).
 - **No file holds a version.** `hatch-vcs` derives it from the git tag at build time, and the command line
   alone reads it back with `importlib.metadata`;
   the `release` skill owns the release flow. Adding a version literal anywhere is a defect, not a
