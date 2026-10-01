@@ -1,4 +1,4 @@
-"""The one join from a root-relative path onto a disk root, and the scan scope record's one invariant."""
+"""The one join from a root-relative path onto a disk root."""
 
 from pathlib import Path
 
@@ -6,7 +6,7 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 
-from ..disk import ScanRoot, disk_location
+from ..disk import disk_location
 
 
 @pytest.mark.unit
@@ -30,19 +30,3 @@ class TestDiskLocation:
 
         #: Then
         assert location == tmp_path, 'the root-relative root is the disk root itself'
-
-
-@pytest.mark.unit
-class TestScanRoot:
-    def test_construct_with_a_negative_depth_raises_value_error(self) -> None:
-        #: Given
-        directory = RootRelativePath.parse('docs')
-        depth = -1
-
-        #: When
-        with pytest.raises(ValueError) as exc_info:
-            ScanRoot(directory, depth=depth)
-
-        #: Then
-        assert exc_info.type is ValueError, 'a negative depth, which would list nothing, is a value error'
-        assert str(depth) in str(exc_info.value), 'the message names the rejected depth'

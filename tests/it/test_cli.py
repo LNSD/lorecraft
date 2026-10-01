@@ -1193,7 +1193,7 @@ class TestCheckSkillsCommand:
                     'rule': 'skill.metadata-outside-scope',
                     'message': (
                         '`metadata.scripts` lists `src/tool.py`, which lorecraft does not read; list a file directly '
-                        'in docs/, in a real directory directly in docs/, or directly in a skill directory'
+                        'in docs/, in a directory directly in docs/, or directly in a skill directory'
                     ),
                     'spec': None,
                 }

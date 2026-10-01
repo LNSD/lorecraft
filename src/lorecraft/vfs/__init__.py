@@ -1,14 +1,14 @@
-"""The filesystem boundary Lorecraft reads through: the views, the disk scan, the snapshot and the change set.
+"""The filesystem boundary Lorecraft reads through: the views, the disk scan, the snapshot, scope and change set.
 
-Every argument and answer is spelled as a ``RootRelativePath``, the path type in ``lorecraft.core.path``,
+Every argument and answer is spelled as a `RootRelativePath`, the path type in `lorecraft.core.path`,
 which this package speaks and does not re-export. What a scan reads is the scope its caller passes, a tuple
-of ``ScanRoot``; which directories matter is the project model's business, not this package's.
+of `ScanRoot` the snapshot records, and `is_in_scope` answers from that declaration whether a scan of it reads
+a path; which directories matter is the project model's business, not this package's.
 """
 
 from .changes import Change, ChangeKind, ChangeSet, diff
 from .disk import (
     DiskFileSystem,
-    ScanRoot,
     SnapshotDirListError,
     SnapshotEntryInspectError,
     SnapshotFileReadError,
@@ -16,6 +16,8 @@ from .disk import (
     disk_location,
     take_snapshot,
 )
+from .scan_root import ScanRoot
+from .scope import is_in_scope
 from .snapshot import FileBytes, Link, Listing, Snapshot, VirtualFileSystem
 from .view import (
     DirEntry,
@@ -41,6 +43,7 @@ __all__ = [
     'FileBytes',
     'Link',
     'ScanRoot',
+    'is_in_scope',
     'take_snapshot',
     'SnapshotDirListError',
     'SnapshotEntryInspectError',

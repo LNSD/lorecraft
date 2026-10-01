@@ -12,6 +12,7 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 
+from ..scan_root import ScanRoot
 from ..snapshot import FileBytes, Link, Listing, Snapshot, VirtualFileSystem
 from ..view import DirEntry, EntryKind, FileSystem, TextDecodeError, UnrecordedFileError
 
@@ -114,6 +115,16 @@ class TestSnapshotOfFiles:
         #: Then
         assert snapshot == Snapshot(listings=(), files=(), links=()), 'no files is no listing, no bytes, no link'
 
+    def test_of_files_with_files_records_an_empty_scope(self) -> None:
+        #: Given
+        files = {RootRelativePath.parse('docs/a.md'): b'a'}
+
+        #: When
+        snapshot = Snapshot.of_files(files)
+
+        #: Then
+        assert snapshot.scope == (), 'nothing was scanned, so no scan root is recorded, not even one for docs/'
+
 
 @pytest.mark.unit
 class TestSnapshotEquality:
@@ -149,6 +160,18 @@ class TestSnapshotEquality:
 
         #: Then
         assert not equal, 'a change of bytes alone is a different snapshot'
+
+    def test_snapshots_with_different_scopes_compare_unequal(self) -> None:
+        #: Given
+        listing = Listing(RootRelativePath.parse('docs'), ())
+        narrow = Snapshot(listings=(listing,), files=(), scope=(ScanRoot(RootRelativePath.parse('docs'), depth=0),))
+        wide = Snapshot(listings=(listing,), files=(), scope=(ScanRoot(RootRelativePath.parse('docs'), depth=1),))
+
+        #: When
+        equal = narrow == wide
+
+        #: Then
+        assert not equal, 'a change of scope alone is a different snapshot, since it changes what is in scope'
 
 
 @pytest.mark.unit
@@ -995,84 +1018,3 @@ class TestVirtualFileSystemResolveFile:
 
         #: Then
         assert resolved is None, 'docs/code/missing.md was never recorded, so it leads to no file'
-
-
-@pytest.mark.unit
-class TestVirtualFileSystemIsListed:
-    def test_is_listed_with_a_listed_directory_returns_true(self) -> None:
-        #: Given
-        virtual = VirtualFileSystem(_skills_snapshot())
-        path = RootRelativePath.parse('docs/code')
-
-        #: When
-        listed = virtual.is_listed(path)
-
-        #: Then
-        assert listed is True, 'the snapshot holds a listing of docs/code'
-
-    def test_is_listed_with_an_empty_listed_directory_returns_true(self) -> None:
-        #: Given
-        snapshot = Snapshot(listings=(Listing(RootRelativePath.parse('docs/empty'), ()),), files=())
-        virtual = VirtualFileSystem(snapshot)
-        path = RootRelativePath.parse('docs/empty')
-
-        #: When
-        listed = virtual.is_listed(path)
-
-        #: Then
-        assert listed is True, 'a listing with no entries is still a listing: the directory is known to be empty'
-
-    def test_is_listed_through_linked_directories_returns_true_for_the_listed_target(self) -> None:
-        #: Given
-        virtual = VirtualFileSystem(_skills_snapshot())
-        path = RootRelativePath.parse('.claude/skills/beta')
-
-        #: When
-        listed = virtual.is_listed(path)
-
-        #: Then
-        assert listed is True, 'the links .claude/skills and beta lead to .agents/skills/alpha, which was listed'
-
-    def test_is_listed_with_an_unentered_directory_returns_false(self) -> None:
-        #: Given
-        virtual = VirtualFileSystem(_skills_snapshot())
-        path = RootRelativePath.parse('docs/code/sub')
-
-        #: When
-        listed = virtual.is_listed(path)
-
-        #: Then
-        assert listed is False, 'sub is an entry of docs/code the scan never entered'
-
-    def test_is_listed_with_an_ancestor_of_a_listing_returns_false(self) -> None:
-        #: Given
-        virtual = VirtualFileSystem(_skills_snapshot())
-        path = RootRelativePath.parse('.agents')
-
-        #: When
-        listed = virtual.is_listed(path)
-
-        #: Then
-        assert listed is False, '.agents is known to be a directory, but its entries were never read'
-
-    def test_is_listed_with_a_file_returns_false(self) -> None:
-        #: Given
-        virtual = VirtualFileSystem(_skills_snapshot())
-        path = RootRelativePath.parse('docs/code/a.md')
-
-        #: When
-        listed = virtual.is_listed(path)
-
-        #: Then
-        assert listed is False, 'a file leads to no directory'
-
-    def test_is_listed_with_a_path_outside_the_scope_returns_false(self) -> None:
-        #: Given
-        virtual = VirtualFileSystem(_skills_snapshot())
-        path = RootRelativePath.parse('src')
-
-        #: When
-        listed = virtual.is_listed(path)
-
-        #: Then
-        assert listed is False, 'src lies outside the scanned scope'

@@ -1,9 +1,9 @@
 """What one scan of the workspace saw, as a value, and the view that answers from it.
 
-A ``Snapshot`` holds listings, file bytes and symlink targets, never a handle or a stat result, so two
-snapshots compare and hash structurally. ``VirtualFileSystem`` answers every ``FileSystem`` operation
-from one snapshot without touching the disk. ``take_snapshot`` in ``disk.py`` is the producer that reads
-the disk; ``Snapshot.of_files`` builds one by hand.
+A `Snapshot` holds the scope it was taken of, listings, file bytes and symlink targets, never a handle or a
+stat result, so two snapshots compare and hash structurally. `VirtualFileSystem` answers every `FileSystem`
+operation from one snapshot without touching the disk. `take_snapshot` in `disk.py` is the producer that
+reads the disk; `Snapshot.of_files` builds one by hand.
 """
 
 from collections.abc import Mapping
@@ -13,6 +13,7 @@ from typing import Final, Self
 
 from lorecraft.core.path import ROOT, RootRelativePath
 
+from .scan_root import ScanRoot
 from .view import DirEntry, EntryKind, FileSystem, UnrecordedFileError, decode_text
 
 MAX_LINKS: Final[int] = 40
@@ -68,20 +69,21 @@ class Link:
 
 @dataclass(frozen=True, slots=True)
 class Snapshot:
-    """What one scan saw: every listing, every FILE entry's bytes and every symlink's target. Never mutated.
+    """What one scan saw: its scope, every listing, every FILE entry's bytes and every link's target. Never mutated.
 
-    Tuples only, so two snapshots compare and hash structurally; equality is the "nothing changed" test.
-    Bytes, not text: a non-UTF-8 file stays here so ``read_text`` raises ``TextDecodeError`` exactly as the
-    disk view does; byte equality is the change test mtime is not. What a scan reads is the scope it is given.
-    A link is always recorded, and followed only under a scan root that asks for it: where the scan did not
-    follow one that leads outside the scope, what the disk view reads through it is not here.
+    Tuples only, so two snapshots compare and hash structurally; equality is the "nothing changed" test, the
+    scope included. Bytes, not text: a non-UTF-8 file stays here so `read_text` raises `TextDecodeError`
+    exactly as the disk view does; byte equality is the change test mtime is not. What a scan reads is the
+    scope it is given, and the snapshot records that scope, so whether a path is in scope is answered from the
+    snapshot alone. A link is always recorded, and followed only under a scan root that asks for it: where the
+    scan did not follow one that leads outside the scope, what the disk view reads through it is not here.
 
     Every listing and every file sits at a real path, with no symlink on the way to it. That is what lets the
     virtual view treat every ancestor of a listing, a file or a link as a directory when it follows a chain.
 
-    Reserved, not implemented: ``with_file(path, data) -> Snapshot``, a copy with one file's bytes
+    Reserved, not implemented: `with_file(path, data) -> Snapshot`, a copy with one file's bytes
     replaced (and a FILE entry added to the parent listing when absent), for a server pushing unsaved
-    buffers. It is a rebuild of ``files`` with one record replaced and of one ``Listing``; keep the
+    buffers. It is a rebuild of `files` with one record replaced and of one `Listing`; keep the
     representation such that it stays so.
 
     Attributes:
@@ -91,12 +93,16 @@ class Snapshot:
             followed leads to, sorted by path. The second kind may sit in a directory the scan did not list.
         links: The target of every SYMLINK entry of every listing, and of a symlink met on the way to a
             scope root or along a chain the scan followed, sorted by path. Empty when the snapshot was
-            built by ``of_files``.
+            built by `of_files`.
+        scope: The scan roots `take_snapshot` was given, in the order given and unmerged. Empty when nothing
+            was scanned, as for a snapshot built by `of_files` or by hand, and then no path is in scope.
     """
 
     listings: tuple[Listing, ...]
     files: tuple[FileBytes, ...]
     links: tuple[Link, ...] = ()
+    # Defaults to empty, as `links` does: a snapshot built by hand scanned nothing, so it declares no scope.
+    scope: tuple[ScanRoot, ...] = ()
 
     @classmethod
     def of_files(cls, files: Mapping[RootRelativePath, bytes]) -> Self:
@@ -104,7 +110,8 @@ class Snapshot:
 
         Every directory on the way to a file is listed, the root `.` included. No path may sit under
         another path of the mapping. For tests and, later, the overlay; a scan uses the constructor because
-        it also sees symlinks and other entries.
+        it also sees symlinks and other entries. Nothing was scanned, so the scope is empty and no path is in
+        it, the listed directories included.
 
         Args:
             files: File bytes keyed by root-relative path; kept as given, and a directory is never a key.
@@ -123,7 +130,7 @@ class Snapshot:
         file_records: list[FileBytes] = []
         for path in sorted(files):
             file_records.append(FileBytes(path, files[path]))
-        return cls(listings=tuple(listings), files=tuple(file_records))
+        return cls(listings=tuple(listings), files=tuple(file_records), scope=())
 
     def entries(self) -> dict[RootRelativePath, EntryKind]:
         """Every path the snapshot recorded, with its kind; what a diff compares.
@@ -291,26 +298,6 @@ class VirtualFileSystem(FileSystem):
         if real_path is None or real_path not in self._files:
             return None
         return real_path
-
-    def is_listed(self, path: RootRelativePath) -> bool:
-        """Whether the scan listed the directory `path` leads to, every recorded link on the way followed.
-
-        Only a view over a snapshot can answer it, so `FileSystem` does not declare it: the disk has no scope.
-        A listed directory is one whose every entry the snapshot holds, so a name it does not list is not there;
-        under a directory the scan did not list, the snapshot cannot tell.
-
-        Args:
-            path: The root-relative directory to ask about; a link in it is followed as `resolve_dir` does.
-
-        Returns:
-            True for a directory the snapshot holds a listing of, an empty one included. False for a directory the
-            scan did not enter, such as one beyond a scan root's depth or an ancestor of a scan root, and wherever
-            `resolve_dir` returns `None`.
-        """
-        directory = self.resolve_dir(path)
-        if directory is None:
-            return False
-        return directory in self._listings
 
     def _resolve(self, path: RootRelativePath) -> RootRelativePath | None:
         """Follow the recorded links in `path` and return the real directory or recorded file it leads to.
