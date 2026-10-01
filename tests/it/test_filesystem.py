@@ -33,6 +33,7 @@ from lorecraft.vfs import (
     Listing,
     OsRefusal,
     ScanRoot,
+    ScopeIndex,
     Snapshot,
     SnapshotDirListError,
     SnapshotEntryInspectError,
@@ -42,7 +43,6 @@ from lorecraft.vfs import (
     UnrecordedFileError,
     VirtualFileSystem,
     diff,
-    is_in_scope,
     take_snapshot,
 )
 
@@ -2752,9 +2752,10 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('docs')
         listed = _is_listed(snapshot, directory)
+        index = ScopeIndex(snapshot.scope, snapshot.links)
 
         #: When
-        declared = is_in_scope(snapshot.scope, snapshot.links, directory / 'absent.md')
+        declared = index.is_in_scope(directory / 'absent.md')
 
         #: Then
         assert (declared, listed) == (True, True), 'docs/ is a root: declared in the scope, and listed'
@@ -2764,9 +2765,10 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('docs/feat')
         listed = _is_listed(snapshot, directory)
+        index = ScopeIndex(snapshot.scope, snapshot.links)
 
         #: When
-        declared = is_in_scope(snapshot.scope, snapshot.links, directory / 'absent.md')
+        declared = index.is_in_scope(directory / 'absent.md')
 
         #: Then
         assert (declared, listed) == (True, True), (
@@ -2778,9 +2780,10 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('docs/feat/deep')
         listed = _is_listed(snapshot, directory)
+        index = ScopeIndex(snapshot.scope, snapshot.links)
 
         #: When
-        declared = is_in_scope(snapshot.scope, snapshot.links, directory / 'absent.md')
+        declared = index.is_in_scope(directory / 'absent.md')
 
         #: Then
         assert (declared, listed) == (False, False), (
@@ -2794,9 +2797,10 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('docs/linked')
         listed = _is_listed(snapshot, directory)
+        index = ScopeIndex(snapshot.scope, snapshot.links)
 
         #: When
-        declared = is_in_scope(snapshot.scope, snapshot.links, directory / 'absent.md')
+        declared = index.is_in_scope(directory / 'absent.md')
 
         #: Then
         assert (declared, listed) == (False, False), (
@@ -2810,9 +2814,10 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('docs/alias')
         listed = _is_listed(snapshot, directory)
+        index = ScopeIndex(snapshot.scope, snapshot.links)
 
         #: When
-        declared = is_in_scope(snapshot.scope, snapshot.links, directory / 'absent.md')
+        declared = index.is_in_scope(directory / 'absent.md')
 
         #: Then
         assert (declared, listed) == (True, True), (
@@ -2824,9 +2829,10 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('.agents/skills/y')
         listed = _is_listed(snapshot, directory)
+        index = ScopeIndex(snapshot.scope, snapshot.links)
 
         #: When
-        declared = is_in_scope(snapshot.scope, snapshot.links, directory / 'absent.md')
+        declared = index.is_in_scope(directory / 'absent.md')
 
         #: Then
         assert (declared, listed) == (True, True), 'the skills root follows .agents/skills/y to skills/y and lists it'
@@ -2838,9 +2844,10 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('skills/y')
         listed = _is_listed(snapshot, directory)
+        index = ScopeIndex(snapshot.scope, snapshot.links)
 
         #: When
-        declared = is_in_scope(snapshot.scope, snapshot.links, directory / 'absent.md')
+        declared = index.is_in_scope(directory / 'absent.md')
 
         #: Then
         assert (declared, listed) == (True, True), (
@@ -2852,9 +2859,10 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('skills/y/sub')
         listed = _is_listed(snapshot, directory)
+        index = ScopeIndex(snapshot.scope, snapshot.links)
 
         #: When
-        declared = is_in_scope(snapshot.scope, snapshot.links, directory / 'absent.md')
+        declared = index.is_in_scope(directory / 'absent.md')
 
         #: Then
         assert (declared, listed) == (False, False), (
@@ -2868,9 +2876,10 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('.claude/skills/x')
         listed = _is_listed(snapshot, directory)
+        index = ScopeIndex(snapshot.scope, snapshot.links)
 
         #: When
-        declared = is_in_scope(snapshot.scope, snapshot.links, directory / 'absent.md')
+        declared = index.is_in_scope(directory / 'absent.md')
 
         #: Then
         assert (declared, listed) == (True, True), '.claude/skills leads to .agents/skills, whose skill x is listed'
@@ -2880,9 +2889,10 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('.agents/skills/x/lib')
         listed = _is_listed(snapshot, directory)
+        index = ScopeIndex(snapshot.scope, snapshot.links)
 
         #: When
-        declared = is_in_scope(snapshot.scope, snapshot.links, directory / 'absent.md')
+        declared = index.is_in_scope(directory / 'absent.md')
 
         #: Then
         assert (declared, listed) == (False, False), (
@@ -2894,9 +2904,10 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('src')
         listed = _is_listed(snapshot, directory)
+        index = ScopeIndex(snapshot.scope, snapshot.links)
 
         #: When
-        declared = is_in_scope(snapshot.scope, snapshot.links, directory / 'absent.md')
+        declared = index.is_in_scope(directory / 'absent.md')
 
         #: Then
         assert (declared, listed) == (False, False), 'src/ is in no root: outside the scope, and unlisted'

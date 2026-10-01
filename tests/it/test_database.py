@@ -1,7 +1,9 @@
 """The database over a hand-built snapshot.
 
 The model, each frontmatter, each parse tree, each token count and each skill's parse tree are computed once, and
-the layout guard and the scope question read the same snapshot.
+the layout guard and the scope question read the same snapshot. The expanded scope behind the scope question is
+private to the database, so that it is built once is not observed here; that every question after the first is
+answered correctly from it is.
 
 Every snapshot here is built in memory, so no case reads the disk: the database is what wires the virtual view,
 the model loader, the layout guard and the parser together.
@@ -135,6 +137,25 @@ class TestDatabase:
 
         #: Then
         assert in_scope is False, 'a snapshot built from files scanned nothing, so even a path it holds is not in scope'
+
+    def test_is_in_scope_after_a_path_outside_the_scope_was_asked_returns_true_through_a_followed_link(self) -> None:
+        #: Given
+        # The skills root follows links, so the link adds skills/review to what the scan lists; the first question
+        # builds the expanded scope the database keeps, and the second is answered from it.
+        snapshot = Snapshot(
+            listings=(),
+            files=(),
+            links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),),
+            scope=(ScanRoot(RootRelativePath.parse('.agents/skills'), depth=1, follow_links=True),),
+        )
+        database = Database(snapshot)
+        database.is_in_scope(RootRelativePath.parse('src/tool.py'))
+
+        #: When
+        in_scope = database.is_in_scope(RootRelativePath.parse('skills/review/absent.md'))
+
+        #: Then
+        assert in_scope is True, 'every question after the first is answered from the same expanded scan roots'
 
     def test_frontmatter_of_a_listed_document_returns_its_decoded_block(self) -> None:
         #: Given
