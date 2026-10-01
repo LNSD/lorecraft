@@ -108,7 +108,9 @@ See [logging](references/logging.md) and [the corpus specification](assets/code.
 ```
 
 The subkeys are `references`, `assets`, and `scripts`, after the directories in §3. File names must be unique
-within a subkey, because the link keeps only the file name.
+within a subkey, because the link keeps only the file name. A path must name a file in a directory that the
+[snapshot](../../../docs/feat/workspace.md#one-snapshot) of `lorecraft check skills` reads; any other is
+reported as outside the scope.
 
 `metadata` is also the reverse index: `scripts/check_skill.py --linking docs/code/logging.md` names every skill
 that depends on that file, which is how a document change finds the skills it may have stranded (§8).
@@ -134,8 +136,8 @@ Two checks decide every mechanical rule between them. Do not check those rules b
 `metadata` value types, and `name` against the directory. It also reports two kinds of link in `SKILL.md`: an
 absolute one, a url that starts with `/`, as `skill.link-absolute`, and a `#fragment` link that names no heading
 of the file, as `skill.link-fragment`. A fragment into another file is checked by neither check. For a skill
-that links files in through `metadata`, it reports two that share a name under one subkey
-(`skill.metadata-duplicate-name`).
+that links files in through `metadata`, it reports linked files that share a name under one subkey
+(`skill.metadata-duplicate-name`), or that lie outside the scope above (`skill.metadata-outside-scope`).
 
 ```bash
 uv run lorecraft check skills                           # every skill
