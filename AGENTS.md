@@ -164,7 +164,7 @@ selection misses them.
 | Types | `just typecheck`; clean, with no finding silenced by widening an annotation to `Any` |
 | Tests | `just test-unit` after lint is clean, then the tier the change touches — `just test-it`, `just test-e2e` — and `just test` when it earns the whole suite |
 | Documents | `just check-docs`; every document under `docs/` passes the frontmatter, structure and budget checks, and every skill the frontmatter check |
-| Skills | `just check-skills`; every skill passes the Agent Skills specification: `lorecraft check skills` for the frontmatter and the links, then the vendored script for the length budget |
+| Skills | `just check-skills`; every skill passes the Agent Skills specification: `lorecraft check skills` for the frontmatter, the line budget and the links, then the vendored script for where each skill lives |
 | Codegen | `just gen` after changing a generator or what it models; it must leave the tree unchanged in CI |
 
 Do not run tests before lint is clean, do not treat a type error as a lint preference — it is a failed gate —
