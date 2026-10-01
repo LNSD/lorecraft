@@ -105,6 +105,7 @@ class TestStructureAspectParse:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the error names the structure specification the schema is in'
+        assert exc_info.value.source is exc_info.value.__cause__, 'the schema error is kept as the cause'
 
     def test_parse_with_a_frontmatter_schema_without_an_object_type_raises_untyped_frontmatter_schema_error(
         self,
@@ -168,6 +169,9 @@ class TestStructureAspectParse:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the editor lets a foreign $schema through, the load refuses it'
+        assert exc_info.value.dialect == 'http://json-schema.org/draft-07/schema#', (
+            f'the error carries the dialect the schema names, got {exc_info.value.dialect!r}'
+        )
 
     def test_parse_with_only_a_token_budget_returns_an_aspect_with_that_budget(self) -> None:
         #: Given
@@ -320,6 +324,7 @@ class TestStructureAspectParse:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'text that is not JSON is refused at the edge, naming the file'
+        assert exc_info.value.source is exc_info.value.__cause__, 'the validation error is kept as the cause'
 
     def test_parse_with_a_title_count_below_one_raises_structure_spec_decode_error(self) -> None:
         #: Given
@@ -429,6 +434,30 @@ class TestStructureAspectParse:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a JSON boolean is not a count, though Python treats it as one'
+        assert len(exc_info.value.problems) == 1, f'one field is wrong, got {exc_info.value.problems}'
+        assert exc_info.value.problems[0].startswith('title.count: '), (
+            f'the problem opens with the dotted path of the field at fault, got {exc_info.value.problems[0]!r}'
+        )
+
+    def test_parse_with_two_wrong_title_fields_lists_one_problem_each_in_the_message(self) -> None:
+        #: Given
+        schema = StructureSchema('{"title": {"count": 0, "first": "yes"}}')
+
+        #: When
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
+            StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert len(exc_info.value.problems) == 2, f'each wrong field is its own problem, got {exc_info.value.problems}'
+        assert exc_info.value.problems[0].startswith('title.count: '), (
+            f'the first problem names its field, got {exc_info.value.problems[0]!r}'
+        )
+        assert exc_info.value.problems[1].startswith('title.first: '), (
+            f'the second problem names its field, got {exc_info.value.problems[1]!r}'
+        )
+        assert '; '.join(exc_info.value.problems) in str(exc_info.value), (
+            f'the message lists every problem, separated by semicolons, got {exc_info.value}'
+        )
 
     def test_parse_with_an_outline_entry_of_neither_shape_raises_structure_spec_decode_error(self) -> None:
         #: Given
@@ -508,6 +537,8 @@ class TestStructureAspectConstruction:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a title rule asks for at least one title'
+        assert exc_info.value.count == 0, f'the error carries the count stated, got {exc_info.value.count}'
+        assert str(SPEC_PATH) in str(exc_info.value), f'the message names the file, got {exc_info.value}'
 
     def test_construction_with_a_section_named_twice_raises_repeated_outline_section_error(self) -> None:
         #: Given
@@ -530,6 +561,10 @@ class TestStructureAspectConstruction:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a name fixes one position, so it cannot be given two'
+        assert exc_info.value.sections == ('Checklist',), (
+            f'the error carries the repeated name once, got {exc_info.value.sections}'
+        )
+        assert 'Checklist' in str(exc_info.value), f'the message names the repeated section, got {exc_info.value}'
 
     def test_construction_forbidding_a_section_its_outline_names_raises_forbidden_outline_section_error(self) -> None:
         #: Given
@@ -549,6 +584,10 @@ class TestStructureAspectConstruction:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a section cannot be both placed and forbidden'
+        assert exc_info.value.sections == ('Checklist',), (
+            f'the error carries the contradicted name, got {exc_info.value.sections}'
+        )
+        assert 'Checklist' in str(exc_info.value), f'the message names the contradicted section, got {exc_info.value}'
 
     def test_construction_with_two_adjacent_any_runs_raises_adjacent_any_runs_error(self) -> None:
         #: Given
@@ -572,6 +611,7 @@ class TestStructureAspectConstruction:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'two runs side by side match as one, so the outline misleads'
+        assert str(SPEC_PATH) in str(exc_info.value), f'the message names the file, got {exc_info.value}'
 
     def test_construction_with_a_token_budget_of_zero_raises_invalid_token_budget_error(self) -> None:
         #: Given
@@ -591,6 +631,26 @@ class TestStructureAspectConstruction:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a budget of 0 tokens is one no document can meet'
+        assert exc_info.value.tokens == 0, f'the error carries the budget stated, got {exc_info.value.tokens}'
+        assert str(SPEC_PATH) in str(exc_info.value), f'the message names the file, got {exc_info.value}'
+
+    def test_construction_with_a_token_budget_of_one_keeps_it(self) -> None:
+        #: Given
+        tokens = 1
+
+        #: When
+        aspect = StructureAspect(
+            path=SPEC_PATH,
+            title=None,
+            forbid_empty_sections=False,
+            outline=(),
+            forbidden=(),
+            tokens=tokens,
+            frontmatter=None,
+        )
+
+        #: Then
+        assert aspect.tokens == 1, f'1 token is the smallest budget a document can meet, got {aspect.tokens}'
 
     def test_construction_with_a_section_word_cap_of_zero_raises_invalid_word_cap_error(self) -> None:
         #: Given
@@ -610,6 +670,11 @@ class TestStructureAspectConstruction:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a section cap of 0 words is one no section with prose can meet'
+        assert exc_info.value.entry == SectionEntry(name='Checklist', words=0), (
+            f'the error carries the entry stating the cap, got {exc_info.value.entry}'
+        )
+        assert exc_info.value.words == 0, f'the error carries the cap stated, got {exc_info.value.words}'
+        assert 'Checklist' in str(exc_info.value), f'the message names the capped section, got {exc_info.value}'
 
     def test_construction_with_a_negative_any_word_cap_raises_invalid_word_cap_error(self) -> None:
         #: Given
@@ -629,6 +694,11 @@ class TestStructureAspectConstruction:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a run cap below 1 word is one no section with prose can meet'
+        assert exc_info.value.entry == AnySections(words=-1), (
+            f'the error carries the entry stating the cap, got {exc_info.value.entry}'
+        )
+        assert exc_info.value.words == -1, f'the error carries the cap stated, got {exc_info.value.words}'
+        assert 'any' in str(exc_info.value), f'the message names the entry as an `any` run, got {exc_info.value}'
 
 
 @pytest.mark.unit
@@ -669,6 +739,8 @@ class TestStructureAspectAuthority:
 
         #: Then
         assert exc_info.value.path == path, 'an aspect whose path names no prose has no authority to quote'
+        assert exc_info.value.source is exc_info.value.__cause__, 'why the filename is refused is kept as the cause'
+        assert str(path) in str(exc_info.value), f'the message names the file, got {exc_info.value}'
 
 
 @pytest.mark.unit
@@ -727,6 +799,10 @@ class TestFrontmatterSchema:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a malformed schema is refused, naming the structure specification'
+        assert exc_info.value.problem == exc_info.value.source.message, (
+            f'the problem is what the meta-schema rejected, got {exc_info.value.problem!r}'
+        )
+        assert exc_info.value.problem in str(exc_info.value), f'the message quotes the problem, got {exc_info.value}'
 
     def test_construction_without_a_type_raises_untyped_frontmatter_schema_error(self) -> None:
         #: Given
@@ -738,6 +814,7 @@ class TestFrontmatterSchema:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'an implied object type is refused'
+        assert str(SPEC_PATH) in str(exc_info.value), f'the message names the file, got {exc_info.value}'
 
     def test_construction_with_a_non_object_type_raises_untyped_frontmatter_schema_error(self) -> None:
         #: Given
@@ -771,6 +848,7 @@ class TestFrontmatterSchema:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'an $id would change how relative $refs resolve'
+        assert str(SPEC_PATH) in str(exc_info.value), f'the message names the file, got {exc_info.value}'
 
     def test_construction_with_an_id_in_a_nested_schema_raises_frontmatter_schema_id_error(self) -> None:
         #: Given
@@ -793,6 +871,12 @@ class TestFrontmatterSchema:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a schema written for another dialect is refused'
+        assert exc_info.value.dialect == 'http://json-schema.org/draft-07/schema#', (
+            f'the error carries the dialect the schema names, got {exc_info.value.dialect!r}'
+        )
+        assert 'http://json-schema.org/draft-07/schema#' in str(exc_info.value), (
+            f'the message names the foreign dialect, got {exc_info.value}'
+        )
 
     def test_construction_with_a_foreign_dialect_in_a_nested_schema_raises_foreign_frontmatter_dialect_error(
         self,
@@ -834,6 +918,38 @@ class TestFrontmatterSchema:
             MissingFieldProblem('name', "'name' is a required property"),
             MissingFieldProblem('type', "'type' is a required property"),
         ), 'jsonschema reports each absent field once, however many the schema requires'
+
+    def test_validate_with_one_of_two_required_fields_present_returns_a_missing_problem_for_the_other(self) -> None:
+        #: Given
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema={'type': 'object', 'required': ['name', 'type']})
+        data: dict[object, object] = {'name': 'guide'}
+
+        #: When
+        problems = frontmatter.validate(data)
+
+        #: Then
+        assert problems == (MissingFieldProblem('type', "'type' is a required property"),), (
+            'a required field the frontmatter carries is not reported missing'
+        )
+
+    def test_validate_with_two_fields_at_fault_orders_the_problems_by_field_before_message(self) -> None:
+        #: Given
+        # `name` sorts before `type`, while their messages sort the other way round
+        schema: dict[str, object] = {
+            'type': 'object',
+            'properties': {'name': {'type': 'string'}, 'type': {'enum': ['rule', 'pattern']}},
+        }
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=schema)
+        data: dict[object, object] = {'name': 3, 'type': 'guide'}
+
+        #: When
+        problems = frontmatter.validate(data)
+
+        #: Then
+        assert problems == (
+            WrongTypeProblem('name', "3 is not of type 'string'"),
+            InvalidValueProblem('type', "'guide' is not one of ['rule', 'pattern']"),
+        ), 'problems are ordered by the field they concern first, and by their message only within a field'
 
     def test_validate_with_fields_the_schema_does_not_allow_returns_one_unknown_field_problem_each(self) -> None:
         #: Given
