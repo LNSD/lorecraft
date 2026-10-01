@@ -74,7 +74,7 @@ library layer, and the skill then calls the command line instead of carrying the
 | `.agents/skills/` | Workspace skills, for agents working on this repository, plus the vendored check scripts |
 | `.claude/skills/` | Compatibility symlink to `.agents/skills/` |
 | `skills/` | Project skills, shipped for agents in repositories that use Lorecraft |
-| `pyproject.toml` | The package's metadata and build, the dev group, the import-linter contract, and `ruff`, `ty` and `pytest` config |
+| `pyproject.toml` | The package's metadata and build, the dev group, the import-linter contract, and `ruff`, `ty`, `pytest` and `mutmut` config |
 | `justfile` | Task runner recipes; wraps `uv` |
 | `docs/code/` | Code rules for this repository |
 | `docs/__meta__/` | Format specs: a prose `.md` plus its JSON halves |
@@ -110,7 +110,7 @@ any operation it covers. A user-level skill of the same name may exist; the repo
 | `code-format` | Formatting Python with `ruff format`, through `just fmt` |
 | `code-check` | Linting Python with `ruff check`, through `just check`, auto-fixing the mechanical findings first |
 | `code-gen` | Regenerating the committed generated files, such as `docs/schemas/`, through `just gen` |
-| `code-test` | Running the pytest tiers through `just test-unit`, `just test-it`, `just test-e2e` and `just test` |
+| `code-test` | Running the pytest tiers through `just test-unit`, `just test-it`, `just test-e2e` and `just test`, and mutation testing, when asked how effective the tests are |
 | `release` | Tagging a release, building the artifacts from that tag, and verifying what they contain |
 | `docs-rules` | Writing or editing anything under `docs/` — picks the corpus and the specification that governs it |
 | `docs-rules-check` | The review pass over `docs/`: a document against its specs, through `lorecraft check`, and a specification for loading, prose-JSON agreement and resolution |

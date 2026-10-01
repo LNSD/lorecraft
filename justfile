@@ -195,6 +195,107 @@ test-it *EXTRA_FLAGS: (test "-m" "it" EXTRA_FLAGS)
 [group: 'test']
 test-e2e *EXTRA_FLAGS: (test "-m" "e2e" EXTRA_FLAGS)
 
+# Mutation testing: expensive, run to judge the tests, not after each edit. Each recipe empties mutants/ so
+# tiers never mix; pytest reads the tier's marker from PYTEST_ADDOPTS. No e2e: mutmut cannot reach a subprocess.
+
+# Mutation-test the unit and integration tiers together (mutmut run)
+[group: 'test']
+test-mut *EXTRA_FLAGS:
+    @echo "🧬 Mutation-testing the unit and integration tiers..."
+    rm -rf mutants/
+    PYTEST_ADDOPTS='-m "unit or it"' uv run mutmut run {{EXTRA_FLAGS}}
+
+# Mutation-test the unit tier alone (mutmut run)
+[group: 'test']
+test-unit-mut *EXTRA_FLAGS:
+    @echo "🧬 Mutation-testing the unit tier..."
+    rm -rf mutants/
+    PYTEST_ADDOPTS='-m unit' uv run mutmut run {{EXTRA_FLAGS}}
+
+# Mutation-test the integration tier alone (mutmut run)
+[group: 'test']
+test-it-mut *EXTRA_FLAGS:
+    @echo "🧬 Mutation-testing the integration tier..."
+    rm -rf mutants/
+    PYTEST_ADDOPTS='-m it' uv run mutmut run {{EXTRA_FLAGS}}
+
+# Render the last mutation run as Markdown: the score, the survivors per module, and a sample of their diffs
+[group: 'test']
+test-mut-report TITLE='unit + it':
+    #!/usr/bin/env -S uv run python
+    # Reads the results the last `test-*-mut` run left in mutants/ and prints one Markdown section, for a
+    # terminal, a pull request comment or a CI step summary alike.
+    import re
+    import subprocess
+    from collections import Counter
+
+    TITLE = '{{TITLE}}'
+    MODULES_SHOWN = 15
+    DIFFS_SHOWN = 5
+
+    # mutmut names a mutant after the function it changed: `<module>.x_<function>__mutmut_<n>`, or
+    # `<module>.xǁ<class>ǁ<method>__mutmut_<n>` for a method. The module is everything before that `.x`.
+    MUTANT_MODULE = re.compile(r'^(?P<module>.+?)\.x[_ǁ]')
+
+
+    def mutmut(*arguments: str) -> str:
+        """Run a mutmut command over the results in mutants/ and return what it printed."""
+        return subprocess.run(['mutmut', *arguments], capture_output=True, text=True, check=True).stdout
+
+
+    # One line per mutant: `<name>: <status>`, where a status may itself hold a space, as `no tests` does.
+    status_by_mutant: dict[str, str] = {}
+    for line in mutmut('results', '--all', 'true').splitlines():
+        name, separator, status = line.strip().partition(': ')
+        if separator:
+            status_by_mutant[name] = status
+
+    mutant_count = len(status_by_mutant)
+    status_counts = Counter(status_by_mutant.values())
+    survivors = [name for name, status in status_by_mutant.items() if status == 'survived']
+    survivors_by_module = Counter(MUTANT_MODULE.match(name)['module'] for name in survivors)
+
+    print(f'### Mutation testing: {TITLE}')
+    print()
+    if mutant_count == 0:
+        print('No results in `mutants/`: run a `test-*-mut` recipe first.')
+        raise SystemExit(1)
+    killed = status_counts['killed']
+    print(f'**{killed / mutant_count:.1%}** of {mutant_count} mutants killed.')
+    print()
+    print('| Status | Mutants |')
+    print('|---|---:|')
+    for status, count in status_counts.most_common():
+        print(f'| {status} | {count} |')
+    print()
+
+    if not survivors:
+        raise SystemExit(0)
+
+    print(f'<details><summary>Survivors per module, top {MODULES_SHOWN}</summary>')
+    print()
+    print('| Module | Survived |')
+    print('|---|---:|')
+    for module, count in survivors_by_module.most_common(MODULES_SHOWN):
+        print(f'| `{module}` | {count} |')
+    print()
+    print('</details>')
+    print()
+
+    # One survivor from each of the modules with the most, so the sample is not all from one module.
+    sampled_modules = [module for module, _ in survivors_by_module.most_common(DIFFS_SHOWN)]
+    print(f'<details><summary>A surviving mutant from each of the top {len(sampled_modules)} modules</summary>')
+    print()
+    for module in sampled_modules:
+        first_survivor = next(name for name in survivors if MUTANT_MODULE.match(name)['module'] == module)
+        print('```diff')
+        print(mutmut('show', first_survivor).strip())
+        print('```')
+        print()
+    print('</details>')
+    # A blank line closes the HTML block, so a section appended after this one still renders its heading.
+    print()
+
 # Snapshot tests compare output to checked-in files under `__snapshots__/`; every `test` recipe fails on a
 # mismatch and on a snapshot no test reads any more. Update over the whole suite, never one tier: a snapshot
 # of a deselected test would read as unused.

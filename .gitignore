@@ -64,6 +64,9 @@ dmypy.json
 # Ruff
 .ruff_cache/
 
+# mutmut
+mutants/
+
 # Environments
 .venv
 env/
