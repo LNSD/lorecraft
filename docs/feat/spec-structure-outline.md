@@ -45,6 +45,17 @@ JSON Schema, which is why the file is a dialect of its own. `lorecraft check str
 Every key is optional. An outline entry may also cap its section's words, as
 [spec-structure-budget](spec-structure-budget.md) describes.
 
+A named entry may carry two more optional keys, which `any` entries never take:
+
+| Entry key | Value | Meaning |
+|-----------|-------|---------|
+| `description` | text | What the section holds |
+| `examples` | non-empty list of Markdown | Samples of the section's body, each without its heading, none empty |
+
+They change no rule. When a required section is absent, the finding carries the description and the first
+example as notes, as [cli-check-structure](cli-check-structure.md#usage) shows. The other examples serve a reader
+of the specification, as JSON Schema's `examples` do.
+
 ## Usage
 
 ### A Corpus Outline
@@ -63,6 +74,28 @@ and nothing after it:
     { "section": "References", "optional": true }
   ],
   "forbidden": ["Changelog"]
+}
+```
+
+### Describing a Section
+
+A required section can say what it holds and show samples, so a writer who omitted it learns what to add.
+Here the samples are trimmed from the `Checklist` of `docs/code/logging.md` and of `docs/code/python-docstrings.md`:
+
+```json
+{
+  "$schema": "../schemas/structure.spec.json",
+  "outline": [
+    { "any": true },
+    {
+      "section": "Checklist",
+      "description": "A verification list of items the author ticks before committing, each one a checkable statement of a rule in the document.",
+      "examples": [
+        "Before committing code, verify:\n\n- [ ] Every module that logs has exactly one `logger = logging.getLogger(__name__)` after its imports\n- [ ] No logger is stored as `self.logger` or any other instance or class attribute\n- [ ] No log call sits in a per-line loop, whatever its level",
+        "Before committing code, verify:\n\n- [ ] Every new class and public function has a docstring whose first line is a one-line summary\n- [ ] No `Returns:` section restates the return annotation\n- [ ] A generator documents `Yields:`, never `Returns:`"
+      ]
+    }
+  ]
 }
 ```
 

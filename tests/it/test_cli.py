@@ -58,6 +58,43 @@ CHECKLIST_AND_FRONTMATTER_SPEC: Final[str] = dedent(
 # it wraps at the width it finds. A dumb terminal 80 columns wide draws the same plain text on every machine.
 PLAIN_TERMINAL: Final[dict[str, str | None]] = {'TERM': 'dumb', 'COLUMNS': '80'}
 
+# What a rule document's Checklist holds, as the outline entry naming it states it.
+CHECKLIST_DESCRIPTION: Final[str] = (
+    'The items a reviewer verifies before committing a change the rule document governs.'
+)
+
+# The body of the Checklist of docs/code/logging.md, trimmed: an example of a rule document's Checklist.
+LOGGING_CHECKLIST: Final[str] = (
+    'Before committing code, verify:\n'
+    '\n'
+    '- [ ] Every module that logs has exactly one `logger = logging.getLogger(__name__)` after its imports\n'
+    '- [ ] No logger is stored as `self.logger` or any other instance or class attribute\n'
+    '- [ ] No log call sits in a per-line loop, whatever its level'
+)
+
+# The body of the Checklist of docs/code/python-docstrings.md, trimmed: a second example of the same section.
+DOCSTRINGS_CHECKLIST: Final[str] = (
+    'Before committing code, verify:\n'
+    '\n'
+    '- [ ] Every new class and public function has a docstring whose first line is a one-line summary\n'
+    '- [ ] No `Returns:` section restates the return annotation\n'
+    '- [ ] A generator documents `Yields:`, never `Returns:`'
+)
+
+# The Checklist specification above, with the Checklist entry stating what the section holds and two examples of it.
+DESCRIBED_CHECKLIST_STRUCTURE_SPEC: Final[str] = json.dumps(
+    {
+        'outline': [
+            {'any': True},
+            {
+                'section': 'Checklist',
+                'description': CHECKLIST_DESCRIPTION,
+                'examples': [LOGGING_CHECKLIST, DOCSTRINGS_CHECKLIST],
+            },
+        ]
+    }
+)
+
 # A structure specification whose token budget a two-section document exceeds.
 TIGHT_BUDGET_STRUCTURE_SPEC: Final[str] = '{"tokens": 5}'
 
@@ -694,6 +731,7 @@ class TestCheckFrontmatterCommand:
                 'rule': 'frontmatter.missing',
                 'message': 'no `---` delimited frontmatter block',
                 'spec': None,
+                'notes': [],
             }
         ], f'a finding serialises as the root-relative path and the line number, got {result.stdout!r}'
 
@@ -719,6 +757,7 @@ class TestCheckFrontmatterCommand:
                     'rule': 'frontmatter.duplicate-key',
                     'message': "'type' is already written on line 3",
                     'spec': None,
+                    'notes': [],
                 }
             ],
             'ungoverned': [],
@@ -871,8 +910,59 @@ class TestCheckStructureCommand:
                 'rule': 'structure.outline',
                 'message': 'unexpected section `Appendix`; the outline ends before it (per code.md)',
                 'spec': 'docs/__meta__/code.structure.json',
+                'notes': [],
             }
         ], f'a finding serialises as the root-relative path and the line number, got {result.stdout!r}'
+
+    def test_check_structure_without_a_described_section_prints_its_help_and_first_example_under_the_finding(
+        self, tmp_path: Path, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        _write(tmp_path, 'docs/__meta__/code.structure.json', DESCRIBED_CHECKLIST_STRUCTURE_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '## Rule\n\ntext\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'structure', '--root', str(tmp_path)])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert result.stdout == expected, 'the finding and its notes match the reviewed snapshot'
+
+    def test_check_structure_without_a_described_section_and_json_format_reports_its_notes(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', DESCRIBED_CHECKLIST_STRUCTURE_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '## Rule\n\ntext\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'structure', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 1,
+            'findings': [
+                {
+                    'file': 'docs/code/guide.md',
+                    'line': 1,
+                    'rule': 'structure.outline',
+                    'message': 'missing required section `Checklist` (per code.md)',
+                    'spec': 'docs/__meta__/code.structure.json',
+                    'notes': [
+                        {'kind': 'help', 'text': CHECKLIST_DESCRIPTION},
+                        {'kind': 'note', 'text': f'for example:\n## Checklist\n\n{LOGGING_CHECKLIST}'},
+                    ],
+                }
+            ],
+            'ungoverned': [],
+        }, (
+            'each note serialises as its kind and its text, in the order it prints, and only the first example is '
+            f'reported, got {result.stdout!r}'
+        )
 
 
 @pytest.mark.it
@@ -924,6 +1014,7 @@ class TestCheckBudgetCommand:
                 'rule': 'budget.tokens',
                 'message': '13 tokens; the budget is 5 (per code.structure.json)',
                 'spec': 'docs/__meta__/code.structure.json',
+                'notes': [],
             }
         ], f'the spec that sets the budget serialises root-relative, apart from the message, got {result.stdout!r}'
 
@@ -998,6 +1089,7 @@ class TestCheckSkillsCommand:
                     'rule': 'skill.frontmatter-missing',
                     'message': 'no `---` delimited frontmatter block',
                     'spec': None,
+                    'notes': [],
                 },
                 {
                     'file': '.agents/skills/review/SKILL.md',
@@ -1005,6 +1097,7 @@ class TestCheckSkillsCommand:
                     'rule': 'skill.name-matches-directory',
                     'message': "`name` is 'audit'; expected 'review', the name of the skill directory",
                     'spec': None,
+                    'notes': [],
                 },
                 {
                     'file': '.agents/skills/review/SKILL.md',
@@ -1012,6 +1105,7 @@ class TestCheckSkillsCommand:
                     'rule': 'skill.unknown-field',
                     'message': '`model` is not a field of the Agent Skills specification',
                     'spec': None,
+                    'notes': [],
                 },
             ],
             'ungoverned': [],
@@ -1042,6 +1136,7 @@ class TestCheckSkillsCommand:
                     'rule': 'skill.duplicate-key',
                     'message': "'description' is already written on line 3",
                     'spec': None,
+                    'notes': [],
                 }
             ],
             'ungoverned': [],
@@ -1072,6 +1167,7 @@ class TestCheckSkillsCommand:
                     'rule': 'skill.link-absolute',
                     'message': '`/docs/guide.md` is absolute; link relative to the skill root',
                     'spec': None,
+                    'notes': [],
                 }
             ],
             'ungoverned': [],
@@ -1102,6 +1198,7 @@ class TestCheckSkillsCommand:
                     'rule': 'skill.link-fragment',
                     'message': '`#checklist` names a heading this file does not have',
                     'spec': None,
+                    'notes': [],
                 }
             ],
             'ungoverned': [],
@@ -1130,6 +1227,7 @@ class TestCheckSkillsCommand:
                     'rule': 'skill.name-matches-directory',
                     'message': "`name` is 'audit'; expected 'review', the name of the skill directory",
                     'spec': None,
+                    'notes': [],
                 }
             ],
             'ungoverned': [],
@@ -1164,6 +1262,7 @@ class TestCheckSkillsCommand:
                         'which both link in as `references/guide.md`'
                     ),
                     'spec': None,
+                    'notes': [],
                 }
             ],
             'ungoverned': [],
@@ -1196,6 +1295,7 @@ class TestCheckSkillsCommand:
                         'in docs/, in a directory directly in docs/, or anywhere in a skill directory'
                     ),
                     'spec': None,
+                    'notes': [],
                 }
             ],
             'ungoverned': [],
@@ -1227,6 +1327,7 @@ class TestCheckSkillsCommand:
                     'rule': 'skill.metadata-missing-file',
                     'message': '`metadata.references` lists `docs/code/gone.md`, where lorecraft finds no file',
                     'spec': None,
+                    'notes': [],
                 }
             ],
             'ungoverned': [],
@@ -1485,6 +1586,7 @@ class TestCheckAllCommand:
                             'rule': 'skill.description',
                             'message': '`description` is required',
                             'spec': None,
+                            'notes': [],
                         }
                     ],
                     'ungoverned': [],

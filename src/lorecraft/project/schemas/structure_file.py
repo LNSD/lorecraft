@@ -69,6 +69,19 @@ def _code_outline_example() -> list[JsonValue]:  # pragma: no mutate block
     ]
 
 
+# Runs once per process, before mutmut swaps a mutant in, so no test can ever see a mutant of it.
+def _code_checklist_example() -> str:  # pragma: no mutate block
+    """The body of the Checklist of a rule document in docs/code/, as an example of a section's body."""
+    return (
+        'Before committing code, verify:\n'
+        '\n'
+        '- [ ] Every new record is a `@dataclass` unless it decodes data arriving from outside the process\n'
+        '- [ ] Every list, dict, or set default uses `field(default_factory=...)`\n'
+        '- [ ] Every record used as a dict key, set member, or compared identity is `frozen=True`\n'
+        "- [ ] Every record's class docstring lists all public fields under `Attributes:`"
+    )
+
+
 class _StructureFileModel(BaseModel):
     """The settings every model of the file shares; each model's own config is merged over them."""
 
@@ -87,7 +100,10 @@ class StructureFileTitle(_StructureFileModel):
 
 
 class StructureFileSection(_StructureFileModel):
-    """An outline entry naming one section, fixing its position against every other name in the outline."""
+    """An outline entry naming one section, fixing its position against every other name in the outline.
+
+    Its `description` and `examples` tell the author of a document that lacks the section what to write there.
+    """
 
     model_config = ConfigDict(
         title='Named section',
@@ -95,6 +111,12 @@ class StructureFileSection(_StructureFileModel):
             'examples': [
                 {'section': 'Checklist', 'words': 250},
                 {'section': 'References', 'optional': True},
+                {
+                    'section': 'Checklist',
+                    'words': 250,
+                    'description': 'The items a reviewer verifies before committing a change the document governs.',
+                    'examples': [_code_checklist_example()],
+                },
             ]
         },
     )
@@ -105,6 +127,19 @@ class StructureFileSection(_StructureFileModel):
     """True when a document may leave the section out."""
     words: int | None = Field(default=None, ge=1, examples=[250])
     """The most words of prose the section may hold, its H3 subsections included; no cap when absent."""
+    description: str | None = Field(
+        default=None,
+        min_length=1,
+        examples=['The items a reviewer verifies before committing a change the document governs.'],
+    )
+    """What the section holds; reported as help when a document lacks the section. No help when absent."""
+    examples: tuple[Annotated[str, Field(min_length=1)], ...] | None = Field(
+        default=None, min_length=1, examples=[[_code_checklist_example()]]
+    )
+    """A non-empty list of Markdown samples of the section's body, each without its heading. Each is illustrative,
+    written as if it belonged to an actual document of the corpus, not a placeholder. The check reports only the
+    first, as a note, when a document lacks the section; the rest serve a reader of the specification. No sample
+    when absent."""
 
 
 class StructureFileAny(_StructureFileModel):
@@ -170,7 +205,8 @@ class StructureFile(_StructureFileModel):
     """The order of the document's sections, matched left to right. A named section is required unless optional,
     and may be named once; an `{"any": true}` entry matches a run of sections the outline does not name, and two
     may not sit side by side. An entry's `words` caps each section it matches; an entry without one caps none. A
-    word is a whitespace-delimited token of prose: fenced code and table rows are not counted."""
+    word is a whitespace-delimited token of prose: fenced code and table rows are not counted. A named section's
+    `description` and the first of its `examples` tell the author of a document that lacks it what to write there."""
     forbidden: tuple[str, ...] = Field(default=(), examples=[['Changelog']])
     """Sections that must not appear at all; none may also be named in the outline."""
 

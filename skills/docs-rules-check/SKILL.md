@@ -62,7 +62,9 @@ lorecraft check budget <files>               # the whole-file token budget, the 
 lorecraft check --format json                # machine-readable
 ```
 
-Findings print as `path:line: [rule] message`. Exit `0` means no findings, `1` findings, and `2` that the run
+Findings print as `path:line: [rule] message`, and may be followed by `= help:` and `= note:` lines, or a
+`notes` list in JSON; for a missing section they say what it holds and show a sample, so read them before
+fixing it. Exit `0` means no findings, `1` findings, and `2` that the run
 could not happen: a rejected path, or a specification that cannot be loaded — §6 covers that one. A
 `<corpus>.ungoverned` line is not a failure; report the corpus as unvalidated for that check. Each check's rule
 identifiers are explained in its guide: [check](references/cli-check.md),
