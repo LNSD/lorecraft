@@ -15,7 +15,7 @@ own the output and the exit codes.
 from .budget import BudgetCheckResult, validate_budget
 from .database import Database
 from .frontmatter import FrontmatterCheckResult, validate_frontmatter
-from .reporting import Finding, Violation, format_finding
+from .reporting import Finding, Note, NoteKind, Violation, format_finding
 from .run import (
     CheckRun,
     DocumentReport,
@@ -33,6 +33,8 @@ __all__ = [
     'Database',
     'Finding',
     'Violation',
+    'Note',
+    'NoteKind',
     'format_finding',
     'FrontmatterCheckResult',
     'validate_frontmatter',

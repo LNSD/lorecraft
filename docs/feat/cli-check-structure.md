@@ -59,6 +59,26 @@ docs/feat/spec-demo.md:15: [structure.outline] expected section `Table of Conten
 checked 1 file(s), 2 finding(s)
 ```
 
+The two `structure.outline` findings that mean a required section is absent, `missing required section` and
+`expected section X, found Y`, carry notes when the outline entry has a `description` or `examples`, as
+[spec-structure-outline](spec-structure-outline.md) describes: the description as a `help` note, the first example
+as a `note` reading `for example:` over the section's heading and sample. Further examples are not reported. An
+entry with neither adds nothing.
+
+```text
+docs/feat/spec-demo.md:1: [structure.outline] missing required section `Key Concepts` (per feat.md)
+  = help: The terms the document uses, defined once, in one line each; a term the whole toolkit uses is linked to the glossary instead of defined again.
+  = note: for example:
+          ## Key Concepts
+
+          - **Root**: The directory that holds `docs/__meta__/`; every path lorecraft prints is relative to it.
+          - **Corpus**: A directory directly under `docs/` whose documents specifications govern, named by the
+            directory.
+          - **Document**: A Markdown file directly inside a corpus directory.
+          - **Workspace model**: The corpora, their specifications and their documents, as found in one snapshot.
+checked 1 file(s), 1 finding(s)
+```
+
 Every message ends by naming the prose specification the rule comes from, such as `(per feat.md)`, so a
 reader is sent to the rule rather than to the JSON. The output and the exit status are the ones every check
 shares: see [Output](cli-check.md#output) and [Exit Status](cli-check.md#exit-status). A document in a corpus

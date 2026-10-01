@@ -1,6 +1,6 @@
 {
   "$schema": "../schemas/structure.spec.json",
-  "description": "Narrows feat.structure.json for docs/feat/cli.md and docs/feat/cli-*.md, which is applied as well. The prose authorities are docs/__meta__/feat-cli.md section 3 for the frontmatter and section 4 for the structure; this file is their machine-checkable half. The frontmatter adds that components names the command's module. Every command takes an argument or an option, so Configuration, which the base leaves optional, is required here, and holds the command's argument and option table. Its cap is tighter than the base's, since the table costs no words and the prose around it only states precedence. Where Configuration sits is feat.structure.json's business, so the runs on either side of it match whatever the base allows.",
+  "description": "Narrows feat.structure.json for docs/feat/cli.md and docs/feat/cli-*.md, which is applied as well. The prose authorities are docs/__meta__/feat-cli.md section 3 for the frontmatter and section 4 for the structure; this file is their machine-checkable half. The frontmatter adds that components names the command's module. Every command takes an argument or an option, so Configuration, which the base leaves optional, is required here, and holds the command's argument and option table. Its `description` and the first of its `examples`, which the structure check reports when a document lacks the section, state that table's form. Its cap is tighter than the base's, since the table costs no words and the prose around it only states precedence. Where Configuration sits is feat.structure.json's business, so the runs on either side of it match whatever the base allows.",
   "frontmatter": {
     "type": "object",
     "properties": {
@@ -13,7 +13,12 @@
   },
   "outline": [
     { "any": true },
-    { "section": "Configuration", "words": 150 },
+    {
+      "section": "Configuration",
+      "words": 150,
+      "description": "The command's arguments and options as one table, in the order its --help prints them, leaving out --help itself. Add an Env var column only when the command reads an environment variable, and state precedence below the table; a subcommand lists every argument and option it takes.",
+      "examples": ["| Argument or option | Default | Description |\n|--------------------|---------|-------------|\n| `PATHS...`         | every document | The documents to check, relative to the working directory, as [Document Selection](cli-check.md#document-selection) describes |\n| `--root <path>`    | nearest parent holding `docs/__meta__/` | The repository root, as [cli-check](cli-check.md#root-discovery) describes |\n| `--format <text\\|json>` | `text` | The output format, as [cli-check](cli-check.md#output) describes |"]
+    },
     { "any": true }
   ]
 }

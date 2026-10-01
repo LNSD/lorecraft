@@ -5,7 +5,8 @@ headings, and returns violations. It reads those and nothing else, so it is hand
 tree, and not even the document's path: the run that called it attaches that. It covers the mechanical half of a
 specification's section rules: the H1 title, empty sections, forbidden sections, the order of the sections the
 outline names, and the word cap on each section. Whether a section
-says what it should is a judgment call, and stays with review.
+says what it should is a judgment call, and stays with review. A section the outline expects but the document
+lacks is reported with the notes its entry states: help with its description, and a note with its first example.
 
 Each aspect is applied on its own. A namespace specification states only what it adds to the corpus one, so
 a document governed by both must pass both, and neither can relax the other.
@@ -17,7 +18,7 @@ from typing import Final, assert_never
 from lorecraft.project.schemas import AnySections, OutlineEntry, SectionEntry, StructureAspect
 from lorecraft.project.syntax import Heading, LineNumber
 
-from .reporting import Violation
+from .reporting import Note, NoteKind, Violation
 
 _SECTION_LEVEL: Final[int] = 2
 """The heading level of a section: H1 is the title, and anything deeper is a subsection."""
@@ -58,7 +59,15 @@ def validate_structure(aspects: tuple[StructureAspect, ...], *, headings: tuple[
         ]
         for violation in aspect_violations:
             message = f'{violation.message} (per {aspect.authority})'
-            violations.append(Violation(line=violation.line, rule=violation.rule, message=message, spec=aspect.path))
+            violations.append(
+                Violation(
+                    line=violation.line,
+                    rule=violation.rule,
+                    message=message,
+                    spec=aspect.path,
+                    notes=violation.notes,
+                )
+            )
     violations.sort(key=lambda violation: (violation.line.value, violation.rule))
     return StructureCheckResult(violations=tuple(violations))
 
@@ -151,14 +160,20 @@ def _check_outline(aspect: StructureAspect, sections: tuple[Heading, ...]) -> li
                 if entry.optional:
                     continue
 
+                notes = _missing_section_notes(entry)
                 if at < len(sections):
                     found = sections[at]
                     return [
                         Violation(
-                            found.line, 'structure.outline', f'expected section `{entry.name}`, found `{found.text}`'
+                            found.line,
+                            'structure.outline',
+                            f'expected section `{entry.name}`, found `{found.text}`',
+                            notes=notes,
                         )
                     ]
-                return [Violation(_FIRST_LINE, 'structure.outline', f'missing required section `{entry.name}`')]
+                return [
+                    Violation(_FIRST_LINE, 'structure.outline', f'missing required section `{entry.name}`', notes=notes)
+                ]
             case _:
                 assert_never(entry)
 
@@ -172,6 +187,25 @@ def _check_outline(aspect: StructureAspect, sections: tuple[Heading, ...]) -> li
             message = f'unexpected section `{left.text}`; the outline ends before it'
         return [Violation(left.line, 'structure.outline', message)]
     return []
+
+
+def _missing_section_notes(entry: SectionEntry) -> tuple[Note, ...]:
+    """The notes telling the author of a document that lacks a section what to write there.
+
+    Help with the entry's description, then a note with its first example, written out under the section's heading
+    as it would sit in the document; each only when the entry states it. Any further examples are for a reader of
+    the specification, not repeated on every finding.
+
+    Args:
+        entry: The outline entry naming the section the document lacks.
+    """
+    notes: list[Note] = []
+    if entry.description is not None:
+        notes.append(Note(NoteKind.HELP, entry.description))
+    if entry.examples:
+        first_example = entry.examples[0]
+        notes.append(Note(NoteKind.NOTE, f'for example:\n## {entry.name}\n\n{first_example}'))
+    return tuple(notes)
 
 
 def _check_section_words(aspect: StructureAspect, sections: tuple[Heading, ...]) -> list[Violation]:

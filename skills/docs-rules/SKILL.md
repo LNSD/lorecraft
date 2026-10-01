@@ -75,6 +75,9 @@ If it needs a corpus that does not exist yet, that is a new specification: use `
    lorecraft check budget <files>
    ```
 
+   A missing-section finding may carry `= help:` and `= note:` lines describing the section and showing an
+   example; follow them.
+
    A section over its word cap or a document over its token budget is moved or cut, not compressed: the
    specification's content guidelines say where each kind of overflow belongs.
 6. **Run `lorecraft check`** with no paths before handing the change over. A new document can break a

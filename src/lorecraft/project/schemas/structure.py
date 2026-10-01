@@ -1,14 +1,14 @@
-"""The structure aspect: a structure specification file's decoded JSON, and the rules it is decoded into.
+r"""The structure aspect: a structure specification file's decoded JSON, and the rules it is decoded into.
 
-The repository reads a ``<stem>.structure.json`` file's text, a ``StructureSchema``, which proves nothing about
-it. ``StructureAspect.parse`` is the check, in two steps at the edge. It deserializes the text straight into the
-strict, frozen ``StructureFile`` model, so JSON that is malformed or not the dialect's shape is refused before
+The repository reads a `<stem>.structure.json` file's text, a `StructureSchema`, which proves nothing about
+it. `StructureAspect.parse` is the check, in two steps at the edge. It deserializes the text straight into the
+strict, frozen `StructureFile` model, so JSON that is malformed or not the dialect's shape is refused before
 any rule is read. Then it maps the model to typed rules, and building the aspect refuses a set of rules that
-checks nothing or contradicts itself, which no shape can state. So every ``StructureAspect`` that exists states
+checks nothing or contradicts itself, which no shape can state. So every `StructureAspect` that exists states
 usable rules, however it was built.
 
 A document's outline is a sequence whose length varies, and JSON Schema cannot state an order over one, so a
-structure specification is not JSON Schema. It is this small dialect, whose fields ``structure_file`` declares:
+structure specification is not JSON Schema. It is this small dialect, whose fields `structure_file` declares:
 
     {
       "$schema": "../schemas/structure.spec.json",
@@ -20,37 +20,44 @@ structure specification is not JSON Schema. It is this small dialect, whose fiel
       "outline": [
         {"section": "Table of Contents", "optional": true},
         {"any": true, "words": 350},
-        {"section": "Checklist", "words": 250}
+        {
+          "section": "Checklist",
+          "words": 250,
+          "description": "The items a reviewer verifies before committing a change the document governs.",
+          "examples": ["- [ ] Every new record is a `@dataclass`\n- [ ] Every record used as a key is frozen"]
+        }
       ],
       "forbidden": ["Changelog"]
     }
 
-The file does not name the prose it is the machine-checkable half of: that is ``<stem>.md`` beside it, and every
+The file does not name the prose it is the machine-checkable half of: that is `<stem>.md` beside it, and every
 finding quotes it.
 
-- ``$schema`` points editors at ``docs/schemas/structure.spec.json``, the JSON Schema ``just gen`` renders from
-  ``structure_file``; it is not kept. That schema states the shape only: the rules ``StructureAspect`` refuses
+- `$schema` points editors at `docs/schemas/structure.spec.json`, the JSON Schema `just gen` renders from
+  `structure_file`; it is not kept. That schema states the shape only: the rules `StructureAspect` refuses
   below it cannot state.
-- ``description`` is read by people only, and is not kept.
-- ``title`` states how many H1 titles a document carries, and whether one opens it ahead of every section.
-- ``empty_sections``, whose one value is ``"forbidden"``, reports a section left without content.
-- ``tokens`` is the token budget: the most tokens the whole file may hold, frontmatter, code and tables
-  included, since that is what loading it costs an agent. The count is ``o200k_base``, the same whichever agent
+- `description` is read by people only, and is not kept.
+- `title` states how many H1 titles a document carries, and whether one opens it ahead of every section.
+- `empty_sections`, whose one value is `"forbidden"`, reports a section left without content.
+- `tokens` is the token budget: the most tokens the whole file may hold, frontmatter, code and tables
+  included, since that is what loading it costs an agent. The count is `o200k_base`, the same whichever agent
   reads it. The budget check applies it, not the structure check: it reads the raw file, not the parse tree.
-- ``frontmatter`` is a Draft 2020-12 JSON Schema the document's frontmatter must satisfy. Unlike the rest of the
+- `frontmatter` is a Draft 2020-12 JSON Schema the document's frontmatter must satisfy. Unlike the rest of the
   file it is JSON Schema, not the dialect: a frontmatter is a mapping, which JSON Schema states well. Its root must
-  say ``"type": "object"`` outright, and no schema in it, at any depth, may carry ``$id`` or name another dialect
-  in ``$schema``. The frontmatter check applies it, not the structure check: it reads the frontmatter, not the
-  headings. ``FrontmatterSchema.validate`` translates ``jsonschema``'s errors into ``FrontmatterProblem`` values
-  here, beside the decoding, because this is the one place the package reads a ``jsonschema`` error.
-- ``outline`` is the order of the document's sections. A ``section`` entry names one and is required unless
-  ``optional``; an ``any`` entry matches a run of sections the outline does not name. An entry's ``words`` caps
-  the prose words of each section it matches, H3 subsections included: on an ``any`` entry that is every section
-  in the run alone, not the run's total. An entry without ``words`` caps nothing. A word is a whitespace-delimited
-  token of prose; fenced code and table rows are not counted.
-- ``forbidden`` names sections that must not appear at all.
+  say `"type": "object"` outright, and no schema in it, at any depth, may carry `$id` or name another dialect
+  in `$schema`. The frontmatter check applies it, not the structure check: it reads the frontmatter, not the
+  headings. `FrontmatterSchema.validate` translates `jsonschema`'s errors into `FrontmatterProblem` values
+  here, beside the decoding, because this is the one place the package reads a `jsonschema` error.
+- `outline` is the order of the document's sections. A `section` entry names one and is required unless
+  `optional`; an `any` entry matches a run of sections the outline does not name. An entry's `words` caps
+  the prose words of each section it matches, H3 subsections included: on an `any` entry that is every section
+  in the run alone, not the run's total. An entry without `words` caps nothing. A word is a whitespace-delimited
+  token of prose; fenced code and table rows are not counted. A `section` entry's `description` says what the
+  section holds and its `examples` are Markdown samples of its body; when a document lacks the section, the
+  structure check reports the description and the first example as notes, and leaves the rest to a reader.
+- `forbidden` names sections that must not appear at all.
 
-Nothing here logs: the command that loads the model catches every ``Error`` that escapes it and reports it.
+Nothing here logs: the command that loads the model catches every `Error` that escapes it and reports it.
 """
 
 import re
@@ -358,7 +365,12 @@ class SectionEntry:
         name: The section's heading text.
         optional: True when a document may leave the section out; False, the default, when it must carry it.
         words: The most prose words the section may hold, its H3 subsections included, or None, the default, for
-            no cap; at least 1, which ``StructureAspect`` checks.
+            no cap; at least 1, which `StructureAspect` checks.
+        description: What the section holds, reported as help when a document lacks the section, or None, the
+            default, for no help.
+        examples: Markdown samples of the section's body, each without its heading, or empty, the default, for
+            none. The first is reported as a note when a document lacks the section; the rest are for a reader of
+            the specification.
     """
 
     name: str
@@ -366,6 +378,8 @@ class SectionEntry:
     # Checked by the enclosing `StructureAspect` rather than here, so a bad cap is refused as an
     # `InvalidWordCapError` naming the specification file, which this record does not know.
     words: int | None = None
+    description: str | None = None
+    examples: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -716,7 +730,15 @@ class StructureAspect:
                 case StructureFileAny():
                     outline.append(AnySections(words=entry.words))
                 case StructureFileSection():
-                    outline.append(SectionEntry(name=entry.section, optional=entry.optional, words=entry.words))
+                    outline.append(
+                        SectionEntry(
+                            name=entry.section,
+                            optional=entry.optional,
+                            words=entry.words,
+                            description=entry.description,
+                            examples=entry.examples or (),
+                        )
+                    )
                 case _:
                     assert_never(entry)
 

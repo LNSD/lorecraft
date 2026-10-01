@@ -1,6 +1,6 @@
 {
   "$schema": "../schemas/structure.spec.json",
-  "description": "Frontmatter, section structure, section word caps and token budget for a rule document in docs/code/. The prose authorities are docs/__meta__/code.md section 2 for the frontmatter, section 5 for the structure and section 1 (Avoid Context Bloat) for the length, which states the rule without fixing a number; this file is their machine-checkable half, and its caps and budget are that rule made decidable, set from the corpus as it stands. The order is: the document's own rule sections, then the Checklist, then the two reference sections, adjacent, with nothing after them. The word caps keep each section's prose concise: a word is a whitespace-delimited token of prose, and fenced code blocks and table rows are not counted, so an example costs no words. A section's cap covers its H3 children, and the cap on the `any` run applies to each of its sections alone. Rule is named here, ahead of the run, only for its own cap, since a namespace specification cannot lift this one's: Rule and Checklist each restate the whole document once, Rule before the examples and the Checklist after them. The reference sections are navigation and are not capped. The token budget is on the whole file, frontmatter, code and tables included: what loading it costs an agent, in o200k_base tokens whichever agent reads it.",
+  "description": "Frontmatter, section structure, section word caps and token budget for a rule document in docs/code/. The prose authorities are docs/__meta__/code.md section 2 for the frontmatter, section 5 for the structure and section 1 (Avoid Context Bloat) for the length, which states the rule without fixing a number; this file is their machine-checkable half, and its caps and budget are that rule made decidable, set from the corpus as it stands. The order is: the document's own rule sections, then the Checklist, then the two reference sections, adjacent, with nothing after them. The word caps keep each section's prose concise: a word is a whitespace-delimited token of prose, and fenced code blocks and table rows are not counted, so an example costs no words. A section's cap covers its H3 children, and the cap on the `any` run applies to each of its sections alone. Rule is named here, ahead of the run, only for its own cap, since a namespace specification cannot lift this one's: Rule and Checklist each restate the whole document once, Rule before the examples and the Checklist after them. The reference sections are navigation and are not capped. Each named section also carries a `description`, what the section holds, and `examples`, samples of its body drawn from the corpus's own documents: an author whose document lacks the section is shown the description and the first example, and the rest serve a reader of this file. The token budget is on the whole file, frontmatter, code and tables included: what loading it costs an agent, in o200k_base tokens whichever agent reads it.",
   "frontmatter": {
     "type": "object",
     "required": ["name", "description", "type", "scope"],
@@ -40,10 +40,31 @@
   "empty_sections": "forbidden",
   "tokens": 5000,
   "outline": [
-    { "section": "Rule", "optional": true, "words": 700 },
+    {
+      "section": "Rule",
+      "optional": true,
+      "words": 700,
+      "description": "The rule stated whole, in the imperative present, before the examples; it restates nothing another document owns and carries no migration narrative.",
+      "examples": ["A class or module owns one responsibility. Split when any of these observable signals is present:\n\n1. **Multiple external systems**: the methods touch several distinct outside worlds (the filesystem, a JSON\n   Schema validator, a subprocess, a report sink). Each boundary is its own concern. Three is a strong\n   signal; two warrants a split when they change independently.\n2. **Disjoint attribute access**: the methods partition into groups that touch non-overlapping sets of\n   attributes. The groups are separate classes sharing an `__init__` by coincidence.\n3. **Mixed I/O and transformation**: the same unit both performs effects (read a file, shell out, write a\n   report) and does pure computation (parsing frontmatter, planning an outline, formatting a finding).\n   Extract the pure part — it is the part worth unit testing, and effects make that impossible.\n\nWhen a signal fires, split into focused units and compose them."]
+    },
     { "any": true, "words": 350 },
-    { "section": "Checklist", "words": 250 },
-    { "section": "References", "optional": true },
-    { "section": "External References", "optional": true }
+    {
+      "section": "Checklist",
+      "words": 250,
+      "description": "The last section a reader acts on: a verification list of items the author ticks before committing, each one a checkable statement of a rule in the document. It restates the whole document once, after the examples.",
+      "examples": ["Before committing code, verify:\n\n- [ ] Every module that logs has exactly one `logger = logging.getLogger(__name__)` after its imports\n- [ ] No logger is built from `type(self).__name__`, a class name, or a literal string\n- [ ] Every message is past tense, has no trailing punctuation, and carries no editorial\n- [ ] Every log call inside an `except` block uses `logger.exception(...)`, or a lower level with\n      `exc_info=True`\n- [ ] No `print` in library code, except a function named for its output or a prompt a human must read live\n- [ ] No log call sits in a per-line loop, whatever its level"]
+    },
+    {
+      "section": "References",
+      "optional": true,
+      "description": "Cross-references to other rule documents, one bullet each, naming the relationship (Related, Foundation, Companion or Extends) and following the direction rules for the document's type.",
+      "examples": ["- [error-handling](error-handling.md) - Related: Owns what an `except` block does beyond logging — retry, re-raise, or swallow\n- [error-types](error-types.md) - Related: Owns the error types whose messages end up in these lines\n- [python-modules](python-modules.md) - Related: Owns the module boundary that `__name__` names, and the package root where `NullHandler` is attached\n- [principle-least-surprise](principle-least-surprise.md) - Foundation: A library that reconfigures the host's logging on import surprises the host"]
+    },
+    {
+      "section": "External References",
+      "optional": true,
+      "description": "Links to external articles, books or specifications that support the rules; adjacent to References and placed after it.",
+      "examples": ["- [Python docs — Logging HOWTO: Configuring Logging for a Library](https://docs.python.org/3/howto/logging.html#configuring-logging-for-a-library)\n- [Python docs — `logging.Logger.exception`](https://docs.python.org/3/library/logging.html#logging.Logger.exception)\n- [Python docs — Logging Cookbook](https://docs.python.org/3/howto/logging-cookbook.html)"]
+    }
   ]
 }
