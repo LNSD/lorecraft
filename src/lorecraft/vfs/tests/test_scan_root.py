@@ -1,4 +1,7 @@
-"""One scan root: what it lists by the spelling of a path alone, and the depth it refuses.
+"""One scan root: what it lists by the spelling of a path alone, the depth it refuses, and how deep it reaches.
+
+Each is seen with a depth and with no depth limit: the root a scan lists a level down, and which of two roots
+reaches deeper, are where the two differ.
 
 Nothing here touches the disk or reads a link; what a whole scope reads, links included, is `test_scope.py`.
 """
@@ -179,3 +182,154 @@ class TestScanRoot:
 
         #: Then
         assert covered is True, 'a scan of the root at depth 0 lists the root, so a file in it is covered'
+
+    def test_is_covering_with_no_depth_limit_with_an_entry_three_levels_below_returns_true(self) -> None:
+        #: Given
+        scan_root = ScanRoot(DOCS, depth=None)
+        path = _path('docs/feat/deep/deeper/a.md')
+
+        #: When
+        covered = scan_root.is_covering(path)
+
+        #: Then
+        assert covered is True, 'a root with no depth limit lists every directory below it, at any depth'
+
+    def test_is_covering_with_no_depth_limit_with_the_directory_itself_returns_false(self) -> None:
+        #: Given
+        scan_root = ScanRoot(DOCS, depth=None)
+        path = DOCS
+
+        #: When
+        covered = scan_root.is_covering(path)
+
+        #: Then
+        assert covered is False, 'no depth limit still leaves docs itself to the listing of its parent'
+
+    def test_is_covering_with_no_depth_limit_with_a_path_outside_the_directory_returns_false(self) -> None:
+        #: Given
+        scan_root = ScanRoot(DOCS, depth=None)
+        path = _path('src/deep/a.md')
+
+        #: When
+        covered = scan_root.is_covering(path)
+
+        #: Then
+        assert covered is False, 'no depth limit reaches only below docs/, never beside it'
+
+
+@pytest.mark.unit
+class TestScanRootFindRootBelow:
+    def test_find_root_below_with_depth_left_returns_a_root_with_the_levels_taken_off(self) -> None:
+        #: Given
+        scan_root = ScanRoot(DOCS, depth=3)
+        directory = _path('docs/feat/deep')
+
+        #: When
+        lowered = scan_root.find_root_below(directory, levels=2)
+
+        #: Then
+        assert lowered == ScanRoot(directory, depth=1), 'two levels down from depth 3, one level is left'
+
+    def test_find_root_below_with_exactly_the_depth_returns_a_root_at_depth_zero(self) -> None:
+        #: Given
+        scan_root = ScanRoot(DOCS, depth=1)
+        directory = _path('docs/feat')
+
+        #: When
+        lowered = scan_root.find_root_below(directory, levels=1)
+
+        #: Then
+        assert lowered == ScanRoot(directory, depth=0), 'depth 1 enters docs/feat and lists it with none left'
+
+    def test_find_root_below_past_the_depth_returns_none(self) -> None:
+        #: Given
+        scan_root = ScanRoot(DOCS, depth=0)
+        directory = _path('docs/feat')
+
+        #: When
+        lowered = scan_root.find_root_below(directory, levels=1)
+
+        #: Then
+        assert lowered is None, 'depth 0 names docs/feat and never enters it'
+
+    def test_find_root_below_with_no_depth_limit_returns_a_root_with_no_depth_limit(self) -> None:
+        #: Given
+        scan_root = ScanRoot(DOCS, depth=None)
+        directory = _path('docs/feat/deep/deeper')
+
+        #: When
+        lowered = scan_root.find_root_below(directory, levels=3)
+
+        #: Then
+        assert lowered == ScanRoot(directory, depth=None), 'no depth limit stays no limit however far down'
+
+    def test_find_root_below_from_a_root_following_links_returns_a_root_following_links(self) -> None:
+        #: Given
+        scan_root = ScanRoot(DOCS, depth=None, follow_links=True)
+        directory = _path('shared/feat')
+
+        #: When
+        lowered = scan_root.find_root_below(directory, levels=1)
+
+        #: Then
+        assert lowered == ScanRoot(directory, depth=None, follow_links=True), 'the link policy is kept'
+
+
+@pytest.mark.unit
+class TestScanRootIsAtLeastAsDeepAs:
+    def test_is_at_least_as_deep_as_with_no_depth_limit_against_a_depth_returns_true(self) -> None:
+        #: Given
+        scan_root = ScanRoot(DOCS, depth=None)
+        other = ScanRoot(DOCS, depth=5)
+
+        #: When
+        at_least_as_deep = scan_root.is_at_least_as_deep_as(other)
+
+        #: Then
+        assert at_least_as_deep is True, 'no depth limit lists deeper than any depth'
+
+    def test_is_at_least_as_deep_as_with_a_depth_against_no_depth_limit_returns_false(self) -> None:
+        #: Given
+        scan_root = ScanRoot(DOCS, depth=5)
+        other = ScanRoot(DOCS, depth=None)
+
+        #: When
+        at_least_as_deep = scan_root.is_at_least_as_deep_as(other)
+
+        #: Then
+        assert at_least_as_deep is False, 'any depth stops short of a root with no limit'
+
+    def test_is_at_least_as_deep_as_with_no_depth_limit_on_both_returns_true(self) -> None:
+        #: Given
+        scan_root = ScanRoot(DOCS, depth=None)
+        other = ScanRoot(DOCS, depth=None)
+
+        #: When
+        at_least_as_deep = scan_root.is_at_least_as_deep_as(other)
+
+        #: Then
+        assert at_least_as_deep is True, (
+            'two roots with no limit reach equally deep, which ends a scan led back by a link'
+        )
+
+    def test_is_at_least_as_deep_as_with_an_equal_depth_returns_true(self) -> None:
+        #: Given
+        scan_root = ScanRoot(DOCS, depth=1)
+        other = ScanRoot(DOCS, depth=1)
+
+        #: When
+        at_least_as_deep = scan_root.is_at_least_as_deep_as(other)
+
+        #: Then
+        assert at_least_as_deep is True, 'an equal depth lists the same levels'
+
+    def test_is_at_least_as_deep_as_with_a_shallower_depth_returns_false(self) -> None:
+        #: Given
+        scan_root = ScanRoot(DOCS, depth=1)
+        other = ScanRoot(DOCS, depth=2)
+
+        #: When
+        at_least_as_deep = scan_root.is_at_least_as_deep_as(other)
+
+        #: Then
+        assert at_least_as_deep is False, 'depth 1 stops a level short of depth 2'

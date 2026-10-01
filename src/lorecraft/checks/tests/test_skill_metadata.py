@@ -261,7 +261,7 @@ class TestValidateSkillMetadata:
                 rule='skill.metadata-outside-scope',
                 message=(
                     '`metadata.scripts` lists `src/tool.py`, which lorecraft does not read; list a file directly '
-                    'in docs/, in a directory directly in docs/, or directly in a skill directory'
+                    'in docs/, in a directory directly in docs/, or anywhere in a skill directory'
                 ),
             ),
         ), 'a path the snapshot never read is one violation, on the line of the metadata key'

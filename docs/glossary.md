@@ -80,7 +80,7 @@ The maximum tokens a whole document file may hold, frontmatter, code and tables 
 
 ### Snapshot
 
-What one scan of a repository saw: every listing, every regular file's bytes and every symlink's target under `docs/` and the skills directories, down to a fixed depth. A snapshot is never patched: the next one is a new value, from a full scan or from the previous snapshot with only the paths filesystem events name scanned again, and it equals what a full scan would see. Two snapshots are equal exactly when nothing they cover changed. The virtual view answers the filesystem boundary's operations from one snapshot without touching the disk.
+What one scan of a repository saw: every listing, every regular file's bytes and every symlink's target under `docs/`, down to a fixed depth, and under the skills directories, at any depth. A snapshot is never patched: the next one is a new value, from a full scan or from the previous snapshot with only the paths filesystem events name scanned again, and it equals what a full scan would see. Two snapshots are equal exactly when nothing they cover changed. The virtual view answers the filesystem boundary's operations from one snapshot without touching the disk.
 
 ### Change set
 

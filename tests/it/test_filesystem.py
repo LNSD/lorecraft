@@ -1489,6 +1489,142 @@ class TestTakeSnapshot:
             Listing(RootRelativePath.parse('real'), (DirEntry('SKILL.md', EntryKind.FILE),)),
         ), 'a chain of 40 links is as long as the kernel follows, so the scan lists the directory it leads to'
 
+    def test_take_snapshot_with_no_depth_limit_lists_every_directory_below_and_reads_every_file(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        (tmp_path / 'skills' / 'x' / 'references' / 'deep').mkdir(parents=True)
+        (tmp_path / 'skills' / 'x' / 'SKILL.md').write_bytes(b'---\n')
+        (tmp_path / 'skills' / 'x' / 'references' / 'a.md').write_bytes(b'# A\n')
+        (tmp_path / 'skills' / 'x' / 'references' / 'deep' / 'b.md').write_bytes(b'# B\n')
+        scope = (ScanRoot(RootRelativePath.parse('skills'), depth=None),)
+
+        #: When
+        snapshot = take_snapshot(tmp_path, scope)
+
+        #: Then
+        assert snapshot == Snapshot(
+            listings=(
+                Listing(RootRelativePath.parse('skills'), (DirEntry('x', EntryKind.DIRECTORY),)),
+                Listing(
+                    RootRelativePath.parse('skills/x'),
+                    (DirEntry('SKILL.md', EntryKind.FILE), DirEntry('references', EntryKind.DIRECTORY)),
+                ),
+                Listing(
+                    RootRelativePath.parse('skills/x/references'),
+                    (DirEntry('a.md', EntryKind.FILE), DirEntry('deep', EntryKind.DIRECTORY)),
+                ),
+                Listing(RootRelativePath.parse('skills/x/references/deep'), (DirEntry('b.md', EntryKind.FILE),)),
+            ),
+            files=(
+                FileBytes(RootRelativePath.parse('skills/x/SKILL.md'), b'---\n'),
+                FileBytes(RootRelativePath.parse('skills/x/references/a.md'), b'# A\n'),
+                FileBytes(RootRelativePath.parse('skills/x/references/deep/b.md'), b'# B\n'),
+            ),
+            scope=scope,
+        ), 'a root with no depth limit lists every directory below it and reads every file, at any depth'
+
+    def test_take_snapshot_with_no_depth_limit_following_a_link_to_a_directory_lists_it_at_any_depth(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        (tmp_path / 'shared' / 'deep').mkdir(parents=True)
+        (tmp_path / 'shared' / 'deep' / 'b.md').write_bytes(b'# B\n')
+        (tmp_path / 'skills' / 'x').mkdir(parents=True)
+        (tmp_path / 'skills' / 'x' / 'refs').symlink_to('../../shared')
+        scope = (ScanRoot(RootRelativePath.parse('skills'), depth=None, follow_links=True),)
+
+        #: When
+        snapshot = take_snapshot(tmp_path, scope)
+
+        #: Then
+        assert snapshot == Snapshot(
+            listings=(
+                Listing(RootRelativePath.parse('shared'), (DirEntry('deep', EntryKind.DIRECTORY),)),
+                Listing(RootRelativePath.parse('shared/deep'), (DirEntry('b.md', EntryKind.FILE),)),
+                Listing(RootRelativePath.parse('skills'), (DirEntry('x', EntryKind.DIRECTORY),)),
+                Listing(RootRelativePath.parse('skills/x'), (DirEntry('refs', EntryKind.SYMLINK),)),
+            ),
+            files=(FileBytes(RootRelativePath.parse('shared/deep/b.md'), b'# B\n'),),
+            links=(Link(RootRelativePath.parse('skills/x/refs'), PurePosixPath('../../shared')),),
+            scope=scope,
+        ), 'the link inside a skill is followed, and the directory it leads to is listed with no depth limit'
+
+    def test_take_snapshot_with_no_depth_limit_following_a_link_to_an_ancestor_lists_each_directory_once(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        (tmp_path / 'skills' / 'x').mkdir(parents=True)
+        (tmp_path / 'skills' / 'x' / 'SKILL.md').write_bytes(b'---\n')
+        (tmp_path / 'skills' / 'x' / 'up').symlink_to('..')
+        scope = (ScanRoot(RootRelativePath.parse('skills'), depth=None, follow_links=True),)
+
+        #: When
+        snapshot = take_snapshot(tmp_path, scope)
+
+        #: Then
+        assert snapshot == Snapshot(
+            listings=(
+                Listing(RootRelativePath.parse('skills'), (DirEntry('x', EntryKind.DIRECTORY),)),
+                Listing(
+                    RootRelativePath.parse('skills/x'),
+                    (DirEntry('SKILL.md', EntryKind.FILE), DirEntry('up', EntryKind.SYMLINK)),
+                ),
+            ),
+            files=(FileBytes(RootRelativePath.parse('skills/x/SKILL.md'), b'---\n'),),
+            links=(Link(RootRelativePath.parse('skills/x/up'), PurePosixPath('..')),),
+            scope=scope,
+        ), 'the link leads back to skills/, already listed with no limit, so the scan ends instead of looping'
+
+    def test_take_snapshot_with_no_depth_limit_following_two_directories_linked_to_each_other_lists_each_once(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        (tmp_path / 'a').mkdir()
+        (tmp_path / 'b').mkdir()
+        (tmp_path / 'a' / 'to-b').symlink_to('../b')
+        (tmp_path / 'b' / 'to-a').symlink_to('../a')
+        scope = (ScanRoot(RootRelativePath.parse('a'), depth=None, follow_links=True),)
+
+        #: When
+        snapshot = take_snapshot(tmp_path, scope)
+
+        #: Then
+        assert snapshot == Snapshot(
+            listings=(
+                Listing(RootRelativePath.parse('a'), (DirEntry('to-b', EntryKind.SYMLINK),)),
+                Listing(RootRelativePath.parse('b'), (DirEntry('to-a', EntryKind.SYMLINK),)),
+            ),
+            files=(),
+            links=(
+                Link(RootRelativePath.parse('a/to-b'), PurePosixPath('../b')),
+                Link(RootRelativePath.parse('b/to-a'), PurePosixPath('../a')),
+            ),
+            scope=scope,
+        ), 'a/ leads to b/ and b/ back to a/, already listed with no limit, so the scan ends'
+
+    def test_take_snapshot_with_no_depth_limit_following_a_link_to_itself_records_it_and_lists_nothing_through_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        (tmp_path / 'skills' / 'x').mkdir(parents=True)
+        (tmp_path / 'skills' / 'x' / 'self').symlink_to('self')
+        scope = (ScanRoot(RootRelativePath.parse('skills'), depth=None, follow_links=True),)
+
+        #: When
+        snapshot = take_snapshot(tmp_path, scope)
+
+        #: Then
+        assert snapshot == Snapshot(
+            listings=(
+                Listing(RootRelativePath.parse('skills'), (DirEntry('x', EntryKind.DIRECTORY),)),
+                Listing(RootRelativePath.parse('skills/x'), (DirEntry('self', EntryKind.SYMLINK),)),
+            ),
+            files=(),
+            links=(Link(RootRelativePath.parse('skills/x/self'), PurePosixPath('self')),),
+            scope=scope,
+        ), 'a link to itself leads nowhere, so it is recorded and nothing is listed through it'
+
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
     def test_take_snapshot_with_an_unreadable_directory_raises_snapshot_dir_list_error(
         self, tmp_path: Path, unreadable_dir: Path
@@ -2694,11 +2830,11 @@ class TestDiffOfFollowingSnapshots:
 
 
 # The layout's shape of scope: docs/ one level deep with links recorded and not followed, and each skills
-# directory one level deep through its links.
+# directory with no depth limit through its links.
 LAYOUT_SHAPED_SCOPE: Final[tuple[ScanRoot, ...]] = (
     ScanRoot(DOCS_DIR, depth=1),
-    ScanRoot(RootRelativePath.parse('.agents/skills'), depth=1, follow_links=True),
-    ScanRoot(RootRelativePath.parse('.claude/skills'), depth=1, follow_links=True),
+    ScanRoot(RootRelativePath.parse('.agents/skills'), depth=None, follow_links=True),
+    ScanRoot(RootRelativePath.parse('.claude/skills'), depth=None, follow_links=True),
 )
 
 
@@ -2707,8 +2843,9 @@ def scope_parity_tree(tmp_path: Path) -> Path:
     """A root with a link of every kind the scope must answer for, each leading to a directory that exists.
 
     Under `docs/`, `linked` leads out to `elsewhere/` and `alias` to its sibling `feat/`, and `feat/deep/` is
-    beyond the depth. `.agents/skills/y` leads to `skills/y/`, which holds `sub/`; `.agents/skills/x/lib` leads
-    to `lib/` from inside a skill; `.claude/skills` leads to `.agents/skills/`; and `src/` is in no root.
+    beyond the depth. `.agents/skills/y` leads to `skills/y/`, which holds `sub/`, listed since the skills roots
+    have no depth limit; `.agents/skills/x/lib` leads to `lib/` from inside a skill; `.claude/skills` leads to
+    `.agents/skills/`; and `src/` is in no root.
 
     Args:
         tmp_path: Directory the tree is written into, as the repository root.
@@ -2902,8 +3039,8 @@ class TestIsInScopeMatchesSnapshot:
         declared = index.is_in_scope(directory / 'absent.md')
 
         #: Then
-        assert (declared, listed) == (False, False), (
-            'the link costs a level, so skills/y is listed and its sub/ never entered'
+        assert (declared, listed) == (True, True), (
+            'the skills root has no depth limit, so skills/y is listed and so is its sub/'
         )
 
     def test_is_in_scope_through_a_linked_skills_directory_agrees_with_the_snapshot(
@@ -2932,8 +3069,8 @@ class TestIsInScopeMatchesSnapshot:
         declared = index.is_in_scope(directory / 'absent.md')
 
         #: Then
-        assert (declared, listed) == (False, False), (
-            'a skill directory has no depth left, so its link to lib/ is not followed'
+        assert (declared, listed) == (True, True), (
+            'a link inside a skill is followed, so lib/ is listed through .agents/skills/x/lib'
         )
 
     def test_is_in_scope_outside_every_root_agrees_with_the_snapshot(self, scope_parity_tree: Path) -> None:
@@ -3032,8 +3169,8 @@ class TestFindRealFileMatchesScan:
         reached = virtual.find_real_file(path)
 
         #: Then
-        assert (reached is not None, declared) == (False, False), (
-            'a skill directory has no depth left, so its link to lib/ is not followed'
+        assert (reached is not None, declared) == (True, True), (
+            'a link inside a skill is followed, so lib/a.md is read through .agents/skills/x/lib'
         )
 
     def test_find_real_file_through_a_link_climbing_out_of_its_own_directory_agrees_with_the_scope(

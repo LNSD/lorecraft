@@ -267,10 +267,11 @@ class SnapshotLinkReadError(Error):
 def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
     """Read every listing down to each root's depth, every FILE entry's bytes and every symlink's target, once.
 
-    A missing scope root is simply absent. A file or symlink that vanishes between its listing and its read
-    (an editor's write-then-rename) is dropped from the listing rather than failing the scan; a directory
-    that vanishes is left unentered. OTHER entries are recorded, never read; an absolute link target under
-    the root is recorded relative to the link's directory (see `Link`).
+    A root with no depth limit is listed all the way down. A missing scope root is simply absent. A file or
+    symlink that vanishes between its listing and its read (an editor's write-then-rename) is dropped from the
+    listing rather than failing the scan; a directory that vanishes is left unentered. OTHER entries are
+    recorded, never read; an absolute link target under the root is recorded relative to the link's directory
+    (see `Link`).
 
     Every symlink met is recorded, and followed only under a scope root that asks for it
     (`ScanRoot.follow_links`). Without it a scope root with a symlink on the way to it is not listed, and a
@@ -279,6 +280,11 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
     file has its bytes recorded at its real path. Either way every listing and every file sits at a real path.
     Where a root starts, where a link leads and the depth it uses up are the rules of `root_expansion.py`,
     which `ScopeIndex.is_in_scope` answers from too.
+
+    Each directory is listed once for each root that asks for more under it than an earlier listing reached,
+    so a followed link back to a directory already listed, such as one of its own ancestors, ends the scan
+    there instead of looping, at any depth. Such a link to an ancestor still has the scan list that ancestor's
+    whole subtree, as deep as the root reaches.
 
     Args:
         root: The workspace root on disk; nothing outside it is read.
@@ -298,10 +304,12 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
     files: dict[RootRelativePath, bytes] = {}
     links: dict[RootRelativePath, PurePosixPath] = {}
     on_disk = _DiskEntries(root, links)
-    # How deep each directory was listed, without following links and with, so overlapping scope roots list
-    # a directory again only when a later root asks for more under it: more depth, or its links followed.
-    listed_depth: dict[RootRelativePath, int] = {}
-    followed_depth: dict[RootRelativePath, int] = {}
+    # The root each directory was last listed as, without following links and with, so overlapping scope roots
+    # list a directory again only when a later root asks for more under it: more depth, or its links followed.
+    # This is also what ends the scan when a followed link leads back to a directory already listed, such as an
+    # ancestor of the link: the root it adds reaches no deeper than the one that listed the directory.
+    listed_as: dict[RootRelativePath, ScanRoot] = {}
+    followed_as: dict[RootRelativePath, ScanRoot] = {}
     # Each directory still to list, as a root at its real path: the depth left there, and the link policy.
     pending: list[ScanRoot] = []
     for scan_root in scope:
@@ -312,11 +320,10 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
     while pending:
         listed_root = pending.pop()
         directory = listed_root.directory
-        depth = listed_root.depth
         follow_links = listed_root.follow_links
-        if followed_depth.get(directory, -1) >= depth:
+        if _is_listed_as_deep(followed_as, listed_root):
             continue  # a listing that followed links covers one that does not
-        if not follow_links and listed_depth.get(directory, -1) >= depth:
+        if not follow_links and _is_listed_as_deep(listed_as, listed_root):
             continue
         try:
             entries = _find_listing(root, directory)
@@ -325,15 +332,17 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
         if entries is None:
             continue  # vanished after its parent was listed; see the docstring
         if follow_links:
-            followed_depth[directory] = depth
+            followed_as[directory] = listed_root
         else:
-            listed_depth[directory] = depth
+            listed_as[directory] = listed_root
 
         kept: list[DirEntry] = []
         for entry in entries:
             path = directory / entry.name
-            if entry.kind is EntryKind.DIRECTORY and depth > 0:
-                pending.append(ScanRoot(path, depth - 1, follow_links=follow_links))
+            if entry.kind is EntryKind.DIRECTORY:
+                entered_root = listed_root.find_root_below(path, levels=1)
+                if entered_root is not None:  # None when no depth is left: the entry is listed, never entered
+                    pending.append(entered_root)
             elif entry.kind is EntryKind.FILE:
                 data = _find_file_bytes(root, path)
                 if data is None:
@@ -355,6 +364,19 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
         links=tuple(Link(path, links[path]) for path in sorted(links)),
         scope=scope,
     )
+
+
+def _is_listed_as_deep(listed: dict[RootRelativePath, ScanRoot], scan_root: ScanRoot) -> bool:
+    """Whether `listed` records a listing of `scan_root`'s directory that reached at least as deep as it asks.
+
+    Args:
+        listed: The root each directory was listed as so far, keyed by its real path.
+        scan_root: The root a directory is about to be listed as.
+    """
+    previous = listed.get(scan_root.directory)
+    if previous is None:
+        return False
+    return previous.is_at_least_as_deep_as(scan_root)
 
 
 class _DiskEntries:

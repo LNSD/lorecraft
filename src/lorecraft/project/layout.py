@@ -16,14 +16,16 @@ DOCUMENT_SUFFIX: Final[str] = '.md'
 def _skills_scan_roots() -> list[ScanRoot]:  # pragma: no mutate block
     """One scan root per project skills directory the agents read, each once: two agents may read the same one.
 
-    A skills directory is read one level deep: the directory itself, and each skill directory in it. Links are
-    followed, since an agent's skills directory is commonly a link to another one, a skill entry a link to
-    where the skill's files live, and a ``SKILL.md`` a link to where its text lives.
+    A skills directory is read with no depth limit: the directory itself, each skill directory in it, and every
+    file and directory inside a skill, at any depth, since a skill carries references, scripts and assets beside
+    its `SKILL.md`. Links are followed, since an agent's skills directory is commonly a link to another one, a
+    skill entry a link to where the skill's files live, a `SKILL.md` a link to where its text lives, and an entry
+    inside a skill a link to a file or a directory elsewhere in the repository.
     """
     scan_roots: list[ScanRoot] = []
     for agent in iter_agents():
         for skills_dir in agent.project_skills_dirs:
-            scan_root = ScanRoot(RootRelativePath(skills_dir), depth=1, follow_links=True)
+            scan_root = ScanRoot(RootRelativePath(skills_dir), depth=None, follow_links=True)
             if scan_root not in scan_roots:
                 scan_roots.append(scan_root)
     return scan_roots
@@ -32,15 +34,18 @@ def _skills_scan_roots() -> list[ScanRoot]:  # pragma: no mutate block
 SNAPSHOT_SCOPE: Final[tuple[ScanRoot, ...]] = (ScanRoot(DOCS_DIR, depth=1), *_skills_scan_roots())
 """What a snapshot reads: what the document, schema and skill repositories read at the scan roots.
 
-The document and schema repositories list ``docs/`` and each corpus and specs directory in it; the skill
-repository lists each project skills directory the agents read and each skill directory in it. Which
-directories those are is the agents' statement, in ``lorecraft.agents``; the workspace model records the ones a
-repository has, with the agent that reads each.
+The document and schema repositories list `docs/` and each corpus and specs directory in it; the skill
+repository lists each project skills directory the agents read and each skill directory in it. The scope also
+reaches every file and directory below a skill directory, at any depth: a skill's own files, which the model
+does not list. Which skills directories those are is the agents' statement, in `lorecraft.agents`;
+the workspace model records the ones a repository has, with the agent that reads each.
 
-Under ``docs/`` a link is recorded, not followed. Under a skills directory a link to a directory or a file in
-the repository is followed, so a skill linked to where its files live, such as
-``.agents/skills/review -> ../../skills/review``, or a ``SKILL.md`` linked to where its text lives, is in the
-snapshot as it is on disk. A link leading outside the repository is never followed.
+Under `docs/` a link is recorded, not followed. Under a skills directory, inside a skill included, a link to a
+directory or a file in the repository is followed, so a skill linked to where its files live, such as
+`.agents/skills/review -> ../../skills/review`, a `SKILL.md` linked to where its text lives, or a directory
+of references linked in from elsewhere, is in the snapshot as it is on disk, a linked directory with no depth
+limit either. A link leading outside the repository is never followed. A link inside a skill to one of its own
+ancestors has the scan read that ancestor's whole subtree once, and ends there.
 """
 
 

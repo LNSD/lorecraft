@@ -417,7 +417,7 @@ class TestRunSkillsMetadata:
                 rule='skill.metadata-outside-scope',
                 message=(
                     '`metadata.scripts` lists `src/tool.py`, which lorecraft does not read; list a file directly '
-                    'in docs/, in a directory directly in docs/, or directly in a skill directory'
+                    'in docs/, in a directory directly in docs/, or anywhere in a skill directory'
                 ),
             ),
         ), 'src/ is never read, so the file there is outside the scope, while the document under docs/ is in it'
@@ -480,6 +480,40 @@ class TestRunSkillsMetadata:
 
         #: Then
         assert run.findings() == (), 'the skill directory is listed, so a file in it is in the scope'
+
+    def test_run_skills_with_a_skill_listing_a_file_nested_inside_it_reports_nothing(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/x/references/deep/q.md')
+        _write_skill(tmp_path, '  references: .agents/skills/x/references/deep/q.md\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (), 'every directory of a skill is read, at any depth, so a nested file is present'
+
+    def test_run_skills_with_a_skill_listing_an_absent_file_nested_inside_it_reports_it_missing(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write_skill(tmp_path, '  references: .agents/skills/x/references/deep/q.md\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (
+            Finding(
+                path=RootRelativePath.parse('.agents/skills/x/SKILL.md'),
+                line=LineNumber(4),
+                rule='skill.metadata-missing-file',
+                message=(
+                    '`metadata.references` lists `.agents/skills/x/references/deep/q.md`, where lorecraft finds no file'
+                ),
+            ),
+        ), 'a directory nested in a skill is in the scope even where the disk lacks it, so the file is missing'
 
     def test_run_skills_with_a_skill_listing_an_absent_document_reports_it_missing(self, tmp_path: Path) -> None:
         #: Given
