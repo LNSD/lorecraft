@@ -480,6 +480,9 @@ def _frontmatter_problems(error: SchemaValidationError, data: Mapping[object, ob
     # Past this point the error has no path, so the value it is about is `data` itself: read that rather than
     # `error.instance`, which `jsonschema` types as `Any`.
     if error.validator == 'required':
+        # `jsonschema` types `error.validator_value` as `Any`; the meta-schema proved `required` is an array.
+        if not isinstance(error.validator_value, list):
+            raise AssertionError('unreachable: `required` is an array of field names')
         problems: list[FrontmatterProblem] = []
         for required in error.validator_value:
             field = str(required)
