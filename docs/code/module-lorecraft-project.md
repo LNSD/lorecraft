@@ -24,7 +24,8 @@ declaration, read from `lorecraft.layout` and never stated here.
 - A repository that lists entries or reads text through a view, and decides what an entry is to Lorecraft.
 - The decoding of a specification into rules that are proved usable when they are built.
 - The parse tree and the token count: pure functions of one document's text.
-- A document's or a skill's identity, kept apart from its content and from where its symlinks lead.
+- A document's, a skill's or a skill resource's identity, kept apart from its content and from where its symlinks
+  lead.
 - Turning a Markdown link's destination into a root-relative path, relative to the document that holds it.
 
 ## Belongs Elsewhere
