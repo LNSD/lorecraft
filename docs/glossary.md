@@ -80,8 +80,24 @@ The maximum tokens a whole document file may hold, frontmatter, code and tables 
 
 ### Snapshot
 
-What one scan of a repository saw: every listing, every regular file's bytes and every symlink's target under `docs/` and the skills directories, down to a fixed depth. A snapshot is replaced whole by the next scan, never patched, and two snapshots are equal exactly when nothing they cover changed. The virtual view answers the filesystem boundary's operations from one snapshot without touching the disk.
+What one scan of a repository saw: every listing, every regular file's bytes and every symlink's target under `docs/` and the skills directories, down to a fixed depth. A snapshot is never patched: the next one is a new value, from a full scan or from the previous snapshot with only the paths filesystem events name scanned again, and it equals what a full scan would see. Two snapshots are equal exactly when nothing they cover changed. The virtual view answers the filesystem boundary's operations from one snapshot without touching the disk.
 
 ### Change set
 
 The difference of two snapshots, one entry per path: added, modified or deleted. An entry whose kind changed, such as a directory turned into a symlink, counts as deleted. It is computed from the two states, never from the filesystem events between them, so a save that leaves the bytes unchanged is no change.
+
+### Symlink
+
+A link in the filesystem, pointing at another path. The snapshot records each symlink's target, and only the filesystem boundary follows one. The project model records where a document's or skill's symlinks lead, apart from its identity, so a symlink retargeted to another file changes what the identity reads without changing any bytes. Never called just a "link".
+
+### Markdown link
+
+A link written in a document, `[text](destination)`, held as a node of the document's parse tree with its destination as written. Turning the destination into a path is pure, and whether that path names a document is a question for the project model. Never called just a "link".
+
+### Revision
+
+One set of inputs, the snapshot and the declarations, and the database built from them: the state every check behind one report reads. An event of any kind changes an input, and the next state of the workspace is a new revision, new inputs and a new database, which may keep the query results the change between the two left valid.
+
+### Project model
+
+What a repository declares, as Lorecraft reads it: its corpora, specifications, documents and skills, and where each one's symlinks lead. It is derived from the declarations and the structure of the snapshot, never from what a document says. The code calls it the workspace model.
