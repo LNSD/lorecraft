@@ -76,8 +76,10 @@ uv run pytest tests/e2e/test_<module>.py -v
 ### Snapshots
 
 A snapshot test, through syrupy's `snapshot` fixture, compares output to a file checked in under
-`__snapshots__/` beside its test module; `tests/lib/snapshot.py` stores each one as plain text. Every recipe
-above fails on a mismatch, and on a snapshot no test reads any more.
+`__snapshots__/` beside its test module; `tests/lib/snapshot.py` stores each one as plain text. Command output
+is pinned this way, with whatever varies per build or machine, such as the version or the workspace root,
+swapped for a placeholder before it is compared. Every recipe above fails on a mismatch, and on a snapshot no
+test reads any more.
 
 | Command | Purpose |
 |---|---|
