@@ -31,7 +31,6 @@ A skill's location decides which rules apply:
 
 from __future__ import annotations
 
-import functools
 import json
 import re
 import sys
@@ -54,7 +53,6 @@ SKILL_MD_MAX_LINES = 500
 
 LINK_PATTERN = re.compile(r'\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)')
 FENCE_PATTERN = re.compile(r'^\s*(```|~~~)')
-HEADING_PATTERN = re.compile(r'^\s{0,3}#{1,6}\s+(.*?)\s*#*\s*$')
 DYNAMIC_CONTEXT_PATTERN = re.compile(r'!`[^`]+`')
 
 
@@ -106,34 +104,6 @@ def load_frontmatter(text: str) -> dict:
     if not isinstance(frontmatter, dict):
         return {}
     return frontmatter
-
-
-def heading_slug(heading: str) -> str:
-    """The fragment GitHub derives from a heading: lowercased, punctuation dropped, spaces to hyphens."""
-    text = re.sub(r'[^\w\- ]', '', heading.strip().lower())
-    return text.replace(' ', '-')
-
-
-@functools.cache
-def fragments(path: Path) -> frozenset[str]:
-    """Every fragment a Markdown file answers to: one per heading outside code fences, GitHub style."""
-    seen: dict[str, int] = {}
-    result: set[str] = set()
-    in_fence = False
-    for line in path.read_text(encoding='utf-8').splitlines():
-        if FENCE_PATTERN.match(line):
-            in_fence = not in_fence
-            continue
-        if in_fence:
-            continue
-        match = HEADING_PATTERN.match(line)
-        if match is None:
-            continue
-        slug = heading_slug(match.group(1))
-        count = seen.get(slug, 0)
-        seen[slug] = count + 1
-        result.add(slug if count == 0 else f'{slug}-{count}')
-    return frozenset(result)
 
 
 def metadata_links(skill_dir: Path) -> set[str]:
@@ -241,12 +211,9 @@ def check_body(root: Path, skill_dir: Path, path: Path, kind: SkillKind, links: 
         for target in LINK_PATTERN.findall(line):
             if re.match(r'^[a-z][a-z0-9+.-]*:', target):
                 continue
-            target_path, _, fragment = target.partition('#')
+            target_path, _, _ = target.partition('#')
             if not target_path:
-                if fragment not in fragments(path):
-                    findings.append(
-                        Finding(rel, number, 'link.fragment', f'`{target}` names a heading this file does not have')
-                    )
+                # `lorecraft check skills` reports this as `skill.link-fragment`, for `SKILL.md` only.
                 continue
             if target_path.startswith('/'):
                 # `lorecraft check skills` reports this as `skill.link-absolute`, for `SKILL.md` only.
@@ -270,17 +237,6 @@ def check_body(root: Path, skill_dir: Path, path: Path, kind: SkillKind, links: 
                 else:
                     findings.append(Finding(rel, number, 'link.broken', f'`{target}` does not resolve'))
                 continue
-
-            if fragment and target_file.suffix == '.md' and target_file.is_file():
-                if fragment not in fragments(target_file):
-                    shown = (
-                        target_file.relative_to(root).as_posix() if target_file.is_relative_to(root) else target_path
-                    )
-                    findings.append(
-                        Finding(
-                            rel, number, 'link.fragment', f'`{target}` names a heading that `{shown}` does not have'
-                        )
-                    )
 
     return findings
 

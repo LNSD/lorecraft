@@ -248,6 +248,80 @@ class TestRunSkills:
             ),
         ), 'the linked skill is parsed through its link, and the finding names the SKILL.md under the skills directory'
 
+    def test_run_skills_with_fragment_links_reports_only_the_one_naming_a_missing_heading(self, tmp_path: Path) -> None:
+        #: Given
+        _write(
+            tmp_path,
+            '.agents/skills/review/SKILL.md',
+            b'---\nname: review\ndescription: Review a change\n---\n# Review\n\n'
+            b'See [the steps](#the-steps) and [the checklist](#checklist).\n\n- ## The steps\n',
+        )
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (
+            Finding(
+                path=RootRelativePath.parse('.agents/skills/review/SKILL.md'),
+                line=LineNumber(7),
+                rule='skill.link-fragment',
+                message='`#checklist` names a heading this file does not have',
+            ),
+        ), "the fragments are checked against the SKILL.md's own headings, a nested one included"
+
+    def test_run_skills_with_a_fragment_naming_a_non_ascii_heading_reports_only_the_missing_one(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(
+            tmp_path,
+            '.agents/skills/review/SKILL.md',
+            '---\nname: review\ndescription: Review a change\n---\n# Straße\n\n'
+            'See [x](#straße) and [y](#missing).\n'.encode(),
+        )
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (
+            Finding(
+                path=RootRelativePath.parse('.agents/skills/review/SKILL.md'),
+                line=LineNumber(7),
+                rule='skill.link-fragment',
+                message='`#missing` names a heading this file does not have',
+            ),
+        ), 'the parser percent-encodes the non-ASCII fragment, and it still matches the heading it names'
+
+    def test_run_skills_with_a_dangling_fragment_in_a_linked_skill_reports_it_where_the_agent_finds_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(
+            tmp_path,
+            'skills/review/SKILL.md',
+            b'---\nname: review\ndescription: Review a change\n---\n# Review\n\nSee [the checklist](#checklist).\n',
+        )
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (
+            Finding(
+                path=RootRelativePath.parse('.agents/skills/review/SKILL.md'),
+                line=LineNumber(7),
+                rule='skill.link-fragment',
+                message='`#checklist` names a heading this file does not have',
+            ),
+        ), 'the linked skill is parsed through its link, and the finding names the SKILL.md under the skills directory'
+
     def test_run_skills_with_an_undecodable_skill_reports_only_that_it_is_undecodable(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, '.agents/skills/latin/SKILL.md', b'---\nname: latin\n---\n[caf\xe9](/abs.md)\n')

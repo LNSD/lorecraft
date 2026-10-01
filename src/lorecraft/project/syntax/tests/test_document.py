@@ -1,5 +1,5 @@
 """Parsing a document's text into its parse tree: where the frontmatter block is found, which headings count, how
-many prose words each section holds, and which links the document holds.
+many prose words each section holds, which anchors its headings give, and which links the document holds.
 
 ``parse_document`` and ``parse_frontmatter`` are pure, so every case here is a text literal. The Markdown parser
 behind them decides what counts as a block; these pin the rules the checks report against.
@@ -7,6 +7,7 @@ behind them decides what counts as a block; these pin the rules the checks repor
 
 import pytest
 
+from ..anchor import Anchor
 from ..document import parse_document, parse_frontmatter
 from ..frontmatter import Frontmatter, FrontmatterKey, InvalidYamlFrontmatter, MissingFrontmatter
 from ..heading import Heading
@@ -431,4 +432,137 @@ class TestParseDocumentLinks:
         #: Then
         assert [link.line for link in document.links] == [LineNumber(3), LineNumber(5)], (
             'a CRLF line ending counts as one line break'
+        )
+
+
+@pytest.mark.unit
+class TestParseDocumentAnchors:
+    def test_parse_document_with_a_heading_returns_the_anchor_of_its_text(self) -> None:
+        #: Given
+        text = '# Getting Started\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.anchors == frozenset({Anchor('getting-started')}), (
+            'a heading gives the anchor GitHub derives from its text'
+        )
+
+    def test_parse_document_with_inline_html_in_a_heading_anchors_only_its_text(self) -> None:
+        #: Given
+        text = '# <kbd>Ctrl</kbd> + C\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.anchors == frozenset({Anchor('ctrl--c')}), (
+            'an inline HTML tag renders as markup, so only the text between the tags reaches the anchor'
+        )
+
+    def test_parse_document_with_an_html_comment_in_a_heading_leaves_it_out_of_the_anchor(self) -> None:
+        #: Given
+        text = '# Setup <!-- draft --> Guide\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.anchors == frozenset({Anchor('setup--guide')}), (
+            'an HTML comment renders as nothing, so its text never reaches the anchor'
+        )
+
+    def test_parse_document_with_an_image_in_a_heading_leaves_its_alt_text_out_of_the_anchor(self) -> None:
+        #: Given
+        text = '# ![logo](logo.png) Title\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.anchors == frozenset({Anchor('-title')}), (
+            'a rendered image holds no text, so its alt text is left out and the space after it stays a hyphen'
+        )
+
+    def test_parse_document_with_inline_markup_in_a_heading_anchors_its_plain_text(self) -> None:
+        #: Given
+        text = '# *Run* `just test` with [the skill](SKILL.md)\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.anchors == frozenset({Anchor('run-just-test-with-the-skill')}), (
+            'emphasis, code and a link contribute their text, never their markup or destination'
+        )
+
+    def test_parse_document_with_a_repeated_heading_numbers_each_repeat(self) -> None:
+        #: Given
+        text = '# Usage\n\n## Usage\n\n### Usage\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.anchors == frozenset({Anchor('usage'), Anchor('usage-1'), Anchor('usage-2')}), (
+            'the first heading keeps the bare anchor, and each repeat gets the next number'
+        )
+
+    def test_parse_document_with_a_repeat_colliding_with_a_numbered_heading_skips_the_taken_number(self) -> None:
+        #: Given
+        text = '# Foo 1\n\n# Foo\n\n# Foo\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.anchors == frozenset({Anchor('foo-1'), Anchor('foo'), Anchor('foo-2')}), (
+            'the repeat of foo skips foo-1, which the first heading already holds'
+        )
+
+    def test_parse_document_with_headings_in_a_list_and_a_blockquote_returns_their_anchors(self) -> None:
+        #: Given
+        text = '# Guide\n\n- ## Listed\n\n> ### Quoted\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.anchors == frozenset({Anchor('guide'), Anchor('listed'), Anchor('quoted')}), (
+            'a heading at any depth of the tree renders with an anchor a link can name'
+        )
+
+    def test_parse_document_with_a_setext_heading_returns_its_anchor(self) -> None:
+        #: Given
+        text = 'Getting Started\n===============\n\nSetup\n-----\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.anchors == frozenset({Anchor('getting-started'), Anchor('setup')}), (
+            'an underlined heading gives an anchor as an ATX heading does'
+        )
+
+    def test_parse_document_with_a_heading_line_in_a_code_block_returns_no_anchor_for_it(self) -> None:
+        #: Given
+        text = '# Guide\n\n```markdown\n# Example\n```\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.anchors == frozenset({Anchor('guide')}), 'a heading line inside a fenced code block is code'
+
+    def test_parse_document_with_frontmatter_returns_no_anchor_for_its_lines(self) -> None:
+        #: Given
+        text = '---\nname: review\n---\n# Review\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.anchors == frozenset({Anchor('review')}), (
+            'the frontmatter block is YAML, so its closing line underlines no setext heading'
         )
