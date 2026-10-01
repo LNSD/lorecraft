@@ -11,6 +11,7 @@ import pytest
 from lorecraft.core.path import RootRelativePath
 
 from ..changes import Change, ChangeKind, ChangeSet, diff
+from ..scan_root import ScanRoot
 from ..snapshot import FileBytes, Link, Listing, Snapshot
 from ..view import DirEntry, EntryKind
 
@@ -97,6 +98,19 @@ class TestDiff:
 
         #: Then
         assert changes == expected, 'a symlink still pointing at the same target is no change'
+
+    def test_diff_with_only_the_scope_changed_returns_empty(self) -> None:
+        #: Given
+        listing = Listing(RootRelativePath.parse('docs'), ())
+        old = Snapshot(listings=(listing,), files=(), scope=(ScanRoot(RootRelativePath.parse('docs'), depth=0),))
+        new = Snapshot(listings=(listing,), files=(), scope=(ScanRoot(RootRelativePath.parse('docs'), depth=1),))
+        expected: ChangeSet = frozenset()
+
+        #: When
+        changes = diff(old, new)
+
+        #: Then
+        assert changes == expected, 'a scope is no path, so a change set names no change for it'
 
     def test_diff_with_a_new_file_returns_it_added(self) -> None:
         #: Given

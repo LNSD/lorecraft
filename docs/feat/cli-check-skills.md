@@ -97,11 +97,11 @@ compared with the directory first, then the specification is applied, then repea
 [frontmatter check](cli-check-frontmatter.md#findings) does. Every message is Lorecraft's own, so it does not
 change with the version of the library that validates the fields.
 
-A `skill.metadata-*` finding is on the line of the `metadata` key. A listed path is in scope when the
-[snapshot](workspace.md#one-snapshot) holds it or lists the directory holding it; one that is absolute or climbs
-with `..` is outside it. A path in scope that leads to no regular file in the snapshot is missing: nothing is
-there, a directory is, or a link dangles, leaves the repository or reaches a file lorecraft does not read. Within a
-subkey, repeated file names come first, then missing paths, then paths outside the scope, each in the order written
+A `skill.metadata-*` finding is on the line of the `metadata` key. A listed path is fine when the snapshot holds
+a regular file there. Otherwise it is missing when in scope as the [workspace declares it](workspace.md#one-snapshot),
+which an absolute path or one climbing with `..` never is: nothing is there, not even its directory, a directory is,
+or a link dangles, leaves the repository or reaches a file lorecraft does not read. Within a subkey, repeated file
+names come first, then missing paths, then paths outside the scope, each in the order written
 and once per occurrence.
 
 A top-level key written again is a `skill.duplicate-key` finding, on the line of each occurrence after the first,

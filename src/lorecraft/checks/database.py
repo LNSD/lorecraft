@@ -1,22 +1,31 @@
 """One frozen state of a workspace: its snapshot, and the cached data every check, and every command, reads through.
 
-The layering follows the IntelliJ Platform's. The ``Snapshot`` plays the virtual file system: every byte a
+The layering follows the IntelliJ Platform's. The `Snapshot` plays the virtual file system: every byte a
 check can see, and never changed once built. Above it sit two kinds of cached data, each computed on first
 use and kept for as long as the database lives (pattern-memoization):
 
-- ``model()``: the workspace model, like the IDE's project model. It reads the structure of the snapshot, the
+- `model()`: the workspace model, like the IDE's project model. It reads the structure of the snapshot, the
   specifications, the corpus directories and the skills directories, and no document's contents.
-- ``frontmatter(ref)``: one document's frontmatter node, like a stub: the part of a file the IDE reads without
+- `frontmatter(ref)`: one document's frontmatter node, like a stub: the part of a file the IDE reads without
   building its full syntax tree. It reads that document's bytes and nothing else.
-- ``parse(ref)``: one document's parse tree, like a PSI file or a per-file index entry. It reads that
+- `parse(ref)`: one document's parse tree, like a PSI file or a per-file index entry. It reads that
   document's bytes and nothing else.
-- ``skill_frontmatter(ref)``: one skill's frontmatter node, the same stub for a ``SKILL.md``. It reads that
+- `skill_frontmatter(ref)`: one skill's frontmatter node, the same stub for a `SKILL.md`. It reads that
   skill's bytes and nothing else.
-- ``skill_parse(ref)``: one skill's parse tree, the same PSI file for a ``SKILL.md``. It reads that skill's bytes
+- `skill_parse(ref)`: one skill's parse tree, the same PSI file for a `SKILL.md`. It reads that skill's bytes
   and nothing else.
-- ``tokens(ref)``: what one document's whole file costs an agent that loads it, like another per-file index
+- `tokens(ref)`: what one document's whole file costs an agent that loads it, like another per-file index
   entry: counted from the raw text, frontmatter and code included, without a parse. It reads that document's
   bytes and nothing else.
+
+Two questions are answered afresh on every call and never cached, since neither builds anything worth keeping:
+
+- `resolve(path)` and `resolve_file(path)`: where a path leads in the snapshot, like a lookup in the IDE's
+  virtual file system. They read the snapshot's records and nothing else.
+- `is_in_scope(path)`: whether the scan reads the directory a path sits in, like the IDE asking whether a file
+  is in the project's content roots. It is configuration, not content: answered from the scope the snapshot
+  records it was taken of, with only the snapshot's recorded links read to tell where the path leads, and
+  never from which directories the snapshot holds.
 
 Checks are plain functions of a database and a ref, like an inspection run over one file. Each asks for the
 cheapest query that holds what it reads, so a check that needs only the frontmatter never pays for the full
@@ -25,18 +34,20 @@ check runs again every time.
 
 Nothing here records what a cached value read, so no dependency is tracked. Invalidation is written by hand instead,
 the way the IDE drops per-file index entries on a file change event and resets structural caches on a project model
-change. Reserved, not implemented: ``advance(snapshot) -> Database``, the next state. It would ``diff`` the two
+change. Reserved, not implemented: `advance(snapshot) -> Database`, the next state. It would `diff` the two
 snapshots and carry over each cached value the change set leaves valid: the frontmatter, the parse and the token
 count of every document whose bytes did not change, the frontmatter and the parse of every skill whose bytes did
-not, and the model unless an entry was added or deleted under ``docs/``, a skills directory or a directory a skill
-is linked to, a link on the way to a skill changed its target, or a specification changed. That rule holds only
-while the frontmatter, the parse and the token count each read their own document or skill and the model reads no
-document, so keep them that way: data drawn from several documents belongs in a new cache with its own rule.
+not, and the model unless an entry was added or deleted under `docs/`, a skills directory or a directory a skill
+is linked to, a link on the way to a skill changed its target, or a specification changed. A change of scope
+alone invalidates nothing: `is_in_scope` is not cached and reads the new snapshot's scope, and what that scope adds
+or drops reaches the model as entries in the change set. That rule holds only while the frontmatter, the parse and
+the token count each read their own document or skill and the model reads no document, so keep them that way: data
+drawn from several documents belongs in a new cache with its own rule.
 
-A change names a real path, while a ref may name a path through a link: a skill's ``SKILL.md`` under a linked
+A change names a real path, while a ref may name a path through a link: a skill's `SKILL.md` under a linked
 skill entry changes at the path the link leads to, not at the ref's. A snapshot maps a linked path to its real
-one and not back, so the model records each skill's ``SkillLocation``, the real ``SKILL.md`` its ref leads to,
-and ``advance`` would look that path up in the change set. A link retargeted to another skill leaves every file's
+one and not back, so the model records each skill's `SkillLocation`, the real `SKILL.md` its ref leads to,
+and `advance` would look that path up in the change set. A link retargeted to another skill leaves every file's
 bytes as they were and the ref as it was, like a file's identity in the IDE, while its location changes. So a
 skill's frontmatter and its parse carry over only when the two models locate its ref at the same real file and that
 file's bytes did not change.
@@ -50,7 +61,7 @@ from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import FrontmatterNode, ParsedDocument, count_tokens, parse_document, parse_frontmatter
 from lorecraft.project.workspace import WorkspaceModel, load_model
-from lorecraft.vfs import Snapshot, VirtualFileSystem
+from lorecraft.vfs import Snapshot, VirtualFileSystem, is_in_scope
 
 
 class Database:
@@ -66,6 +77,7 @@ class Database:
         Args:
             snapshot: The frozen state every query reads; kept for the database's lifetime and never changed.
         """
+        self._snapshot = snapshot
         self._fs = VirtualFileSystem(snapshot)
         self._documents = DocumentRepository(self._fs)
         self._skills = SkillRepository(self._fs)
@@ -150,20 +162,19 @@ class Database:
         """
         return self._fs.resolve_file(path)
 
-    def is_listed(self, path: RootRelativePath) -> bool:
-        """Whether the snapshot holds a listing of the directory `path` leads to, links followed; never cached.
+    def is_in_scope(self, path: RootRelativePath) -> bool:
+        """Whether the scan lists the directory `path` sits in, as the snapshot's scope declares it; never cached.
 
-        It tells a file that is missing from one the snapshot never read: in a listed directory the snapshot
-        holds every entry, so a name it lacks was not there when the scan ran, while outside one it cannot say.
+        Like the IDE's question whether a file is in the project's content, answered from the roots the snapshot
+        records it was taken of rather than from what the virtual file system holds: a path in a directory the
+        scope covers is in it even where the directory does not exist, and then whatever the path names is
+        missing. Only the links the snapshot recorded are read besides, to tell where `path` leads. A snapshot
+        that scanned nothing, such as one built by `Snapshot.of_files`, has no path in scope.
 
         Args:
-            path: The directory to ask about, relative to the snapshot root.
-
-        Returns:
-            True for a directory the scan listed, an empty one included; False for one it did not enter, and for a
-            path that leads to no directory.
+            path: The entry to ask about, relative to the snapshot root; it need not exist.
         """
-        return self._fs.is_listed(path)
+        return is_in_scope(self._snapshot.scope, self._snapshot.links, path)
 
     def frontmatter(self, ref: DocumentRef) -> FrontmatterNode:
         """The frontmatter of one document, parsed from the snapshot on the first call for its ref.

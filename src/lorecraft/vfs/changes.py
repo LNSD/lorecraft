@@ -50,6 +50,10 @@ def diff(old: Snapshot, new: Snapshot) -> ChangeSet:
     different target, is MODIFIED; anything else is no change, which is how a touch, a write-then-rename or a
     three-event save collapses to one `Change` or none.
 
+    The scopes are not compared, since a change set names paths and a scope is no path: what a wider or a
+    narrower scope reads shows as the entries it adds or drops. So an empty change set does not mean equal
+    snapshots; whether the declaration changed is `old.scope != new.scope`.
+
     Args:
         old: The earlier snapshot, the state the model last knew.
         new: The later snapshot; paths only it records are ADDED.

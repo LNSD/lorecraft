@@ -13,6 +13,7 @@ from pathlib import Path, PurePosixPath
 from lorecraft.core.error import Error
 from lorecraft.core.path import ROOT, RootRelativePath
 
+from .scan_root import ScanRoot
 from .snapshot import MAX_LINKS, FileBytes, Link, Listing, Snapshot
 from .view import (
     DirEntry,
@@ -179,35 +180,6 @@ class DiskFileSystem(FileSystem):
         return RootRelativePath.parse(relative.as_posix())
 
 
-@dataclass(frozen=True, slots=True)
-class ScanRoot:
-    """One directory a snapshot reads, how deep, and whether through symlinks.
-
-    Attributes:
-        directory: Root-relative directory the scan starts at.
-        depth: 0 lists ``directory`` only; 1 also lists each DIRECTORY entry inside it, and so on. Never
-            negative. Entries beyond the depth are listed by their parent and never entered.
-        follow_links: When true, a symlink that leads somewhere under the root is followed: one on the way
-            to ``directory``, and one listed by the scan. A link to a directory costs depth as a DIRECTORY
-            entry does, and the directory is listed at its real path, wherever under the root that is. A
-            link to a regular file has the file's bytes read, as a FILE entry has, and recorded at the
-            file's real path. When false, a symlink is recorded and never followed.
-    """
-
-    directory: RootRelativePath
-    depth: int
-    follow_links: bool = False
-
-    def __post_init__(self) -> None:
-        """Reject a negative depth, which would list nothing and read nothing.
-
-        Raises:
-            ValueError: If ``depth`` is negative.
-        """
-        if self.depth < 0:
-            raise ValueError(f'depth must be 0 or more, got {self.depth}')
-
-
 class SnapshotDirListError(Error):
     """A directory inside the scan scope exists but cannot be listed.
 
@@ -309,7 +281,8 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
     Args:
         root: The workspace root on disk; nothing outside it is read.
         scope: The directories to read, each with its own depth and link policy; empty yields an empty snapshot.
-            Overlapping roots are merged, a directory listed again only when a root asks for more under it.
+            Overlapping roots are merged, a directory listed again only when a root asks for more under it. The
+            snapshot records it as given, unmerged, so that it answers which paths are in scope by itself.
 
     Raises:
         SnapshotDirListError: If a directory in scope cannot be listed.
@@ -373,6 +346,7 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
         listings=tuple(Listing(path, listings[path]) for path in sorted(listings)),
         files=tuple(FileBytes(path, files[path]) for path in sorted(files)),
         links=tuple(Link(path, links[path]) for path in sorted(links)),
+        scope=scope,
     )
 
 
