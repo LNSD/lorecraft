@@ -96,6 +96,25 @@ class TestValidateFrontmatter:
         assert result.violations[0].message.startswith('frontmatter is not valid YAML'), 'the message names the cause'
         assert result.violations[0].line == LineNumber(3), 'the violation sits on the line the parser stopped at'
 
+    def test_validate_frontmatter_with_a_tagged_value_its_tag_cannot_construct_reports_unparseable(self) -> None:
+        #: Given
+        frontmatter = parse_frontmatter('---\nname: guide\ncount: !!int many\n---\n')
+        schemas = (_code_frontmatter({'type': 'object'}),)
+
+        #: When
+        result = validate_frontmatter(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
+
+        #: Then
+        assert result.violations == (
+            Violation(
+                line=LineNumber(3),
+                rule='frontmatter.unparseable',
+                message=(
+                    "frontmatter is not valid YAML: could not construct a value for the tag 'tag:yaml.org,2002:int'"
+                ),
+            ),
+        ), 'a scalar its tag cannot construct is one unparseable violation on its line, not a crash'
+
     def test_validate_frontmatter_with_non_mapping_yaml_reports_unparseable(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('---\n- guide\n---\n')

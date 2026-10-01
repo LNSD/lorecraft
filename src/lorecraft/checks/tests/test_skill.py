@@ -71,6 +71,24 @@ class TestValidateSkill:
             'frontmatter that is not YAML is one violation, and no field is judged'
         )
 
+    def test_validate_skill_with_a_tagged_value_its_tag_cannot_construct_reports_it_unparseable(self) -> None:
+        #: Given
+        frontmatter = parse_frontmatter('---\nname: review\ndescription: !!bool maybe\n---\n')
+
+        #: When
+        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
+
+        #: Then
+        assert result.violations == (
+            Violation(
+                line=LineNumber(3),
+                rule='skill.frontmatter-unparseable',
+                message=(
+                    "frontmatter is not valid YAML: could not construct a value for the tag 'tag:yaml.org,2002:bool'"
+                ),
+            ),
+        ), 'a scalar its tag cannot construct is one violation on its line, and no field is judged'
+
     def test_validate_skill_with_a_non_mapping_block_reports_it_unparseable(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('---\n- review\n---\n')
