@@ -141,6 +141,13 @@ sort = "Cover"
 source_paths = ["src/lorecraft"]
 # Unit tests sit beside their module under src/; mutating a test proves nothing about the tests.
 do_not_mutate = ["*/tests/*"]
+# Lines no mutant of can change what a caller sees: an arm the type checker proves unreachable, and the
+# `__cause__` every raise site sets again with `from`.
+do_not_mutate_patterns = [
+    "assert_never\\(",
+    "raise AssertionError\\(",
+    "self\\.__cause__ = ",
+]
 pytest_add_cli_args_test_selection = ["src", "tests/it"]
 # mutmut runs the tests from a copy under mutants/; the integration tests read the generated schemas, the
 # specifications and every skill from the repository itself.

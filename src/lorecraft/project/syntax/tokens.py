@@ -63,7 +63,8 @@ def _encoding() -> Encoding:
     return Encoding('o200k_base', pat_str=_SPLIT_PATTERN, mergeable_ranks=_read_vocabulary(), special_tokens={})
 
 
-def _read_vocabulary() -> dict[bytes, int]:
+# Runs once per process, before mutmut swaps a mutant in, so no test can ever see a mutant of it.
+def _read_vocabulary() -> dict[bytes, int]:  # pragma: no mutate block
     """Every token of the shipped vocabulary, mapped to its rank."""
     vocabulary = files('lorecraft.project.syntax').joinpath(_VOCABULARY_FILE).read_bytes()
     ranks: dict[bytes, int] = {}
