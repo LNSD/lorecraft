@@ -1,6 +1,6 @@
 # Why this project records no AI attribution
 
-The rule in [SKILL.md](../SKILL.md) is absolute: no AI attribution in a commit message, a pull request
+The rule in [SKILL.md](SKILL.md) is absolute: no AI attribution in a commit message, a pull request
 title or body, or a comment. The rule is short. The reasoning is what decides the cases the rule does not
 name, so it is written down here.
 

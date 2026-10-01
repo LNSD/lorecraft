@@ -1,4 +1,4 @@
-"""The `check skills` command: validate the frontmatter of agent skills.
+"""The `check skills` command: validate agent skills against the Agent Skills specification.
 
 This is the composition root of the skill check: it selects the skills of one snapshot, hands them to
 ``run_skills``, and prints the run. Every ``Error`` escaping that flow is reported here and exits 2; a
@@ -41,7 +41,7 @@ def skills(
         typer.Option('--format', help='Output format: text or json.'),
     ] = 'text',
 ) -> None:
-    """Check the frontmatter of each skill's SKILL.md against the Agent Skills specification.
+    """Check each skill against the Agent Skills specification: its SKILL.md and its other Markdown files.
 
     Exit 0 when clean, 1 when findings exist, and 2 for invalid input.
 

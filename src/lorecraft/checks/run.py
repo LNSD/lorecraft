@@ -4,23 +4,24 @@ A run asks the database for everything it reads: the model decides which aspects
 the part of the document the check reads is what the pure check validates — the frontmatter for the frontmatter
 check, the parse tree's headings for the structure check, the whole file's token count for the budget check.
 Selecting which documents to check is the caller's business: a run checks the refs it is handed, in the order
-given, and reads only the governed ones. Every check reports in the same shape, so the ``check`` commands print
+given, and reads only the governed ones. Every check reports in the same shape, so the `check` commands print
 every run the same way.
 
-The skill check runs over skills instead: the refs it is handed are the model's ``SkillRef``s, the parts it reads
-are the frontmatter, the links and the heading anchors of each ``SKILL.md``, and the Agent Skills specification
-governs every one of them, so a skill is never ungoverned. The files a skill links in through ``metadata`` are
-checked too, against what the snapshot holds at each path listed. It reports in a shape of its own, a
-``SkillCheckRun`` of ``SkillReport``s.
+The skill check runs over skills instead: the refs it is handed are the model's `SkillRef`s, the parts it reads
+are the frontmatter, the links and the heading anchors of each `SKILL.md`, and the links of each of the skill's
+resources, and the Agent Skills specification governs every one of them, so a skill is never ungoverned. The files
+a skill links in through `metadata` are checked too, against what the snapshot holds at each path listed. It
+reports in a shape of its own, a `SkillCheckRun` of `SkillReport`s, each locating a violation in the file it
+was found in: the `SKILL.md`, or a resource.
 """
 
 from dataclasses import dataclass
-from typing import assert_never
+from typing import Literal, assert_never
 
 from lorecraft.core.path import RootRelativePath, RootRelativePathError
 from lorecraft.project.document import DocumentDecodeError, DocumentRef
 from lorecraft.project.schemas import SKILL_FRONTMATTER_SCHEMA, StructureAspect
-from lorecraft.project.skill import SkillDecodeError, SkillRef
+from lorecraft.project.skill import SkillDecodeError, SkillRef, SkillResourceDecodeError, SkillResourceRef
 from lorecraft.project.syntax import (
     Frontmatter,
     FrontmatterNode,
@@ -36,7 +37,7 @@ from .database import Database
 from .frontmatter import validate_frontmatter
 from .reporting import Finding, Violation
 from .skill import SkillCheckResult, validate_skill
-from .skill_link import validate_skill_links
+from .skill_link import validate_skill_links, validate_skill_resource_links
 from .skill_metadata import ListedFile, ListedFiles, ListedFileState, listed_by_subkey, validate_skill_metadata
 from .structure import validate_structure
 
@@ -80,20 +81,46 @@ class CheckRun:
 
 
 @dataclass(frozen=True, slots=True)
+class SkillResourceReport:
+    """The outcome of checking one resource of a selected skill.
+
+    Attributes:
+        ref: The resource the report is about; its path, where an agent reaches it, is the report path.
+        violations: What the check found in the resource, without its path; empty when the resource conforms.
+    """
+
+    ref: SkillResourceRef
+    violations: tuple[Violation, ...]
+
+    def findings(self) -> tuple[Finding, ...]:
+        """Every violation, located in the resource; empty exactly when the resource is clean."""
+        return tuple(Finding.at(self.ref.path, violation) for violation in self.violations)
+
+
+@dataclass(frozen=True, slots=True)
 class SkillReport:
     """The outcome of checking one selected skill.
 
     Attributes:
-        ref: The skill the report is about; its ``SKILL.md`` path is the report path.
-        violations: What the check found, without the skill's path; empty when the skill conforms.
+        ref: The skill the report is about; its `SKILL.md` path is the report path of `violations`.
+        violations: What the check found in the skill's `SKILL.md`, without its path; empty when it conforms.
+        resources: One per resource of the skill, in the order the database lists them, by path.
     """
 
     ref: SkillRef
     violations: tuple[Violation, ...]
+    resources: tuple[SkillResourceReport, ...]
 
     def findings(self) -> tuple[Finding, ...]:
-        """Every violation, located in the skill's ``SKILL.md``; empty exactly when the skill is clean."""
-        return tuple(Finding.at(self.ref.path, violation) for violation in self.violations)
+        """Every violation, located in its file; empty exactly when the skill is clean.
+
+        Findings in the `SKILL.md` come first, in the order the check found them, then each resource's, in report
+        order.
+        """
+        findings = [Finding.at(self.ref.path, violation) for violation in self.violations]
+        for resource in self.resources:
+            findings.extend(resource.findings())
+        return tuple(findings)
 
 
 @dataclass(frozen=True, slots=True)
@@ -297,26 +324,34 @@ def run_budget(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
 
 
 def run_skills(database: Database, refs: tuple[SkillRef, ...]) -> SkillCheckRun:
-    """Check each skill's frontmatter, its links and the files its ``metadata`` lists, in the order given.
+    """Check each skill's frontmatter, its links and the files its `metadata` lists, in the order given.
 
-    Every skill is governed: the Agent Skills specification applies to each one. A skill's violations list the
-    frontmatter's first, then the links', then, when the frontmatter is a mapping, its ``metadata``'s; a skill
-    whose ``metadata`` lists no file has none of those. A skill whose ``SKILL.md`` is not UTF-8 carries the single
-    violation ``skill.undecodable`` at line 1, and is never parsed.
+    Every skill is governed: the Agent Skills specification applies to each one. The violations in a skill's
+    `SKILL.md` list the frontmatter's first, then the links', then, when the frontmatter is a mapping, its
+    `metadata`'s; a skill whose `metadata` lists no file has none of those. A skill whose `SKILL.md` is not
+    UTF-8 carries there the single violation `skill.undecodable` at line 1, and it is never parsed.
+
+    Each resource of the skill is checked on its own, whatever its `SKILL.md` holds, and reported in its own
+    report: its links' violations, in document order, or, when it is not UTF-8, the single violation
+    `skill.undecodable` at line 1, without a parse.
 
     Args:
         database: The snapshot state the refs come from.
         refs: The skills to check; each must be one the database's model lists.
 
     Raises:
-        SkillReadError: If a skill's ``SKILL.md`` is missing from the snapshot; a decode failure is a finding.
+        SkillReadError: If a skill's `SKILL.md` is missing from the snapshot; a decode failure is a finding.
+        SkillResourcesListError: If a directory the walk over a skill's resources enters cannot be listed.
+        SkillResourcesSymlinkResolveError: If a symlink the walk over a skill's resources meets cannot be resolved.
+        SkillResourceReadError: If a resource is missing from the snapshot; a decode failure is a finding.
     """
     reports: list[SkillReport] = []
     for ref in refs:
         frontmatter = _skill_frontmatter(database, ref)
+        violations: tuple[Violation, ...]
         match frontmatter:
             case SkillDecodeError():
-                reports.append(SkillReport(ref, violations=(_undecodable_skill(),)))
+                violations = (_undecodable_skill('SKILL.md'),)
             case Frontmatter():
                 frontmatter_result = validate_skill(
                     SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name=ref.directory.name
@@ -326,7 +361,6 @@ def run_skills(database: Database, refs: tuple[SkillRef, ...]) -> SkillCheckRun:
                     frontmatter=frontmatter, listed=_listed_files(database, frontmatter)
                 )
                 violations = frontmatter_result.violations + link_result.violations + metadata_result.violations
-                reports.append(SkillReport(ref, violations=violations))
             case MissingFrontmatter() | InvalidYamlFrontmatter() | NonMappingFrontmatter():
                 # No mapping, so no `metadata` to read; the frontmatter check reports the frontmatter itself.
                 frontmatter_result = validate_skill(
@@ -334,9 +368,9 @@ def run_skills(database: Database, refs: tuple[SkillRef, ...]) -> SkillCheckRun:
                 )
                 link_result = _skill_links(database, ref)
                 violations = frontmatter_result.violations + link_result.violations
-                reports.append(SkillReport(ref, violations=violations))
             case _:
                 assert_never(frontmatter)
+        reports.append(SkillReport(ref, violations=violations, resources=_skill_resource_reports(database, ref)))
     return SkillCheckRun(reports=tuple(reports))
 
 
@@ -351,6 +385,34 @@ def _skill_links(database: Database, ref: SkillRef) -> SkillCheckResult:
     """
     parsed = database.skill_parse(ref)
     return validate_skill_links(links=parsed.links, anchors=parsed.anchors)
+
+
+def _skill_resource_reports(database: Database, ref: SkillRef) -> tuple[SkillResourceReport, ...]:
+    """One report per resource of a skill, in the order the database lists them.
+
+    Args:
+        database: Where the skill's resources are listed and each one's parse tree is read from.
+        ref: The skill whose resources are checked.
+
+    Raises:
+        SkillResourcesListError: If a directory the walk over the skill's resources enters cannot be listed.
+        SkillResourcesSymlinkResolveError: If a symlink the walk over the skill's resources meets cannot be
+            resolved.
+        SkillResourceReadError: If a resource is missing from the snapshot; a decode failure is a finding.
+    """
+    reports: list[SkillResourceReport] = []
+    for location in database.skill_resources(ref):
+        resource = location.ref
+        parsed = _skill_resource_parse(database, resource)
+        match parsed:
+            case SkillResourceDecodeError():
+                reports.append(SkillResourceReport(resource, violations=(_undecodable_skill('resource'),)))
+            case ParsedDocument():
+                result = validate_skill_resource_links(links=parsed.links)
+                reports.append(SkillResourceReport(resource, violations=result.violations))
+            case _:
+                assert_never(parsed)
+    return tuple(reports)
 
 
 def _listed_files(database: Database, frontmatter: Frontmatter) -> tuple[ListedFiles, ...]:
@@ -495,6 +557,31 @@ def _skill_frontmatter(database: Database, ref: SkillRef) -> FrontmatterNode | S
         return exc
 
 
+def _skill_resource_parse(database: Database, ref: SkillResourceRef) -> ParsedDocument | SkillResourceDecodeError:
+    """The resource's parse tree, or the decode failure when the resource is not UTF-8.
+
+    Args:
+        database: Where the parse tree is read and cached.
+        ref: The resource whose file is parsed, as the database lists it.
+
+    Returns:
+        The parse tree, or the decode failure when the resource is present but not UTF-8: such bytes are on the
+        same side of the line as invalid YAML, since the skill is wrong, so the caller reports a finding rather
+        than taking the exit-2 path an unreadable file takes.
+
+    Raises:
+        SkillResourceReadError: If the resource is missing from the snapshot; a decode failure is not raised.
+        SkillResourcesListError: If the skill's resources are not listed yet and a directory the walk enters
+            cannot be listed.
+        SkillResourcesSymlinkResolveError: If the skill's resources are not listed yet and a symlink the walk meets
+            cannot be resolved.
+    """
+    try:
+        return database.skill_resource_parse(ref)
+    except SkillResourceDecodeError as exc:
+        return exc
+
+
 def _undecodable(rule_namespace: str) -> Violation:
     """The violation a governed document that is not UTF-8 carries instead of the check's own.
 
@@ -508,10 +595,17 @@ def _undecodable(rule_namespace: str) -> Violation:
     )
 
 
-def _undecodable_skill() -> Violation:
-    """The violation a skill whose ``SKILL.md`` is not UTF-8 carries instead of the check's own."""
+def _undecodable_skill(file: Literal['SKILL.md', 'resource']) -> Violation:
+    """The violation a skill's `SKILL.md` or resource that is not UTF-8 carries instead of the check's own.
+
+    A resource shares `skill.undecodable` with the `SKILL.md` deliberately: the rule is the same, a file of the
+    skill that is not UTF-8, and the finding's path already tells which file it is.
+
+    Args:
+        file: What the file is to the skill, as the message names it.
+    """
     return Violation(
         line=LineNumber(1),
         rule='skill.undecodable',
-        message='SKILL.md is not valid UTF-8',
+        message=f'{file} is not valid UTF-8',
     )
