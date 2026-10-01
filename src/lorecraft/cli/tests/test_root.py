@@ -15,7 +15,7 @@ from ..root import (
     RootCandidateInspectError,
     RootInspectError,
     RootNotFoundError,
-    find_root,
+    get_root,
     resolve_root,
 )
 
@@ -36,31 +36,31 @@ def directory_under_a_locked_parent(tmp_path: Path) -> Iterator[Path]:
 
 
 @pytest.mark.unit
-class TestFindRoot:
-    def test_find_root_with_marker_in_a_parent_returns_that_parent(self, tmp_path: Path) -> None:
+class TestGetRoot:
+    def test_get_root_with_marker_in_a_parent_returns_that_parent(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'docs' / '__meta__').mkdir(parents=True)
         start = tmp_path / 'src' / 'nested'
         start.mkdir(parents=True)
 
         #: When
-        root = find_root(start)
+        root = get_root(start)
 
         #: Then
         assert root == tmp_path.resolve(), 'the nearest parent holding docs/__meta__/ is the root'
 
-    def test_find_root_with_marker_in_the_start_directory_returns_it(self, tmp_path: Path) -> None:
+    def test_get_root_with_marker_in_the_start_directory_returns_it(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'docs' / '__meta__').mkdir(parents=True)
         start = tmp_path
 
         #: When
-        root = find_root(start)
+        root = get_root(start)
 
         #: Then
         assert root == tmp_path.resolve(), 'the start directory itself is checked first'
 
-    def test_find_root_with_relative_start_climbs_above_the_working_directory(
+    def test_get_root_with_relative_start_climbs_above_the_working_directory(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         #: Given
@@ -71,19 +71,19 @@ class TestFindRoot:
         start = Path('.')
 
         #: When
-        root = find_root(start)
+        root = get_root(start)
 
         #: Then
         assert root == tmp_path.resolve(), 'a relative start is resolved before the search climbs its parents'
 
-    def test_find_root_without_a_marker_raises_root_not_found_error(self, tmp_path: Path) -> None:
+    def test_get_root_without_a_marker_raises_root_not_found_error(self, tmp_path: Path) -> None:
         #: Given
         start = tmp_path / 'src'
         start.mkdir()
 
         #: When
         with pytest.raises(RootNotFoundError) as exc_info:
-            find_root(start)
+            get_root(start)
 
         #: Then
         assert type(exc_info.value).__bases__ == (Error,), 'the variant derives from Error directly, not a family'
@@ -91,7 +91,7 @@ class TestFindRoot:
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
     @pytest.mark.skipif(sys.version_info >= (3, 14), reason="Python 3.14's is_dir answers False for every failure")
-    def test_find_root_with_a_start_under_a_locked_parent_raises_root_candidate_inspect_error(
+    def test_get_root_with_a_start_under_a_locked_parent_raises_root_candidate_inspect_error(
         self, directory_under_a_locked_parent: Path
     ) -> None:
         #: Given
@@ -99,7 +99,7 @@ class TestFindRoot:
 
         #: When
         with pytest.raises(RootCandidateInspectError) as exc_info:
-            find_root(start)
+            get_root(start)
 
         #: Then
         assert type(exc_info.value).__bases__ == (Error,), 'the variant derives from Error directly, not a family'

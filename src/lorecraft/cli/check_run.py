@@ -28,7 +28,7 @@ from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.skill import SkillRef
 from lorecraft.vfs import OsRefusal, take_snapshot
 
-from .root import find_root, resolve_root
+from .root import get_root, resolve_root
 from .select import select_document, select_skills_at
 
 type CheckRunner = Callable[[Database, tuple[DocumentRef, ...]], CheckRun]
@@ -200,7 +200,7 @@ def select_documents(root: Path | None, paths: list[Path] | None) -> tuple[Datab
         MissingDocumentPathError: If the snapshot holds no file at a named path.
         UnlistedDocumentPathError: If a named path is not a document the model lists.
     """
-    root_path = find_root(_working_directory()) if root is None else resolve_root(root)
+    root_path = get_root(_working_directory()) if root is None else resolve_root(root)
     database = Database(take_snapshot(root_path, SNAPSHOT_SCOPE))
     # Root discovery follows symlinks and the snapshot, under `docs/`, does not, so a linked `docs/__meta__/`
     # passes the first and is empty in the second. Refused here, before a run over no documents can report
@@ -258,7 +258,7 @@ def select_skills(root: Path | None, paths: list[Path] | None) -> tuple[Database
         SkillFileResolveError: If a symlinked SKILL.md cannot be resolved.
         UnlistedSkillPathError: If a named path is not a skill the model lists.
     """
-    root_path = find_root(_working_directory()) if root is None else resolve_root(root)
+    root_path = get_root(_working_directory()) if root is None else resolve_root(root)
     database = Database(take_snapshot(root_path, SNAPSHOT_SCOPE))
     if not paths:
         return database, database.model().skills()
