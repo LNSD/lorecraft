@@ -270,6 +270,23 @@ class VirtualFileSystem(FileSystem):
             return None
         return real_path
 
+    def is_listed(self, path: RootRelativePath) -> bool:
+        """Whether the scan listed the directory ``path`` leads to, every recorded link on the way followed.
+
+        Only a view over a snapshot can answer it, so ``FileSystem`` does not declare it: the disk has no scope.
+        A listed directory is one whose every entry the snapshot holds, so a name it does not list is not there;
+        under a directory the scan did not list, the snapshot cannot tell.
+
+        Returns:
+            True for a directory the snapshot holds a listing of, an empty one included. False for a directory the
+            scan did not enter, such as one beyond a scan root's depth or an ancestor of a scan root, and wherever
+            ``resolve_dir`` returns ``None``.
+        """
+        directory = self.resolve_dir(path)
+        if directory is None:
+            return False
+        return directory in self._listings
+
     def _resolve(self, path: RootRelativePath) -> RootRelativePath | None:
         """Follow the recorded links in ``path`` and return the real directory or recorded file it leads to.
 

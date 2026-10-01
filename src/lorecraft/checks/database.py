@@ -137,6 +137,18 @@ class Database:
         """
         return self._fs.resolve_file(path)
 
+    def is_listed(self, path: RootRelativePath) -> bool:
+        """Whether the snapshot holds a listing of the directory ``path`` leads to, links followed; never cached.
+
+        It tells a file that is missing from one the snapshot never read: in a listed directory the snapshot
+        holds every entry, so a name it lacks was not there when the scan ran, while outside one it cannot say.
+
+        Returns:
+            True for a directory the scan listed, an empty one included; False for one it did not enter, and for a
+            path that leads to no directory.
+        """
+        return self._fs.is_listed(path)
+
     def frontmatter(self, ref: DocumentRef) -> FrontmatterNode:
         """The frontmatter of one document, parsed from the snapshot on the first call for its ref.
 
