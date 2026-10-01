@@ -2725,6 +2725,33 @@ def scope_parity_tree(tmp_path: Path) -> Path:
     return tmp_path
 
 
+# The scope of the refused-chain tree: `skills/` one level deep through its links, and `a/` one level deep.
+REFUSED_CHAIN_SCOPE: Final[tuple[ScanRoot, ...]] = (
+    ScanRoot(RootRelativePath.parse('skills'), depth=1, follow_links=True),
+    ScanRoot(RootRelativePath.parse('a'), depth=1),
+)
+
+
+@pytest.fixture(scope='function')
+def refused_chain_tree(tmp_path: Path) -> Path:
+    """A root with a link chain the scan refuses, whose target another root of `REFUSED_CHAIN_SCOPE` lists.
+
+    `skills/l` names `../a/tmp/../b`: the disk follows it to `a/b/`, but its `..` climbs out of `a/tmp/`, a
+    directory stepped into by name since the link, so the scan refuses it. `skills/m` names `../a/b` and is
+    followed. The root `a/` lists `a/b/` either way.
+
+    Args:
+        tmp_path: Directory the tree is written into, as the repository root.
+    """
+    (tmp_path / 'a' / 'b').mkdir(parents=True)
+    (tmp_path / 'a' / 'b' / 'SKILL.md').write_bytes(b'---\nname: b\n---\n')
+    (tmp_path / 'a' / 'tmp').mkdir()
+    (tmp_path / 'skills').mkdir()
+    (tmp_path / 'skills' / 'l').symlink_to('../a/tmp/../b')
+    (tmp_path / 'skills' / 'm').symlink_to('../a/b')
+    return tmp_path
+
+
 def _is_listed(snapshot: Snapshot, directory: RootRelativePath) -> bool:
     """Whether `snapshot` holds a listing of the directory `directory` leads to, its recorded links followed.
 
@@ -2911,3 +2938,125 @@ class TestIsInScopeMatchesSnapshot:
 
         #: Then
         assert (declared, listed) == (False, False), 'src/ is in no root: outside the scope, and unlisted'
+
+
+@pytest.mark.it
+class TestResolveFileMatchesScan:
+    # Whatever `resolve_file` reaches through a link must be something the scan followed the link to: the view
+    # reaches an existing file exactly where the scope query, which retraces the scan, says the scan lists it.
+
+    def test_resolve_file_through_a_followed_skill_link_agrees_with_the_scope(self, scope_parity_tree: Path) -> None:
+        #: Given
+        snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
+        path = RootRelativePath.parse('.agents/skills/y/SKILL.md')
+        declared = ScopeIndex(snapshot.scope, snapshot.links).is_in_scope(path)
+        virtual = VirtualFileSystem(snapshot)
+
+        #: When
+        reached = virtual.resolve_file(path)
+
+        #: Then
+        assert (reached is not None, declared) == (True, True), (
+            'the skills root follows .agents/skills/y to skills/y and reads its SKILL.md'
+        )
+
+    def test_resolve_file_through_a_linked_skills_directory_agrees_with_the_scope(
+        self, scope_parity_tree: Path
+    ) -> None:
+        #: Given
+        snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
+        path = RootRelativePath.parse('.claude/skills/x/SKILL.md')
+        declared = ScopeIndex(snapshot.scope, snapshot.links).is_in_scope(path)
+        virtual = VirtualFileSystem(snapshot)
+
+        #: When
+        reached = virtual.resolve_file(path)
+
+        #: Then
+        assert (reached is not None, declared) == (True, True), (
+            '.claude/skills leads to .agents/skills, whose skill x is listed'
+        )
+
+    def test_resolve_file_through_an_unfollowed_docs_link_to_a_sibling_agrees_with_the_scope(
+        self, scope_parity_tree: Path
+    ) -> None:
+        #: Given
+        snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
+        path = RootRelativePath.parse('docs/alias/a.md')
+        declared = ScopeIndex(snapshot.scope, snapshot.links).is_in_scope(path)
+        virtual = VirtualFileSystem(snapshot)
+
+        #: When
+        reached = virtual.resolve_file(path)
+
+        #: Then
+        assert (reached is not None, declared) == (True, True), (
+            'the link is not followed, but docs/feat, where it leads, is listed anyway'
+        )
+
+    def test_resolve_file_through_an_unfollowed_docs_link_out_agrees_with_the_scope(
+        self, scope_parity_tree: Path
+    ) -> None:
+        #: Given
+        snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
+        path = RootRelativePath.parse('docs/linked/a.md')
+        declared = ScopeIndex(snapshot.scope, snapshot.links).is_in_scope(path)
+        virtual = VirtualFileSystem(snapshot)
+
+        #: When
+        reached = virtual.resolve_file(path)
+
+        #: Then
+        assert (reached is not None, declared) == (False, False), (
+            'docs/ does not follow its link to elsewhere/, which no root covers'
+        )
+
+    def test_resolve_file_through_a_link_inside_a_skill_agrees_with_the_scope(self, scope_parity_tree: Path) -> None:
+        #: Given
+        snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
+        path = RootRelativePath.parse('.agents/skills/x/lib/a.md')
+        declared = ScopeIndex(snapshot.scope, snapshot.links).is_in_scope(path)
+        virtual = VirtualFileSystem(snapshot)
+
+        #: When
+        reached = virtual.resolve_file(path)
+
+        #: Then
+        assert (reached is not None, declared) == (False, False), (
+            'a skill directory has no depth left, so its link to lib/ is not followed'
+        )
+
+    def test_resolve_file_through_a_link_climbing_out_of_its_own_directory_agrees_with_the_scope(
+        self, refused_chain_tree: Path
+    ) -> None:
+        #: Given
+        snapshot = take_snapshot(refused_chain_tree, REFUSED_CHAIN_SCOPE)
+        path = RootRelativePath.parse('skills/m/SKILL.md')
+        declared = ScopeIndex(snapshot.scope, snapshot.links).is_in_scope(path)
+        virtual = VirtualFileSystem(snapshot)
+
+        #: When
+        reached = virtual.resolve_file(path)
+
+        #: Then
+        assert (reached is not None, declared) == (True, True), (
+            'the target ../a/b climbs only out of skills/, where the link sits, so the scan follows it'
+        )
+
+    def test_resolve_file_through_a_refused_chain_to_a_listed_directory_agrees_with_the_scope(
+        self, refused_chain_tree: Path
+    ) -> None:
+        #: Given
+        snapshot = take_snapshot(refused_chain_tree, REFUSED_CHAIN_SCOPE)
+        path = RootRelativePath.parse('skills/l/SKILL.md')
+        declared = ScopeIndex(snapshot.scope, snapshot.links).is_in_scope(path)
+        virtual = VirtualFileSystem(snapshot)
+        target_listed = _is_listed(snapshot, RootRelativePath.parse('a/b'))
+
+        #: When
+        reached = virtual.resolve_file(path)
+
+        #: Then
+        assert (reached is not None, declared, target_listed) == (False, False, True), (
+            'the scan refuses ../a/tmp/../b, so a/b/SKILL.md is not reached through skills/l, though a/ lists a/b'
+        )
