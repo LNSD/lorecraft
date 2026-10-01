@@ -17,15 +17,20 @@ use and kept for as long as the database lives (pattern-memoization):
 - `tokens(ref)`: what one document's whole file costs an agent that loads it, like another per-file index
   entry: counted from the raw text, frontmatter and code included, without a parse. It reads that document's
   bytes and nothing else.
+- The `ScopeIndex` behind `is_in_scope(path)`: the scope the snapshot records it was taken of, expanded once
+  through the links it recorded, like the IDE's index of a project's content roots. It reads the snapshot's
+  scope and links and nothing else, and no caller reaches it but `is_in_scope`.
 
-Two questions are answered afresh on every call and never cached, since neither builds anything worth keeping:
+Three questions are asked of the snapshot's records directly and their answers are never cached, since an answer
+for one path is cheap:
 
 - `resolve(path)` and `resolve_file(path)`: where a path leads in the snapshot, like a lookup in the IDE's
-  virtual file system. They read the snapshot's records and nothing else.
+  virtual file system. They read the snapshot's records and nothing else and build nothing worth keeping.
 - `is_in_scope(path)`: whether the scan reads the directory a path sits in, like the IDE asking whether a file
-  is in the project's content roots. It is configuration, not content: answered from the scope the snapshot
-  records it was taken of, with only the snapshot's recorded links read to tell where the path leads, and
-  never from which directories the snapshot holds.
+  is in the project's content roots. It is configuration, not content: answered from the `ScopeIndex` cached
+  above, built on the first call, with the path walked through the snapshot's recorded links to tell where it
+  leads, and never from which directories the snapshot holds. The index is what costs, so it is kept; the
+  answer for one path is cheap, so it is not.
 
 Checks are plain functions of a database and a ref, like an inspection run over one file. Each asks for the
 cheapest query that holds what it reads, so a check that needs only the frontmatter never pays for the full
@@ -38,11 +43,12 @@ change. Reserved, not implemented: `advance(snapshot) -> Database`, the next sta
 snapshots and carry over each cached value the change set leaves valid: the frontmatter, the parse and the token
 count of every document whose bytes did not change, the frontmatter and the parse of every skill whose bytes did
 not, and the model unless an entry was added or deleted under `docs/`, a skills directory or a directory a skill
-is linked to, a link on the way to a skill changed its target, or a specification changed. A change of scope
-alone invalidates nothing: `is_in_scope` is not cached and reads the new snapshot's scope, and what that scope adds
-or drops reaches the model as entries in the change set. That rule holds only while the frontmatter, the parse and
-the token count each read their own document or skill and the model reads no document, so keep them that way: data
-drawn from several documents belongs in a new cache with its own rule.
+is linked to, a link on the way to a skill changed its target, or a specification changed. The scope index carries
+over unless the two snapshots' scopes or their links differ, compared as recorded rather than through the change
+set, which holds no scope. A change of scope invalidates nothing else: what the new scope adds or drops reaches
+the model as entries in the change set. That rule holds only while the frontmatter, the parse and the token count
+each read their own document or skill, the model reads no document, and the scope index reads only the scope and
+the links, so keep them that way: data drawn from several documents belongs in a new cache with its own rule.
 
 A change names a real path, while a ref may name a path through a link: a skill's `SKILL.md` under a linked
 skill entry changes at the path the link leads to, not at the ref's. A snapshot maps a linked path to its real
@@ -61,14 +67,14 @@ from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import FrontmatterNode, ParsedDocument, count_tokens, parse_document, parse_frontmatter
 from lorecraft.project.workspace import WorkspaceModel, load_model
-from lorecraft.vfs import Snapshot, VirtualFileSystem, is_in_scope
+from lorecraft.vfs import ScopeIndex, Snapshot, VirtualFileSystem
 
 
 class Database:
     """What the checks read from one snapshot, each computed once and cached for the snapshot's lifetime.
 
-    That is the workspace model, the frontmatter, the parse trees and the token counts of the documents, and the
-    frontmatter and the parse trees of the skills.
+    That is the workspace model, the frontmatter, the parse trees and the token counts of the documents, the
+    frontmatter and the parse trees of the skills, and the scope index `is_in_scope` answers from.
     """
 
     def __init__(self, snapshot: Snapshot) -> None:
@@ -83,6 +89,8 @@ class Database:
         self._skills = SkillRepository(self._fs)
         # `None` until the first `model()` call; a loaded model is never `None`, so the two cannot be confused.
         self._model: WorkspaceModel | None = None
+        # `None` until the first `is_in_scope()` call, as `_model` is until the first `model()` call.
+        self._scope_index: ScopeIndex | None = None
         self._frontmatters: dict[DocumentRef, FrontmatterNode] = {}
         self._parses: dict[DocumentRef, ParsedDocument] = {}
         self._token_counts: dict[DocumentRef, int] = {}
@@ -163,7 +171,7 @@ class Database:
         return self._fs.resolve_file(path)
 
     def is_in_scope(self, path: RootRelativePath) -> bool:
-        """Whether the scan lists the directory `path` sits in, as the snapshot's scope declares it; never cached.
+        """Whether the scan lists the directory `path` sits in, as the snapshot's scope declares it.
 
         Like the IDE's question whether a file is in the project's content, answered from the roots the snapshot
         records it was taken of rather than from what the virtual file system holds: a path in a directory the
@@ -171,10 +179,15 @@ class Database:
         missing. Only the links the snapshot recorded are read besides, to tell where `path` leads. A snapshot
         that scanned nothing, such as one built by `Snapshot.of_files`, has no path in scope.
 
+        The answer is not cached, but what it is computed from is: the scope expanded through the recorded
+        links, a `ScopeIndex` built on the first call and asked on every later one.
+
         Args:
             path: The entry to ask about, relative to the snapshot root; it need not exist.
         """
-        return is_in_scope(self._snapshot.scope, self._snapshot.links, path)
+        if self._scope_index is None:
+            self._scope_index = ScopeIndex(self._snapshot.scope, self._snapshot.links)
+        return self._scope_index.is_in_scope(path)
 
     def frontmatter(self, ref: DocumentRef) -> FrontmatterNode:
         """The frontmatter of one document, parsed from the snapshot on the first call for its ref.
