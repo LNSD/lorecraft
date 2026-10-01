@@ -1,9 +1,9 @@
 ---
 name: "cli-check-skills"
-description: "lorecraft check skills: validating the frontmatter of each agent skill's SKILL.md against the Agent Skills specification, the name-matches-directory rule, duplicate keys, how a skill is named on the command line, and the rule identifiers it reports. Load when a skill finding needs explaining, when running the skill check on its own, or when a skill is not checked"
+description: "lorecraft check skills: validating the frontmatter of each agent skill's SKILL.md against the Agent Skills specification, the name-matches-directory rule, duplicate keys, absolute links in the body, how a skill is named on the command line, and the rule identifiers it reports. Load when a skill finding needs explaining, when running the skill check on its own, or when a skill is not checked"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft.cli.commands.check.skills,module:lorecraft.checks.skill,module:lorecraft.checks.frontmatter_duplicate,module:lorecraft.project.schemas.skill,module:lorecraft.project.schemas.skill_frontmatter,module:lorecraft.project.schemas.frontmatter_problem,module:lorecraft.project.skill"
+components: "module:lorecraft.cli.commands.check.skills,module:lorecraft.checks.skill,module:lorecraft.checks.frontmatter_duplicate,module:lorecraft.checks.skill_link,module:lorecraft.project.schemas.skill,module:lorecraft.project.schemas.skill_frontmatter,module:lorecraft.project.schemas.frontmatter_problem,module:lorecraft.project.skill"
 ---
 
 # `lorecraft check skills`
@@ -12,8 +12,8 @@ components: "module:lorecraft.cli.commands.check.skills,module:lorecraft.checks.
 
 `lorecraft check skills` validates the YAML frontmatter that opens each skill's `SKILL.md` against the
 [Agent Skills specification](https://agentskills.io/specification), and checks that the frontmatter `name`
-equals the name of the skill's directory. It reads the skills the [workspace](workspace.md) lists, through
-whichever link an agent reaches them by. It is also one of the checks a bare `lorecraft check` runs.
+equals the name of the skill's directory. It also reports a link in the body that is absolute. It reads the
+skills the [workspace](workspace.md) lists, through whichever link an agent reaches them by. It is also one of the checks a bare `lorecraft check` runs.
 
 ## Table of Contents
 
@@ -68,7 +68,8 @@ ungoverned, and `ungoverned` is always empty in the JSON report.
 
 ## Limitations
 
-- Only the frontmatter is checked. The length of the body and the links in it are not.
+- Beyond the frontmatter, only `SKILL.md`'s Markdown links are checked, and only for being absolute: not HTML
+  links, other link rules, the body length, or other files.
 - A skill entry or a `SKILL.md` that is a symlink is read where it leads. One whose link dangles or leads outside
   the repository is not a skill, and is not reported.
 - Without `--root`, the root is still found by its `docs/__meta__/`, so a repository that has skills and no
@@ -108,6 +109,7 @@ and it suppresses no other finding; any other finding about that key is on the l
 | `skill.<field>` | The specification rejects that field, or requires it and it is absent |
 | `skill.unknown-field` | A field the specification does not define, such as `model`, or a key that is not a string, such as `123` |
 | `skill.frontmatter` | The specification rejects the frontmatter as a whole |
+| `skill.link-absolute` | A link or image in the body has a destination that starts with `/`; the message shows it as Markdown reads it and asks for a link relative to the skill root |
 
 ## References
 
@@ -120,6 +122,7 @@ and it suppresses no other finding; any other finding about that key is on the l
 - `src/lorecraft/cli/commands/check/skills.py` - Declares the command and registers the check with the group
 - `src/lorecraft/checks/skill.py` - The check of one skill's frontmatter
 - `src/lorecraft/checks/frontmatter_duplicate.py` - Reports a key written twice, for this check and the frontmatter check
+- `src/lorecraft/checks/skill_link.py` - Reports an absolute link in the body of a `SKILL.md`
 - `src/lorecraft/project/schemas/skill.py` - Holds a frontmatter to the specification, in Lorecraft's words
 - `src/lorecraft/project/schemas/skill_frontmatter.py` - Declares the specification's fields and their limits
 - `src/lorecraft/project/schemas/frontmatter_problem.py` - The problem shape both frontmatter schemas report in
