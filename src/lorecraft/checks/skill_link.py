@@ -58,15 +58,16 @@ def validate_skill_links(
 
     A relative link is `skill.link-escapes`, on the link's line, when its path, normalised lexically, climbs
     above the skill root: `../SKILL.md` does, and `references/../SKILL.md` does not. One that stays inside is
-    `skill.link-broken`, on the link's line, when `targets` has it missing and it is not in `linked_in`, with a
-    help note on how to fix it; when `linked_in` is `None`, no link is.
+    `skill.link-broken`, on the link's line, when `targets` has it missing and it is not in `linked_in`; when
+    `linked_in` is `None`, no link is.
 
     A link breaks at most one of these rules, so each link gives at most one violation, and the violations come
     in the order of the links. The rules exclude one another: an absolute or a fragment-only link names no
     relative path, and a path that climbs above the skill root names nothing inside it.
 
-    Each message shows the destination percent-decoded, as the author wrote it, rather than as the parser
-    encoded it: `[x](#Straße)` is reported as `#Straße`, not `#Stra%C3%9Fe`.
+    Each message states the problem alone and shows the destination percent-decoded, as the author wrote it,
+    rather than as the parser encoded it: `[x](#Straße)` is reported as `#Straße`, not `#Stra%C3%9Fe`. An
+    absolute, an escaping and a broken link carry a help note on how to fix it; a dangling fragment carries none.
 
     Args:
         links: Every link and image of the skill's `SKILL.md`, in document order.
@@ -103,11 +104,12 @@ def validate_skill_resource_links(
     A relative link is `skill.link-escapes`, on the link's line, when its path, normalised lexically, climbs
     above the skill root. The path is read from the skill root, not from the resource: `../SKILL.md` climbs out
     from any file of the skill, and `references/../SKILL.md` does not. One that stays inside is
-    `skill.link-broken`, on the link's line, when `targets` has it missing and it is not in `linked_in`, with a
-    help note on how to fix it; when `linked_in` is `None`, no link is.
+    `skill.link-broken`, on the link's line, when `targets` has it missing and it is not in `linked_in`; when
+    `linked_in` is `None`, no link is.
 
     The two rules exclude one another, so each link gives at most one violation, in the order of the links. The
-    message shows the destination percent-decoded, as the author wrote it.
+    message states the problem alone and shows the destination percent-decoded, as the author wrote it, and
+    each violation carries a help note on how to fix it.
 
     Args:
         links: Every link and image of the resource, in document order.
@@ -142,7 +144,7 @@ def link_path_in_skill(link: Link) -> PurePosixPath | None:
 
 
 def _absolute_violation(link: Link) -> Violation:
-    """The violation of a link that starts at a filesystem root, on the link's line.
+    """The violation of a link that starts at a filesystem root, on the link's line, with help to fix it.
 
     Args:
         link: The absolute link.
@@ -150,7 +152,8 @@ def _absolute_violation(link: Link) -> Violation:
     return Violation(
         line=link.line,
         rule='skill.link-absolute',
-        message=f'`{unquote(link.url)}` is absolute; link relative to the skill root',
+        message=f'`{unquote(link.url)}` is absolute',
+        notes=(Note(NoteKind.HELP, 'link relative to the skill root'),),
     )
 
 
@@ -168,7 +171,7 @@ def _fragment_violation(link: Link) -> Violation:
 
 
 def _escape_violation(link: Link) -> Violation:
-    """The violation of a link that climbs above the skill root, on the link's line.
+    """The violation of a link that climbs above the skill root, on the link's line, with help to fix it.
 
     Args:
         link: The escaping link.
@@ -176,10 +179,8 @@ def _escape_violation(link: Link) -> Violation:
     return Violation(
         line=link.line,
         rule='skill.link-escapes',
-        message=(
-            f'`{unquote(link.url)}` leaves the skill directory; link a file inside the skill, relative to the '
-            'skill root'
-        ),
+        message=f'`{unquote(link.url)}` leaves the skill directory',
+        notes=(Note(NoteKind.HELP, 'link a file inside the skill, relative to the skill root'),),
     )
 
 
