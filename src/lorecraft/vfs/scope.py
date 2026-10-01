@@ -124,7 +124,10 @@ def _real_scan_roots(scope: tuple[ScanRoot, ...], recorded: _RecordedLinks) -> t
 
     This retraces `take_snapshot` from the declaration, through the same rules: each declared root starts where
     `find_real_scan_root` puts it, and each recorded link adds the root `find_linked_scan_root` gives for a root
-    already found; those roots add their own. The depth falls with each link, so the roots are finite.
+    already found; those roots add their own. The roots are finite: each added one sits at a directory a recorded
+    link leads to, and its depth is either unlimited, when the root it came from has no limit, or less than that
+    root's. A root found again is not added again, so a link leading back to an ancestor of itself ends the
+    expansion, as it ends the scan.
 
     Args:
         scope: The declared roots, as `take_snapshot` was handed them.

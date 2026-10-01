@@ -7,7 +7,8 @@ query says it lists and what the view reaches cannot drift apart:
 
 - `find_real_scan_root`: where the scan of a root starts, walked through the links on the way when it follows them.
 - `find_real_path`: where a path leads, which links are followed, and which `..` steps are refused.
-- `find_linked_scan_root`: the root a followed link adds, and the depth the link uses up.
+- `find_linked_scan_root`: the root a followed link adds, and the depth the link uses up, none when the root has no
+  limit.
 
 The callers differ only in where a walk learns what an entry is, which is what `EntryLookup` stands for: the
 disk, read as the walk goes, the links a snapshot recorded, or everything a snapshot recorded.
@@ -166,8 +167,8 @@ def find_linked_scan_root(scan_root: ScanRoot, link: RootRelativePath, directory
 
     A link is followed only where a root that follows links lists it. It uses up one level of depth, as a
     DIRECTORY entry does: the linked directory is listed with one level less than the directory holding the
-    link was. A link in a directory listed with no depth left adds no root; the scan reads a linked file
-    there, but lists no linked directory.
+    link was, and with no limit when `scan_root` has none. A link in a directory listed with no depth left
+    adds no root; the scan reads a linked file there, but lists no linked directory.
 
     Args:
         scan_root: A root the scan lists from, at its real directory.
@@ -180,7 +181,5 @@ def find_linked_scan_root(scan_root: ScanRoot, link: RootRelativePath, directory
     """
     if not scan_root.follow_links or not scan_root.is_covering(link):
         return None
-    depth_at_link = scan_root.depth - scan_root.listing_level(link)
-    if depth_at_link == 0:
-        return None
-    return ScanRoot(directory, depth_at_link - 1, follow_links=True)
+    # The directory holding the link is `listing_level` levels down, and entering the link costs one more.
+    return scan_root.find_root_below(directory, levels=scan_root.listing_level(link) + 1)

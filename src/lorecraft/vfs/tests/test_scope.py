@@ -25,11 +25,14 @@ DOCS: Final[RootRelativePath] = RootRelativePath.parse('docs')
 AGENTS_SKILLS: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills')
 
 # The shape of the layout's scope: docs/ one level deep, links recorded and not followed, and a skills directory
-# one level deep through its links.
+# with no depth limit through its links.
 SCOPE: Final[tuple[ScanRoot, ...]] = (
     ScanRoot(DOCS, depth=1),
-    ScanRoot(AGENTS_SKILLS, depth=1, follow_links=True),
+    ScanRoot(AGENTS_SKILLS, depth=None, follow_links=True),
 )
+
+# The same skills directory one level deep through its links, where a followed link costs the depth it uses up.
+DEPTH_ONE_SCOPE: Final[tuple[ScanRoot, ...]] = (ScanRoot(AGENTS_SKILLS, depth=1, follow_links=True),)
 
 
 def _path(raw: str) -> RootRelativePath:
@@ -151,7 +154,7 @@ class TestScopeIndexIsInScope:
         #: Then
         assert in_scope is True, 'skills/y is listed because the link to it is followed, whatever it is spelled'
 
-    def test_is_in_scope_below_the_directory_a_followed_link_leads_to_returns_false(self) -> None:
+    def test_is_in_scope_below_the_directory_a_followed_link_leads_to_returns_true(self) -> None:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/y': '../../skills/y'})
         path = _path('skills/y/sub/a.md')
@@ -161,9 +164,21 @@ class TestScopeIndexIsInScope:
         in_scope = index.is_in_scope(path)
 
         #: Then
+        assert in_scope is True, 'the skills root has no depth limit, so skills/y is listed at any depth below'
+
+    def test_is_in_scope_below_the_directory_a_followed_link_leads_to_at_depth_one_returns_false(self) -> None:
+        #: Given
+        snapshot = _snapshot_of_links({'.agents/skills/y': '../../skills/y'})
+        path = _path('skills/y/sub/a.md')
+        index = ScopeIndex(DEPTH_ONE_SCOPE, snapshot.links)
+
+        #: When
+        in_scope = index.is_in_scope(path)
+
+        #: Then
         assert in_scope is False, 'the link costs the depth a directory does, so skills/y is listed and not entered'
 
-    def test_is_in_scope_through_a_link_in_a_skill_directory_returns_false(self) -> None:
+    def test_is_in_scope_through_a_link_in_a_skill_directory_returns_true(self) -> None:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/x/lib': '../../../lib'})
         path = _path('lib/a.md')
@@ -173,7 +188,93 @@ class TestScopeIndexIsInScope:
         in_scope = index.is_in_scope(path)
 
         #: Then
+        assert in_scope is True, 'a link inside a skill is followed, and lib/ is listed with no depth limit'
+
+    def test_is_in_scope_through_a_link_in_a_skill_directory_at_depth_one_returns_false(self) -> None:
+        #: Given
+        snapshot = _snapshot_of_links({'.agents/skills/x/lib': '../../../lib'})
+        path = _path('lib/a.md')
+        index = ScopeIndex(DEPTH_ONE_SCOPE, snapshot.links)
+
+        #: When
+        in_scope = index.is_in_scope(path)
+
+        #: Then
         assert in_scope is False, 'a skill directory is listed with no depth left, so a linked directory in it is not'
+
+    def test_is_in_scope_with_an_entry_deep_inside_a_skill_returns_true(self) -> None:
+        #: Given
+        snapshot = _snapshot_of_links({})
+        path = _path('.agents/skills/x/references/deep/b.md')
+        index = ScopeIndex(SCOPE, snapshot.links)
+
+        #: When
+        in_scope = index.is_in_scope(path)
+
+        #: Then
+        assert in_scope is True, 'the skills root lists every directory of a skill, whether or not it exists'
+
+    def test_is_in_scope_below_a_link_deep_inside_a_skill_returns_true(self) -> None:
+        #: Given
+        snapshot = _snapshot_of_links({'.agents/skills/x/references/shared': '../../../../shared'})
+        path = _path('.agents/skills/x/references/shared/deep/a.md')
+        index = ScopeIndex(SCOPE, snapshot.links)
+
+        #: When
+        in_scope = index.is_in_scope(path)
+
+        #: Then
+        assert in_scope is True, 'the link two levels inside the skill leads to shared/, listed with no depth limit'
+
+    def test_is_in_scope_through_a_link_to_an_ancestor_inside_a_skill_returns_true(self) -> None:
+        #: Given
+        snapshot = _snapshot_of_links({'.agents/skills/x/references/up': '..'})
+        path = _path('.agents/skills/x/references/up/references/a.md')
+        index = ScopeIndex(SCOPE, snapshot.links)
+
+        #: When
+        in_scope = index.is_in_scope(path)
+
+        #: Then
+        assert in_scope is True, 'the link leads back to the skill directory, which the root lists; the index ends'
+
+    def test_is_in_scope_for_a_path_outside_the_skills_through_a_link_to_the_root_inside_a_skill_returns_true(
+        self,
+    ) -> None:
+        #: Given
+        snapshot = _snapshot_of_links({'.agents/skills/x/root': '../../..'})
+        path = _path('src/tool.py')
+        index = ScopeIndex(SCOPE, snapshot.links)
+
+        #: When
+        in_scope = index.is_in_scope(path)
+
+        #: Then
+        assert in_scope is True, 'a followed link to an ancestor brings its whole subtree into the scope, root included'
+
+    def test_is_in_scope_through_links_between_two_skills_returns_true(self) -> None:
+        #: Given
+        snapshot = _snapshot_of_links({'.agents/skills/x/to-y': '../y', '.agents/skills/y/to-x': '../x'})
+        path = _path('.agents/skills/x/to-y/to-x/to-y/a.md')
+        index = ScopeIndex(SCOPE, snapshot.links)
+
+        #: When
+        in_scope = index.is_in_scope(path)
+
+        #: Then
+        assert in_scope is True, 'two skills linking to each other expand to two roots, and the index ends'
+
+    def test_is_in_scope_through_a_self_loop_inside_a_skill_returns_false(self) -> None:
+        #: Given
+        snapshot = _snapshot_of_links({'.agents/skills/x/self': 'self'})
+        path = _path('.agents/skills/x/self/a.md')
+        index = ScopeIndex(SCOPE, snapshot.links)
+
+        #: When
+        in_scope = index.is_in_scope(path)
+
+        #: Then
+        assert in_scope is False, 'a link to itself leads nowhere, as on disk, so nothing is listed through it'
 
     def test_is_in_scope_through_links_chained_within_the_depth_returns_true(self) -> None:
         #: Given
@@ -291,7 +392,7 @@ class TestScopeIndex:
     def test_is_in_scope_after_a_covered_path_was_asked_returns_false_beyond_the_depth(self) -> None:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/y': '../../skills/y'})
-        index = ScopeIndex(SCOPE, snapshot.links)
+        index = ScopeIndex(DEPTH_ONE_SCOPE, snapshot.links)
         index.is_in_scope(_path('skills/y/absent.md'))
 
         #: When

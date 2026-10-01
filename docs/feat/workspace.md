@@ -70,13 +70,13 @@ line is refused with a reason, since it was asked for.
 
 A command reads `docs/` and the directories directly in it once, when it starts, and works from that copy,
 so it sees one moment of the tree even while files change. It reads each agent's skills directory, such as
-`.agents/skills/`, and the skill directories in it the same way, but no directory inside a skill. That is the
-scope, and it is declared: a directory it names is in it even when absent, so a file missing there is missing.
-Under `docs/` a symlink is recorded, not followed: a path through one is in the scope only when it leads where
-the scope reads anyway. Under a skills directory a symlink into the repository is followed, so a skill linked to
-where its files live is read; one leading outside the repository is not. The model records where each skill's
-directory and `SKILL.md` lead, so a command resolves a skill path it is given in the snapshot and asks the model
-the rest.
+`.agents/skills/`, each skill directory in it, and every file and directory inside a skill, at any depth. That is
+the scope, and it is declared: a directory it names is in it even when absent, so a file missing there is
+missing. Under `docs/` a symlink is recorded, not followed: a path through one is in the scope only when it leads
+where the scope reads anyway. Under a skills directory, and inside a skill, a symlink into the repository is
+followed, to a directory at any depth and to a file for its contents; one leading outside the repository is not.
+The model records where each skill's directory and `SKILL.md` lead, so a command resolves a skill path it is given
+in the snapshot and asks the model the rest.
 
 `docs/` and `docs/__meta__/` themselves must be real directories. Behind a symlink the snapshot would hold no
 specification, so a command stops with an error naming the linked directory rather than read an empty model.
@@ -84,8 +84,12 @@ specification, so a command stops with an error naming the linked directory rath
 ## Limitations
 
 - The layout is fixed: `docs/` and `docs/__meta__/` cannot be renamed or moved, and a corpus cannot nest.
-- For a skill, only the frontmatter of its `SKILL.md` is checked, by
-  [check skills](cli-check-skills.md); the model reads nothing else in a skill directory.
+- The snapshot reads the whole of a skill, but [check skills](cli-check-skills.md) checks only the skill's
+  `SKILL.md`: its frontmatter, the links in its body, and that the files its `metadata` lists exist. The other
+  files of a skill are read, not checked.
+- A link inside a skill to an ancestor directory, or to a large directory, makes the snapshot read that whole
+  subtree; a directory is never read twice, so the read is finite. A directory in it that cannot be read stops
+  the command. A link into `docs/` reads that part of `docs/` as a skill is read, its symlinks followed.
 
 ## References
 
