@@ -244,6 +244,22 @@ def chain_of_41_links(tmp_path: Path) -> str:
     return target
 
 
+@pytest.fixture(scope='function')
+def chain_of_40_links(tmp_path: Path) -> str:
+    """A directory under ``tmp_path`` reached through 40 links, as many as Linux follows; returns the first link.
+
+    Laid out as ``chain_of_41_links`` is, one link shorter: ``link-39`` is the head of the longest chain that
+    still opens ``real/``.
+    """
+    (tmp_path / 'real').mkdir()
+    (tmp_path / 'real' / 'SKILL.md').write_bytes(b'---\n')
+    target = 'real'
+    for index in range(40):
+        (tmp_path / f'link-{index}').symlink_to(target)
+        target = f'link-{index}'
+    return target
+
+
 # What a failed read answers in a parity comparison. ``FileSystem.read_text`` lists two read failures: the disk
 # raises ``FileReadError`` with the operating system's refusal as its source, and a snapshot, which has no
 # operating system to refuse, raises ``UnrecordedFileError``. A caller catches both alike, so parity counts them
@@ -1246,6 +1262,141 @@ class TestTakeSnapshot:
             files=(FileBytes(RootRelativePath.parse('shared/a.md'), b'# A\n'),),
             links=(Link(RootRelativePath.parse('docs/shared'), PurePosixPath('../shared')),),
         ), 'a directory two roots reach has its links followed when either root asks for it'
+
+    def test_take_snapshot_with_a_plain_root_under_a_following_one_still_lists_the_roots_before_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        (tmp_path / 'skills').mkdir()
+        (tmp_path / 'skills' / 'SKILL.md').write_bytes(b'---\n')
+        (tmp_path / 'docs').mkdir()
+        (tmp_path / 'docs' / 'a.md').write_bytes(b'# A\n')
+        # the roots are scanned last first: the following docs root covers the plain one, which is skipped, and
+        # skills, scanned after that skip, must still be listed
+        scope = (
+            ScanRoot(RootRelativePath.parse('skills'), depth=0),
+            ScanRoot(DOCS_DIR, depth=0),
+            ScanRoot(DOCS_DIR, depth=1, follow_links=True),
+        )
+
+        #: When
+        snapshot = take_snapshot(tmp_path, scope)
+
+        #: Then
+        assert snapshot.listings == (
+            Listing(RootRelativePath.parse('docs'), (DirEntry('a.md', EntryKind.FILE),)),
+            Listing(RootRelativePath.parse('skills'), (DirEntry('SKILL.md', EntryKind.FILE),)),
+        ), 'skipping a root another root already covered goes on to the roots left to scan'
+
+    def test_take_snapshot_with_a_plain_root_under_a_deeper_plain_one_still_lists_the_roots_before_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        (tmp_path / 'skills').mkdir()
+        (tmp_path / 'skills' / 'SKILL.md').write_bytes(b'---\n')
+        (tmp_path / 'docs').mkdir()
+        (tmp_path / 'docs' / 'a.md').write_bytes(b'# A\n')
+        # as above, with the covering docs root plain too
+        scope = (
+            ScanRoot(RootRelativePath.parse('skills'), depth=0),
+            ScanRoot(DOCS_DIR, depth=0),
+            ScanRoot(DOCS_DIR, depth=1),
+        )
+
+        #: When
+        snapshot = take_snapshot(tmp_path, scope)
+
+        #: Then
+        assert snapshot.listings == (
+            Listing(RootRelativePath.parse('docs'), (DirEntry('a.md', EntryKind.FILE),)),
+            Listing(RootRelativePath.parse('skills'), (DirEntry('SKILL.md', EntryKind.FILE),)),
+        ), 'skipping a root another root already covered goes on to the roots left to scan'
+
+    def test_take_snapshot_following_a_linked_entry_lists_the_directory_it_leads_to_one_level_deeper(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        (tmp_path / 'skills' / 'review' / 'references').mkdir(parents=True)
+        (tmp_path / 'skills' / 'review' / 'references' / 'guide.md').write_bytes(b'# Guide\n')
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
+        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=1, follow_links=True),)
+
+        #: When
+        snapshot = take_snapshot(tmp_path, scope)
+
+        #: Then
+        assert snapshot == Snapshot(
+            listings=(
+                Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('review', EntryKind.SYMLINK),)),
+                Listing(RootRelativePath.parse('skills/review'), (DirEntry('references', EntryKind.DIRECTORY),)),
+            ),
+            files=(),
+            links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),),
+        ), 'the link spends the one level of depth, so the directory inside its target is listed and not entered'
+
+    def test_take_snapshot_following_a_link_inside_a_linked_directory_follows_it_too(self, tmp_path: Path) -> None:
+        #: Given
+        (tmp_path / 'shared' / 'references').mkdir(parents=True)
+        (tmp_path / 'shared' / 'references' / 'guide.md').write_bytes(b'# Guide\n')
+        (tmp_path / 'skills' / 'review').mkdir(parents=True)
+        (tmp_path / 'skills' / 'review' / 'references').symlink_to('../../shared/references')
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
+        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=2, follow_links=True),)
+
+        #: When
+        snapshot = take_snapshot(tmp_path, scope)
+
+        #: Then
+        assert snapshot == Snapshot(
+            listings=(
+                Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('review', EntryKind.SYMLINK),)),
+                Listing(RootRelativePath.parse('shared/references'), (DirEntry('guide.md', EntryKind.FILE),)),
+                Listing(RootRelativePath.parse('skills/review'), (DirEntry('references', EntryKind.SYMLINK),)),
+            ),
+            files=(FileBytes(RootRelativePath.parse('shared/references/guide.md'), b'# Guide\n'),),
+            links=(
+                Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),
+                Link(RootRelativePath.parse('skills/review/references'), PurePosixPath('../../shared/references')),
+            ),
+        ), 'a directory reached through a followed link has its own links followed as well'
+
+    def test_take_snapshot_following_a_link_that_climbs_out_of_one_directory_it_stepped_into_lists_nothing_through_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        (tmp_path / 'skills' / 'review').mkdir(parents=True)
+        (tmp_path / 'skills' / 'review' / 'SKILL.md').write_bytes(b'---\n')
+        (tmp_path / 'tmp').mkdir()
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        # after the link, the walk steps into tmp alone before the `..`
+        (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../tmp/../skills/review')
+        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=1, follow_links=True),)
+
+        #: When
+        snapshot = take_snapshot(tmp_path, scope)
+
+        #: Then
+        assert snapshot == Snapshot(
+            listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('review', EntryKind.SYMLINK),)),),
+            files=(),
+            links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../tmp/../skills/review')),),
+        ), 'the snapshot records nothing in tmp, so the view could not walk this chain: the scan does not either'
+
+    def test_take_snapshot_following_a_chain_as_long_as_the_system_follows_lists_the_directory_it_leads_to(
+        self, tmp_path: Path, chain_of_40_links: str
+    ) -> None:
+        #: Given
+        scope = (ScanRoot(RootRelativePath.parse(chain_of_40_links), depth=0, follow_links=True),)
+
+        #: When
+        snapshot = take_snapshot(tmp_path, scope)
+
+        #: Then
+        assert snapshot.listings == (
+            Listing(RootRelativePath.parse('real'), (DirEntry('SKILL.md', EntryKind.FILE),)),
+        ), 'a chain of 40 links is as long as the kernel follows, so the scan lists the directory it leads to'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
     def test_take_snapshot_with_an_unreadable_directory_raises_snapshot_dir_list_error(
@@ -2394,6 +2545,21 @@ class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
 
         #: Then
         assert virtual_answer == disk_answer, 'a chain of 41 links leads to no directory on either view'
+
+    def test_resolve_dir_over_a_following_snapshot_with_a_chain_as_long_as_the_system_follows_returns_real_on_both(
+        self, tmp_path: Path, chain_of_40_links: str
+    ) -> None:
+        #: Given
+        scope = (ScanRoot(RootRelativePath.parse(chain_of_40_links), depth=0, follow_links=True),)
+        disk = DiskFileSystem(tmp_path)
+        virtual = VirtualFileSystem(take_snapshot(tmp_path, scope))
+        real = RootRelativePath.parse('real')
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, chain_of_40_links)
+
+        #: Then
+        assert (disk_answer, virtual_answer) == (real, real), 'a chain of 40 links still leads to real on both views'
 
     def test_list_dir_over_a_following_snapshot_with_a_looping_link_agrees_with_disk(self, tmp_path: Path) -> None:
         #: Given
