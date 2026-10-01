@@ -367,6 +367,36 @@ class TestLoadWorkspaceEdgeCases:
         #: Then
         assert [corpus.name for corpus in model.corpora] == [CorpusName.parse('code')], 'only the real corpus loads'
 
+    def test_load_workspace_with_a_namespace_spec_alone_sorting_first_still_loads_the_later_corpora(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        # `api` sorts before `code` and has a directory, but only a namespace spec, so it is skipped first
+        _write_tree(tmp_path, prose=('api-v1', 'code'), schemas=(), documents=('api/users.md', 'code/logging.md'))
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert tuple(corpus.name for corpus in model.corpora) == (CODE,), (
+            'skipping a corpus with no spec of its own still loads every corpus after it'
+        )
+
+    def test_load_workspace_with_a_corpus_spec_without_a_directory_sorting_first_still_loads_the_later_corpora(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        # `agent` sorts before `code` and has a corpus spec, but no docs/agent/, so it is skipped first
+        _write_tree(tmp_path, prose=('agent', 'code'), schemas=(), documents=('code/logging.md',))
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert tuple(corpus.name for corpus in model.corpora) == (CODE,), (
+            'skipping a corpus with no directory still loads every corpus after it'
+        )
+
     def test_load_workspace_with_a_nested_document_ignores_it(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
