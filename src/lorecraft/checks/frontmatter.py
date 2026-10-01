@@ -3,7 +3,7 @@
 Each schema is the ``frontmatter`` key of a structure specification, and says what is wrong as
 ``FrontmatterProblem`` values; the check turns each into a violation on the line of the field it concerns and
 reads no validator's error record. It is the sibling of the skill check, and keeps its skeleton: the same guards,
-then the name, then the problems.
+then the name, then the problems, then the keys written twice.
 
 The check is pure: it takes the already decoded, already validated frontmatter schemas that govern a document,
 the document's frontmatter node, and the filename and corpus the frontmatter is checked against, and returns
@@ -27,6 +27,7 @@ from lorecraft.project.syntax import (
     NonMappingFrontmatter,
 )
 
+from .frontmatter_duplicate import duplicate_key_violations
 from .frontmatter_problem import field_line, problem_line, problem_rule
 from .reporting import Violation
 
@@ -56,7 +57,8 @@ def validate_frontmatter(
 
     A ``name`` that differs from the filename is ``frontmatter.name-matches-filename``. A field a schema rejects
     is ``<corpus>.<field>``, a field it does not allow is ``<corpus>.unknown-field``, and a problem that concerns
-    no field is ``<corpus>.frontmatter``.
+    no field is ``<corpus>.frontmatter``. A top-level key written again is ``frontmatter.duplicate-key``, on each
+    later occurrence.
 
     Args:
         schemas: Applied in order; each violation names the structure specification the schema is written in.
@@ -111,6 +113,9 @@ def validate_frontmatter(
                     spec=schema.path,
                 )
             )
+
+    # Its own rule, after every other: the decoder kept one value of a repeated key, and the rules above judged it.
+    violations.extend(duplicate_key_violations(frontmatter, rule='frontmatter.duplicate-key'))
 
     return FrontmatterCheckResult(violations=tuple(violations))
 
