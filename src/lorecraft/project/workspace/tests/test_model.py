@@ -506,13 +506,13 @@ class TestGovernanceConstruction:
 
 @pytest.mark.unit
 class TestSpec:
-    def test_governs_with_a_corpus_stem_returns_true_for_any_filename(self) -> None:
+    def test_is_governing_with_a_corpus_stem_returns_true_for_any_filename(self) -> None:
         #: Given
         corpus_stem = _spec('code')
         filename = AspectFilename.parse('logging')
 
         #: When
-        governs = corpus_stem.governs(filename)
+        governs = corpus_stem.is_governing(filename)
 
         #: Then
         assert governs, 'a corpus stem governs every document of its corpus, whatever the filename'
