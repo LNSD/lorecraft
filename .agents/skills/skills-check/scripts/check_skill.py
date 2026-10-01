@@ -8,8 +8,8 @@
 # ///
 """Check the body of skills against the Agent Skills specification (https://agentskills.io/specification).
 
-Covers what `lorecraft check skills` does not yet: the SKILL.md length budget, the files a
-project skill links in through `metadata`, and whether every relative link resolves. The
+Covers what `lorecraft check skills` does not yet: the SKILL.md length budget, and whether
+every relative link resolves, through the files a project skill links in by `metadata`. The
 frontmatter - its fields, their limits and the name matching its directory - is checked
 by `lorecraft check skills`, and no longer here. Judgment calls stay with the skill -
 whether a description says when to use the skill, whether content belongs in SKILL.md or
@@ -127,16 +127,6 @@ def metadata_links(skill_dir: Path) -> set[str]:
     return {path for subkey in LINKED_DIRS for path in str(metadata.get(subkey, '')).split()}
 
 
-def key_line(text: str, key: str) -> int:
-    """Line number of a top-level frontmatter key, or 1 when it is absent."""
-    for number, line in enumerate(text.splitlines(), start=1):
-        if line.strip() == '---' and number > 1:
-            break
-        if line.startswith(f'{key}:'):
-            return number
-    return 1
-
-
 def skill_kind(root: Path, skill_dir: Path) -> SkillKind | None:
     """Whether the skill is a workspace or a project skill, by the directory it sits in; `None` for neither."""
     if skill_dir.parent == root / WORKSPACE_DIR:
@@ -146,36 +136,25 @@ def skill_kind(root: Path, skill_dir: Path) -> SkillKind | None:
     return None
 
 
-def linked_files(root: Path, rel: str, text: str, frontmatter: dict) -> tuple[dict[Path, Path], list[Finding]]:
+def linked_files(root: Path, frontmatter: dict) -> dict[Path, Path]:
     """Map each repository file a project skill links in through `metadata` to its path inside the skill.
 
     `references: docs/code/logging.md` makes `references/logging.md` resolve to
     `docs/code/logging.md`, which is how §4 of this skill's SKILL.md says the links resolve.
-    `lorecraft check skills` reports two listed files that share a name under one subkey.
+    `lorecraft check skills` reports a listed file that is missing, repeated by name, or out of scope.
     """
     metadata = frontmatter.get('metadata')
     if not isinstance(metadata, dict):
-        return {}, []
+        return {}
 
     links: dict[Path, Path] = {}
-    findings: list[Finding] = []
     for subkey in LINKED_DIRS:
         value = metadata.get(subkey)
         if not isinstance(value, str):
             continue
         for repo_path in value.split():
-            file_name = Path(repo_path).name
-            if not (root / repo_path).is_file():
-                findings.append(
-                    Finding(
-                        rel,
-                        key_line(text, 'metadata'),
-                        'metadata.missing-file',
-                        f'`metadata.{subkey}` lists `{repo_path}`, which does not exist',
-                    )
-                )
-            links[Path(subkey) / file_name] = root / repo_path
-    return links, findings
+            links[Path(subkey) / Path(repo_path).name] = root / repo_path
+    return links
 
 
 def check_body(root: Path, skill_dir: Path, path: Path, kind: SkillKind, links: dict[Path, Path]) -> list[Finding]:
@@ -246,8 +225,7 @@ def validate(root: Path, skill_dir: Path) -> list[Finding]:
 
     links: dict[Path, Path] = {}
     if kind is SkillKind.project:
-        links, metadata_findings = linked_files(root, rel, text, frontmatter)
-        findings.extend(metadata_findings)
+        links = linked_files(root, frontmatter)
 
     for markdown in sorted(skill_dir.rglob('*.md')):
         findings.extend(check_body(root, skill_dir, markdown, kind, links))

@@ -465,7 +465,7 @@ class TestRunSkillsMetadata:
         #: Then
         assert run.findings() == (), 'the skill directory is listed, so a file in it is in the scope'
 
-    def test_run_skills_with_a_skill_listing_an_absent_document_reports_nothing(self, tmp_path: Path) -> None:
+    def test_run_skills_with_a_skill_listing_an_absent_document_reports_it_missing(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'docs/feat/present.md')
         _write_skill(tmp_path, '  references: docs/feat/absent.md\n')
@@ -475,11 +475,93 @@ class TestRunSkillsMetadata:
         run = _run_every_skill(database)
 
         #: Then
-        assert run.findings() == (), (
-            'docs/feat/ is listed, so a file it lacks is in the scope; a missing file is not yet a finding'
+        assert run.findings() == (
+            Finding(
+                path=RootRelativePath.parse('.agents/skills/x/SKILL.md'),
+                line=LineNumber(4),
+                rule='skill.metadata-missing-file',
+                message='`metadata.references` lists `docs/feat/absent.md`, where lorecraft finds no file',
+            ),
+        ), 'docs/feat/ is listed, so a file it lacks was not there when the scan ran'
+
+    def test_run_skills_with_a_skill_listing_a_directory_reports_it_missing(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/code/a.md')
+        _write_skill(tmp_path, '  references: docs/code\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert [finding.rule for finding in run.findings()] == ['skill.metadata-missing-file'], (
+            'a directory is not a file to link in, and docs/ is listed, so the path is missing a file'
         )
 
-    def test_run_skills_with_a_linked_skill_listing_an_absent_file_of_its_own_reports_nothing(
+    def test_run_skills_with_a_skill_listing_a_dangling_link_reports_it_missing(self, tmp_path: Path) -> None:
+        #: Given
+        (tmp_path / 'docs' / 'feat').mkdir(parents=True)
+        (tmp_path / 'docs' / 'feat' / 'dangling.md').symlink_to('absent.md')
+        _write_skill(tmp_path, '  references: docs/feat/dangling.md\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert [finding.rule for finding in run.findings()] == ['skill.metadata-missing-file'], (
+            'a link that leads to no file is no file to link in, in a directory the snapshot listed'
+        )
+
+    def test_run_skills_with_a_skill_listing_a_link_out_of_the_repository_reports_it_missing(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        root = tmp_path / 'repository'
+        _write(tmp_path, 'elsewhere/a.md', b'# Elsewhere\n')
+        (root / 'docs' / 'feat').mkdir(parents=True)
+        (root / 'docs' / 'feat' / 'a.md').symlink_to('../../../elsewhere/a.md')
+        _write_skill(root, '  references: docs/feat/a.md\n')
+        database = Database(take_snapshot(root, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert [finding.rule for finding in run.findings()] == ['skill.metadata-missing-file'], (
+            'a link out of the repository leads to nothing the snapshot holds, though a file is there on disk'
+        )
+
+    def test_run_skills_with_a_skill_listing_a_link_to_an_unread_file_reports_it_missing(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'src/tool.py')
+        (tmp_path / 'docs' / 'feat').mkdir(parents=True)
+        (tmp_path / 'docs' / 'feat' / 'x.md').symlink_to('../../src/tool.py')
+        _write_skill(tmp_path, '  references: docs/feat/x.md\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert [finding.rule for finding in run.findings()] == ['skill.metadata-missing-file'], (
+            'a link to a repository file the snapshot never reads leads to no file it holds, in a listed directory'
+        )
+
+    def test_run_skills_with_a_skill_listing_a_link_to_a_present_document_reports_nothing(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/feat/a.md')
+        (tmp_path / 'docs' / 'feat' / 'l.md').symlink_to('a.md')
+        _write_skill(tmp_path, '  references: docs/feat/l.md\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (), 'a link to a file the snapshot holds is present, reached through the link'
+
+    def test_run_skills_with_a_linked_skill_listing_an_absent_file_of_its_own_reports_it_missing(
         self, tmp_path: Path
     ) -> None:
         #: Given
@@ -496,16 +578,22 @@ class TestRunSkillsMetadata:
         run = _run_every_skill(database)
 
         #: Then
-        assert run.findings() == (), (
-            'skills/y/ is listed through the link to it, so a file it lacks is in the scope; '
-            'a missing file is not yet a finding'
-        )
+        assert run.findings() == (
+            Finding(
+                path=RootRelativePath.parse('.agents/skills/y/SKILL.md'),
+                line=LineNumber(4),
+                rule='skill.metadata-missing-file',
+                message='`metadata.assets` lists `skills/y/absent.md`, where lorecraft finds no file',
+            ),
+        ), 'skills/y/ is listed through the link to it, so a file it lacks was not there when the scan ran'
 
     def test_run_skills_with_a_skill_breaking_every_metadata_rule_reports_each_in_order(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'docs/code/a.md')
         _write(tmp_path, 'docs/feat/a.md')
-        _write_skill(tmp_path, '  references: docs/code/a.md docs/feat/a.md\n  scripts: src/tool.py\n')
+        _write_skill(
+            tmp_path, '  references: docs/code/a.md docs/feat/a.md docs/feat/absent.md\n  scripts: src/tool.py\n'
+        )
         database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
 
         #: When
@@ -514,5 +602,6 @@ class TestRunSkillsMetadata:
         #: Then
         assert [finding.rule for finding in run.findings()] == [
             'skill.metadata-duplicate-name',
+            'skill.metadata-missing-file',
             'skill.metadata-outside-scope',
-        ], 'each path is checked in the order written, references before scripts'
+        ], 'each subkey is checked whole, references before scripts'

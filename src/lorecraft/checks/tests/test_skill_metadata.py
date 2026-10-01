@@ -23,13 +23,22 @@ def _mapping(text: str) -> Frontmatter:
     return frontmatter
 
 
-def _in_scope(written: str) -> ListedFile:
-    """A listed path the snapshot read.
+def _present(written: str) -> ListedFile:
+    """A listed path that leads to a regular file the snapshot holds.
 
     Args:
         written: The path as the subkey writes it.
     """
-    return ListedFile(written=written, state=ListedFileState.IN_SCOPE)
+    return ListedFile(written=written, state=ListedFileState.PRESENT)
+
+
+def _missing(written: str) -> ListedFile:
+    """A listed path in a directory the snapshot listed, with no regular file there.
+
+    Args:
+        written: The path as the subkey writes it.
+    """
+    return ListedFile(written=written, state=ListedFileState.MISSING)
 
 
 def _outside_scope(written: str) -> ListedFile:
@@ -168,13 +177,74 @@ class TestValidateSkillMetadata:
     def test_validate_skill_metadata_with_distinct_file_names_returns_no_violations(self) -> None:
         #: Given
         frontmatter = _mapping('---\nname: x\nmetadata:\n  references: docs/code/a.md docs/code/b.md\n---\n')
-        listed = (ListedFiles(subkey='references', files=(_in_scope('docs/code/a.md'), _in_scope('docs/code/b.md'))),)
+        listed = (ListedFiles(subkey='references', files=(_present('docs/code/a.md'), _present('docs/code/b.md'))),)
 
         #: When
         result = validate_skill_metadata(frontmatter=frontmatter, listed=listed)
 
         #: Then
         assert result.violations == (), 'distinct names link in at distinct paths, which is what the rule asks for'
+
+    def test_validate_skill_metadata_with_a_missing_file_reports_it_on_the_metadata_line(self) -> None:
+        #: Given
+        frontmatter = _mapping('---\nname: x\nmetadata:\n  references: docs/code/gone.md\n---\n')
+        listed = (ListedFiles(subkey='references', files=(_missing('docs/code/gone.md'),)),)
+
+        #: When
+        result = validate_skill_metadata(frontmatter=frontmatter, listed=listed)
+
+        #: Then
+        assert result.violations == (
+            Violation(
+                line=LineNumber(3),
+                rule='skill.metadata-missing-file',
+                message='`metadata.references` lists `docs/code/gone.md`, where lorecraft finds no file',
+            ),
+        ), 'a path with no regular file in a listed directory is one violation, on the line of the metadata key'
+
+    def test_validate_skill_metadata_with_a_missing_file_written_twice_reports_the_repeat_and_both_paths(
+        self,
+    ) -> None:
+        #: Given
+        frontmatter = _mapping('---\nmetadata:\n  assets: docs/gone.md docs/gone.md\n---\n')
+        listed = (ListedFiles(subkey='assets', files=(_missing('docs/gone.md'), _missing('docs/gone.md'))),)
+
+        #: When
+        result = validate_skill_metadata(frontmatter=frontmatter, listed=listed)
+
+        #: Then
+        assert [violation.rule for violation in result.violations] == [
+            'skill.metadata-duplicate-name',
+            'skill.metadata-missing-file',
+            'skill.metadata-missing-file',
+        ], 'the repeated name comes first, then the missing file once for every time it is written'
+
+    def test_validate_skill_metadata_with_missing_and_outside_paths_reports_them_grouped_by_rule(self) -> None:
+        #: Given
+        frontmatter = _mapping('---\nmetadata:\n  references: src/a.md docs/feat/b.md src/c.md docs/feat/a.md\n---\n')
+        listed = (
+            ListedFiles(
+                subkey='references',
+                files=(
+                    _outside_scope('src/a.md'),
+                    _missing('docs/feat/b.md'),
+                    _outside_scope('src/c.md'),
+                    _missing('docs/feat/a.md'),
+                ),
+            ),
+        )
+
+        #: When
+        result = validate_skill_metadata(frontmatter=frontmatter, listed=listed)
+
+        #: Then
+        assert [violation.rule for violation in result.violations] == [
+            'skill.metadata-duplicate-name',
+            'skill.metadata-missing-file',
+            'skill.metadata-missing-file',
+            'skill.metadata-outside-scope',
+            'skill.metadata-outside-scope',
+        ], 'within a subkey the repeated names come first, then the missing files, then the paths outside the scope'
 
     def test_validate_skill_metadata_with_a_path_outside_the_scope_reports_it_on_the_metadata_line(self) -> None:
         #: Given
@@ -218,7 +288,7 @@ class TestValidateSkillMetadata:
     ) -> None:
         #: Given
         frontmatter = _mapping('---\nname: x\nmetadata:\n  references: docs/code/a.md docs/feat/a.md\n---\n')
-        listed = (ListedFiles(subkey='references', files=(_in_scope('docs/code/a.md'), _in_scope('docs/feat/a.md'))),)
+        listed = (ListedFiles(subkey='references', files=(_present('docs/code/a.md'), _present('docs/feat/a.md'))),)
 
         #: When
         result = validate_skill_metadata(frontmatter=frontmatter, listed=listed)
@@ -241,7 +311,7 @@ class TestValidateSkillMetadata:
         listed = (
             ListedFiles(
                 subkey='assets',
-                files=(_in_scope('docs/a/x.md'), _in_scope('docs/b/x.md'), _in_scope('docs/c/x.md')),
+                files=(_present('docs/a/x.md'), _present('docs/b/x.md'), _present('docs/c/x.md')),
             ),
         )
 
@@ -258,8 +328,8 @@ class TestValidateSkillMetadata:
         #: Given
         frontmatter = _mapping('---\nmetadata:\n  references: docs/code/a.md\n  assets: docs/feat/a.md\n---\n')
         listed = (
-            ListedFiles(subkey='references', files=(_in_scope('docs/code/a.md'),)),
-            ListedFiles(subkey='assets', files=(_in_scope('docs/feat/a.md'),)),
+            ListedFiles(subkey='references', files=(_present('docs/code/a.md'),)),
+            ListedFiles(subkey='assets', files=(_present('docs/feat/a.md'),)),
         )
 
         #: When
@@ -274,8 +344,8 @@ class TestValidateSkillMetadata:
             '---\nmetadata:\n  references: docs/a/y.md docs/b/y.md\n  scripts: skills/a/run.py src/run.py\n---\n'
         )
         listed = (
-            ListedFiles(subkey='references', files=(_in_scope('docs/a/y.md'), _in_scope('docs/b/y.md'))),
-            ListedFiles(subkey='scripts', files=(_in_scope('skills/a/run.py'), _outside_scope('src/run.py'))),
+            ListedFiles(subkey='references', files=(_present('docs/a/y.md'), _present('docs/b/y.md'))),
+            ListedFiles(subkey='scripts', files=(_present('skills/a/run.py'), _outside_scope('src/run.py'))),
         )
 
         #: When
@@ -294,7 +364,7 @@ class TestValidateSkillMetadata:
             '---\nmetadata:\n  references: docs/code/a.md\nname: x\n'
             'metadata:\n  references: docs/code/a.md docs/feat/a.md\n---\n'
         )
-        listed = (ListedFiles(subkey='references', files=(_in_scope('docs/code/a.md'), _in_scope('docs/feat/a.md'))),)
+        listed = (ListedFiles(subkey='references', files=(_present('docs/code/a.md'), _present('docs/feat/a.md'))),)
 
         #: When
         result = validate_skill_metadata(frontmatter=frontmatter, listed=listed)
