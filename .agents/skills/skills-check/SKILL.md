@@ -131,8 +131,9 @@ subject: `scripts/check_skill.py --linking <path>` (one `--linking` per file) pr
 Two checks decide every mechanical rule between them. Do not check those rules by hand.
 
 **`lorecraft check skills`** decides the frontmatter: YAML validity, the six fields and their limits,
-`metadata` value types, and `name` against the directory. It also reports an absolute link in `SKILL.md`, a
-url that starts with `/`, as `skill.link-absolute`.
+`metadata` value types, and `name` against the directory. It also reports two kinds of link in `SKILL.md`: an
+absolute one, a url that starts with `/`, as `skill.link-absolute`, and a `#fragment` link that names no heading
+of the file, as `skill.link-fragment`. A fragment into another file is checked by neither check.
 
 ```bash
 uv run lorecraft check skills                           # every skill
@@ -141,7 +142,7 @@ uv run lorecraft check skills --format json             # machine-readable
 ```
 
 **`scripts/check_skill.py`** decides the rest: the 500-line budget, `metadata` linked files existing and
-unique, every relative link resolving including its `#fragment`, links escaping a project skill, and Claude
+unique, every relative link resolving, links escaping a project skill, and Claude
 Code syntax in a project skill.
 
 It is executable and declares its own dependencies, so run it directly; `uv` resolves them on the first run.
