@@ -5,7 +5,8 @@ check can see, and never changed once built. Above it sit two kinds of cached da
 use and kept for as long as the database lives (pattern-memoization):
 
 - `model()`: the workspace model, like the IDE's project model. It reads the structure of the snapshot, the
-  specifications, the corpus directories and the skills directories, and no document's contents.
+  specifications, the corpus directories, the skills directories and the listing of each skill's directory,
+  nothing deeper inside a skill, and no document's contents.
 - `frontmatter(ref)`: one document's frontmatter node, like a stub: the part of a file the IDE reads without
   building its full syntax tree. It reads that document's bytes and nothing else.
 - `parse(ref)`: one document's parse tree, like a PSI file or a per-file index entry. It reads that
@@ -42,13 +43,18 @@ the way the IDE drops per-file index entries on a file change event and resets s
 change. Reserved, not implemented: `advance(snapshot) -> Database`, the next state. It would `diff` the two
 snapshots and carry over each cached value the change set leaves valid: the frontmatter, the parse and the token
 count of every document whose bytes did not change, the frontmatter and the parse of every skill whose bytes did
-not, and the model unless an entry was added or deleted under `docs/`, a skills directory or a directory a skill
-is linked to, a link on the way to a skill changed its target, or a specification changed. The scope index carries
-over unless the two snapshots' scopes or their links differ, compared as recorded rather than through the change
-set, which holds no scope. A change of scope invalidates nothing else: what the new scope adds or drops reaches
-the model as entries in the change set. That rule holds only while the frontmatter, the parse and the token count
-each read their own document or skill, the model reads no document, and the scope index reads only the scope and
-the links, so keep them that way: data drawn from several documents belongs in a new cache with its own rule.
+not, and the model unless one of these changes invalidates it. An entry added or deleted under `docs/` invalidates
+it. So does an entry added or deleted in a skills directory, or in a skill's directory, both where the skill's entry
+names it and where a link leads it. So does an entry added or deleted at the real path a skill's linked `SKILL.md`
+leads to, or on the way to it, since the loader resolves that link to find the skill. So does a link on the way to a
+skill or to its `SKILL.md` that changed its target, and so does a changed specification. Any other change leaves the
+model valid, an entry added or deleted anywhere else inside a skill included: the model lists nothing below a
+skill's directory, and reads nothing there but the way to its `SKILL.md`. The scope index carries over unless the
+two snapshots' scopes or their links differ, compared as recorded rather than through the change set, which holds no
+scope. A change of scope invalidates nothing else: what the new scope adds or drops reaches the model as entries in
+the change set. That rule holds only while the frontmatter, the parse and the token count each read their own
+document or skill, the model reads no document, and the scope index reads only the scope and the links, so keep them
+that way: data drawn from several documents belongs in a new cache with its own rule.
 
 A change names a real path, while a ref may name a path through a link: a skill's `SKILL.md` under a linked
 skill entry changes at the path the link leads to, not at the ref's. A snapshot maps a linked path to its real
