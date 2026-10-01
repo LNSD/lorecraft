@@ -1,9 +1,9 @@
 ---
 name: "cli-check-skills"
-description: "lorecraft check skills: validating the frontmatter of each agent skill's SKILL.md against the Agent Skills specification, the name-matches-directory rule, how a skill is named on the command line, and the rule identifiers it reports. Load when a skill finding needs explaining, when running the skill check on its own, or when a skill is not checked"
+description: "lorecraft check skills: validating the frontmatter of each agent skill's SKILL.md against the Agent Skills specification, the name-matches-directory rule, duplicate keys, how a skill is named on the command line, and the rule identifiers it reports. Load when a skill finding needs explaining, when running the skill check on its own, or when a skill is not checked"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft.cli.commands.check.skills,module:lorecraft.checks.skill,module:lorecraft.project.schemas.skill,module:lorecraft.project.schemas.skill_frontmatter,module:lorecraft.project.schemas.frontmatter_problem,module:lorecraft.project.skill"
+components: "module:lorecraft.cli.commands.check.skills,module:lorecraft.checks.skill,module:lorecraft.checks.frontmatter_duplicate,module:lorecraft.project.schemas.skill,module:lorecraft.project.schemas.skill_frontmatter,module:lorecraft.project.schemas.frontmatter_problem,module:lorecraft.project.skill"
 ---
 
 # `lorecraft check skills`
@@ -73,6 +73,11 @@ ungoverned, and `ungoverned` is always empty in the JSON report.
   the repository is not a skill, and is not reported.
 - Without `--root`, the root is still found by its `docs/__meta__/`, so a repository that has skills and no
   specifications needs `--root`.
+- A key repeated inside a nested mapping such as `metadata`, or a repeated key that is not a string, is not
+  reported as a duplicate.
+- A field supplied only through a YAML merge (`<<`) has no line of its own, so a finding about it is on line 1.
+- A key written as a YAML alias (`*k`) is placed on the line of the anchor it names, so a finding about it,
+  a repeated key included, is on that line rather than the alias's.
 - Run on its own, the check reads no document, so it accepts a root whose `docs/` or `docs/__meta__/` is a
   symlink, which a check over documents refuses.
 
@@ -85,9 +90,13 @@ or undecodable reports that one finding and nothing else.
 
 `name` is compared as written, with no Unicode normalisation, so a full-width letter is a `skill.name` finding.
 An optional field written with no value, such as `license:`, is read as absent and accepted. The name is
-compared with the directory first, then the specification is applied, as the
+compared with the directory first, then the specification is applied, then repeated keys are reported, as the
 [frontmatter check](cli-check-frontmatter.md#findings) does. Every message is Lorecraft's own, so it does not
 change with the version of the library that validates the fields.
+
+A top-level key written again is a `skill.duplicate-key` finding, on the line of each occurrence after the first,
+and it suppresses no other finding; any other finding about that key is on the line of its last occurrence. The
+[frontmatter check](cli-check-frontmatter.md#findings) states the rule in full, merges included.
 
 | Rule | Reported when |
 |------|---------------|
@@ -95,6 +104,7 @@ change with the version of the library that validates the fields.
 | `skill.frontmatter-unparseable` | The block is not valid YAML, or is not a mapping |
 | `skill.undecodable` | The file is not valid UTF-8 |
 | `skill.name-matches-directory` | `name` is not the name of the skill's directory |
+| `skill.duplicate-key` | A top-level key is written again; the message gives the line of the first occurrence |
 | `skill.<field>` | The specification rejects that field, or requires it and it is absent |
 | `skill.unknown-field` | A field the specification does not define, such as `model`, or a key that is not a string, such as `123` |
 | `skill.frontmatter` | The specification rejects the frontmatter as a whole |
@@ -109,6 +119,7 @@ change with the version of the library that validates the fields.
 
 - `src/lorecraft/cli/commands/check/skills.py` - Declares the command and registers the check with the group
 - `src/lorecraft/checks/skill.py` - The check of one skill's frontmatter
+- `src/lorecraft/checks/frontmatter_duplicate.py` - Reports a key written twice, for this check and the frontmatter check
 - `src/lorecraft/project/schemas/skill.py` - Holds a frontmatter to the specification, in Lorecraft's words
 - `src/lorecraft/project/schemas/skill_frontmatter.py` - Declares the specification's fields and their limits
 - `src/lorecraft/project/schemas/frontmatter_problem.py` - The problem shape both frontmatter schemas report in

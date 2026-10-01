@@ -1,9 +1,9 @@
 ---
 name: "cli-check-frontmatter"
-description: "lorecraft check frontmatter, and its hidden alias check header: validating each document's YAML frontmatter against the frontmatter schemas of the structure specifications its path selects, the name-matches-filename rule, and the rule identifiers it reports. Load when a frontmatter finding needs explaining, or when running the frontmatter check on its own"
+description: "lorecraft check frontmatter, and its hidden alias check header: validating each document's YAML frontmatter against the frontmatter schemas of the structure specifications its path selects, the name-matches-filename rule, duplicate keys, and the rule identifiers it reports. Load when a frontmatter finding needs explaining, or when running the frontmatter check on its own"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft.cli.commands.check.frontmatter,module:lorecraft.checks.frontmatter,module:lorecraft.project.schemas.structure,module:lorecraft.project.schemas.frontmatter_problem,spec:feat,spec:code"
+components: "module:lorecraft.cli.commands.check.frontmatter,module:lorecraft.checks.frontmatter,module:lorecraft.checks.frontmatter_duplicate,module:lorecraft.project.schemas.structure,module:lorecraft.project.schemas.frontmatter_problem,spec:feat,spec:code"
 ---
 
 # `lorecraft check frontmatter`
@@ -20,9 +20,10 @@ and checks that the frontmatter `name` equals the filename. It is also one of th
 1. [Key Concepts](#key-concepts)
 2. [Configuration](#configuration)
 3. [Usage](#usage)
-4. [Findings](#findings)
-5. [References](#references)
-6. [Code References](#code-references)
+4. [Limitations](#limitations)
+5. [Findings](#findings)
+6. [References](#references)
+7. [Code References](#code-references)
 
 ## Key Concepts
 
@@ -63,14 +64,29 @@ The output and the exit status are the ones every check shares: see [Output](cli
 key is listed as `<corpus>.ungoverned` with the reason
 `no frontmatter schema for this corpus; frontmatter unvalidated`, whatever a namespace specification states.
 
+## Limitations
+
+- A key repeated inside a nested mapping, or a repeated key that is not a string, is not reported as a
+  duplicate.
+- A field supplied only through a YAML merge (`<<`) has no line of its own, so a finding about it is on line 1.
+- A key written as a YAML alias (`*k`) is placed on the line of the anchor it names, so a finding about it,
+  a repeated key included, is on that line rather than the alias's.
+
 ## Findings
 
 A finding is reported on the line of the key it concerns, on the line the YAML parser stopped at when the block
 does not parse, or on line 1 when the key is absent, is not a string, or the whole block is at fault. A document
 whose frontmatter is missing, unparseable or undecodable reports that one finding and nothing else. The name is
-compared first, then each schema is applied; a schema finding keeps the validator's own wording, since it names
-a constraint the specification's authors wrote. The rules mirror the
+compared first, then each schema is applied, then repeated keys are reported; a schema finding keeps the
+validator's own wording, since it names a constraint the specification's authors wrote. The rules mirror the
 [skill check](cli-check-skills.md#findings)'s, under the corpus instead of `skill`.
+
+A top-level key written again is a finding of its own, on the line of each occurrence after the first, whether
+the values are equal or differ. The message is `'<key>' is already written on line <N>`, where N is the line of
+the first occurrence and the key is quoted with its escapes, as in `'a\nb'`, so it always prints on one line. The
+finding suppresses none of the others. The YAML decoder keeps the value of the last
+occurrence, so any other finding about that key is reported on the line of its last occurrence. A key brought in
+by a merge is not an occurrence: a written key that overrides a merged one is not a duplicate.
 
 | Rule | Reported when |
 |------|---------------|
@@ -78,6 +94,7 @@ a constraint the specification's authors wrote. The rules mirror the
 | `frontmatter.unparseable` | The block is not valid YAML, or is not a mapping |
 | `frontmatter.undecodable` | The file is not valid UTF-8 |
 | `frontmatter.name-matches-filename` | `name` is not the filename without `.md` |
+| `frontmatter.duplicate-key` | A top-level key is written again; the message gives the line of the first occurrence |
 | `<corpus>.<field>` | A frontmatter schema rejects that field, or requires it and it is absent; the message names the specification |
 | `<corpus>.unknown-field` | A frontmatter schema does not allow that field, such as `model` under `"additionalProperties": false` |
 | `<corpus>.frontmatter` | A frontmatter schema rejects the frontmatter as a whole, such as with `minProperties` |
@@ -94,6 +111,7 @@ The `<corpus>` prefix is the document's corpus, whichever layer's schema the fin
 - `src/lorecraft/cli/commands/check/frontmatter.py` - Declares the command and its hidden `header` alias, and
   registers the check with the group
 - `src/lorecraft/checks/frontmatter.py` - The check of one document's frontmatter
+- `src/lorecraft/checks/frontmatter_duplicate.py` - Reports a key written twice, for this check and the skill check
 - `src/lorecraft/project/schemas/structure.py` - Loads and validates the frontmatter schema with the rest of the
   structure specification, and holds a frontmatter to it
 - `src/lorecraft/project/schemas/frontmatter_problem.py` - The problem shape both frontmatter schemas report in
