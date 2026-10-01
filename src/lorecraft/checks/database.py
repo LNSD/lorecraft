@@ -15,6 +15,11 @@ use and kept for as long as the database lives (pattern-memoization):
   skill's bytes and nothing else.
 - `skill_parse(ref)`: one skill's parse tree, the same PSI file for a `SKILL.md`. It reads that skill's bytes
   and nothing else.
+- `skill_resources(ref)`: one skill's resources, the Markdown files inside it other than its top-level `SKILL.md`,
+  like the IDE's listing of a content root's children. It reads the listings and the symlink targets reached from
+  that skill, and where the model locates the skill, and no file's content.
+- `skill_resource_parse(ref)`: one resource's parse tree, the same PSI file again. It reads that resource's bytes,
+  and where its skill's listing locates it, and nothing else.
 - `tokens(ref)`: what one document's whole file costs an agent that loads it, like another per-file index
   entry: counted from the raw text, frontmatter and code included, without a parse. It reads that document's
   bytes and nothing else.
@@ -43,18 +48,20 @@ the way the IDE drops per-file index entries on a file change event and resets s
 change. Reserved, not implemented: `advance(snapshot) -> Database`, the next state. It would `diff` the two
 snapshots and carry over each cached value the change set leaves valid: the frontmatter, the parse and the token
 count of every document whose bytes did not change, the frontmatter and the parse of every skill whose bytes did
-not, and the model unless one of these changes invalidates it. An entry added or deleted under `docs/` invalidates
-it. So does an entry added or deleted in a skills directory, or in a skill's directory, both where the skill's entry
-names it and where a link leads it. So does an entry added or deleted at the real path a skill's linked `SKILL.md`
-leads to, or on the way to it, since the loader resolves that link to find the skill. So does a link on the way to a
-skill or to its `SKILL.md` that changed its target, and so does a changed specification. Any other change leaves the
-model valid, an entry added or deleted anywhere else inside a skill included: the model lists nothing below a
-skill's directory, and reads nothing there but the way to its `SKILL.md`. The scope index carries over unless the
-two snapshots' scopes or their links differ, compared as recorded rather than through the change set, which holds no
-scope. A change of scope invalidates nothing else: what the new scope adds or drops reaches the model as entries in
-the change set. That rule holds only while the frontmatter, the parse and the token count each read their own
-document or skill, the model reads no document, and the scope index reads only the scope and the links, so keep them
-that way: data drawn from several documents belongs in a new cache with its own rule.
+not, the resources of every skill and the parse of every resource as their own docstrings state, and the
+model unless one of these changes invalidates it. An entry added or deleted under `docs/` invalidates it. So does
+an entry added or deleted in a skills directory, or in a skill's directory, both where the skill's entry names it
+and where a link leads it. So does an entry added or deleted at the real path a skill's linked `SKILL.md` leads to,
+or on the way to it, since the loader resolves that link to find the skill. So does a link on the way to a skill or
+to its `SKILL.md` that changed its target, and so does a changed specification. Any other change leaves the model
+valid, an entry added or deleted anywhere else inside a skill included: the model lists nothing below a skill's
+directory, and reads nothing there but the way to its `SKILL.md`. The scope index carries over unless the two
+snapshots' scopes or their links differ, compared as recorded rather than through the change set, which holds no
+scope. A change of scope invalidates nothing else: what the new scope adds or drops reaches the model and each
+skill's resources as entries in the change set. That rule holds only while the frontmatter, the parse and the token
+count each read their own document, skill or resource, the model and each skill's resource listing read no
+document, and the scope index reads only the scope and the links, so keep them that way: data drawn from several
+documents belongs in a new cache with its own rule.
 
 A change names a real path, while a ref may name a path through a link: a skill's `SKILL.md` under a linked
 skill entry changes at the path the link leads to, not at the ref's. A snapshot maps a linked path to its real
@@ -62,7 +69,9 @@ one and not back, so the model records each skill's `SkillLocation`, the real `S
 and `advance` would look that path up in the change set. A link retargeted to another skill leaves every file's
 bytes as they were and the ref as it was, like a file's identity in the IDE, while its location changes. So a
 skill's frontmatter and its parse carry over only when the two models locate its ref at the same real file and that
-file's bytes did not change.
+file's bytes did not change. A resource is named the same way, through the symlinks on the way to it, and its
+`SkillResourceLocation` records the real file: its parse carries over only when the two databases'
+`skill_resources` locate its ref at the same real file and that file's bytes did not change.
 """
 
 from lorecraft.core.path import RootRelativePath
@@ -70,7 +79,7 @@ from lorecraft.project.document import DocumentRef
 from lorecraft.project.document import Repository as DocumentRepository
 from lorecraft.project.layout import require_real_layout
 from lorecraft.project.skill import Repository as SkillRepository
-from lorecraft.project.skill import SkillRef
+from lorecraft.project.skill import SkillRef, SkillResourceLocation, SkillResourceRef
 from lorecraft.project.syntax import FrontmatterNode, ParsedDocument, count_tokens, parse_document, parse_frontmatter
 from lorecraft.project.workspace import WorkspaceModel, load_model
 from lorecraft.vfs import ScopeIndex, Snapshot, VirtualFileSystem
@@ -80,7 +89,8 @@ class Database:
     """What the checks read from one snapshot, each computed once and cached for the snapshot's lifetime.
 
     That is the workspace model, the frontmatter, the parse trees and the token counts of the documents, the
-    frontmatter and the parse trees of the skills, and the scope index `is_in_scope` answers from.
+    frontmatter and the parse trees of the skills, the resources of each skill and their parse trees, and
+    the scope index `is_in_scope` answers from.
     """
 
     def __init__(self, snapshot: Snapshot) -> None:
@@ -102,6 +112,8 @@ class Database:
         self._token_counts: dict[DocumentRef, int] = {}
         self._skill_frontmatters: dict[SkillRef, FrontmatterNode] = {}
         self._skill_parses: dict[SkillRef, ParsedDocument] = {}
+        self._skill_resources: dict[SkillRef, tuple[SkillResourceLocation, ...]] = {}
+        self._skill_resource_parses: dict[SkillResourceRef, ParsedDocument] = {}
 
     def model(self) -> WorkspaceModel:
         """The workspace model the snapshot declares, loaded on the first call.
@@ -298,3 +310,146 @@ class Database:
             parsed = parse_document(text)
             self._skill_parses[ref] = parsed
         return parsed
+
+    def skill_resources(self, ref: SkillRef) -> tuple[SkillResourceLocation, ...]:
+        """The resources of one skill, listed from the snapshot on the first call for its ref.
+
+        Each is named where an agent reaches it, under the skill's directory, and located at the real file that
+        path leads to, sorted by ref; `Repository.list_skill_resources` states which files are resources and which
+        symlinks the walk follows. The skill's location is the model's, so the model is loaded first if it is not yet.
+
+        Carry-over: the resources of one skill are kept for the next revision unless one of these changed:
+
+        - An entry was added, deleted or changed kind in a directory the walk entered, or at the path a symlink it
+          met leads to, or on the way there.
+        - A symlink on any of those ways changed its target.
+        - The next model locates the skill's directory at another real directory, its `resolves_to`. Where its
+          `SKILL.md` leads plays no part, so a retargeted `SKILL.md` symlink alone leaves the listing valid.
+
+        A change to any file's bytes leaves it valid, and so does any change the walk does not reach, whichever
+        skill it is in.
+
+        A listing that fails is not cached, so each call raises the same error again.
+
+        Args:
+            ref: The skill whose resources are listed; the cache key, so one skill is walked once.
+
+        Raises:
+            ValueError: If the model lists no skill with this ref (refs from the model never trigger it).
+            SkillResourcesListError: If a directory the walk enters cannot be listed.
+            SkillResourcesSymlinkResolveError: If a symlink the walk meets cannot be resolved.
+            DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
+            CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
+            StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
+            StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in
+                the dialect's shape.
+            StructureSpecFilenameError: If the model is not loaded yet and a structure specification is not at a
+                specification filename.
+            EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
+            InvalidTitleCountError: If the model is not loaded yet and a title count is below 1.
+            InvalidTokenBudgetError: If the model is not loaded yet and a token budget is below 1.
+            InvalidWordCapError: If the model is not loaded yet and an outline word cap is below 1.
+            RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
+            ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
+                outline names.
+            AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by
+                side.
+            InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by
+                the meta-schema.
+            FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries
+                `$id`.
+            ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema
+                names another dialect.
+            UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not
+                state an object.
+            DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
+            SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
+            SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
+            SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
+            SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
+        """
+        resources = self._skill_resources.get(ref)
+        if resources is None:
+            location = self.model().skill_location(ref)
+            resources = self._skills.list_skill_resources(location)
+            self._skill_resources[ref] = resources
+        return resources
+
+    def skill_resource_parse(self, ref: SkillResourceRef) -> ParsedDocument:
+        """The parse tree of one resource of a skill, parsed from the snapshot on the first call for its ref.
+
+        The resource is read at the real file `skill_resources(ref.skill)` locates the ref at, never at `ref.path`,
+        so the skill's resources are listed first if they are not yet.
+
+        Carry-over: kept for the next revision only when the next `skill_resources(ref.skill)` locates the ref at the
+        same real file and that file's bytes did not change.
+
+        A resource that cannot be read is not cached, so each call raises the same error again.
+
+        Args:
+            ref: The resource to parse, as `skill_resources` names it; the cache key, so one ref is parsed once.
+
+        Raises:
+            ValueError: If `skill_resources(ref.skill)` lists no resource with this ref (refs from it never trigger
+                it).
+            SkillResourceDecodeError: If the resource's bytes are not UTF-8.
+            SkillResourceReadError: If the snapshot holds no regular file at the real file the ref leads to.
+            SkillResourcesListError: If the skill's resources are not listed yet and a directory the walk enters
+                cannot be listed.
+            SkillResourcesSymlinkResolveError: If the skill's resources are not listed yet and a symlink the walk
+                meets cannot be resolved.
+            DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
+            CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
+            StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
+            StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in
+                the dialect's shape.
+            StructureSpecFilenameError: If the model is not loaded yet and a structure specification is not at a
+                specification filename.
+            EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
+            InvalidTitleCountError: If the model is not loaded yet and a title count is below 1.
+            InvalidTokenBudgetError: If the model is not loaded yet and a token budget is below 1.
+            InvalidWordCapError: If the model is not loaded yet and an outline word cap is below 1.
+            RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
+            ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
+                outline names.
+            AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by
+                side.
+            InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by
+                the meta-schema.
+            FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries
+                `$id`.
+            ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema
+                names another dialect.
+            UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not
+                state an object.
+            DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
+            SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
+            SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
+            SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
+            SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
+        """
+        parsed = self._skill_resource_parses.get(ref)
+        if parsed is None:
+            location = _skill_resource_location(self.skill_resources(ref.skill), ref)
+            text = self._skills.get_skill_resource(location).text
+            parsed = parse_document(text)
+            self._skill_resource_parses[ref] = parsed
+        return parsed
+
+
+def _skill_resource_location(
+    resources: tuple[SkillResourceLocation, ...], ref: SkillResourceRef
+) -> SkillResourceLocation:
+    """The location of one resource among a skill's resources.
+
+    Args:
+        resources: The skill's resources, as `Database.skill_resources` lists them.
+        ref: The resource to look up.
+
+    Raises:
+        ValueError: If no location in `resources` is the ref's.
+    """
+    for location in resources:
+        if location.ref == ref:
+            return location
+    raise ValueError(f'{ref.path} is not a resource of skill {ref.skill.directory}')

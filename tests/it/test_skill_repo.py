@@ -24,6 +24,8 @@ from lorecraft.project.skill import (
     SkillLocation,
     SkillReadError,
     SkillRef,
+    SkillResourcesListError,
+    SkillResourcesSymlinkResolveError,
     SkillsDirListError,
 )
 from lorecraft.vfs import (
@@ -552,6 +554,59 @@ class TestRepositoryListSkills:
         assert exc_info.value.skill_file == skill_file, 'the error names the SKILL.md whose link could not be followed'
         assert isinstance(exc_info.value.source, FileResolveError), 'its source is the refused resolve'
         assert str(skill_file) in str(exc_info.value), 'the message names the SKILL.md'
+
+
+@pytest.fixture(scope='function')
+def locked_references_dir(universal_dir: Path) -> Iterator[Path]:
+    """A `review` skill whose `references/` refuses listing, restored afterwards so pytest can clean it up.
+
+    Args:
+        universal_dir: The skills directory the `review` skill is created in.
+    """
+    _write_skill(universal_dir / 'review')
+    directory = universal_dir / 'review' / 'references'
+    directory.mkdir()
+    directory.chmod(0o000)
+    yield directory
+    directory.chmod(0o700)
+
+
+@pytest.mark.it
+class TestRepositoryListSkillResources:
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
+    def test_list_skill_resources_with_an_unreadable_directory_inside_the_skill_raises_skill_resources_list_error(
+        self, repository: Repository, locked_references_dir: Path
+    ) -> None:
+        #: Given
+        location = _location('.agents/skills/review')
+        directory = RootRelativePath.parse(f'.agents/skills/review/{locked_references_dir.name}')
+
+        #: When
+        with pytest.raises(SkillResourcesListError) as exc_info:
+            repository.list_skill_resources(location)
+
+        #: Then
+        assert exc_info.value.skill == location.ref, 'the error names the skill whose resources were being listed'
+        assert exc_info.value.directory == directory, 'the error names the directory that could not be listed'
+        assert isinstance(exc_info.value.source, DirListError), 'its source is the failed listing'
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
+    def test_list_skill_resources_with_a_symlink_into_a_locked_directory_raises_skill_resources_symlink_resolve_error(
+        self, repository: Repository, universal_dir: Path, locked_texts_dir: Path
+    ) -> None:
+        #: Given
+        _write_skill(universal_dir / 'review')
+        (universal_dir / 'review' / 'guide.md').symlink_to(f'../../../{locked_texts_dir.name}/REVIEW.md')
+        location = _location('.agents/skills/review')
+        symlink = RootRelativePath.parse('.agents/skills/review/guide.md')
+
+        #: When
+        with pytest.raises(SkillResourcesSymlinkResolveError) as exc_info:
+            repository.list_skill_resources(location)
+
+        #: Then
+        assert exc_info.value.symlink == symlink, 'the error names the symlink that could not be followed'
+        assert isinstance(exc_info.value.source, DirResolveError), 'its source is the refused resolve'
 
 
 @pytest.mark.it
