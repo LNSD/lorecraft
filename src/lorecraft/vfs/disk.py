@@ -426,11 +426,11 @@ def _walk_to_real_path(
     resolved = ROOT
     remaining = list(path.parts)
     links_followed = 0
-    stepped_into_since_last_link = 0
+    stepped_into_directory = False  # since the last link, or since the start
     while remaining:
         part = remaining.pop(0)
         if part == '..':
-            if resolved == ROOT or stepped_into_since_last_link > 0:
+            if resolved == ROOT or stepped_into_directory:
                 return None
             resolved = resolved.parent
             continue
@@ -438,7 +438,7 @@ def _walk_to_real_path(
         kind = _lstat_kind(root, candidate)
         if kind is EntryKind.DIRECTORY:
             resolved = candidate
-            stepped_into_since_last_link += 1
+            stepped_into_directory = True
             continue
         if kind is EntryKind.FILE and not remaining:
             return _RealPath(candidate, EntryKind.FILE)
@@ -452,7 +452,7 @@ def _walk_to_real_path(
         if not follow_links or target.is_absolute() or links_followed > MAX_LINKS:
             return None
         remaining = list(target.parts) + remaining
-        stepped_into_since_last_link = 0
+        stepped_into_directory = False
     return _RealPath(resolved, EntryKind.DIRECTORY)
 
 
