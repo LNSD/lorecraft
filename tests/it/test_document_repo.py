@@ -207,6 +207,7 @@ class TestRepositoryListDocuments:
         #: Then
         assert exc_info.value.corpus == corpus, 'the error names the corpus being listed'
         assert str(exc_info.value.source.path) == 'docs/code', 'its source is the listing of the corpus directory'
+        assert str(corpus) in str(exc_info.value), 'the message names the corpus'
 
 
 @pytest.mark.it
@@ -235,6 +236,7 @@ class TestRepositoryGetDocument:
         #: Then
         assert exc_info.value.ref == ref, 'the error names the document that could not be read'
         assert isinstance(exc_info.value.source, FileReadError), 'its source is the failed read'
+        assert 'docs/code/missing.md' in str(exc_info.value), 'the message names the document'
 
     def test_get_document_with_non_utf8_bytes_raises_document_decode_error(
         self, code_dir: Path, repository: Repository
@@ -251,3 +253,4 @@ class TestRepositoryGetDocument:
         assert exc_info.value.ref == ref, 'the error names the document that could not be decoded'
         assert isinstance(exc_info.value.source, TextDecodeError), 'its source is the failed decode'
         assert not isinstance(exc_info.value, DocumentReadError), 'a decode failure is a variant of its own'
+        assert 'docs/code/latin.md' in str(exc_info.value), 'the message names the document'
