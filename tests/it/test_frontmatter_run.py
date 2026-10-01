@@ -10,9 +10,10 @@ from typing import Final
 
 import pytest
 
-from lorecraft.checks import CheckRun, Database, run_frontmatter
+from lorecraft.checks import CheckRun, Database, Violation, run_frontmatter
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.layout import SNAPSHOT_SCOPE
+from lorecraft.project.syntax import LineNumber
 from lorecraft.vfs import take_snapshot
 
 # A frontmatter schema requiring a string ``description``, so a document without one yields a schema finding.
@@ -117,3 +118,52 @@ class TestRunFrontmatter:
         assert bare_rules == ['frontmatter.missing'], (
             'the run reads the document as the scan saw it, not as it was rewritten afterwards'
         )
+
+    def test_run_frontmatter_with_the_wrong_name_written_last_reports_it_and_the_repetition_on_that_line(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.md', b'# Code\n')
+        _write(tmp_path, 'docs/__meta__/code.structure.json', DESCRIPTION_STRUCTURE_SPEC.encode())
+        _write(tmp_path, 'docs/code/guide.md', b'---\nname: "guide"\ndescription: "A guide"\nname: "other"\n---\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_document(database)
+
+        #: Then
+        assert [report.violations for report in run.reports] == [
+            (
+                Violation(
+                    line=LineNumber(4),
+                    rule='frontmatter.name-matches-filename',
+                    message="`name` is 'other'; expected 'guide', the document's filename",
+                ),
+                Violation(
+                    line=LineNumber(4),
+                    rule='frontmatter.duplicate-key',
+                    message="'name' is already written on line 2",
+                ),
+            )
+        ], 'the name the decoder kept is judged on the last line it is written on, beside the repetition'
+
+    def test_run_frontmatter_with_the_right_name_written_last_reports_only_the_repetition(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.md', b'# Code\n')
+        _write(tmp_path, 'docs/__meta__/code.structure.json', DESCRIPTION_STRUCTURE_SPEC.encode())
+        _write(tmp_path, 'docs/code/guide.md', b'---\nname: "other"\ndescription: "A guide"\nname: "guide"\n---\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_document(database)
+
+        #: Then
+        assert [report.violations for report in run.reports] == [
+            (
+                Violation(
+                    line=LineNumber(4),
+                    rule='frontmatter.duplicate-key',
+                    message="'name' is already written on line 2",
+                ),
+            )
+        ], 'the decoder kept the right name, so the overwritten wrong one is reported only as a repetition'

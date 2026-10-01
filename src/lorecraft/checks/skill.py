@@ -3,7 +3,7 @@
 The specification is a frontmatter schema, ``SkillFrontmatterSchema``, and says what is wrong as
 ``FrontmatterProblem`` values; the check turns each into a violation on the line of the field it concerns and
 reads no validator's error record. It is the sibling of the frontmatter check, and keeps its skeleton: the same
-guards, then the name, then the problems.
+guards, then the name, then the problems, then the keys written twice.
 
 The check is pure: it takes the specification, the skill's frontmatter node and the name of the directory the
 skill sits in, and returns violations. Reading the ``SKILL.md`` and deciding what a decode failure means happen
@@ -23,6 +23,7 @@ from lorecraft.project.syntax import (
     NonMappingFrontmatter,
 )
 
+from .frontmatter_duplicate import duplicate_key_violations
 from .frontmatter_problem import field_line, problem_line, problem_rule
 from .reporting import Violation
 
@@ -54,7 +55,8 @@ def validate_skill(
 
     A ``name`` that differs from the skill's directory is ``skill.name-matches-directory``. A field the
     specification rejects is ``skill.<field>``, a field it does not define is ``skill.unknown-field``, and a
-    problem that concerns no field is ``skill.frontmatter``.
+    problem that concerns no field is ``skill.frontmatter``. A top-level key written again is ``skill.duplicate-key``,
+    on each later occurrence.
 
     Args:
         schema: Always ``SKILL_FRONTMATTER_SCHEMA``, the one instance.
@@ -97,6 +99,9 @@ def validate_skill(
                 message=problem.message,
             )
         )
+
+    # Its own rule, after every other: the decoder kept one value of a repeated key, and the rules above judged it.
+    violations.extend(duplicate_key_violations(frontmatter, rule='skill.duplicate-key'))
 
     return SkillCheckResult(violations=tuple(violations))
 

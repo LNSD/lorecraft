@@ -18,6 +18,10 @@ from .position import LineNumber
 _FIRST_BLOCK_LINE: Final[int] = 2
 """The document line the block's first YAML line sits on: the opening delimiter is always line 1."""
 
+_STRING_KEY_TAGS: Final[frozenset[str]] = frozenset({'tag:yaml.org,2002:str', 'tag:yaml.org,2002:value'})
+"""The tags of a scalar key that decodes to a string. ``value`` is the tag YAML gives a plain ``=`` key, or one
+written with ``!!value``, and construction turns it into the string it holds, so it names a field like any other."""
+
 
 @dataclass(frozen=True, slots=True)
 class FrontmatterKey:
@@ -25,7 +29,9 @@ class FrontmatterKey:
 
     Attributes:
         name: The key as YAML decoded it.
-        line: The document line the key starts on.
+        line: The document line the key starts on. For a key written as an alias, such as ``*k``, it is the line of
+            the anchored node the alias names: the node tree holds that node in the alias's place and keeps no
+            position of the alias itself.
     """
 
     name: str
@@ -42,18 +48,29 @@ class Frontmatter:
 
     Attributes:
         data: The decoded mapping, exactly as ``yaml.safe_load`` returns it.
-        keys: Every top-level key written as a plain string, in document order, with its line.
+        keys: Every top-level key the mapping writes as a plain string, in document order, with its line. A key
+            written more than once appears once per occurrence, although ``data`` holds only one value for it. A
+            plain ``=`` key is listed too: YAML tags it as a value key, and it decodes to the string ``'='``. A
+            key that reaches ``data`` only through a ``<<`` merge is not listed, so a finding about it lands on
+            line 1, and neither is the ``<<`` key itself, which YAML tags as a merge rather than a string.
     """
 
     data: dict[object, object]
     keys: tuple[FrontmatterKey, ...]
 
     def key_line(self, name: str) -> LineNumber | None:
-        """The line the first top-level key called ``name`` is written on, or ``None`` when there is none."""
+        """The line the last top-level key called ``name`` is written on, or ``None`` when there is none.
+
+        The last, because a key written twice decodes to the value of its last occurrence: ``yaml.safe_load``
+        replaces the earlier value with the later one, so the last line is where the value in ``data`` is written.
+        A key the mapping writes also wins over the same key supplied by a ``<<`` merge, so its line is the right
+        one even then.
+        """
+        line: LineNumber | None = None
         for key in self.keys:
             if key.name == name:
-                return key.line
-        return None
+                line = key.line
+        return line
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,6 +121,13 @@ def decode_frontmatter(block: str) -> FrontmatterNode:
         return InvalidYamlFrontmatter(problem=exc.reason, line=line)
     try:
         node = loader.get_single_node()
+        # The keys are read before the value is constructed, because construction rewrites the node: for a `<<`
+        # merge it puts the merged pairs in front of the written ones, so read afterwards, the keys would hold
+        # keys the mapping never wrote, out of document order. It also retags a `=` key from a value key to a
+        # string, which is why `_keys` accepts both tags.
+        keys: tuple[FrontmatterKey, ...] = ()
+        if isinstance(node, yaml.MappingNode):
+            keys = _keys(node)
         data: object = None if node is None else loader.construct_document(node)
     except yaml.MarkedYAMLError as exc:
         return _invalid_yaml(exc)
@@ -112,7 +136,7 @@ def decode_frontmatter(block: str) -> FrontmatterNode:
 
     if not isinstance(node, yaml.MappingNode) or not isinstance(data, dict):
         return NonMappingFrontmatter()
-    return Frontmatter(data=data, keys=_keys(node))
+    return Frontmatter(data=data, keys=keys)
 
 
 def _invalid_yaml(error: yaml.MarkedYAMLError) -> InvalidYamlFrontmatter:
@@ -127,14 +151,18 @@ def _invalid_yaml(error: yaml.MarkedYAMLError) -> InvalidYamlFrontmatter:
 
 
 def _keys(mapping: yaml.MappingNode) -> tuple[FrontmatterKey, ...]:
-    """Every top-level key of the mapping written as a plain string, with its document line.
+    """Every top-level key of the mapping written as a plain string, in document order, with its document line.
 
-    A key the mapping spells some other way, such as a list or a number, has no name a check could ask for,
-    so it is left out.
+    Read from a node no value has been constructed from yet, which still holds every pair as it is written. A key
+    written more than once is listed once per occurrence, where the constructed mapping keeps only one value. A
+    scalar key tagged as a value key, such as a plain ``=``, is listed as well, because construction has not yet
+    retagged it to the string it decodes to. A key the mapping spells some other way, such as a list or a number,
+    has no name a check could ask for, so it is left out, and so is a ``<<`` merge key, which is tagged as a merge
+    rather than a string.
     """
     keys: list[FrontmatterKey] = []
     for key_node, _value_node in mapping.value:
-        if not isinstance(key_node, yaml.ScalarNode) or key_node.tag != 'tag:yaml.org,2002:str':
+        if not isinstance(key_node, yaml.ScalarNode) or key_node.tag not in _STRING_KEY_TAGS:
             continue
         # The mark counts lines from 0 within the block; the block starts on document line 2.
         line = LineNumber(key_node.start_mark.line + _FIRST_BLOCK_LINE)

@@ -492,6 +492,33 @@ class TestCheckFrontmatterCommand:
             }
         ], f'a finding serialises as the root-relative path and the line number, got {result.stdout!r}'
 
+    def test_check_frontmatter_with_a_key_written_twice_and_json_format_reports_the_duplicate_key(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '---\nname: guide\ntype: rule\ntype: pattern\n---\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 1,
+            'findings': [
+                {
+                    'file': 'docs/code/guide.md',
+                    'line': 4,
+                    'rule': 'frontmatter.duplicate-key',
+                    'message': "'type' is already written on line 3",
+                    'spec': None,
+                }
+            ],
+            'ungoverned': [],
+        }, 'the repetition is reported on its own line, naming the line of the first occurrence'
+
     def test_check_frontmatter_from_a_deleted_working_directory_exits_with_a_working_directory_error(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -784,6 +811,36 @@ class TestCheckSkillsCommand:
             ],
             'ungoverned': [],
         }, 'each finding names its SKILL.md from the root, its line as a number and its rule'
+
+    def test_check_skills_with_json_format_over_a_skill_writing_a_key_twice_reports_the_duplicate_key(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(
+            tmp_path,
+            '.agents/skills/review/SKILL.md',
+            '---\nname: review\ndescription: Review a change\ndescription: Audit a change\n---\n',
+        )
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 1,
+            'findings': [
+                {
+                    'file': '.agents/skills/review/SKILL.md',
+                    'line': 4,
+                    'rule': 'skill.duplicate-key',
+                    'message': "'description' is already written on line 3",
+                    'spec': None,
+                }
+            ],
+            'ungoverned': [],
+        }, 'the repetition is reported on its own line, naming the line of the first occurrence'
 
     def test_check_skills_with_json_format_over_a_skill_linked_outside_the_skills_directories_checks_it(
         self, tmp_path: Path
