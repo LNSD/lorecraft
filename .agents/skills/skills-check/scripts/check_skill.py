@@ -53,7 +53,6 @@ SKILL_MD_MAX_LINES = 500
 
 LINK_PATTERN = re.compile(r'\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)')
 FENCE_PATTERN = re.compile(r'^\s*(```|~~~)')
-DYNAMIC_CONTEXT_PATTERN = re.compile(r'!`[^`]+`')
 
 
 @dataclass(frozen=True)
@@ -175,7 +174,7 @@ def linked_files(root: Path, rel: str, text: str, frontmatter: dict) -> tuple[di
 
 
 def check_body(root: Path, skill_dir: Path, path: Path, kind: SkillKind, links: dict[Path, Path]) -> list[Finding]:
-    """Check the relative links in one Markdown file of a skill, and client-only syntax in a project skill."""
+    """Check the relative links in one Markdown file of a skill."""
     rel = path.relative_to(root).as_posix()
     findings: list[Finding] = []
     in_fence = False
@@ -186,16 +185,6 @@ def check_body(root: Path, skill_dir: Path, path: Path, kind: SkillKind, links: 
             continue
         if in_fence:
             continue
-
-        if kind is SkillKind.project and DYNAMIC_CONTEXT_PATTERN.search(line):
-            findings.append(
-                Finding(
-                    rel,
-                    number,
-                    'body.client-syntax',
-                    '`!`command`` runs only in Claude Code; a project skill must tell the agent to run the command',
-                )
-            )
 
         for target in LINK_PATTERN.findall(line):
             if re.match(r'^[a-z][a-z0-9+.-]*:', target):
