@@ -278,7 +278,7 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
     is under the root: a directory is listed at its real path, with the depth left at the link, and a regular
     file has its bytes recorded at its real path. Either way every listing and every file sits at a real path.
     Where a root starts, where a link leads and the depth it uses up are the rules of `root_expansion.py`,
-    which `is_in_scope` answers from too.
+    which `ScopeIndex.is_in_scope` answers from too.
 
     Args:
         root: The workspace root on disk; nothing outside it is read.
