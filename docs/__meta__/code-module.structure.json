@@ -1,6 +1,6 @@
 {
   "$schema": "../schemas/structure.spec.json",
-  "description": "Narrows code.structure.json for docs/code/module-*.md, which is applied as well. The prose authority is docs/__meta__/code-module.md. The frontmatter fixes type, and the form of name and scope: both spell a package under the lorecraft import package, and that they spell the same one is checked by hand. The six rule sections open the document, in this order, with a tighter cap on Responsibility and Role, which each state one thing; the Checklist follows as code.structure.json places it, and References closes it, required here though optional in the corpus, since every module document links the architecture document it takes its role from. The token budget is tighter than the corpus one, since a module document is loaded beside the rules for the code being written.",
+  "description": "Narrows code.structure.json for docs/code/module-*.md, which is applied as well. The prose authority is docs/__meta__/code-module.md. The frontmatter fixes type, and the form of name and scope: both spell a package under the lorecraft import package, and that they spell the same one is checked by hand. The six rule sections open the document, in this order, with a tighter cap on Responsibility and Role, which each state one thing; the Checklist follows as code.structure.json places it, and References follows, required here though optional in the corpus, since every module document links the architecture document it takes its role from; an optional External References closes it. The token budget is tighter than the corpus one, since a module document is loaded beside the rules for the code being written.",
   "frontmatter": {
     "type": "object",
     "properties": {
@@ -52,7 +52,7 @@
     {
       "section": "External References",
       "optional": true,
-      "description": "Links to external articles, books or specifications that support the package's rules.",
+      "description": "Links to the outside sources the package is built on, such as the documentation of the system calls it makes.",
       "examples": ["- [Python docs — `os.scandir`](https://docs.python.org/3/library/os.html#os.scandir)\n- [Python docs — `os.readlink`](https://docs.python.org/3/library/os.html#os.readlink)\n- [Python docs — `os.lstat`](https://docs.python.org/3/library/os.html#os.lstat)"]
     }
   ]
