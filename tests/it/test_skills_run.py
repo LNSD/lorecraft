@@ -5,6 +5,7 @@ reports the skills as the scan saw them, through whichever link an agent reaches
 """
 
 from pathlib import Path
+from typing import Final
 
 import pytest
 
@@ -726,3 +727,174 @@ class TestRunSkillsMetadata:
             'skill.metadata-missing-file',
             'skill.metadata-outside-scope',
         ], 'each subkey is checked whole, references before scripts'
+
+
+# The frontmatter of a clean skill named `review`, ending on line 4, so the body starts on line 5.
+_REVIEW_FRONTMATTER: Final[bytes] = b'---\nname: review\ndescription: Review a change\n---\n'
+
+
+@pytest.mark.it
+class TestRunSkillsResources:
+    def test_run_skills_with_escaping_links_reports_each_in_its_file_ordered_by_file_then_line(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        skill = '.agents/skills/review'
+        _write(
+            tmp_path, f'{skill}/SKILL.md', _REVIEW_FRONTMATTER + b'# Review\n\nRead [the guide](../../docs/guide.md).\n'
+        )
+        _write(tmp_path, f'{skill}/references/deep/guide.md', b'# Guide\n\nBack to [the skill](../SKILL.md).\n')
+        _write(tmp_path, f'{skill}/references/a.md', b'[up](../a.md)\n\n[in](SKILL.md) and ![flow](../../flow.png)\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (
+            Finding(
+                path=RootRelativePath.parse(f'{skill}/SKILL.md'),
+                line=LineNumber(7),
+                rule='skill.link-escapes',
+                message=(
+                    '`../../docs/guide.md` leaves the skill directory; link a file inside the skill, '
+                    'relative to the skill root'
+                ),
+            ),
+            Finding(
+                path=RootRelativePath.parse(f'{skill}/references/a.md'),
+                line=LineNumber(1),
+                rule='skill.link-escapes',
+                message=(
+                    '`../a.md` leaves the skill directory; link a file inside the skill, relative to the skill root'
+                ),
+            ),
+            Finding(
+                path=RootRelativePath.parse(f'{skill}/references/a.md'),
+                line=LineNumber(3),
+                rule='skill.link-escapes',
+                message=(
+                    '`../../flow.png` leaves the skill directory; link a file inside the skill, '
+                    'relative to the skill root'
+                ),
+            ),
+            Finding(
+                path=RootRelativePath.parse(f'{skill}/references/deep/guide.md'),
+                line=LineNumber(3),
+                rule='skill.link-escapes',
+                message=(
+                    '`../SKILL.md` leaves the skill directory; link a file inside the skill, relative to the skill root'
+                ),
+            ),
+        ), 'the SKILL.md first, then each resource by path, each read from the skill root and located in its own file'
+
+    def test_run_skills_with_an_escaping_link_in_a_linked_skill_reports_it_where_the_agent_finds_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'skills/review/SKILL.md', _REVIEW_FRONTMATTER)
+        _write(tmp_path, 'skills/review/references/a.md', b'See [the skill](../SKILL.md).\n')
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (
+            Finding(
+                path=RootRelativePath.parse('.agents/skills/review/references/a.md'),
+                line=LineNumber(1),
+                rule='skill.link-escapes',
+                message=(
+                    '`../SKILL.md` leaves the skill directory; link a file inside the skill, relative to the skill root'
+                ),
+            ),
+        ), 'the resource is read through the linked entry, and the finding names it under the skills directory'
+
+    def test_run_skills_with_an_undecodable_resource_reports_only_that_it_is_undecodable(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/review/SKILL.md', _REVIEW_FRONTMATTER)
+        _write(tmp_path, '.agents/skills/review/references/latin.md', b'# Caf\xe9\n\n[up](../../outside.md)\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (
+            Finding(
+                path=RootRelativePath.parse('.agents/skills/review/references/latin.md'),
+                line=LineNumber(1),
+                rule='skill.undecodable',
+                message='resource is not valid UTF-8',
+            ),
+        ), 'a resource that is not UTF-8 is reported once, at the resource, and its links are never checked'
+
+    def test_run_skills_with_an_undecodable_skill_md_still_checks_its_resources(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/review/SKILL.md', b'---\nname: caf\xe9\n---\n')
+        _write(tmp_path, '.agents/skills/review/references/a.md', b'[up](../a.md)\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (
+            Finding(
+                path=RootRelativePath.parse('.agents/skills/review/SKILL.md'),
+                line=LineNumber(1),
+                rule='skill.undecodable',
+                message='SKILL.md is not valid UTF-8',
+            ),
+            Finding(
+                path=RootRelativePath.parse('.agents/skills/review/references/a.md'),
+                line=LineNumber(1),
+                rule='skill.link-escapes',
+                message=(
+                    '`../a.md` leaves the skill directory; link a file inside the skill, relative to the skill root'
+                ),
+            ),
+        ), 'each resource is a file of its own, checked whatever bytes the SKILL.md holds'
+
+    def test_run_skills_with_absolute_fragment_and_url_links_in_a_resource_reports_nothing(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/review/SKILL.md', _REVIEW_FRONTMATTER)
+        _write(
+            tmp_path,
+            '.agents/skills/review/references/a.md',
+            b'# A\n\n[a](/x.md) [b](#nothing) [c](https://example.com)\n',
+        )
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (), (
+            'in a resource only an escaping link is reported: absolute and fragment links are checked in SKILL.md'
+        )
+
+    def test_run_skills_with_a_link_to_a_file_metadata_links_in_reports_nothing(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/code/logging.md')
+        _write(
+            tmp_path,
+            '.agents/skills/review/SKILL.md',
+            b'---\nname: review\ndescription: Review a change\nmetadata:\n  references: docs/code/logging.md\n---\n'
+            b'See [logging](references/logging.md).\n',
+        )
+        _write(tmp_path, '.agents/skills/review/references/deep/x.md', b'See [logging](references/logging.md).\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (), (
+            'a file metadata links in is named from the skill root, even in a nested resource, so no link to it escapes'
+        )
