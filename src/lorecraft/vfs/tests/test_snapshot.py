@@ -372,6 +372,7 @@ class TestVirtualFileSystemReadText:
 
         #: Then
         assert exc_info.value.path == latin, 'the error names the root-relative file'
+        assert isinstance(exc_info.value.source, UnicodeDecodeError), 'the error keeps the decoder failure'
 
     def test_read_text_with_a_missing_file_raises_read_text_error(self) -> None:
         #: Given
@@ -384,6 +385,8 @@ class TestVirtualFileSystemReadText:
 
         #: Then
         assert type(exc_info.value) is UnrecordedFileError, 'docs/code/missing.md was never recorded, so it is missing'
+        assert exc_info.value.path == path, 'the error names the root-relative path that was read'
+        assert str(path) in str(exc_info.value), 'the message names the path that was read'
 
     def test_read_text_with_a_link_to_a_recorded_file_returns_its_text(self) -> None:
         #: Given
@@ -409,6 +412,7 @@ class TestVirtualFileSystemReadText:
         assert type(exc_info.value) is UnrecordedFileError, (
             'dangling leads to a path the snapshot holds no bytes for, so it reads as missing'
         )
+        assert exc_info.value.path == path, 'the error names the path that was read, not where the link leads'
 
     def test_read_text_with_a_file_in_no_listing_behind_a_link_returns_its_text(self) -> None:
         #: Given
@@ -465,6 +469,7 @@ class TestVirtualFileSystemReadText:
 
         #: Then
         assert type(exc_info.value) is UnrecordedFileError, 'a directory has no bytes, so it reads as a missing file'
+        assert exc_info.value.path == path, 'the error names the root-relative path that was read'
 
 
 @pytest.mark.unit
