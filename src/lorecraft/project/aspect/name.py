@@ -73,14 +73,14 @@ class AspectName:
             EmptyAspectNameError: If the name is empty.
             InvalidAspectNameCharacterError: If a character is not lowercase with valid separators.
         """
-        _validate_aspect_name(self.value)
+        _reject_invalid_aspect_name(self.value)
 
     def __str__(self) -> str:
         """The aspect name exactly as supplied, as findings print it."""
         return self.value
 
 
-def _validate_aspect_name(name: str) -> None:
+def _reject_invalid_aspect_name(name: str) -> None:
     if not name:
         raise EmptyAspectNameError()
     if name[0] not in ascii_lowercase:

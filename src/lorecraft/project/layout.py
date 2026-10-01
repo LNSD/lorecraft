@@ -63,7 +63,7 @@ class LinkedLayoutError(Error):
         super().__init__(f'{path} is a symlink, which lorecraft does not follow: {path}/ must be a real directory')
 
 
-def require_real_layout(fs: FileSystem) -> None:
+def reject_linked_layout(fs: FileSystem) -> None:
     """Refuse a view in which ``docs/`` or ``docs/__meta__/`` is a symlink.
 
     Under ``docs/`` a snapshot records a symlink and never reads through it. Behind a linked ``docs/`` or

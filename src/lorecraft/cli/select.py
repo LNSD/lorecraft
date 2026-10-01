@@ -193,16 +193,16 @@ def select_document(database: Database, root: Path, working_directory: Path, arg
 
     model = database.model()
     if document is None:
-        _require_document_placement(model, argument, spelled)
+        _reject_misplaced_document(model, argument, spelled)
         raise MissingDocumentPathError(argument)
-    _require_document_placement(model, argument, document)
+    _reject_misplaced_document(model, argument, document)
     ref = model.find_document(document)
     if ref is None:
         raise UnlistedDocumentPathError(argument)
     return ref
 
 
-def _require_document_placement(model: WorkspaceModel, argument: Path, path: RootRelativePath) -> None:
+def _reject_misplaced_document(model: WorkspaceModel, argument: Path, path: RootRelativePath) -> None:
     """Refuse `path` unless it is a Markdown file directly inside a corpus the model lists.
 
     The first rule it fails, in the order `select_document` gives, selects the error.
