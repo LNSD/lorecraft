@@ -3,7 +3,8 @@
 It holds the frontmatter node, the headings and their anchors, the links, and the line positions every check
 reports against.
 
-Beside it, ``count_tokens``: what a document's raw text costs an agent, counted without parsing it.
+Beside it, `count_tokens`: what a document's raw text costs an agent, counted without parsing it, and
+`count_lines`: how many lines that raw text holds, counted the same way.
 """
 
 from .anchor import Anchor, InvalidAnchorError
@@ -17,6 +18,7 @@ from .frontmatter import (
     NonMappingFrontmatter,
 )
 from .heading import Heading
+from .lines import count_lines
 from .link import Link
 from .position import InvalidLineNumberError, LineNumber
 from .tokens import count_tokens
@@ -38,4 +40,5 @@ __all__ = [
     'LineNumber',
     'InvalidLineNumberError',
     'count_tokens',
+    'count_lines',
 ]

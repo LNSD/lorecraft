@@ -277,6 +277,22 @@ def broken_link_root(tmp_path: Path) -> Path:
     return tmp_path
 
 
+@pytest.fixture(scope='function')
+def long_skill_root(tmp_path: Path) -> Path:
+    """A root holding one skill whose `SKILL.md` is 501 lines, its four lines of frontmatter included.
+
+    Apart from its length the skill is clean, so the lines-budget finding is the only one the check prints.
+
+    Args:
+        tmp_path: Directory the skill is written into, as the repository root.
+    """
+    (tmp_path / '.agents' / 'skills' / 'review').mkdir(parents=True)
+    (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').write_text(
+        '---\nname: review\ndescription: Review a change\n---\n' + 'Body.\n' * 497, encoding='utf-8'
+    )
+    return tmp_path
+
+
 def _write_review_skill(root: Path, metadata: str) -> None:
     """Write the skill `.agents/skills/review/` and give it `metadata`.
 
@@ -553,6 +569,20 @@ class TestCheckSkillsSnapshots:
         #: Then
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the link-broken findings, one in the resource, match the reviewed snapshot'
+
+    def test_check_skills_with_a_skill_md_over_500_lines_prints_the_lines_budget_finding(
+        self, snapshot: SnapshotAssertion, long_skill_root: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('check', 'skills', '--root', str(long_skill_root))
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, 'the lines-budget finding and its help note match the reviewed snapshot'
 
     def test_check_skills_with_a_repeated_metadata_file_name_prints_the_duplicate_name_finding(
         self, snapshot: SnapshotAssertion, duplicate_name_root: Path

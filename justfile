@@ -81,7 +81,7 @@ check-docs *EXTRA_FLAGS:
     @echo "📚 Checking documents..."
     uv run lorecraft check {{EXTRA_FLAGS}}
 
-# Check this repository's own skills against the Agent Skills specification: the frontmatter and the links (lorecraft check skills), then the length budget (check_skill)
+# Check this repository's own skills: the frontmatter, the line budget and the links against the Agent Skills specification (lorecraft check skills), then where each skill lives (check_skill)
 [group: 'docs']
 check-skills *EXTRA_FLAGS:
     #!/usr/bin/env bash

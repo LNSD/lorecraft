@@ -1,21 +1,21 @@
 ---
 name: "cli-check-skills"
-description: "lorecraft check skills: validating the frontmatter of each agent skill's SKILL.md against the Agent Skills specification, the name-matches-directory rule, duplicate keys, absolute and dangling fragment links in the body, links that leave the skill or name nothing in it from any of its Markdown files and the skill-root resolution they follow, the files a skill links in through `metadata`, how a skill is named on the command line, and the rule identifiers it reports. Load when a skill finding needs explaining, when running the skill check on its own, or when a skill is not checked"
+description: "lorecraft check skills: validating the frontmatter of each agent skill's SKILL.md against the Agent Skills specification, the name-matches-directory rule, duplicate keys, the 500-line budget on a SKILL.md, absolute and dangling fragment links in the body, links that leave the skill or name nothing in it from any of its Markdown files and the skill-root resolution they follow, the files a skill links in through `metadata`, how a skill is named on the command line, and the rule identifiers it reports. Load when a skill finding needs explaining, when running the skill check on its own, or when a skill is not checked"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft.cli.commands.check.skills,module:lorecraft.checks.skill,module:lorecraft.checks.frontmatter_duplicate,module:lorecraft.checks.skill_link,module:lorecraft.checks.skill_metadata,module:lorecraft.checks.run,module:lorecraft.project.schemas.skill,module:lorecraft.project.schemas.skill_frontmatter,module:lorecraft.project.schemas.frontmatter_problem,module:lorecraft.project.skill"
+components: "module:lorecraft.cli.commands.check.skills,module:lorecraft.checks.skill,module:lorecraft.checks.frontmatter_duplicate,module:lorecraft.checks.skill_length,module:lorecraft.checks.skill_link,module:lorecraft.checks.skill_metadata,module:lorecraft.checks.run,module:lorecraft.project.schemas.skill,module:lorecraft.project.schemas.skill_frontmatter,module:lorecraft.project.schemas.frontmatter_problem,module:lorecraft.project.skill,module:lorecraft.project.syntax.lines"
 ---
 
 # `lorecraft check skills`
 
 ## Summary
 
-`lorecraft check skills` validates each skill's `SKILL.md` frontmatter against the
-[Agent Skills specification](https://agentskills.io/specification), and that `name` is the skill's directory
-name. It reports an absolute or dangling fragment link in the body, a link in any skill Markdown file that
-leaves the skill or names nothing in it, and a `metadata` path that repeats a file name, names no file, or
-lies outside what it reads. It reads the skills the [workspace](workspace.md) lists; a bare `lorecraft check` runs
-it too.
+`lorecraft check skills` holds each skill's `SKILL.md` to the
+[Agent Skills specification](https://agentskills.io/specification): its frontmatter, a `name` matching its
+directory, and at most 500 lines. It reports a link in a skill Markdown file that leaves the skill or names
+nothing there, absolute and dangling fragment links in the body, and a `metadata` path that repeats a file name,
+is missing or lies outside what it reads. It reads the skills the [workspace](workspace.md) lists; a bare
+`lorecraft check` runs it too.
 
 ## Table of Contents
 
@@ -99,7 +99,8 @@ finding on the link's line, in the `SKILL.md` or the resource holding it. A fron
 `SKILL.md`, on the line of the field it concerns, on the line the YAML parser stopped at when the block does not
 parse, or on line 1 when the field is absent, the key is not a string, or the whole block is at fault. A
 missing or unparseable frontmatter is one finding, and the links are still checked; a `SKILL.md` that is not
-UTF-8 reports that alone. A skill's `SKILL.md` findings come first, then each resource's, by path, then line.
+UTF-8 reports that alone. A `skill.lines-budget` finding is on line 1, after the frontmatter findings and before
+the link findings. A skill's `SKILL.md` findings come first, then each resource's, by path, then line.
 
 `name` is compared as written, with no Unicode normalisation, so a full-width letter is a `skill.name` finding.
 An optional field written with no value, such as `license:`, is read as absent and accepted. The name is
@@ -125,6 +126,7 @@ and it suppresses no other finding; any other finding about that key is on the l
 | `skill.<field>` | The specification rejects that field, or requires it and it is absent |
 | `skill.unknown-field` | A field the specification does not define, such as `model`, or a key that is not a string, such as `123` |
 | `skill.frontmatter` | The specification rejects the frontmatter as a whole |
+| `skill.lines-budget` | The `SKILL.md` holds more than 500 lines, frontmatter included, each ended by a newline as finding lines are numbered, where a final newline adds no line; the message gives the count and the budget, and a help note says how to fix it. A resource has no budget |
 | `skill.link-absolute` | A link or image in the body has a destination that starts with `/`; the message shows the link decoded and asks for a link relative to the skill root |
 | `skill.link-fragment` | A link whose destination is only a `#fragment` names no heading of the `SKILL.md`, at any depth, by GitHub's anchors, regardless of case; the message shows the link decoded, and a bare `#` is not reported |
 | `skill.link-escapes` | A relative link or image in the `SKILL.md` or a resource, its path percent-decoded and normalised lexically, climbs above the skill root, whatever directory the skill is in; no symlink is followed, the fragment and the query are ignored, and the message shows the link decoded |
@@ -143,6 +145,7 @@ and it suppresses no other finding; any other finding about that key is on the l
 
 - `src/lorecraft/cli/commands/check/skills.py` - Declares the command and registers the check with the group
 - `src/lorecraft/checks/skill.py` - The check of one skill's frontmatter
+- `src/lorecraft/checks/skill_length.py` - Holds a `SKILL.md` to the 500-line budget
 - `src/lorecraft/checks/frontmatter_duplicate.py` - Reports a key written twice, for this check and the frontmatter check
 - `src/lorecraft/checks/skill_link.py` - Reports an absolute link, a dangling fragment link, or a link leaving the skill or naming nothing in it
 - `src/lorecraft/checks/run.py` - Reads each skill and its resources, looks up each path a link names, and locates each finding in its file
@@ -151,3 +154,4 @@ and it suppresses no other finding; any other finding about that key is on the l
 - `src/lorecraft/project/schemas/skill_frontmatter.py` - Declares the specification's fields and their limits
 - `src/lorecraft/project/schemas/frontmatter_problem.py` - The problem shape both frontmatter schemas report in
 - `src/lorecraft/project/skill/` - Finds the skills and reads a `SKILL.md`
+- `src/lorecraft/project/syntax/lines.py` - Counts the lines of a `SKILL.md`

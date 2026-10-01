@@ -371,6 +371,28 @@ class TestDatabase:
         #: Then
         assert exc_info.value.ref == REVIEW, 'the error names the skill that could not be decoded'
 
+    def test_skill_lines_of_a_skill_counts_its_whole_file(self) -> None:
+        #: Given
+        # three lines of frontmatter and three of body, the last one ending in a newline
+        database = Database(_skill_snapshot(b'---\nname: review\n---\n# Review\n\nSee [the guide](guide.md).\n'))
+
+        #: When
+        lines = database.skill_lines(REVIEW)
+
+        #: Then
+        assert lines == 6, f'the frontmatter counts too, and the final newline adds no line, got {lines}'
+
+    def test_skill_lines_of_a_skill_that_is_not_utf8_raises_skill_decode_error(self) -> None:
+        #: Given
+        database = Database(_skill_snapshot(b'---\nname: caf\xe9\n---\n'))
+
+        #: When
+        with pytest.raises(SkillDecodeError) as exc_info:
+            database.skill_lines(REVIEW)
+
+        #: Then
+        assert exc_info.value.ref == REVIEW, 'the error names the skill that could not be decoded'
+
     def test_skill_frontmatter_called_twice_returns_the_first_answer(self) -> None:
         #: Given
         database = Database(_skill_snapshot(b'---\nname: review\n---\n'))
