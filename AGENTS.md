@@ -52,20 +52,21 @@ Do not duplicate command recipes in project docs: command behaviour lives in the
 ## Dogfooding
 
 **Every check this repository ships is pointed at this repository.** A check lands as three things at once: the
-script, a `just` recipe that runs it over this repo's own `docs/`, `.agents/skills/` and `skills/`, and a CI job running
-that recipe. **A check that cannot pass this repository does not ship.** When a check reports a finding, fix the
-document or fix the check — never loosen a schema, raise a cap or budget, or narrow a recipe's scope to make it green.
+check in the library, a `just` recipe that runs it over this repo's own `docs/`, `.agents/skills/` and `skills/`,
+and a CI job running that recipe. **A check that cannot pass this repository does not ship.** When a check reports
+a finding, fix the document or fix the check — never loosen a schema, raise a cap or budget, or narrow a recipe's
+scope to make it green.
 
-The scripts under `.agents/skills/*/scripts/` are **vendored copies, deliberately**: a skill stays runnable from
-a bare checkout with nothing but `uv`. They are also the migration target — each becomes a module in a
-library layer, and the skill then calls the command line instead of carrying the code.
+A check lives in the library, and a skill that runs one calls the `lorecraft` command rather than carrying the
+code. The one standalone script left is `.agents/skills/feat-status/report.py`, at its skill's root, and the
+library is to replace it too.
 
 ## Canonical Resources
 
 | Resource | Purpose |
 |---|---|
 | `AGENTS.md` | Project-level agent policy and workflow; this file |
-| `.agents/skills/` | Workspace skills, for agents working on this repository, plus the vendored check scripts |
+| `.agents/skills/` | Workspace skills, for agents working on this repository, and a symlink to each project skill |
 | `.claude/skills/` | Compatibility symlink to `.agents/skills/` |
 | `skills/` | Project skills, shipped for agents in repositories that use Lorecraft |
 | `pyproject.toml` | The package's metadata and build, the dev group, the import-linter contract, and `ruff`, `ty`, `pytest`, `coverage` and `mutmut` config |
@@ -163,8 +164,8 @@ selection misses them.
 | Lint | `just check`, which also runs the import-layering contract; every finding fixed, none silenced with a bare `# noqa`. `just check-fix` first |
 | Types | `just typecheck`; clean, with no finding silenced by widening an annotation to `Any` |
 | Tests | `just test-unit` after lint is clean, then the tier the change touches — `just test-it`, `just test-e2e` — and `just test` when it earns the whole suite |
-| Documents | `just check-docs`; every document under `docs/` passes the frontmatter, structure and budget checks, and every skill the frontmatter check |
-| Skills | `just check-skills`; every skill passes the Agent Skills specification: `lorecraft check skills` for the frontmatter, the line budget and the links, then the vendored script for where each skill lives |
+| Documents | `just check-docs`; every document under `docs/` passes the frontmatter, structure and budget checks, and every skill the skill check |
+| Skills | `just check-skills`; every skill passes the Agent Skills specification: `lorecraft check skills` for the frontmatter, the line budget and the links |
 | Codegen | `just gen` after changing a generator or what it models; it must leave the tree unchanged in CI |
 
 Do not run tests before lint is clean, do not treat a type error as a lint preference — it is a failed gate —
