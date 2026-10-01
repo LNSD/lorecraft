@@ -4,6 +4,7 @@
 reports the tree as the scan saw it: every kind of report, and nothing written to the disk afterwards.
 """
 
+import sys
 from pathlib import Path
 from textwrap import dedent
 from typing import Final
@@ -167,3 +168,59 @@ class TestRunFrontmatter:
                 ),
             )
         ], 'the decoder kept the right name, so the overwritten wrong one is reported only as a repetition'
+
+    def test_run_frontmatter_with_a_scalar_its_tag_cannot_construct_reports_it_and_checks_the_rest(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.md', b'# Code\n')
+        _write(tmp_path, 'docs/__meta__/code.structure.json', DESCRIPTION_STRUCTURE_SPEC.encode())
+        _write(tmp_path, 'docs/code/clean.md', b'---\nname: "clean"\ndescription: "A clean document"\n---\n')
+        _write(tmp_path, 'docs/code/guide.md', b'---\nname: "guide"\ndescription: !!int many\n---\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_document(database)
+
+        #: Then
+        assert [report.violations for report in run.reports] == [
+            (),
+            (
+                Violation(
+                    line=LineNumber(3),
+                    rule='frontmatter.unparseable',
+                    message=(
+                        "frontmatter is not valid YAML: could not construct a value for the tag 'tag:yaml.org,2002:int'"
+                    ),
+                ),
+            ),
+        ], 'the scalar is one finding on its line, and the run goes on to check the other document'
+
+    def test_run_frontmatter_with_collections_nested_too_deeply_reports_it_and_checks_the_rest(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        # the composer spends at least one frame per level, so as many levels as the recursion limit always
+        # exhaust the stack, whatever the limit is
+        depth = sys.getrecursionlimit()
+        nested = f'---\nname: "guide"\ndescription: {"[" * depth}{"]" * depth}\n---\n'
+        _write(tmp_path, 'docs/__meta__/code.md', b'# Code\n')
+        _write(tmp_path, 'docs/__meta__/code.structure.json', DESCRIPTION_STRUCTURE_SPEC.encode())
+        _write(tmp_path, 'docs/code/clean.md', b'---\nname: "clean"\ndescription: "A clean document"\n---\n')
+        _write(tmp_path, 'docs/code/guide.md', nested.encode())
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_document(database)
+
+        #: Then
+        assert [report.violations for report in run.reports] == [
+            (),
+            (
+                Violation(
+                    line=LineNumber(1),
+                    rule='frontmatter.unparseable',
+                    message='frontmatter is not valid YAML: found collections nested too deeply to parse',
+                ),
+            ),
+        ], 'the nesting is one finding on line 1, having no line of its own, and the run checks the other document'
