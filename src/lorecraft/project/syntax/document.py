@@ -3,8 +3,13 @@
 A parse tree is a pure function of the text, so a document is parsed once and every check shares the result.
 The Markdown parser is wenmode, and this module is the only place it is used: its nodes are mutable and its API
 is pre-1.0, so what leaves here is always this package's own frozen nodes, never a wenmode type. The tree keeps
-the frontmatter, the document's top-level headings, how many prose words each heading's section holds, and every
-link's destination and line. The rest of the content is not kept: no check reads it yet.
+the frontmatter, the document's top-level headings, how many prose words each heading's section holds, the anchor
+of every heading at any depth, and every link's destination and line. The rest of the content is not kept: no check
+reads it yet.
+
+A heading's anchor is the name a fragment-only link such as ``#usage`` points at. ``Anchor`` derives it from the
+heading's text as GitHub does; what is read here is which headings take one, the text GitHub renders each from,
+and how a repeat is numbered.
 
 A prose word is whitespace-delimited text outside code blocks, table rows and headings: a section's words say how
 concise its prose is, and code and tables are free because they are the examples and references a document exists
@@ -20,12 +25,13 @@ from typing import Final
 
 from wenmode import Wenmode
 from wenmode.ast import plain_text
-from wenmode.nodes import Code, Image, Node, Parent, Position, Root
+from wenmode.nodes import Code, Html, Image, Literal, Node, Parent, Position, Root
 from wenmode.nodes import Heading as WenmodeHeading
 from wenmode.nodes import Link as WenmodeLink
 from wenmode.plugins import frontmatter
 from wenmode.plugins.frontmatter import FrontmatterPlugin
 
+from .anchor import Anchor
 from .frontmatter import FrontmatterNode, MissingFrontmatter, decode_frontmatter
 from .heading import Heading
 from .link import Link
@@ -44,11 +50,14 @@ class ParsedDocument:
     Attributes:
         frontmatter: The frontmatter block, or the reason there is no usable one.
         headings: The document's own top-level headings, in document order.
+        anchors: The anchor of every heading anywhere in the document, nested ones included, as GitHub derives
+            it; a repeated heading's numbered anchors are all here.
         links: Every link and image anywhere in the document, nested ones included, in document order.
     """
 
     frontmatter: FrontmatterNode
     headings: tuple[Heading, ...]
+    anchors: frozenset[Anchor]
     links: tuple[Link, ...]
 
 
@@ -68,6 +77,7 @@ def parse_document(text: str) -> ParsedDocument:
     return ParsedDocument(
         frontmatter=_frontmatter(root),
         headings=_headings(text, root.children, block_words),
+        anchors=_anchors(root),
         links=tuple(_links(text, root)),
     )
 
@@ -127,6 +137,56 @@ def _headings(text: str, blocks: list[Node], block_words: list[int]) -> tuple[He
             )
         )
     return tuple(headings)
+
+
+def _anchors(root: Root) -> frozenset[Anchor]:
+    """The anchor GitHub gives each heading in the document, a repeated one numbered as GitHub numbers it.
+
+    The whole tree is read, unlike for ``_headings``: a heading in a list item or a blockquote still renders with
+    an anchor a link can name. Headings take their anchors in document order. The first heading to take an anchor
+    keeps it bare; the next one with the same anchor gets ``-1`` added, the one after that ``-2``, and so on. A
+    numbered anchor another heading already holds is skipped, so ``Foo 1``, ``Foo``, ``Foo`` give ``foo-1``,
+    ``foo`` and ``foo-2``: no two headings share an anchor.
+    """
+    # Every anchor taken so far, each mapped to how many times it has been numbered as a bare anchor.
+    occurrences: dict[Anchor, int] = {}
+    for heading in _heading_nodes(root):
+        bare = Anchor.from_heading(_rendered_text(heading.children))
+        anchor = bare
+        while anchor in occurrences:
+            occurrences[bare] += 1
+            anchor = bare.numbered(occurrences[bare])
+        occurrences[anchor] = 0
+    return frozenset(occurrences)
+
+
+def _rendered_text(nodes: list[Node]) -> str:
+    """The text a heading's inline nodes render as, which is what GitHub derives the heading's anchor from.
+
+    Text and inline code give their text, and emphasis, a link and any other container give their children's.
+    Inline HTML gives nothing, since GitHub renders it as markup rather than text, and neither does an image: the
+    rendered ``<img>`` holds no text. That is where this differs from wenmode's ``plain_text``, which keeps both.
+    """
+    parts: list[str] = []
+    for node in nodes:
+        if isinstance(node, Html | Image):
+            continue
+        if isinstance(node, Literal):
+            parts.append(node.value)
+        elif isinstance(node, Parent):
+            parts.append(_rendered_text(node.children))
+    return ''.join(parts)
+
+
+def _heading_nodes(node: Node) -> list[WenmodeHeading]:
+    """Every wenmode heading in the node and below it, the node itself included, in document order."""
+    headings: list[WenmodeHeading] = []
+    if isinstance(node, WenmodeHeading):
+        headings.append(node)
+    if isinstance(node, Parent):
+        for child in node.children:
+            headings.extend(_heading_nodes(child))
+    return headings
 
 
 def _links(text: str, node: Node) -> list[Link]:

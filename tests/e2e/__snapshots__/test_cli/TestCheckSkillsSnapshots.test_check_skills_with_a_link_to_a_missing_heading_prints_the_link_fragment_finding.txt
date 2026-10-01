@@ -1,0 +1,1 @@
+.agents/skills/review/SKILL.md:7: [skill.link-fragment] `#checklist` names a heading this file does not have

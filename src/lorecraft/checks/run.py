@@ -8,8 +8,9 @@ given, and reads only the governed ones. Every check reports in the same shape, 
 every run the same way.
 
 The skill check runs over skills instead: the refs it is handed are the model's ``SkillRef``s, the parts it reads
-are the frontmatter and the links of each ``SKILL.md``, and the Agent Skills specification governs every one of
-them, so a skill is never ungoverned. It reports in a shape of its own, a ``SkillCheckRun`` of ``SkillReport``s.
+are the frontmatter, the links and the heading anchors of each ``SKILL.md``, and the Agent Skills specification
+governs every one of them, so a skill is never ungoverned. It reports in a shape of its own, a ``SkillCheckRun``
+of ``SkillReport``s.
 """
 
 from dataclasses import dataclass
@@ -317,7 +318,8 @@ def run_skills(database: Database, refs: tuple[SkillRef, ...]) -> SkillCheckRun:
                     SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name=ref.directory.name
                 )
                 # The frontmatter was read and decoded from these same bytes, so the parse cannot fail on them.
-                link_result = validate_skill_links(links=database.skill_parse(ref).links)
+                parsed = database.skill_parse(ref)
+                link_result = validate_skill_links(links=parsed.links, anchors=parsed.anchors)
                 violations = frontmatter_result.violations + link_result.violations
                 reports.append(SkillReport(ref, violations=violations))
             case _:

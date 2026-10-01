@@ -1,9 +1,10 @@
-"""A document's parse tree: the frontmatter node, the headings, the links, and the line positions every check reports
-against.
+"""A document's parse tree: the frontmatter node, the headings and their anchors, the links, and the line positions
+every check reports against.
 
 Beside it, ``count_tokens``: what a document's raw text costs an agent, counted without parsing it.
 """
 
+from .anchor import Anchor, InvalidAnchorError
 from .document import ParsedDocument, parse_document, parse_frontmatter
 from .frontmatter import (
     Frontmatter,
@@ -30,6 +31,8 @@ __all__ = [
     'NonMappingFrontmatter',
     'Heading',
     'Link',
+    'Anchor',
+    'InvalidAnchorError',
     'LineNumber',
     'InvalidLineNumberError',
     'count_tokens',
