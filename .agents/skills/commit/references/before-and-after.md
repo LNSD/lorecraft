@@ -13,15 +13,15 @@ Overflow from [SKILL.md](SKILL.md) section *Before and After*. Same distinction 
 The first lists two filenames. The second says what moved out of human review and into a gate, which is
 the whole reason a format specification exists.
 
-**A script that validates skills against the Agent Skills specification.**
+**A command that validates skills against the Agent Skills specification.**
 
 | | |
 |---|---|
-| Before | `chore(skills): add check_skill.py with frontmatter and link validation` |
-| After | `chore(skills): reject a skill the specification would not load` |
+| Before | `feat(cli): add a check skills subcommand with frontmatter validation` |
+| After | `feat(cli): reject a skill the specification would not load` |
 
-The first describes a file and its functions. The second names the class of breakage that can no longer
-reach `main`.
+The first describes a subcommand and what it validates. The second names the class of breakage that can
+no longer reach `main`.
 
 ## Full-message bodies
 
