@@ -11,7 +11,11 @@ from dataclasses import dataclass
 from typing import Final
 
 import yaml
+from yaml.composer import ComposerError
+from yaml.constructor import ConstructorError
+from yaml.error import Mark
 from yaml.reader import ReaderError
+from yaml.scanner import ScannerError
 
 from .position import LineNumber
 
@@ -86,8 +90,11 @@ class InvalidYamlFrontmatter:
     by identity.
 
     Attributes:
-        problem: What the YAML parser found wrong, in its own words, such as ``mapping values are not allowed here``.
-        line: The document line the problem is on, or None when the parser does not say.
+        problem: What the YAML parser found wrong, such as ``mapping values are not allowed here``: in the parser's
+            own words, or in this module's where the parser fails with a plain Python exception instead.
+        line: The document line the problem is on, or None when it cannot be known: when the parser does not say,
+            or when the block nests collections too deeply, where the parser stops at whatever depth the
+            interpreter's stack allows rather than at a line of the document.
     """
 
     problem: str
@@ -106,7 +113,9 @@ type FrontmatterNode = Frontmatter | MissingFrontmatter | InvalidYamlFrontmatter
 def decode_frontmatter(block: str) -> FrontmatterNode:
     """Decode the YAML between a document's ``---`` delimiters into its node. Pure: raises nothing.
 
-    Never ``MissingFrontmatter``: whether a block exists is decided before this is called.
+    Never ``MissingFrontmatter``: whether a block exists is decided before this is called. Every block PyYAML
+    cannot read is ``InvalidYamlFrontmatter``, including the few it fails on with a plain Python exception rather
+    than its own error, such as collections nested too deeply to parse.
 
     Args:
         block: The lines between the delimiters, line endings kept; the first of them is document line 2.
@@ -115,7 +124,7 @@ def decode_frontmatter(block: str) -> FrontmatterNode:
     # apart, on one loader, because the node tree is what records the line each key is written on.
     try:
         # The loader checks every character as it is built, so a control character fails here, not in the parse.
-        loader = yaml.SafeLoader(block)
+        loader = _SafeLoader(block)
     except ReaderError as exc:
         line = LineNumber(block.count('\n', 0, exc.position) + _FIRST_BLOCK_LINE)
         return InvalidYamlFrontmatter(problem=exc.reason, line=line)
@@ -130,13 +139,100 @@ def decode_frontmatter(block: str) -> FrontmatterNode:
             keys = _keys(node)
         data: object = None if node is None else loader.construct_document(node)
     except yaml.MarkedYAMLError as exc:
+        # `_SafeLoader` raises the plain Python exceptions PyYAML lets escape as its own errors, so this one clause
+        # sees every block that cannot be composed or constructed.
         return _invalid_yaml(exc)
     finally:
+        # Clears the parser's state stack and nothing else, so it raises nothing, even after a failed compose.
         loader.dispose()
 
     if not isinstance(node, yaml.MappingNode) or not isinstance(data, dict):
         return NonMappingFrontmatter()
     return Frontmatter(data=data, keys=keys)
+
+
+class _SafeLoader(yaml.SafeLoader):
+    """PyYAML's safe loader, raising its own error for every block it cannot read, never a plain Python exception.
+
+    PyYAML lets a plain Python exception escape in four places, and each is raised here as the loader's error,
+    which ``decode_frontmatter`` already turns into invalid YAML:
+
+    - The safe constructors of ``bool``, ``int``, ``float`` and ``timestamp`` convert a scalar's text with plain
+      Python: ``!!int x`` raises a ``ValueError`` and ``!!bool x`` a ``KeyError``, and an untagged scalar YAML
+      resolves to one of those tags fails the same way, such as the date ``9999-99-99``. Each is a
+      ``ConstructorError`` on the scalar's line.
+    - A double-quoted ``\\U`` escape above ``U+10FFFF`` names no character, and ``chr`` raises a ``ValueError``,
+      or an ``OverflowError`` for one too large for a C ``int``. It is a ``ScannerError`` on the escape's line.
+    - A ``%YAML`` directive whose version number has more digits than Python converts to an ``int``, 4300 by
+      default, raises a ``ValueError``. It is a ``ScannerError`` on the directive's line.
+    - Collections nested a few hundred levels deep exhaust the interpreter's stack in the composer, which recurses
+      once per level, and raise a ``RecursionError``. It is a ``ComposerError`` with no line.
+    """
+
+    def get_single_node(self) -> yaml.Node | None:
+        """Compose the block's one document into its node tree, as the safe loader does, or ``None`` for no document.
+
+        Raises:
+            ComposerError: The block nests collections deeper than the interpreter's stack can compose.
+            yaml.MarkedYAMLError: The block is not valid YAML, as PyYAML reports it.
+        """
+        try:
+            return super().get_single_node()
+        except RecursionError as exc:
+            # The composer recurses once per level of nesting, so only a deeply nested block reaches the
+            # interpreter's limit. Catching it is safe here: by the time this clause runs, the stack has unwound to
+            # this frame, so there is room to raise again, and the loader whose state the composer left half-built
+            # is discarded by its caller, which reads nothing more from it. The line is left out, because the
+            # depth the composer stops at depends on the interpreter's recursion limit and on how deep the caller's
+            # stack already was, not on the document.
+            problem = 'found collections nested too deeply to parse'
+            raise ComposerError(None, None, problem, None) from exc
+
+    def scan_flow_scalar_non_spaces(self, double: bool, start_mark: Mark) -> list[str]:
+        """Scan the text of a quoted scalar up to its next space, as the safe loader does.
+
+        Raises:
+            ScannerError: An escape names no Unicode character, or the text is not valid YAML.
+        """
+        try:
+            return super().scan_flow_scalar_non_spaces(double, start_mark)
+        except (ValueError, OverflowError) as exc:
+            # The scanner checks that an escape is written in hexadecimal, but not that the code point it names is
+            # at most U+10FFFF, so `chr` raises: a ValueError for `\U00110000`, and for `\UFFFFFFFF`, which does not
+            # fit a C int, an OverflowError on the interpreters that convert the argument first. Nothing else in
+            # this method raises either. The scanner stops on the escape's digits, so its current mark is on the
+            # escape's line.
+            problem = 'found an escape sequence that names no Unicode character'
+            raise ScannerError(None, None, problem, self.get_mark()) from exc
+
+    def scan_yaml_directive_number(self, start_mark: Mark) -> int:
+        """Scan one number of a ``%YAML`` directive's version, as the safe loader does.
+
+        Raises:
+            ScannerError: The number is too long to read, or the text is not a number.
+        """
+        try:
+            return super().scan_yaml_directive_number(start_mark)
+        except ValueError as exc:
+            # The scanner reads every digit there is and converts them with `int`, which refuses more digits than
+            # the interpreter's integer string conversion limit. The scanner stops before the digits, so its
+            # current mark is on the directive's line.
+            problem = 'found a YAML version number too long to read'
+            raise ScannerError(None, None, problem, self.get_mark()) from exc
+
+    def construct_object(self, node: yaml.Node, deep: bool = False) -> object:
+        """Construct the value of one node, as the safe loader does, or raise a ``ConstructorError`` marked at it."""
+        # The classes caught are the ones the safe constructors raise for a scalar's text: a `ValueError` from
+        # `int`, `float` or `datetime` for text or a field out of range, a `KeyError` from the `bool` lookup, an
+        # `IndexError` from reading the sign of empty text, an `AttributeError` from a timestamp that does not
+        # match its pattern, and a `TypeError` from a timestamp written as a `=` mapping. The failing scalar's own
+        # call raises it, so the scalar is the node marked; the error then passes through every enclosing call
+        # unchanged, since a `ConstructorError` is none of these classes.
+        try:
+            return super().construct_object(node, deep=deep)
+        except (ValueError, KeyError, IndexError, AttributeError, TypeError) as exc:
+            problem = f'could not construct a value for the tag {node.tag!r}'
+            raise ConstructorError(None, None, problem, node.start_mark) from exc
 
 
 def _invalid_yaml(error: yaml.MarkedYAMLError) -> InvalidYamlFrontmatter:
