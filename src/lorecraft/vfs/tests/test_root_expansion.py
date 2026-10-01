@@ -231,6 +231,19 @@ class TestFindRealScanRoot:
             'a following root starts where its directory leads, with its declared depth and policy'
         )
 
+    def test_find_real_scan_root_with_no_depth_limit_returns_the_root_with_no_depth_limit(self) -> None:
+        #: Given
+        tree = _FakeTree(directories=('shared', 'shared/skills'), links={'.agents': 'shared'})
+        scan_root = ScanRoot(_path('.agents/skills'), depth=None, follow_links=True)
+
+        #: When
+        real_root = find_real_scan_root(scan_root, tree)
+
+        #: Then
+        assert real_root == ScanRoot(_path('shared/skills'), depth=None, follow_links=True), (
+            'a root with no depth limit keeps it at its real directory'
+        )
+
     def test_find_real_scan_root_not_following_links_with_a_link_on_the_way_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(directories=('shared', 'shared/skills'), links={'.agents': 'shared'})
@@ -336,3 +349,29 @@ class TestFindLinkedScanRoot:
 
         #: Then
         assert linked_root is None, 'a link outside what the root lists is not followed from it'
+
+    def test_find_linked_scan_root_from_a_root_with_no_depth_limit_returns_a_root_with_no_depth_limit(self) -> None:
+        #: Given
+        scan_root = ScanRoot(_path('skills'), depth=None, follow_links=True)
+        link = _path('skills/a/references/deep/shared')
+        directory = _path('shared/references')
+        #: When
+        linked_root = find_linked_scan_root(scan_root, link, directory)
+
+        #: Then
+        assert linked_root == ScanRoot(_path('shared/references'), depth=None, follow_links=True), (
+            'a link at any depth under a root with no limit is listed with no limit either'
+        )
+
+    def test_find_linked_scan_root_from_a_root_with_no_depth_limit_to_an_ancestor_returns_a_root_equal_to_it(
+        self,
+    ) -> None:
+        #: Given
+        scan_root = ScanRoot(_path('skills'), depth=None, follow_links=True)
+        link = _path('skills/a/up')
+        directory = _path('skills')
+        #: When
+        linked_root = find_linked_scan_root(scan_root, link, directory)
+
+        #: Then
+        assert linked_root == scan_root, 'a link back to the root adds the root itself, which the scan has listed'

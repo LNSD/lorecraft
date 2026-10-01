@@ -136,7 +136,7 @@ def validate_skill_metadata(*, frontmatter: Frontmatter, listed: tuple[ListedFil
                     rule='skill.metadata-outside-scope',
                     message=(
                         f'`metadata.{subkey}` lists `{written}`, which lorecraft does not read; list a file directly '
-                        f'in docs/, in a directory directly in docs/, or directly in a skill directory'
+                        f'in docs/, in a directory directly in docs/, or anywhere in a skill directory'
                     ),
                 )
             )
