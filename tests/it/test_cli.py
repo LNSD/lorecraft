@@ -872,6 +872,36 @@ class TestCheckSkillsCommand:
             'ungoverned': [],
         }, 'the absolute link is reported on its own line, naming its destination'
 
+    def test_check_skills_with_json_format_over_a_skill_with_a_link_to_a_missing_heading_reports_the_link(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(
+            tmp_path,
+            '.agents/skills/review/SKILL.md',
+            '---\nname: review\ndescription: Review a change\n---\n# Review\n\nSee [the checklist](#checklist).\n',
+        )
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 1,
+            'findings': [
+                {
+                    'file': '.agents/skills/review/SKILL.md',
+                    'line': 7,
+                    'rule': 'skill.link-fragment',
+                    'message': '`#checklist` names a heading this file does not have',
+                    'spec': None,
+                }
+            ],
+            'ungoverned': [],
+        }, 'the link to a missing heading is reported on its own line, naming its fragment'
+
     def test_check_skills_with_json_format_over_a_skill_linked_outside_the_skills_directories_checks_it(
         self, tmp_path: Path
     ) -> None:
