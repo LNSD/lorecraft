@@ -421,4 +421,4 @@ def _working_directory() -> Path:
     try:
         return Path.cwd()
     except OSError as exc:
-        raise WorkingDirectoryReadError(OsRefusal.of(exc), source=exc) from exc
+        raise WorkingDirectoryReadError(OsRefusal.from_error(exc), source=exc) from exc

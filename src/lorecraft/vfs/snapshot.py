@@ -3,7 +3,7 @@
 A `Snapshot` holds the scope it was taken of, listings, file bytes and symlink targets, never a handle or a
 stat result, so two snapshots compare and hash structurally. `VirtualFileSystem` answers every `FileSystem`
 operation from one snapshot without touching the disk. `take_snapshot` in `disk.py` is the producer that
-reads the disk; `Snapshot.of_files` builds one by hand.
+reads the disk; `Snapshot.from_files` builds one by hand.
 """
 
 from collections.abc import Mapping
@@ -89,9 +89,9 @@ class Snapshot:
             followed leads to, sorted by path. The second kind may sit in a directory the scan did not list.
         links: The target of every SYMLINK entry of every listing, and of a symlink met on the way to a
             scope root or along a chain the scan followed, sorted by path. Empty when the snapshot was
-            built by `of_files`.
+            built by `from_files`.
         scope: The scan roots `take_snapshot` was given, in the order given and unmerged. Empty when nothing
-            was scanned, as for a snapshot built by `of_files` or by hand, and then no path is in scope.
+            was scanned, as for a snapshot built by `from_files` or by hand, and then no path is in scope.
     """
 
     listings: tuple[Listing, ...]
@@ -101,7 +101,7 @@ class Snapshot:
     scope: tuple[ScanRoot, ...] = ()
 
     @classmethod
-    def of_files(cls, files: Mapping[RootRelativePath, bytes]) -> Self:
+    def from_files(cls, files: Mapping[RootRelativePath, bytes]) -> Self:
         """Build a snapshot from file bytes alone, deriving every DIRECTORY entry and listing.
 
         Every directory on the way to a file is listed, the root `.` included. No path may sit under

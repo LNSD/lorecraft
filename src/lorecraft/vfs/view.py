@@ -57,7 +57,7 @@ class OsRefusal(Enum):
     OTHER = 'refused by the operating system'
 
     @classmethod
-    def of(cls, error: OSError) -> 'OsRefusal':
+    def from_error(cls, error: OSError) -> 'OsRefusal':
         """Classify an `OSError` by its `errno`; one the enum does not name is `OTHER`.
 
         Args:
