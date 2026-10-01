@@ -1,8 +1,9 @@
 """The layout's scope over a real tree: every file and directory inside a skill, at any depth, through its links.
 
 `take_snapshot` reads the tree with `SNAPSHOT_SCOPE`, the scope every command passes, and the database answers
-from that one snapshot, so these see the layout, the scan and the scope query wired together: what the snapshot
-holds inside a skill, and what `Database.is_in_scope` and `Database.find_real_file` say about a path there.
+from that one snapshot, so these see the layout, the scan and the queries wired together: what the snapshot holds
+inside a skill, what `Database.is_in_scope` and `Database.find_real_file` say about a path there, and which resources
+`Database.skill_resources` lists for the skill and how `Database.skill_resource_parse` reads one.
 """
 
 from pathlib import Path, PurePosixPath
@@ -13,9 +14,13 @@ import pytest
 from lorecraft.checks import Database
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.layout import SNAPSHOT_SCOPE
+from lorecraft.project.skill import SkillRef, SkillResourceDecodeError, SkillResourceLocation, SkillResourceRef
+from lorecraft.project.syntax import LineNumber
+from lorecraft.project.syntax import Link as MarkdownLink
 from lorecraft.vfs import Link, Snapshot, take_snapshot
 
 SKILL: Final[str] = '.agents/skills/review'
+REVIEW: Final[SkillRef] = SkillRef(RootRelativePath.parse(SKILL))
 
 
 def _write(root: Path, relative: str, data: bytes = b'') -> None:
@@ -29,6 +34,19 @@ def _write(root: Path, relative: str, data: bytes = b'') -> None:
     path = root / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
+
+
+def _skill_resource(path: str, resolves_to: str | None = None) -> SkillResourceLocation:
+    """The location of a resource of the `review` skill.
+
+    Args:
+        path: Where an agent reaches the resource, root-relative.
+        resolves_to: The real file it leads to; `path` itself when omitted.
+    """
+    real = path if resolves_to is None else resolves_to
+    return SkillResourceLocation(
+        SkillResourceRef(REVIEW, RootRelativePath.parse(path)), resolves_to=RootRelativePath.parse(real)
+    )
 
 
 def _file_paths(snapshot: Snapshot) -> set[RootRelativePath]:
@@ -59,7 +77,7 @@ def skill_tree(tmp_path: Path) -> Path:
     _write(root, f'{SKILL}/SKILL.md', b'---\nname: review\n---\n')
     _write(root, f'{SKILL}/references/a.md', b'# A\n')
     _write(root, f'{SKILL}/references/deep/b.md', b'# B\n')
-    _write(root, 'shared/guides/deeper/d.md', b'# D\n')
+    _write(root, 'shared/guides/deeper/d.md', b'# D\n\nSee [the skill](../../SKILL.md).\n')
     _write(root, 'notes/e.md', b'# E\n')
     _write(root, 'src/tool.py')
     _write(root, 'docs/feat/deep/a.md')
@@ -232,3 +250,116 @@ class TestSnapshotScopeInsideASkill:
 
         #: Then
         assert real_file is None, 'the file behind a link out of the repository was never read'
+
+
+@pytest.mark.it
+class TestDatabaseSkillResources:
+    def test_skill_resources_of_a_skill_with_nested_files_and_symlinks_lists_every_resource(
+        self, skill_tree: Path
+    ) -> None:
+        #: Given
+        database = Database(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
+
+        #: When
+        resources = database.skill_resources(REVIEW)
+
+        #: Then
+        assert resources == (
+            _skill_resource(f'{SKILL}/guides/deeper/d.md', 'shared/guides/deeper/d.md'),
+            _skill_resource(f'{SKILL}/notes.md', 'notes/e.md'),
+            _skill_resource(f'{SKILL}/references/a.md'),
+            _skill_resource(f'{SKILL}/references/deep/b.md'),
+        ), (
+            'nested resources and those behind symlinks are listed under the skill, at their real files; the symlink '
+            'back to the skill adds nothing, and the one outside the root is left out'
+        )
+
+    def test_skill_resources_of_a_skill_whose_entry_is_a_symlink_names_them_under_the_entry(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'skills/audit/SKILL.md', b'---\nname: audit\n---\n')
+        _write(tmp_path, 'skills/audit/references/a.md', b'# A\n')
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'audit').symlink_to('../../skills/audit')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        audit = SkillRef(RootRelativePath.parse('.agents/skills/audit'))
+
+        #: When
+        resources = database.skill_resources(audit)
+
+        #: Then
+        assert resources == (
+            SkillResourceLocation(
+                SkillResourceRef(audit, RootRelativePath.parse('.agents/skills/audit/references/a.md')),
+                resolves_to=RootRelativePath.parse('skills/audit/references/a.md'),
+            ),
+        ), 'the walk starts where the model locates the entry, and names the resource under the entry'
+
+    def test_skill_resources_called_twice_returns_the_first_answer(self, skill_tree: Path) -> None:
+        #: Given
+        database = Database(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
+        first = database.skill_resources(REVIEW)
+
+        #: When
+        second = database.skill_resources(REVIEW)
+
+        #: Then
+        assert second is first, "a skill's resources are listed once per database, then shared by every check"
+
+    def test_skill_resource_parse_of_a_resource_behind_a_symlinked_directory_parses_the_real_file(
+        self, skill_tree: Path
+    ) -> None:
+        #: Given
+        database = Database(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
+        ref = SkillResourceRef(REVIEW, RootRelativePath.parse(f'{SKILL}/guides/deeper/d.md'))
+
+        #: When
+        document = database.skill_resource_parse(ref)
+
+        #: Then
+        assert document.links == (MarkdownLink(url='../../SKILL.md', line=LineNumber(3)),), (
+            'the ref names the resource through the symlink, and the tree is parsed from shared/guides/deeper/d.md'
+        )
+
+    def test_skill_resource_parse_called_twice_returns_the_first_answer(self, skill_tree: Path) -> None:
+        #: Given
+        database = Database(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
+        ref = SkillResourceRef(REVIEW, RootRelativePath.parse(f'{SKILL}/references/a.md'))
+        first = database.skill_resource_parse(ref)
+
+        #: When
+        second = database.skill_resource_parse(ref)
+
+        #: Then
+        assert second is first, 'a resource is parsed once per database, then shared by every check'
+
+    def test_skill_resource_parse_of_a_resource_that_is_not_utf8_raises_skill_resource_decode_error(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, f'{SKILL}/SKILL.md', b'---\nname: review\n---\n')
+        _write(tmp_path, f'{SKILL}/references/a.md', b'caf\xe9\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        ref = SkillResourceRef(REVIEW, RootRelativePath.parse(f'{SKILL}/references/a.md'))
+
+        #: When
+        with pytest.raises(SkillResourceDecodeError) as exc_info:
+            database.skill_resource_parse(ref)
+
+        #: Then
+        assert exc_info.value.ref == ref, 'the error names the resource that could not be decoded'
+
+    def test_skill_resource_parse_of_a_resource_the_skill_does_not_hold_raises_value_error(
+        self, skill_tree: Path
+    ) -> None:
+        #: Given
+        database = Database(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
+        ref = SkillResourceRef(REVIEW, RootRelativePath.parse(f'{SKILL}/references/absent.md'))
+
+        #: When
+        with pytest.raises(ValueError) as exc_info:
+            database.skill_resource_parse(ref)
+
+        #: Then
+        assert f'{SKILL}/references/absent.md' in str(exc_info.value), 'the error names the resource the skill lacks'

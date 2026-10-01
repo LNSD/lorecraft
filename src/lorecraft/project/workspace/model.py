@@ -247,6 +247,20 @@ class WorkspaceModel:
             refs.append(location.ref)
         return tuple(refs)
 
+    def skill_location(self, ref: SkillRef) -> SkillLocation:
+        """Where the files of a skill this model lists live.
+
+        Args:
+            ref: Skill to look up; it must be one of this model's.
+
+        Raises:
+            ValueError: If the model lists no skill with this ref (refs from the model never trigger it).
+        """
+        for location in self.skill_locations:
+            if location.ref == ref:
+                return location
+        raise ValueError(f'skill {ref.directory} is not a skill of this model')
+
     def locate_skills(self, path: RootRelativePath) -> tuple[SkillRef, ...]:
         """The skills whose files are at this real path: the directory they lead to, or their ``SKILL.md``.
 
