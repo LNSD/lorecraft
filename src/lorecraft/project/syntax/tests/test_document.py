@@ -229,6 +229,18 @@ class TestParseDocumentHeadings:
             'a CRLF line ending counts as one line break'
         )
 
+    def test_parse_document_with_a_leading_blank_line_returns_the_heading_on_line_two(self) -> None:
+        #: Given
+        text = '\n# Guide\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert [heading.line for heading in document.headings] == [LineNumber(2)], (
+            'the line break opening the document counts, so the heading after it is on line 2'
+        )
+
 
 @pytest.mark.unit
 class TestParseDocumentWords:
@@ -295,6 +307,32 @@ class TestParseDocumentWords:
 
         #: Then
         assert document.headings[0].words == 2, 'a table row is a reference, not prose'
+
+    def test_parse_document_with_prose_after_a_table_row_in_one_paragraph_counts_the_prose(self) -> None:
+        #: Given
+        # no blank line separates the row from the prose, so the parser reads both as one paragraph
+        text = '## Gates\n\n| Gate | Recipe |\none two three\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.headings[0].words == 3, 'only the table row is left out; the prose after it still counts'
+
+    def test_parse_document_with_two_code_blocks_in_a_list_item_counts_the_prose_before_each(self) -> None:
+        #: Given
+        # three words open the item before the first code block, and three more sit between the two blocks
+        text = (
+            '## Steps\n\n'
+            '- first run:\n\n  ```bash\n  just fmt\n  ```\n\n'
+            '  then check it:\n\n  ```bash\n  just check\n  ```\n'
+        )
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.headings[0].words == 6, 'the prose before every code block in the item counts, not the last'
 
     def test_parse_document_with_text_before_the_first_heading_leaves_it_out_of_the_section(self) -> None:
         #: Given
