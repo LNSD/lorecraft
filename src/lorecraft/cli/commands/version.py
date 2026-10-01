@@ -5,7 +5,7 @@ from typing import Annotated
 import typer
 
 from ..registry import register
-from ..version import detailed_version, git_description, short_version
+from ..version import detailed_version, find_git_description, short_version
 
 
 @register('version')
@@ -19,4 +19,4 @@ def version(
     if not verbose:
         typer.echo(short_version())
         return
-    typer.echo(detailed_version(git_description()))
+    typer.echo(detailed_version(find_git_description()))

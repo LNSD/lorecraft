@@ -174,21 +174,21 @@ def locked_texts_dir(tmp_path: Path) -> Iterator[Path]:
 
 
 @pytest.mark.it
-class TestRepositoryResolveSkillsDir:
-    def test_resolve_skills_dir_with_a_regular_directory_returns_it(
+class TestRepositoryFindSkillsDir:
+    def test_find_skills_dir_with_a_regular_directory_returns_it(
         self, repository: Repository, universal_dir: Path
     ) -> None:
         #: Given
         skills_dir = UNIVERSAL_DIR
 
         #: When
-        resolved = repository.resolve_skills_dir(skills_dir)
+        resolved = repository.find_skills_dir(skills_dir)
 
         #: Then
         assert universal_dir.is_dir(), 'the case turns on the skills directory existing'
         assert resolved == UNIVERSAL_DIR, 'a regular skills directory is its own real directory'
 
-    def test_resolve_skills_dir_with_a_directory_linked_to_another_returns_the_other(
+    def test_find_skills_dir_with_a_directory_linked_to_another_returns_the_other(
         self, tmp_path: Path, repository: Repository, universal_dir: Path
     ) -> None:
         #: Given
@@ -196,39 +196,37 @@ class TestRepositoryResolveSkillsDir:
         (tmp_path / '.claude' / 'skills').symlink_to('../.agents/skills')
 
         #: When
-        resolved = repository.resolve_skills_dir(CLAUDE_DIR)
+        resolved = repository.find_skills_dir(CLAUDE_DIR)
 
         #: Then
         assert universal_dir.is_dir(), 'the case turns on the link leading to a directory'
         assert resolved == UNIVERSAL_DIR, 'a linked skills directory resolves to the directory it leads to'
 
-    def test_resolve_skills_dir_with_no_such_directory_returns_none(
-        self, tmp_path: Path, repository: Repository
-    ) -> None:
+    def test_find_skills_dir_with_no_such_directory_returns_none(self, tmp_path: Path, repository: Repository) -> None:
         #: Given
         # nothing is created under the temporary root
         missing_skills_dir = tmp_path / '.claude' / 'skills'
 
         #: When
-        resolved = repository.resolve_skills_dir(CLAUDE_DIR)
+        resolved = repository.find_skills_dir(CLAUDE_DIR)
 
         #: Then
         assert not missing_skills_dir.exists(), 'the case turns on the skills directory being absent'
         assert resolved is None, 'a repository without the directory has no such skills directory'
 
-    def test_resolve_skills_dir_with_a_dangling_link_returns_none(self, tmp_path: Path, repository: Repository) -> None:
+    def test_find_skills_dir_with_a_dangling_link_returns_none(self, tmp_path: Path, repository: Repository) -> None:
         #: Given
         (tmp_path / '.claude').mkdir()
         (tmp_path / '.claude' / 'skills').symlink_to('../.agents/skills')
 
         #: When
-        resolved = repository.resolve_skills_dir(CLAUDE_DIR)
+        resolved = repository.find_skills_dir(CLAUDE_DIR)
 
         #: Then
         assert resolved is None, 'a link that leads to no directory is not a skills directory'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
-    def test_resolve_skills_dir_with_an_unsearchable_parent_raises_resolve_dir_error(
+    def test_find_skills_dir_with_an_unsearchable_parent_raises_resolve_dir_error(
         self, repository: Repository, locked_agents_dir: Path
     ) -> None:
         #: Given
@@ -236,7 +234,7 @@ class TestRepositoryResolveSkillsDir:
 
         #: When
         with pytest.raises(DirResolveError) as exc_info:
-            repository.resolve_skills_dir(UNIVERSAL_DIR)
+            repository.find_skills_dir(UNIVERSAL_DIR)
 
         #: Then
         assert f'{locked.name}/skills' in str(exc_info.value), 'the error names the directory it could not resolve'

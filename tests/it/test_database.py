@@ -188,39 +188,39 @@ class TestDatabase:
         #: Then
         assert in_scope is True, 'every question after the first is answered from the same expanded scan roots'
 
-    def test_resolve_through_a_refused_link_chain_returns_none(self) -> None:
+    def test_find_real_path_through_a_refused_link_chain_returns_none(self) -> None:
         #: Given
         database = Database(_refused_chain_snapshot())
         path = RootRelativePath.parse('skills/l/SKILL.md')
 
         #: When
-        resolved = database.resolve(path)
+        resolved = database.find_real_path(path)
 
         #: Then
         assert resolved is None, (
             'the scan refuses ../a/tmp/../b, so skills/l/SKILL.md leads nowhere, though a/b/SKILL.md is recorded'
         )
 
-    def test_resolve_file_through_a_refused_link_chain_returns_none(self) -> None:
+    def test_find_real_file_through_a_refused_link_chain_returns_none(self) -> None:
         #: Given
         database = Database(_refused_chain_snapshot())
         path = RootRelativePath.parse('skills/l/SKILL.md')
 
         #: When
-        resolved = database.resolve_file(path)
+        resolved = database.find_real_file(path)
 
         #: Then
         assert resolved is None, (
             'the scan refuses ../a/tmp/../b, so skills/l/SKILL.md leads to no file, though a/b/SKILL.md is recorded'
         )
 
-    def test_resolve_file_through_a_followed_link_returns_the_real_file(self) -> None:
+    def test_find_real_file_through_a_followed_link_returns_the_real_file(self) -> None:
         #: Given
         database = Database(_refused_chain_snapshot())
         path = RootRelativePath.parse('skills/m/SKILL.md')
 
         #: When
-        resolved = database.resolve_file(path)
+        resolved = database.find_real_file(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('a/b/SKILL.md'), 'the scan follows skills/m to a/b'

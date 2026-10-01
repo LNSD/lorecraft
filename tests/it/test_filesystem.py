@@ -504,74 +504,76 @@ class TestDiskFileSystemReadText:
 
 
 @pytest.mark.it
-class TestDiskFileSystemEntryKind:
-    def test_entry_kind_with_a_regular_file_returns_file(self, tmp_path: Path) -> None:
+class TestDiskFileSystemFindEntryKind:
+    def test_find_entry_kind_with_a_regular_file_returns_file(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'notes.md').write_text('', encoding='utf-8')
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        kind = filesystem.entry_kind(RootRelativePath.parse('notes.md'))
+        kind = filesystem.find_entry_kind(RootRelativePath.parse('notes.md'))
 
         #: Then
         assert kind is EntryKind.FILE, 'a regular file is FILE'
 
-    def test_entry_kind_with_a_directory_returns_directory(self, tmp_path: Path) -> None:
+    def test_find_entry_kind_with_a_directory_returns_directory(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'docs').mkdir()
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        kind = filesystem.entry_kind(RootRelativePath.parse('docs'))
+        kind = filesystem.find_entry_kind(RootRelativePath.parse('docs'))
 
         #: Then
         assert kind is EntryKind.DIRECTORY, 'a regular directory is DIRECTORY'
 
-    def test_entry_kind_with_the_root_returns_directory(self, tmp_path: Path) -> None:
+    def test_find_entry_kind_with_the_root_returns_directory(self, tmp_path: Path) -> None:
         #: Given
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        kind = filesystem.entry_kind(RootRelativePath.parse('.'))
+        kind = filesystem.find_entry_kind(RootRelativePath.parse('.'))
 
         #: Then
         assert kind is EntryKind.DIRECTORY, 'the root is a directory'
 
-    def test_entry_kind_with_a_symlink_to_a_directory_returns_symlink(self, tmp_path: Path) -> None:
+    def test_find_entry_kind_with_a_symlink_to_a_directory_returns_symlink(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'real-docs').mkdir()
         (tmp_path / 'docs').symlink_to('real-docs')
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        kind = filesystem.entry_kind(RootRelativePath.parse('docs'))
+        kind = filesystem.find_entry_kind(RootRelativePath.parse('docs'))
 
         #: Then
         assert kind is EntryKind.SYMLINK, 'a link at the path is SYMLINK, never the directory it leads to'
 
-    def test_entry_kind_with_a_dangling_symlink_returns_symlink(self, tmp_path: Path) -> None:
+    def test_find_entry_kind_with_a_dangling_symlink_returns_symlink(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'link').symlink_to('missing')
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        kind = filesystem.entry_kind(RootRelativePath.parse('link'))
+        kind = filesystem.find_entry_kind(RootRelativePath.parse('link'))
 
         #: Then
         assert kind is EntryKind.SYMLINK, 'a link to nothing is still an entry, and a SYMLINK'
 
-    def test_entry_kind_with_a_fifo_returns_other(self, tmp_path: Path) -> None:
+    def test_find_entry_kind_with_a_fifo_returns_other(self, tmp_path: Path) -> None:
         #: Given
         os.mkfifo(tmp_path / 'pipe')
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        kind = filesystem.entry_kind(RootRelativePath.parse('pipe'))
+        kind = filesystem.find_entry_kind(RootRelativePath.parse('pipe'))
 
         #: Then
         assert kind is EntryKind.OTHER, 'neither a file nor a directory is OTHER'
 
-    def test_entry_kind_through_a_linked_parent_returns_the_kind_of_the_entry_it_leads_to(self, tmp_path: Path) -> None:
+    def test_find_entry_kind_through_a_linked_parent_returns_the_kind_of_the_entry_it_leads_to(
+        self, tmp_path: Path
+    ) -> None:
         #: Given
         (tmp_path / 'real').mkdir()
         (tmp_path / 'real' / 'SKILL.md').write_text('', encoding='utf-8')
@@ -579,45 +581,45 @@ class TestDiskFileSystemEntryKind:
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        kind = filesystem.entry_kind(RootRelativePath.parse('link/SKILL.md'))
+        kind = filesystem.find_entry_kind(RootRelativePath.parse('link/SKILL.md'))
 
         #: Then
         assert kind is EntryKind.FILE, 'a link on the way is followed, so link/SKILL.md is the file in real/'
 
-    def test_entry_kind_with_a_missing_path_returns_none(self, tmp_path: Path) -> None:
+    def test_find_entry_kind_with_a_missing_path_returns_none(self, tmp_path: Path) -> None:
         #: Given
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        kind = filesystem.entry_kind(RootRelativePath.parse('missing.md'))
+        kind = filesystem.find_entry_kind(RootRelativePath.parse('missing.md'))
 
         #: Then
         assert kind is None, 'a missing path has no kind rather than failing'
 
-    def test_entry_kind_through_a_file_component_returns_none(self, tmp_path: Path) -> None:
+    def test_find_entry_kind_through_a_file_component_returns_none(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'notes.md').write_text('', encoding='utf-8')
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        kind = filesystem.entry_kind(RootRelativePath.parse('notes.md/inner'))
+        kind = filesystem.find_entry_kind(RootRelativePath.parse('notes.md/inner'))
 
         #: Then
         assert kind is None, 'nothing sits inside a file, so the path has no kind'
 
-    def test_entry_kind_behind_a_looping_link_returns_none(self, tmp_path: Path) -> None:
+    def test_find_entry_kind_behind_a_looping_link_returns_none(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'loop').symlink_to('loop')
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        kind = filesystem.entry_kind(RootRelativePath.parse('loop/inner'))
+        kind = filesystem.find_entry_kind(RootRelativePath.parse('loop/inner'))
 
         #: Then
         assert kind is None, 'a looping parent leads to no directory, so nothing is inside it, like a dangling one'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
-    def test_entry_kind_under_an_unreadable_directory_raises_entry_kind_error(
+    def test_find_entry_kind_under_an_unreadable_directory_raises_entry_kind_error(
         self, tmp_path: Path, unreadable_dir: Path
     ) -> None:
         #: Given
@@ -626,7 +628,7 @@ class TestDiskFileSystemEntryKind:
 
         #: When
         with pytest.raises(EntryInspectError) as exc_info:
-            filesystem.entry_kind(inside)
+            filesystem.find_entry_kind(inside)
 
         #: Then
         assert exc_info.value.path == inside, 'the error names the root-relative path that could not be inspected'
@@ -636,54 +638,54 @@ class TestDiskFileSystemEntryKind:
 
 
 @pytest.mark.it
-class TestDiskFileSystemResolveDir:
-    def test_resolve_dir_with_a_regular_directory_returns_itself(self, tmp_path: Path) -> None:
+class TestDiskFileSystemFindRealDir:
+    def test_find_real_dir_with_a_regular_directory_returns_itself(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / '.agents' / 'skills').mkdir(parents=True)
         filesystem = DiskFileSystem(tmp_path)
         skills = RootRelativePath.parse('.agents/skills')
 
         #: When
-        resolved = filesystem.resolve_dir(skills)
+        resolved = filesystem.find_real_dir(skills)
 
         #: Then
         assert resolved == skills, 'a directory with no link in its path resolves to itself'
 
-    def test_resolve_dir_with_the_root_returns_dot(self, tmp_path: Path) -> None:
+    def test_find_real_dir_with_the_root_returns_dot(self, tmp_path: Path) -> None:
         #: Given
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.resolve_dir(RootRelativePath.parse('.'))
+        resolved = filesystem.find_real_dir(RootRelativePath.parse('.'))
 
         #: Then
         assert resolved == RootRelativePath.parse('.'), 'the root resolves to the empty root-relative path'
 
-    def test_resolve_dir_with_a_link_to_a_directory_returns_the_target(self, tmp_path: Path) -> None:
+    def test_find_real_dir_with_a_link_to_a_directory_returns_the_target(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'target').mkdir()
         (tmp_path / 'link').symlink_to(tmp_path / 'target')
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.resolve_dir(RootRelativePath.parse('link'))
+        resolved = filesystem.find_real_dir(RootRelativePath.parse('link'))
 
         #: Then
         assert resolved == RootRelativePath.parse('target'), 'a link to a directory resolves to the directory it names'
 
-    def test_resolve_dir_through_a_linked_parent_returns_the_real_directory(self, tmp_path: Path) -> None:
+    def test_find_real_dir_through_a_linked_parent_returns_the_real_directory(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / '.agents' / 'skills').mkdir(parents=True)
         (tmp_path / '.claude').symlink_to('.agents')
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.resolve_dir(RootRelativePath.parse('.claude/skills'))
+        resolved = filesystem.find_real_dir(RootRelativePath.parse('.claude/skills'))
 
         #: Then
         assert resolved == RootRelativePath.parse('.agents/skills'), 'a link on a parent component is followed too'
 
-    def test_resolve_dir_with_a_relative_link_from_a_subdirectory_returns_the_target(self, tmp_path: Path) -> None:
+    def test_find_real_dir_with_a_relative_link_from_a_subdirectory_returns_the_target(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / '.agents' / 'skills').mkdir(parents=True)
         (tmp_path / '.claude').mkdir()
@@ -691,80 +693,80 @@ class TestDiskFileSystemResolveDir:
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.resolve_dir(RootRelativePath.parse('.claude/skills'))
+        resolved = filesystem.find_real_dir(RootRelativePath.parse('.claude/skills'))
 
         #: Then
         assert resolved == RootRelativePath.parse('.agents/skills'), 'a relative target is read from the link directory'
 
-    def test_resolve_dir_with_a_dangling_link_returns_none(self, tmp_path: Path) -> None:
+    def test_find_real_dir_with_a_dangling_link_returns_none(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'link').symlink_to('missing')
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.resolve_dir(RootRelativePath.parse('link'))
+        resolved = filesystem.find_real_dir(RootRelativePath.parse('link'))
 
         #: Then
         assert resolved is None, 'a link to nothing leads to no directory'
 
-    def test_resolve_dir_with_a_link_loop_returns_none(self, tmp_path: Path) -> None:
+    def test_find_real_dir_with_a_link_loop_returns_none(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'first').symlink_to('second')
         (tmp_path / 'second').symlink_to('first')
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.resolve_dir(RootRelativePath.parse('first'))
+        resolved = filesystem.find_real_dir(RootRelativePath.parse('first'))
 
         #: Then
         assert resolved is None, 'a looping link leads nowhere, like a dangling one'
 
-    def test_resolve_dir_with_a_chain_longer_than_the_system_follows_returns_none(
+    def test_find_real_dir_with_a_chain_longer_than_the_system_follows_returns_none(
         self, tmp_path: Path, chain_of_41_links: str
     ) -> None:
         #: Given
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.resolve_dir(RootRelativePath.parse(chain_of_41_links))
+        resolved = filesystem.find_real_dir(RootRelativePath.parse(chain_of_41_links))
 
         #: Then
         assert resolved is None, 'nothing opens a directory through a chain the operating system gives up on'
 
-    def test_resolve_dir_with_a_link_to_a_file_returns_none(self, tmp_path: Path) -> None:
+    def test_find_real_dir_with_a_link_to_a_file_returns_none(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'notes.md').write_text('', encoding='utf-8')
         (tmp_path / 'link').symlink_to('notes.md')
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.resolve_dir(RootRelativePath.parse('link'))
+        resolved = filesystem.find_real_dir(RootRelativePath.parse('link'))
 
         #: Then
         assert resolved is None, 'a link whose target is a file is not a directory'
 
-    def test_resolve_dir_with_a_missing_path_returns_none(self, tmp_path: Path) -> None:
+    def test_find_real_dir_with_a_missing_path_returns_none(self, tmp_path: Path) -> None:
         #: Given
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.resolve_dir(RootRelativePath.parse('.agents/skills'))
+        resolved = filesystem.find_real_dir(RootRelativePath.parse('.agents/skills'))
 
         #: Then
         assert resolved is None, 'a missing path resolves to nothing rather than failing'
 
-    def test_resolve_dir_through_a_file_component_returns_none(self, tmp_path: Path) -> None:
+    def test_find_real_dir_through_a_file_component_returns_none(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'notes.md').write_text('', encoding='utf-8')
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.resolve_dir(RootRelativePath.parse('notes.md/skills'))
+        resolved = filesystem.find_real_dir(RootRelativePath.parse('notes.md/skills'))
 
         #: Then
         assert resolved is None, 'a path through a file resolves to nothing rather than failing'
 
-    def test_resolve_dir_with_a_link_outside_the_root_returns_none(
+    def test_find_real_dir_with_a_link_outside_the_root_returns_none(
         self, tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
     ) -> None:
         #: Given
@@ -773,13 +775,13 @@ class TestDiskFileSystemResolveDir:
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.resolve_dir(RootRelativePath.parse('link'))
+        resolved = filesystem.find_real_dir(RootRelativePath.parse('link'))
 
         #: Then
         assert resolved is None, 'a directory outside the root has no root-relative spelling'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
-    def test_resolve_dir_under_an_unreadable_directory_raises_resolve_dir_error(
+    def test_find_real_dir_under_an_unreadable_directory_raises_resolve_dir_error(
         self, tmp_path: Path, unreadable_dir: Path
     ) -> None:
         #: Given
@@ -788,7 +790,7 @@ class TestDiskFileSystemResolveDir:
 
         #: When
         with pytest.raises(DirResolveError) as exc_info:
-            filesystem.resolve_dir(inside_locked)
+            filesystem.find_real_dir(inside_locked)
 
         #: Then
         assert exc_info.value.path == inside_locked, 'the error names the root-relative path'
@@ -796,7 +798,7 @@ class TestDiskFileSystemResolveDir:
         assert isinstance(exc_info.value.source, PermissionError), 'the error keeps the operating system failure'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
-    def test_resolve_dir_with_a_link_into_an_unreadable_directory_outside_the_root_returns_none(
+    def test_find_real_dir_with_a_link_into_an_unreadable_directory_outside_the_root_returns_none(
         self, tmp_path: Path, unreadable_outside_dir: Path
     ) -> None:
         #: Given
@@ -804,26 +806,26 @@ class TestDiskFileSystemResolveDir:
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.resolve_dir(RootRelativePath.parse('link'))
+        resolved = filesystem.find_real_dir(RootRelativePath.parse('link'))
 
         #: Then
         assert resolved is None, 'a chain leading outside the root never fails, even where the lookup is refused'
 
 
 @pytest.mark.it
-class TestDiskFileSystemResolveFile:
-    def test_resolve_file_with_a_regular_file_returns_itself(self, tmp_path: Path) -> None:
+class TestDiskFileSystemFindRealFile:
+    def test_find_real_file_with_a_regular_file_returns_itself(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'notes.md').write_text('', encoding='utf-8')
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.resolve_file(RootRelativePath.parse('notes.md'))
+        resolved = filesystem.find_real_file(RootRelativePath.parse('notes.md'))
 
         #: Then
         assert resolved == RootRelativePath.parse('notes.md'), 'a file with no link in its path resolves to itself'
 
-    def test_resolve_file_with_a_link_to_a_file_returns_the_target(self, tmp_path: Path) -> None:
+    def test_find_real_file_with_a_link_to_a_file_returns_the_target(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'shared').mkdir()
         (tmp_path / 'shared' / 'REVIEW.md').write_text('', encoding='utf-8')
@@ -832,14 +834,14 @@ class TestDiskFileSystemResolveFile:
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.resolve_file(RootRelativePath.parse('review/SKILL.md'))
+        resolved = filesystem.find_real_file(RootRelativePath.parse('review/SKILL.md'))
 
         #: Then
         assert resolved == RootRelativePath.parse('shared/REVIEW.md'), (
             'a link to a file resolves to the file it names, whatever that file is called'
         )
 
-    def test_resolve_file_through_a_linked_parent_returns_the_real_file(self, tmp_path: Path) -> None:
+    def test_find_real_file_through_a_linked_parent_returns_the_real_file(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / '.agents' / 'skills' / 'review').mkdir(parents=True)
         (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').write_text('', encoding='utf-8')
@@ -847,58 +849,58 @@ class TestDiskFileSystemResolveFile:
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.resolve_file(RootRelativePath.parse('.claude/skills/review/SKILL.md'))
+        resolved = filesystem.find_real_file(RootRelativePath.parse('.claude/skills/review/SKILL.md'))
 
         #: Then
         assert resolved == RootRelativePath.parse('.agents/skills/review/SKILL.md'), (
             'a link on a parent component is followed too'
         )
 
-    def test_resolve_file_with_a_directory_returns_none(self, tmp_path: Path) -> None:
+    def test_find_real_file_with_a_directory_returns_none(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'docs').mkdir()
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.resolve_file(RootRelativePath.parse('docs'))
+        resolved = filesystem.find_real_file(RootRelativePath.parse('docs'))
 
         #: Then
         assert resolved is None, 'a directory is not a file'
 
-    def test_resolve_file_with_a_dangling_link_returns_none(self, tmp_path: Path) -> None:
+    def test_find_real_file_with_a_dangling_link_returns_none(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'link').symlink_to('missing.md')
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.resolve_file(RootRelativePath.parse('link'))
+        resolved = filesystem.find_real_file(RootRelativePath.parse('link'))
 
         #: Then
         assert resolved is None, 'a link to nothing leads to no file'
 
-    def test_resolve_file_with_a_link_loop_returns_none(self, tmp_path: Path) -> None:
+    def test_find_real_file_with_a_link_loop_returns_none(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'first').symlink_to('second')
         (tmp_path / 'second').symlink_to('first')
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.resolve_file(RootRelativePath.parse('first'))
+        resolved = filesystem.find_real_file(RootRelativePath.parse('first'))
 
         #: Then
         assert resolved is None, 'a looping link leads nowhere, like a dangling one'
 
-    def test_resolve_file_with_a_missing_path_returns_none(self, tmp_path: Path) -> None:
+    def test_find_real_file_with_a_missing_path_returns_none(self, tmp_path: Path) -> None:
         #: Given
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.resolve_file(RootRelativePath.parse('missing.md'))
+        resolved = filesystem.find_real_file(RootRelativePath.parse('missing.md'))
 
         #: Then
         assert resolved is None, 'a missing path resolves to nothing rather than failing'
 
-    def test_resolve_file_with_a_link_outside_the_root_returns_none(
+    def test_find_real_file_with_a_link_outside_the_root_returns_none(
         self, tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
     ) -> None:
         #: Given
@@ -908,13 +910,13 @@ class TestDiskFileSystemResolveFile:
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.resolve_file(RootRelativePath.parse('link'))
+        resolved = filesystem.find_real_file(RootRelativePath.parse('link'))
 
         #: Then
         assert resolved is None, 'a file outside the root has no root-relative spelling'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
-    def test_resolve_file_under_an_unreadable_directory_raises_resolve_file_error(
+    def test_find_real_file_under_an_unreadable_directory_raises_resolve_file_error(
         self, tmp_path: Path, unreadable_dir: Path
     ) -> None:
         #: Given
@@ -923,7 +925,7 @@ class TestDiskFileSystemResolveFile:
 
         #: When
         with pytest.raises(FileResolveError) as exc_info:
-            filesystem.resolve_file(inside_locked)
+            filesystem.find_real_file(inside_locked)
 
         #: Then
         assert exc_info.value.path == inside_locked, 'the error names the root-relative path'
@@ -932,7 +934,7 @@ class TestDiskFileSystemResolveFile:
         assert str(inside_locked) in str(exc_info.value), 'the message names the path that could not be resolved'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
-    def test_resolve_file_with_a_link_into_an_unreadable_directory_outside_the_root_returns_none(
+    def test_find_real_file_with_a_link_into_an_unreadable_directory_outside_the_root_returns_none(
         self, tmp_path: Path, unreadable_outside_dir: Path
     ) -> None:
         #: Given
@@ -940,7 +942,7 @@ class TestDiskFileSystemResolveFile:
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.resolve_file(RootRelativePath.parse('link'))
+        resolved = filesystem.find_real_file(RootRelativePath.parse('link'))
 
         #: Then
         assert resolved is None, 'a chain leading outside the root never fails, even where the lookup is refused'
@@ -1907,95 +1909,101 @@ class TestVirtualFileSystemMatchesDisk:
         #: Then
         assert virtual_answer == disk_answer, 'reading the missing docs/missing.md fails the same over the snapshot'
 
-    # entry_kind: a listed entry of every kind, entries recorded outside a listing of their parent, entries behind
+    # find_entry_kind: a listed entry of every kind, entries recorded outside a listing of their parent, entries behind
     # the linked scope root, and paths neither view holds anything at. An entry inside an unentered directory is
     # left out: the disk sees it, while the snapshot never entered the directory.
 
-    def test_entry_kind_over_a_snapshot_with_a_scope_root_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_entry_kind_over_a_snapshot_with_a_scope_root_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+        disk_answer, virtual_answer = _answers(disk.find_entry_kind, virtual.find_entry_kind, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'docs is a directory on both, though the snapshot never listed the root'
 
-    def test_entry_kind_over_a_snapshot_with_the_meta_directory_entry_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_entry_kind_over_a_snapshot_with_the_meta_directory_entry_agrees_with_disk(
+        self, parity_tree: Path
+    ) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/__meta__'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+        disk_answer, virtual_answer = _answers(disk.find_entry_kind, virtual.find_entry_kind, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'docs/__meta__ is a directory on both'
 
-    def test_entry_kind_over_a_snapshot_with_a_code_file_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_entry_kind_over_a_snapshot_with_a_code_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/code/a.md'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+        disk_answer, virtual_answer = _answers(disk.find_entry_kind, virtual.find_entry_kind, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'docs/code/a.md is a file on both'
 
-    def test_entry_kind_over_a_snapshot_with_a_link_to_a_file_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_entry_kind_over_a_snapshot_with_a_link_to_a_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/code/linked.md'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+        disk_answer, virtual_answer = _answers(disk.find_entry_kind, virtual.find_entry_kind, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'docs/code/linked.md is a link on both, never the file it leads to'
 
-    def test_entry_kind_over_a_snapshot_with_a_fifo_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_entry_kind_over_a_snapshot_with_a_fifo_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = PARITY_FIFO
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+        disk_answer, virtual_answer = _answers(disk.find_entry_kind, virtual.find_entry_kind, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the fifo is OTHER on both'
 
-    def test_entry_kind_over_a_snapshot_with_an_unentered_directory_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_entry_kind_over_a_snapshot_with_an_unentered_directory_agrees_with_disk(
+        self, parity_tree: Path
+    ) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/code/sub'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+        disk_answer, virtual_answer = _answers(disk.find_entry_kind, virtual.find_entry_kind, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'docs/code/sub is a directory on both, though the scan never entered it'
 
-    def test_entry_kind_over_a_snapshot_with_the_linked_scope_root_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_entry_kind_over_a_snapshot_with_the_linked_scope_root_agrees_with_disk(
+        self, parity_tree: Path
+    ) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = '.claude/skills'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+        disk_answer, virtual_answer = _answers(disk.find_entry_kind, virtual.find_entry_kind, path)
 
         #: Then
         assert virtual_answer == disk_answer, '.claude/skills is a link on both, though it sits in no listing'
 
-    def test_entry_kind_over_a_snapshot_with_a_link_behind_the_linked_scope_root_agrees_with_disk(
+    def test_find_entry_kind_over_a_snapshot_with_a_link_behind_the_linked_scope_root_agrees_with_disk(
         self, parity_tree: Path
     ) -> None:
         #: Given
@@ -2004,12 +2012,12 @@ class TestVirtualFileSystemMatchesDisk:
         path = '.claude/skills/beta'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+        disk_answer, virtual_answer = _answers(disk.find_entry_kind, virtual.find_entry_kind, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the link on the way is followed on both, and beta is a link itself'
 
-    def test_entry_kind_over_a_snapshot_with_a_file_behind_the_linked_scope_root_agrees_with_disk(
+    def test_find_entry_kind_over_a_snapshot_with_a_file_behind_the_linked_scope_root_agrees_with_disk(
         self, parity_tree: Path
     ) -> None:
         #: Given
@@ -2018,48 +2026,48 @@ class TestVirtualFileSystemMatchesDisk:
         path = '.claude/skills/alpha/SKILL.md'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+        disk_answer, virtual_answer = _answers(disk.find_entry_kind, virtual.find_entry_kind, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the link on the way is followed on both, to a file'
 
-    def test_entry_kind_over_a_snapshot_behind_a_dangling_link_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_entry_kind_over_a_snapshot_behind_a_dangling_link_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/dangling/inner'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+        disk_answer, virtual_answer = _answers(disk.find_entry_kind, virtual.find_entry_kind, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'nothing is inside a dangling link on either view'
 
-    def test_entry_kind_over_a_snapshot_behind_a_looping_link_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_entry_kind_over_a_snapshot_behind_a_looping_link_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/loop/inner'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+        disk_answer, virtual_answer = _answers(disk.find_entry_kind, virtual.find_entry_kind, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'nothing is inside a looping link on either view'
 
-    def test_entry_kind_over_a_snapshot_with_a_missing_path_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_entry_kind_over_a_snapshot_with_a_missing_path_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/missing.md'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+        disk_answer, virtual_answer = _answers(disk.find_entry_kind, virtual.find_entry_kind, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'docs/missing.md has no kind on either view'
 
-    def test_entry_kind_over_a_snapshot_with_a_linked_docs_agrees_with_disk(self, tmp_path: Path) -> None:
+    def test_find_entry_kind_over_a_snapshot_with_a_linked_docs_agrees_with_disk(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'real-docs' / 'code').mkdir(parents=True)
         (tmp_path / 'docs').symlink_to('real-docs')
@@ -2068,53 +2076,53 @@ class TestVirtualFileSystemMatchesDisk:
         path = 'docs'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.entry_kind, virtual.entry_kind, path)
+        disk_answer, virtual_answer = _answers(disk.find_entry_kind, virtual.find_entry_kind, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'a linked scope root the scan does not follow is a link on both'
 
-    # resolve_file: a skill file, one reached through a linked skill entry, and a directory.
+    # find_real_file: a skill file, one reached through a linked skill entry, and a directory.
 
-    def test_resolve_file_over_a_snapshot_with_a_skill_file_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_real_file_over_a_snapshot_with_a_skill_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = '.agents/skills/alpha/SKILL.md'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_file, virtual.resolve_file, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_file, virtual.find_real_file, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the file SKILL.md resolves to itself on both'
 
-    def test_resolve_file_over_a_snapshot_through_a_skill_link_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_real_file_over_a_snapshot_through_a_skill_link_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = '.agents/skills/beta/SKILL.md'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_file, virtual.resolve_file, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_file, virtual.find_real_file, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the SKILL.md behind the link beta is the one in alpha on both'
 
-    def test_resolve_file_over_a_snapshot_with_a_skill_directory_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_real_file_over_a_snapshot_with_a_skill_directory_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = '.agents/skills/alpha'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_file, virtual.resolve_file, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_file, virtual.find_real_file, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the directory alpha is no file on either'
 
-    # resolve_dir: every entry and listing, plus the chains that run through the recorded links. Three listings
+    # find_real_dir: every entry and listing, plus the chains that run through the recorded links. Three listings
     # are also directory entries, so their paths are checked twice, once as each.
 
-    def test_resolve_dir_over_a_snapshot_with_the_skill_directory_entry_agrees_with_disk(
+    def test_find_real_dir_over_a_snapshot_with_the_skill_directory_entry_agrees_with_disk(
         self, parity_tree: Path
     ) -> None:
         #: Given
@@ -2123,48 +2131,48 @@ class TestVirtualFileSystemMatchesDisk:
         path = '.agents/skills/alpha'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the directory entry .agents/skills/alpha resolves to itself on both'
 
-    def test_resolve_dir_over_a_snapshot_with_a_skill_file_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_real_dir_over_a_snapshot_with_a_skill_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = '.agents/skills/alpha/SKILL.md'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the file SKILL.md leads to no directory on either'
 
-    def test_resolve_dir_over_a_snapshot_with_a_skill_link_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_real_dir_over_a_snapshot_with_a_skill_link_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = '.agents/skills/beta'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the link beta leads to .agents/skills/alpha on both'
 
-    def test_resolve_dir_over_a_snapshot_with_the_linked_scope_root_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_real_dir_over_a_snapshot_with_the_linked_scope_root_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = '.claude/skills'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the linked scope root .claude/skills leads to .agents/skills on both'
 
-    def test_resolve_dir_over_a_snapshot_with_the_meta_directory_entry_agrees_with_disk(
+    def test_find_real_dir_over_a_snapshot_with_the_meta_directory_entry_agrees_with_disk(
         self, parity_tree: Path
     ) -> None:
         #: Given
@@ -2173,36 +2181,36 @@ class TestVirtualFileSystemMatchesDisk:
         path = 'docs/__meta__'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the directory entry docs/__meta__ resolves to itself on both'
 
-    def test_resolve_dir_over_a_snapshot_with_a_meta_file_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_real_dir_over_a_snapshot_with_a_meta_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/__meta__/code.md'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the file docs/__meta__/code.md leads to no directory on either'
 
-    def test_resolve_dir_over_a_snapshot_with_an_absolute_link_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_real_dir_over_a_snapshot_with_an_absolute_link_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/absolute'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the absolute link docs/absolute leads to docs/code on both'
 
-    def test_resolve_dir_over_a_snapshot_with_the_code_directory_entry_agrees_with_disk(
+    def test_find_real_dir_over_a_snapshot_with_the_code_directory_entry_agrees_with_disk(
         self, parity_tree: Path
     ) -> None:
         #: Given
@@ -2211,60 +2219,62 @@ class TestVirtualFileSystemMatchesDisk:
         path = 'docs/code'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the directory entry docs/code resolves to itself on both'
 
-    def test_resolve_dir_over_a_snapshot_with_a_code_file_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_real_dir_over_a_snapshot_with_a_code_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/code/a.md'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the file docs/code/a.md leads to no directory on either'
 
-    def test_resolve_dir_over_a_snapshot_with_a_link_to_a_file_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_real_dir_over_a_snapshot_with_a_link_to_a_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/code/linked.md'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'linked.md leads to the file a.md, so to no directory on either'
 
-    def test_resolve_dir_over_a_snapshot_with_a_fifo_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_real_dir_over_a_snapshot_with_a_fifo_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/code/pipe'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the fifo docs/code/pipe leads to no directory on either'
 
-    def test_resolve_dir_over_a_snapshot_with_an_unentered_directory_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_real_dir_over_a_snapshot_with_an_unentered_directory_agrees_with_disk(
+        self, parity_tree: Path
+    ) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/code/sub'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the unentered docs/code/sub resolves to itself on both'
 
-    def test_resolve_dir_over_a_snapshot_with_a_relative_link_to_a_directory_agrees_with_disk(
+    def test_find_real_dir_over_a_snapshot_with_a_relative_link_to_a_directory_agrees_with_disk(
         self, parity_tree: Path
     ) -> None:
         #: Given
@@ -2273,156 +2283,156 @@ class TestVirtualFileSystemMatchesDisk:
         path = 'docs/code-link'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the link docs/code-link leads to docs/code on both'
 
-    def test_resolve_dir_over_a_snapshot_with_a_dangling_link_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_real_dir_over_a_snapshot_with_a_dangling_link_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/dangling'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the dangling link docs/dangling leads to no directory on either'
 
-    def test_resolve_dir_over_a_snapshot_with_a_docs_file_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_real_dir_over_a_snapshot_with_a_docs_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/glossary.md'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the file docs/glossary.md leads to no directory on either'
 
-    def test_resolve_dir_over_a_snapshot_with_a_non_utf8_file_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_real_dir_over_a_snapshot_with_a_non_utf8_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/latin.md'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the file docs/latin.md leads to no directory on either'
 
-    def test_resolve_dir_over_a_snapshot_with_a_looping_link_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_real_dir_over_a_snapshot_with_a_looping_link_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/loop'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the looping link docs/loop leads to no directory on either'
 
-    def test_resolve_dir_over_a_snapshot_with_a_link_up_to_the_root_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_real_dir_over_a_snapshot_with_a_link_up_to_the_root_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/up'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the link docs/up leads to the root on both'
 
-    def test_resolve_dir_over_a_snapshot_with_the_skills_listing_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_real_dir_over_a_snapshot_with_the_skills_listing_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = '.agents/skills'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the listed .agents/skills resolves to itself on both'
 
-    def test_resolve_dir_over_a_snapshot_with_the_skill_listing_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_real_dir_over_a_snapshot_with_the_skill_listing_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = '.agents/skills/alpha'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the listed .agents/skills/alpha resolves to itself on both'
 
-    def test_resolve_dir_over_a_snapshot_with_the_claude_listing_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_real_dir_over_a_snapshot_with_the_claude_listing_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = '.claude'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the listed .claude resolves to itself on both'
 
-    def test_resolve_dir_over_a_snapshot_with_the_docs_listing_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_real_dir_over_a_snapshot_with_the_docs_listing_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the listed docs resolves to itself on both'
 
-    def test_resolve_dir_over_a_snapshot_with_the_meta_listing_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_real_dir_over_a_snapshot_with_the_meta_listing_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/__meta__'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the listed docs/__meta__ resolves to itself on both'
 
-    def test_resolve_dir_over_a_snapshot_with_the_code_listing_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_real_dir_over_a_snapshot_with_the_code_listing_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/code'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the listed docs/code resolves to itself on both'
 
-    def test_resolve_dir_over_a_snapshot_with_the_root_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_real_dir_over_a_snapshot_with_the_root_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = '.'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the root resolves to itself on both'
 
-    def test_resolve_dir_over_a_snapshot_with_a_directory_behind_the_linked_scope_root_agrees_with_disk(
+    def test_find_real_dir_over_a_snapshot_with_a_directory_behind_the_linked_scope_root_agrees_with_disk(
         self, parity_tree: Path
     ) -> None:
         #: Given
@@ -2431,12 +2441,12 @@ class TestVirtualFileSystemMatchesDisk:
         path = '.claude/skills/alpha'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, '.claude/skills/alpha leads to .agents/skills/alpha on both'
 
-    def test_resolve_dir_over_a_snapshot_with_a_link_behind_the_linked_scope_root_agrees_with_disk(
+    def test_find_real_dir_over_a_snapshot_with_a_link_behind_the_linked_scope_root_agrees_with_disk(
         self, parity_tree: Path
     ) -> None:
         #: Given
@@ -2445,12 +2455,12 @@ class TestVirtualFileSystemMatchesDisk:
         path = '.claude/skills/beta'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, '.claude/skills/beta follows two links to .agents/skills/alpha on both'
 
-    def test_resolve_dir_over_a_snapshot_with_a_directory_behind_an_absolute_link_agrees_with_disk(
+    def test_find_real_dir_over_a_snapshot_with_a_directory_behind_an_absolute_link_agrees_with_disk(
         self, parity_tree: Path
     ) -> None:
         #: Given
@@ -2459,12 +2469,12 @@ class TestVirtualFileSystemMatchesDisk:
         path = 'docs/absolute/sub'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'docs/absolute/sub leads to docs/code/sub on both'
 
-    def test_resolve_dir_over_a_snapshot_with_a_directory_behind_a_relative_link_agrees_with_disk(
+    def test_find_real_dir_over_a_snapshot_with_a_directory_behind_a_relative_link_agrees_with_disk(
         self, parity_tree: Path
     ) -> None:
         #: Given
@@ -2473,12 +2483,12 @@ class TestVirtualFileSystemMatchesDisk:
         path = 'docs/code-link/sub'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'docs/code-link/sub leads to docs/code/sub on both'
 
-    def test_resolve_dir_over_a_snapshot_with_listed_components_after_a_link_up_agrees_with_disk(
+    def test_find_real_dir_over_a_snapshot_with_listed_components_after_a_link_up_agrees_with_disk(
         self, parity_tree: Path
     ) -> None:
         #: Given
@@ -2487,24 +2497,24 @@ class TestVirtualFileSystemMatchesDisk:
         path = 'docs/up/docs/code'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'docs/up/docs/code climbs to the root, then leads to docs/code on both'
 
-    def test_resolve_dir_over_a_snapshot_with_a_missing_path_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_real_dir_over_a_snapshot_with_a_missing_path_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/missing'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the missing docs/missing leads to no directory on either'
 
-    def test_resolve_dir_over_a_snapshot_with_an_absolute_link_under_an_aliased_root_agrees_with_disk(
+    def test_find_real_dir_over_a_snapshot_with_an_absolute_link_under_an_aliased_root_agrees_with_disk(
         self, aliased_root_with_an_absolute_link: Path
     ) -> None:
         #: Given
@@ -2512,7 +2522,7 @@ class TestVirtualFileSystemMatchesDisk:
         virtual = VirtualFileSystem(take_snapshot(aliased_root_with_an_absolute_link, SNAPSHOT_SCOPE))
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, 'docs/absolute')
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, 'docs/absolute')
 
         #: Then
         assert virtual_answer == disk_answer, 'the absolute link leads to the same directory over the snapshot'
@@ -2530,7 +2540,7 @@ class TestVirtualFileSystemMatchesDisk:
         #: Then
         assert virtual_answer == disk_answer, 'the parent listing shows .claude/skills over the snapshot too'
 
-    def test_resolve_dir_over_a_snapshot_with_an_unresolved_claude_skills_agrees_with_disk(
+    def test_find_real_dir_over_a_snapshot_with_an_unresolved_claude_skills_agrees_with_disk(
         self, unresolved_claude_skills_tree: Path
     ) -> None:
         #: Given
@@ -2538,7 +2548,7 @@ class TestVirtualFileSystemMatchesDisk:
         virtual = VirtualFileSystem(take_snapshot(unresolved_claude_skills_tree, SNAPSHOT_SCOPE))
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, '.claude/skills')
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, '.claude/skills')
 
         #: Then
         assert virtual_answer == disk_answer, '.claude/skills leads to no directory over the snapshot either'
@@ -2546,7 +2556,7 @@ class TestVirtualFileSystemMatchesDisk:
 
 @pytest.mark.it
 class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
-    def test_resolve_dir_over_a_following_snapshot_with_a_skill_linked_out_of_the_scope_agrees_with_disk(
+    def test_find_real_dir_over_a_following_snapshot_with_a_skill_linked_out_of_the_scope_agrees_with_disk(
         self, linked_skills_tree: Path
     ) -> None:
         #: Given
@@ -2555,12 +2565,12 @@ class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
         path = '.agents/skills/review'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the linked skill leads to skills/review over the snapshot too'
 
-    def test_resolve_dir_over_a_following_snapshot_with_a_skill_behind_two_links_agrees_with_disk(
+    def test_find_real_dir_over_a_following_snapshot_with_a_skill_behind_two_links_agrees_with_disk(
         self, linked_skills_tree: Path
     ) -> None:
         #: Given
@@ -2569,7 +2579,7 @@ class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
         path = '.claude/skills/review'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, (
@@ -2621,7 +2631,7 @@ class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
         #: Then
         assert virtual_answer == disk_answer, 'a SKILL.md that is itself a link reads as the file it leads to on both'
 
-    def test_resolve_dir_over_a_following_snapshot_with_a_chain_longer_than_the_system_follows_agrees_with_disk(
+    def test_find_real_dir_over_a_following_snapshot_with_a_chain_longer_than_the_system_follows_agrees_with_disk(
         self, tmp_path: Path, chain_of_41_links: str
     ) -> None:
         #: Given
@@ -2630,12 +2640,12 @@ class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
         virtual = VirtualFileSystem(take_snapshot(tmp_path, scope))
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, chain_of_41_links)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, chain_of_41_links)
 
         #: Then
         assert virtual_answer == disk_answer, 'a chain of 41 links leads to no directory on either view'
 
-    def test_resolve_dir_over_a_following_snapshot_with_a_chain_as_long_as_the_system_follows_returns_real_on_both(
+    def test_find_real_dir_over_a_following_snapshot_with_a_chain_as_long_as_the_system_follows_returns_real_on_both(
         self, tmp_path: Path, chain_of_40_links: str
     ) -> None:
         #: Given
@@ -2645,7 +2655,7 @@ class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
         real = RootRelativePath.parse('real')
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.resolve_dir, virtual.resolve_dir, chain_of_40_links)
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, chain_of_40_links)
 
         #: Then
         assert (disk_answer, virtual_answer) == (real, real), 'a chain of 40 links still leads to real on both views'
@@ -2762,7 +2772,7 @@ def _is_listed(snapshot: Snapshot, directory: RootRelativePath) -> bool:
         snapshot: The scan whose listings are looked in.
         directory: The root-relative directory to look up, spelled through any link.
     """
-    real_directory = VirtualFileSystem(snapshot).resolve_dir(directory)
+    real_directory = VirtualFileSystem(snapshot).find_real_dir(directory)
     listed: set[RootRelativePath] = set()
     for listing in snapshot.listings:
         listed.add(listing.path)
@@ -2941,11 +2951,11 @@ class TestIsInScopeMatchesSnapshot:
 
 
 @pytest.mark.it
-class TestResolveFileMatchesScan:
-    # Whatever `resolve_file` reaches through a link must be something the scan followed the link to: the view
+class TestFindRealFileMatchesScan:
+    # Whatever `find_real_file` reaches through a link must be something the scan followed the link to: the view
     # reaches an existing file exactly where the scope query, which retraces the scan, says the scan lists it.
 
-    def test_resolve_file_through_a_followed_skill_link_agrees_with_the_scope(self, scope_parity_tree: Path) -> None:
+    def test_find_real_file_through_a_followed_skill_link_agrees_with_the_scope(self, scope_parity_tree: Path) -> None:
         #: Given
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         path = RootRelativePath.parse('.agents/skills/y/SKILL.md')
@@ -2953,14 +2963,14 @@ class TestResolveFileMatchesScan:
         virtual = VirtualFileSystem(snapshot)
 
         #: When
-        reached = virtual.resolve_file(path)
+        reached = virtual.find_real_file(path)
 
         #: Then
         assert (reached is not None, declared) == (True, True), (
             'the skills root follows .agents/skills/y to skills/y and reads its SKILL.md'
         )
 
-    def test_resolve_file_through_a_linked_skills_directory_agrees_with_the_scope(
+    def test_find_real_file_through_a_linked_skills_directory_agrees_with_the_scope(
         self, scope_parity_tree: Path
     ) -> None:
         #: Given
@@ -2970,14 +2980,14 @@ class TestResolveFileMatchesScan:
         virtual = VirtualFileSystem(snapshot)
 
         #: When
-        reached = virtual.resolve_file(path)
+        reached = virtual.find_real_file(path)
 
         #: Then
         assert (reached is not None, declared) == (True, True), (
             '.claude/skills leads to .agents/skills, whose skill x is listed'
         )
 
-    def test_resolve_file_through_an_unfollowed_docs_link_to_a_sibling_agrees_with_the_scope(
+    def test_find_real_file_through_an_unfollowed_docs_link_to_a_sibling_agrees_with_the_scope(
         self, scope_parity_tree: Path
     ) -> None:
         #: Given
@@ -2987,14 +2997,14 @@ class TestResolveFileMatchesScan:
         virtual = VirtualFileSystem(snapshot)
 
         #: When
-        reached = virtual.resolve_file(path)
+        reached = virtual.find_real_file(path)
 
         #: Then
         assert (reached is not None, declared) == (True, True), (
             'the link is not followed, but docs/feat, where it leads, is listed anyway'
         )
 
-    def test_resolve_file_through_an_unfollowed_docs_link_out_agrees_with_the_scope(
+    def test_find_real_file_through_an_unfollowed_docs_link_out_agrees_with_the_scope(
         self, scope_parity_tree: Path
     ) -> None:
         #: Given
@@ -3004,14 +3014,14 @@ class TestResolveFileMatchesScan:
         virtual = VirtualFileSystem(snapshot)
 
         #: When
-        reached = virtual.resolve_file(path)
+        reached = virtual.find_real_file(path)
 
         #: Then
         assert (reached is not None, declared) == (False, False), (
             'docs/ does not follow its link to elsewhere/, which no root covers'
         )
 
-    def test_resolve_file_through_a_link_inside_a_skill_agrees_with_the_scope(self, scope_parity_tree: Path) -> None:
+    def test_find_real_file_through_a_link_inside_a_skill_agrees_with_the_scope(self, scope_parity_tree: Path) -> None:
         #: Given
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         path = RootRelativePath.parse('.agents/skills/x/lib/a.md')
@@ -3019,14 +3029,14 @@ class TestResolveFileMatchesScan:
         virtual = VirtualFileSystem(snapshot)
 
         #: When
-        reached = virtual.resolve_file(path)
+        reached = virtual.find_real_file(path)
 
         #: Then
         assert (reached is not None, declared) == (False, False), (
             'a skill directory has no depth left, so its link to lib/ is not followed'
         )
 
-    def test_resolve_file_through_a_link_climbing_out_of_its_own_directory_agrees_with_the_scope(
+    def test_find_real_file_through_a_link_climbing_out_of_its_own_directory_agrees_with_the_scope(
         self, refused_chain_tree: Path
     ) -> None:
         #: Given
@@ -3036,14 +3046,14 @@ class TestResolveFileMatchesScan:
         virtual = VirtualFileSystem(snapshot)
 
         #: When
-        reached = virtual.resolve_file(path)
+        reached = virtual.find_real_file(path)
 
         #: Then
         assert (reached is not None, declared) == (True, True), (
             'the target ../a/b climbs only out of skills/, where the link sits, so the scan follows it'
         )
 
-    def test_resolve_file_through_a_refused_chain_to_a_listed_directory_agrees_with_the_scope(
+    def test_find_real_file_through_a_refused_chain_to_a_listed_directory_agrees_with_the_scope(
         self, refused_chain_tree: Path
     ) -> None:
         #: Given
@@ -3054,7 +3064,7 @@ class TestResolveFileMatchesScan:
         target_listed = _is_listed(snapshot, RootRelativePath.parse('a/b'))
 
         #: When
-        reached = virtual.resolve_file(path)
+        reached = virtual.find_real_file(path)
 
         #: Then
         assert (reached is not None, declared, target_listed) == (False, False, True), (

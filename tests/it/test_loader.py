@@ -242,7 +242,7 @@ def _namespaces(model: WorkspaceModel, corpus: CorpusName) -> tuple[str, ...]:
         model: Loaded workspace model to read the corpus from.
         corpus: Name of the corpus whose namespace specs are listed; it must be in the model.
     """
-    loaded = model.corpus(corpus)
+    loaded = model.find_corpus(corpus)
     assert loaded is not None, f'the model lists corpus {corpus}'
     return tuple(str(spec.namespace) for spec in loaded.namespace_specs)
 
@@ -303,7 +303,7 @@ class TestLoadWorkspaceAmp:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        code = model.corpus(CODE)
+        code = model.find_corpus(CODE)
         assert code is not None, 'the model lists the code corpus'
         crate = code.namespace_specs[0]
         assert crate.files == (SPECS_DIR / 'code-crate.structure.json',), (
@@ -342,7 +342,7 @@ class TestLoadWorkspaceMono:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        ref = model.locate(RootRelativePath.parse('docs/code/rust-errors-handling.md'))
+        ref = model.find_document(RootRelativePath.parse('docs/code/rust-errors-handling.md'))
         assert ref is not None, 'the document is listed'
         assert model.governance(ref).frontmatter_schemas() == (), 'prose-only specs carry no frontmatter schema'
         assert _namespaces(model, CODE) == ('pattern', 'principle', 'rust'), 'prose-only namespace specs load'
@@ -482,7 +482,7 @@ class TestLoadWorkspaceEdgeCases:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        code = model.corpus(CODE)
+        code = model.find_corpus(CODE)
         assert code is not None, 'the corpus still loads from its prose stem'
         assert code.spec.files == (SPECS_DIR / 'code.md',), 'a misnamed aspect token is not part of the spec'
 
@@ -496,7 +496,7 @@ class TestLoadWorkspaceEdgeCases:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        feat = model.corpus(FEAT)
+        feat = model.find_corpus(FEAT)
         assert feat is not None, 'the corpus loads from its prose stem'
         assert feat.spec.files == (SPECS_DIR / 'feat.md',), 'feat.feature is not a stem, so its file is not a spec'
 
@@ -547,7 +547,7 @@ class TestLoadWorkspaceEdgeCases:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        corpus = model.corpus(CODE)
+        corpus = model.find_corpus(CODE)
         assert corpus is not None, 'the corpus still loads from its prose stem'
         assert corpus.spec.files == (SPECS_DIR / 'code.md',), 'the header file is not one of the spec files'
         assert corpus.spec.structure is None, 'and it states no rules'
@@ -578,7 +578,7 @@ class TestLoadWorkspaceEdgeCases:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        ref = model.locate(RootRelativePath.parse('docs/code/logging.md'))
+        ref = model.find_document(RootRelativePath.parse('docs/code/logging.md'))
         assert ref is not None, 'the document is listed'
         aspects = model.governance(ref).structure_specs()
         assert tuple(aspect.path for aspect in aspects) == (SPECS_DIR / 'code.structure.json',), (
@@ -646,7 +646,7 @@ class TestLoadWorkspaceEdgeCases:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        code = model.corpus(CODE)
+        code = model.find_corpus(CODE)
         assert code is not None, 'the model lists the code corpus'
         assert code.namespace_specs[0].name == (CODE, AspectNamespace.parse('python')), (
             'the stem is parsed into corpus and namespace'

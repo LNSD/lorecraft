@@ -162,7 +162,7 @@ class TestDecodeFrontmatter:
             FrontmatterKey('name', LineNumber(2)),
             FrontmatterKey('name', LineNumber(3)),
         ), 'a key tagged `!!value` is listed as the string it decodes to'
-        assert node.key_line('name') == LineNumber(3), 'the line of the key is the one whose value the data holds'
+        assert node.find_key_line('name') == LineNumber(3), 'the line of the key is the one whose value the data holds'
 
     def test_decode_frontmatter_with_a_merge_overriding_a_written_key_lists_only_the_written_keys(self) -> None:
         #: Given
@@ -503,18 +503,18 @@ class TestDecodeFrontmatter:
 
 
 @pytest.mark.unit
-class TestFrontmatterKeyLine:
-    def test_key_line_with_a_present_key_returns_its_line(self) -> None:
+class TestFrontmatterFindKeyLine:
+    def test_find_key_line_with_a_present_key_returns_its_line(self) -> None:
         #: Given
         frontmatter = Frontmatter(data={'type': 'rule'}, keys=(FrontmatterKey('type', LineNumber(3)),))
 
         #: When
-        line = frontmatter.key_line('type')
+        line = frontmatter.find_key_line('type')
 
         #: Then
         assert line == LineNumber(3), f'the type key is on line 3, got {line}'
 
-    def test_key_line_with_a_repeated_key_returns_the_line_of_its_last_occurrence(self) -> None:
+    def test_find_key_line_with_a_repeated_key_returns_the_line_of_its_last_occurrence(self) -> None:
         #: Given
         frontmatter = Frontmatter(
             data={'name': 'other'},
@@ -522,17 +522,17 @@ class TestFrontmatterKeyLine:
         )
 
         #: When
-        line = frontmatter.key_line('name')
+        line = frontmatter.find_key_line('name')
 
         #: Then
         assert line == LineNumber(5), f'the last occurrence is the one whose value the data holds, got {line}'
 
-    def test_key_line_with_an_absent_key_returns_none(self) -> None:
+    def test_find_key_line_with_an_absent_key_returns_none(self) -> None:
         #: Given
         frontmatter = Frontmatter(data={'type': 'rule'}, keys=(FrontmatterKey('type', LineNumber(3)),))
 
         #: When
-        line = frontmatter.key_line('name')
+        line = frontmatter.find_key_line('name')
 
         #: Then
         assert line is None, f'an absent key has no line, got {line}'

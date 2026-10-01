@@ -3,9 +3,9 @@
 Every path crossing this boundary is a ``RootRelativePath`` such as ``docs/code/logging.md``: never absolute,
 never holding a ``..`` component, so no argument can name a file outside the root. The type carries that
 proof, so no implementation checks it again. Nothing above the boundary sees a ``Path``, a handle, a stat
-result or an mtime. ``resolve_dir`` and ``resolve_file`` are the two operations that report where a symlink
+result or an mtime. ``find_real_dir`` and ``find_real_file`` are the two operations that report where a symlink
 chain leads, as a root-relative directory or file; ``list_dir`` and ``read_text`` reach through a link on the
-way to the path they are given, or at it, and never report or classify a link's target. ``entry_kind`` reaches
+way to the path they are given, or at it, and never report or classify a link's target. ``find_entry_kind`` reaches
 through a link on the way and reports one at the path as a link, as a listing of its parent would. Every
 implementation of the view is this package's own: ``DiskFileSystem`` reads the disk under the workspace
 root, and ``VirtualFileSystem`` answers from a ``Snapshot``.
@@ -272,7 +272,7 @@ class FileSystem(ABC):
         """
 
     @abstractmethod
-    def entry_kind(self, path: RootRelativePath) -> EntryKind | None:
+    def find_entry_kind(self, path: RootRelativePath) -> EntryKind | None:
         """What the entry at `path` itself is, as `list_dir` of its parent would list it.
 
         A symlink on the way to `path` is followed, as `list_dir` follows one to the directory it lists; a
@@ -290,10 +290,10 @@ class FileSystem(ABC):
         """
 
     @abstractmethod
-    def resolve_dir(self, path: RootRelativePath) -> RootRelativePath | None:
+    def find_real_dir(self, path: RootRelativePath) -> RootRelativePath | None:
         """Follow every symlink in `path` and return the real directory it leads to, root-relative.
 
-        One of the two operations that say where a symlink leads, with `resolve_file`: `list_dir` and
+        One of the two operations that say where a symlink leads, with `find_real_file`: `list_dir` and
         `read_text` follow a link without naming the real path. A regular directory resolves to itself,
         and the root resolves to `.`.
 
@@ -313,10 +313,10 @@ class FileSystem(ABC):
         """
 
     @abstractmethod
-    def resolve_file(self, path: RootRelativePath) -> RootRelativePath | None:
+    def find_real_file(self, path: RootRelativePath) -> RootRelativePath | None:
         """Follow every symlink in `path` and return the real regular file it leads to, root-relative.
 
-        `resolve_dir`'s counterpart for a file: a regular file resolves to itself, and a link to one resolves
+        `find_real_dir`'s counterpart for a file: a regular file resolves to itself, and a link to one resolves
         to the file it leads to, wherever the chain goes on the way.
 
         Args:

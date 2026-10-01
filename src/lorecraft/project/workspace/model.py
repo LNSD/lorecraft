@@ -211,7 +211,7 @@ class WorkspaceModel:
     skills_dirs: tuple[SkillsDir, ...]
     skill_locations: tuple[SkillLocation, ...]
 
-    def corpus(self, name: CorpusName) -> Corpus | None:
+    def find_corpus(self, name: CorpusName) -> Corpus | None:
         """The corpus with this name, or None when the model has none.
 
         Args:
@@ -229,7 +229,7 @@ class WorkspaceModel:
             refs.extend(corpus.documents)
         return tuple(refs)
 
-    def locate(self, path: RootRelativePath) -> DocumentRef | None:
+    def find_document(self, path: RootRelativePath) -> DocumentRef | None:
         """The ref whose `path` equals this root-relative path, or None.
 
         Args:
@@ -287,7 +287,7 @@ class WorkspaceModel:
         Raises:
             ValueError: If `ref.corpus` is not a corpus of this model (refs from the model never trigger it).
         """
-        corpus = self.corpus(ref.corpus)
+        corpus = self.find_corpus(ref.corpus)
         if corpus is None:
             raise ValueError(f'document {ref.path} is in no corpus of this model')
         return corpus.governance(ref)

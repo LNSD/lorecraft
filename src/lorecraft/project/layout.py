@@ -75,5 +75,5 @@ def require_real_layout(fs: FileSystem) -> None:
     """
     # `docs/` first: a scan stops at a linked `docs/`, so a snapshot never knows what `docs/__meta__/` is.
     for directory in (DOCS_DIR, SPECS_DIR):
-        if fs.entry_kind(directory) is EntryKind.SYMLINK:
+        if fs.find_entry_kind(directory) is EntryKind.SYMLINK:
             raise LinkedLayoutError(directory)
