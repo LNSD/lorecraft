@@ -1,8 +1,8 @@
 ---
 name: code-test
-description: Run targeted tests after format and lint are green. Defaults to the unit tier; widens to the integration, end-to-end or whole suite only on explicit signals. Use after editing Python code under src/ or tests/, or when the user asks to run tests. No tier here needs a container, an external service, or credentials.
+description: Run targeted tests after format and lint are green. Defaults to the unit tier; widens to the integration, end-to-end or whole suite only on explicit signals. Use after editing Python code under src/ or tests/, or when the user asks to run tests. Also runs mutation testing, an expensive run that scores how effective the tests are at catching faults, only when asked how strong the tests are or whether they pin what they claim. No tier here needs a container, an external service, or credentials.
 compatibility: Requires the just task runner and uv. pytest is invoked through the project environment rather than a system install. Nothing else is needed — this repository has no container-backed, networked or credentialed tests.
-allowed-tools: Bash(just test-unit *) Bash(just test-it *) Bash(just test-e2e *) Bash(just test *) Bash(just snapshot-review) Bash(uv run pytest src/*) Bash(uv run pytest tests/*)
+allowed-tools: Bash(just test-unit *) Bash(just test-it *) Bash(just test-e2e *) Bash(just test *) Bash(just test-mut *) Bash(just test-unit-mut *) Bash(just test-it-mut *) Bash(just test-mut-report *) Bash(uv run mutmut results*) Bash(uv run mutmut show *) Bash(just snapshot-review) Bash(uv run pytest src/*) Bash(uv run pytest tests/*)
 ---
 
 # Code Testing Skill
@@ -88,6 +88,30 @@ A failing snapshot is a finding, not a chore: when output changed on purpose, ru
 read `just snapshot-review`, and commit the snapshot with the change. Never update to turn a run green
 without reading the diff. Updating one tier alone reads the other tiers' snapshots as unused, so the recipe
 never filters.
+
+## Mutation testing
+
+**Expensive, and never the check after an edit.** mutmut injects small faults into `src/lorecraft/` — a
+flipped comparison, a changed constant, a dropped argument — and runs the tier once per fault. A fault the
+tests catch is *killed*; one they miss *survives*. The share killed is how effective the tests are, which line
+coverage cannot tell you: a line can run under a test that asserts nothing about it.
+
+Run it when the user asks how strong the tests are, before hardening a module's tests, or to confirm new tests
+pin the behaviour they claim to. It costs minutes and every core.
+
+| Command | Purpose |
+|---|---|
+| `just test-mut` | Against the unit and integration tiers together: the suite's score. |
+| `just test-unit-mut` | Against the unit tier alone: what the unit tests pin without help. |
+| `just test-it-mut` | Against the integration tier alone. |
+| `just test-mut-report [TITLE]` | The last run as Markdown: the score, survivors per module, a sample of diffs. |
+
+Mutant names, as globs, narrow a run to one module: `just test-mut 'lorecraft.vfs.disk.*'`. Each run starts
+from an empty `mutants/`. The e2e tier has no recipe: it runs the console script in a subprocess, where
+mutmut cannot swap a fault in. CI runs `just test-mut` alone on every pull request and posts the report as
+one comment; it never fails the build.
+
+Read [references/mutation-testing.md](references/mutation-testing.md) before acting on a surviving mutant.
 
 ## Notes
 
