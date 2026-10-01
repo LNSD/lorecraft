@@ -20,6 +20,14 @@ _BROKEN_HELP: Final[tuple[Note, ...]] = (
 )
 """The help a `skill.link-broken` violation carries, whatever the link."""
 
+_ABSOLUTE_HELP: Final[tuple[Note, ...]] = (Note(NoteKind.HELP, 'link relative to the skill root'),)
+"""The help a `skill.link-absolute` violation carries, whatever the link."""
+
+_ESCAPE_HELP: Final[tuple[Note, ...]] = (
+    Note(NoteKind.HELP, 'link a file inside the skill, relative to the skill root'),
+)
+"""The help a `skill.link-escapes` violation carries, whatever the link."""
+
 
 @pytest.mark.unit
 class TestValidateSkillLinks:
@@ -35,7 +43,8 @@ class TestValidateSkillLinks:
             Violation(
                 line=LineNumber(7),
                 rule='skill.link-absolute',
-                message='`/docs/guide.md` is absolute; link relative to the skill root',
+                message='`/docs/guide.md` is absolute',
+                notes=_ABSOLUTE_HELP,
             ),
         ), 'a link from the filesystem root is one violation, on the line the link is on'
 
@@ -51,7 +60,8 @@ class TestValidateSkillLinks:
             Violation(
                 line=LineNumber(3),
                 rule='skill.link-absolute',
-                message='`/a b` is absolute; link relative to the skill root',
+                message='`/a b` is absolute',
+                notes=_ABSOLUTE_HELP,
             ),
         ), 'the message shows the destination as it was written, not as the parser percent-encoded it'
 
@@ -78,10 +88,8 @@ class TestValidateSkillLinks:
             Violation(
                 line=LineNumber(3),
                 rule='skill.link-escapes',
-                message=(
-                    '`../../docs/guide.md` leaves the skill directory; link a file inside the skill, '
-                    'relative to the skill root'
-                ),
+                message='`../../docs/guide.md` leaves the skill directory',
+                notes=_ESCAPE_HELP,
             ),
         ), 'a relative link leaving the skill escapes it, and is not absolute'
 
@@ -237,7 +245,8 @@ class TestValidateSkillLinks:
             Violation(
                 line=LineNumber(6),
                 rule='skill.link-absolute',
-                message='`/a.md` is absolute; link relative to the skill root',
+                message='`/a.md` is absolute',
+                notes=_ABSOLUTE_HELP,
             ),
             Violation(
                 line=LineNumber(8),
@@ -259,10 +268,20 @@ class TestValidateSkillLinks:
         result = validate_skill_links(links=links, anchors=frozenset(), targets=targets, linked_in=frozenset())
 
         #: Then
-        assert [(violation.line, violation.message) for violation in result.violations] == [
-            (LineNumber(5), '`/a.md` is absolute; link relative to the skill root'),
-            (LineNumber(9), '`/c.png` is absolute; link relative to the skill root'),
-        ], 'every absolute link is its own violation, in document order, and the relative one between them is not'
+        assert result.violations == (
+            Violation(
+                line=LineNumber(5),
+                rule='skill.link-absolute',
+                message='`/a.md` is absolute',
+                notes=_ABSOLUTE_HELP,
+            ),
+            Violation(
+                line=LineNumber(9),
+                rule='skill.link-absolute',
+                message='`/c.png` is absolute',
+                notes=_ABSOLUTE_HELP,
+            ),
+        ), 'every absolute link is its own violation, in document order, and the relative one between them is not'
 
     def test_validate_skill_links_with_a_link_to_a_missing_file_reports_it_broken_on_its_line(self) -> None:
         #: Given
@@ -381,9 +400,8 @@ class TestValidateSkillResourceLinks:
             Violation(
                 line=LineNumber(4),
                 rule='skill.link-escapes',
-                message=(
-                    '`../SKILL.md` leaves the skill directory; link a file inside the skill, relative to the skill root'
-                ),
+                message='`../SKILL.md` leaves the skill directory',
+                notes=_ESCAPE_HELP,
             ),
         ), 'read from the skill root, not from the resource, `..` climbs out of the skill'
 
@@ -399,10 +417,8 @@ class TestValidateSkillResourceLinks:
             Violation(
                 line=LineNumber(2),
                 rule='skill.link-escapes',
-                message=(
-                    '`../../../../../outside.md` leaves the skill directory; link a file inside the skill, '
-                    'relative to the skill root'
-                ),
+                message='`../../../../../outside.md` leaves the skill directory',
+                notes=_ESCAPE_HELP,
             ),
         ), 'a link climbing past the repository root lies outside the skill too'
 
@@ -431,10 +447,8 @@ class TestValidateSkillResourceLinks:
             Violation(
                 line=LineNumber(3),
                 rule='skill.link-escapes',
-                message=(
-                    '`../review/references/a.md` leaves the skill directory; link a file inside the skill, '
-                    'relative to the skill root'
-                ),
+                message='`../review/references/a.md` leaves the skill directory',
+                notes=_ESCAPE_HELP,
             ),
         ), 'the path alone decides: it climbs above the skill root, whatever directory the skill is installed as'
 
@@ -452,10 +466,8 @@ class TestValidateSkillResourceLinks:
             Violation(
                 line=LineNumber(3),
                 rule='skill.link-escapes',
-                message=(
-                    '`../../skills/review/SKILL.md` leaves the skill directory; link a file inside the skill, '
-                    'relative to the skill root'
-                ),
+                message='`../../skills/review/SKILL.md` leaves the skill directory',
+                notes=_ESCAPE_HELP,
             ),
         ), 'a link naming the skill by the repository path breaks once the skill is installed elsewhere'
 
@@ -504,10 +516,8 @@ class TestValidateSkillResourceLinks:
             Violation(
                 line=LineNumber(5),
                 rule='skill.link-escapes',
-                message=(
-                    '`../../docs/guide.md#usage` leaves the skill directory; link a file inside the skill, '
-                    'relative to the skill root'
-                ),
+                message='`../../docs/guide.md#usage` leaves the skill directory',
+                notes=_ESCAPE_HELP,
             ),
         ), 'the path decides the rule, and the message shows the link as written, fragment included'
 
@@ -556,9 +566,8 @@ class TestValidateSkillResourceLinks:
             Violation(
                 line=LineNumber(3),
                 rule='skill.link-escapes',
-                message=(
-                    '`../a b.md` leaves the skill directory; link a file inside the skill, relative to the skill root'
-                ),
+                message='`../a b.md` leaves the skill directory',
+                notes=_ESCAPE_HELP,
             ),
         ), 'the path is percent-decoded before it is joined, and the message shows it as it was written'
 
@@ -586,10 +595,8 @@ class TestValidateSkillResourceLinks:
             Violation(
                 line=LineNumber(6),
                 rule='skill.link-escapes',
-                message=(
-                    '`../../assets/flow.png` leaves the skill directory; link a file inside the skill, '
-                    'relative to the skill root'
-                ),
+                message='`../../assets/flow.png` leaves the skill directory',
+                notes=_ESCAPE_HELP,
             ),
         ), 'an image source outside the skill is a file the skill does not carry'
 
@@ -612,16 +619,14 @@ class TestValidateSkillResourceLinks:
             Violation(
                 line=LineNumber(2),
                 rule='skill.link-escapes',
-                message=(
-                    '`../a.md` leaves the skill directory; link a file inside the skill, relative to the skill root'
-                ),
+                message='`../a.md` leaves the skill directory',
+                notes=_ESCAPE_HELP,
             ),
             Violation(
                 line=LineNumber(7),
                 rule='skill.link-escapes',
-                message=(
-                    '`../b.md` leaves the skill directory; link a file inside the skill, relative to the skill root'
-                ),
+                message='`../b.md` leaves the skill directory',
+                notes=_ESCAPE_HELP,
             ),
         ), 'every escaping link is its own violation, in document order, and the one inside is not'
 
