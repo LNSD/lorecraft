@@ -205,7 +205,7 @@ def select_documents(root: Path | None, paths: list[Path] | None) -> tuple[Datab
     # Root discovery follows symlinks and the snapshot, under `docs/`, does not, so a linked `docs/__meta__/`
     # passes the first and is empty in the second. Refused here, before a run over no documents can report
     # success.
-    database.require_real_layout()
+    database.reject_linked_layout()
     model = database.model()
     if not paths:
         return database, model.documents()

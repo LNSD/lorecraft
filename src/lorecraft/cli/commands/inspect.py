@@ -45,7 +45,7 @@ def inspect(
         database = Database(take_snapshot(root, SNAPSHOT_SCOPE))
         # Under `docs/` the snapshot never reads through a symlink, so a linked `docs/` or `docs/__meta__/`
         # would draw a model with no corpora. Refused instead of printed as if the root declared nothing.
-        database.require_real_layout()
+        database.reject_linked_layout()
         model = database.model()
     except Error as exc:
         report_failure(exc)

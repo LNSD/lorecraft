@@ -77,7 +77,7 @@ file's bytes did not change. A resource is named the same way, through the symli
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.document import Repository as DocumentRepository
-from lorecraft.project.layout import require_real_layout
+from lorecraft.project.layout import reject_linked_layout
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.skill import SkillRef, SkillResourceLocation, SkillResourceRef
 from lorecraft.project.syntax import FrontmatterNode, ParsedDocument, count_tokens, parse_document, parse_frontmatter
@@ -147,7 +147,7 @@ class Database:
             self._model = load_model(self._fs)
         return self._model
 
-    def require_real_layout(self) -> None:
+    def reject_linked_layout(self) -> None:
         """Refuse a snapshot in which ``docs/`` or ``docs/__meta__/`` is a symlink; never cached.
 
         Behind a linked ``docs/`` or ``docs/__meta__/`` the snapshot holds no specification, so the model has no
@@ -157,7 +157,7 @@ class Database:
         Raises:
             LinkedLayoutError: If ``docs/`` is a symlink, or else if ``docs/__meta__/`` is one.
         """
-        require_real_layout(self._fs)
+        reject_linked_layout(self._fs)
 
     def find_real_path(self, path: RootRelativePath) -> RootRelativePath | None:
         """Where `path` leads in the snapshot, every recorded link on the way followed; never cached.
