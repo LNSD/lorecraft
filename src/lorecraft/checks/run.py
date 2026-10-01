@@ -374,16 +374,17 @@ def _listed_files(database: Database, frontmatter: Frontmatter) -> tuple[ListedF
 def _listed_file_state(database: Database, written: str) -> ListedFileState:
     """What the snapshot can tell about one path a skill lists under `metadata`, as written there.
 
-    The path is parsed here, once: one that is absolute or climbs with `..` names nothing under the root the
-    snapshot was taken of, so it is outside the scope like any other path the snapshot never read. A file is
-    present wherever the snapshot holds it, links followed, even in a directory it did not list, such as a file a
-    linked `SKILL.md` leads to. Otherwise the path's directory decides: listed, the file is missing, whether the
-    path names nothing, a directory, or a link to no file the snapshot holds, because it dangles, leaves the
-    repository or reaches a file the snapshot never read; not listed, the snapshot cannot tell, and the path is
-    outside the scope.
+    Two questions decide it, kept apart as an IDE keeps them: whether the snapshot holds a file there, and
+    whether the path is in the scope the scan declares. The path is parsed here, once: one that is absolute or
+    climbs with `..` names nothing under the root the snapshot was taken of, so it is outside the scope. A file
+    is present wherever the snapshot holds it, links followed, even in a directory the scope does not cover,
+    such as a file a linked `SKILL.md` leads to. Otherwise a path in the scope is missing, whether it names
+    nothing, a directory, or a link to no file the snapshot holds, because it dangles, leaves the repository or
+    reaches a file the snapshot never read, and whether or not its directory exists; a path outside the scope is
+    one the snapshot cannot tell about.
 
     Args:
-        database: Where the path is looked up in the snapshot.
+        database: Where the path is looked up in the snapshot and asked about the scope.
         written: The path exactly as the skill wrote it, unparsed and unresolved.
     """
     try:
@@ -392,7 +393,7 @@ def _listed_file_state(database: Database, written: str) -> ListedFileState:
         return ListedFileState.OUTSIDE_SCOPE
     if database.resolve_file(path) is not None:
         return ListedFileState.PRESENT
-    if database.is_listed(path.parent):
+    if database.is_in_scope(path):
         return ListedFileState.MISSING
     return ListedFileState.OUTSIDE_SCOPE
 

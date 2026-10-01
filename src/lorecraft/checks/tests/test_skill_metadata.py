@@ -33,7 +33,7 @@ def _present(written: str) -> ListedFile:
 
 
 def _missing(written: str) -> ListedFile:
-    """A listed path in a directory the snapshot listed, with no regular file there.
+    """A listed path in a directory the scope covers, with no regular file there.
 
     Args:
         written: The path as the subkey writes it.
@@ -261,7 +261,7 @@ class TestValidateSkillMetadata:
                 rule='skill.metadata-outside-scope',
                 message=(
                     '`metadata.scripts` lists `src/tool.py`, which lorecraft does not read; list a file directly '
-                    'in docs/, in a real directory directly in docs/, or directly in a skill directory'
+                    'in docs/, in a directory directly in docs/, or directly in a skill directory'
                 ),
             ),
         ), 'a path the snapshot never read is one violation, on the line of the metadata key'

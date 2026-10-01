@@ -417,7 +417,7 @@ class TestRunSkillsMetadata:
                 rule='skill.metadata-outside-scope',
                 message=(
                     '`metadata.scripts` lists `src/tool.py`, which lorecraft does not read; list a file directly '
-                    'in docs/, in a real directory directly in docs/, or directly in a skill directory'
+                    'in docs/, in a directory directly in docs/, or directly in a skill directory'
                 ),
             ),
         ), 'src/ is never read, so the file there is outside the scope, while the document under docs/ is in it'
@@ -436,6 +436,22 @@ class TestRunSkillsMetadata:
         #: Then
         assert [finding.rule for finding in run.findings()] == ['skill.metadata-outside-scope'], (
             'docs/ is read one level deep, so a document two levels under it is outside the scope'
+        )
+
+    def test_run_skills_with_a_skill_listing_the_docs_directory_itself_reports_it_outside_the_scope(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/a.md')
+        _write_skill(tmp_path, '  references: docs\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert [finding.rule for finding in run.findings()] == ['skill.metadata-outside-scope'], (
+            'a scan root is listed by its parent, so the root itself is not inside what it covers'
         )
 
     def test_run_skills_with_a_skill_listing_a_path_climbing_out_reports_it_outside_the_scope(
@@ -510,7 +526,7 @@ class TestRunSkillsMetadata:
 
         #: Then
         assert [finding.rule for finding in run.findings()] == ['skill.metadata-missing-file'], (
-            'a link that leads to no file is no file to link in, in a directory the snapshot listed'
+            'a link that leads to no file is no file to link in, in a directory the scope covers'
         )
 
     def test_run_skills_with_a_skill_listing_a_link_out_of_the_repository_reports_it_missing(
@@ -586,6 +602,77 @@ class TestRunSkillsMetadata:
                 message='`metadata.assets` lists `skills/y/absent.md`, where lorecraft finds no file',
             ),
         ), 'skills/y/ is listed through the link to it, so a file it lacks was not there when the scan ran'
+
+    def test_run_skills_with_a_skill_listing_a_document_in_an_absent_directory_reports_it_missing(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/feat/present.md')
+        _write_skill(tmp_path, '  references: docs/nope/a.md\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (
+            Finding(
+                path=RootRelativePath.parse('.agents/skills/x/SKILL.md'),
+                line=LineNumber(4),
+                rule='skill.metadata-missing-file',
+                message='`metadata.references` lists `docs/nope/a.md`, where lorecraft finds no file',
+            ),
+        ), 'docs/ is read one level deep, so docs/nope/ is in the scope though it does not exist, and a.md is missing'
+
+    def test_run_skills_with_a_skill_listing_a_file_in_an_absent_skill_directory_reports_it_missing(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write_skill(tmp_path, '  assets: .agents/skills/nope/a.json\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert [finding.rule for finding in run.findings()] == ['skill.metadata-missing-file'], (
+            'a skills directory is read one level deep, so a skill directory it lacks is in the scope and empty'
+        )
+
+    def test_run_skills_with_a_skill_listing_a_document_through_an_unfollowed_docs_link_reports_it_outside_the_scope(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'elsewhere/a.md')
+        (tmp_path / 'docs').mkdir()
+        (tmp_path / 'docs' / 'linked').symlink_to('../elsewhere')
+        _write_skill(tmp_path, '  references: docs/linked/a.md\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert [finding.rule for finding in run.findings()] == ['skill.metadata-outside-scope'], (
+            'docs/ does not follow links, and elsewhere/, where docs/linked leads, is in no scan root'
+        )
+
+    def test_run_skills_with_a_skill_listing_an_absent_document_through_a_docs_link_to_a_corpus_reports_it_missing(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/feat/present.md')
+        (tmp_path / 'docs' / 'alias').symlink_to('feat')
+        _write_skill(tmp_path, '  references: docs/alias/absent.md\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert [finding.rule for finding in run.findings()] == ['skill.metadata-missing-file'], (
+            'the link is not followed, but it leads to docs/feat/, which docs/ lists in its own right'
+        )
 
     def test_run_skills_with_a_skill_breaking_every_metadata_rule_reports_each_in_order(self, tmp_path: Path) -> None:
         #: Given
