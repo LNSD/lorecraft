@@ -55,7 +55,7 @@ Decide a rule's home by asking what would force it to be rewritten:
 |---------------------------------|----------------------------------|
 | Declaration syntax changes      | The group's declaration document |
 | A call-time API changes         | The group's usage document       |
-| A naming convention changes     | `python-naming`                  |
+| A naming convention changes     | `python-naming`, or `python-fn-names` for a function |
 | The build or manifest changes   | The `python-*` document that owns `pyproject.toml` |
 | A third-party signature changes | The document that owns that seam |
 
