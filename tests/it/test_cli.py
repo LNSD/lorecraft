@@ -1201,6 +1201,37 @@ class TestCheckSkillsCommand:
             'ungoverned': [],
         }, 'the source file is outside what the command reads, and reported on the line of the metadata key'
 
+    def test_check_skills_with_json_format_over_a_skill_listing_an_absent_document_reports_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/code/guide.md', '# Guide\n')
+        _write(
+            tmp_path,
+            '.agents/skills/review/SKILL.md',
+            '---\nname: review\ndescription: Review a change\nmetadata:\n  references: docs/code/gone.md\n---\n',
+        )
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 1,
+            'findings': [
+                {
+                    'file': '.agents/skills/review/SKILL.md',
+                    'line': 4,
+                    'rule': 'skill.metadata-missing-file',
+                    'message': '`metadata.references` lists `docs/code/gone.md`, where lorecraft finds no file',
+                    'spec': None,
+                }
+            ],
+            'ungoverned': [],
+        }, 'docs/code/ is listed and holds no such file, so it is reported on the line of the metadata key'
+
     def test_check_skills_with_json_format_and_a_named_skill_checks_that_skill_alone(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, '.agents/skills/bare/SKILL.md', '# No frontmatter\n')
