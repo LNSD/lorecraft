@@ -398,6 +398,116 @@ class TestCheckFrontmatterCommand:
             'no frontmatter schema for this corpus; frontmatter unvalidated\n'
         ), 'an ungoverned document is reported as unvalidated, not as a finding'
 
+    def test_check_frontmatter_with_a_named_document_checks_that_document_alone(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/code/broken.md', '# No frontmatter\n')
+        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n')
+        monkeypatch.chdir(tmp_path)
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), 'docs/code/guide.md'])
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stdout == '', 'the broken document beside the named one is not checked'
+        assert result.stderr == 'checked 1 file(s), 0 finding(s)\n', 'the named document is the one checked'
+
+    def test_check_frontmatter_with_a_missing_named_document_exits_as_invalid_input(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n')
+        argument = tmp_path / 'docs' / 'code' / 'missing.md'
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), str(argument)])
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stderr == f'error: {argument}: no such file\n', 'the error quotes the argument as typed'
+
+    def test_check_frontmatter_with_a_named_directory_exits_as_invalid_input(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n')
+        argument = tmp_path / 'docs' / 'code'
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), str(argument)])
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stderr == f'error: {argument}: expected a readable Markdown file\n', (
+            'a directory is refused as no document'
+        )
+
+    def test_check_frontmatter_with_a_named_non_markdown_file_exits_as_invalid_input(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        argument = _write(tmp_path, 'docs/code/notes.txt', 'notes\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), str(argument)])
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stderr == f'error: {argument}: expected a .md file\n', 'only a .md file is a document'
+
+    def test_check_frontmatter_with_a_named_file_outside_docs_exits_as_invalid_input(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        argument = _write(tmp_path, 'README.md', '# Readme\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), str(argument)])
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stderr == f'error: {argument}: file must be inside docs/ and outside docs/__meta__/\n', (
+            'a file outside docs/ is refused for where it sits'
+        )
+
+    def test_check_frontmatter_with_a_named_file_directly_under_docs_exits_as_invalid_input(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        argument = _write(tmp_path, 'docs/architecture.md', '# Architecture\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), str(argument)])
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stderr == f'error: {argument}: file must be inside a corpus directory under docs/\n', (
+            'a file in no corpus directory is refused for where it sits'
+        )
+
+    def test_check_frontmatter_with_a_named_file_the_model_does_not_list_exits_as_invalid_input(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        argument = _write(tmp_path, 'docs/code/README.md', '# Readme\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), str(argument)])
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stderr == f'error: {argument}: not a document the workspace lists\n', (
+            'a Markdown file in a corpus that the model leaves out is refused as unlisted'
+        )
+
     def test_check_frontmatter_with_invalid_corpus_name_exits_as_invalid_input(self, tmp_path: Path) -> None:
         #: Given
         document = _write(tmp_path, 'docs/bad-name/guide.md', '---\nname: "guide"\n---\n')
@@ -408,7 +518,9 @@ class TestCheckFrontmatterCommand:
 
         #: Then
         assert result.exit_code == 2, result.output
-        assert "invalid character '-' in corpus name 'bad-name'" in result.output, 'the CLI reports the invalid name'
+        assert result.stderr == (
+            f"error: {document}: invalid corpus name\n  caused by: invalid character '-' in corpus name 'bad-name'\n"
+        ), 'the CLI reports the invalid name, then the character the parser refused'
 
     def test_check_frontmatter_with_a_path_in_a_corpus_subdirectory_exits_as_invalid_input(
         self, tmp_path: Path
@@ -1000,9 +1112,46 @@ class TestCheckSkillsCommand:
 
         #: Then
         assert result.exit_code == 1, result.output
-        assert '.agents/skills/latin/SKILL.md:1: [skill.undecodable] SKILL.md is not valid UTF-8' in result.stdout, (
+        assert result.stdout == '.agents/skills/latin/SKILL.md:1: [skill.undecodable] SKILL.md is not valid UTF-8\n', (
             'a skill that is not UTF-8 is a finding that names the file as a skill, not a document'
         )
+        assert result.stderr == 'checked 1 skill(s), 1 finding(s)\n', 'the summary counts skills, not files'
+
+    def test_check_skills_without_a_root_finds_the_nearest_parent_with_docs_meta(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        #: Given
+        (tmp_path / 'docs' / '__meta__').mkdir(parents=True)
+        _write(tmp_path, '.agents/skills/review/SKILL.md', '---\nname: review\n---\n')
+        nested = tmp_path / 'src' / 'nested'
+        nested.mkdir(parents=True)
+        monkeypatch.chdir(nested)
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert result.stdout == '.agents/skills/review/SKILL.md:1: [skill.description] `description` is required\n', (
+            'the root is discovered upward from the working directory, and findings print root-relative'
+        )
+
+    def test_check_skills_with_one_skill_named_twice_checks_it_once(self, tmp_path: Path) -> None:
+        #: Given
+        skill_file = _write(tmp_path, '.agents/skills/review/SKILL.md', '---\nname: review\n---\n')
+        arguments = ['check', 'skills', str(skill_file.parent), str(skill_file), '--root', str(tmp_path)]
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert result.stdout == '.agents/skills/review/SKILL.md:1: [skill.description] `description` is required\n', (
+            'the skill named by its directory and by its SKILL.md is reported once'
+        )
+        assert result.stderr == 'checked 1 skill(s), 1 finding(s)\n', 'the skill named twice is checked once'
 
     def test_check_skills_with_a_linked_specs_directory_checks_the_skills(self, linked_specs_workspace: Path) -> None:
         #: Given
@@ -1046,6 +1195,9 @@ class TestCheckSkillsCommand:
         #: Then
         assert result.exit_code == 2, result.output
         assert result.stdout == '', 'after an error nothing is printed but the error'
+        assert result.stderr == (
+            f'error: {not_a_skill.parent}: not a skill the workspace lists; name a skill directory or its SKILL.md\n'
+        ), 'the error quotes the argument as typed and says what a skill argument names'
 
 
 @pytest.mark.it
@@ -1081,6 +1233,46 @@ class TestCheckAllCommand:
             'docs/code/guide.md:1: [frontmatter.missing] no `---` delimited frontmatter block\n'
             'docs/code/guide.md:1: [structure.outline] missing required section `Checklist` (per code.md)\n'
         ), "the bare run prints each check's findings as the check itself would, in check name order"
+        assert result.stderr == 'checked 1 file(s) and 0 skill(s) with 4 check(s), 2 finding(s)\n', (
+            'the summary counts the findings of every check together'
+        )
+
+    def test_check_with_an_ungoverned_document_prints_it_as_unvalidated(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(tmp_path)])
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stdout == (
+            'docs/code/guide.md:1: [code.ungoverned] no token budget for this corpus; tokens unvalidated\n'
+        ), 'the document a check does not govern is printed under that check, not counted as a finding'
+        assert result.stderr == 'checked 1 file(s) and 0 skill(s) with 4 check(s), 0 finding(s)\n', (
+            'an ungoverned document is not a finding'
+        )
+
+    def test_check_with_a_broken_skill_prints_its_finding_after_the_document_checks(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n## Checklist\n\n- [ ] item\n')
+        _write(tmp_path, '.agents/skills/review/SKILL.md', '---\nname: review\n---\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(tmp_path)])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert result.stdout == '.agents/skills/review/SKILL.md:1: [skill.description] `description` is required\n', (
+            'the skill finding prints as the skills check itself would'
+        )
+        assert result.stderr == 'checked 1 file(s) and 1 skill(s) with 4 check(s), 1 finding(s)\n', (
+            'the summary counts the documents and the skills apart, and the skill finding with the rest'
+        )
 
     def test_check_with_json_format_reports_each_check_under_its_name(self, tmp_path: Path) -> None:
         #: Given
