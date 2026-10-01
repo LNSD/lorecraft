@@ -397,18 +397,19 @@ class FrontmatterSchema:
     it again. A malformed schema is refused with an error naming the specification file,
     like every other rule of that file.
 
-    Frozen for equality only: ``schema`` is a dict, so instances are not hashable and must not be put in a set or
+    Frozen for equality only: ``schema`` holds a dict, so instances are not hashable and must not be put in a set or
     used as a key.
 
     Attributes:
         path: Root-relative path of the structure specification the schema is written in, quoted verbatim in
             every violation it yields.
         schema: The decoded schema. Values are ``object`` because a JSON Schema is recursive and JSON decodes each
-            value to its own Python type.
+            value to its own Python type. A ``Mapping``, not a ``dict``, so no holder can write to the schema
+            the construction checked.
     """
 
     path: RootRelativePath
-    schema: dict[str, object]
+    schema: Mapping[str, object]
 
     def __post_init__(self) -> None:
         """Refuse a schema this aspect cannot hold a document's frontmatter to.
@@ -501,11 +502,9 @@ def _frontmatter_problems(error: SchemaValidationError, data: Mapping[object, ob
                 problems.append(MissingFieldProblem(field, message))
         return problems
     if error.validator == 'additionalProperties':
-        # `jsonschema` types `error.schema` to allow a boolean schema, which no type narrowing can rule out here.
-        if not isinstance(error.schema, Mapping):
-            raise AssertionError('unreachable: `additionalProperties` only runs inside an object schema')
+        # `jsonschema` types `error.schema` to allow a boolean schema, but a keyword only fires inside an object one.
         problems = []
-        for key in _additional_keys(error.schema, data):
+        for key in _additional_keys(_schema_object(error.schema), data):
             # `jsonschema`'s wording for one unexpected key; a key that is not a string names no field.
             message = f'Additional properties are not allowed ({key!r} was unexpected)'
             if isinstance(key, str):
@@ -524,19 +523,32 @@ def _additional_keys(schema: Mapping[str, object], instance: Mapping[object, obj
         schema: The object schema whose `additionalProperties` rule fired.
         instance: The mapping that was validated; its keys are checked in order.
     """
-    # The meta-schema proved both are objects when the schema was built; absent, they name nothing.
-    properties = schema.get('properties')
-    named = properties if isinstance(properties, Mapping) else {}
-    pattern_properties = schema.get('patternProperties')
-    patterns = pattern_properties if isinstance(pattern_properties, Mapping) else {}
+    # Absent, either keyword names nothing.
+    properties = _schema_object(schema.get('properties', {}))
+    pattern_properties = _schema_object(schema.get('patternProperties', {}))
     keys: list[object] = []
     for key in instance:
-        if key in named:
+        if key in properties:
             continue
-        if isinstance(key, str) and any(re.search(str(pattern), key) for pattern in patterns):
+        if isinstance(key, str) and any(re.search(str(pattern), key) for pattern in pattern_properties):
             continue
         keys.append(key)
     return keys
+
+
+def _schema_object(value: object) -> Mapping[str, object]:
+    """A schema value the meta-schema proved is a JSON object.
+
+    Such a value is a subschema a keyword fired in, or the value of a keyword the meta-schema requires to be an
+    object, such as `properties`. `jsonschema` types both loosely, so this is the one place the module turns one
+    into a `Mapping`: the proof is `FrontmatterSchema`'s construction, which `ty` cannot see.
+
+    Args:
+        value: A value read from a schema a `FrontmatterSchema` holds, or from an error validating against one.
+    """
+    if not isinstance(value, Mapping):
+        raise AssertionError('unreachable: the meta-schema proved this schema value is an object')
+    return value
 
 
 def _schemas_within(schema: Mapping[str, object]) -> Iterator[Mapping[str, object]]:
@@ -745,9 +757,7 @@ def _frontmatter_schema(path: RootRelativePath, schema: dict[str, JsonValue] | N
     """
     if schema is None:
         return None
-    # The copy only widens the value type from `JsonValue` to `object`, which `dict` would otherwise keep invariant.
-    widened: dict[str, object] = dict(schema)
-    return FrontmatterSchema(path=path, schema=widened)
+    return FrontmatterSchema(path=path, schema=schema)
 
 
 def _describe_entry(entry: OutlineEntry) -> str:
