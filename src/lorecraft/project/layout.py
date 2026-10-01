@@ -12,7 +12,8 @@ SPECS_DIR: Final[RootRelativePath] = DOCS_DIR / '__meta__'
 DOCUMENT_SUFFIX: Final[str] = '.md'
 
 
-def _skills_scan_roots() -> list[ScanRoot]:
+# Runs once per process, before mutmut swaps a mutant in, so no test can ever see a mutant of it.
+def _skills_scan_roots() -> list[ScanRoot]:  # pragma: no mutate block
     """One scan root per project skills directory the agents read, each once: two agents may read the same one.
 
     A skills directory is read one level deep: the directory itself, and each skill directory in it. Links are

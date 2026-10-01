@@ -23,7 +23,8 @@ JSON_SCHEMA_DIALECT: Final[str] = 'https://json-schema.org/draft/2020-12/schema'
 """Draft 2020-12, the one dialect a frontmatter schema is written in: the only one its ``$schema`` may name."""
 
 
-def _frontmatter_json_schema() -> dict[str, JsonValue]:
+# Runs once per process, before mutmut swaps a mutant in, so no test can ever see a mutant of it.
+def _frontmatter_json_schema() -> dict[str, JsonValue]:  # pragma: no mutate block
     """What an editor holds the ``frontmatter`` key to: any schema the Draft 2020-12 meta-schema accepts that also
     states ``"type": "object"`` at its root. ``StructureAspect`` refuses the same schemas when it loads the file, and
     a few more no schema here can state, such as one carrying ``$id``. A ``null`` is refused here and at load alike.
@@ -36,7 +37,8 @@ def _frontmatter_json_schema() -> dict[str, JsonValue]:
     }
 
 
-def _code_frontmatter_example() -> dict[str, JsonValue]:
+# Runs once per process, before mutmut swaps a mutant in, so no test can ever see a mutant of it.
+def _code_frontmatter_example() -> dict[str, JsonValue]:  # pragma: no mutate block
     """The frontmatter schema of a rule document in docs/code/, as an example: a closed object whose two fields are
     required strings. A fresh dict for each example that shows it."""
     return {
@@ -47,7 +49,8 @@ def _code_frontmatter_example() -> dict[str, JsonValue]:
     }
 
 
-def _code_outline_example() -> list[JsonValue]:
+# Runs once per process, before mutmut swaps a mutant in, so no test can ever see a mutant of it.
+def _code_outline_example() -> list[JsonValue]:  # pragma: no mutate block
     """The outline of a rule document in docs/code/, as an example: its own sections, then the Checklist and the
     two references, with a word cap on each of its own sections and on the Checklist. A fresh list for each example
     that shows it."""
