@@ -21,7 +21,7 @@ A skill's location decides the rules it is held to.
 
 | Location | Kind | Loaded by | Rules |
 |---|---|---|---|
-| `.agents/skills/<name>/` | Workspace skill | Agents working in this repository | The specification, plus the body extensions below, and links into the repository |
+| `.agents/skills/<name>/` | Workspace skill | Agents working in this repository | The specification, plus the body extensions below |
 | `skills/<name>/` | Project skill | Agents in other repositories, after the skill is installed there | The specification only; nothing may depend on this repository's agent or layout |
 
 Project skills live in `skills/`, and each is linked into `.agents/skills/` by a symlink so this repository's
@@ -33,9 +33,8 @@ them. None is a frontmatter field: every skill's frontmatter is held to the spec
 - Dynamic context: a `!` followed by a backticked command, which Claude Code runs before loading the skill (see
   §5 for one). Follow each with a line telling the agent to run the command itself if it arrives as literal text
 - Comma-separated `allowed-tools`
-- Relative links to repository files outside the skill, such as `../../../docs/code/logging.md`
 
-Project skills may use none of them. For how a project skill reaches repository files, see §4.
+Project skills may use none of them. For how a skill reaches repository files, see §4.
 
 Commit scopes differ by kind too: `chore(skills)` for workspace skills, `feat(skills)` for project skills. See
 `/commit`.
@@ -87,13 +86,15 @@ the whole `SKILL.md` body on activation, and other files only when the body send
 
 ## 4. Links
 
-Link relative to the file holding the link, never with a leading `/`. From `SKILL.md` that means relative to
-the skill root: `references/workflow-raw.md`.
+Link relative to the skill root, from every file in the skill, never with a leading `/`: the specification
+reads a skill's paths from its root. From `SKILL.md` that is `references/workflow-raw.md`; from a file in
+`references/`, the entry file is still `SKILL.md`; `../SKILL.md` leaves the skill.
 
 **Keep references one level deep.** `SKILL.md` links to a reference file; a reference file should not send
 the agent on to a third file for something it needs to finish the task.
 
-A project skill cannot link outside its directory: once installed elsewhere, the target is not there. To
+No skill links outside its directory: once installed elsewhere, the target is not there. A workspace skill
+names a repository file as a path in backticks instead, such as `docs/code/logging.md`. For a project skill to
 depend on a repository file, list it in `metadata` under the subkey naming the skill directory it is linked
 from, and link it as `<subkey>/<file name>`:
 
@@ -108,8 +109,8 @@ See [logging](references/logging.md) and [the corpus specification](assets/code.
 ```
 
 The subkeys are `references`, `assets`, and `scripts`, after the directories in §3. File names must be unique
-within a subkey, because the link keeps only the file name. A path must name a file in a directory that the
-[snapshot](../../../docs/feat/workspace.md#one-snapshot) of `lorecraft check skills` reads; any other is
+within a subkey, because the link keeps only the file name. A path must name a file in a directory the
+`lorecraft check skills` snapshot reads (see `docs/feat/workspace.md`, section One Snapshot); any other is
 reported as outside the scope.
 
 `metadata` is also the reverse index: `scripts/check_skill.py --linking docs/code/logging.md` names every skill
@@ -133,9 +134,16 @@ subject: `scripts/check_skill.py --linking <path>` (one `--linking` per file) pr
 Two checks decide every mechanical rule between them. Do not check those rules by hand.
 
 **`lorecraft check skills`** decides the frontmatter: YAML validity, the six fields and their limits,
-`metadata` value types, and `name` against the directory. It also reports two kinds of link in `SKILL.md`: an
-absolute one, a url that starts with `/`, as `skill.link-absolute`, and a `#fragment` link that names no heading
-of the file, as `skill.link-fragment`. A fragment into another file is checked by neither check. For a skill
+`metadata` value types, and `name` against the directory. It also reports three kinds of link, each in the file
+holding it:
+
+- In every Markdown file of the skill, a relative link that, read from the skill root, climbs above it, as
+  `skill.link-escapes`.
+- In `SKILL.md` only, an absolute link, a url that starts with `/`, as `skill.link-absolute`.
+- In `SKILL.md` only, a `#fragment` link that names no heading of the file, as `skill.link-fragment`. A
+  fragment into another file is checked by neither check.
+
+For a skill
 that links files in through `metadata`, it reports linked files that share a name under one subkey
 (`skill.metadata-duplicate-name`), that are not a file in the repository (`skill.metadata-missing-file`), or that
 lie outside the scope above (`skill.metadata-outside-scope`).
@@ -146,8 +154,8 @@ uv run lorecraft check skills .agents/skills/code-test  # named skills
 uv run lorecraft check skills --format json             # machine-readable
 ```
 
-**`scripts/check_skill.py`** decides the rest: the 500-line budget, every relative link resolving, and links
-escaping a project skill.
+**`scripts/check_skill.py`** decides the rest: the 500-line budget, and every relative link inside the skill
+resolving, read from the skill root.
 
 It is executable and declares its own dependencies, so run it directly; `uv` resolves them on the first run.
 It finds the repository root by walking up, so the working directory does not matter:

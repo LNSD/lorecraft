@@ -1,6 +1,6 @@
 # More before-and-after titles
 
-Overflow from [SKILL.md](../SKILL.md) section *Before and After*. Same distinction throughout: the
+Overflow from [SKILL.md](SKILL.md) section *Before and After*. Same distinction throughout: the
 *before* title names what was edited, the *after* title names what changed for the project.
 
 **A pattern document's structure specification and schema landed under `docs/__meta__/`.**

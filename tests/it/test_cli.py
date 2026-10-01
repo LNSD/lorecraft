@@ -1204,6 +1204,36 @@ class TestCheckSkillsCommand:
             'ungoverned': [],
         }, 'the link to a missing heading is reported on its own line, naming its fragment'
 
+    def test_check_skills_with_json_format_over_a_skill_with_an_escaping_link_in_a_resource_reports_it_there(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/review/SKILL.md', '---\nname: review\ndescription: Review a change\n---\n')
+        _write(tmp_path, '.agents/skills/review/references/guide.md', '# Guide\n\nBack to [the skill](../SKILL.md).\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 1,
+            'findings': [
+                {
+                    'file': '.agents/skills/review/references/guide.md',
+                    'line': 3,
+                    'rule': 'skill.link-escapes',
+                    'message': (
+                        '`../SKILL.md` leaves the skill directory; link a file inside the skill, '
+                        'relative to the skill root'
+                    ),
+                    'spec': None,
+                }
+            ],
+            'ungoverned': [],
+        }, 'the escaping link is reported in the resource holding it, and the skill is counted once'
+
     def test_check_skills_with_json_format_over_a_skill_linked_outside_the_skills_directories_checks_it(
         self, tmp_path: Path
     ) -> None:
