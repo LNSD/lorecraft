@@ -8,6 +8,7 @@ that `tests/e2e/` exercises. `inspect` and the checks read a real tree under `tm
 
 import json
 import os
+import sys
 from collections.abc import Iterator
 from pathlib import Path
 from textwrap import dedent
@@ -78,6 +79,29 @@ def unreadable_workspace(tmp_path: Path) -> Iterator[Path]:
     docs.chmod(0o000)
     yield tmp_path
     docs.chmod(0o700)
+
+
+@pytest.fixture(scope='function')
+def directory_under_a_locked_parent(tmp_path: Path) -> Iterator[Path]:
+    """A directory whose parent refuses search, so nothing below it can be inspected; unlocked afterwards."""
+    locked = tmp_path / 'locked'
+    directory = locked / 'sub'
+    directory.mkdir(parents=True)
+    locked.chmod(0o000)
+    yield directory
+    locked.chmod(0o700)
+
+
+@pytest.fixture(scope='function')
+def working_directory_under_a_locked_parent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
+    """The working directory, entered before its parent is made to refuse search; unlocked afterwards."""
+    locked = tmp_path / 'locked'
+    directory = locked / 'sub'
+    directory.mkdir(parents=True)
+    monkeypatch.chdir(directory)
+    locked.chmod(0o000)
+    yield directory
+    locked.chmod(0o700)
 
 
 @pytest.fixture(scope='function')
@@ -1221,6 +1245,62 @@ class TestCheckAllCommand:
         assert result.exit_code == 2, result.output
         assert result.stderr == 'error: cannot find repository root: no parent contains docs/__meta__/\n', (
             'a working directory under no docs/__meta__/ has no root to discover'
+        )
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
+    @pytest.mark.skipif(sys.version_info >= (3, 14), reason="Python 3.14's is_dir answers False for every failure")
+    def test_check_without_a_root_under_a_locked_parent_exits_as_invalid_input_and_names_the_directory(
+        self, working_directory_under_a_locked_parent: Path
+    ) -> None:
+        #: Given
+        candidate = working_directory_under_a_locked_parent.resolve()
+        app = build_app()
+        arguments = ['check']
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stdout == '', 'after an error nothing is printed but the error'
+        assert (
+            result.stderr == f'error: cannot find repository root: cannot inspect {candidate}: permission denied\n'
+        ), 'a directory the search cannot inspect stops discovery, naming the directory and the refusal'
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
+    @pytest.mark.skipif(sys.version_info >= (3, 14), reason="Python 3.14's is_dir answers False for every failure")
+    def test_check_with_a_root_under_a_locked_parent_exits_as_invalid_input_and_names_the_root(
+        self, directory_under_a_locked_parent: Path
+    ) -> None:
+        #: Given
+        root = directory_under_a_locked_parent.resolve()
+        app = build_app()
+        arguments = ['check', '--root', str(root)]
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stdout == '', 'after an error nothing is printed but the error'
+        assert result.stderr == f'error: cannot inspect root {root}: permission denied\n', (
+            'a root that cannot be inspected is refused, naming the root and the refusal'
+        )
+
+    def test_check_with_a_missing_root_exits_as_invalid_input_and_names_the_root(self, tmp_path: Path) -> None:
+        #: Given
+        root = tmp_path.resolve() / 'missing'
+        app = build_app()
+        arguments = ['check', '--root', str(root)]
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stdout == '', 'after an error nothing is printed but the error'
+        assert result.stderr == f'error: {root} is not an existing directory\n', (
+            'a root that does not exist is refused, naming the resolved root'
         )
 
     def test_check_with_an_option_before_a_named_check_exits_as_a_usage_error(self, tmp_path: Path) -> None:
