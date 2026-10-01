@@ -93,6 +93,7 @@ exclude = ["tests/"]
 [dependency-groups]
 dev = [
     "import-linter>=2.15,<3",
+    "mutmut>=3.8.0",
     "ruff>=0.16.0",
     "pytest>=9.0.3",
     "syrupy>=6.1.1",
@@ -120,6 +121,17 @@ markers = [
     "it: Integration tests (the package's own modules wired together, in process)",
     "e2e: End-to-end tests (the installed console script, in a subprocess)",
 ]
+
+# mutmut swaps a mutant in inside the pytest process, so the e2e tier, which runs the installed console script
+# in a subprocess, can never kill one; collection leaves tests/e2e/ out.
+[tool.mutmut]
+source_paths = ["src/lorecraft"]
+# Unit tests sit beside their module under src/; mutating a test proves nothing about the tests.
+do_not_mutate = ["*/tests/*"]
+pytest_add_cli_args_test_selection = ["src", "tests/it"]
+# mutmut runs the tests from a copy under mutants/; the integration tests read the generated schemas, the
+# specifications and every skill from the repository itself.
+also_copy = ["docs/schemas", "docs/__meta__", ".agents/skills", "skills"]
 
 [tool.ruff]
 line-length = 120

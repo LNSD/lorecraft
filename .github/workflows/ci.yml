@@ -99,6 +99,42 @@ jobs:
       - name: Run tests
         run: just test
 
+  # Report only: mutation testing scores the tests, so it never fails the build.
+  test-mut:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # hatch-vcs derives the version from the tags a shallow clone lacks.
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+
+      - name: Sync the development environment
+        run: just sync
+
+      - name: Mutation-test the unit and integration tiers
+        run: just test-mut
+
+      - name: Render the report
+        run: just test-mut-report | tee report.md >> "$GITHUB_STEP_SUMMARY"
+
+      # A pull request from a fork gets a read-only token, so it has the step summary and no comment.
+      - name: Comment on the pull request
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
+        with:
+          header: test-mut
+          path: report.md
+
   ## Codegen
   gen-check:
     runs-on: ubuntu-latest
