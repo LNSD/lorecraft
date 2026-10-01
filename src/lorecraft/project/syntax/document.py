@@ -141,7 +141,7 @@ def _headings(text: str, blocks: list[Node], block_words: list[int]) -> tuple[He
             Heading(
                 level=block.depth,
                 text=plain_text(block.children),
-                line=_line(text, block),
+                line=_line(text, _position(block)),
                 empty=empty,
                 words=_section_words(blocks, block_words, index, block.depth),
             )
@@ -221,7 +221,7 @@ def _links(text: str, node: Node) -> list[Link]:
     """
     links: list[Link] = []
     if isinstance(node, WenmodeLink | Image):
-        links.append(Link(url=node.url, line=_line(text, node)))
+        links.append(Link(url=node.url, line=_line(text, _position(node))))
     if isinstance(node, Parent):
         for child in node.children:
             links.extend(_links(text, child))
@@ -258,18 +258,17 @@ def _prose_words(text: str, block: Node) -> int:
 
     Args:
         text: The document's text, which the block's position indexes into.
-        block: One of the root's own blocks; it must carry a position.
+        block: One of the root's own blocks, in the tree `parse_document` parsed.
     """
     if isinstance(block, WenmodeHeading):
         return 0
-    if block.position is None:
-        raise AssertionError('unreachable: the parser is built with positions=True, so every block has a position')
+    span = _position(block)
     words = 0
-    start = block.position.start
+    start = span.start
     for code in _code_spans(block):
         words += _source_words(text[start : code.start])
         start = code.end
-    words += _source_words(text[start : block.position.end])
+    words += _source_words(text[start : span.end])
     return words
 
 
@@ -279,14 +278,10 @@ def _code_spans(node: Node) -> list[Position]:
     A code block holds text, never another block, so no span found here contains another.
 
     Args:
-        node: Root of the subtree to search; a leaf is searched as itself.
+        node: Root of the subtree to search, in the tree `parse_document` parsed; a leaf is searched as itself.
     """
     if isinstance(node, Code):
-        if node.position is None:
-            raise AssertionError(
-                'unreachable: the parser is built with positions=True, so every code block has a position'
-            )
-        return [node.position]
+        return [_position(node)]
     if not isinstance(node, Parent):
         return []
     spans: list[Position] = []
@@ -311,16 +306,31 @@ def _source_words(source: str) -> int:
     return words
 
 
-def _line(text: str, node: Node) -> LineNumber:
-    r"""The document line a node starts on, a block or an inline alike.
+def _line(text: str, span: Position) -> LineNumber:
+    r"""The document line a node's span starts on, a block's or an inline's alike.
 
     wenmode reports a node's position as a character offset into the text; every line before the offset ends in
     a `\n`, a `\r\n` included.
 
     Args:
-        text: The document's text, which the node's position indexes into.
-        node: Node to locate; it must carry a position.
+        text: The document's text, which the span indexes into.
+        span: Where the node to locate sits, as `_position` reads it.
+    """
+    return LineNumber(text.count('\n', 0, span.start) + 1)
+
+
+def _position(node: Node) -> Position:
+    """Where a node sits in the document's text, as character offsets.
+
+    Every node `parse_document` reads has a position, since it builds its parser with `positions=True`. wenmode's
+    types cannot say so: positions are a flag the parser takes at runtime, so every node declares its `position`
+    optional. This is the one place the module turns that optional into a `Position`, so every other helper that
+    needs a node's span reads it here.
+
+    Args:
+        node: Node of the tree `parse_document` parsed. A tree from any other parser, such as
+            `parse_frontmatter`'s, may lack positions.
     """
     if node.position is None:
-        raise AssertionError('unreachable: the parser is built with positions=True, so every node has a position')
-    return LineNumber(text.count('\n', 0, node.position.start) + 1)
+        raise AssertionError('unreachable: parse_document builds its parser with positions=True')
+    return node.position
