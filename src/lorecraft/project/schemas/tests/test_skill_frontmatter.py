@@ -59,6 +59,7 @@ class TestSkillName:
 
         #: Then
         assert isinstance(exc_info.value.source, ValidationError), 'the broken rule is kept as the source'
+        assert exc_info.value.source is exc_info.value.__cause__, 'the broken rule is the cause'
 
     def test_parse_with_a_name_over_the_limit_raises_skill_name_too_long(self) -> None:
         #: Given
@@ -70,6 +71,8 @@ class TestSkillName:
 
         #: Then
         assert exc_info.value.name == raw, 'the error keeps the rejected name'
+        assert isinstance(exc_info.value.source, ValidationError), 'the broken rule is kept as the source'
+        assert exc_info.value.source is exc_info.value.__cause__, 'the broken rule is the cause'
 
     @pytest.mark.parametrize(
         'raw',
@@ -92,6 +95,8 @@ class TestSkillName:
 
         #: Then
         assert exc_info.value.name == rejected, 'the error keeps the rejected name'
+        assert isinstance(exc_info.value.source, ValidationError), 'the broken rule is kept as the source'
+        assert exc_info.value.source is exc_info.value.__cause__, 'the broken rule is the cause'
 
     def test_json_schema_states_the_name_rules(self) -> None:
         #: Given
@@ -107,6 +112,52 @@ class TestSkillName:
             'maxLength': 64,
             'pattern': '^[a-z0-9]+(-[a-z0-9]+)*$',
         }, 'the schema states the rules the parser checks'
+
+    def test_validate_python_with_a_non_string_raises_a_string_type_error(self) -> None:
+        #: Given
+        adapter = TypeAdapter(SkillName)
+        value = 42
+
+        #: When
+        with pytest.raises(ValidationError) as exc_info:
+            adapter.validate_python(value)
+
+        #: Then
+        types = [error['type'] for error in exc_info.value.errors()]
+        assert types == ['string_type'], f'a number is not text, got {types}'
+
+    def test_validate_python_with_a_string_returns_the_value_object(self) -> None:
+        #: Given
+        adapter = TypeAdapter(SkillName)
+        raw = 'pdf-processing'
+
+        #: When
+        name = adapter.validate_python(raw)
+
+        #: Then
+        assert name == SkillName(raw), 'the string is parsed into a skill name'
+
+    def test_validate_python_with_an_instance_returns_it_unchanged(self) -> None:
+        #: Given
+        adapter = TypeAdapter(SkillName)
+        instance = SkillName('pdf-processing')
+
+        #: When
+        name = adapter.validate_python(instance)
+
+        #: Then
+        assert name is instance, 'a skill name is taken as it is'
+
+    def test_dump_python_in_json_mode_returns_the_string(self) -> None:
+        #: Given
+        adapter = TypeAdapter(SkillName)
+        name = SkillName('pdf-processing')
+
+        #: When
+        dumped = adapter.dump_python(name, mode='json')
+
+        #: Then
+        assert dumped == 'pdf-processing', f'a skill name serializes back to its string, got {dumped!r}'
 
 
 @pytest.mark.unit
@@ -132,6 +183,8 @@ class TestSkillDescription:
 
         #: Then
         assert 'empty' in str(exc_info.value), f'the blank description is reported, got {exc_info.value}'
+        assert isinstance(exc_info.value.source, ValidationError), 'the broken rule is kept as the source'
+        assert exc_info.value.source is exc_info.value.__cause__, 'the broken rule is the cause'
 
     def test_parse_with_a_description_over_the_limit_raises_skill_description_too_long(self) -> None:
         #: Given
@@ -143,6 +196,9 @@ class TestSkillDescription:
 
         #: Then
         assert '1025 characters' in str(exc_info.value), f'the length is reported, got {exc_info.value}'
+        assert exc_info.value.description == raw, 'the error keeps the rejected description'
+        assert isinstance(exc_info.value.source, ValidationError), 'the broken rule is kept as the source'
+        assert exc_info.value.source is exc_info.value.__cause__, 'the broken rule is the cause'
 
     def test_json_schema_states_the_description_rules(self) -> None:
         #: Given
@@ -154,6 +210,54 @@ class TestSkillDescription:
         #: Then
         assert schema == {'type': 'string', 'minLength': 1, 'maxLength': 1024, 'pattern': r'\S'}, (
             'the schema states the rules the parser checks'
+        )
+
+    def test_validate_python_with_a_non_string_raises_a_string_type_error(self) -> None:
+        #: Given
+        adapter = TypeAdapter(SkillDescription)
+        value = 42
+
+        #: When
+        with pytest.raises(ValidationError) as exc_info:
+            adapter.validate_python(value)
+
+        #: Then
+        types = [error['type'] for error in exc_info.value.errors()]
+        assert types == ['string_type'], f'a number is not text, got {types}'
+
+    def test_validate_python_with_a_string_returns_the_value_object(self) -> None:
+        #: Given
+        adapter = TypeAdapter(SkillDescription)
+        raw = 'Extract PDF text. Use when handling PDFs.'
+
+        #: When
+        description = adapter.validate_python(raw)
+
+        #: Then
+        assert description == SkillDescription(raw), 'the string is parsed into a skill description'
+
+    def test_validate_python_with_an_instance_returns_it_unchanged(self) -> None:
+        #: Given
+        adapter = TypeAdapter(SkillDescription)
+        instance = SkillDescription('Extract PDF text. Use when handling PDFs.')
+
+        #: When
+        description = adapter.validate_python(instance)
+
+        #: Then
+        assert description is instance, 'a skill description is taken as it is'
+
+    def test_dump_python_in_json_mode_returns_the_string(self) -> None:
+        #: Given
+        adapter = TypeAdapter(SkillDescription)
+        description = SkillDescription('Extract PDF text. Use when handling PDFs.')
+
+        #: When
+        dumped = adapter.dump_python(description, mode='json')
+
+        #: Then
+        assert dumped == 'Extract PDF text. Use when handling PDFs.', (
+            f'a skill description serializes back to its string, got {dumped!r}'
         )
 
 
@@ -179,6 +283,52 @@ class TestSkillLicense:
         #: Then
         assert schema == {'type': 'string'}, 'the specification sets no rule on a license'
 
+    def test_validate_python_with_a_non_string_raises_a_string_type_error(self) -> None:
+        #: Given
+        adapter = TypeAdapter(SkillLicense)
+        value = 42
+
+        #: When
+        with pytest.raises(ValidationError) as exc_info:
+            adapter.validate_python(value)
+
+        #: Then
+        types = [error['type'] for error in exc_info.value.errors()]
+        assert types == ['string_type'], f'a number is not text, got {types}'
+
+    def test_validate_python_with_a_string_returns_the_value_object(self) -> None:
+        #: Given
+        adapter = TypeAdapter(SkillLicense)
+        raw = 'Apache-2.0'
+
+        #: When
+        license_ = adapter.validate_python(raw)
+
+        #: Then
+        assert license_ == SkillLicense(raw), 'the string is parsed into a license'
+
+    def test_validate_python_with_an_instance_returns_it_unchanged(self) -> None:
+        #: Given
+        adapter = TypeAdapter(SkillLicense)
+        instance = SkillLicense('Apache-2.0')
+
+        #: When
+        license_ = adapter.validate_python(instance)
+
+        #: Then
+        assert license_ is instance, 'a license is taken as it is'
+
+    def test_dump_python_in_json_mode_returns_the_string(self) -> None:
+        #: Given
+        adapter = TypeAdapter(SkillLicense)
+        license_ = SkillLicense('Apache-2.0')
+
+        #: When
+        dumped = adapter.dump_python(license_, mode='json')
+
+        #: Then
+        assert dumped == 'Apache-2.0', f'a license serializes back to its string, got {dumped!r}'
+
 
 @pytest.mark.unit
 class TestSkillCompatibility:
@@ -202,6 +352,8 @@ class TestSkillCompatibility:
 
         #: Then
         assert 'empty' in str(exc_info.value), f'the blank note is reported, got {exc_info.value}'
+        assert isinstance(exc_info.value.source, ValidationError), 'the broken rule is kept as the source'
+        assert exc_info.value.source is exc_info.value.__cause__, 'the broken rule is the cause'
 
     def test_parse_with_a_note_over_the_limit_raises_skill_compatibility_too_long(self) -> None:
         #: Given
@@ -213,6 +365,9 @@ class TestSkillCompatibility:
 
         #: Then
         assert '501 characters' in str(exc_info.value), f'the length is reported, got {exc_info.value}'
+        assert exc_info.value.compatibility == raw, 'the error keeps the rejected note'
+        assert isinstance(exc_info.value.source, ValidationError), 'the broken rule is kept as the source'
+        assert exc_info.value.source is exc_info.value.__cause__, 'the broken rule is the cause'
 
     def test_json_schema_states_the_compatibility_rules(self) -> None:
         #: Given
@@ -224,6 +379,54 @@ class TestSkillCompatibility:
         #: Then
         assert schema == {'type': 'string', 'minLength': 1, 'maxLength': 500, 'pattern': r'\S'}, (
             'the schema states the rules the parser checks'
+        )
+
+    def test_validate_python_with_a_non_string_raises_a_string_type_error(self) -> None:
+        #: Given
+        adapter = TypeAdapter(SkillCompatibility)
+        value = 42
+
+        #: When
+        with pytest.raises(ValidationError) as exc_info:
+            adapter.validate_python(value)
+
+        #: Then
+        types = [error['type'] for error in exc_info.value.errors()]
+        assert types == ['string_type'], f'a number is not text, got {types}'
+
+    def test_validate_python_with_a_string_returns_the_value_object(self) -> None:
+        #: Given
+        adapter = TypeAdapter(SkillCompatibility)
+        raw = 'Requires Python 3.14+ and uv'
+
+        #: When
+        compatibility = adapter.validate_python(raw)
+
+        #: Then
+        assert compatibility == SkillCompatibility(raw), 'the string is parsed into a compatibility note'
+
+    def test_validate_python_with_an_instance_returns_it_unchanged(self) -> None:
+        #: Given
+        adapter = TypeAdapter(SkillCompatibility)
+        instance = SkillCompatibility('Requires Python 3.14+ and uv')
+
+        #: When
+        compatibility = adapter.validate_python(instance)
+
+        #: Then
+        assert compatibility is instance, 'a compatibility note is taken as it is'
+
+    def test_dump_python_in_json_mode_returns_the_string(self) -> None:
+        #: Given
+        adapter = TypeAdapter(SkillCompatibility)
+        compatibility = SkillCompatibility('Requires Python 3.14+ and uv')
+
+        #: When
+        dumped = adapter.dump_python(compatibility, mode='json')
+
+        #: Then
+        assert dumped == 'Requires Python 3.14+ and uv', (
+            f'a compatibility note serializes back to its string, got {dumped!r}'
         )
 
 
@@ -248,6 +451,52 @@ class TestSkillAllowedTools:
 
         #: Then
         assert schema == {'type': 'string'}, 'the specification sets no rule on allowed-tools'
+
+    def test_validate_python_with_a_non_string_raises_a_string_type_error(self) -> None:
+        #: Given
+        adapter = TypeAdapter(SkillAllowedTools)
+        value = 42
+
+        #: When
+        with pytest.raises(ValidationError) as exc_info:
+            adapter.validate_python(value)
+
+        #: Then
+        types = [error['type'] for error in exc_info.value.errors()]
+        assert types == ['string_type'], f'a number is not text, got {types}'
+
+    def test_validate_python_with_a_string_returns_the_value_object(self) -> None:
+        #: Given
+        adapter = TypeAdapter(SkillAllowedTools)
+        raw = 'Bash(git add *) Read'
+
+        #: When
+        allowed_tools = adapter.validate_python(raw)
+
+        #: Then
+        assert allowed_tools == SkillAllowedTools(raw), 'the string is parsed into the allowed tools'
+
+    def test_validate_python_with_an_instance_returns_it_unchanged(self) -> None:
+        #: Given
+        adapter = TypeAdapter(SkillAllowedTools)
+        instance = SkillAllowedTools('Bash(git add *) Read')
+
+        #: When
+        allowed_tools = adapter.validate_python(instance)
+
+        #: Then
+        assert allowed_tools is instance, 'the allowed tools is taken as it is'
+
+    def test_dump_python_in_json_mode_returns_the_string(self) -> None:
+        #: Given
+        adapter = TypeAdapter(SkillAllowedTools)
+        allowed_tools = SkillAllowedTools('Bash(git add *) Read')
+
+        #: When
+        dumped = adapter.dump_python(allowed_tools, mode='json')
+
+        #: Then
+        assert dumped == 'Bash(git add *) Read', f'the allowed tools serializes back to its string, got {dumped!r}'
 
 
 @pytest.mark.unit
