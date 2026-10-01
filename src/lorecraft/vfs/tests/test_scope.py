@@ -3,6 +3,10 @@
 Nothing here touches the disk. A snapshot is built by hand with links alone, and no listing, so every answer is
 seen to come from the declaration and the recorded links, never from a directory the snapshot holds. The parity
 with what `take_snapshot` actually lists is covered in `tests/it/test_filesystem.py`.
+
+`ScopeIndex.is_in_scope` is covered case by case in `TestScopeIndexIsInScope`, each building its own index.
+`TestScopeIndex` covers what only a reused index can show: that one index, once built, answers each path the same
+whatever was asked before.
 """
 
 from collections.abc import Mapping
@@ -14,7 +18,7 @@ import pytest
 from lorecraft.core.path import RootRelativePath
 
 from ..scan_root import ScanRoot
-from ..scope import is_in_scope
+from ..scope import ScopeIndex
 from ..snapshot import Link, Snapshot
 
 DOCS: Final[RootRelativePath] = RootRelativePath.parse('docs')
@@ -50,14 +54,15 @@ def _snapshot_of_links(links: Mapping[str, str]) -> Snapshot:
 
 
 @pytest.mark.unit
-class TestIsInScope:
+class TestScopeIndexIsInScope:
     def test_is_in_scope_with_an_entry_of_a_covered_directory_that_does_not_exist_returns_true(self) -> None:
         #: Given
         snapshot = _snapshot_of_links({})
         path = _path('docs/nope/a.md')
+        index = ScopeIndex(SCOPE, snapshot.links)
 
         #: When
-        in_scope = is_in_scope(SCOPE, snapshot.links, path)
+        in_scope = index.is_in_scope(path)
 
         #: Then
         assert in_scope is True, 'docs/nope is within docs/ depth whether or not it exists, so a.md is in the scope'
@@ -66,9 +71,10 @@ class TestIsInScope:
         #: Given
         snapshot = _snapshot_of_links({})
         path = _path('docs/feat/deep/a.md')
+        index = ScopeIndex(SCOPE, snapshot.links)
 
         #: When
-        in_scope = is_in_scope(SCOPE, snapshot.links, path)
+        in_scope = index.is_in_scope(path)
 
         #: Then
         assert in_scope is False, 'docs/ is read one level deep, so docs/feat/deep is never entered'
@@ -77,9 +83,10 @@ class TestIsInScope:
         #: Given
         snapshot = _snapshot_of_links({})
         path = _path('src/tool.py')
+        index = ScopeIndex(SCOPE, snapshot.links)
 
         #: When
-        in_scope = is_in_scope(SCOPE, snapshot.links, path)
+        in_scope = index.is_in_scope(path)
 
         #: Then
         assert in_scope is False, 'no root covers src/'
@@ -88,9 +95,10 @@ class TestIsInScope:
         #: Given
         snapshot = _snapshot_of_links({})
         path = DOCS
+        index = ScopeIndex(SCOPE, snapshot.links)
 
         #: When
-        in_scope = is_in_scope(SCOPE, snapshot.links, path)
+        in_scope = index.is_in_scope(path)
 
         #: Then
         assert in_scope is False, 'the root directory is not listed, so what the name docs holds is not known'
@@ -99,9 +107,10 @@ class TestIsInScope:
         #: Given
         snapshot = _snapshot_of_links({'docs/linked': '../elsewhere'})
         path = _path('docs/linked/a.md')
+        index = ScopeIndex(SCOPE, snapshot.links)
 
         #: When
-        in_scope = is_in_scope(SCOPE, snapshot.links, path)
+        in_scope = index.is_in_scope(path)
 
         #: Then
         assert in_scope is False, 'docs/ does not follow links, and the link leads to elsewhere/, which no root covers'
@@ -110,9 +119,10 @@ class TestIsInScope:
         #: Given
         snapshot = _snapshot_of_links({'docs/linked': 'feat'})
         path = _path('docs/linked/a.md')
+        index = ScopeIndex(SCOPE, snapshot.links)
 
         #: When
-        in_scope = is_in_scope(SCOPE, snapshot.links, path)
+        in_scope = index.is_in_scope(path)
 
         #: Then
         assert in_scope is True, 'the link leads to docs/feat, which docs/ lists in its own right'
@@ -121,9 +131,10 @@ class TestIsInScope:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/y': '../../skills/y'})
         path = _path('.agents/skills/y/absent.md')
+        index = ScopeIndex(SCOPE, snapshot.links)
 
         #: When
-        in_scope = is_in_scope(SCOPE, snapshot.links, path)
+        in_scope = index.is_in_scope(path)
 
         #: Then
         assert in_scope is True, 'the skills root follows the link, so it lists skills/y'
@@ -132,9 +143,10 @@ class TestIsInScope:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/y': '../../skills/y'})
         path = _path('skills/y/absent.md')
+        index = ScopeIndex(SCOPE, snapshot.links)
 
         #: When
-        in_scope = is_in_scope(SCOPE, snapshot.links, path)
+        in_scope = index.is_in_scope(path)
 
         #: Then
         assert in_scope is True, 'skills/y is listed because the link to it is followed, whatever it is spelled'
@@ -143,9 +155,10 @@ class TestIsInScope:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/y': '../../skills/y'})
         path = _path('skills/y/sub/a.md')
+        index = ScopeIndex(SCOPE, snapshot.links)
 
         #: When
-        in_scope = is_in_scope(SCOPE, snapshot.links, path)
+        in_scope = index.is_in_scope(path)
 
         #: Then
         assert in_scope is False, 'the link costs the depth a directory does, so skills/y is listed and not entered'
@@ -154,9 +167,10 @@ class TestIsInScope:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/x/lib': '../../../lib'})
         path = _path('lib/a.md')
+        index = ScopeIndex(SCOPE, snapshot.links)
 
         #: When
-        in_scope = is_in_scope(SCOPE, snapshot.links, path)
+        in_scope = index.is_in_scope(path)
 
         #: Then
         assert in_scope is False, 'a skill directory is listed with no depth left, so a linked directory in it is not'
@@ -166,9 +180,10 @@ class TestIsInScope:
         scope = (ScanRoot(_path('a'), depth=2, follow_links=True),)
         snapshot = _snapshot_of_links({'a/to-b': '../b', 'b/to-c': '../c'})
         path = _path('c/x.md')
+        index = ScopeIndex(scope, snapshot.links)
 
         #: When
-        in_scope = is_in_scope(scope, snapshot.links, path)
+        in_scope = index.is_in_scope(path)
 
         #: Then
         assert in_scope is True, 'a/ lists b/ through one link with a level left, and b/ lists c/ through the next'
@@ -178,9 +193,10 @@ class TestIsInScope:
         scope = (ScanRoot(_path('.claude/skills'), depth=1, follow_links=True),)
         snapshot = _snapshot_of_links({'.claude/skills': '../.agents/skills'})
         path = _path('.agents/skills/x/a.md')
+        index = ScopeIndex(scope, snapshot.links)
 
         #: When
-        in_scope = is_in_scope(scope, snapshot.links, path)
+        in_scope = index.is_in_scope(path)
 
         #: Then
         assert in_scope is True, 'the root follows the link on the way to it, so .agents/skills is what it lists'
@@ -190,9 +206,10 @@ class TestIsInScope:
         scope = (ScanRoot(_path('.claude/skills'), depth=1),)
         snapshot = _snapshot_of_links({'.claude/skills': '../.agents/skills'})
         path = _path('.claude/skills/x/a.md')
+        index = ScopeIndex(scope, snapshot.links)
 
         #: When
-        in_scope = is_in_scope(scope, snapshot.links, path)
+        in_scope = index.is_in_scope(path)
 
         #: Then
         assert in_scope is False, 'the scan stops at the link on the way to the root, so it lists nothing there'
@@ -201,9 +218,10 @@ class TestIsInScope:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/y': '/srv/skills/y'})
         path = _path('.agents/skills/y/a.md')
+        index = ScopeIndex(SCOPE, snapshot.links)
 
         #: When
-        in_scope = is_in_scope(SCOPE, snapshot.links, path)
+        in_scope = index.is_in_scope(path)
 
         #: Then
         assert in_scope is False, 'an absolute target is outside the root, where the scan never goes'
@@ -212,9 +230,10 @@ class TestIsInScope:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/y': '../../../y'})
         path = _path('.agents/skills/y/a.md')
+        index = ScopeIndex(SCOPE, snapshot.links)
 
         #: When
-        in_scope = is_in_scope(SCOPE, snapshot.links, path)
+        in_scope = index.is_in_scope(path)
 
         #: Then
         assert in_scope is False, 'a target above the root is outside it, where the scan never goes'
@@ -223,9 +242,10 @@ class TestIsInScope:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/y': 'tmp/../x'})
         path = _path('.agents/skills/y/a.md')
+        index = ScopeIndex(SCOPE, snapshot.links)
 
         #: When
-        in_scope = is_in_scope(SCOPE, snapshot.links, path)
+        in_scope = index.is_in_scope(path)
 
         #: Then
         assert in_scope is False, 'the scan refuses a `..` out of a directory it stepped into by name, and so does this'
@@ -234,9 +254,59 @@ class TestIsInScope:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/y': 'y'})
         path = _path('.agents/skills/y/a.md')
+        index = ScopeIndex(SCOPE, snapshot.links)
 
         #: When
-        in_scope = is_in_scope(SCOPE, snapshot.links, path)
+        in_scope = index.is_in_scope(path)
 
         #: Then
         assert in_scope is False, 'a chain longer than the link limit leads nowhere, as on disk'
+
+
+@pytest.mark.unit
+class TestScopeIndex:
+    def test_is_in_scope_through_a_followed_skill_link_returns_true(self) -> None:
+        #: Given
+        snapshot = _snapshot_of_links({'.agents/skills/y': '../../skills/y'})
+        index = ScopeIndex(SCOPE, snapshot.links)
+
+        #: When
+        in_scope = index.is_in_scope(_path('skills/y/absent.md'))
+
+        #: Then
+        assert in_scope is True, 'the index expands the skills root through the link it follows, to skills/y'
+
+    def test_is_in_scope_after_a_path_outside_the_scope_was_asked_returns_true_for_a_covered_path(self) -> None:
+        #: Given
+        snapshot = _snapshot_of_links({'.agents/skills/y': '../../skills/y'})
+        index = ScopeIndex(SCOPE, snapshot.links)
+        index.is_in_scope(_path('src/tool.py'))
+
+        #: When
+        in_scope = index.is_in_scope(_path('skills/y/absent.md'))
+
+        #: Then
+        assert in_scope is True, 'a question answered false leaves the expanded roots as they were built'
+
+    def test_is_in_scope_after_a_covered_path_was_asked_returns_false_beyond_the_depth(self) -> None:
+        #: Given
+        snapshot = _snapshot_of_links({'.agents/skills/y': '../../skills/y'})
+        index = ScopeIndex(SCOPE, snapshot.links)
+        index.is_in_scope(_path('skills/y/absent.md'))
+
+        #: When
+        in_scope = index.is_in_scope(_path('skills/y/sub/a.md'))
+
+        #: Then
+        assert in_scope is False, 'a question answered true widens nothing: skills/y is still listed and not entered'
+
+    def test_is_in_scope_with_an_empty_scope_returns_false(self) -> None:
+        #: Given
+        snapshot = _snapshot_of_links({'.agents/skills/y': '../../skills/y'})
+        index = ScopeIndex((), snapshot.links)
+
+        #: When
+        in_scope = index.is_in_scope(_path('skills/y/absent.md'))
+
+        #: Then
+        assert in_scope is False, 'with no root declared no link is followed, so nothing is in scope'

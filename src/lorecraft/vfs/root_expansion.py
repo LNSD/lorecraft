@@ -1,6 +1,6 @@
 """How a scan root expands through symlinks, defined once for the scan and for the scope query.
 
-`take_snapshot` in `disk.py` expands each root of a scope as it lists the disk; `is_in_scope` in `scope.py`
+`take_snapshot` in `disk.py` expands each root of a scope as it lists the disk; `ScopeIndex` in `scope.py`
 expands the same roots afterwards, from the links the snapshot recorded. Both go through the rules here, so
 what the scan lists and what the query says it lists cannot drift apart:
 

@@ -11,6 +11,10 @@ answer follows the links the snapshot recorded, and only those: a scan records e
 every link on the way to a scope root, so inside the scope no other link exists. Whether a link's target exists
 plays no part. How a root expands through a link is not repeated here: the scan and this query both apply the
 rules of `root_expansion.py`, the scan to what it finds on disk and this query to what the snapshot recorded.
+
+Expanding the roots through the links costs far more than asking about one path, and it depends on the scope and
+the links alone, so it is kept apart from the question: a `ScopeIndex` expands them once and answers any number
+of paths.
 """
 
 from pathlib import PurePosixPath
@@ -23,35 +27,52 @@ from .snapshot import Link
 from .view import EntryKind
 
 
-def is_in_scope(scope: tuple[ScanRoot, ...], links: tuple[Link, ...], path: RootRelativePath) -> bool:
-    """Whether a scan of `scope` lists the directory `path` sits in, so the snapshot holds whatever is there.
+class ScopeIndex:
+    """A scope expanded once through the links a snapshot recorded, to say whether any path is in it.
 
-    The path's directory is walked from the root through the recorded `links`, to where it really
-    is; the entry there is in the scope when a root covers it (`ScanRoot.is_covering`). The roots are the scope's,
-    each at the real directory the scan starts at, and one more for each link the scan follows: the real
-    directory the link leads to, with the depth the link leaves.
-
-    Args:
-        scope: The scope the snapshot of `links` was taken of, `Snapshot.scope`; another scope's answer would not
-            describe it.
-        links: Every link the snapshot recorded, `Snapshot.links`; no listing and no file of the snapshot is read.
-        path: The root-relative entry to ask about; it need not exist, and nor need its directory.
-
-    Returns:
-        True when the scan lists the directory the path leads into, whether or not that directory exists.
-        False when it does not, and when the walk leaves what the snapshot can follow: a link with an absolute
-        target, one climbing above the root or out of a directory the walk stepped into by name, as the scan
-        refuses too, or a chain longer than `MAX_LINKS`.
+    It holds the recorded links, indexed by path, and every root the scan lists from, each at a real directory,
+    one for each link the scan follows included. Both depend on the scope and the links alone, never on a path
+    asked about, so one index answers every path of a snapshot. It never changes once built, so one index can be
+    shared by every caller.
     """
-    recorded = _RecordedLinks(links)
-    directory = walk_to_real_path(path.parent, recorded, follow_links=True)
-    if directory is None:
+
+    def __init__(self, scope: tuple[ScanRoot, ...], links: tuple[Link, ...]) -> None:
+        """Index the recorded links and expand the scope's roots through them; reads no disk.
+
+        Args:
+            scope: The scope the snapshot of `links` was taken of, `Snapshot.scope`; another scope's answers
+                would not describe it.
+            links: Every link the snapshot recorded, `Snapshot.links`; no listing and no file of the snapshot is
+                read.
+        """
+        self._recorded = _RecordedLinks(links)
+        self._real_roots = _real_scan_roots(scope, self._recorded)
+
+    def is_in_scope(self, path: RootRelativePath) -> bool:
+        """Whether a scan of the scope lists the directory `path` sits in, so the snapshot holds whatever is there.
+
+        The path's directory is walked from the root through the recorded links, to where it really is; the
+        entry there is in the scope when a root covers it (`ScanRoot.is_covering`). The roots are the scope's,
+        each at the real directory the scan starts at, and one more for each link the scan follows: the real
+        directory the link leads to, with the depth the link leaves.
+
+        Args:
+            path: The root-relative entry to ask about; it need not exist, and nor need its directory.
+
+        Returns:
+            True when the scan lists the directory the path leads into, whether or not that directory exists.
+            False when it does not, and when the walk leaves what the snapshot can follow: a link with an
+            absolute target, one climbing above the root or out of a directory the walk stepped into by name, as
+            the scan refuses too, or a chain longer than `MAX_LINKS`.
+        """
+        directory = walk_to_real_path(path.parent, self._recorded, follow_links=True)
+        if directory is None:
+            return False
+        entry = directory.path / path.name
+        for scan_root in self._real_roots:
+            if scan_root.is_covering(entry):
+                return True
         return False
-    entry = directory.path / path.name
-    for scan_root in _real_scan_roots(scope, recorded):
-        if scan_root.is_covering(entry):
-            return True
-    return False
 
 
 class _RecordedLinks:

@@ -44,7 +44,7 @@ class ScanRoot:
 
         That is an entry of `directory`, or of a directory at most `depth` levels below it, whether or not
         it exists. `directory` itself is not one: its parent lists it, and the scan only walks to it. Links
-        are not this question, so `follow_links` plays no part; `is_in_scope` answers for a whole scope,
+        are not this question, so `follow_links` plays no part; `ScopeIndex.is_in_scope` answers for a whole scope,
         links included.
 
         Args:
