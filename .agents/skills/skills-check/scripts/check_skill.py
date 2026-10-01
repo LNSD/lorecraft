@@ -9,11 +9,13 @@
 """Check the body of skills against the Agent Skills specification (https://agentskills.io/specification).
 
 Covers what `lorecraft check skills` does not yet: the SKILL.md length budget, and whether
-every relative link resolves, through the files a project skill links in by `metadata`. The
-frontmatter - its fields, their limits and the name matching its directory - is checked
-by `lorecraft check skills`, and no longer here. Judgment calls stay with the skill -
-whether a description says when to use the skill, whether content belongs in SKILL.md or
-a reference file, whether a reference chain runs too deep.
+every relative link inside the skill resolves, read from the skill root as the specification
+reads it, through the files a project skill links in by `metadata`. The frontmatter - its
+fields, their limits and the name matching its directory - is checked by `lorecraft check
+skills`, and no longer here. So is a link that leaves the skill, in every skill.
+Judgment calls stay with the skill - whether a description says when to use the skill,
+whether content belongs in SKILL.md or a reference file, whether a reference chain runs
+too deep.
 
 This is a vendored standalone copy; the checks it implements are destined for the
 lorecraft library, which will run them from one checker instead of a script per skill.
@@ -21,10 +23,10 @@ lorecraft library, which will run them from one checker instead of a script per 
 A skill's location decides which rules apply:
 
     .agents/skills/<name>/  workspace skill: used by agents working in this repository.
-                            The specification, plus links into the repository.
+                            The specification.
     skills/<name>/          project skill: installed into other repositories. The
-                            specification only, and no link may leave the skill, except
-                            through the `metadata` convention described in SKILL.md.
+                            specification only, and a link reaches a repository file
+                            only through the `metadata` convention described in SKILL.md.
                             Project skills live in skills/; a symlink to one from
                             .agents/skills/ is checked once, as a project skill.
 """
@@ -32,12 +34,14 @@ A skill's location decides which rules apply:
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Annotated
+from urllib.parse import unquote
 
 import typer
 import yaml
@@ -157,8 +161,8 @@ def linked_files(root: Path, frontmatter: dict) -> dict[Path, Path]:
     return links
 
 
-def check_body(root: Path, skill_dir: Path, path: Path, kind: SkillKind, links: dict[Path, Path]) -> list[Finding]:
-    """Check the relative links in one Markdown file of a skill."""
+def check_body(root: Path, skill_dir: Path, path: Path, links: dict[Path, Path]) -> list[Finding]:
+    """Check the relative links in one Markdown file of a skill, each read from the skill root."""
     rel = path.relative_to(root).as_posix()
     findings: list[Finding] = []
     in_fence = False
@@ -171,34 +175,33 @@ def check_body(root: Path, skill_dir: Path, path: Path, kind: SkillKind, links: 
             continue
 
         for target in LINK_PATTERN.findall(line):
-            if re.match(r'^[a-z][a-z0-9+.-]*:', target):
+            if re.match(r'^[A-Za-z][A-Za-z0-9+.-]*:', target):
                 continue
+            if target.startswith('/'):
+                # `lorecraft check skills` reports this as `skill.link-absolute`, for `SKILL.md` only.
+                continue
+            # The path is read as `lorecraft check skills` reads it: before the query and the
+            # fragment, percent-decoded.
             target_path, _, _ = target.partition('#')
+            target_path, _, _ = target_path.partition('?')
+            target_path = unquote(target_path)
             if not target_path:
                 # `lorecraft check skills` reports this as `skill.link-fragment`, for `SKILL.md` only.
                 continue
             if target_path.startswith('/'):
-                # `lorecraft check skills` reports this as `skill.link-absolute`, for `SKILL.md` only.
                 continue
 
-            resolved = (path.parent / target_path).resolve()
-            inside_skill = resolved.is_relative_to(skill_dir.resolve())
-
-            target_file: Path | None = None
-            if inside_skill and resolved.exists():
-                target_file = resolved
-            elif inside_skill and resolved.relative_to(skill_dir.resolve()) in links:
-                target_file = links[resolved.relative_to(skill_dir.resolve())]
-            elif kind is SkillKind.workspace and resolved.exists():
-                target_file = resolved
-
-            if target_file is None:
-                if kind is SkillKind.project and not inside_skill:
-                    message = f'`{target}` leaves the skill directory; link the file in through `metadata` instead'
-                    findings.append(Finding(rel, number, 'link.escapes', message))
-                else:
-                    findings.append(Finding(rel, number, 'link.broken', f'`{target}` does not resolve'))
+            # Lexical, as `lorecraft check skills` decides it: the link's own path, read from the
+            # skill root, leaves the skill when it climbs above it. Only a link that stays inside is
+            # followed to see what it names.
+            normalised = os.path.normpath(target_path)
+            if normalised == '..' or normalised.startswith('../'):
+                # `lorecraft check skills` reports this as `skill.link-escapes`.
                 continue
+
+            if (skill_dir / normalised).exists() or Path(normalised) in links:
+                continue
+            findings.append(Finding(rel, number, 'link.broken', f'`{target}` does not resolve'))
 
     return findings
 
@@ -228,7 +231,7 @@ def validate(root: Path, skill_dir: Path) -> list[Finding]:
         links = linked_files(root, frontmatter)
 
     for markdown in sorted(skill_dir.rglob('*.md')):
-        findings.extend(check_body(root, skill_dir, markdown, kind, links))
+        findings.extend(check_body(root, skill_dir, markdown, links))
 
     return findings
 
