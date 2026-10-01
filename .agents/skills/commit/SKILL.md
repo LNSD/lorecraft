@@ -95,10 +95,10 @@ Read each bullet, then append the words *so what?*
 the answer into it or delete it. A bullet is one consequence with its reason attached, not a line from
 an edit log.
 
-- "Moved `check_budget.py` under the skill's `scripts/`. *So what?*" needs an answer the bullet does
-  not give. **Fail.**
-- "Vendor one check script per skill rather than a shared library, because the checker's interface is
-  still unwritten and a premature abstraction costs more to unpick than three duplicated scripts."
+- "Moved the link rules into `skill_link.py`. *So what?*" needs an answer the bullet does not give.
+  **Fail.**
+- "Read every link in a skill from the skill root rather than from the file holding it, because the
+  specification resolves a skill's paths from there and an installed skill has no other anchor."
   **Pass.**
 
 ### Gate 3: the object test (title and every bullet)
@@ -111,7 +111,7 @@ defect, or something a person or an agent reading the repository now experiences
 
 | Object in the draft | Verdict |
 |---|---|
-| `pyproject.toml`, `check_skill.py`, `parse_frontmatter`, `include`, `## Checklist` | Fail |
+| `pyproject.toml`, `skill_link.py`, `parse_frontmatter`, `include`, `## Checklist` | Fail |
 | six jobs, 17 documents, three call sites | Fail |
 | what a malformed document does, what the sdist contains, what CI refuses to merge | Pass |
 
@@ -223,7 +223,7 @@ The title states what became possible for the code; the summary names the featur
 
 **Workspace skills are `chore`.** A commit confined to `.agents/skills/` changes the tooling contributors'
 agents run on this repository, and ships nothing to anyone using Lorecraft, so it is `chore(skills)` whatever
-the edit: a new section, a rewritten workflow, a fixed vendored script.
+the edit: a new section, a rewritten workflow, a narrower `allowed-tools`.
 
 **Project skills are typed like code.** A skill under `skills/` ships to every repository that uses Lorecraft,
 so a change to it takes its type from the consequence, exactly as a change under `src/` does, with the
@@ -284,7 +284,7 @@ the project stopped doing to everyone downstream of a release.
 
 | | |
 |---|---|
-| Before | `docs(code): copy in 17 rule documents and three check scripts` |
+| Before | `docs(code): copy in 17 rule documents` |
 | After | `docs(code): adopt the rule corpus this toolkit exists to check` |
 
 Counting files is the diff's job. The second says the project now holds the corpus the unwritten
@@ -310,24 +310,23 @@ suggestion written in prose.
 The first is a move. The second is the invalid state the move made unrepresentable, which is the part
 worth protecting from a well-meaning future edit.
 
-**Bullets, same distinction.** From the corpus-adoption commit:
+**Bullets, same distinction.** From the commit that taught `lorecraft check skills` to report a broken link:
 
 Before:
 
 ```
-- Move `check_header.py`, `check_structure.py` and `check_budget.py` into
-  `.agents/skills/docs-rules-check/scripts/`
-- Add a `check-docs` recipe to the `justfile`
+- Add `skill.link-broken` to `checks/skill_link.py`
+- Call `find_real_path` from the run for each link target
 ```
 
 After:
 
 ```
-- Vendor a check script per skill instead of extracting a shared library
-  now: the checker's interface is still unwritten, and a premature
-  abstraction costs more to unpick than three duplicated scripts
-- Put the gate behind `just check-docs`, so the justfile, CI and the skills
-  all name one entry point and cannot drift apart
+- Resolve every link through the snapshot rather than the disk, so a
+  skill's `SKILL.md` and its resources are judged against one view of
+  the repository
+- Hand the check what the snapshot holds at each target, so it stays pure
+  and is tested without a filesystem
 ```
 
 ## Mechanical Changes
@@ -371,7 +370,7 @@ A change to modules directly in `src/lorecraft/` scopes to `lorecraft`.
 | `docs(meta)` | format specifications under `docs/__meta__/` |
 | `docs(feat)` | feature documents under `docs/feat/` |
 | `docs` | documentation outside those named corpora when a narrower scope adds useful information |
-| `skills` | `skills/`, `.agents/skills/` with its `scripts/`, and the `.claude/skills` symlink |
+| `skills` | `skills/`, `.agents/skills/`, and the `.claude/skills` symlink |
 | `agents` | `AGENTS.md` |
 | `build` | packaging and release metadata in `pyproject.toml` |
 | `ci` | `.github/`: workflows, pre-commit config, Renovate config |

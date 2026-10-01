@@ -187,6 +187,6 @@ After generating a status report:
 
 ## Script Note
 
-`report.py` is the only script in this repository that is not a PEP 723 script run through `uv`: it is a
-plain `python3` script carrying its own frontmatter parser and its own table renderer. Invoke it exactly as
-written above, and expect it to be replaced by the lorecraft library.
+`report.py` is the one standalone script left in this repository: a plain `python3` script, needing nothing
+outside the standard library, that carries its own frontmatter parser and its own table renderer. Invoke it
+exactly as written above, and expect the lorecraft library to replace it.

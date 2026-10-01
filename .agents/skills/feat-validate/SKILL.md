@@ -118,7 +118,7 @@ is absent: a `meta` doc has no Usage section by design, and its concrete usage l
 
 **For CLI surfaces**:
 - Does the flag exist with the documented name and default?
-- Does the script exit with the documented status — 0 clean, 1 findings, 2 usage error?
+- Does the command exit with the documented status — 0 clean, 1 findings, 2 usage error?
 - Do the positional paths and the root-discovery behaviour match the doc?
 
 **For spec dialects**:
