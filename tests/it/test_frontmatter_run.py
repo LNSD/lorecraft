@@ -224,3 +224,25 @@ class TestRunFrontmatter:
                 ),
             ),
         ], 'the nesting is one finding on line 1, having no line of its own, and the run checks the other document'
+
+    def test_run_frontmatter_with_an_ungoverned_document_first_still_checks_the_governed_ones_after_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        # corpus `api` sorts before `code`, so its ungoverned document is the first ref the run is handed
+        _write(tmp_path, 'docs/__meta__/api.md', b'# Api\n')
+        _write(tmp_path, 'docs/__meta__/api.structure.json', NO_FRONTMATTER_STRUCTURE_SPEC.encode())
+        _write(tmp_path, 'docs/__meta__/code.md', b'# Code\n')
+        _write(tmp_path, 'docs/__meta__/code.structure.json', DESCRIPTION_STRUCTURE_SPEC.encode())
+        _write(tmp_path, 'docs/api/intro.md', b'---\nname: "intro"\n---\n')
+        _write(tmp_path, 'docs/code/guide.md', b'---\nname: "guide"\ndescription: "A guide"\n---\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_document(database)
+
+        #: Then
+        assert [(report.ref.path, report.governed) for report in run.reports] == [
+            (RootRelativePath.parse('docs/api/intro.md'), False),
+            (RootRelativePath.parse('docs/code/guide.md'), True),
+        ], 'the api corpus states no frontmatter schema, and skipping its document does not end the run'
