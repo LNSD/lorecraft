@@ -73,7 +73,7 @@ class DiskFileSystem(FileSystem):
         try:
             entries = _find_listing(self._root, path)
         except OSError as exc:
-            raise DirListError(path, OsRefusal.of(exc), source=exc) from exc
+            raise DirListError(path, OsRefusal.from_error(exc), source=exc) from exc
         if entries is None:
             return ()
         return entries
@@ -91,7 +91,7 @@ class DiskFileSystem(FileSystem):
         try:
             data = disk_location(self._root, path).read_bytes()
         except OSError as exc:
-            raise FileReadError(path, OsRefusal.of(exc), source=exc) from exc
+            raise FileReadError(path, OsRefusal.from_error(exc), source=exc) from exc
         return decode_text(path, data)
 
     def find_entry_kind(self, path: RootRelativePath) -> EntryKind | None:
@@ -110,7 +110,7 @@ class DiskFileSystem(FileSystem):
         except OSError as exc:
             if exc.errno == errno.ELOOP:  # a looping link on the way leads to no directory, like a dangling one
                 return None
-            raise EntryInspectError(path, OsRefusal.of(exc), source=exc) from exc
+            raise EntryInspectError(path, OsRefusal.from_error(exc), source=exc) from exc
         return _kind_of_mode(mode)
 
     def find_real_dir(self, path: RootRelativePath) -> RootRelativePath | None:
@@ -135,7 +135,7 @@ class DiskFileSystem(FileSystem):
             leads_to = Path(os.path.realpath(disk_location(self._root, path)))
             if not leads_to.is_relative_to(self._root):
                 return None
-            raise DirResolveError(path, OsRefusal.of(exc), source=exc) from exc
+            raise DirResolveError(path, OsRefusal.from_error(exc), source=exc) from exc
         # Asked of the path as given, not of ``real``: ``realpath`` follows a chain of any length, while the
         # operating system gives up past its own limit, and then nothing opens the directory through it.
         if not os.path.isdir(disk_location(self._root, path)):
@@ -168,7 +168,7 @@ class DiskFileSystem(FileSystem):
             leads_to = Path(os.path.realpath(disk_location(self._root, path)))
             if not leads_to.is_relative_to(self._root):
                 return None
-            raise FileResolveError(path, OsRefusal.of(exc), source=exc) from exc
+            raise FileResolveError(path, OsRefusal.from_error(exc), source=exc) from exc
         # Asked of the path as given, as in ``find_real_dir``: nothing opens the file through a chain longer than
         # the operating system follows.
         if not os.path.isfile(disk_location(self._root, path)):
@@ -321,7 +321,7 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
         try:
             entries = _find_listing(root, directory)
         except OSError as exc:
-            raise SnapshotDirListError(directory, OsRefusal.of(exc), source=exc) from exc
+            raise SnapshotDirListError(directory, OsRefusal.from_error(exc), source=exc) from exc
         if entries is None:
             continue  # vanished after its parent was listed; see the docstring
         if follow_links:
@@ -455,7 +455,7 @@ def _find_lstat_kind(root: Path, path: RootRelativePath) -> EntryKind | None:
     except (FileNotFoundError, NotADirectoryError):  # a missing path has no kind, by contract
         return None
     except OSError as exc:
-        raise SnapshotEntryInspectError(path, OsRefusal.of(exc), source=exc) from exc
+        raise SnapshotEntryInspectError(path, OsRefusal.from_error(exc), source=exc) from exc
     return _kind_of_mode(mode)
 
 
@@ -489,7 +489,7 @@ def _find_file_bytes(root: Path, path: RootRelativePath) -> bytes | None:
     except FileNotFoundError:  # a vanished file is dropped by the caller, by contract
         return None
     except OSError as exc:
-        raise SnapshotFileReadError(path, OsRefusal.of(exc), source=exc) from exc
+        raise SnapshotFileReadError(path, OsRefusal.from_error(exc), source=exc) from exc
 
 
 def _find_symlink_target(root: Path, path: RootRelativePath) -> PurePosixPath | None:
@@ -510,7 +510,7 @@ def _find_symlink_target(root: Path, path: RootRelativePath) -> PurePosixPath | 
     except FileNotFoundError:  # a vanished link is dropped by the caller, by contract
         return None
     except OSError as exc:
-        raise SnapshotLinkReadError(path, OsRefusal.of(exc), source=exc) from exc
+        raise SnapshotLinkReadError(path, OsRefusal.from_error(exc), source=exc) from exc
     return _spell_relative_if_under_root(root, path, target)
 
 

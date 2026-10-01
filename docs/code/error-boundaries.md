@@ -116,7 +116,7 @@ class ReadRefusal(Enum):
 
 
 except OSError as exc:
-    raise SpecReadError(path, ReadRefusal.of(exc), source=exc) from exc
+    raise SpecReadError(path, ReadRefusal.from_error(exc), source=exc) from exc
 ```
 
 ## 4. Wrap Only Where the Layer Adds a Step or an Identity
@@ -154,7 +154,7 @@ working on wraps with that identity.
 ```python
 # Layer 1, `fetch_spec`: the foreign failure enters as a typed source, its refusal classified
 except OSError as exc:
-    raise SpecReadError(path, ReadRefusal.of(exc), source=exc) from exc
+    raise SpecReadError(path, ReadRefusal.from_error(exc), source=exc) from exc
 
 # Layer 2, `parse_outline`: no identity to add, so fetch_spec's variants pass through
 # unwrapped; only its own step, the syntax, is a new variant

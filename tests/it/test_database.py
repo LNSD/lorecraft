@@ -35,7 +35,7 @@ def _snapshot(guide: bytes) -> Snapshot:
     Args:
         guide: Bytes of `docs/code/guide.md`, the one document in the snapshot.
     """
-    return Snapshot.of_files(
+    return Snapshot.from_files(
         {
             RootRelativePath.parse('docs/__meta__/code.md'): b'# Code\n',
             RootRelativePath.parse('docs/__meta__/code.structure.json'): b'{"frontmatter": {"type": "object"}}',
@@ -50,7 +50,7 @@ def _skill_snapshot(skill: bytes) -> Snapshot:
     Args:
         skill: Bytes of the skill's `SKILL.md`.
     """
-    return Snapshot.of_files({RootRelativePath.parse('.agents/skills/review/SKILL.md'): skill})
+    return Snapshot.from_files({RootRelativePath.parse('.agents/skills/review/SKILL.md'): skill})
 
 
 def _refused_chain_snapshot() -> Snapshot:
@@ -159,7 +159,7 @@ class TestDatabase:
         #: Then
         assert in_scope is False, 'the snapshot was not taken of docs/, so the layout reading it plays no part'
 
-    def test_is_in_scope_over_a_snapshot_of_files_returns_false(self) -> None:
+    def test_is_in_scope_over_a_snapshot_from_files_returns_false(self) -> None:
         #: Given
         database = Database(_snapshot(b'---\nname: "guide"\n---\n'))
 
@@ -342,7 +342,7 @@ class TestDatabase:
         #: Given
         # What a scan records for `.agents/skills/review -> ../../skills/review`: the link in the skills directory,
         # and the SKILL.md at the real path it leads to.
-        shipped = Snapshot.of_files(
+        shipped = Snapshot.from_files(
             {RootRelativePath.parse('skills/review/SKILL.md'): b'---\nname: review\n---\n[the guide](guide.md)\n'}
         )
         snapshot = Snapshot(
