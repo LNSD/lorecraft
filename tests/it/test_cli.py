@@ -842,6 +842,36 @@ class TestCheckSkillsCommand:
             'ungoverned': [],
         }, 'the repetition is reported on its own line, naming the line of the first occurrence'
 
+    def test_check_skills_with_json_format_over_a_skill_with_an_absolute_link_reports_the_link(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(
+            tmp_path,
+            '.agents/skills/review/SKILL.md',
+            '---\nname: review\ndescription: Review a change\n---\n# Review\n\nRead [the guide](/docs/guide.md).\n',
+        )
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 1,
+            'findings': [
+                {
+                    'file': '.agents/skills/review/SKILL.md',
+                    'line': 7,
+                    'rule': 'skill.link-absolute',
+                    'message': '`/docs/guide.md` is absolute; link relative to the skill root',
+                    'spec': None,
+                }
+            ],
+            'ungoverned': [],
+        }, 'the absolute link is reported on its own line, naming its destination'
+
     def test_check_skills_with_json_format_over_a_skill_linked_outside_the_skills_directories_checks_it(
         self, tmp_path: Path
     ) -> None:

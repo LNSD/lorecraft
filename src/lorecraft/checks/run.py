@@ -7,9 +7,9 @@ Selecting which documents to check is the caller's business: a run checks the re
 given, and reads only the governed ones. Every check reports in the same shape, so the ``check`` commands print
 every run the same way.
 
-The skill check runs over skills instead: the refs it is handed are the model's ``SkillRef``s, the part it reads
-is the frontmatter of each ``SKILL.md``, and the Agent Skills specification governs every one of them, so a
-skill is never ungoverned. It reports in a shape of its own, a ``SkillCheckRun`` of ``SkillReport``s.
+The skill check runs over skills instead: the refs it is handed are the model's ``SkillRef``s, the parts it reads
+are the frontmatter and the links of each ``SKILL.md``, and the Agent Skills specification governs every one of
+them, so a skill is never ungoverned. It reports in a shape of its own, a ``SkillCheckRun`` of ``SkillReport``s.
 """
 
 from dataclasses import dataclass
@@ -33,6 +33,7 @@ from .database import Database
 from .frontmatter import validate_frontmatter
 from .reporting import Finding, Violation
 from .skill import validate_skill
+from .skill_link import validate_skill_links
 from .structure import validate_structure
 
 
@@ -292,10 +293,11 @@ def run_budget(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
 
 
 def run_skills(database: Database, refs: tuple[SkillRef, ...]) -> SkillCheckRun:
-    """Check each skill's frontmatter against the Agent Skills specification, in the order given.
+    """Check each skill's frontmatter against the Agent Skills specification, then its links, in the order given.
 
-    Every skill is governed: the specification applies to each one. A skill whose ``SKILL.md`` is not UTF-8
-    carries the single violation ``skill.undecodable`` at line 1.
+    Every skill is governed: the specification applies to each one. A skill's violations list the frontmatter's
+    first, then the links'. A skill whose ``SKILL.md`` is not UTF-8 carries the single violation
+    ``skill.undecodable`` at line 1, and is never parsed.
 
     Args:
         database: The snapshot state the refs come from.
@@ -311,10 +313,13 @@ def run_skills(database: Database, refs: tuple[SkillRef, ...]) -> SkillCheckRun:
             case SkillDecodeError():
                 reports.append(SkillReport(ref, violations=(_undecodable_skill(),)))
             case Frontmatter() | MissingFrontmatter() | InvalidYamlFrontmatter() | NonMappingFrontmatter():
-                result = validate_skill(
+                frontmatter_result = validate_skill(
                     SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name=ref.directory.name
                 )
-                reports.append(SkillReport(ref, violations=result.violations))
+                # The frontmatter was read and decoded from these same bytes, so the parse cannot fail on them.
+                link_result = validate_skill_links(links=database.skill_parse(ref).links)
+                violations = frontmatter_result.violations + link_result.violations
+                reports.append(SkillReport(ref, violations=violations))
             case _:
                 assert_never(frontmatter)
     return SkillCheckRun(reports=tuple(reports))

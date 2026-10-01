@@ -12,6 +12,8 @@ use and kept for as long as the database lives (pattern-memoization):
   document's bytes and nothing else.
 - ``skill_frontmatter(ref)``: one skill's frontmatter node, the same stub for a ``SKILL.md``. It reads that
   skill's bytes and nothing else.
+- ``skill_parse(ref)``: one skill's parse tree, the same PSI file for a ``SKILL.md``. It reads that skill's bytes
+  and nothing else.
 - ``tokens(ref)``: what one document's whole file costs an agent that loads it, like another per-file index
   entry: counted from the raw text, frontmatter and code included, without a parse. It reads that document's
   bytes and nothing else.
@@ -25,19 +27,19 @@ Nothing here records what a cached value read, so no dependency is tracked. Inva
 the way the IDE drops per-file index entries on a file change event and resets structural caches on a project model
 change. Reserved, not implemented: ``advance(snapshot) -> Database``, the next state. It would ``diff`` the two
 snapshots and carry over each cached value the change set leaves valid: the frontmatter, the parse and the token
-count of every document whose bytes did not change, the frontmatter of every skill whose bytes did not, and the
-model unless an entry was added or deleted under ``docs/``, a skills directory or a directory a skill is linked
-to, a link on the way to a skill changed its target, or a specification changed. That rule holds only while the
-frontmatter, the parse and the token count each read their own document and the model reads no document, so keep
-them that way: data drawn from several documents belongs in a new cache with its own rule.
+count of every document whose bytes did not change, the frontmatter and the parse of every skill whose bytes did
+not, and the model unless an entry was added or deleted under ``docs/``, a skills directory or a directory a skill
+is linked to, a link on the way to a skill changed its target, or a specification changed. That rule holds only
+while the frontmatter, the parse and the token count each read their own document or skill and the model reads no
+document, so keep them that way: data drawn from several documents belongs in a new cache with its own rule.
 
 A change names a real path, while a ref may name a path through a link: a skill's ``SKILL.md`` under a linked
 skill entry changes at the path the link leads to, not at the ref's. A snapshot maps a linked path to its real
 one and not back, so the model records each skill's ``SkillLocation``, the real ``SKILL.md`` its ref leads to,
 and ``advance`` would look that path up in the change set. A link retargeted to another skill leaves every file's
 bytes as they were and the ref as it was, like a file's identity in the IDE, while its location changes. So a
-skill's frontmatter carries over only when the two models locate its ref at the same real file and that file's
-bytes did not change.
+skill's frontmatter and its parse carry over only when the two models locate its ref at the same real file and that
+file's bytes did not change.
 """
 
 from lorecraft.core.path import RootRelativePath
@@ -52,8 +54,8 @@ from lorecraft.vfs import Snapshot, VirtualFileSystem
 
 
 class Database:
-    """The workspace model, the frontmatter, the parse trees, the token counts and the skill frontmatter of one
-    snapshot, each cached for its lifetime."""
+    """The workspace model, the frontmatter, the parse trees and the token counts of the documents, and the
+    frontmatter and the parse trees of the skills, of one snapshot, each cached for its lifetime."""
 
     def __init__(self, snapshot: Snapshot) -> None:
         """Index the snapshot for reading; performs no I/O and computes nothing yet."""
@@ -66,6 +68,7 @@ class Database:
         self._parses: dict[DocumentRef, ParsedDocument] = {}
         self._token_counts: dict[DocumentRef, int] = {}
         self._skill_frontmatters: dict[SkillRef, FrontmatterNode] = {}
+        self._skill_parses: dict[SkillRef, ParsedDocument] = {}
 
     def model(self) -> WorkspaceModel:
         """The workspace model the snapshot declares, loaded on the first call.
@@ -203,3 +206,22 @@ class Database:
             decoded = parse_frontmatter(text)
             self._skill_frontmatters[ref] = decoded
         return decoded
+
+    def skill_parse(self, ref: SkillRef) -> ParsedDocument:
+        """The parse tree of one skill's ``SKILL.md``, parsed from the snapshot on the first call for its ref.
+
+        Cached apart from ``skill_frontmatter(ref)`` and never read from it, as a document's parse is from its
+        frontmatter.
+
+        A skill that cannot be read is not cached, so each call raises the same error again.
+
+        Raises:
+            SkillDecodeError: If the skill's bytes are not UTF-8.
+            SkillReadError: If the snapshot holds no regular file at the skill's path.
+        """
+        parsed = self._skill_parses.get(ref)
+        if parsed is None:
+            text = self._skills.get_skill(ref).text
+            parsed = parse_document(text)
+            self._skill_parses[ref] = parsed
+        return parsed

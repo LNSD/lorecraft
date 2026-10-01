@@ -131,7 +131,8 @@ subject: `scripts/check_skill.py --linking <path>` (one `--linking` per file) pr
 Two checks decide every mechanical rule between them. Do not check those rules by hand.
 
 **`lorecraft check skills`** decides the frontmatter: YAML validity, the six fields and their limits,
-`metadata` value types, and `name` against the directory.
+`metadata` value types, and `name` against the directory. It also reports an absolute link in `SKILL.md`, a
+url that starts with `/`, as `skill.link-absolute`.
 
 ```bash
 uv run lorecraft check skills                           # every skill
