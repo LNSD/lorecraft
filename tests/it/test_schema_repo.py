@@ -19,7 +19,7 @@ from lorecraft.project.schemas import (
     SchemaName,
     StructureSchemaReadError,
 )
-from lorecraft.vfs import DirListError, DiskFileSystem
+from lorecraft.vfs import DirListError, DiskFileSystem, FileReadError, OsRefusal
 
 CODE: Final[CorpusName] = CorpusName.parse('code')
 CODE_PYTHON: Final[SchemaName] = (CODE, AspectNamespace.parse('python'))
@@ -129,3 +129,8 @@ class TestRepository:
             'the error names the schema; the repository fails only on a file it cannot read, malformed JSON is the '
             "parse's to refuse"
         )
+        assert isinstance(exc_info.value.source, FileReadError), (
+            f'its source is the failed read, got {type(exc_info.value.source).__name__}'
+        )
+        assert exc_info.value.source.refusal is OsRefusal.NOT_FOUND, 'the read failed because the file is missing'
+        assert 'code' in str(exc_info.value), f'the message names the schema stem, got {exc_info.value}'
