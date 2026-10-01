@@ -21,7 +21,7 @@ from pathlib import PurePosixPath
 
 from lorecraft.core.path import RootRelativePath
 
-from .root_expansion import linked_scan_root, real_scan_root, walk_to_real_path
+from .root_expansion import find_linked_scan_root, find_real_path, find_real_scan_root
 from .scan_root import ScanRoot
 from .snapshot import Link
 from .view import EntryKind
@@ -65,7 +65,7 @@ class ScopeIndex:
             absolute target, one climbing above the root or out of a directory the walk stepped into by name, as
             the scan refuses too, or a chain longer than `MAX_LINKS`.
         """
-        directory = walk_to_real_path(path.parent, self._recorded, follow_links=True)
+        directory = find_real_path(path.parent, self._recorded, follow_links=True)
         if directory is None:
             return False
         entry = directory.path / path.name
@@ -97,8 +97,8 @@ class _RecordedLinks:
         """Every recorded link's root-relative path."""
         return tuple(self._targets)
 
-    def kind(self, path: RootRelativePath) -> EntryKind:
-        """SYMLINK where a link is recorded at `path`, DIRECTORY anywhere else; see `EntryLookup.kind`.
+    def find_kind(self, path: RootRelativePath) -> EntryKind:
+        """SYMLINK where a link is recorded at `path`, DIRECTORY anywhere else; see `EntryLookup.find_kind`.
 
         Args:
             path: The root-relative entry the walk reached.
@@ -107,8 +107,8 @@ class _RecordedLinks:
             return EntryKind.SYMLINK
         return EntryKind.DIRECTORY
 
-    def read_link_target(self, path: RootRelativePath) -> PurePosixPath | None:
-        """The recorded target of the link at `path`; see `EntryLookup.read_link_target`.
+    def find_link_target(self, path: RootRelativePath) -> PurePosixPath | None:
+        """The recorded target of the link at `path`; see `EntryLookup.find_link_target`.
 
         Args:
             path: The root-relative link, one `kind` answered SYMLINK for.
@@ -123,7 +123,7 @@ def _real_scan_roots(scope: tuple[ScanRoot, ...], recorded: _RecordedLinks) -> t
     """Every root the scan of `scope` lists from, each at a real directory, links it follows included.
 
     This retraces `take_snapshot` from the declaration, through the same rules: each declared root starts where
-    `real_scan_root` puts it, and each recorded link adds the root `linked_scan_root` gives for a root
+    `find_real_scan_root` puts it, and each recorded link adds the root `find_linked_scan_root` gives for a root
     already found; those roots add their own. The depth falls with each link, so the roots are finite.
 
     Args:
@@ -132,14 +132,14 @@ def _real_scan_roots(scope: tuple[ScanRoot, ...], recorded: _RecordedLinks) -> t
     """
     real_roots: list[ScanRoot] = []
     for scan_root in scope:
-        real_root = real_scan_root(scan_root, recorded)
+        real_root = find_real_scan_root(scan_root, recorded)
         if real_root is not None:
             real_roots.append(real_root)
 
     # Where each recorded link leads, walked once rather than once for every root that lists it.
     linked_directories: dict[RootRelativePath, RootRelativePath] = {}
     for link in recorded.paths():
-        leads_to = walk_to_real_path(link, recorded, follow_links=True)
+        leads_to = find_real_path(link, recorded, follow_links=True)
         if leads_to is not None:
             linked_directories[link] = leads_to.path
 
@@ -147,7 +147,7 @@ def _real_scan_roots(scope: tuple[ScanRoot, ...], recorded: _RecordedLinks) -> t
     while pending:
         scan_root = pending.pop()
         for link, directory in linked_directories.items():
-            linked_root = linked_scan_root(scan_root, link, directory)
+            linked_root = find_linked_scan_root(scan_root, link, directory)
             if linked_root is not None and linked_root not in real_roots:
                 real_roots.append(linked_root)
                 pending.append(linked_root)

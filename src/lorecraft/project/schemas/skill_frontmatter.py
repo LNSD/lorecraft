@@ -59,13 +59,13 @@ from pydantic_core import ErrorDetails, PydanticCustomError, core_schema
 from lorecraft.core.error import Error
 
 # The pydantic error type each value object raises its rejection under, typed as literals because
-# `PydanticCustomError` takes only a literal string. `value_object_message` reads them back.
+# `PydanticCustomError` takes only a literal string. `find_value_object_message` reads them back.
 _NAME_ERROR_TYPE: Final[Literal['skill_name']] = 'skill_name'
 _DESCRIPTION_ERROR_TYPE: Final[Literal['skill_description']] = 'skill_description'
 _COMPATIBILITY_ERROR_TYPE: Final[Literal['skill_compatibility']] = 'skill_compatibility'
 
 
-def value_object_message(detail: ErrorDetails) -> str | None:
+def find_value_object_message(detail: ErrorDetails) -> str | None:
     """The message a value object rejected a field's value with, or `None` when `detail` is not such an error.
 
     The message is the error's formatted `msg`: see the note on the pydantic hooks above.

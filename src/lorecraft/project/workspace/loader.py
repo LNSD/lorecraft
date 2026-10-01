@@ -303,7 +303,7 @@ def _load_skills_dirs(skills: SkillRepository) -> tuple[SkillsDir, ...]:
     for agent in iter_agents():
         for declared in agent.project_skills_dirs:
             path = RootRelativePath(declared)
-            resolves_to = skills.resolve_skills_dir(path)
+            resolves_to = skills.find_skills_dir(path)
             if resolves_to is None:
                 # The repository has no such directory, so the agent reads no skills from it.
                 continue

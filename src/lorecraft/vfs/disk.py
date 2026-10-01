@@ -12,7 +12,7 @@ from pathlib import Path, PurePosixPath
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
 
-from .root_expansion import linked_scan_root, real_scan_root, walk_to_real_path
+from .root_expansion import find_linked_scan_root, find_real_path, find_real_scan_root
 from .scan_root import ScanRoot
 from .snapshot import FileBytes, Link, Listing, Snapshot
 from .view import (
@@ -45,15 +45,15 @@ def disk_location(root: Path, path: RootRelativePath) -> Path:
 class DiskFileSystem(FileSystem):
     """The view that reads the disk under one workspace root.
 
-    ``list_dir``, ``read_text`` and ``entry_kind`` follow a symlink wherever the operating system does, outside
-    the root included; only ``resolve_dir`` and ``resolve_file`` refuse a chain that leaves the root. A
+    ``list_dir``, ``read_text`` and ``find_entry_kind`` follow a symlink wherever the operating system does, outside
+    the root included; only ``find_real_dir`` and ``find_real_file`` refuse a chain that leaves the root. A
     snapshot never reads outside the root, so there the two views differ.
     """
 
     def __init__(self, root: Path) -> None:
         """Remember the root, made real once: the constructor's only I/O.
 
-        `resolve_dir` compares real paths against this root, so it must be real itself; a caller's root,
+        `find_real_dir` compares real paths against this root, so it must be real itself; a caller's root,
         such as a test's raw `tmp_path`, is resolved here rather than at every call.
 
         Args:
@@ -71,7 +71,7 @@ class DiskFileSystem(FileSystem):
             DirListError: If the directory exists but cannot be read.
         """
         try:
-            entries = _scan(self._root, path)
+            entries = _find_listing(self._root, path)
         except OSError as exc:
             raise DirListError(path, OsRefusal.of(exc), source=exc) from exc
         if entries is None:
@@ -94,8 +94,8 @@ class DiskFileSystem(FileSystem):
             raise FileReadError(path, OsRefusal.of(exc), source=exc) from exc
         return decode_text(path, data)
 
-    def entry_kind(self, path: RootRelativePath) -> EntryKind | None:
-        """What the entry at `path` itself is on disk, from `os.lstat`; see `FileSystem.entry_kind`.
+    def find_entry_kind(self, path: RootRelativePath) -> EntryKind | None:
+        """What the entry at `path` itself is on disk, from `os.lstat`; see `FileSystem.find_entry_kind`.
 
         Args:
             path: The root-relative entry to inspect; a final symlink is reported as SYMLINK, not followed.
@@ -113,8 +113,8 @@ class DiskFileSystem(FileSystem):
             raise EntryInspectError(path, OsRefusal.of(exc), source=exc) from exc
         return _kind_of_mode(mode)
 
-    def resolve_dir(self, path: RootRelativePath) -> RootRelativePath | None:
-        """Resolve a directory's symlink chain on disk; see `FileSystem.resolve_dir`.
+    def find_real_dir(self, path: RootRelativePath) -> RootRelativePath | None:
+        """Resolve a directory's symlink chain on disk; see `FileSystem.find_real_dir`.
 
         Args:
             path: The root-relative path to resolve; every link in it is followed, in or out of the root.
@@ -146,8 +146,8 @@ class DiskFileSystem(FileSystem):
             return None
         return RootRelativePath.parse(relative.as_posix())
 
-    def resolve_file(self, path: RootRelativePath) -> RootRelativePath | None:
-        """Resolve a file's symlink chain on disk; see `FileSystem.resolve_file`.
+    def find_real_file(self, path: RootRelativePath) -> RootRelativePath | None:
+        """Resolve a file's symlink chain on disk; see `FileSystem.find_real_file`.
 
         Args:
             path: The root-relative path to resolve; every link in it is followed, in or out of the root.
@@ -163,13 +163,13 @@ class DiskFileSystem(FileSystem):
         except OSError as exc:
             if exc.errno == errno.ELOOP:  # a looping link leads nowhere, exactly like a dangling one
                 return None
-            # As in ``resolve_dir``: a target outside the root is never a file under it, so a refused search
+            # As in ``find_real_dir``: a target outside the root is never a file under it, so a refused search
             # there is not a failure.
             leads_to = Path(os.path.realpath(disk_location(self._root, path)))
             if not leads_to.is_relative_to(self._root):
                 return None
             raise FileResolveError(path, OsRefusal.of(exc), source=exc) from exc
-        # Asked of the path as given, as in ``resolve_dir``: nothing opens the file through a chain longer than
+        # Asked of the path as given, as in ``find_real_dir``: nothing opens the file through a chain longer than
         # the operating system follows.
         if not os.path.isfile(disk_location(self._root, path)):
             return None
@@ -305,7 +305,7 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
     # Each directory still to list, as a root at its real path: the depth left there, and the link policy.
     pending: list[ScanRoot] = []
     for scan_root in scope:
-        real_root = real_scan_root(scan_root, on_disk)
+        real_root = find_real_scan_root(scan_root, on_disk)
         if real_root is not None:
             pending.append(real_root)
 
@@ -319,7 +319,7 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
         if not follow_links and listed_depth.get(directory, -1) >= depth:
             continue
         try:
-            entries = _scan(root, directory)
+            entries = _find_listing(root, directory)
         except OSError as exc:
             raise SnapshotDirListError(directory, OsRefusal.of(exc), source=exc) from exc
         if entries is None:
@@ -335,12 +335,12 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
             if entry.kind is EntryKind.DIRECTORY and depth > 0:
                 pending.append(ScanRoot(path, depth - 1, follow_links=follow_links))
             elif entry.kind is EntryKind.FILE:
-                data = _read_bytes(root, path)
+                data = _find_file_bytes(root, path)
                 if data is None:
                     continue  # vanished after the listing; see the docstring
                 files[path] = data
             elif entry.kind is EntryKind.SYMLINK:
-                target = _read_link(root, path)
+                target = _find_symlink_target(root, path)
                 if target is None:
                     continue  # vanished after the listing; see the docstring
                 links[path] = target
@@ -374,8 +374,8 @@ class _DiskEntries:
         self._root = root
         self._links = links
 
-    def kind(self, path: RootRelativePath) -> EntryKind | None:
-        """What `path` itself is on disk; see `EntryLookup.kind`.
+    def find_kind(self, path: RootRelativePath) -> EntryKind | None:
+        """What `path` itself is on disk; see `EntryLookup.find_kind`.
 
         Args:
             path: The root-relative entry to inspect, every link on the way to it already followed.
@@ -383,9 +383,9 @@ class _DiskEntries:
         Raises:
             SnapshotEntryInspectError: If the path exists but cannot be inspected.
         """
-        return _lstat_kind(self._root, path)
+        return _find_lstat_kind(self._root, path)
 
-    def read_link_target(self, path: RootRelativePath) -> PurePosixPath | None:
+    def find_link_target(self, path: RootRelativePath) -> PurePosixPath | None:
         """Read the target of the symlink at `path` and record it in the scan's links; `None` when it vanished.
 
         Args:
@@ -394,7 +394,7 @@ class _DiskEntries:
         Raises:
             SnapshotLinkReadError: If the symlink exists but cannot be read.
         """
-        target = _read_link(self._root, path)
+        target = _find_symlink_target(self._root, path)
         if target is not None:
             self._links[path] = target
         return target
@@ -410,7 +410,7 @@ def _follow_listed_link(
 ) -> None:
     """Go where one listed symlink leads, under a scope root that follows links.
 
-    A directory is queued in `pending` as the root `linked_scan_root` adds, when the link leaves it one. A
+    A directory is queued in `pending` as the root `find_linked_scan_root` adds, when the link leaves it one. A
     regular file has its bytes read into `files`, at any depth, as a FILE entry has. A link that leads nowhere
     under the root is left as recorded.
 
@@ -427,20 +427,20 @@ def _follow_listed_link(
         SnapshotLinkReadError: If a link of the chain exists but its target cannot be read.
         SnapshotFileReadError: If the file the chain leads to exists but cannot be read.
     """
-    leads_to = walk_to_real_path(link, on_disk, follow_links=True)
+    leads_to = find_real_path(link, on_disk, follow_links=True)
     if leads_to is None:
         return
     if leads_to.kind is EntryKind.DIRECTORY:
-        linked_root = linked_scan_root(listed_root, link, leads_to.path)
+        linked_root = find_linked_scan_root(listed_root, link, leads_to.path)
         if linked_root is not None:
             pending.append(linked_root)
     if leads_to.kind is EntryKind.FILE:
-        data = _read_bytes(root, leads_to.path)
+        data = _find_file_bytes(root, leads_to.path)
         if data is not None:  # None when it vanished after the walk; the link then stays recorded alone
             files[leads_to.path] = data
 
 
-def _lstat_kind(root: Path, path: RootRelativePath) -> EntryKind | None:
+def _find_lstat_kind(root: Path, path: RootRelativePath) -> EntryKind | None:
     """What `path` itself is, a final symlink not followed; `None` when it is missing.
 
     Args:
@@ -474,7 +474,7 @@ def _kind_of_mode(mode: int) -> EntryKind:
     return EntryKind.OTHER
 
 
-def _read_bytes(root: Path, path: RootRelativePath) -> bytes | None:
+def _find_file_bytes(root: Path, path: RootRelativePath) -> bytes | None:
     """A listed file's bytes; `None` when it vanished after the listing.
 
     Args:
@@ -492,7 +492,7 @@ def _read_bytes(root: Path, path: RootRelativePath) -> bytes | None:
         raise SnapshotFileReadError(path, OsRefusal.of(exc), source=exc) from exc
 
 
-def _read_link(root: Path, path: RootRelativePath) -> PurePosixPath | None:
+def _find_symlink_target(root: Path, path: RootRelativePath) -> PurePosixPath | None:
     """A listed symlink's target as `os.readlink` returns it; `None` when it vanished after the listing.
 
     An absolute target under the root comes back relative to the link's directory; see
@@ -542,7 +542,7 @@ def _spell_relative_if_under_root(root: Path, link: RootRelativePath, target: Pu
     return target
 
 
-def _scan(root: Path, path: RootRelativePath) -> tuple[DirEntry, ...] | None:
+def _find_listing(root: Path, path: RootRelativePath) -> tuple[DirEntry, ...] | None:
     """List one directory with a single `os.scandir`, sorted by name.
 
     Args:

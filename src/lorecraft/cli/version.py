@@ -5,7 +5,7 @@ drift apart. The detailed form exists for bug reports: it carries the interprete
 the install location, which are what a reproduction usually turns on.
 
 The version `importlib.metadata` reports was frozen when the package was built, so it says nothing
-about uncommitted work. `git_description` is the live half, and it is deliberately separate: this
+about uncommitted work. `find_git_description` is the live half, and it is deliberately separate: this
 module's formatting is pure, and the one function that shells out is the one function named for it.
 """
 
@@ -40,7 +40,7 @@ def detailed_version(commit: str | None) -> str:
     """Return the multi-line version: the short line, the commit, the interpreter, the platform, the install path.
 
     Args:
-        commit: Checkout description to report, as `git_description` returns it. `None` omits the
+        commit: Checkout description to report, as `find_git_description` returns it. `None` omits the
             line entirely rather than printing a placeholder, because an installed copy has no
             checkout to describe.
 
@@ -61,7 +61,7 @@ def detailed_version(commit: str | None) -> str:
     return '\n'.join(lines)
 
 
-def git_description() -> str | None:
+def find_git_description() -> str | None:
     """Describe the git checkout this package was loaded from, dirty state included.
 
     Returns:
@@ -70,7 +70,7 @@ def git_description() -> str | None:
         not installed, or when the command fails or times out: an absent line is honest, and a
         version command is not worth failing over.
     """
-    checkout_root = _checkout_root()
+    checkout_root = _find_checkout_root()
     if checkout_root is None:
         return None
 
@@ -90,7 +90,7 @@ def git_description() -> str | None:
     return completed.stdout.strip() or None
 
 
-def _checkout_root() -> Path | None:
+def _find_checkout_root() -> Path | None:
     """Return the checkout this module was loaded from, or `None` for an installed copy.
 
     Only the repository's own layout counts. A virtual environment often sits inside some

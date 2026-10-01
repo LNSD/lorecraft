@@ -62,7 +62,7 @@ class Frontmatter:
     data: dict[object, object]
     keys: tuple[FrontmatterKey, ...]
 
-    def key_line(self, name: str) -> LineNumber | None:
+    def find_key_line(self, name: str) -> LineNumber | None:
         """The line the last top-level key called `name` is written on, or `None` when there is none.
 
         The last, because a key written twice decodes to the value of its last occurrence: `yaml.safe_load`

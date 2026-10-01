@@ -80,7 +80,7 @@ def field_line(frontmatter: Frontmatter, field: str) -> LineNumber:
         frontmatter: The decoded frontmatter, whose top-level keys carry the line each is written on.
         field: Name of the top-level key to find.
     """
-    line = frontmatter.key_line(field)
+    line = frontmatter.find_key_line(field)
     if line is None:
         return _FIRST_LINE
     return line

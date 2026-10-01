@@ -5,9 +5,9 @@ expands the same roots afterwards, from the links the snapshot recorded; `Virtua
 resolves a path through the same links. All three go through the rules here, so what the scan lists, what the
 query says it lists and what the view reaches cannot drift apart:
 
-- `real_scan_root`: where the scan of a root starts, walked through the links on the way when it follows them.
-- `walk_to_real_path`: where a path leads, which links are followed, and which `..` steps are refused.
-- `linked_scan_root`: the root a followed link adds, and the depth the link uses up.
+- `find_real_scan_root`: where the scan of a root starts, walked through the links on the way when it follows them.
+- `find_real_path`: where a path leads, which links are followed, and which `..` steps are refused.
+- `find_linked_scan_root`: the root a followed link adds, and the depth the link uses up.
 
 The callers differ only in where a walk learns what an entry is, which is what `EntryLookup` stands for: the
 disk, read as the walk goes, the links a snapshot recorded, or everything a snapshot recorded.
@@ -36,7 +36,7 @@ class EntryLookup(Protocol):
     recorded, and the virtual view has the snapshot's listings and files besides.
     """
 
-    def kind(self, path: RootRelativePath) -> EntryKind | None:
+    def find_kind(self, path: RootRelativePath) -> EntryKind | None:
         """What the entry at `path` itself is, a final symlink not followed; `None` when nothing is there.
 
         Args:
@@ -44,7 +44,7 @@ class EntryLookup(Protocol):
         """
         ...
 
-    def read_link_target(self, path: RootRelativePath) -> PurePosixPath | None:
+    def find_link_target(self, path: RootRelativePath) -> PurePosixPath | None:
         """Read the target of the symlink at `path`; `None` when it is gone.
 
         The disk implementation records each target it reads in the links of the scan, so reading is not free
@@ -69,7 +69,7 @@ class RealPath:
     kind: EntryKind
 
 
-def walk_to_real_path(path: RootRelativePath, entries: EntryLookup, *, follow_links: bool) -> RealPath | None:
+def find_real_path(path: RootRelativePath, entries: EntryLookup, *, follow_links: bool) -> RealPath | None:
     """The real directory or regular file `path` leads to, or `None` where the scan does not go.
 
     Walks the components from the root, one real directory to the next. Without `follow_links` the walk ends
@@ -110,7 +110,7 @@ def walk_to_real_path(path: RootRelativePath, entries: EntryLookup, *, follow_li
             resolved = resolved.parent
             continue
         candidate = resolved / part
-        kind = entries.kind(candidate)
+        kind = entries.find_kind(candidate)
         match kind:
             case EntryKind.DIRECTORY:
                 resolved = candidate
@@ -122,7 +122,7 @@ def walk_to_real_path(path: RootRelativePath, entries: EntryLookup, *, follow_li
             case EntryKind.OTHER | None:
                 return None  # nothing is there, or nothing the scan reads
             case EntryKind.SYMLINK:
-                target = entries.read_link_target(candidate)
+                target = entries.find_link_target(candidate)
                 if target is None:
                     return None  # gone since `kind` answered, so nothing is there to follow
                 links_followed += 1
@@ -135,7 +135,7 @@ def walk_to_real_path(path: RootRelativePath, entries: EntryLookup, *, follow_li
     return RealPath(resolved, EntryKind.DIRECTORY)
 
 
-def real_scan_root(scan_root: ScanRoot, entries: EntryLookup) -> ScanRoot | None:
+def find_real_scan_root(scan_root: ScanRoot, entries: EntryLookup) -> ScanRoot | None:
     """The root the scan of `scan_root` lists from: its directory at the real path it leads to.
 
     A root that follows links is walked through every link on the way to its directory; one that does not
@@ -149,19 +149,19 @@ def real_scan_root(scan_root: ScanRoot, entries: EntryLookup) -> ScanRoot | None
 
     Returns:
         The root at its real directory, with the declared depth and link policy, or `None` when the walk
-        leads to no directory (see `walk_to_real_path`).
+        leads to no directory (see `find_real_path`).
 
     Raises:
         Exception: Whatever `entries` raises: the disk lookup's `SnapshotEntryInspectError` and
             `SnapshotLinkReadError`; the snapshot lookups raise nothing.
     """
-    leads_to = walk_to_real_path(scan_root.directory, entries, follow_links=scan_root.follow_links)
+    leads_to = find_real_path(scan_root.directory, entries, follow_links=scan_root.follow_links)
     if leads_to is None or leads_to.kind is not EntryKind.DIRECTORY:
         return None
     return ScanRoot(leads_to.path, scan_root.depth, follow_links=scan_root.follow_links)
 
 
-def linked_scan_root(scan_root: ScanRoot, link: RootRelativePath, directory: RootRelativePath) -> ScanRoot | None:
+def find_linked_scan_root(scan_root: ScanRoot, link: RootRelativePath, directory: RootRelativePath) -> ScanRoot | None:
     """The root the scan of `scan_root` adds by following `link` to the real `directory` it leads to.
 
     A link is followed only where a root that follows links lists it. It uses up one level of depth, as a
@@ -172,7 +172,7 @@ def linked_scan_root(scan_root: ScanRoot, link: RootRelativePath, directory: Roo
     Args:
         scan_root: A root the scan lists from, at its real directory.
         link: The root-relative symlink, wherever it sits.
-        directory: The real directory the link leads to, by `walk_to_real_path` with links followed.
+        directory: The real directory the link leads to, by `find_real_path` with links followed.
 
     Returns:
         A root at `directory` that follows links, or `None` when `scan_root` does not follow links, does not
