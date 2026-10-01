@@ -457,6 +457,7 @@ class TestVirtualFileSystemReadText:
         assert type(exc_info.value) is UnrecordedFileError, (
             'the fifo pipe has no recorded bytes, so it reads as missing'
         )
+        assert exc_info.value.path == path, 'the error names the path that was read'
 
     def test_read_text_with_a_directory_raises_read_text_error(self) -> None:
         #: Given
@@ -651,6 +652,18 @@ class TestVirtualFileSystemResolveDir:
             '.agents holds the listed .agents/skills, so it is a directory, though never listed itself'
         )
 
+    def test_resolve_dir_with_an_empty_listing_in_no_listed_parent_returns_itself(self) -> None:
+        #: Given
+        # an empty scope root: listed, with nothing below it and no listing of its parent to name it
+        virtual = VirtualFileSystem(Snapshot(listings=(Listing(RootRelativePath.parse('skills'), ()),), files=()))
+        path = RootRelativePath.parse('skills')
+
+        #: When
+        resolved = virtual.resolve_dir(path)
+
+        #: Then
+        assert resolved == RootRelativePath.parse('skills'), 'a listed directory is a directory, even an empty one'
+
     def test_resolve_dir_with_an_ancestor_of_a_link_returns_itself(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
@@ -739,6 +752,24 @@ class TestVirtualFileSystemResolveDir:
         assert resolved == RootRelativePath.parse('docs/code'), (
             'after the link up leads to the root, docs/code is walked through the listings'
         )
+
+    def test_resolve_dir_with_a_chain_of_40_links_returns_the_directory_it_leads_to(self) -> None:
+        #: Given
+        # link-0 leads to real and each later link to the one before it, so link-39 heads a chain of 40 links,
+        # as many as the kernel follows
+        chain = [Link(RootRelativePath.parse('link-0'), PurePosixPath('real'))]
+        chain += [
+            Link(RootRelativePath.parse(f'link-{index}'), PurePosixPath(f'link-{index - 1}')) for index in range(1, 40)
+        ]
+        snapshot = Snapshot(listings=(Listing(RootRelativePath.parse('real'), ()),), files=(), links=tuple(chain))
+        virtual = VirtualFileSystem(snapshot)
+        path = RootRelativePath.parse('link-39')
+
+        #: When
+        resolved = virtual.resolve_dir(path)
+
+        #: Then
+        assert resolved == RootRelativePath.parse('real'), 'a chain of 40 links is followed to its end'
 
     def test_resolve_dir_with_a_missing_path_returns_none(self) -> None:
         #: Given
