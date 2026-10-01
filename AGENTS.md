@@ -7,28 +7,22 @@ section outlines against a structure spec, prose against a length budget, skills
 specification — so a repository declares the rules it wants and runs one checker, instead of carrying a
 standalone script per check. It is one Python package, `lorecraft`, managed with `uv`:
 
-- `src/lorecraft/` is the package, in layers: the command line on top, the libraries it is built on below. The
-  import-linter contract in `pyproject.toml` names the layers and keeps each one importing only those below it;
-  read it rather than assuming a set. A library layer prints nothing; the command line owns the `lorecraft`
-  console script and the output.
-- `tests/` holds the integration tier in `tests/it/` and the end-to-end tier in `tests/e2e/`, with the
-  end-to-end helper library in `tests/lib/`. None of it is built.
+- `src/lorecraft/` is the package, in the layers the import-linter contract in `pyproject.toml` names and
+  enforces; read it rather than assuming a set.
+- `tests/` holds the integration and end-to-end tiers and the end-to-end helper library. None of it is built.
 
-**Four checks have moved into the command line so far: `lorecraft check frontmatter`, `lorecraft check structure`,
-`lorecraft check budget` and `lorecraft check skills`.** The first three read the structure spec: the structure
-check its outline and section word caps, the budget check its global `tokens` key, a whole-file token budget, and
-the frontmatter check its global `frontmatter` key, a JSON Schema; `lorecraft check header` is a hidden alias of the
-frontmatter check. The skill check holds the frontmatter of every `SKILL.md` to the Agent Skills specification. A
-bare `lorecraft check` runs every check the command line carries, over one snapshot. The rest of the skill check,
-the body length and the Markdown links, still runs as a vendored script under `.agents/skills/*/scripts/`. All are wired to
-`just check-docs` and `just check-skills` and gated in CI. Do not infer structure that is not on disk.
+This guide holds workflow and policy, and points to where everything else is documented:
 
-The CLI is a router: `cli/app.py` declares the root application and the global options, and every subcommand
-lives in its own module under `cli/commands/`, joining by calling `@register(<name>)` beside its handler.
-`cli/registry.py` walks that package and mounts what registered itself, so a new subcommand is a new file —
-no dispatcher, no import list, no edit to the root application. A command group is a subpackage there:
-`cli/commands/check/` calls `register_group('check', app)`, and each check is a module beside it that also
-calls `register_check` from `cli/check_run.py`, which is how a bare `lorecraft check` finds it.
+- **What the toolkit ships** — its commands, the checks they run, the specification dialects — is in
+  `docs/feat/`, one feature per document. Find one through `/feat-discovery`.
+- **How the code is built** is in `docs/code/`: the `arch-*` documents state the architecture every package fits
+  into, and each package's `module-*` document states its single responsibility and what stays out of it.
+  Load what a task needs through `/code-rules`.
+- **How a document under `docs/` is written** is in `docs/__meta__/`: `README.md` explains how a document's path
+  selects the specifications that govern it, and each specification states its corpus's rules. Write through
+  `/docs-rules`, check through `/docs-rules-check`.
+
+Do not infer structure that is not on disk.
 
 ## Quick Start
 
@@ -190,54 +184,17 @@ and do not broaden scope for convenience.
 - Never expose secrets, keys, or credentials; use environment variables.
 - When something genuinely must be subtle, say why in a comment at that spot.
 
-## Rule Document Contract
+## Rule Documents
 
-**`docs/__meta__/code.md` is the authority for the `docs/code/` corpus.** Read it before adding or editing a
-rule document; this section is a summary and defers to it on every detail. Four prefix specifications narrow
-it — `code-principle.md`, `code-pattern.md`, `code-python.md` and `code-module.md` fix the section outline for
-`principle-*`, `pattern-*`, `python-*` and `module-*`, the last one document per package defending its single
-responsibility. A prefix with none of its own, `arch-*`, `error-*`, `test-*` and `logging` today, follows `code.md`.
+`docs/__meta__/code.md` is the authority for the code rules in `docs/code/`, and the namespace specifications
+beside it narrow it for their groups. Read the specifications that govern a document before writing it; the
+`/docs-rules` skill finds them.
 
-The shape in brief:
+## Testing
 
-- YAML frontmatter with `name`, `description`, `type` and `scope`, all double-quoted, where `name` is the
-  filename without its `.md` extension, and `description` ends with a `Load when …` clause and no period.
-- A `## Checklist` section of `- [ ]` items, each verifiable against a diff, followed only by `## References`
-  and `## External References`.
-- A feature doc is authoritative for documented behaviour: if code and a doc disagree, fix one of them in the
-  same change.
-
-Each specification is prose plus the machine-checkable half beside it — `<stem>.structure.json`, with the section
-outline and word caps read by `lorecraft check structure`, the `tokens` budget read by `lorecraft check budget`,
-and the `frontmatter` JSON Schema read by `lorecraft check frontmatter`. The prose is the authority and the JSON
-is the same rules in a form a check applies, so **change both in the same commit**: nothing detects the drift
-when they disagree. `docs/__meta__/README.md` explains how a document's own path selects the files that govern
-it.
-
-## Testing Strategy
-
-The suite is spread over the three tiers [test-organization](docs/code/test-organization.md) defines. The
-unit tier sits in a `tests/` subpackage beside the module it tests, under `src/`; the integration tier sits
-flat in `tests/it/`, wiring modules together in process, against a real tree under
-`tmp_path` where the disk is the subject. A library layer has no end-to-end tier: its public API is
-what the integration tier covers. `tests/e2e/` drives the installed console script in a subprocess — the only
-tier that can observe the `git describe` probe behind `version --verbose`. The vendored check scripts have no
-tests of their own; `just check-docs` and `just check-skills` over this repository's own corpus are what
-exercises them.
-
-- Run the suite through `just test-unit`, `just test-it`, `just test-e2e` or `just test`, never a bare
-  `pytest`. Tier recipes select on markers, so an unmarked test is missed by those recipes; the unfiltered
-  `just test` suite still collects it. CI runs `just test`, which runs all three tiers.
-- Unit tests cover pure logic — parsing, frontmatter handling, document validation — and do not mock their
-  subject or patch module internals. Fixtures for document-shaped inputs are checked in as real files, so a
-  test reads the same thing an agent would.
-- Every test body is divided by the `#: Given`, `#: When` and `#: Then` markers, with exactly one call
-  under `When`. [test-functions](docs/code/test-functions.md) §2 owns the rule and the pytest idioms that
-  are awkward to place.
-- `--strict-markers` is on. Every marker used must be declared in the root `pyproject.toml`, with its description.
-- Command output is pinned with syrupy snapshots, one plain-text file per snapshot under `__snapshots__/`,
-  with whatever varies per build or machine swapped for a placeholder. A changed snapshot is reviewed and
-  committed with the change that altered the output; the `code-test` skill owns the recipes.
+[test-organization](docs/code/test-organization.md) owns the tiers and where a test lives,
+[test-functions](docs/code/test-functions.md) the shape of a test, and the `code-test` skill the recipes,
+snapshots included. Run tests through the `just` recipes, never a bare `pytest`; CI runs `just test`.
 
 ## Commits
 
