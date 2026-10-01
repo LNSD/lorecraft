@@ -16,10 +16,14 @@ from typing import Final
 
 import pytest
 import typer
+from syrupy.assertion import SnapshotAssertion
 from typer.testing import CliRunner
 
+from lib.snapshot import TextSnapshotExtension
 from lorecraft import __version__
 from lorecraft.cli import build_app
+from lorecraft.cli.commands.check import app as check_app
+from lorecraft.cli.commands.version import version as version_handler
 from lorecraft.cli.registry import DuplicateCommandError, register, register_group
 
 runner = CliRunner()
@@ -49,6 +53,10 @@ CHECKLIST_AND_FRONTMATTER_SPEC: Final[str] = dedent(
     }
     """
 )
+
+# The help is drawn by Rich, which reads the terminal it draws for: under GitHub Actions it emits colour codes, and
+# it wraps at the width it finds. A dumb terminal 80 columns wide draws the same plain text on every machine.
+PLAIN_TERMINAL: Final[dict[str, str | None]] = {'TERM': 'dumb', 'COLUMNS': '80'}
 
 # A structure specification whose token budget a two-section document exceeds.
 TIGHT_BUDGET_STRUCTURE_SPEC: Final[str] = '{"tokens": 5}'
@@ -137,6 +145,33 @@ def _write(root: Path, relative: str, text: str = '') -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding='utf-8')
     return path
+
+
+@pytest.mark.it
+class TestRootApplication:
+    def test_help_option_prints_the_usage_the_options_and_every_command(self, snapshot: SnapshotAssertion) -> None:
+        #: Given
+        app = build_app()
+        expected = snapshot.use_extension(TextSnapshotExtension)
+
+        #: When
+        result = runner.invoke(app, ['--help'], env=PLAIN_TERMINAL)
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stdout == expected, 'the root help matches the reviewed snapshot'
+
+    def test_root_without_arguments_prints_the_help_and_exits_two(self) -> None:
+        #: Given
+        app = build_app()
+        arguments: list[str] = []
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 2, f'a bare invocation is a usage error, got exit {result.exit_code}'
+        assert 'Usage:' in result.stdout, 'a bare invocation prints the help rather than nothing'
 
 
 @pytest.mark.it
@@ -1580,3 +1615,37 @@ class TestCommandRouting:
         #: Then
         assert result.exit_code == 0, result.output
         assert 'structure' in result.output, 'the check group lists the structure check discovered beside it'
+
+    def test_register_with_the_registered_handler_again_returns_it_unchanged(self) -> None:
+        #: Given
+        name = 'version'
+
+        #: When
+        returned = register(name)(version_handler)
+
+        #: Then
+        assert returned is version_handler, 'registering the same handler again is a no-op, not a duplicate'
+
+    def test_register_group_with_a_different_group_under_a_taken_name_raises_duplicate_command_error(self) -> None:
+        #: Given
+        rival = typer.Typer()
+
+        #: When
+        with pytest.raises(DuplicateCommandError) as exc_info:
+            register_group('check', rival)
+
+        #: Then
+        assert exc_info.value.name == 'check', 'a group cannot take the name another group holds'
+        assert 'check' in str(exc_info.value), 'the message names the contested subcommand'
+
+    def test_register_group_with_the_registered_group_again_keeps_it_mounted_once(self) -> None:
+        #: Given
+        name = 'check'
+
+        #: When
+        register_group(name, check_app)
+
+        #: Then
+        mounted = build_app().registered_groups
+        assert len(mounted) == 1, f'registering the same group again is a no-op, got {len(mounted)} groups'
+        assert mounted[0].typer_instance is check_app, 'the group mounted is still the one registered'
