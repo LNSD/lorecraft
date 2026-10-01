@@ -167,7 +167,7 @@ class Repository:
         """
         self._fs = fs
 
-    def resolve_skills_dir(self, skills_dir: RootRelativePath) -> RootRelativePath | None:
+    def find_skills_dir(self, skills_dir: RootRelativePath) -> RootRelativePath | None:
         """The real directory a skills directory leads to, following every symlink on the way.
 
         Args:
@@ -182,7 +182,7 @@ class Repository:
             DirResolveError: If the operating system refuses the lookup.
         """
         # A refused lookup is the resolve's own, with the skills directory as its path: nothing to add here.
-        return self._fs.resolve_dir(skills_dir)
+        return self._fs.find_real_dir(skills_dir)
 
     def list_skills(self, skills_dir: RootRelativePath) -> tuple[SkillLocation, ...]:
         """The location of every skill directly inside one skills directory, sorted by name.
@@ -197,7 +197,7 @@ class Repository:
         file under the root. A missing skills directory lists as nothing.
 
         Args:
-            skills_dir: A real skills directory, as ``resolve_skills_dir`` returns it: a link is not followed
+            skills_dir: A real skills directory, as ``find_skills_dir`` returns it: a link is not followed
                 here.
 
         Raises:
@@ -219,12 +219,12 @@ class Repository:
                 # The skills directory is real and so is this entry: nothing is left to resolve.
                 files_directory = directory
             elif entry.kind is EntryKind.SYMLINK:
-                files_directory = self._resolve_entry(directory)
+                files_directory = self._find_real_entry(directory)
             else:
                 files_directory = None
             if files_directory is None:
                 continue
-            skill_file = self._skill_file(files_directory)
+            skill_file = self._find_skill_file(files_directory)
             if skill_file is not None:
                 locations.append(
                     SkillLocation(SkillRef(directory), resolves_to=files_directory, file_resolves_to=skill_file)
@@ -249,7 +249,7 @@ class Repository:
             raise SkillReadError(ref, source=exc) from exc
         return Skill(ref, text)
 
-    def _resolve_entry(self, entry: RootRelativePath) -> RootRelativePath | None:
+    def _find_real_entry(self, entry: RootRelativePath) -> RootRelativePath | None:
         """The real directory a symlinked entry leads to, or `None` when no directory under the root is there.
 
         Args:
@@ -259,11 +259,11 @@ class Repository:
             SkillEntryResolveError: If the operating system refuses the lookup.
         """
         try:
-            return self._fs.resolve_dir(entry)
+            return self._fs.find_real_dir(entry)
         except DirResolveError as exc:
             raise SkillEntryResolveError(entry, source=exc) from exc
 
-    def _skill_file(self, directory: RootRelativePath) -> RootRelativePath | None:
+    def _find_skill_file(self, directory: RootRelativePath) -> RootRelativePath | None:
         """The real file of the ``SKILL.md`` in ``directory``, or ``None`` when it holds none.
 
         A ``SKILL.md`` that is a regular file is its own real file. One that is a symlink counts when it leads
@@ -290,7 +290,7 @@ class Repository:
                 return skill_file
             if entry.kind is EntryKind.SYMLINK:
                 try:
-                    return self._fs.resolve_file(skill_file)
+                    return self._fs.find_real_file(skill_file)
                 except FileResolveError as exc:
                     raise SkillFileResolveError(skill_file, source=exc) from exc
         return None

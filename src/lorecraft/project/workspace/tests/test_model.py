@@ -365,7 +365,7 @@ class TestGovernance:
             model.governance(foreign_ref)
 
         #: Then
-        assert model.corpus(FEAT) is None, 'the model has no feat corpus to answer for'
+        assert model.find_corpus(FEAT) is None, 'the model has no feat corpus to answer for'
 
 
 @pytest.mark.unit
@@ -608,22 +608,22 @@ def skills_model() -> WorkspaceModel:
 
 @pytest.mark.unit
 class TestWorkspaceModel:
-    def test_corpus_with_a_listed_name_returns_that_corpus(self, two_corpora_model: WorkspaceModel) -> None:
+    def test_find_corpus_with_a_listed_name_returns_that_corpus(self, two_corpora_model: WorkspaceModel) -> None:
         #: Given
         name = FEAT
 
         #: When
-        corpus = two_corpora_model.corpus(name)
+        corpus = two_corpora_model.find_corpus(name)
 
         #: Then
         assert corpus is not None and corpus.name == FEAT, 'the corpus is found by name'
 
-    def test_corpus_with_an_unlisted_name_returns_none(self, two_corpora_model: WorkspaceModel) -> None:
+    def test_find_corpus_with_an_unlisted_name_returns_none(self, two_corpora_model: WorkspaceModel) -> None:
         #: Given
         name = CorpusName.parse('blog')
 
         #: When
-        corpus = two_corpora_model.corpus(name)
+        corpus = two_corpora_model.find_corpus(name)
 
         #: Then
         assert corpus is None, 'a name the model does not list has no corpus'
@@ -642,22 +642,26 @@ class TestWorkspaceModel:
             'every code ref precedes every feat ref, each corpus in its stored filename order'
         )
 
-    def test_locate_with_the_path_of_a_listed_document_returns_its_ref(self, two_corpora_model: WorkspaceModel) -> None:
+    def test_find_document_with_the_path_of_a_listed_document_returns_its_ref(
+        self, two_corpora_model: WorkspaceModel
+    ) -> None:
         #: Given
         path = RootRelativePath.parse('docs/feat/cli-check.md')
 
         #: When
-        ref = two_corpora_model.locate(path)
+        ref = two_corpora_model.find_document(path)
 
         #: Then
         assert ref == _ref('feat', 'cli-check'), 'the ref whose path equals the argument is returned'
 
-    def test_locate_with_a_path_the_model_does_not_list_returns_none(self, two_corpora_model: WorkspaceModel) -> None:
+    def test_find_document_with_a_path_the_model_does_not_list_returns_none(
+        self, two_corpora_model: WorkspaceModel
+    ) -> None:
         #: Given
         path = RootRelativePath.parse('docs/code/cli-check.md')
 
         #: When
-        ref = two_corpora_model.locate(path)
+        ref = two_corpora_model.find_document(path)
 
         #: Then
         assert ref is None, 'a filename listed under another corpus does not match'

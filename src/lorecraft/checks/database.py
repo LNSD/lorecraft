@@ -24,7 +24,7 @@ use and kept for as long as the database lives (pattern-memoization):
 Three questions are asked of the snapshot's records directly and their answers are never cached, since an answer
 for one path is cheap:
 
-- `resolve(path)` and `resolve_file(path)`: where a path leads in the snapshot, like a lookup in the IDE's
+- `resolve(path)` and `find_real_file(path)`: where a path leads in the snapshot, like a lookup in the IDE's
   virtual file system. They read the snapshot's records and nothing else and build nothing worth keeping.
 - `is_in_scope(path)`: whether the scan reads the directory a path sits in, like the IDE asking whether a file
   is in the project's content roots. It is configuration, not content: answered from the `ScopeIndex` cached
@@ -141,7 +141,7 @@ class Database:
         """
         require_real_layout(self._fs)
 
-    def resolve(self, path: RootRelativePath) -> RootRelativePath | None:
+    def find_real_path(self, path: RootRelativePath) -> RootRelativePath | None:
         """Where `path` leads in the snapshot, every recorded link on the way followed; never cached.
 
         Like the IDE's lookup of a path in its virtual file system: a path handed in from outside, such as a
@@ -153,12 +153,12 @@ class Database:
         Returns:
             The real directory or the real file, root-relative, or ``None`` when the snapshot holds neither there.
         """
-        directory = self._fs.resolve_dir(path)
+        directory = self._fs.find_real_dir(path)
         if directory is not None:
             return directory
-        return self._fs.resolve_file(path)
+        return self._fs.find_real_file(path)
 
-    def resolve_file(self, path: RootRelativePath) -> RootRelativePath | None:
+    def find_real_file(self, path: RootRelativePath) -> RootRelativePath | None:
         """The file `path` leads to in the snapshot, every recorded link on the way followed; never cached.
 
         Args:
@@ -168,7 +168,7 @@ class Database:
             The real file, root-relative, or ``None`` when the snapshot holds no file there: nothing, a
             directory, or a link it did not follow.
         """
-        return self._fs.resolve_file(path)
+        return self._fs.find_real_file(path)
 
     def is_in_scope(self, path: RootRelativePath) -> bool:
         """Whether the scan lists the directory `path` sits in, as the snapshot's scope declares it.

@@ -188,9 +188,9 @@ def _check_section_words(aspect: StructureAspect, sections: tuple[Heading, ...])
     violations: list[Violation] = []
     last_named_at = -1  # the outline index of the last named section passed; -1 before any
     for section in sections:
-        entry_at = _entry_index(aspect.outline, section.text)
+        entry_at = _find_entry_index(aspect.outline, section.text)
         if entry_at is None:
-            cap = _run_cap(aspect.outline, last_named_at)
+            cap = _find_run_cap(aspect.outline, last_named_at)
         else:
             last_named_at = entry_at
             cap = aspect.outline[entry_at].words
@@ -205,7 +205,7 @@ def _check_section_words(aspect: StructureAspect, sections: tuple[Heading, ...])
     return violations
 
 
-def _entry_index(outline: tuple[OutlineEntry, ...], name: str) -> int | None:
+def _find_entry_index(outline: tuple[OutlineEntry, ...], name: str) -> int | None:
     """Where in the outline the section entry naming `name` sits, or None when no entry names it.
 
     Args:
@@ -224,7 +224,7 @@ def _entry_index(outline: tuple[OutlineEntry, ...], name: str) -> int | None:
     return None
 
 
-def _run_cap(outline: tuple[OutlineEntry, ...], after: int) -> int | None:
+def _find_run_cap(outline: tuple[OutlineEntry, ...], after: int) -> int | None:
     """The cap of the first `any` entry past outline index `after`, or None when there is no such entry.
 
     Args:

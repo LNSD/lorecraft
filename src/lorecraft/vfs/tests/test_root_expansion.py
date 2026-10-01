@@ -12,7 +12,7 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 
-from ..root_expansion import MAX_LINKS, RealPath, linked_scan_root, real_scan_root, walk_to_real_path
+from ..root_expansion import MAX_LINKS, RealPath, find_linked_scan_root, find_real_path, find_real_scan_root
 from ..scan_root import ScanRoot
 from ..view import EntryKind
 
@@ -62,7 +62,7 @@ class _FakeTree:
                 self._kinds[_path(raw)] = EntryKind.SYMLINK
                 self._targets[_path(raw)] = PurePosixPath(target)
 
-    def kind(self, path: RootRelativePath) -> EntryKind | None:
+    def find_kind(self, path: RootRelativePath) -> EntryKind | None:
         """The kind the test named `path` with; `None` when it named none.
 
         Args:
@@ -70,7 +70,7 @@ class _FakeTree:
         """
         return self._kinds.get(path)
 
-    def read_link_target(self, path: RootRelativePath) -> PurePosixPath | None:
+    def find_link_target(self, path: RootRelativePath) -> PurePosixPath | None:
         """The target the test gave the link at `path`; `None` for a link that vanished.
 
         Args:
@@ -80,143 +80,143 @@ class _FakeTree:
 
 
 @pytest.mark.unit
-class TestWalkToRealPath:
-    def test_walk_to_real_path_with_a_directory_returns_it_as_a_directory(self) -> None:
+class TestFindRealPath:
+    def test_find_real_path_with_a_directory_returns_it_as_a_directory(self) -> None:
         #: Given
         tree = _FakeTree(directories=('docs', 'docs/code'))
         path = _path('docs/code')
         #: When
-        leads_to = walk_to_real_path(path, tree, follow_links=False)
+        leads_to = find_real_path(path, tree, follow_links=False)
 
         #: Then
         assert leads_to == RealPath(_path('docs/code'), EntryKind.DIRECTORY), 'a directory leads to itself'
 
-    def test_walk_to_real_path_with_a_regular_file_returns_it_as_a_file(self) -> None:
+    def test_find_real_path_with_a_regular_file_returns_it_as_a_file(self) -> None:
         #: Given
         tree = _FakeTree(directories=('docs',), files=('docs/a.md',))
         path = _path('docs/a.md')
         #: When
-        leads_to = walk_to_real_path(path, tree, follow_links=False)
+        leads_to = find_real_path(path, tree, follow_links=False)
 
         #: Then
         assert leads_to == RealPath(_path('docs/a.md'), EntryKind.FILE), 'a regular file at the end ends the walk'
 
-    def test_walk_to_real_path_through_a_file_component_returns_none(self) -> None:
+    def test_find_real_path_through_a_file_component_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(directories=('docs',), files=('docs/a.md',))
         path = _path('docs/a.md/b')
         #: When
-        leads_to = walk_to_real_path(path, tree, follow_links=False)
+        leads_to = find_real_path(path, tree, follow_links=False)
 
         #: Then
         assert leads_to is None, 'a file on the way is no directory to step into'
 
-    def test_walk_to_real_path_with_a_missing_component_returns_none(self) -> None:
+    def test_find_real_path_with_a_missing_component_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(directories=('docs',))
         path = _path('docs/nope/a.md')
         #: When
-        leads_to = walk_to_real_path(path, tree, follow_links=False)
+        leads_to = find_real_path(path, tree, follow_links=False)
 
         #: Then
         assert leads_to is None, 'nothing is there to step into'
 
-    def test_walk_to_real_path_with_an_other_entry_returns_none(self) -> None:
+    def test_find_real_path_with_an_other_entry_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(directories=('docs',), others=('docs/fifo',))
         path = _path('docs/fifo')
         #: When
-        leads_to = walk_to_real_path(path, tree, follow_links=False)
+        leads_to = find_real_path(path, tree, follow_links=False)
 
         #: Then
         assert leads_to is None, 'an entry that is neither a directory nor a regular file is nowhere to read'
 
-    def test_walk_to_real_path_following_a_link_returns_the_directory_it_leads_to(self) -> None:
+    def test_find_real_path_following_a_link_returns_the_directory_it_leads_to(self) -> None:
         #: Given
         tree = _FakeTree(directories=('skills', 'skills/a'), links={'docs': 'skills'})
         path = _path('docs/a')
         #: When
-        leads_to = walk_to_real_path(path, tree, follow_links=True)
+        leads_to = find_real_path(path, tree, follow_links=True)
 
         #: Then
         assert leads_to == RealPath(_path('skills/a'), EntryKind.DIRECTORY), 'the link splices its target in'
 
-    def test_walk_to_real_path_not_following_links_with_a_link_on_the_way_returns_none(self) -> None:
+    def test_find_real_path_not_following_links_with_a_link_on_the_way_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(directories=('skills', 'skills/a'), links={'docs': 'skills'})
         path = _path('docs/a')
         #: When
-        leads_to = walk_to_real_path(path, tree, follow_links=False)
+        leads_to = find_real_path(path, tree, follow_links=False)
 
         #: Then
         assert leads_to is None, 'without following links the walk ends at the first one'
 
-    def test_walk_to_real_path_with_a_link_that_vanished_returns_none(self) -> None:
+    def test_find_real_path_with_a_link_that_vanished_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(gone_links=('docs',))
         path = _path('docs/a')
         #: When
-        leads_to = walk_to_real_path(path, tree, follow_links=True)
+        leads_to = find_real_path(path, tree, follow_links=True)
 
         #: Then
         assert leads_to is None, 'a link gone before its target was read leads nowhere'
 
-    def test_walk_to_real_path_with_an_absolute_target_returns_none(self) -> None:
+    def test_find_real_path_with_an_absolute_target_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(links={'docs': '/srv/docs'})
         path = _path('docs')
         #: When
-        leads_to = walk_to_real_path(path, tree, follow_links=True)
+        leads_to = find_real_path(path, tree, follow_links=True)
 
         #: Then
         assert leads_to is None, 'an absolute target is outside the root'
 
-    def test_walk_to_real_path_with_a_target_climbing_above_the_root_returns_none(self) -> None:
+    def test_find_real_path_with_a_target_climbing_above_the_root_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(links={'docs': '../docs'})
         path = _path('docs')
         #: When
-        leads_to = walk_to_real_path(path, tree, follow_links=True)
+        leads_to = find_real_path(path, tree, follow_links=True)
 
         #: Then
         assert leads_to is None, 'a target above the root is outside it'
 
-    def test_walk_to_real_path_with_a_target_climbing_out_of_the_link_directory_returns_where_it_leads(
+    def test_find_real_path_with_a_target_climbing_out_of_the_link_directory_returns_where_it_leads(
         self,
     ) -> None:
         #: Given
         tree = _FakeTree(directories=('a', 'b'), links={'a/l': '../b'})
         path = _path('a/l')
         #: When
-        leads_to = walk_to_real_path(path, tree, follow_links=True)
+        leads_to = find_real_path(path, tree, follow_links=True)
 
         #: Then
         assert leads_to == RealPath(_path('b'), EntryKind.DIRECTORY), 'the directory a link sits in is known'
 
-    def test_walk_to_real_path_with_a_target_climbing_out_of_a_directory_stepped_into_returns_none(self) -> None:
+    def test_find_real_path_with_a_target_climbing_out_of_a_directory_stepped_into_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(directories=('a', 'a/tmp', 'a/b'), links={'a/l': 'tmp/../b'})
         path = _path('a/l')
         #: When
-        leads_to = walk_to_real_path(path, tree, follow_links=True)
+        leads_to = find_real_path(path, tree, follow_links=True)
 
         #: Then
         assert leads_to is None, 'a `..` out of a directory stepped into by name is a chain the view cannot walk'
 
-    def test_walk_to_real_path_with_a_looping_link_returns_none(self) -> None:
+    def test_find_real_path_with_a_looping_link_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(links={'docs': 'docs'})
         path = _path('docs')
         #: When
-        leads_to = walk_to_real_path(path, tree, follow_links=True)
+        leads_to = find_real_path(path, tree, follow_links=True)
 
         #: Then
         assert leads_to is None, f'a chain longer than {MAX_LINKS} links counts as a loop'
 
 
 @pytest.mark.unit
-class TestRealScanRoot:
-    def test_real_scan_root_following_links_with_a_link_on_the_way_returns_the_root_at_its_real_directory(
+class TestFindRealScanRoot:
+    def test_find_real_scan_root_following_links_with_a_link_on_the_way_returns_the_root_at_its_real_directory(
         self,
     ) -> None:
         #: Given
@@ -224,115 +224,115 @@ class TestRealScanRoot:
         scan_root = ScanRoot(_path('.agents/skills'), depth=1, follow_links=True)
 
         #: When
-        real_root = real_scan_root(scan_root, tree)
+        real_root = find_real_scan_root(scan_root, tree)
 
         #: Then
         assert real_root == ScanRoot(_path('shared/skills'), depth=1, follow_links=True), (
             'a following root starts where its directory leads, with its declared depth and policy'
         )
 
-    def test_real_scan_root_not_following_links_with_a_link_on_the_way_returns_none(self) -> None:
+    def test_find_real_scan_root_not_following_links_with_a_link_on_the_way_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(directories=('shared', 'shared/skills'), links={'.agents': 'shared'})
         scan_root = ScanRoot(_path('.agents/skills'), depth=1)
 
         #: When
-        real_root = real_scan_root(scan_root, tree)
+        real_root = find_real_scan_root(scan_root, tree)
 
         #: Then
         assert real_root is None, 'a root that does not follow links lists nothing behind one'
 
-    def test_real_scan_root_with_a_regular_file_returns_none(self) -> None:
+    def test_find_real_scan_root_with_a_regular_file_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(files=('README.md',))
         scan_root = ScanRoot(_path('README.md'), depth=0)
 
         #: When
-        real_root = real_scan_root(scan_root, tree)
+        real_root = find_real_scan_root(scan_root, tree)
 
         #: Then
         assert real_root is None, 'a lone file is no directory to list from'
 
-    def test_real_scan_root_following_links_with_a_link_to_a_file_at_the_end_returns_none(self) -> None:
+    def test_find_real_scan_root_following_links_with_a_link_to_a_file_at_the_end_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(directories=('shared',), files=('shared/a.md',), links={'docs': 'shared/a.md'})
         scan_root = ScanRoot(_path('docs'), depth=1, follow_links=True)
 
         #: When
-        real_root = real_scan_root(scan_root, tree)
+        real_root = find_real_scan_root(scan_root, tree)
 
         #: Then
         assert real_root is None, 'a link to a lone file is no directory to list from'
 
-    def test_real_scan_root_with_a_missing_directory_returns_none(self) -> None:
+    def test_find_real_scan_root_with_a_missing_directory_returns_none(self) -> None:
         #: Given
         tree = _FakeTree()
         scan_root = ScanRoot(_path('docs'), depth=1)
 
         #: When
-        real_root = real_scan_root(scan_root, tree)
+        real_root = find_real_scan_root(scan_root, tree)
 
         #: Then
         assert real_root is None, 'a missing root lists nothing'
 
 
 @pytest.mark.unit
-class TestLinkedScanRoot:
-    def test_linked_scan_root_with_a_link_listed_with_depth_left_returns_a_root_one_level_shallower(self) -> None:
+class TestFindLinkedScanRoot:
+    def test_find_linked_scan_root_with_a_link_listed_with_depth_left_returns_a_root_one_level_shallower(self) -> None:
         #: Given
         scan_root = ScanRoot(_path('skills'), depth=2, follow_links=True)
         link = _path('skills/a')
         directory = _path('shared/a')
         #: When
-        linked_root = linked_scan_root(scan_root, link, directory)
+        linked_root = find_linked_scan_root(scan_root, link, directory)
 
         #: Then
         assert linked_root == ScanRoot(_path('shared/a'), depth=1, follow_links=True), (
             'the link uses up one level of depth, as a directory entry does'
         )
 
-    def test_linked_scan_root_with_a_link_below_the_root_returns_the_depth_left_at_the_link(self) -> None:
+    def test_find_linked_scan_root_with_a_link_below_the_root_returns_the_depth_left_at_the_link(self) -> None:
         #: Given
         scan_root = ScanRoot(_path('skills'), depth=2, follow_links=True)
         link = _path('skills/a/b')
         directory = _path('shared/b')
         #: When
-        linked_root = linked_scan_root(scan_root, link, directory)
+        linked_root = find_linked_scan_root(scan_root, link, directory)
 
         #: Then
         assert linked_root == ScanRoot(_path('shared/b'), depth=0, follow_links=True), (
             'a link one level below the root is listed with one level left, and uses it up'
         )
 
-    def test_linked_scan_root_with_a_link_listed_with_no_depth_left_returns_none(self) -> None:
+    def test_find_linked_scan_root_with_a_link_listed_with_no_depth_left_returns_none(self) -> None:
         #: Given
         scan_root = ScanRoot(_path('skills'), depth=0, follow_links=True)
         link = _path('skills/a')
         directory = _path('shared/a')
         #: When
-        linked_root = linked_scan_root(scan_root, link, directory)
+        linked_root = find_linked_scan_root(scan_root, link, directory)
 
         #: Then
         assert linked_root is None, 'a link listed with no depth left adds no directory to list'
 
-    def test_linked_scan_root_from_a_root_not_following_links_returns_none(self) -> None:
+    def test_find_linked_scan_root_from_a_root_not_following_links_returns_none(self) -> None:
         #: Given
         scan_root = ScanRoot(_path('skills'), depth=2)
         link = _path('skills/a')
         directory = _path('shared/a')
         #: When
-        linked_root = linked_scan_root(scan_root, link, directory)
+        linked_root = find_linked_scan_root(scan_root, link, directory)
 
         #: Then
         assert linked_root is None, 'a root that does not follow links never follows one it lists'
 
-    def test_linked_scan_root_with_a_link_the_root_does_not_list_returns_none(self) -> None:
+    def test_find_linked_scan_root_with_a_link_the_root_does_not_list_returns_none(self) -> None:
         #: Given
         scan_root = ScanRoot(_path('skills'), depth=2, follow_links=True)
         link = _path('docs/a')
         directory = _path('shared/a')
         #: When
-        linked_root = linked_scan_root(scan_root, link, directory)
+        linked_root = find_linked_scan_root(scan_root, link, directory)
 
         #: Then
         assert linked_root is None, 'a link outside what the root lists is not followed from it'
