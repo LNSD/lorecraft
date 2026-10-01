@@ -17,6 +17,7 @@ class TestLineNumber:
 
         #: Then
         assert exc_info.value.value == rejected, 'the error carries the rejected number'
+        assert str(rejected) in str(exc_info.value), 'the message names the rejected number'
 
     def test_line_number_negative_raises_invalid_line_number(self) -> None:
         #: Given
@@ -28,6 +29,7 @@ class TestLineNumber:
 
         #: Then
         assert exc_info.value.value == rejected, 'the error carries the rejected number'
+        assert str(rejected) in str(exc_info.value), 'the message names the rejected number'
 
     def test_line_number_of_the_first_line_prints_as_its_number(self) -> None:
         #: Given
