@@ -5,8 +5,8 @@ at all. This suite runs from the checkout, so the verbose command must report it
 well as the installed version and environment. Every version output, and `inspect`, `check`, `check frontmatter`,
 `check structure`, `check budget` and `check skills` over a checked-in workspace fixture, is compared to a reviewed
 snapshot file under `__snapshots__/`. So is what `check` and `inspect` print for a root whose `docs/` or
-`docs/__meta__/` is a symlink into that fixture, and what `check frontmatter` and `check skills` print for a root
-whose frontmatter writes a key twice.
+`docs/__meta__/` is a symlink into that fixture, what `check frontmatter` and `check skills` print for a root
+whose frontmatter writes a key twice, and what `check skills` prints for a skill linking to an absolute path.
 """
 
 from pathlib import Path
@@ -189,6 +189,20 @@ def duplicate_key_root(tmp_path: Path) -> Path:
     return tmp_path
 
 
+@pytest.fixture(scope='function')
+def absolute_link_root(tmp_path: Path) -> Path:
+    """A root holding one skill whose ``SKILL.md`` links to a file from the filesystem root.
+
+    Apart from the link the skill is clean, so the link-absolute finding is the only one the check prints.
+    """
+    (tmp_path / '.agents' / 'skills' / 'review').mkdir(parents=True)
+    (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').write_text(
+        '---\nname: review\ndescription: Review a change\n---\n# Review\n\nRead [the guide](/docs/guide.md).\n',
+        encoding='utf-8',
+    )
+    return tmp_path
+
+
 @pytest.mark.e2e
 class TestCheckFrontmatterSnapshots:
     # Every finding prints root-relative, so the output is the same in every checkout and nothing is redacted.
@@ -351,6 +365,20 @@ class TestCheckSkillsSnapshots:
         #: Then
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the duplicate-key finding matches the reviewed snapshot'
+
+    def test_check_skills_with_an_absolute_link_prints_the_link_absolute_finding(
+        self, snapshot: SnapshotAssertion, absolute_link_root: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('check', 'skills', '--root', str(absolute_link_root))
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, 'the link-absolute finding matches the reviewed snapshot'
 
 
 @pytest.mark.e2e

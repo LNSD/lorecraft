@@ -1,4 +1,5 @@
-"""A document's parse tree: the frontmatter node, the headings, and the line positions every check reports against.
+"""A document's parse tree: the frontmatter node, the headings, the links, and the line positions every check reports
+against.
 
 Beside it, ``count_tokens``: what a document's raw text costs an agent, counted without parsing it.
 """
@@ -13,6 +14,7 @@ from .frontmatter import (
     NonMappingFrontmatter,
 )
 from .heading import Heading
+from .link import Link
 from .position import InvalidLineNumberError, LineNumber
 from .tokens import count_tokens
 
@@ -27,6 +29,7 @@ __all__ = [
     'InvalidYamlFrontmatter',
     'NonMappingFrontmatter',
     'Heading',
+    'Link',
     'LineNumber',
     'InvalidLineNumberError',
     'count_tokens',
