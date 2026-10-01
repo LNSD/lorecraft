@@ -172,8 +172,10 @@ def _prose_words(text: str, block: Node) -> int:
     such as one inside a list item. The rest is counted from its source text rather than from its parsed inlines,
     so a link counts as the words its source is written with.
     """
-    if isinstance(block, WenmodeHeading) or block.position is None:
+    if isinstance(block, WenmodeHeading):
         return 0
+    if block.position is None:
+        raise AssertionError('unreachable: the parser is built with positions=True, so every block has a position')
     words = 0
     start = block.position.start
     for code in _code_spans(block):
@@ -189,7 +191,11 @@ def _code_spans(node: Node) -> list[Position]:
     A code block holds text, never another block, so no span found here contains another.
     """
     if isinstance(node, Code):
-        return [] if node.position is None else [node.position]
+        if node.position is None:
+            raise AssertionError(
+                'unreachable: the parser is built with positions=True, so every code block has a position'
+            )
+        return [node.position]
     if not isinstance(node, Parent):
         return []
     spans: list[Position] = []
@@ -217,7 +223,5 @@ def _line(text: str, node: Node) -> LineNumber:
     a ``\\n``, a ``\\r\\n`` included.
     """
     if node.position is None:
-        # The field is optional in wenmode's type only because a parser built without `positions=True` leaves it
-        # unset; every parser that reaches here is built with it.
         raise AssertionError('unreachable: the parser is built with positions=True, so every node has a position')
     return LineNumber(text.count('\n', 0, node.position.start) + 1)
