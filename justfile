@@ -195,6 +195,42 @@ test-it *EXTRA_FLAGS: (test "-m" "it" EXTRA_FLAGS)
 [group: 'test']
 test-e2e *EXTRA_FLAGS: (test "-m" "e2e" EXTRA_FLAGS)
 
+# Coverage: which lines and branches a tier runs, not whether it checks them; that is test-mut's question.
+# Each run overwrites .coverage, so tiers never mix.
+
+# Measure the coverage of every tier together (pytest --cov)
+[group: 'test']
+test-cov *EXTRA_FLAGS: (test "--cov" EXTRA_FLAGS)
+
+# Measure the coverage of the unit tier alone (pytest --cov)
+[group: 'test']
+test-unit-cov *EXTRA_FLAGS: (test "-m" "unit" "--cov" EXTRA_FLAGS)
+
+# Measure the coverage of the integration tier alone (pytest --cov)
+[group: 'test']
+test-it-cov *EXTRA_FLAGS: (test "-m" "it" "--cov" EXTRA_FLAGS)
+
+# Measure the coverage of the end-to-end tier alone, the console script's subprocesses included (pytest --cov)
+[group: 'test']
+test-e2e-cov *EXTRA_FLAGS: (test "-m" "e2e" "--cov" EXTRA_FLAGS)
+
+# Render the last coverage run as Markdown: the total and the files below full coverage
+[group: 'test']
+test-cov-report TITLE='unit + it + e2e':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "### Coverage: {{TITLE}}"
+    echo
+    echo "**$(uv run coverage report --format=total)%** of lines and branches covered."
+    echo
+    echo "<details><summary>Files below full coverage</summary>"
+    echo
+    uv run coverage report --format=markdown
+    echo
+    echo "</details>"
+    # A blank line closes the HTML block, so a section appended after this one still renders its heading.
+    echo
+
 # Mutation testing: expensive, run to judge the tests, not after each edit. Each recipe empties mutants/ so
 # tiers never mix; pytest reads the tier's marker from PYTEST_ADDOPTS. No e2e: mutmut cannot reach a subprocess.
 
