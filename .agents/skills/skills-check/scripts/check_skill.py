@@ -57,15 +57,19 @@ FENCE_PATTERN = re.compile(r'^\s*(```|~~~)')
 
 @dataclass(frozen=True)
 class Finding:
+    """One rule a skill breaks, at a line of one of its files."""
+
     path: str
     line: int
     rule: str
     message: str
 
     def as_text(self) -> str:
+        """The finding as one `path:line: [rule] message` line."""
         return f'{self.path}:{self.line}: [{self.rule}] {self.message}'
 
     def as_dict(self) -> dict[str, str | int]:
+        """The finding as a JSON-ready mapping."""
         return {'file': self.path, 'line': self.line, 'rule': self.rule, 'message': self.message}
 
 
@@ -134,6 +138,7 @@ def key_line(text: str, key: str) -> int:
 
 
 def skill_kind(root: Path, skill_dir: Path) -> SkillKind | None:
+    """Whether the skill is a workspace or a project skill, by the directory it sits in; `None` for neither."""
     if skill_dir.parent == root / WORKSPACE_DIR:
         return SkillKind.workspace
     if skill_dir.parent == root / PROJECT_DIR:
@@ -220,6 +225,7 @@ def check_body(root: Path, skill_dir: Path, path: Path, kind: SkillKind, links: 
 
 
 def validate(root: Path, skill_dir: Path) -> list[Finding]:
+    """Check one skill directory against the Agent Skills specification and this repository's skill rules."""
     skill_md = skill_dir / 'SKILL.md'
     rel = skill_md.relative_to(root).as_posix()
     kind = skill_kind(root, skill_dir)

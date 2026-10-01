@@ -44,6 +44,9 @@ def _show_version(value: bool) -> None:
     Eager option callbacks run before the subcommand is resolved, so this fires even when the
     rest of the command line is incomplete.
 
+    Args:
+        value: Whether `--version` was passed. When false the callback does nothing and the run continues.
+
     Raises:
         typer.Exit: Always, when `value` is true. This is how Typer ends a successful run early.
     """

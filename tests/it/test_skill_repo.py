@@ -41,13 +41,21 @@ CLAUDE_DIR: Final[RootRelativePath] = RootRelativePath.parse('.claude/skills')
 
 @pytest.fixture(scope='function')
 def repository(tmp_path: Path) -> Repository:
-    """A repository over the temporary root; no skills directory exists until a test creates it."""
+    """A repository over the temporary root; no skills directory exists until a test creates it.
+
+    Args:
+        tmp_path: Directory the repository reads through a real filesystem, as the repository root.
+    """
     return Repository(DiskFileSystem(tmp_path))
 
 
 @pytest.fixture(scope='function')
 def universal_dir(tmp_path: Path) -> Path:
-    """An empty ``.agents/skills/`` under the temporary root."""
+    """An empty `.agents/skills/` under the temporary root.
+
+    Args:
+        tmp_path: Directory the skills directory is created under, as the repository root.
+    """
     directory = tmp_path / '.agents' / 'skills'
     directory.mkdir(parents=True)
     return directory
@@ -55,7 +63,11 @@ def universal_dir(tmp_path: Path) -> Path:
 
 @pytest.fixture(scope='function')
 def locked_universal_dir(universal_dir: Path) -> Iterator[Path]:
-    """An ``.agents/skills/`` whose permissions refuse listing, restored afterwards so pytest can clean it up."""
+    """An `.agents/skills/` whose permissions refuse listing, restored afterwards so pytest can clean it up.
+
+    Args:
+        universal_dir: The skills directory to lock; its permissions are cleared while the test runs.
+    """
     universal_dir.chmod(0o000)
     yield universal_dir
     universal_dir.chmod(0o700)
@@ -63,7 +75,11 @@ def locked_universal_dir(universal_dir: Path) -> Iterator[Path]:
 
 @pytest.fixture(scope='function')
 def locked_skill_dir(universal_dir: Path) -> Iterator[Path]:
-    """An ``.agents/skills/review/`` whose permissions refuse listing, restored afterwards for the cleanup."""
+    """An `.agents/skills/review/` whose permissions refuse listing, restored afterwards for the cleanup.
+
+    Args:
+        universal_dir: The skills directory the locked `review` directory is created in.
+    """
     directory = universal_dir / 'review'
     directory.mkdir()
     directory.chmod(0o000)
@@ -72,24 +88,42 @@ def locked_skill_dir(universal_dir: Path) -> Iterator[Path]:
 
 
 def _write_skill(directory: Path) -> None:
-    """Create ``directory`` and an empty ``SKILL.md`` in it: the repository never reads the file."""
+    """Create `directory` and an empty `SKILL.md` in it: the repository never reads the file.
+
+    Args:
+        directory: Absolute path of the skill directory to create, parents included.
+    """
     directory.mkdir(parents=True)
     (directory / 'SKILL.md').write_text('', encoding='utf-8')
 
 
 def _ref(directory: str) -> SkillRef:
-    """The ref of the skill in ``directory``."""
+    """The ref of the skill in `directory`.
+
+    Args:
+        directory: Root-relative path of the skill directory.
+    """
     return SkillRef(RootRelativePath.parse(directory))
 
 
 def _location(directory: str) -> SkillLocation:
-    """The location of a skill whose directory and ``SKILL.md`` are no links."""
+    """The location of a skill whose directory and `SKILL.md` are no links.
+
+    Args:
+        directory: Root-relative path of the skill directory; it and its `SKILL.md` resolve to themselves.
+    """
     path = RootRelativePath.parse(directory)
     return SkillLocation(SkillRef(path), resolves_to=path, file_resolves_to=path / 'SKILL.md')
 
 
 def _linked_location(directory: str, resolves_to: str, file_resolves_to: str) -> SkillLocation:
-    """The location of a skill whose directory or ``SKILL.md`` is a link, with the real paths they lead to."""
+    """The location of a skill whose directory or `SKILL.md` is a link, with the real paths they lead to.
+
+    Args:
+        directory: Root-relative path of the skill directory as an agent reaches it.
+        resolves_to: Root-relative path the skill directory resolves to.
+        file_resolves_to: Root-relative path the skill's `SKILL.md` resolves to.
+    """
     return SkillLocation(
         SkillRef(RootRelativePath.parse(directory)),
         resolves_to=RootRelativePath.parse(resolves_to),
@@ -99,7 +133,11 @@ def _linked_location(directory: str, resolves_to: str, file_resolves_to: str) ->
 
 @pytest.fixture(scope='function')
 def locked_agents_dir(universal_dir: Path) -> Iterator[Path]:
-    """An ``.agents/`` whose permissions refuse a search, restored afterwards so pytest can clean it up."""
+    """An `.agents/` whose permissions refuse a search, restored afterwards so pytest can clean it up.
+
+    Args:
+        universal_dir: The skills directory whose parent, `.agents/`, is locked.
+    """
     directory = universal_dir.parent
     directory.chmod(0o000)
     yield directory
@@ -108,7 +146,11 @@ def locked_agents_dir(universal_dir: Path) -> Iterator[Path]:
 
 @pytest.fixture(scope='function')
 def locked_shared_skills_dir(tmp_path: Path) -> Iterator[Path]:
-    """A ``skills/`` holding a ``review`` skill, whose permissions refuse a search, restored for the cleanup."""
+    """A `skills/` holding a `review` skill, whose permissions refuse a search, restored for the cleanup.
+
+    Args:
+        tmp_path: Directory the `skills/` directory is created under, as the repository root.
+    """
     directory = tmp_path / 'skills'
     _write_skill(directory / 'review')
     directory.chmod(0o000)
@@ -118,7 +160,11 @@ def locked_shared_skills_dir(tmp_path: Path) -> Iterator[Path]:
 
 @pytest.fixture(scope='function')
 def locked_texts_dir(tmp_path: Path) -> Iterator[Path]:
-    """A ``texts/`` holding a ``REVIEW.md``, whose permissions refuse a search, restored for the cleanup."""
+    """A `texts/` holding a `REVIEW.md`, whose permissions refuse a search, restored for the cleanup.
+
+    Args:
+        tmp_path: Directory the `texts/` directory is created under, as the repository root.
+    """
     directory = tmp_path / 'texts'
     directory.mkdir()
     (directory / 'REVIEW.md').write_text('', encoding='utf-8')

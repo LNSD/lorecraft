@@ -30,7 +30,15 @@ def _aspect(
     forbidden: tuple[str, ...] = (),
     stem: str = 'code',
 ) -> StructureAspect:
-    """A structure aspect at ``docs/__meta__/<stem>.structure.json``, quoting ``<stem>.md`` as its authority."""
+    """A structure aspect at `docs/__meta__/<stem>.structure.json`, quoting `<stem>.md` as its authority.
+
+    Args:
+        title: The H1 title rule; `None` states none.
+        forbid_empty_sections: Whether a heading with an empty section is a violation.
+        outline: The sections the document must follow, in order; empty states no outline.
+        forbidden: Section names the document may not have.
+        stem: File stem of the specification the aspect is written in.
+    """
     return StructureAspect(
         path=SPECS_DIR / f'{stem}.structure.json',
         title=title,

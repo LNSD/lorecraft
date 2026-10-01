@@ -35,7 +35,13 @@ from lorecraft.vfs import take_snapshot
 
 
 def _write(root: Path, relative: str, text: str = '') -> Path:
-    """Write one file under the root, creating its parents, and return its path."""
+    """Write one file under the root, creating its parents, and return its path.
+
+    Args:
+        root: Directory the file is written under, as the repository root.
+        relative: Path of the file below `root`, with `/` separators.
+        text: Content of the file, written as UTF-8. Empty by default.
+    """
     path = root / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding='utf-8')
@@ -44,11 +50,15 @@ def _write(root: Path, relative: str, text: str = '') -> Path:
 
 @pytest.fixture(scope='function')
 def documents_database(tmp_path: Path) -> Database:
-    """A database over a snapshot of one corpus ``code`` holding ``logging.md``, a misnamed ``README.md`` and
-    ``alias.md``, a link to ``logging.md``.
+    """A database over a snapshot of one corpus `code`.
+
+    The corpus holds `logging.md`, a misnamed `README.md` and `alias.md`, a link to `logging.md`.
 
     Beside the corpus sit the paths the rules reject: a nested file, a spec-less directory, an invalid
-    corpus name, a file directly under ``docs/`` and a non-Markdown file.
+    corpus name, a file directly under `docs/` and a non-Markdown file.
+
+    Args:
+        tmp_path: Directory the tree is written into and snapshotted, as the repository root.
     """
     _write(tmp_path, 'docs/__meta__/code.md')
     _write(tmp_path, 'docs/code/logging.md')
@@ -327,9 +337,15 @@ REVIEW: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/review
 
 @pytest.fixture(scope='function')
 def skills_database(tmp_path: Path) -> Database:
-    """A database over a snapshot of ``.agents/skills`` holding ``commit``, ``review`` linked to
-    ``skills/review/``, ``audit`` linked to ``commit``, and ``lint``, whose ``SKILL.md`` links to
-    ``shared/LINT.md``; ``.claude/skills`` links to the directory, and ``drafts/`` is no skill."""
+    """A database over a snapshot of `.agents/skills`.
+
+    It holds `commit`, `review` linked to `skills/review/`, `audit` linked to `commit`, and `lint`,
+    whose `SKILL.md` links to `shared/LINT.md`; `.claude/skills` links to the directory, and `drafts/` is
+    no skill.
+
+    Args:
+        tmp_path: Directory the tree is written into and snapshotted, as the repository root.
+    """
     _write(tmp_path, '.agents/skills/commit/SKILL.md')
     _write(tmp_path, '.agents/skills/drafts/README.md')
     _write(tmp_path, 'skills/review/SKILL.md')

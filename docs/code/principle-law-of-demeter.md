@@ -89,7 +89,7 @@ class SchemaResolver:
         self._read_file = read_file
 
     def resolve(self, corpus: str) -> Path | None:
-        """Locate the frontmatter schema for ``corpus`` under the docs directory."""
+        """Locate the frontmatter schema for `corpus` under the docs directory."""
         # uses only its own two attributes
 ```
 

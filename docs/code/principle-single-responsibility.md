@@ -113,9 +113,9 @@ def report_sections(sink: ReportSink, path: Path) -> list[Finding]:
 ```python
 # ✅ Good — the effect is a thin shell over a pure core.
 def plan_sections(lines: list[str]) -> list[range]:
-    """Cut ``lines`` into sections on heading boundaries.
+    """Cut `lines` into sections on heading boundaries.
 
-    A ``#`` inside a fenced code block is a comment, not a heading, and never opens a section.
+    A `#` inside a fenced code block is a comment, not a heading, and never opens a section.
 
     Args:
         lines: The document body, in file order.

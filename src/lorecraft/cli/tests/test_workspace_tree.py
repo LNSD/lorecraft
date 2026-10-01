@@ -91,7 +91,11 @@ def _skills_model() -> WorkspaceModel:
 
 
 def _regular_skill(directory: str) -> SkillLocation:
-    """The location of a skill whose directory and ``SKILL.md`` are no links."""
+    """The location of a skill whose directory and `SKILL.md` are no links.
+
+    Args:
+        directory: The skill's directory, root-relative and slash-separated; its `SKILL.md` sits directly in it.
+    """
     path = _path(directory)
     return SkillLocation(SkillRef(path), resolves_to=path, file_resolves_to=path / 'SKILL.md')
 

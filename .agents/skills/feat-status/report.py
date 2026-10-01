@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Feature Status Report Generator
+"""Feature Status Report Generator.
 
 Parses YAML frontmatter from docs/feat/*.md and generates a status report
 grouped by maturity level (stable, experimental, unstable, development, unknown).
@@ -104,6 +103,7 @@ def draw_table(headers: list[str], rows: list[list[str]], terminal_width: int | 
 
 
 def main() -> None:
+    """Print the status report of docs/feat/, found relative to this script."""
     # Find docs/feat directory relative to script location
     script_dir = Path(__file__).parent
     repo_root = script_dir.parent.parent.parent

@@ -58,7 +58,11 @@ class OsRefusal(Enum):
 
     @classmethod
     def of(cls, error: OSError) -> 'OsRefusal':
-        """Classify an ``OSError`` by its ``errno``; one the enum does not name is ``OTHER``."""
+        """Classify an `OSError` by its `errno`; one the enum does not name is `OTHER`.
+
+        Args:
+            error: The failure to classify; only its `errno` is read.
+        """
         match error.errno:
             case errno.ENOENT:
                 return cls.NOT_FOUND
@@ -212,6 +216,10 @@ class FileResolveError(Error):
 def decode_text(path: RootRelativePath, data: bytes) -> str:
     """Decode a file's bytes as UTF-8; the one decode every implementation shares.
 
+    Args:
+        path: The root-relative file the bytes came from; named in the error, not read.
+        data: The file's raw bytes.
+
     Raises:
         TextDecodeError: If the bytes are not UTF-8.
     """
@@ -240,8 +248,11 @@ class FileSystem(ABC):
         A symlink on the way to the directory, or at it, is followed; a symlink among its entries is
         listed as SYMLINK, whatever it points at.
 
+        Args:
+            path: The root-relative directory to list; the root is `.`.
+
         Returns:
-            The entries in name order, or ``()`` when the path is missing or leads to no directory.
+            The entries in name order, or `()` when the path is missing or leads to no directory.
 
         Raises:
             DirListError: If the directory exists but cannot be read.
@@ -251,6 +262,9 @@ class FileSystem(ABC):
     def read_text(self, path: RootRelativePath) -> str:
         """Read one file as UTF-8 text; a symlink on the way to the file, or at it, is followed.
 
+        Args:
+            path: The root-relative file to read.
+
         Raises:
             TextDecodeError: If the bytes are not UTF-8.
             FileReadError: If the file is missing or cannot be read, on disk.
@@ -259,13 +273,16 @@ class FileSystem(ABC):
 
     @abstractmethod
     def entry_kind(self, path: RootRelativePath) -> EntryKind | None:
-        """What the entry at ``path`` itself is, as ``list_dir`` of its parent would list it.
+        """What the entry at `path` itself is, as `list_dir` of its parent would list it.
 
-        A symlink on the way to ``path`` is followed, as ``list_dir`` follows one to the directory it lists; a
-        symlink at ``path`` is SYMLINK, whatever it points at. The root is a DIRECTORY.
+        A symlink on the way to `path` is followed, as `list_dir` follows one to the directory it lists; a
+        symlink at `path` is SYMLINK, whatever it points at. The root is a DIRECTORY.
+
+        Args:
+            path: The root-relative entry to look up; its own kind is reported, not its target's.
 
         Returns:
-            The entry's kind, or ``None`` when nothing is there: the path is missing, or its parent leads to
+            The entry's kind, or `None` when nothing is there: the path is missing, or its parent leads to
             no directory.
 
         Raises:
@@ -274,17 +291,20 @@ class FileSystem(ABC):
 
     @abstractmethod
     def resolve_dir(self, path: RootRelativePath) -> RootRelativePath | None:
-        """Follow every symlink in ``path`` and return the real directory it leads to, root-relative.
+        """Follow every symlink in `path` and return the real directory it leads to, root-relative.
 
-        One of the two operations that say where a symlink leads, with ``resolve_file``: ``list_dir`` and
-        ``read_text`` follow a link without naming the real path. A regular directory resolves to itself,
-        and the root resolves to ``.``.
+        One of the two operations that say where a symlink leads, with `resolve_file`: `list_dir` and
+        `read_text` follow a link without naming the real path. A regular directory resolves to itself,
+        and the root resolves to `.`.
+
+        Args:
+            path: The root-relative path to resolve; every symlink in it is followed.
 
         Returns:
-            The real directory, root-relative, or ``None`` when no directory under the root sits at the
+            The real directory, root-relative, or `None` when no directory under the root sits at the
             end of the chain: the path is missing, a link dangles or loops, a component or the target is
             not a directory, or the target lies outside the root and so has no root-relative spelling. A
-            chain that leads outside the root resolves to ``None`` even when the operating system refuses
+            chain that leads outside the root resolves to `None` even when the operating system refuses
             to search a directory on the way.
 
         Raises:
@@ -294,16 +314,19 @@ class FileSystem(ABC):
 
     @abstractmethod
     def resolve_file(self, path: RootRelativePath) -> RootRelativePath | None:
-        """Follow every symlink in ``path`` and return the real regular file it leads to, root-relative.
+        """Follow every symlink in `path` and return the real regular file it leads to, root-relative.
 
-        ``resolve_dir``'s counterpart for a file: a regular file resolves to itself, and a link to one resolves
+        `resolve_dir`'s counterpart for a file: a regular file resolves to itself, and a link to one resolves
         to the file it leads to, wherever the chain goes on the way.
 
+        Args:
+            path: The root-relative path to resolve; every symlink in it is followed.
+
         Returns:
-            The real file, root-relative, or ``None`` when no regular file under the root sits at the end of
+            The real file, root-relative, or `None` when no regular file under the root sits at the end of
             the chain: the path is missing, a link dangles or loops, a component is not a directory, the
             target is not a regular file, or it lies outside the root. A chain that leads outside the root
-            resolves to ``None`` even when the operating system refuses to search a directory on the way.
+            resolves to `None` even when the operating system refuses to search a directory on the way.
 
         Raises:
             FileResolveError: If the operating system refuses the lookup, such as a permission error on a

@@ -26,8 +26,12 @@ _FIRST_LINE: Final[LineNumber] = LineNumber(1)
 def problem_rule(rule_namespace: str, problem: FrontmatterProblem) -> str:
     """The rule a schema problem breaks.
 
-    ``<namespace>.unknown-field`` for a key the schema does not define, ``<namespace>.frontmatter`` for a rule
-    over the whole block, and ``<namespace>.<field>`` for a problem on a field.
+    `<namespace>.unknown-field` for a key the schema does not define, `<namespace>.frontmatter` for a rule
+    over the whole block, and `<namespace>.<field>` for a problem on a field.
+
+    Args:
+        rule_namespace: Prefix of the rule: the document's corpus, or `skill`.
+        problem: The schema problem to name a rule for.
     """
     match problem:
         case UnknownFieldProblem() | NonStringKeyProblem():
@@ -47,7 +51,12 @@ def problem_rule(rule_namespace: str, problem: FrontmatterProblem) -> str:
 
 
 def problem_line(frontmatter: Frontmatter, problem: FrontmatterProblem) -> LineNumber:
-    """The line a schema problem is reported on: its field's, or line 1 when it concerns no field."""
+    """The line a schema problem is reported on: its field's, or line 1 when it concerns no field.
+
+    Args:
+        frontmatter: The frontmatter the problem was found in; searched for the line its field is written on.
+        problem: What the schema rejected; a problem naming a field is placed on that field's line.
+    """
     match problem:
         case NonStringKeyProblem() | BlockProblem():
             return _FIRST_LINE
@@ -65,7 +74,12 @@ def problem_line(frontmatter: Frontmatter, problem: FrontmatterProblem) -> LineN
 
 
 def field_line(frontmatter: Frontmatter, field: str) -> LineNumber:
-    """The line a top-level field is written on, or line 1 when the frontmatter lacks it."""
+    """The line a top-level field is written on, or line 1 when the frontmatter lacks it.
+
+    Args:
+        frontmatter: The decoded frontmatter, whose top-level keys carry the line each is written on.
+        field: Name of the top-level key to find.
+    """
     line = frontmatter.key_line(field)
     if line is None:
         return _FIRST_LINE

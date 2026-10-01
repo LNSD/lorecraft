@@ -1,5 +1,7 @@
-"""The Agent Skills specification as a frontmatter schema: each way a decoded frontmatter falls short of it is one
-problem, in Lorecraft's words, on the field it concerns."""
+"""The Agent Skills specification as a frontmatter schema.
+
+Each way a decoded frontmatter falls short of it is one problem, in Lorecraft's words, on the field it concerns.
+"""
 
 import pytest
 

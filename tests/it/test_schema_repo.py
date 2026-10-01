@@ -27,13 +27,21 @@ CODE_PYTHON: Final[SchemaName] = (CODE, AspectNamespace.parse('python'))
 
 @pytest.fixture(scope='function')
 def repository(tmp_path: Path) -> Repository:
-    """A repository whose specification directory is the temporary root itself."""
+    """A repository whose specification directory is the temporary root itself.
+
+    Args:
+        tmp_path: Directory that is both the repository root and the specification directory.
+    """
     return Repository(DiskFileSystem(tmp_path), RootRelativePath.parse(''))
 
 
 @pytest.fixture(scope='function')
 def locked_repository(tmp_path: Path) -> Iterator[Repository]:
-    """A repository over a directory whose permissions refuse listing, restored afterwards for cleanup."""
+    """A repository over a directory whose permissions refuse listing, restored afterwards for cleanup.
+
+    Args:
+        tmp_path: Directory the repository root is, and under which the locked `locked` directory is created.
+    """
     directory = tmp_path / 'locked'
     directory.mkdir()
     directory.chmod(0o000)

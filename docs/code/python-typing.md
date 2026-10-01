@@ -109,7 +109,7 @@ def frontmatter_blocks(self, corpus: str) -> list[Any]:
 def frontmatter_blocks(self, corpus: str) -> list[dict[str, Any]]:
     """Return each document's frontmatter as a field-name mapping.
 
-    Values are ``Any`` because the YAML parser decodes each field to its own Python
+    Values are `Any` because the YAML parser decodes each field to its own Python
     type and the schema that narrows them is corpus-specific.
     """
     ...

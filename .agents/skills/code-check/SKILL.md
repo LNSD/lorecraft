@@ -69,13 +69,15 @@ Both recipes accept extra flags, which are passed straight through to ruff.
 
 ### What is actually enabled
 
-The select list is deliberately narrow: `E` (pycodestyle), `F` (pyflakes), `I` (isort ordering), and
-`B` (bugbear). **There is no type checker in this repository** — no mypy, no pyright, no pre-commit
+The select list is deliberately narrow: `E` (pycodestyle), `F` (pyflakes), `I` (isort ordering),
+`B` (bugbear), and `D` (pydocstyle, Google convention, with the exemptions
+`docs/code/python-docstrings.md` gives). `D` checks a docstring's layout,
+never its Markdown. **There is no type checker in this repository** — no mypy, no pyright, no pre-commit
 hook. An annotation is a claim nothing verifies, so a wrong one survives every gate here and must be
 caught by review.
 
 Several rule families are named as the designated enforcement for a rule in `docs/code/` but are
-**not enabled** — `D` for docstrings, `TRY400` and `S110`/`S112` for error handling, among others.
+**not enabled** — `TRY400` and `S110`/`S112` for error handling, among others.
 Running `just check --select <rule>` to see what a family would report is useful; concluding from a
 clean `just check` that those rules hold is not.
 

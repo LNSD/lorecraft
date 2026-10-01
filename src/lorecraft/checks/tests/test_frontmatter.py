@@ -22,8 +22,13 @@ CODE: Final[CorpusName] = CorpusName.parse('code')
 
 
 def _code_frontmatter(schema: dict[str, object]) -> FrontmatterSchema:
-    """The ``code`` corpus frontmatter schema, as the loader would build it from the ``frontmatter`` key of
-    ``docs/__meta__/code.structure.json``."""
+    """The `code` corpus frontmatter schema.
+
+    Built as the loader would build it from the `frontmatter` key of `docs/__meta__/code.structure.json`.
+
+    Args:
+        schema: The JSON Schema the frontmatter is validated against, as it appears under that key.
+    """
     return FrontmatterSchema(path=SPECS_DIR / 'code.structure.json', schema=schema)
 
 

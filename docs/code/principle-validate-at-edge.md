@@ -49,7 +49,7 @@ def check_corpus(corpus: str) -> list[Finding]:
 # Every path into the domain goes through the same type, the watch loop included.
 @dataclass(frozen=True, slots=True)
 class CorpusName:
-    """A corpus name: lowercase ASCII words joined by single hyphens, e.g. ``code-python``."""
+    """A corpus name: lowercase ASCII words joined by single hyphens, e.g. `code-python`."""
 
     value: str
 
@@ -93,7 +93,7 @@ def excerpt(lines: Sequence[str], first: int, last: int) -> list[str]:
 # stated once and carried in the field names.
 @dataclass(frozen=True, slots=True)
 class LineSpan:
-    """A half-open span of 1-based line numbers: ``first`` included, ``end`` excluded."""
+    """A half-open span of 1-based line numbers: `first` included, `end` excluded."""
 
     first: int
     end: int

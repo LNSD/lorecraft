@@ -1,6 +1,6 @@
 ---
 name: "python-docstrings"
-description: "Google-style docstrings: which constructs carry one, when Args/Returns earn their lines, mandatory Raises, and whether an Example block is a doctest. Load when adding or editing a docstring, when a function grows a new exception path, or when deciding whether a parameter needs prose"
+description: "Google-style docstrings with Markdown prose: which constructs carry one, when Args/Returns earn their lines, mandatory Raises, and whether an Example block is a doctest. Load when adding or editing a docstring, when a function grows a new exception path, or when deciding whether a parameter needs prose"
 type: "core"
 scope: "global"
 ---
@@ -13,24 +13,133 @@ beside the line that needs it. Log lines are owned by [logging](logging.md); the
 section names are owned by [error-types](error-types.md); the annotations a docstring
 deliberately does not restate are owned by [python-typing](python-typing.md).
 
-**This document keeps `Args:` and `Returns:`, against a real argument for dropping them.** That argument is
-that the reader is holding the signature: the parameter names are visible, the return type is visible, and a
-section restating them is a second place for the same fact to rot. The premise is weaker in Python.
-Annotations are absent or `Any` across a large share of signatures, nothing checks them, and `Args:` is what
-every Python reader and every tool already expects. So both sections stay — together with the discipline that
-made the argument against them attractive: never a paragraph per parameter, never a restatement of the type,
-and a parameter that needs a paragraph needs a better name or a value object
-([pattern-value-object](pattern-value-object.md)) instead of a docstring apologising for it.
+**`Args:` and `Returns:` stay, though the signature is in front of the reader.** A rendered page or a hover
+shows the docstring, and a section is only worth its lines when it says what the annotation cannot: never
+the type again, never a paragraph per parameter.
 
-## 1. Google Style, and Only Google Style
+## 1. Google Sections, Markdown Prose
 
-Every docstring is a triple-quoted block in Google style: a one-line summary, a blank line, optional prose,
-then the named sections `Args:`, `Returns:`, `Yields:`, `Raises:`, `Attributes:`, `Example:`. reStructuredText
-field lists (`:param x:`), NumPy underlined sections, and Epytext (`@param`) are not written, and are
+Every docstring is a triple-quoted block in Google style, its sections in this order:
+
+| Section | Written when | Rule |
+|---|---|---|
+| Summary | Always | §1 |
+| Prose | The summary leaves a contract unsaid | §2 |
+| `Note:` / `Warning:` | A caveat the reader must not miss | §1 |
+| `Args:` | The function takes a parameter; a line for every one | §3 |
+| `Returns:` | A function `return`s a value its annotation does not fully explain | §4 |
+| `Yields:` | A generator, a body holding `yield`, in place of `Returns:` | §4 |
+| `Raises:` | The function, or a class's constructor, can raise; every reachable type | §5 |
+| `Attributes:` | A class's fields are public | §7 |
+| `Example:` | A doctest helps | §6 |
+
+A function, with every section a function can have:
+
+```python
+def split_frontmatter(text: str, *, delimiter: str = '---') -> tuple[str | None, str]:
+    r"""Split a Markdown document into its frontmatter block and its body.
+
+    The block is returned as text, not decoded: a YAML error belongs to the caller that parses it, so a
+    document whose YAML is broken still gives a body every structure check can read.
+
+    Warning:
+        Only a delimiter on the **first** line opens a block. A `---` thematic break further down is body.
+
+    Args:
+        text: The whole document as read from disk; line endings may be `\n` or `\r\n`.
+        delimiter: Line that opens and closes the block, matched on the whole line with trailing
+            whitespace ignored.
+
+    Returns:
+        `(frontmatter, body)`. `frontmatter` excludes both delimiter lines, and is `''` for an empty
+        block but `None` when the document opens with no delimiter, in which case `body` is `text`.
+
+    Raises:
+        UnterminatedFrontmatterError: If the opening delimiter has no closing one.
+
+    Example:
+        >>> split_frontmatter('---\nname: "logging"\n---\n# Logging\n')
+        ('name: "logging"', '# Logging\n')
+        >>> split_frontmatter('# Logging\n')
+        (None, '# Logging\n')
+    """
+```
+
+A class, with every section a class can have, and the members a value object usually carries:
+
+```python
+@dataclass(frozen=True, slots=True, order=True)
+class LineSpan:
+    """A half-open run of a document's lines: where a finding is reported.
+
+    Lines are 1-based, as an editor and `path:line` output show them, so the span over the first line
+    alone is `LineSpan(1, 2)`. A span never refers back to the document it was cut from.
+
+    Note:
+        Spans order by `start`, then `end`, so sorting findings by span gives reading order.
+
+    Raises:
+        InvalidSpanError: On construction, if `start` is below 1 or `end` is below `start`.
+
+    Attributes:
+        start: First line in the span, inclusive.
+        end: Line after the last one, exclusive. Equal to `start` for an empty span, the position
+            between two lines where a missing section would go.
+
+    Example:
+        >>> LineSpan.parse('12-14')
+        LineSpan(start=12, end=15)
+    """
+
+    start: int
+    end: int
+
+    def __post_init__(self) -> None:
+        if self.start < 1 or self.end < self.start:
+            raise InvalidSpanError(self.start, self.end)
+
+    @classmethod
+    def parse(cls, text: str) -> 'LineSpan':
+        """Parse an inclusive range as a user types it, `12` or `12-14`.
+
+        Args:
+            text: One line number, or the first and last joined by `-`, with no spaces.
+
+        Returns:
+            The span over those lines, both ends included: `12-14` covers three.
+
+        Raises:
+            InvalidSpanError: If `text` is not one or two positive integers, or its last line precedes
+                its first.
+        """
+
+    @property
+    def lines(self) -> int:
+        """Lines the span covers; 0 for an empty span."""
+        return self.end - self.start
+
+    def contains(self, line: int) -> bool:
+        """Whether `line` falls inside the span.
+
+        Args:
+            line: 1-based line number, as the bounds are.
+        """
+        return self.start <= line < self.end
+```
+
+`__post_init__` has no docstring: what it refuses is the class's `Raises:`. `contains` has no `Returns:`:
+its name and `-> bool` already say what it answers.
+
+A section a docstring does not need is left out; the rest keep the table's order. A summary-only docstring is
+one line, quotes included. reST field lists (`:param x:`), NumPy underlines and Epytext (`@param`) are
 converted when touched.
 
-One style across a codebase is worth more than the merits of any of them: mixed styles mean a reader parses
-the format before the content, and no renderer produces a coherent page from three of them.
+All prose inside is Markdown: single backticks for code, `**bold**` for the one fact a reader must not skim
+past, `-` lists, fenced blocks. No reST inline markup — double-backtick literals, `:class:` roles, `.. note::`
+directives — which is converted when the docstring is touched.
+
+Mixed styles make a reader parse the format before the content. Google sections with Markdown prose is the
+pair `mkdocstrings` renders as is; no documentation site is built today, but the docstrings are ready for one.
 
 ```python
 # ❌ Bad — reST field list in a Google-style corpus; the reader parses the syntax before the meaning
@@ -44,22 +153,10 @@ def render_report(self, findings, corpus_name):
     """
 ```
 
-```python
-# ✅ Good — Google sections, summary first, types left to the annotations
-def render_report(self, findings: list[Finding], corpus_name: str) -> int:
-    """Render one corpus's findings as a report.
+The two examples above are the Good side of this pair.
 
-    Args:
-        findings: Findings to render. Order is not significant; they are grouped by document.
-        corpus_name: Title the report is written under. Matched against the corpus directory name.
-
-    Returns:
-        Lines written, which may be fewer than `len(findings)` when several findings on one
-        document collapse into a single line.
-    """
-```
-
-**Enforcement:** ruff `D` with `convention = "google"` — not currently enabled; see the checklist.
+**Enforcement:** ruff `D` with `convention = "google"` holds the layout. Nothing checks the Markdown; review
+does.
 
 ## 2. Every Module, Class, and Public Function Carries a Docstring
 
@@ -86,40 +183,47 @@ here are half-open (`start` inclusive, `end` exclusive) so that the last section
 """
 ```
 
-**Enforcement:** ruff `D100`–`D107` under `convention = "google"`, narrowed to the missing-docstring codes plus
-the `D2xx` formatting codes; `D401` (imperative mood) is deliberately excluded as too noisy for the gain — not
-currently enabled; see the checklist.
+A test module carries a docstring saying what it pins; a test class or function does not, since its name
+already says what it checks ([test-functions](test-functions.md)). An `__init__` needs none: the class
+docstring states what constructing it takes; one that has a docstring follows §3. A magic method carries one
+too, saying what this class's version gives: what a `__str__` prints, what a `__lt__` orders by.
 
-## 3. `Args:` Only Where the Name Does Not Already Say It
+## 3. `Args:` Describes Every Parameter, Meaningfully
 
-A parameter earns an `Args:` line when the line carries something the name and annotation do not: a unit, a
-bound, a default's meaning, an ownership or mutation note, or what happens when it is omitted. A parameter
-whose name says everything gets no line, and a docstring may list some parameters and not others.
+A function or method that carries a docstring and takes a parameter has an `Args:` section with a line for
+every parameter, `self` and `cls` aside, keyword-only, `*args` and `**kwargs` included. The reader of a
+rendered page or a hover has the docstring, not the body, and a missing line leaves them guessing. A Typer
+command or callback is the exception: Typer prints its whole docstring as `--help`, so each parameter is
+described in its `typer.Option` or `typer.Argument` `help=` instead, which is where its reader looks.
 
-Never restate the type — the annotation is already there and the two copies will disagree. Never write a
-paragraph per parameter. A parameter that genuinely needs a paragraph is a parameter whose meaning belongs in
-its type ([pattern-value-object](pattern-value-object.md)) or whose name is wrong.
+A line says what the parameter is **to this call**: the role it plays, and where it applies, its unit, its
+bound, what its default means, whether it is mutated or kept, and what happens when it is omitted or empty.
+A line that only echoes the name (`frontmatter: The frontmatter.`) or restates the annotation is not a
+description, and fails review as surely as a missing one. Never write a paragraph per parameter: a parameter
+that needs one belongs in a type ([pattern-value-object](pattern-value-object.md)) or has the wrong name.
+
+**Enforcement:** ruff `D417` fails a docstring whose `Args:` omits a parameter. It does not fire on a
+docstring with no `Args:` at all, nor tell a meaningful line from an echo; review catches both.
 
 ```python
-# ❌ Bad — one paragraph per parameter, each restating the annotation, none adding a fact
+# ❌ Bad — two parameters missing, and the lines present only restate the annotation
 def iter_sections(self, document: str, first_line: int, last_line: int, line_budget: int = 110):
     """Iterate sections.
 
     Args:
-        document: A string containing the name of the document whose sections should be
-            walked. This is the document name as a Python string value.
-        first_line: An integer representing the first line.
+        document: A string containing the name of the document.
         last_line: An integer representing the last line.
-        line_budget: An integer representing the line budget.
     """
 ```
 
 ```python
-# ✅ Good — only the facts no signature carries: the half-open bound, and the default's real effect
+# ✅ Good — every parameter, each line a fact the signature does not carry
 def iter_sections(self, document: str, first_line: int, last_line: int, line_budget: int = 110) -> Iterator[Section]:
     """Walk a document's sections in reading order.
 
     Args:
+        document: Name of the document to walk, as the corpus lists it.
+        first_line: First line to walk, 1-based and inclusive.
         last_line: Exclusive. `first_line == last_line` yields nothing.
         line_budget: Columns a prose line may occupy before it is reported. Table rows and
             fenced code are measured but never reported against it.
@@ -135,6 +239,11 @@ answer get no section.
 
 The test is whether a caller could be surprised by the value while looking straight at the annotation. If not,
 the section is noise that survives until the signature changes and then becomes wrong.
+
+Which of the two a function writes follows from its body, not its annotation. A generator, any body holding
+`yield`, writes `Yields:`, describing **one** value `next()` gives, and never `Returns:`, even though calling
+it returns an iterator. A function that `return`s an iterator it built, `iter(spans)` or a generator
+expression, is not a generator and writes `Returns:`. The same test decides whether either is written at all.
 
 ```python
 # ❌ Bad — restates the annotation; the sentence is already spelled `-> bool` above it
@@ -164,11 +273,9 @@ produces it. That includes exceptions raised directly and exceptions raised by a
 propagate as part of this function's contract. An error union is not an exception type: the section lists
 each of its variants, since a variant is what a caller names in an `except`.
 
-This is the strongest rule in the document, because Python gives a caller **no other way to find out**. There
-are no checked exceptions, no `Result` in the return type, and no compiler that notices the new `raise` you
-added on line 40. A caller who does not know that loading a specification raises `MalformedSpecError` writes a
-`try` block around the wrong call, or none at all, and a whole-corpus check dies on the first document whose
-frontmatter drifted.
+This is the strongest rule in the document, because Python gives a caller **no other way to find out**: no
+checked exceptions, no `Result` in the return type. A caller who does not know that loading a specification
+raises `MalformedSpecError` guards the wrong call, and a whole-corpus check dies on the first drifted document.
 
 An exception the code's own invariants make unreachable is not documented — documenting a raise a caller
 cannot trigger sends them writing handlers for it. Such a spot carries a `#` comment saying why it cannot
@@ -199,16 +306,10 @@ def load_spec(self, corpus: str) -> StructureSpec:
 An `Example:` block is written as `>>>` doctest lines or it is not written. Free-form pseudo-code in a
 docstring is a usage story that was true once, and a reader cannot tell which parts still are.
 
-**Nothing executes them in this repository today.** The test suite runs without `--doctest-modules`, and no
-other runner collects them, so an `Example:` block is prose that happens to look executable. A contract nobody
-runs rots, silently, in the direction of looking correct. So there are exactly two honest positions, and the
-document takes the second:
-
-1. Turn doctests on, and treat every `Example:` as a test that must pass.
-2. Until then, **assume every `Example:` block is illustrative, not verified** — write it as a doctest so it is
-   ready for (1), keep it to a handful of lines, and never let it be the only statement of a contract. If a
-   behaviour must be guaranteed, a test under `tests/` guarantees it
-   ([test-organization](test-organization.md)).
+**Nothing executes them in this repository today**: the suite runs without `--doctest-modules`. So every
+`Example:` block is **illustrative, not verified** — written as a doctest so it is ready the day doctests are
+turned on, kept to a handful of lines, and never the only statement of a contract. A behaviour that must be
+guaranteed is guaranteed by a test ([test-organization](test-organization.md)).
 
 An example that would need a corpus checked out on disk, a network fetch, or a fixture tree to run is not an
 example; it is a test that has wandered into a docstring.
@@ -238,13 +339,11 @@ def overlong_spans(lines: list[int]) -> list[tuple[int, int]]:
 ## 7. `Attributes:` Documents a Record's Contract
 
 A dataclass, config object, or any class whose fields are part of its public surface documents them in an
-`Attributes:` section, under the same rule as `Args:`: a field earns a line when the line carries a unit, a
+`Attributes:` section, in which a field earns a line when the line carries a unit, a
 bound, a default's meaning, or a relationship to another field. A field whose name is the whole story gets no
 line. An error variant is the exception: it lists every field ([error-types](error-types.md)).
 
-A config record is read far more often than it is constructed, usually by someone deciding what to put in a
-configuration file, and the class docstring is where they look. That reader has no call site to learn from and
-no signature in front of them.
+A record is read far more often than it is constructed, and its reader has no call site to learn from.
 
 ```python
 # ❌ Bad — every field echoed, so the two constraints that matter are buried among restated types
@@ -286,24 +385,25 @@ class CheckConfig:
 
 Before committing code, verify:
 
-- [ ] Every docstring touched is Google style — no `:param:`, no `@param`, no NumPy underlines
+- [ ] Every docstring touched is Google style — no `:param:`, `@param` or NumPy underlines
+- [ ] Its sections run `Note:`/`Warning:`, `Args:`, `Returns:`/`Yields:`, `Raises:`, `Attributes:`, `Example:`
+- [ ] Its prose is Markdown — single backticks, no double-backtick literals, reST roles or directives
 - [ ] Every module added or edited has a docstring saying why it exists, not restating its name
 - [ ] Every new class and public function has a docstring whose first line is a one-line summary
-- [ ] No `Args:` line restates a parameter's type or expands its name into a paragraph
-- [ ] Every `Args:` line present carries a unit, bound, default meaning, or omission behaviour
+- [ ] Every function or method with a docstring and a parameter has `Args:`, with a line for every parameter
+- [ ] Every `Args:` line says what the parameter is to the call — never its name or type echoed, nor a paragraph
 - [ ] No `Returns:` section restates the return annotation
-- [ ] Every reachable `raise` in the diff — direct or propagated by contract — appears in a `Raises:` section
-      with the condition that produces it
+- [ ] A generator documents `Yields:`, never `Returns:`; a function returning an iterator documents `Returns:`
+- [ ] Every reachable `raise` in the diff, direct or propagated by contract, is in `Raises:` with its condition
 - [ ] An unreachable `raise` has a `#` comment saying why, and no `Raises:` entry
-- [ ] Every `Example:` block is `>>>` doctest lines, not prose pseudo-code
-- [ ] No `Example:` block is the sole statement of a contract that has no test
-- [ ] No `Example:` block requires a checked-out corpus, a network fetch, or a fixture tree to run
+- [ ] Every `Example:` block is `>>>` doctest lines, never the sole statement of an untested contract
+- [ ] No `Example:` block needs a checked-out corpus, a network fetch, or a fixture tree to run
 - [ ] `Attributes:` lists only the fields carrying a unit, bound, default meaning, or cross-field dependency
 
 ## References
 
 - [python-typing](python-typing.md) - Related: Owns the annotations a docstring deliberately does not restate
-- [python-naming](python-naming.md) - Related: Owns the names that make an `Args:` line unnecessary
+- [python-naming](python-naming.md) - Related: Owns the names an `Args:` line builds on
 - [python-modules](python-modules.md) - Related: Owns module boundaries; this document owns the `"""` block at the top of one
 - [error-types](error-types.md) - Related: Owns the error types a `Raises:` section names
 - [python-dataclasses](python-dataclasses.md) - Related: Owns the record whose fields an `Attributes:` section documents
@@ -319,3 +419,4 @@ Before committing code, verify:
 - [PEP 257 — Docstring Conventions](https://peps.python.org/pep-0257/)
 - [Python docs — `doctest`](https://docs.python.org/3/library/doctest.html)
 - [Ruff — pydocstyle (`D`) rules](https://docs.astral.sh/ruff/rules/#pydocstyle-d)
+- [Griffe — Google-style docstrings](https://mkdocstrings.github.io/griffe/reference/docstrings/#google-style), the parser `mkdocstrings` renders them with

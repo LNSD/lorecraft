@@ -38,13 +38,16 @@ _SPLIT_PATTERN: Final[str] = '|'.join(
 
 
 def count_tokens(text: str) -> int:
-    """The number of ``o200k_base`` tokens in ``text``.
+    """The number of `o200k_base` tokens in `text`.
 
-    Text that looks like a special token, such as ``<|endoftext|>``, is counted as the ordinary text it is: a
+    Text that looks like a special token, such as `<|endoftext|>`, is counted as the ordinary text it is: a
     document is never a prompt with control tokens in it.
 
     The first call in a process reads the shipped vocabulary and builds the encoding, about 100 ms; later calls
     reuse it.
+
+    Args:
+        text: Text to count, a whole document or any part of one; empty counts as 0.
     """
     return len(_encoding().encode_ordinary(text))
 

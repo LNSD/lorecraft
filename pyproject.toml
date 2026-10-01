@@ -170,7 +170,18 @@ select = [
     "F",    # pyflakes
     "I",    # isort
     "B",    # flake8-bugbear
+    "D",    # pydocstyle
 ]
+ignore = [
+    "D107", # the class docstring states what constructing it takes
+]
+
+[tool.ruff.lint.per-file-ignores]
+# A test's name says what it pins; its module still carries a docstring.
+"**/tests/**" = ["D101", "D102", "D103", "D106"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.ruff.format]
 quote-style = "single"

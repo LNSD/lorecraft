@@ -1,5 +1,8 @@
-"""Specification filenames and stems, the structure aspect with the frontmatter schema it carries, the repository
-that reads them, the skill frontmatter schema, and the problems both frontmatter schemas report."""
+"""The specifications: their files, the schemas they state, and the repository that reads them.
+
+That is the specification filenames and stems, the structure aspect with the frontmatter schema it carries, the
+repository that reads them, the skill frontmatter schema, and the problems both frontmatter schemas report.
+"""
 
 from .frontmatter_problem import (
     BlockProblem,

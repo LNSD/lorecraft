@@ -1,5 +1,7 @@
-"""The structure aspect: ``parse`` deserializes a file's text into the dialect's shape, and construction refuses
-rules that are not usable."""
+"""The structure aspect.
+
+``parse`` deserializes a file's text into the dialect's shape, and construction refuses rules that are not usable.
+"""
 
 from textwrap import dedent
 from typing import Final

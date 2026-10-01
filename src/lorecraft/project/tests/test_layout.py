@@ -15,7 +15,12 @@ from ..layout import DOCS_DIR, SPECS_DIR, LinkedLayoutError, require_real_layout
 
 
 def _view_with_link(path: RootRelativePath, target: str) -> VirtualFileSystem:
-    """A view over a snapshot holding one symlink and nothing else, which is all the guard reads."""
+    """A view over a snapshot holding one symlink and nothing else, which is all the guard reads.
+
+    Args:
+        path: Where the symlink sits in the snapshot.
+        target: Where the symlink points, spelled as the link text.
+    """
     return VirtualFileSystem(Snapshot(listings=(), files=(), links=(Link(path, PurePosixPath(target)),)))
 
 

@@ -68,7 +68,7 @@ class CorpusIndex:
 class CorpusIndex:
     @classmethod
     def connect(cls, root: Path) -> 'CorpusIndex':
-        """Read every document under ``root`` and return a ready index.
+        """Read every document under `root` and return a ready index.
 
         Args:
             root: Directory holding the corpus documents.
@@ -198,7 +198,7 @@ def checker_for(document_type: str) -> Checker | None:
 # ✅ Good — the lookup is pure; the effect says what it does in its name and reports what
 # it did.
 def checker_for(document_type: str) -> Checker | None:
-    """Return the checker configured for ``document_type``, or None if there is none."""
+    """Return the checker configured for `document_type`, or None if there is none."""
     return CHECKERS.get(document_type)
 
 
@@ -206,7 +206,7 @@ def flush_findings(document_type: str) -> int:
     """Write the checker's buffered findings to the report.
 
     Args:
-        document_type: Frontmatter ``type`` value the checker is registered under.
+        document_type: Frontmatter `type` value the checker is registered under.
 
     Returns:
         Findings written by the flush; zero if no checker is configured.

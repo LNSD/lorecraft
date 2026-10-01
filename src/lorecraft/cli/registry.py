@@ -25,8 +25,10 @@ _discovered: bool = False
 
 
 class DuplicateCommandError(RuntimeError):
-    """Two handlers, two groups, or a handler and a group claimed one subcommand name: a defect in the package,
-    never the user's input, so the traceback, not the message, says where the second claim was made.
+    """Two handlers, two groups, or a handler and a group claimed one subcommand name.
+
+    It is a defect in the package, never the user's input, so the traceback, not the message, says where the
+    second claim was made.
 
     Attributes:
         name: The subcommand name claimed twice.

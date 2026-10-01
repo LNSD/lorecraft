@@ -1,7 +1,7 @@
-"""Lorecraft core: the base every other layer builds on — the error class each failure family derives from, and
-the root-relative path every layer spells a path under the workspace root with.
+"""Lorecraft core: the base every other layer builds on.
 
-It imports no other layer.
+It holds the error class each failure family derives from, and the root-relative path every layer spells a path
+under the workspace root with.
 """
 
 from lorecraft.core.error import Error

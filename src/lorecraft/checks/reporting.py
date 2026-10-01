@@ -50,10 +50,19 @@ class Finding:
 
     @classmethod
     def at(cls, path: RootRelativePath, violation: Violation) -> Self:
-        """The finding a violation is, in the document at ``path``."""
+        """The finding a violation is, in the document at `path`.
+
+        Args:
+            path: The document the violation was found in, which the violation itself does not carry.
+            violation: The broken rule whose line, rule, message and specification the finding copies.
+        """
         return cls(path=path, line=violation.line, rule=violation.rule, message=violation.message, spec=violation.spec)
 
 
 def format_finding(finding: Finding) -> str:
-    """Format one finding for text output: ``<path>:<line>: [<rule>] <message>``."""
+    """Format one finding for text output: `<path>:<line>: [<rule>] <message>`.
+
+    Args:
+        finding: The finding to print; one line, with no trailing newline.
+    """
     return f'{finding.path}:{finding.line}: [{finding.rule}] {finding.message}'
