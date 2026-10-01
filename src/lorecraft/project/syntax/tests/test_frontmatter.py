@@ -218,6 +218,21 @@ class TestDecodeFrontmatter:
             'a character the reader refuses is a finding on its line, not a crash'
         )
 
+    def test_decode_frontmatter_with_a_control_character_after_a_blank_line_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        # the block opens with a blank line, so the control character sits on document line 3
+        block = '\nname: a\x00b\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(problem='special characters are not allowed', line=LineNumber(3)), (
+            'the line counts every line break before the refused character'
+        )
+
     def test_decode_frontmatter_with_an_escape_beyond_unicode_returns_invalid_yaml_on_the_escapes_line(
         self,
     ) -> None:
@@ -461,6 +476,30 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == NonMappingFrontmatter(), f'an empty block decodes to nothing, not a mapping, got {node!r}'
+
+    def test_decode_frontmatter_with_a_set_returns_non_mapping(self) -> None:
+        #: Given
+        # YAML writes a set as a mapping whose keys have no values, so the node is a mapping but the value is not
+        block = '!!set\n? guide\n? rule\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == NonMappingFrontmatter(), f'a YAML set decodes to a set, not a mapping, got {node!r}'
+
+    def test_decode_frontmatter_with_a_list_holding_itself_returns_the_list_as_safe_load_does(self) -> None:
+        #: Given
+        # the anchored list names itself through its alias, which `yaml.safe_load` decodes to a list holding itself
+        block = 'see: &loop [*loop]\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a mapping whose value refers to itself is frontmatter, got {node!r}'
+        see = node.data['see']
+        assert isinstance(see, list) and see[0] is see, 'the value is a list whose one item is the list itself'
 
 
 @pytest.mark.unit
