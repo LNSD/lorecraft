@@ -1,16 +1,16 @@
-"""Validate the repository files a skill links in through its frontmatter ``metadata``.
+"""Validate the repository files a skill links in through its frontmatter `metadata`.
 
 A skill installed into other repositories has no file of this one beside it, so it depends on a repository file by
-listing it under a ``metadata`` subkey: ``references``, ``scripts`` or ``assets``, each a whitespace-separated list
+listing it under a `metadata` subkey: `references`, `scripts` or `assets`, each a whitespace-separated list
 of root-relative paths. Writing such a list is the skill choosing that convention; a skill without one is not
 checked here. A listed file is linked into the skill directory the subkey names, under its file name alone:
-``references: docs/code/logging.md`` is ``references/logging.md`` in the skill. So two paths under one subkey may
-not share a file name, and each must lie in what the snapshot read.
+`references: docs/code/logging.md` is `references/logging.md` in the skill. So two paths under one subkey may
+not share a file name, each must lie in what the snapshot read, and each must lead to a regular file there.
 
 The check is pure: it takes the skill's frontmatter and the files it lists, each with what the snapshot can tell
-about it, and returns violations. Reading the lists is ``listed_by_subkey``; locating each path in the snapshot
-happens above the check, in ``checks.run``. It is the sibling of the frontmatter half in ``skill``, and reports in
-the same ``SkillCheckResult``.
+about it, and returns violations. Reading the lists is `listed_by_subkey`; locating each path in the snapshot
+happens above the check, in `checks.run`. It is the sibling of the frontmatter half in `skill`, and reports in
+the same `SkillCheckResult`.
 """
 
 from dataclasses import dataclass
@@ -25,14 +25,16 @@ from .reporting import Violation
 from .skill import SkillCheckResult
 
 _LINKED_SUBKEYS: Final[tuple[str, ...]] = ('references', 'scripts', 'assets')
-"""The ``metadata`` subkeys that link a repository file in, each named after the skill directory it lands in."""
+"""The `metadata` subkeys that link a repository file in, each named after the skill directory it lands in."""
 
 
 class ListedFileState(Enum):
-    """What the snapshot can tell about one path a skill lists under ``metadata``."""
+    """What the snapshot can tell about one path a skill lists under `metadata`."""
 
-    IN_SCOPE = 'in-scope'
-    """A regular file the snapshot holds, reached through any link on the way, or a path in a directory it listed."""
+    PRESENT = 'present'
+    """A regular file the snapshot holds, reached through any link on the way."""
+    MISSING = 'missing'
+    """No regular file, in a directory the snapshot listed: nothing, a directory, or a link to no file it holds."""
     OUTSIDE_SCOPE = 'outside-scope'
     """Nothing the snapshot can tell about: the path is in a directory it never listed, or is not root-relative."""
 
@@ -43,7 +45,8 @@ class ListedFile:
 
     Attributes:
         written: The path exactly as the subkey writes it, which is how a finding names it.
-        state: Whether the snapshot read where the path leads.
+        state: Whether the snapshot holds a regular file at the path, lacks one in a directory it listed, or cannot
+            tell, because the path is in a directory it never listed or is not root-relative.
     """
 
     written: str
@@ -55,7 +58,7 @@ class ListedFiles:
     """The files one linking subkey lists, each with its state.
 
     Attributes:
-        subkey: ``references``, ``scripts`` or ``assets``: the skill directory the files land in.
+        subkey: `references`, `scripts` or `assets`: the skill directory the files land in.
         files: In the order written, a path written twice included twice.
     """
 
@@ -85,21 +88,23 @@ def listed_by_subkey(frontmatter: Frontmatter) -> tuple[tuple[str, tuple[str, ..
 
 
 def validate_skill_metadata(*, frontmatter: Frontmatter, listed: tuple[ListedFiles, ...]) -> SkillCheckResult:
-    """Check the files a skill lists under ``metadata``, subkey by subkey. Pure: raises nothing.
+    """Check the files a skill lists under `metadata`, subkey by subkey. Pure: raises nothing.
 
-    Every violation is on the line of the ``metadata`` key, the one line the frontmatter records for the whole
-    mapping. Within each subkey, the repeated names come first, then the paths outside the scope, each in the order
-    written:
+    Every violation is on the line of the `metadata` key, the one line the frontmatter records for the whole
+    mapping. Within each subkey the findings come grouped by rule, each group in the order written: the repeated
+    names, then the missing files, then the paths outside the scope.
 
     - A path whose file name an earlier path under the same subkey already has is
-      ``skill.metadata-duplicate-name``, naming both: they would link in at the same path. Each later repeat is
+      `skill.metadata-duplicate-name`, naming both: they would link in at the same path. Each later repeat is
       reported against the first. The same name under two subkeys lands in two skill directories, so it is not one.
-    - A path the snapshot never read is ``skill.metadata-outside-scope``, once for every time it is written.
+    - A path in a directory the snapshot listed, with no regular file there, is `skill.metadata-missing-file`,
+      once for every time it is written.
+    - A path the snapshot never read is `skill.metadata-outside-scope`, once for every time it is written.
 
     Args:
-        frontmatter: The frontmatter of the skill's ``SKILL.md``, read here only for the line of its ``metadata``.
-        listed: What ``listed_by_subkey`` reads from this frontmatter, each path with its state, in the same order;
-            empty when the ``metadata`` lists no file.
+        frontmatter: The frontmatter of the skill's `SKILL.md`, read here only for the line of its `metadata`.
+        listed: What `listed_by_subkey` reads from this frontmatter, each path with its state, in the same order;
+            empty when the `metadata` lists no file.
     """
     line = field_line(frontmatter, 'metadata')
     violations: list[Violation] = []
@@ -114,6 +119,14 @@ def validate_skill_metadata(*, frontmatter: Frontmatter, listed: tuple[ListedFil
                         f'`metadata.{subkey}` lists `{first}` and `{repeat}`, '
                         f'which both link in as `{subkey}/{PurePosixPath(repeat).name}`'
                     ),
+                )
+            )
+        for written in _missing(subkey_files.files):
+            violations.append(
+                Violation(
+                    line=line,
+                    rule='skill.metadata-missing-file',
+                    message=f'`metadata.{subkey}` lists `{written}`, where lorecraft finds no file',
                 )
             )
         for written in _outside_scope(subkey_files.files):
@@ -150,6 +163,27 @@ def _repeated_names(files: tuple[ListedFile, ...]) -> tuple[tuple[str, str], ...
     return tuple(repeats)
 
 
+def _missing(files: tuple[ListedFile, ...]) -> tuple[str, ...]:
+    """Each path with no regular file in a directory the snapshot listed, as written, in the order written.
+
+    A path written twice comes twice.
+
+    Args:
+        files: The files one subkey lists, in the order written, each with its state.
+    """
+    missing: list[str] = []
+    for file in files:
+        state = file.state
+        match state:
+            case ListedFileState.MISSING:
+                missing.append(file.written)
+            case ListedFileState.PRESENT | ListedFileState.OUTSIDE_SCOPE:
+                pass  # a file to link in, or a path `_outside_scope` reports
+            case _:
+                assert_never(state)
+    return tuple(missing)
+
+
 def _outside_scope(files: tuple[ListedFile, ...]) -> tuple[str, ...]:
     """Each path the snapshot never read, as written, in the order written; a path written twice comes twice.
 
@@ -160,7 +194,7 @@ def _outside_scope(files: tuple[ListedFile, ...]) -> tuple[str, ...]:
     for file in files:
         state = file.state
         match state:
-            case ListedFileState.IN_SCOPE:
+            case ListedFileState.PRESENT | ListedFileState.MISSING:
                 pass  # the snapshot read where the path leads
             case ListedFileState.OUTSIDE_SCOPE:
                 outside.append(file.written)

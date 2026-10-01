@@ -137,7 +137,8 @@ Two checks decide every mechanical rule between them. Do not check those rules b
 absolute one, a url that starts with `/`, as `skill.link-absolute`, and a `#fragment` link that names no heading
 of the file, as `skill.link-fragment`. A fragment into another file is checked by neither check. For a skill
 that links files in through `metadata`, it reports linked files that share a name under one subkey
-(`skill.metadata-duplicate-name`), or that lie outside the scope above (`skill.metadata-outside-scope`).
+(`skill.metadata-duplicate-name`), that are not a file in the repository (`skill.metadata-missing-file`), or that
+lie outside the scope above (`skill.metadata-outside-scope`).
 
 ```bash
 uv run lorecraft check skills                           # every skill
@@ -145,8 +146,8 @@ uv run lorecraft check skills .agents/skills/code-test  # named skills
 uv run lorecraft check skills --format json             # machine-readable
 ```
 
-**`scripts/check_skill.py`** decides the rest: the 500-line budget, `metadata` linked files existing, every
-relative link resolving, links escaping a project skill, and Claude Code syntax in a project skill.
+**`scripts/check_skill.py`** decides the rest: the 500-line budget, every relative link resolving, and links
+escaping a project skill.
 
 It is executable and declares its own dependencies, so run it directly; `uv` resolves them on the first run.
 It finds the repository root by walking up, so the working directory does not matter:
