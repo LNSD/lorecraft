@@ -34,9 +34,9 @@ class ListedFileState(Enum):
     PRESENT = 'present'
     """A regular file the snapshot holds, reached through any link on the way."""
     MISSING = 'missing'
-    """No regular file, in a directory the snapshot listed: nothing, a directory, or a link to no file it holds."""
+    """No regular file, in a directory the scan's scope covers: nothing, a directory, or a link to no file it holds."""
     OUTSIDE_SCOPE = 'outside-scope'
-    """Nothing the snapshot can tell about: the path is in a directory it never listed, or is not root-relative."""
+    """Nothing the snapshot can tell about: the path is in a directory the scope leaves out, or is not root-relative."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,8 +45,8 @@ class ListedFile:
 
     Attributes:
         written: The path exactly as the subkey writes it, which is how a finding names it.
-        state: Whether the snapshot holds a regular file at the path, lacks one in a directory it listed, or cannot
-            tell, because the path is in a directory it never listed or is not root-relative.
+        state: Whether the snapshot holds a regular file at the path, lacks one in a directory the scope covers, or
+            cannot tell, because the path is in a directory the scope does not cover or is not root-relative.
     """
 
     written: str
@@ -97,9 +97,9 @@ def validate_skill_metadata(*, frontmatter: Frontmatter, listed: tuple[ListedFil
     - A path whose file name an earlier path under the same subkey already has is
       `skill.metadata-duplicate-name`, naming both: they would link in at the same path. Each later repeat is
       reported against the first. The same name under two subkeys lands in two skill directories, so it is not one.
-    - A path in a directory the snapshot listed, with no regular file there, is `skill.metadata-missing-file`,
+    - A path in a directory the scope covers, with no regular file there, is `skill.metadata-missing-file`,
       once for every time it is written.
-    - A path the snapshot never read is `skill.metadata-outside-scope`, once for every time it is written.
+    - A path outside the scope is `skill.metadata-outside-scope`, once for every time it is written.
 
     Args:
         frontmatter: The frontmatter of the skill's `SKILL.md`, read here only for the line of its `metadata`.
@@ -136,7 +136,7 @@ def validate_skill_metadata(*, frontmatter: Frontmatter, listed: tuple[ListedFil
                     rule='skill.metadata-outside-scope',
                     message=(
                         f'`metadata.{subkey}` lists `{written}`, which lorecraft does not read; list a file directly '
-                        f'in docs/, in a real directory directly in docs/, or directly in a skill directory'
+                        f'in docs/, in a directory directly in docs/, or directly in a skill directory'
                     ),
                 )
             )
@@ -164,7 +164,7 @@ def _repeated_names(files: tuple[ListedFile, ...]) -> tuple[tuple[str, str], ...
 
 
 def _missing(files: tuple[ListedFile, ...]) -> tuple[str, ...]:
-    """Each path with no regular file in a directory the snapshot listed, as written, in the order written.
+    """Each path with no regular file in a directory the scope covers, as written, in the order written.
 
     A path written twice comes twice.
 

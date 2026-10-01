@@ -42,6 +42,7 @@ from lorecraft.vfs import (
     UnrecordedFileError,
     VirtualFileSystem,
     diff,
+    is_in_scope,
     take_snapshot,
 )
 
@@ -969,6 +970,7 @@ class TestTakeSnapshot:
                 FileBytes(RootRelativePath.parse('docs/code/a.md'), b'# A\n'),
                 FileBytes(RootRelativePath.parse('docs/glossary.md'), b'# Glossary\n'),
             ),
+            scope=SNAPSHOT_SCOPE,
         ), 'each listing down to the depth, and the bytes of every file entry in them'
 
     def test_take_snapshot_with_a_directory_beyond_the_depth_lists_it_without_entering_it(self, tmp_path: Path) -> None:
@@ -986,6 +988,7 @@ class TestTakeSnapshot:
                 Listing(RootRelativePath.parse('docs/code'), (DirEntry('sub', EntryKind.DIRECTORY),)),
             ),
             files=(),
+            scope=SNAPSHOT_SCOPE,
         ), 'a directory at depth 2 is an entry of its parent, and nothing inside it is read'
 
     def test_take_snapshot_with_a_symlink_records_the_entry_and_its_target_without_following_it(
@@ -1009,6 +1012,7 @@ class TestTakeSnapshot:
             ),
             files=(FileBytes(RootRelativePath.parse('docs/a.md'), b'# A\n'),),
             links=(Link(RootRelativePath.parse('docs/linked.md'), PurePosixPath('a.md')),),
+            scope=SNAPSHOT_SCOPE,
         ), 'the link is an entry with its target recorded, and no bytes are read through it'
 
     def test_take_snapshot_with_a_fifo_records_the_entry_without_reading_it(self, tmp_path: Path) -> None:
@@ -1023,6 +1027,7 @@ class TestTakeSnapshot:
         assert snapshot == Snapshot(
             listings=(Listing(RootRelativePath.parse('docs'), (DirEntry('pipe', EntryKind.OTHER),)),),
             files=(),
+            scope=SNAPSHOT_SCOPE,
         ), 'a fifo is an OTHER entry, and nothing is read from it'
 
     def test_take_snapshot_with_missing_scope_roots_returns_an_empty_snapshot(self, tmp_path: Path) -> None:
@@ -1033,7 +1038,9 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, SNAPSHOT_SCOPE)
 
         #: Then
-        assert snapshot == Snapshot(listings=(), files=(), links=()), 'a missing scope root is simply absent'
+        assert snapshot == Snapshot(listings=(), files=(), links=(), scope=SNAPSHOT_SCOPE), (
+            'a missing scope root is simply absent, and still recorded in the scope'
+        )
 
     def test_take_snapshot_with_a_linked_scope_root_records_the_link_without_listing_through_it(
         self, tmp_path: Path
@@ -1056,6 +1063,7 @@ class TestTakeSnapshot:
             ),
             files=(FileBytes(RootRelativePath.parse('.agents/skills/alpha/SKILL.md'), b'---\n'),),
             links=(Link(RootRelativePath.parse('.claude/skills'), PurePosixPath('../.agents/skills')),),
+            scope=SNAPSHOT_SCOPE,
         ), 'the linked agent directory is one link; its skills are listed once, at their real path'
 
     def test_take_snapshot_with_an_absolute_link_under_the_root_records_it_relative_to_the_link(
@@ -1106,7 +1114,27 @@ class TestTakeSnapshot:
                 Listing(RootRelativePath.parse('docs/code/sub'), (DirEntry('x.md', EntryKind.FILE),)),
             ),
             files=(FileBytes(RootRelativePath.parse('docs/code/sub/x.md'), b'# X\n'),),
+            scope=scope,
         ), 'a directory two roots reach is listed down to the deeper of their depths'
+
+    def test_take_snapshot_with_overlapping_scope_roots_records_the_scope_as_given(self, tmp_path: Path) -> None:
+        #: Given
+        (tmp_path / 'docs' / 'code').mkdir(parents=True)
+        scope = (
+            ScanRoot(DOCS_DIR / 'code', depth=0),
+            ScanRoot(DOCS_DIR, depth=1),
+            ScanRoot(DOCS_DIR / 'code', depth=0),
+        )
+
+        #: When
+        snapshot = take_snapshot(tmp_path, scope)
+
+        #: Then
+        assert snapshot.scope == (
+            ScanRoot(RootRelativePath.parse('docs/code'), depth=0),
+            ScanRoot(RootRelativePath.parse('docs'), depth=1),
+            ScanRoot(RootRelativePath.parse('docs/code'), depth=0),
+        ), 'the scope is recorded in the order given and unmerged, though the scan lists docs/code once'
 
     def test_take_snapshot_following_a_linked_scope_root_lists_the_directory_it_leads_to(self, tmp_path: Path) -> None:
         #: Given
@@ -1127,6 +1155,7 @@ class TestTakeSnapshot:
             ),
             files=(FileBytes(RootRelativePath.parse('skills/review/SKILL.md'), b'---\n'),),
             links=(Link(RootRelativePath.parse('.claude/skills'), PurePosixPath('../skills')),),
+            scope=scope,
         ), 'the directory the scope root leads to is listed at its real path, down to the depth'
 
     def test_take_snapshot_following_a_linked_entry_lists_the_directory_it_leads_to(self, tmp_path: Path) -> None:
@@ -1148,6 +1177,7 @@ class TestTakeSnapshot:
             ),
             files=(FileBytes(RootRelativePath.parse('skills/review/SKILL.md'), b'---\n'),),
             links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),),
+            scope=scope,
         ), 'the entry stays a symlink, and the directory it leads to is listed at its real path'
 
     def test_take_snapshot_following_a_linked_entry_beyond_the_depth_records_it_without_entering_it(
@@ -1168,6 +1198,7 @@ class TestTakeSnapshot:
             listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('review', EntryKind.SYMLINK),)),),
             files=(),
             links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),),
+            scope=scope,
         ), 'a linked entry costs depth as a directory entry does, so at depth 0 it is recorded and not entered'
 
     def test_take_snapshot_following_a_chain_of_links_records_every_link_of_it(self, tmp_path: Path) -> None:
@@ -1189,6 +1220,7 @@ class TestTakeSnapshot:
                 Link(RootRelativePath.parse('.claude/skills'), PurePosixPath('../current')),
                 Link(RootRelativePath.parse('current'), PurePosixPath('skills')),
             ),
+            scope=scope,
         ), 'both links of the chain are recorded, so the virtual view can walk it to the listed directory'
 
     def test_take_snapshot_following_a_link_outside_the_root_records_it_without_listing_through_it(
@@ -1209,6 +1241,7 @@ class TestTakeSnapshot:
             listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('review', EntryKind.SYMLINK),)),),
             files=(),
             links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath(outside)),),
+            scope=scope,
         ), 'a link leading outside the root is recorded, and nothing outside the root is read'
 
     def test_take_snapshot_following_a_looping_link_records_it_and_lists_nothing_through_it(
@@ -1227,6 +1260,7 @@ class TestTakeSnapshot:
             listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('loop', EntryKind.SYMLINK),)),),
             files=(),
             links=(Link(RootRelativePath.parse('.agents/skills/loop'), PurePosixPath('loop')),),
+            scope=scope,
         ), 'a link that leads back to itself ends the walk instead of the scan never returning'
 
     def test_take_snapshot_following_a_link_to_a_file_records_its_bytes_at_the_real_path(self, tmp_path: Path) -> None:
@@ -1244,6 +1278,7 @@ class TestTakeSnapshot:
             listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('SKILL.md', EntryKind.SYMLINK),)),),
             files=(FileBytes(RootRelativePath.parse('REVIEW.md'), b'---\n'),),
             links=(Link(RootRelativePath.parse('.agents/skills/SKILL.md'), PurePosixPath('../../REVIEW.md')),),
+            scope=scope,
         ), 'the entry stays a symlink, and the file it leads to is read at its real path, whatever the depth'
 
     def test_take_snapshot_following_a_link_to_a_file_outside_the_root_records_it_without_reading_through_it(
@@ -1264,6 +1299,7 @@ class TestTakeSnapshot:
             listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('SKILL.md', EntryKind.SYMLINK),)),),
             files=(),
             links=(Link(RootRelativePath.parse('.agents/skills/SKILL.md'), PurePosixPath(outside)),),
+            scope=scope,
         ), 'a link leading outside the root is recorded, and no bytes outside the root are read'
 
     def test_take_snapshot_following_a_link_that_climbs_out_of_a_directory_it_stepped_into_lists_nothing_through_it(
@@ -1285,6 +1321,7 @@ class TestTakeSnapshot:
             listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('review', EntryKind.SYMLINK),)),),
             files=(),
             links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/tmp/../review')),),
+            scope=scope,
         ), 'the snapshot records nothing in skills/tmp, so the view could not walk this chain: the scan does not either'
 
     def test_take_snapshot_with_a_following_root_over_a_plain_one_follows_the_links_it_lists(
@@ -1309,6 +1346,7 @@ class TestTakeSnapshot:
             ),
             files=(FileBytes(RootRelativePath.parse('shared/a.md'), b'# A\n'),),
             links=(Link(RootRelativePath.parse('docs/shared'), PurePosixPath('../shared')),),
+            scope=scope,
         ), 'a directory two roots reach has its links followed when either root asks for it'
 
     def test_take_snapshot_with_a_plain_root_under_a_following_one_still_lists_the_roots_before_it(
@@ -1381,6 +1419,7 @@ class TestTakeSnapshot:
             ),
             files=(),
             links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),),
+            scope=scope,
         ), 'the link spends the one level of depth, so the directory inside its target is listed and not entered'
 
     def test_take_snapshot_following_a_link_inside_a_linked_directory_follows_it_too(self, tmp_path: Path) -> None:
@@ -1408,6 +1447,7 @@ class TestTakeSnapshot:
                 Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),
                 Link(RootRelativePath.parse('skills/review/references'), PurePosixPath('../../shared/references')),
             ),
+            scope=scope,
         ), 'a directory reached through a followed link has its own links followed as well'
 
     def test_take_snapshot_following_a_link_that_climbs_out_of_one_directory_it_stepped_into_lists_nothing_through_it(
@@ -1430,6 +1470,7 @@ class TestTakeSnapshot:
             listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('review', EntryKind.SYMLINK),)),),
             files=(),
             links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../tmp/../skills/review')),),
+            scope=scope,
         ), 'the snapshot records nothing in tmp, so the view could not walk this chain: the scan does not either'
 
     def test_take_snapshot_following_a_chain_as_long_as_the_system_follows_lists_the_directory_it_leads_to(
@@ -2640,3 +2681,222 @@ class TestDiffOfFollowingSnapshots:
         assert changes == frozenset({Change(RootRelativePath.parse('skills/review'), ChangeKind.DELETED)}), (
             'the directory the link led to is gone, and no listing of its parent was there to say so'
         )
+
+
+# The layout's shape of scope: docs/ one level deep with links recorded and not followed, and each skills
+# directory one level deep through its links.
+LAYOUT_SHAPED_SCOPE: Final[tuple[ScanRoot, ...]] = (
+    ScanRoot(DOCS_DIR, depth=1),
+    ScanRoot(RootRelativePath.parse('.agents/skills'), depth=1, follow_links=True),
+    ScanRoot(RootRelativePath.parse('.claude/skills'), depth=1, follow_links=True),
+)
+
+
+@pytest.fixture(scope='function')
+def scope_parity_tree(tmp_path: Path) -> Path:
+    """A root with a link of every kind the scope must answer for, each leading to a directory that exists.
+
+    Under `docs/`, `linked` leads out to `elsewhere/` and `alias` to its sibling `feat/`, and `feat/deep/` is
+    beyond the depth. `.agents/skills/y` leads to `skills/y/`, which holds `sub/`; `.agents/skills/x/lib` leads
+    to `lib/` from inside a skill; `.claude/skills` leads to `.agents/skills/`; and `src/` is in no root.
+
+    Args:
+        tmp_path: Directory the tree is written into, as the repository root.
+    """
+    files = (
+        'docs/feat/a.md',
+        'docs/feat/deep/a.md',
+        'elsewhere/a.md',
+        'skills/y/SKILL.md',
+        'skills/y/sub/a.md',
+        '.agents/skills/x/SKILL.md',
+        'lib/a.md',
+        'src/tool.py',
+    )
+    for path in files:
+        (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / path).write_bytes(b'')
+    (tmp_path / 'docs' / 'linked').symlink_to('../elsewhere')
+    (tmp_path / 'docs' / 'alias').symlink_to('feat')
+    (tmp_path / '.agents' / 'skills' / 'y').symlink_to('../../skills/y')
+    (tmp_path / '.agents' / 'skills' / 'x' / 'lib').symlink_to('../../../lib')
+    (tmp_path / '.claude').mkdir()
+    (tmp_path / '.claude' / 'skills').symlink_to('../.agents/skills')
+    return tmp_path
+
+
+def _is_listed(snapshot: Snapshot, directory: RootRelativePath) -> bool:
+    """Whether `snapshot` holds a listing of the directory `directory` leads to, its recorded links followed.
+
+    What the snapshot observed, against which the declared scope is held: for a directory that exists, the
+    scope covers its entries exactly when the scan listed it.
+
+    Args:
+        snapshot: The scan whose listings are looked in.
+        directory: The root-relative directory to look up, spelled through any link.
+    """
+    real_directory = VirtualFileSystem(snapshot).resolve_dir(directory)
+    listed: set[RootRelativePath] = set()
+    for listing in snapshot.listings:
+        listed.add(listing.path)
+    return real_directory in listed
+
+
+@pytest.mark.it
+class TestIsInScopeMatchesSnapshot:
+    # For a directory that exists, the declared answer and the scan's listing must agree: in the scope exactly
+    # where the snapshot holds every entry. Each test asks about an absent file, so presence plays no part.
+
+    def test_is_in_scope_with_the_docs_directory_agrees_with_the_snapshot(self, scope_parity_tree: Path) -> None:
+        #: Given
+        snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
+        directory = RootRelativePath.parse('docs')
+        listed = _is_listed(snapshot, directory)
+
+        #: When
+        declared = is_in_scope(snapshot.scope, snapshot.links, directory / 'absent.md')
+
+        #: Then
+        assert (declared, listed) == (True, True), 'docs/ is a root: declared in the scope, and listed'
+
+    def test_is_in_scope_with_a_corpus_directory_agrees_with_the_snapshot(self, scope_parity_tree: Path) -> None:
+        #: Given
+        snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
+        directory = RootRelativePath.parse('docs/feat')
+        listed = _is_listed(snapshot, directory)
+
+        #: When
+        declared = is_in_scope(snapshot.scope, snapshot.links, directory / 'absent.md')
+
+        #: Then
+        assert (declared, listed) == (True, True), (
+            'docs/feat is one level under docs/: declared in the scope, and listed'
+        )
+
+    def test_is_in_scope_beyond_the_docs_depth_agrees_with_the_snapshot(self, scope_parity_tree: Path) -> None:
+        #: Given
+        snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
+        directory = RootRelativePath.parse('docs/feat/deep')
+        listed = _is_listed(snapshot, directory)
+
+        #: When
+        declared = is_in_scope(snapshot.scope, snapshot.links, directory / 'absent.md')
+
+        #: Then
+        assert (declared, listed) == (False, False), (
+            'docs/feat/deep is two levels under docs/: outside the scope, and unlisted'
+        )
+
+    def test_is_in_scope_through_an_unfollowed_docs_link_out_agrees_with_the_snapshot(
+        self, scope_parity_tree: Path
+    ) -> None:
+        #: Given
+        snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
+        directory = RootRelativePath.parse('docs/linked')
+        listed = _is_listed(snapshot, directory)
+
+        #: When
+        declared = is_in_scope(snapshot.scope, snapshot.links, directory / 'absent.md')
+
+        #: Then
+        assert (declared, listed) == (False, False), (
+            'docs/ does not follow its link to elsewhere/, which no root covers'
+        )
+
+    def test_is_in_scope_through_an_unfollowed_docs_link_to_a_sibling_agrees_with_the_snapshot(
+        self, scope_parity_tree: Path
+    ) -> None:
+        #: Given
+        snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
+        directory = RootRelativePath.parse('docs/alias')
+        listed = _is_listed(snapshot, directory)
+
+        #: When
+        declared = is_in_scope(snapshot.scope, snapshot.links, directory / 'absent.md')
+
+        #: Then
+        assert (declared, listed) == (True, True), (
+            'the link is not followed, but docs/feat, where it leads, is listed anyway'
+        )
+
+    def test_is_in_scope_through_a_followed_skill_link_agrees_with_the_snapshot(self, scope_parity_tree: Path) -> None:
+        #: Given
+        snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
+        directory = RootRelativePath.parse('.agents/skills/y')
+        listed = _is_listed(snapshot, directory)
+
+        #: When
+        declared = is_in_scope(snapshot.scope, snapshot.links, directory / 'absent.md')
+
+        #: Then
+        assert (declared, listed) == (True, True), 'the skills root follows .agents/skills/y to skills/y and lists it'
+
+    def test_is_in_scope_at_the_real_path_of_a_followed_skill_link_agrees_with_the_snapshot(
+        self, scope_parity_tree: Path
+    ) -> None:
+        #: Given
+        snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
+        directory = RootRelativePath.parse('skills/y')
+        listed = _is_listed(snapshot, directory)
+
+        #: When
+        declared = is_in_scope(snapshot.scope, snapshot.links, directory / 'absent.md')
+
+        #: Then
+        assert (declared, listed) == (True, True), (
+            'skills/y is listed through the link, and is in the scope by its own spelling'
+        )
+
+    def test_is_in_scope_below_a_followed_skill_link_agrees_with_the_snapshot(self, scope_parity_tree: Path) -> None:
+        #: Given
+        snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
+        directory = RootRelativePath.parse('skills/y/sub')
+        listed = _is_listed(snapshot, directory)
+
+        #: When
+        declared = is_in_scope(snapshot.scope, snapshot.links, directory / 'absent.md')
+
+        #: Then
+        assert (declared, listed) == (False, False), (
+            'the link costs a level, so skills/y is listed and its sub/ never entered'
+        )
+
+    def test_is_in_scope_through_a_linked_skills_directory_agrees_with_the_snapshot(
+        self, scope_parity_tree: Path
+    ) -> None:
+        #: Given
+        snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
+        directory = RootRelativePath.parse('.claude/skills/x')
+        listed = _is_listed(snapshot, directory)
+
+        #: When
+        declared = is_in_scope(snapshot.scope, snapshot.links, directory / 'absent.md')
+
+        #: Then
+        assert (declared, listed) == (True, True), '.claude/skills leads to .agents/skills, whose skill x is listed'
+
+    def test_is_in_scope_through_a_link_inside_a_skill_agrees_with_the_snapshot(self, scope_parity_tree: Path) -> None:
+        #: Given
+        snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
+        directory = RootRelativePath.parse('.agents/skills/x/lib')
+        listed = _is_listed(snapshot, directory)
+
+        #: When
+        declared = is_in_scope(snapshot.scope, snapshot.links, directory / 'absent.md')
+
+        #: Then
+        assert (declared, listed) == (False, False), (
+            'a skill directory has no depth left, so its link to lib/ is not followed'
+        )
+
+    def test_is_in_scope_outside_every_root_agrees_with_the_snapshot(self, scope_parity_tree: Path) -> None:
+        #: Given
+        snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
+        directory = RootRelativePath.parse('src')
+        listed = _is_listed(snapshot, directory)
+
+        #: When
+        declared = is_in_scope(snapshot.scope, snapshot.links, directory / 'absent.md')
+
+        #: Then
+        assert (declared, listed) == (False, False), 'src/ is in no root: outside the scope, and unlisted'

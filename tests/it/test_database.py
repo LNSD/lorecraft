@@ -1,7 +1,7 @@
 """The database over a hand-built snapshot.
 
 The model, each frontmatter, each parse tree, each token count and each skill's parse tree are computed once, and
-the layout guard reads the same snapshot.
+the layout guard and the scope question read the same snapshot.
 
 Every snapshot here is built in memory, so no case reads the disk: the database is what wires the virtual view,
 the model loader, the layout guard and the parser together.
@@ -21,7 +21,7 @@ from lorecraft.project.layout import LinkedLayoutError
 from lorecraft.project.skill import SkillDecodeError, SkillRef
 from lorecraft.project.syntax import Frontmatter, LineNumber, count_tokens
 from lorecraft.project.syntax import Link as MarkdownLink
-from lorecraft.vfs import Link, Snapshot
+from lorecraft.vfs import Link, ScanRoot, Snapshot
 
 GUIDE: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('guide'))
 REVIEW: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/review'))
@@ -101,6 +101,40 @@ class TestDatabase:
 
         #: Then
         assert outcome is None, 'a snapshot of real directories is accepted'
+
+    def test_is_in_scope_with_a_path_the_snapshot_scope_covers_returns_true(self) -> None:
+        #: Given
+        snapshot = Snapshot(listings=(), files=(), scope=(ScanRoot(RootRelativePath.parse('src'), depth=0),))
+        database = Database(snapshot)
+
+        #: When
+        in_scope = database.is_in_scope(RootRelativePath.parse('src/tool.py'))
+
+        #: Then
+        assert in_scope is True, (
+            'the snapshot was taken of src/, so a path in it is in scope, though the layout reads no src/'
+        )
+
+    def test_is_in_scope_with_a_path_only_the_layout_scope_covers_returns_false(self) -> None:
+        #: Given
+        snapshot = Snapshot(listings=(), files=(), scope=(ScanRoot(RootRelativePath.parse('src'), depth=0),))
+        database = Database(snapshot)
+
+        #: When
+        in_scope = database.is_in_scope(RootRelativePath.parse('docs/code/guide.md'))
+
+        #: Then
+        assert in_scope is False, 'the snapshot was not taken of docs/, so the layout reading it plays no part'
+
+    def test_is_in_scope_over_a_snapshot_of_files_returns_false(self) -> None:
+        #: Given
+        database = Database(_snapshot(b'---\nname: "guide"\n---\n'))
+
+        #: When
+        in_scope = database.is_in_scope(RootRelativePath.parse('docs/code/guide.md'))
+
+        #: Then
+        assert in_scope is False, 'a snapshot built from files scanned nothing, so even a path it holds is not in scope'
 
     def test_frontmatter_of_a_listed_document_returns_its_decoded_block(self) -> None:
         #: Given
