@@ -1096,3 +1096,99 @@ class TestRunSkillsBrokenLinks:
             (f'{skill}/SKILL.md', 'skill.undecodable'),
             (f'{skill}/references/a.md', 'skill.link-escapes'),
         ], 'a SKILL.md that is not UTF-8 hides its metadata, so no resource link is judged broken, and the escape is'
+
+
+def _skill_md_of(line_count: int) -> bytes:
+    """A clean `SKILL.md` for the skill `review` of exactly `line_count` lines, frontmatter included.
+
+    Args:
+        line_count: The lines in the whole file, the four of `_REVIEW_FRONTMATTER` among them; at least 4.
+    """
+    return _REVIEW_FRONTMATTER + b'Body.\n' * (line_count - 4)
+
+
+@pytest.mark.it
+class TestRunSkillsLineBudget:
+    def test_run_skills_with_a_skill_md_over_500_lines_reports_it_on_line_1_with_help(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/review/SKILL.md', _skill_md_of(501))
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (
+            Finding(
+                path=RootRelativePath.parse('.agents/skills/review/SKILL.md'),
+                line=LineNumber(1),
+                rule='skill.lines-budget',
+                message='501 lines; the budget is 500',
+                notes=(
+                    Note(
+                        NoteKind.HELP,
+                        'move detail most activations do not need into files under references/, and say in SKILL.md '
+                        'when to read each',
+                    ),
+                ),
+            ),
+        ), 'a SKILL.md one line over the budget, its frontmatter counted, is reported once, on line 1'
+
+    def test_run_skills_with_a_long_skill_md_in_a_linked_skill_reports_it_where_the_agent_finds_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'skills/review/SKILL.md', _skill_md_of(501))
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert [(str(finding.path), finding.line.value, finding.rule) for finding in run.findings()] == [
+            ('.agents/skills/review/SKILL.md', 1, 'skill.lines-budget'),
+        ], 'the SKILL.md is counted where the link leads, and reported under the skills directory, not under skills/'
+
+    def test_run_skills_with_a_skill_md_of_500_lines_reports_nothing(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/review/SKILL.md', _skill_md_of(500))
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (), 'a SKILL.md of exactly 500 lines, its frontmatter counted, is within the budget'
+
+    def test_run_skills_with_a_resource_over_500_lines_reports_nothing(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/review/SKILL.md', _REVIEW_FRONTMATTER)
+        _write(tmp_path, '.agents/skills/review/references/guide.md', b'Detail.\n' * 600)
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (), 'the budget holds the SKILL.md alone, so a long resource is never reported'
+
+    def test_run_skills_with_a_long_misnamed_skill_md_reports_the_budget_after_the_frontmatter_before_links(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        frontmatter = b'---\nname: audit\ndescription: Review a change\n---\n'
+        body = b'See [the steps](references/steps.md).\n' + b'Body.\n' * 497
+        _write(tmp_path, '.agents/skills/review/SKILL.md', frontmatter + body)
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert [(finding.line.value, finding.rule) for finding in run.findings()] == [
+            (2, 'skill.name-matches-directory'),
+            (1, 'skill.lines-budget'),
+            (5, 'skill.link-broken'),
+        ], 'the SKILL.md findings follow the check order, frontmatter then the budget then links, not the line order'
