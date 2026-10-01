@@ -3,28 +3,49 @@
 A skill is loaded from wherever an agent keeps it, and the Agent Skills specification has it name its files by
 paths relative to the skill root, in every Markdown file it carries: a link in `references/guide.md` to
 `SKILL.md` is `SKILL.md`, not `../SKILL.md`. So a relative link that, read from the skill root, climbs above it
-points at a file the skill does not carry once it is installed elsewhere, and is `skill.link-escapes`, in the
-`SKILL.md` and in each resource alike.
+points at a file the skill does not carry once it is installed elsewhere, and is `skill.link-escapes`. One that
+stays inside must name a file or a directory the skill holds, or a file its `metadata` links in, or it is
+`skill.link-broken`; when the `metadata` cannot be read, which files it links in is unknown, and that rule is
+not judged. Both rules hold in the `SKILL.md` and in each resource alike.
 
 Two rules hold for the `SKILL.md` only. A link that starts at a filesystem root points at a file the skill does
 not carry either, and is `skill.link-absolute`. A fragment-only link, such as `#usage`, stays in the `SKILL.md`
 itself, so the heading it names must be one of that file's own, or it is `skill.link-fragment`.
 
-The check is pure: it takes the links and the heading anchors the parse tree holds, and returns violations.
-Reading and parsing the files happen above it, in `checks.run` and the database. It is the sibling of the
-frontmatter half in `skill`, and reports in the same `SkillCheckResult`.
+The check is pure: it takes the links and the heading anchors the parse tree holds, what the snapshot holds at
+each path inside the skill a link names, and the paths `metadata` links files in at, and returns violations.
+Reading and parsing the files, and looking each path up in the snapshot, happen above it, in `checks.run` and the
+database. It is the sibling of the frontmatter half in `skill`, and reports in the same `SkillCheckResult`.
 """
 
-import posixpath
+from collections.abc import Mapping
+from enum import Enum
+from pathlib import PurePosixPath
+from typing import assert_never
 from urllib.parse import unquote
 
 from lorecraft.project.syntax import Anchor, Link
 
-from .reporting import Violation
+from .reporting import Note, NoteKind, Violation
 from .skill import SkillCheckResult
 
 
-def validate_skill_links(*, links: tuple[Link, ...], anchors: frozenset[Anchor]) -> SkillCheckResult:
+class LinkTargetState(Enum):
+    """What the snapshot holds at one path inside a skill that a link names."""
+
+    PRESENT = 'present'
+    """A file or a directory the snapshot holds, reached through any symlink on the way."""
+    MISSING = 'missing'
+    """Nothing the snapshot holds: no entry, or a symlink that dangles or leads to nothing it holds."""
+
+
+def validate_skill_links(
+    *,
+    links: tuple[Link, ...],
+    anchors: frozenset[Anchor],
+    targets: Mapping[PurePosixPath, LinkTargetState],
+    linked_in: frozenset[PurePosixPath] | None,
+) -> SkillCheckResult:
     """Check the links of one skill's `SKILL.md`, in the order given. Pure: raises nothing.
 
     A link whose destination starts with `/` is `skill.link-absolute`, on the link's line. A URL with a scheme,
@@ -36,7 +57,13 @@ def validate_skill_links(*, links: tuple[Link, ...], anchors: frozenset[Anchor])
     the `SKILL.md` itself is checked.
 
     A relative link is `skill.link-escapes`, on the link's line, when its path, normalised lexically, climbs
-    above the skill root: `../SKILL.md` does, and `references/../SKILL.md` does not.
+    above the skill root: `../SKILL.md` does, and `references/../SKILL.md` does not. One that stays inside is
+    `skill.link-broken`, on the link's line, when `targets` has it missing and it is not in `linked_in`, with a
+    help note on how to fix it; when `linked_in` is `None`, no link is.
+
+    A link breaks at most one of these rules, so each link gives at most one violation, and the violations come
+    in the order of the links. The rules exclude one another: an absolute or a fragment-only link names no
+    relative path, and a path that climbs above the skill root names nothing inside it.
 
     Each message shows the destination percent-decoded, as the author wrote it, rather than as the parser
     encoded it: `[x](#Straße)` is reported as `#Straße`, not `#Stra%C3%9Fe`.
@@ -45,6 +72,12 @@ def validate_skill_links(*, links: tuple[Link, ...], anchors: frozenset[Anchor])
         links: Every link and image of the skill's `SKILL.md`, in document order.
         anchors: The heading anchors of that same `SKILL.md`, as `ParsedDocument.anchors` holds them. Empty
             when the file has no heading, so that every fragment dangles.
+        targets: What the snapshot holds at each path inside the skill a link names, keyed by the path
+            `link_path_in_skill` reads from the link; every such path of `links` is a key.
+        linked_in: Every path inside the skill a `metadata` subkey links a file in at, such as
+            `references/logging.md`; a link to one is not broken, whatever the snapshot holds there. `None` when
+            the skill's `metadata` is unknown, because its frontmatter cannot be read: any path might then be
+            linked in, so `skill.link-broken` is not judged.
     """
     violations: list[Violation] = []
     for link in links:
@@ -54,26 +87,58 @@ def validate_skill_links(*, links: tuple[Link, ...], anchors: frozenset[Anchor])
             violations.append(_fragment_violation(link))
         elif _is_escaping(link):
             violations.append(_escape_violation(link))
+        elif _is_broken(link, targets, linked_in):
+            violations.append(_broken_violation(link))
     return SkillCheckResult(violations=tuple(violations))
 
 
-def validate_skill_resource_links(*, links: tuple[Link, ...]) -> SkillCheckResult:
+def validate_skill_resource_links(
+    *,
+    links: tuple[Link, ...],
+    targets: Mapping[PurePosixPath, LinkTargetState],
+    linked_in: frozenset[PurePosixPath] | None,
+) -> SkillCheckResult:
     """Check the links of one resource of a skill, in the order given. Pure: raises nothing.
 
     A relative link is `skill.link-escapes`, on the link's line, when its path, normalised lexically, climbs
     above the skill root. The path is read from the skill root, not from the resource: `../SKILL.md` climbs out
-    from any file of the skill, and `references/../SKILL.md` does not.
+    from any file of the skill, and `references/../SKILL.md` does not. One that stays inside is
+    `skill.link-broken`, on the link's line, when `targets` has it missing and it is not in `linked_in`, with a
+    help note on how to fix it; when `linked_in` is `None`, no link is.
 
-    The message shows the destination percent-decoded, as the author wrote it.
+    The two rules exclude one another, so each link gives at most one violation, in the order of the links. The
+    message shows the destination percent-decoded, as the author wrote it.
 
     Args:
         links: Every link and image of the resource, in document order.
+        targets: What the snapshot holds at each path inside the skill a link names, keyed by the path
+            `link_path_in_skill` reads from the link; every such path of `links` is a key.
+        linked_in: Every path inside the skill a `metadata` subkey of the skill's `SKILL.md` links a file in at,
+            or `None` when that `metadata` is unknown, and then `skill.link-broken` is not judged.
     """
     violations: list[Violation] = []
     for link in links:
         if _is_escaping(link):
             violations.append(_escape_violation(link))
+        elif _is_broken(link, targets, linked_in):
+            violations.append(_broken_violation(link))
     return SkillCheckResult(violations=tuple(violations))
+
+
+def link_path_in_skill(link: Link) -> PurePosixPath | None:
+    """The path inside the skill a link names, read from the skill root, or `None` when it names none.
+
+    The path is `Link.to_normalised_relative_path`'s: `references/./a%20b.md#usage` is `references/a b.md`, and
+    `references/..` is `.`, the skill root itself. `None` for a link that spells no relative path, such as a URL
+    with a scheme, an absolute or a fragment-only link, and for one that climbs above the skill root.
+
+    Args:
+        link: The link whose destination is read.
+    """
+    normalised = link.to_normalised_relative_path()
+    if normalised is None or _climbs_above_root(normalised):
+        return None
+    return normalised
 
 
 def _absolute_violation(link: Link) -> Violation:
@@ -118,6 +183,20 @@ def _escape_violation(link: Link) -> Violation:
     )
 
 
+def _broken_violation(link: Link) -> Violation:
+    """The violation of a link inside the skill that names nothing there, on the link's line, with help to fix it.
+
+    Args:
+        link: The broken link.
+    """
+    return Violation(
+        line=link.line,
+        rule='skill.link-broken',
+        message=f'`{unquote(link.url)}` names nothing in the skill',
+        notes=(Note(NoteKind.HELP, 'link a file or a directory the skill holds, relative to the skill root'),),
+    )
+
+
 def _is_absolute(url: str) -> bool:
     """Whether a link's destination starts at a filesystem root rather than at the skill root.
 
@@ -136,15 +215,60 @@ def _is_escaping(link: Link) -> bool:
     Args:
         link: The link whose destination is read.
     """
-    path = link.to_relative_path()
-    if path is None:
-        return False
     # Lexical on purpose, rather than a containment check of resolved paths: a check performs no I/O, and the
     # link is text read from the skill root, not a filesystem path. The path alone decides, never joined to
     # the skill's directory first: a link that climbs out and back in by the repository's own path, such as
     # `../../skills/review/SKILL.md`, depends on where the skill is installed, so it escapes too.
-    normalised = posixpath.normpath(str(path))
-    return normalised == '..' or normalised.startswith('../')
+    normalised = link.to_normalised_relative_path()
+    if normalised is None:
+        return False
+    return _climbs_above_root(normalised)
+
+
+def _is_broken(
+    link: Link, targets: Mapping[PurePosixPath, LinkTargetState], linked_in: frozenset[PurePosixPath] | None
+) -> bool:
+    """Whether a link names a path inside the skill that holds nothing, and that `metadata` links nothing in at.
+
+    A link that names no path inside the skill, such as a URL or an escaping link, is never broken, and no link
+    is when `linked_in` is `None`.
+
+    Args:
+        link: The link whose destination is read.
+        targets: What the snapshot holds at each path inside the skill a link names.
+        linked_in: Every path inside the skill a `metadata` subkey links a file in at, or `None` when unknown.
+    """
+    if linked_in is None:
+        # The skill's `metadata` could not be read, so any path might be one it links in: not judged at all.
+        return False
+    path = link_path_in_skill(link)
+    if path is None:
+        return False
+    # A file `metadata` links in is the `skill.metadata-*` rules' to check, present or not, so a link to it is
+    # never reported here too.
+    if path in linked_in:
+        return False
+    # The run keys `targets` by every path `link_path_in_skill` yields for these links, so the lookup cannot miss.
+    state = targets[path]
+    match state:
+        case LinkTargetState.PRESENT:
+            return False
+        case LinkTargetState.MISSING:
+            return True
+        case _:
+            assert_never(state)
+
+
+def _climbs_above_root(normalised: PurePosixPath) -> bool:
+    """Whether a lexically normalised relative path climbs above the directory it is read from.
+
+    Normalising leaves a `..` only at the start, so the first component alone decides.
+
+    Args:
+        normalised: A relative path, as `Link.to_normalised_relative_path` returns it.
+    """
+    # A slice, not `parts[0]`: `references/..` normalises to `.`, whose `parts` is empty.
+    return normalised.parts[:1] == ('..',)
 
 
 def _is_dangling_fragment(url: str, anchors: frozenset[Anchor]) -> bool:

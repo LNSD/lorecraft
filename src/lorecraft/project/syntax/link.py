@@ -6,9 +6,11 @@ inline code or a code block is code, not a link, and a reference-style `[text][l
 is used, with the destination its definition gives.
 
 What path a destination spells is the parse tree's to tell, though: `Link.to_relative_path` reads it once, so
-every check that follows a link reads the same path from it.
+every check that follows a link reads the same path from it, and `Link.to_normalised_relative_path` is that same
+path with its `.` and `..` components resolved lexically.
 """
 
+import posixpath
 import re
 from dataclasses import dataclass
 from pathlib import PurePosixPath
@@ -57,3 +59,17 @@ class Link:
         if decoded.startswith('/'):
             return None
         return PurePosixPath(decoded)
+
+    def to_normalised_relative_path(self) -> PurePosixPath | None:
+        """The relative path the destination spells, as `to_relative_path` reads it, normalised lexically.
+
+        A `.` component is dropped, and a `..` cancels the component before it as written, never as a symlink
+        there would resolve: `references/./a.md` is `references/a.md`, `references/..` is `.`, and `../a.md`
+        keeps its `..`, which is then the first component, the only place one can be left.
+
+        `None` exactly when `to_relative_path` is `None`.
+        """
+        path = self.to_relative_path()
+        if path is None:
+            return None
+        return PurePosixPath(posixpath.normpath(str(path)))
