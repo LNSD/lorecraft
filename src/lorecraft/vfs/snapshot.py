@@ -9,17 +9,13 @@ reads the disk; `Snapshot.of_files` builds one by hand.
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import PurePosixPath
-from typing import Final, Self
+from typing import Self, assert_never
 
 from lorecraft.core.path import ROOT, RootRelativePath
 
+from .root_expansion import RealPath, walk_to_real_path
 from .scan_root import ScanRoot
 from .view import DirEntry, EntryKind, FileSystem, UnrecordedFileError, decode_text
-
-MAX_LINKS: Final[int] = 40
-"""Links followed before a chain counts as a loop; Linux's MAXSYMLINKS, past which the disk reports ELOOP.
-
-The scan and the virtual view share it, so both give up on the same chain."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,7 +56,7 @@ class Link:
         path: The root-relative symlink.
         target: The target, unresolved: relative to the link's own directory, or absolute and outside the
             root. A plain ``PurePosixPath``, not a ``RootRelativePath``: it is spelled from the link's
-            directory and may climb with ``..``, which only ``resolve_dir``'s walk interprets.
+            directory and may climb with ``..``, which only a walk through the link interprets.
     """
 
     path: RootRelativePath
@@ -161,7 +157,9 @@ class VirtualFileSystem(FileSystem):
     """A ``FileSystem`` answering from one snapshot; never reads the disk, never changes.
 
     Anything the snapshot did not record answers like a missing path on disk: an empty listing, a
-    ``UnrecordedFileError``, or no directory.
+    ``UnrecordedFileError``, or no directory. A path is walked through the recorded links by
+    `walk_to_real_path`, the walk the scan itself took, so the view reaches nothing through a link chain the
+    scan refused.
     """
 
     def __init__(self, snapshot: Snapshot) -> None:
@@ -176,21 +174,9 @@ class VirtualFileSystem(FileSystem):
         self._files: dict[RootRelativePath, bytes] = {}
         for file in snapshot.files:
             self._files[file.path] = file.data
-        self._links: dict[RootRelativePath, PurePosixPath] = {}
-        for link in snapshot.links:
-            self._links[link.path] = link.target
-
-        # A listing sits at a real path, so it and every ancestor of it are directories. A recorded file's
-        # ancestors are too, since it also sits at a real path, and so are a recorded link's, since the scan
-        # meets a link only in a real directory.
-        self._directories: set[RootRelativePath] = {ROOT}
-        for path in self._listings:
-            self._directories.add(path)
-            self._directories.update(path.parents)
-        for path in self._files:
-            self._directories.update(path.parents)
-        for path in self._links:
-            self._directories.update(path.parents)
+        # The walk's own index of kinds and link targets; the listings and bytes above are what the answers
+        # return, and the walk never reads them.
+        self._entries = _SnapshotEntries(snapshot)
 
     def list_dir(self, path: RootRelativePath) -> tuple[DirEntry, ...]:
         """The recorded listing of the directory `path` leads to; see `FileSystem.list_dir`.
@@ -213,9 +199,9 @@ class VirtualFileSystem(FileSystem):
     def read_text(self, path: RootRelativePath) -> str:
         """Decode the recorded bytes of the file `path` leads to; see `FileSystem.read_text`.
 
-        A recorded link on the way to the file, or at it, is followed, as `resolve_dir` follows one to a
-        directory. A link the scan did not follow to its file has no bytes here and reads as a missing file,
-        as an OTHER entry does.
+        A recorded link on the way to the file, or at it, is followed, as `resolve_file` follows it. A link
+        the scan did not follow to its file has no bytes here and reads as a missing file, as an OTHER entry
+        does.
 
         Args:
             path: The root-relative file to read; it must be a file whose bytes the snapshot recorded.
@@ -224,13 +210,10 @@ class VirtualFileSystem(FileSystem):
             TextDecodeError: If the bytes are not UTF-8.
             UnrecordedFileError: If `path` leads to no regular file in the snapshot.
         """
-        real_path = self._resolve(path)
+        real_path = self.resolve_file(path)
         if real_path is None:
             raise UnrecordedFileError(path)
-        data = self._files.get(real_path)
-        if data is None:
-            raise UnrecordedFileError(path)
-        return decode_text(path, data)
+        return decode_text(path, self._files[real_path])
 
     def entry_kind(self, path: RootRelativePath) -> EntryKind | None:
         """What the recorded entry at `path` itself is; see `FileSystem.entry_kind`.
@@ -243,28 +226,16 @@ class VirtualFileSystem(FileSystem):
 
         Returns:
             The kind the parent's listing gives the entry, or, for an entry the snapshot recorded outside a
-            listing of its parent, the kind `Snapshot.entries` gives it. `None` for a path the snapshot
-            recorded nothing at, and where the parent leads to no directory it knows of.
+            listing of its parent, the kind its record gives it, in the order `_SnapshotEntries.kind` states.
+            `None` for a path the snapshot recorded nothing at, and where the parent leads to no directory it
+            knows of.
         """
         if path == ROOT:
             return EntryKind.DIRECTORY
         parent = self.resolve_dir(path.parent)
         if parent is None:
             return None
-        for entry in self._listings.get(parent, ()):
-            if entry.name == path.name:
-                return entry.kind
-
-        # Recorded outside a listing of its parent: a symlink met on the way to a scope root, a file a followed
-        # link leads to, or a scope root or an ancestor of something recorded.
-        real_path = parent / path.name
-        if real_path in self._links:
-            return EntryKind.SYMLINK
-        if real_path in self._files:
-            return EntryKind.FILE
-        if real_path in self._directories:
-            return EntryKind.DIRECTORY
-        return None
+        return self._entries.kind(parent / path.name)
 
     def resolve_dir(self, path: RootRelativePath) -> RootRelativePath | None:
         """Follow the recorded links in `path` and return the real directory it leads to; see `FileSystem`.
@@ -276,12 +247,19 @@ class VirtualFileSystem(FileSystem):
             The real directory, root-relative, or `None` where the disk answers `None` (missing, a
             dangling or looping link, a file on the way or at the end) and also wherever the chain leaves
             what the snapshot recorded: above the root, an absolute target (one outside the root, since
-            `take_snapshot` spells every target under it relative), or a directory outside the scope.
+            `take_snapshot` spells every target under it relative), a directory outside the scope, or a `..`
+            the scan refuses too (see `walk_to_real_path`).
         """
-        real_path = self._resolve(path)
-        if real_path is None or real_path in self._files:
+        leads_to = self._resolve(path)
+        if leads_to is None:
             return None
-        return real_path
+        match leads_to.kind:
+            case EntryKind.DIRECTORY:
+                return leads_to.path
+            case EntryKind.FILE | EntryKind.SYMLINK | EntryKind.OTHER:
+                return None
+            case _:
+                assert_never(leads_to.kind)
 
     def resolve_file(self, path: RootRelativePath) -> RootRelativePath | None:
         """Follow the recorded links in `path` and return the recorded file it leads to; see `FileSystem`.
@@ -294,65 +272,107 @@ class VirtualFileSystem(FileSystem):
             for a file whose bytes the snapshot did not record, such as one a link the scan did not follow
             leads to.
         """
-        real_path = self._resolve(path)
-        if real_path is None or real_path not in self._files:
+        leads_to = self._resolve(path)
+        if leads_to is None:
             return None
-        return real_path
+        match leads_to.kind:
+            case EntryKind.FILE:
+                if leads_to.path not in self._files:
+                    return None
+                return leads_to.path
+            case EntryKind.DIRECTORY | EntryKind.SYMLINK | EntryKind.OTHER:
+                return None
+            case _:
+                assert_never(leads_to.kind)
 
-    def _resolve(self, path: RootRelativePath) -> RootRelativePath | None:
-        """Follow the recorded links in `path` and return the real directory or recorded file it leads to.
+    def _resolve(self, path: RootRelativePath) -> RealPath | None:
+        """Walk `path` through the recorded links to the real directory or file it leads to.
 
-        The walk goes one component at a time from the root, as the kernel does: a recorded link splices
-        its target into the components still to walk, `..` steps up from the real directory reached so
-        far, and any other component must be a directory the snapshot knows of, or, as the last one, a file
-        it recorded.
+        The walk is `walk_to_real_path`, the one the scan took over the disk, here over what the snapshot
+        recorded (`_SnapshotEntries`): every component must be a directory the snapshot knows of or, as the
+        last one, a file, and a recorded link splices its target in, refused where the scan refuses it.
 
         Args:
-            path: The root-relative path to walk, spelled as given; links in it are followed, `..` is not present.
+            path: The root-relative path to walk, spelled as given; links in it are followed.
 
         Returns:
-            The real path, root-relative, or `None` when the snapshot holds nothing there; `resolve_dir`
-            lists the cases.
+            The real path and its kind, or `None` when the snapshot holds nothing there; `resolve_dir` lists
+            the cases.
         """
-        # ``path`` holds no ``..`` (its type guarantees it), but a spliced link target may, so the walk
-        # still handles one; ``resolved`` never climbs above the root, as its type requires.
-        resolved = ROOT
-        remaining = list(path.parts)
-        links_followed = 0
-        while remaining:
-            part = remaining.pop(0)
-            if part == '..':
-                if resolved == ROOT:
-                    return None  # above the root: nothing the snapshot recorded
-                resolved = resolved.parent
-                continue
-            candidate = resolved / part
-            target = self._links.get(candidate)
-            if target is not None:
-                links_followed += 1
-                if links_followed > MAX_LINKS or target.is_absolute():
-                    return None
-                remaining = list(target.parts) + remaining
-                continue
-            if not remaining and candidate in self._files:
-                return candidate  # a file ends the walk; with components left it is a file on the way
-            if not self._is_directory(candidate):
-                return None
-            resolved = candidate
-        return resolved
+        return walk_to_real_path(path, self._entries, follow_links=True)
 
-    def _is_directory(self, path: RootRelativePath) -> bool:
-        """True when the snapshot knows `path` is a real directory.
 
-        Known means listed, an ancestor of something recorded, or a DIRECTORY entry of a listed parent (a
-        directory the scan did not enter).
+class _SnapshotEntries:
+    """What a walk of the virtual view sees: every entry a snapshot recorded, and nothing else.
+
+    The `EntryLookup` the view hands to `walk_to_real_path`. It differs from the scope query's recorded links
+    in one way: a path the snapshot recorded nothing at is nothing, never assumed a directory, since the view
+    answers what is there and not only where a path would lead.
+    """
+
+    def __init__(self, snapshot: Snapshot) -> None:
+        """Index every entry the snapshot recorded by path, with its kind, and every link's target; no I/O.
+
+        A walk asks for one entry at each component, so each answer is one lookup here rather than a scan of
+        the parent's listing.
 
         Args:
-            path: A root-relative path already walked to a real location; a link is not followed here.
+            snapshot: The recorded state the walks see; read once, never changed.
         """
-        if path in self._directories:
-            return True
-        parent_entries = self._listings.get(path.parent)
-        if parent_entries is None:
-            return False  # outside what the scan listed
-        return DirEntry(path.name, EntryKind.DIRECTORY) in parent_entries
+        self._targets: dict[RootRelativePath, PurePosixPath] = {}
+        for link in snapshot.links:
+            self._targets[link.path] = link.target
+
+        # Filled from the weakest record to the strongest, each overwriting the one before, so a path recorded
+        # twice keeps the kind `kind` documents. Only a self-inconsistent snapshot records a path twice with two
+        # kinds; one taken by `take_snapshot` never does.
+        self._kinds: dict[RootRelativePath, EntryKind] = {ROOT: EntryKind.DIRECTORY}
+        # A listing sits at a real path, so it and every ancestor of it are directories. A recorded file's
+        # ancestors are too, since it also sits at a real path, and so are a recorded link's, since the scan
+        # meets a link only in a real directory.
+        for listing in snapshot.listings:
+            self._kinds[listing.path] = EntryKind.DIRECTORY
+            for ancestor in listing.path.parents:
+                self._kinds[ancestor] = EntryKind.DIRECTORY
+        for file in snapshot.files:
+            for ancestor in file.path.parents:
+                self._kinds[ancestor] = EntryKind.DIRECTORY
+        for link in snapshot.links:
+            for ancestor in link.path.parents:
+                self._kinds[ancestor] = EntryKind.DIRECTORY
+        for file in snapshot.files:
+            self._kinds[file.path] = EntryKind.FILE
+        for link in snapshot.links:
+            self._kinds[link.path] = EntryKind.SYMLINK
+        for listing in snapshot.listings:
+            for entry in listing.entries:
+                self._kinds[listing.path / entry.name] = entry.kind
+
+    def kind(self, path: RootRelativePath) -> EntryKind | None:
+        """What the snapshot recorded at `path` itself; see `EntryLookup.kind`.
+
+        Where more than one record names `path`, the first of these wins: the kind the parent's listing gives
+        the entry; SYMLINK for a recorded link, such as one met on the way to a scope root; FILE for recorded
+        bytes, such as a file a followed link leads to; DIRECTORY for a listed directory, such as a scope root,
+        or an ancestor of anything recorded. The listing comes first, where `Snapshot.entries` lets a link or a
+        file override it; the two differ only on a snapshot that contradicts itself.
+
+        Args:
+            path: A root-relative entry the walk reached, every link on the way to it already followed.
+
+        Returns:
+            The recorded kind, or `None` where the snapshot recorded nothing, such as inside a directory the
+            scan did not enter or outside the scope.
+        """
+        return self._kinds.get(path)
+
+    def read_link_target(self, path: RootRelativePath) -> PurePosixPath | None:
+        """The recorded target of the link at `path`; see `EntryLookup.read_link_target`.
+
+        Args:
+            path: The root-relative link, one `kind` answered SYMLINK for.
+
+        Returns:
+            The target as recorded, or `None` when no target was recorded at `path`.
+        """
+        return self._targets.get(path)

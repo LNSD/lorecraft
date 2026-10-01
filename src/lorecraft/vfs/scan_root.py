@@ -1,9 +1,9 @@
 """One root of a scan's scope: the directory a scan reads, how deep, and whether through symlinks.
 
-It sits apart from `scope.py` and `root_expansion.py` so that the snapshot can record the scope it was taken of:
-both read what the snapshot module defines, its links and `MAX_LINKS`, so the snapshot cannot import from them,
-and all three import the root from here. How a root expands through a link is `root_expansion.py`'s, not this
-value's.
+It sits apart so that the snapshot can record the scope it was taken of: `scope.py` reads the links the
+snapshot module defines, so the snapshot cannot import from it, and the snapshot, the scope query and
+`root_expansion.py` all import the root from here. How a root expands through a link is `root_expansion.py`'s,
+not this value's.
 """
 
 from dataclasses import dataclass
