@@ -1290,6 +1290,46 @@ class TestCheckSkillsCommand:
             'ungoverned': [],
         }, 'each broken link is reported in the file holding it, decoded, and the link to the SKILL.md is not'
 
+    def test_check_skills_with_json_format_over_a_skill_md_over_500_lines_reports_the_budget_with_help(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        # four lines of frontmatter and 497 of body: 501 in all
+        _write(
+            tmp_path,
+            '.agents/skills/review/SKILL.md',
+            '---\nname: review\ndescription: Review a change\n---\n' + 'Body.\n' * 497,
+        )
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 1,
+            'findings': [
+                {
+                    'file': '.agents/skills/review/SKILL.md',
+                    'line': 1,
+                    'rule': 'skill.lines-budget',
+                    'message': '501 lines; the budget is 500',
+                    'spec': None,
+                    'notes': [
+                        {
+                            'kind': 'help',
+                            'text': (
+                                'move detail most activations do not need into files under references/, and say in '
+                                'SKILL.md when to read each'
+                            ),
+                        }
+                    ],
+                },
+            ],
+            'ungoverned': [],
+        }, 'the SKILL.md over the budget, its frontmatter counted, is one finding on line 1, with its help note'
+
     def test_check_skills_with_json_format_over_a_skill_linked_outside_the_skills_directories_checks_it(
         self, tmp_path: Path
     ) -> None:

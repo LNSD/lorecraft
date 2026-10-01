@@ -6,17 +6,19 @@
 #   "typer>=0.12,<1",
 # ]
 # ///
-"""Check the body of skills against the Agent Skills specification (https://agentskills.io/specification).
+"""Check where skills live, and find the skills that link a repository file in through `metadata`.
 
-Covers what `lorecraft check skills` does not yet: the SKILL.md length budget. The
-frontmatter - its fields, their limits and the name matching its directory - and every
-link in a skill's Markdown files are checked by `lorecraft check skills`, and no longer
-here. Judgment calls stay with the skill - whether a description says when to use the
-skill, whether content belongs in SKILL.md or a reference file, whether a reference chain
-runs too deep.
+Every rule of the Agent Skills specification (https://agentskills.io/specification) is
+checked by `lorecraft check skills`: the frontmatter, the SKILL.md line budget and every
+link in a skill's Markdown files. This script checks nothing in a skill's files. It
+reports a skill directory outside the two places a skill may live, and one without a
+SKILL.md, and `--linking` names the skills that depend on a repository file. Judgment
+calls stay with the skill - whether a description says when to use the skill, whether
+content belongs in SKILL.md or a reference file, whether a reference chain runs too deep.
 
-This is a vendored standalone copy; the checks it implements are destined for the
-lorecraft library, which will run them from one checker instead of a script per skill.
+This is a vendored standalone copy. Its two checks do not move to the lorecraft library:
+`lorecraft check skills` finds skills through the agents' skills directories, where
+neither applies, so both go with the script.
 
 A skill lives in one of two places, and a directory anywhere else is reported as
 `skill.location`:
@@ -45,8 +47,6 @@ PROJECT_DIR = Path('skills')
 # The `metadata` subkeys that link repository files into a project skill, named after the
 # skill directory the file is linked from. See §4 of this skill's SKILL.md.
 LINKED_DIRS = {'references', 'assets', 'scripts'}
-
-SKILL_MD_MAX_LINES = 500
 
 
 @dataclass(frozen=True)
@@ -102,7 +102,7 @@ def is_in_skills_dir(root: Path, skill_dir: Path) -> bool:
 
 
 def validate(root: Path, skill_dir: Path) -> list[Finding]:
-    """Check one skill directory against the Agent Skills specification and this repository's skill rules."""
+    """Check that one skill directory is where a skill may live, and that it holds a SKILL.md."""
     skill_md = skill_dir / 'SKILL.md'
     rel = skill_md.relative_to(root).as_posix()
     if not is_in_skills_dir(root, skill_dir):
@@ -110,16 +110,7 @@ def validate(root: Path, skill_dir: Path) -> list[Finding]:
         return [Finding(skill_dir.relative_to(root).as_posix(), 1, 'skill.location', message)]
     if not skill_md.is_file():
         return [Finding(rel, 1, 'skill.missing', 'a skill directory must contain SKILL.md')]
-
-    text = skill_md.read_text(encoding='utf-8')
-    findings: list[Finding] = []
-
-    line_count = len(text.splitlines())
-    if line_count > SKILL_MD_MAX_LINES:
-        message = f'SKILL.md is {line_count} lines; keep it under {SKILL_MD_MAX_LINES} and move detail to references/'
-        findings.append(Finding(rel, 1, 'body.length', message))
-
-    return findings
+    return []
 
 
 def collect(root: Path, paths: list[Path]) -> list[Path]:
@@ -217,7 +208,7 @@ def main(
         typer.Option('--linking', help='check only the skills whose `metadata` links these repository files'),
     ] = None,
 ) -> None:
-    """Check the body of skills against the Agent Skills specification; `lorecraft check skills` has the frontmatter."""
+    """Check where skills live; `lorecraft check skills` holds them to the Agent Skills specification."""
     if root is not None:
         root = root.resolve()
         if not (root / WORKSPACE_DIR).is_dir():

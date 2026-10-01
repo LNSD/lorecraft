@@ -1,0 +1,2 @@
+.agents/skills/review/SKILL.md:1: [skill.lines-budget] 501 lines; the budget is 500
+  = help: move detail most activations do not need into files under references/, and say in SKILL.md when to read each

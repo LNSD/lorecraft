@@ -73,7 +73,7 @@ edge cases.
 **Budget for progressive disclosure.** An agent loads `name` and `description` for every skill at startup,
 the whole `SKILL.md` body on activation, and other files only when the body sends it to them. So:
 
-- Keep `SKILL.md` under 500 lines, and under about 5000 tokens.
+- Keep `SKILL.md` to 500 lines, frontmatter included, and under about 5000 tokens.
 - Move a workflow that most activations do not need into `references/<topic>.md`, and say in `SKILL.md` when
   to read it.
 - Keep each reference file on one topic. An agent reads the whole file.
@@ -135,7 +135,8 @@ subject: `scripts/check_skill.py --linking <path>` (one `--linking` per file) pr
 Two checks decide every mechanical rule between them. Do not check those rules by hand.
 
 **`lorecraft check skills`** decides the frontmatter: YAML validity, the six fields and their limits,
-`metadata` value types, and `name` against the directory. It also reports four kinds of link, each in the file
+`metadata` value types, and `name` against the directory. It holds `SKILL.md` to 500 lines, frontmatter
+included, and reports a longer one as `skill.lines-budget`. It also reports four kinds of link, each in the file
 holding it:
 
 - In every Markdown file of the skill, a relative link that, read from the skill root, climbs above it, as
@@ -157,7 +158,9 @@ uv run lorecraft check skills .agents/skills/code-test  # named skills
 uv run lorecraft check skills --format json             # machine-readable
 ```
 
-**`scripts/check_skill.py`** decides the rest: the 500-line budget. It checks no link.
+**`scripts/check_skill.py`** checks nothing in a skill's files. It reports a skill directory outside
+`.agents/skills/` and `skills/` (`skill.location`) and one without a `SKILL.md` (`skill.missing`), and
+`--linking` names the skills that link a file in (§5).
 
 It is executable and declares its own dependencies, so run it directly; `uv` resolves them on the first run.
 It finds the repository root by walking up, so the working directory does not matter:

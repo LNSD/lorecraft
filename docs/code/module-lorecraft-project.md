@@ -23,7 +23,7 @@ declaration, read from `lorecraft.layout` and never stated here.
 - The project model and the loader that builds it from listings and specifications.
 - A repository that lists entries or reads text through a view, and decides what an entry is to Lorecraft.
 - The decoding of a specification into rules that are proved usable when they are built.
-- The parse tree and the token count: pure functions of one document's text.
+- The parse tree, the token count and the line count: pure functions of one document's text.
 - A document's, a skill's or a skill resource's identity, kept apart from its content and from where its symlinks
   lead.
 - Turning a Markdown link's destination into a root-relative path, relative to the document that holds it.
@@ -45,8 +45,8 @@ declaration, read from `lorecraft.layout` and never stated here.
   resolves a symlink by itself.
 - The model holds structure and configuration: corpora, specifications, document and skill refs, and where each
   skill's symlinks lead. It never holds a document's content, and the loader never reads one.
-- A parse tree and a token count read one document's text and nothing else, and return immutable values. No
-  third-party parser type leaves the package.
+- A parse tree, a token count and a line count read one document's text and nothing else, and return immutable
+  values. No third-party parser type leaves the package.
 - A broken document is a value the parse returns, not an exception. A repository or specification error names
   its path and propagates.
 

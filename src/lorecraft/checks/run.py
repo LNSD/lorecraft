@@ -7,13 +7,13 @@ Selecting which documents to check is the caller's business: a run checks the re
 given, and reads only the governed ones. Every check reports in the same shape, so the `check` commands print
 every run the same way.
 
-The skill check runs over skills instead: the refs it is handed are the model's `SkillRef`s, the parts it reads
-are the frontmatter, the links and the heading anchors of each `SKILL.md`, and the links of each of the skill's
-resources, and the Agent Skills specification governs every one of them, so a skill is never ungoverned. The files
-a skill links in through `metadata` are checked too, against what the snapshot holds at each path listed, and so
-is each path inside the skill a link names, against what the snapshot holds there. It reports in a shape of its
-own, a `SkillCheckRun` of `SkillReport`s, each locating a violation in the file it was found in: the `SKILL.md`,
-or a resource.
+The skill check runs over skills instead: the refs it is handed are the model's `SkillRef`s, the parts it reads are
+the frontmatter, the line count, the links and the heading anchors of each `SKILL.md`, and the links of each of the
+skill's resources, and the Agent Skills specification governs every one of them, so a skill is never ungoverned. The
+files a skill links in through `metadata` are checked too, against what the snapshot holds at each path listed, and
+so is each path inside the skill a link names, against what the snapshot holds there. It reports in a shape of its
+own, a `SkillCheckRun` of `SkillReport`s, each locating a violation in the file it was found in: the `SKILL.md`, or
+a resource.
 """
 
 from dataclasses import dataclass
@@ -40,6 +40,7 @@ from .database import Database
 from .frontmatter import validate_frontmatter
 from .reporting import Finding, Violation
 from .skill import SkillCheckResult, validate_skill
+from .skill_length import validate_skill_length
 from .skill_link import LinkTargetState, link_path_in_skill, validate_skill_links, validate_skill_resource_links
 from .skill_metadata import (
     ListedFile,
@@ -334,12 +335,13 @@ def run_budget(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
 
 
 def run_skills(database: Database, refs: tuple[SkillRef, ...]) -> SkillCheckRun:
-    """Check each skill's frontmatter, its links and the files its `metadata` lists, in the order given.
+    """Check each skill's frontmatter, its length, its links and the files its `metadata` lists, in the order given.
 
     Every skill is governed: the Agent Skills specification applies to each one. The violations in a skill's
-    `SKILL.md` list the frontmatter's first, then the links', then, when the frontmatter is a mapping, its
-    `metadata`'s; a skill whose `metadata` lists no file has none of those. A skill whose `SKILL.md` is not
-    UTF-8 carries there the single violation `skill.undecodable` at line 1, and it is never parsed.
+    `SKILL.md` list the frontmatter's first, then the line budget's, then the links', then, when the frontmatter
+    is a mapping, its `metadata`'s; a skill whose `metadata` lists no file has none of those. A skill whose
+    `SKILL.md` is not UTF-8 carries there the single violation `skill.undecodable` at line 1: it is never parsed,
+    and its lines are not counted.
 
     Each resource of the skill is checked on its own, whatever its `SKILL.md` holds, and reported in its own
     report: its links' violations, in document order, or, when it is not UTF-8, the single violation
@@ -374,24 +376,43 @@ def run_skills(database: Database, refs: tuple[SkillRef, ...]) -> SkillCheckRun:
                 frontmatter_result = validate_skill(
                     SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name=ref.directory.name
                 )
+                length_result = _skill_length(database, ref)
                 link_result = _skill_links(database, ref, linked_in=linked_in)
                 metadata_result = validate_skill_metadata(
                     frontmatter=frontmatter, listed=_listed_files(database, frontmatter)
                 )
-                violations = frontmatter_result.violations + link_result.violations + metadata_result.violations
+                violations = (
+                    frontmatter_result.violations
+                    + length_result.violations
+                    + link_result.violations
+                    + metadata_result.violations
+                )
             case MissingFrontmatter() | InvalidYamlFrontmatter() | NonMappingFrontmatter():
                 # No mapping, so no `metadata` to read; the frontmatter check reports the frontmatter itself.
                 linked_in = None
                 frontmatter_result = validate_skill(
                     SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name=ref.directory.name
                 )
+                length_result = _skill_length(database, ref)
                 link_result = _skill_links(database, ref, linked_in=linked_in)
-                violations = frontmatter_result.violations + link_result.violations
+                violations = frontmatter_result.violations + length_result.violations + link_result.violations
             case _:
                 assert_never(frontmatter)
         resources = _skill_resource_reports(database, ref, linked_in=linked_in)
         reports.append(SkillReport(ref, violations=violations, resources=resources))
     return SkillCheckRun(reports=tuple(reports))
+
+
+def _skill_length(database: Database, ref: SkillRef) -> SkillCheckResult:
+    """The line budget violations of a skill whose frontmatter was already read and decoded. Raises nothing.
+
+    The frontmatter was read and decoded from the same bytes the line count reads, so the count cannot fail on them.
+
+    Args:
+        database: Where the lines of the skill's `SKILL.md` are counted.
+        ref: The skill whose `SKILL.md` is held to the line budget.
+    """
+    return validate_skill_length(line_count=database.skill_lines(ref))
 
 
 def _skill_links(database: Database, ref: SkillRef, *, linked_in: frozenset[PurePosixPath] | None) -> SkillCheckResult:
