@@ -8,40 +8,33 @@
 # ///
 """Check the body of skills against the Agent Skills specification (https://agentskills.io/specification).
 
-Covers what `lorecraft check skills` does not yet: the SKILL.md length budget, and whether
-every relative link inside the skill resolves, read from the skill root as the specification
-reads it, through the files a project skill links in by `metadata`. The frontmatter - its
-fields, their limits and the name matching its directory - is checked by `lorecraft check
-skills`, and no longer here. So is a link that leaves the skill, in every skill.
-Judgment calls stay with the skill - whether a description says when to use the skill,
-whether content belongs in SKILL.md or a reference file, whether a reference chain runs
-too deep.
+Covers what `lorecraft check skills` does not yet: the SKILL.md length budget. The
+frontmatter - its fields, their limits and the name matching its directory - and every
+link in a skill's Markdown files are checked by `lorecraft check skills`, and no longer
+here. Judgment calls stay with the skill - whether a description says when to use the
+skill, whether content belongs in SKILL.md or a reference file, whether a reference chain
+runs too deep.
 
 This is a vendored standalone copy; the checks it implements are destined for the
 lorecraft library, which will run them from one checker instead of a script per skill.
 
-A skill's location decides which rules apply:
+A skill lives in one of two places, and a directory anywhere else is reported as
+`skill.location`:
 
     .agents/skills/<name>/  workspace skill: used by agents working in this repository.
-                            The specification.
-    skills/<name>/          project skill: installed into other repositories. The
-                            specification only, and a link reaches a repository file
-                            only through the `metadata` convention described in SKILL.md.
-                            Project skills live in skills/; a symlink to one from
-                            .agents/skills/ is checked once, as a project skill.
+    skills/<name>/          project skill: installed into other repositories. Project
+                            skills live in skills/; a symlink to one from .agents/skills/
+                            is checked once, as a project skill.
 """
 
 from __future__ import annotations
 
 import json
-import os
-import re
 import sys
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Annotated
-from urllib.parse import unquote
 
 import typer
 import yaml
@@ -54,9 +47,6 @@ PROJECT_DIR = Path('skills')
 LINKED_DIRS = {'references', 'assets', 'scripts'}
 
 SKILL_MD_MAX_LINES = 500
-
-LINK_PATTERN = re.compile(r'\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)')
-FENCE_PATTERN = re.compile(r'^\s*(```|~~~)')
 
 
 @dataclass(frozen=True)
@@ -77,13 +67,6 @@ class Finding:
         return {'file': self.path, 'line': self.line, 'rule': self.rule, 'message': self.message}
 
 
-class SkillKind(str, Enum):
-    """Where a skill lives, which decides the rules it is held to."""
-
-    workspace = 'workspace'
-    project = 'project'
-
-
 def split_frontmatter(text: str) -> str | None:
     """Return the YAML between the frontmatter delimiters, or None when there is none."""
     lines = text.splitlines()
@@ -93,24 +76,6 @@ def split_frontmatter(text: str) -> str | None:
         if line.strip() == '---':
             return '\n'.join(lines[1:offset])
     return None
-
-
-def load_frontmatter(text: str) -> dict:
-    """The frontmatter mapping of a SKILL.md, or an empty one when it has none that can be read.
-
-    An unusable frontmatter is `lorecraft check skills`'s finding, so it is not reported here:
-    the body is checked as the body of a skill that links nothing in.
-    """
-    block = split_frontmatter(text)
-    if block is None:
-        return {}
-    try:
-        frontmatter = yaml.safe_load(block)
-    except yaml.YAMLError:
-        return {}
-    if not isinstance(frontmatter, dict):
-        return {}
-    return frontmatter
 
 
 def metadata_links(skill_dir: Path) -> set[str]:
@@ -131,107 +96,28 @@ def metadata_links(skill_dir: Path) -> set[str]:
     return {path for subkey in LINKED_DIRS for path in str(metadata.get(subkey, '')).split()}
 
 
-def skill_kind(root: Path, skill_dir: Path) -> SkillKind | None:
-    """Whether the skill is a workspace or a project skill, by the directory it sits in; `None` for neither."""
-    if skill_dir.parent == root / WORKSPACE_DIR:
-        return SkillKind.workspace
-    if skill_dir.parent == root / PROJECT_DIR:
-        return SkillKind.project
-    return None
-
-
-def linked_files(root: Path, frontmatter: dict) -> dict[Path, Path]:
-    """Map each repository file a project skill links in through `metadata` to its path inside the skill.
-
-    `references: docs/code/logging.md` makes `references/logging.md` resolve to
-    `docs/code/logging.md`, which is how §4 of this skill's SKILL.md says the links resolve.
-    `lorecraft check skills` reports a listed file that is missing, repeated by name, or out of scope.
-    """
-    metadata = frontmatter.get('metadata')
-    if not isinstance(metadata, dict):
-        return {}
-
-    links: dict[Path, Path] = {}
-    for subkey in LINKED_DIRS:
-        value = metadata.get(subkey)
-        if not isinstance(value, str):
-            continue
-        for repo_path in value.split():
-            links[Path(subkey) / Path(repo_path).name] = root / repo_path
-    return links
-
-
-def check_body(root: Path, skill_dir: Path, path: Path, links: dict[Path, Path]) -> list[Finding]:
-    """Check the relative links in one Markdown file of a skill, each read from the skill root."""
-    rel = path.relative_to(root).as_posix()
-    findings: list[Finding] = []
-    in_fence = False
-
-    for number, line in enumerate(path.read_text(encoding='utf-8').splitlines(), start=1):
-        if FENCE_PATTERN.match(line):
-            in_fence = not in_fence
-            continue
-        if in_fence:
-            continue
-
-        for target in LINK_PATTERN.findall(line):
-            if re.match(r'^[A-Za-z][A-Za-z0-9+.-]*:', target):
-                continue
-            if target.startswith('/'):
-                # `lorecraft check skills` reports this as `skill.link-absolute`, for `SKILL.md` only.
-                continue
-            # The path is read as `lorecraft check skills` reads it: before the query and the
-            # fragment, percent-decoded.
-            target_path, _, _ = target.partition('#')
-            target_path, _, _ = target_path.partition('?')
-            target_path = unquote(target_path)
-            if not target_path:
-                # `lorecraft check skills` reports this as `skill.link-fragment`, for `SKILL.md` only.
-                continue
-            if target_path.startswith('/'):
-                continue
-
-            # Lexical, as `lorecraft check skills` decides it: the link's own path, read from the
-            # skill root, leaves the skill when it climbs above it. Only a link that stays inside is
-            # followed to see what it names.
-            normalised = os.path.normpath(target_path)
-            if normalised == '..' or normalised.startswith('../'):
-                # `lorecraft check skills` reports this as `skill.link-escapes`.
-                continue
-
-            if (skill_dir / normalised).exists() or Path(normalised) in links:
-                continue
-            findings.append(Finding(rel, number, 'link.broken', f'`{target}` does not resolve'))
-
-    return findings
+def is_in_skills_dir(root: Path, skill_dir: Path) -> bool:
+    """Whether the skill sits directly in .agents/skills/ or skills/, the two places a skill may live."""
+    return skill_dir.parent in (root / WORKSPACE_DIR, root / PROJECT_DIR)
 
 
 def validate(root: Path, skill_dir: Path) -> list[Finding]:
     """Check one skill directory against the Agent Skills specification and this repository's skill rules."""
     skill_md = skill_dir / 'SKILL.md'
     rel = skill_md.relative_to(root).as_posix()
-    kind = skill_kind(root, skill_dir)
-    if kind is None:
+    if not is_in_skills_dir(root, skill_dir):
         message = f'skills live directly under {WORKSPACE_DIR}/ or {PROJECT_DIR}/'
         return [Finding(skill_dir.relative_to(root).as_posix(), 1, 'skill.location', message)]
     if not skill_md.is_file():
         return [Finding(rel, 1, 'skill.missing', 'a skill directory must contain SKILL.md')]
 
     text = skill_md.read_text(encoding='utf-8')
-    frontmatter = load_frontmatter(text)
     findings: list[Finding] = []
 
     line_count = len(text.splitlines())
     if line_count > SKILL_MD_MAX_LINES:
         message = f'SKILL.md is {line_count} lines; keep it under {SKILL_MD_MAX_LINES} and move detail to references/'
         findings.append(Finding(rel, 1, 'body.length', message))
-
-    links: dict[Path, Path] = {}
-    if kind is SkillKind.project:
-        links = linked_files(root, frontmatter)
-
-    for markdown in sorted(skill_dir.rglob('*.md')):
-        findings.extend(check_body(root, skill_dir, markdown, links))
 
     return findings
 

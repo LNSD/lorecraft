@@ -1235,6 +1235,61 @@ class TestCheckSkillsCommand:
             'ungoverned': [],
         }, 'the escaping link is reported in the resource holding it, and the skill is counted once'
 
+    def test_check_skills_with_json_format_over_a_skill_with_broken_links_reports_each_in_its_file(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(
+            tmp_path,
+            '.agents/skills/review/SKILL.md',
+            '---\nname: review\ndescription: Review a change\n---\n# Review\n\n'
+            'Read [the steps](references/steps.md).\n',
+        )
+        _write(
+            tmp_path,
+            '.agents/skills/review/references/guide.md',
+            '# Guide\n\nBack to [the skill](SKILL.md), then [the flow](assets/flow%20chart.png#top).\n',
+        )
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 1,
+            'findings': [
+                {
+                    'file': '.agents/skills/review/SKILL.md',
+                    'line': 7,
+                    'rule': 'skill.link-broken',
+                    'message': '`references/steps.md` names nothing in the skill',
+                    'spec': None,
+                    'notes': [
+                        {
+                            'kind': 'help',
+                            'text': 'link a file or a directory the skill holds, relative to the skill root',
+                        }
+                    ],
+                },
+                {
+                    'file': '.agents/skills/review/references/guide.md',
+                    'line': 3,
+                    'rule': 'skill.link-broken',
+                    'message': '`assets/flow chart.png#top` names nothing in the skill',
+                    'spec': None,
+                    'notes': [
+                        {
+                            'kind': 'help',
+                            'text': 'link a file or a directory the skill holds, relative to the skill root',
+                        }
+                    ],
+                },
+            ],
+            'ungoverned': [],
+        }, 'each broken link is reported in the file holding it, decoded, and the link to the SKILL.md is not'
+
     def test_check_skills_with_json_format_over_a_skill_linked_outside_the_skills_directories_checks_it(
         self, tmp_path: Path
     ) -> None:
