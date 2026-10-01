@@ -391,7 +391,7 @@ def _listed_file_state(database: Database, written: str) -> ListedFileState:
         path = RootRelativePath.parse(written)
     except RootRelativePathError:
         return ListedFileState.OUTSIDE_SCOPE
-    if database.resolve_file(path) is not None:
+    if database.find_real_file(path) is not None:
         return ListedFileState.PRESENT
     if database.is_in_scope(path):
         return ListedFileState.MISSING

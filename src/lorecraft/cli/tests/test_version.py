@@ -24,7 +24,7 @@ class TestShortVersion:
 
 @pytest.mark.unit
 class TestDetailedVersion:
-    # `git describe` belongs to `git_description`, which is why this tier can format a detailed
+    # `git describe` belongs to `find_git_description`, which is why this tier can format a detailed
     # version at all: the commit arrives as a string, so nothing here spawns a subprocess.
     def test_detailed_version_with_a_commit_reports_it_under_the_short_line(self) -> None:
         #: Given

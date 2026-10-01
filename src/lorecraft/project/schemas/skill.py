@@ -24,7 +24,7 @@ from .frontmatter_problem import (
     NotAStringProblem,
     UnknownFieldProblem,
 )
-from .skill_frontmatter import SkillFrontmatter, value_object_message
+from .skill_frontmatter import SkillFrontmatter, find_value_object_message
 
 _KEY_LOCATION: Final[str] = '[key]'
 """The location pydantic appends when a mapping's key, rather than its value, is at fault."""
@@ -82,7 +82,7 @@ def _frontmatter_problem(detail: ErrorDetails) -> FrontmatterProblem:
     field = str(location[0])
     if len(location) > 1:
         return InvalidValueProblem(field, _nested_message(field, detail))
-    value_object_reason = value_object_message(detail)
+    value_object_reason = find_value_object_message(detail)
     if value_object_reason is not None:
         return InvalidValueProblem(field, value_object_reason)
     match detail['type']:

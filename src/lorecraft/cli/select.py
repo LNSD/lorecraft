@@ -159,11 +159,11 @@ def select_document(database: Database, root: Path, working_directory: Path, arg
     The rules apply in order: a directory for a path the snapshot leads to one, then on the file it leads to not
     Markdown, outside ``docs/`` and in no corpus, then on the first segment after ``docs/`` an invalid corpus name
     (the parser's failure as its source) and an unknown corpus, then nested (more than one segment below the
-    corpus), then ``model.locate``, where a miss is unlisted. The first segment is judged before depth so a nested
-    path under a non-corpus (``docs/schemas/tables/x.md``) names the real cause, an unknown corpus, rather than a
-    subdirectory of a corpus that does not exist. Where the snapshot leads to no file, the same rules judge the path
-    as spelled, and one that passes them all is missing: a file the scan never entered, such as a nested one, is
-    refused for where it sits rather than as missing.
+    corpus), then ``model.find_document``, where a miss is unlisted. The first segment is judged before depth so a
+    nested path under a non-corpus (``docs/schemas/tables/x.md``) names the real cause, an unknown corpus, rather
+    than a subdirectory of a corpus that does not exist. Where the snapshot leads to no file, the same rules judge
+    the path as spelled, and one that passes them all is missing: a file the scan never entered, such as a nested
+    one, is refused for where it sits rather than as missing.
 
     Args:
         database: The snapshot the argument is resolved in, and the model it must name a document of.
@@ -184,11 +184,11 @@ def select_document(database: Database, root: Path, working_directory: Path, arg
     """
     # Lexical, as in `select_skills_at`: following links here would read the disk.
     named = Path(os.path.normpath(working_directory / argument))
-    spelled = _spell_under_root(root, named)
+    spelled = _find_spelling_under_root(root, named)
     if spelled is None:
         raise OutsideDocsDocumentPathError(argument)
-    document = database.resolve_file(spelled)
-    if document is None and database.resolve(spelled) is not None:
+    document = database.find_real_file(spelled)
+    if document is None and database.find_real_path(spelled) is not None:
         raise NonFileDocumentPathError(argument)
 
     model = database.model()
@@ -196,7 +196,7 @@ def select_document(database: Database, root: Path, working_directory: Path, arg
         _require_document_placement(model, argument, spelled)
         raise MissingDocumentPathError(argument)
     _require_document_placement(model, argument, document)
-    ref = model.locate(document)
+    ref = model.find_document(document)
     if ref is None:
         raise UnlistedDocumentPathError(argument)
     return ref
@@ -232,7 +232,7 @@ def _require_document_placement(model: WorkspaceModel, argument: Path, path: Roo
         corpus = CorpusName.parse(parts[0])
     except (EmptyCorpusNameError, InvalidCorpusNameCharacterError) as exc:
         raise InvalidCorpusDocumentPathError(argument, source=exc) from exc
-    if model.corpus(corpus) is None:
+    if model.find_corpus(corpus) is None:
         raise UnknownCorpusDocumentPathError(argument)
     if len(parts) > 2:
         raise NestedDocumentPathError(argument)
@@ -280,10 +280,10 @@ def select_skills_at(database: Database, root: Path, working_directory: Path, ar
     # is a link. Following links here would read the disk; the snapshot follows every link below the root.
     # `/` discards the working directory when the argument is absolute.
     named = Path(os.path.normpath(working_directory / argument))
-    spelled = _spell_under_root(root, named)
+    spelled = _find_spelling_under_root(root, named)
     if spelled is None:
         raise UnlistedSkillPathError(argument)
-    real_path = database.resolve(spelled)
+    real_path = database.find_real_path(spelled)
     if real_path is None:
         raise UnlistedSkillPathError(argument)
     refs = database.model().locate_skills(real_path)
@@ -292,7 +292,7 @@ def select_skills_at(database: Database, root: Path, working_directory: Path, ar
     return refs
 
 
-def _spell_under_root(root: Path, named: Path) -> RootRelativePath | None:
+def _find_spelling_under_root(root: Path, named: Path) -> RootRelativePath | None:
     """``named`` relative to the root, or ``None`` when it lies outside it.
 
     The root is resolved, symlinks followed, but an argument may reach it through a link above it, such as

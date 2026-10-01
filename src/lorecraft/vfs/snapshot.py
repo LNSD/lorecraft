@@ -13,7 +13,7 @@ from typing import Self, assert_never
 
 from lorecraft.core.path import ROOT, RootRelativePath
 
-from .root_expansion import RealPath, walk_to_real_path
+from .root_expansion import RealPath, find_real_path
 from .scan_root import ScanRoot
 from .view import DirEntry, EntryKind, FileSystem, UnrecordedFileError, decode_text
 
@@ -158,7 +158,7 @@ class VirtualFileSystem(FileSystem):
 
     Anything the snapshot did not record answers like a missing path on disk: an empty listing, a
     ``UnrecordedFileError``, or no directory. A path is walked through the recorded links by
-    `walk_to_real_path`, the walk the scan itself took, so the view reaches nothing through a link chain the
+    `find_real_path`, the walk the scan itself took, so the view reaches nothing through a link chain the
     scan refused.
     """
 
@@ -181,7 +181,7 @@ class VirtualFileSystem(FileSystem):
     def list_dir(self, path: RootRelativePath) -> tuple[DirEntry, ...]:
         """The recorded listing of the directory `path` leads to; see `FileSystem.list_dir`.
 
-        A recorded link on the way, or at it, is followed, as `resolve_dir` follows it, so a linked directory
+        A recorded link on the way, or at it, is followed, as `find_real_dir` follows it, so a linked directory
         lists as the directory it leads to when the scan listed that one.
 
         Args:
@@ -191,7 +191,7 @@ class VirtualFileSystem(FileSystem):
             The entries in name order, or `()` for a missing, non-directory, unentered or out-of-scope
             path, and for a link the snapshot cannot follow to a listed directory.
         """
-        directory = self.resolve_dir(path)
+        directory = self.find_real_dir(path)
         if directory is None:
             return ()
         return self._listings.get(directory, ())
@@ -199,7 +199,7 @@ class VirtualFileSystem(FileSystem):
     def read_text(self, path: RootRelativePath) -> str:
         """Decode the recorded bytes of the file `path` leads to; see `FileSystem.read_text`.
 
-        A recorded link on the way to the file, or at it, is followed, as `resolve_file` follows it. A link
+        A recorded link on the way to the file, or at it, is followed, as `find_real_file` follows it. A link
         the scan did not follow to its file has no bytes here and reads as a missing file, as an OTHER entry
         does.
 
@@ -210,15 +210,15 @@ class VirtualFileSystem(FileSystem):
             TextDecodeError: If the bytes are not UTF-8.
             UnrecordedFileError: If `path` leads to no regular file in the snapshot.
         """
-        real_path = self.resolve_file(path)
+        real_path = self.find_real_file(path)
         if real_path is None:
             raise UnrecordedFileError(path)
         return decode_text(path, self._files[real_path])
 
-    def entry_kind(self, path: RootRelativePath) -> EntryKind | None:
-        """What the recorded entry at `path` itself is; see `FileSystem.entry_kind`.
+    def find_entry_kind(self, path: RootRelativePath) -> EntryKind | None:
+        """What the recorded entry at `path` itself is; see `FileSystem.find_entry_kind`.
 
-        A recorded link on the way to `path` is followed, as `resolve_dir` follows it; a recorded link at
+        A recorded link on the way to `path` is followed, as `find_real_dir` follows it; a recorded link at
         `path` is SYMLINK.
 
         Args:
@@ -232,12 +232,12 @@ class VirtualFileSystem(FileSystem):
         """
         if path == ROOT:
             return EntryKind.DIRECTORY
-        parent = self.resolve_dir(path.parent)
+        parent = self.find_real_dir(path.parent)
         if parent is None:
             return None
-        return self._entries.kind(parent / path.name)
+        return self._entries.find_kind(parent / path.name)
 
-    def resolve_dir(self, path: RootRelativePath) -> RootRelativePath | None:
+    def find_real_dir(self, path: RootRelativePath) -> RootRelativePath | None:
         """Follow the recorded links in `path` and return the real directory it leads to; see `FileSystem`.
 
         Args:
@@ -248,9 +248,9 @@ class VirtualFileSystem(FileSystem):
             dangling or looping link, a file on the way or at the end) and also wherever the chain leaves
             what the snapshot recorded: above the root, an absolute target (one outside the root, since
             `take_snapshot` spells every target under it relative), a directory outside the scope, or a `..`
-            the scan refuses too (see `walk_to_real_path`).
+            the scan refuses too (see `find_real_path`).
         """
-        leads_to = self._resolve(path)
+        leads_to = self._find_real_path(path)
         if leads_to is None:
             return None
         match leads_to.kind:
@@ -261,18 +261,18 @@ class VirtualFileSystem(FileSystem):
             case _:
                 assert_never(leads_to.kind)
 
-    def resolve_file(self, path: RootRelativePath) -> RootRelativePath | None:
+    def find_real_file(self, path: RootRelativePath) -> RootRelativePath | None:
         """Follow the recorded links in `path` and return the recorded file it leads to; see `FileSystem`.
 
         Args:
             path: The root-relative path to resolve; only links the snapshot recorded are followed.
 
         Returns:
-            The real file, root-relative, or `None` where `resolve_dir` lists, and also for a directory and
+            The real file, root-relative, or `None` where `find_real_dir` lists, and also for a directory and
             for a file whose bytes the snapshot did not record, such as one a link the scan did not follow
             leads to.
         """
-        leads_to = self._resolve(path)
+        leads_to = self._find_real_path(path)
         if leads_to is None:
             return None
         match leads_to.kind:
@@ -285,10 +285,10 @@ class VirtualFileSystem(FileSystem):
             case _:
                 assert_never(leads_to.kind)
 
-    def _resolve(self, path: RootRelativePath) -> RealPath | None:
+    def _find_real_path(self, path: RootRelativePath) -> RealPath | None:
         """Walk `path` through the recorded links to the real directory or file it leads to.
 
-        The walk is `walk_to_real_path`, the one the scan took over the disk, here over what the snapshot
+        The walk is `find_real_path`, the one the scan took over the disk, here over what the snapshot
         recorded (`_SnapshotEntries`): every component must be a directory the snapshot knows of or, as the
         last one, a file, and a recorded link splices its target in, refused where the scan refuses it.
 
@@ -296,16 +296,16 @@ class VirtualFileSystem(FileSystem):
             path: The root-relative path to walk, spelled as given; links in it are followed.
 
         Returns:
-            The real path and its kind, or `None` when the snapshot holds nothing there; `resolve_dir` lists
+            The real path and its kind, or `None` when the snapshot holds nothing there; `find_real_dir` lists
             the cases.
         """
-        return walk_to_real_path(path, self._entries, follow_links=True)
+        return find_real_path(path, self._entries, follow_links=True)
 
 
 class _SnapshotEntries:
     """What a walk of the virtual view sees: every entry a snapshot recorded, and nothing else.
 
-    The `EntryLookup` the view hands to `walk_to_real_path`. It differs from the scope query's recorded links
+    The `EntryLookup` the view hands to `find_real_path`. It differs from the scope query's recorded links
     in one way: a path the snapshot recorded nothing at is nothing, never assumed a directory, since the view
     answers what is there and not only where a path would lead.
     """
@@ -348,8 +348,8 @@ class _SnapshotEntries:
             for entry in listing.entries:
                 self._kinds[listing.path / entry.name] = entry.kind
 
-    def kind(self, path: RootRelativePath) -> EntryKind | None:
-        """What the snapshot recorded at `path` itself; see `EntryLookup.kind`.
+    def find_kind(self, path: RootRelativePath) -> EntryKind | None:
+        """What the snapshot recorded at `path` itself; see `EntryLookup.find_kind`.
 
         Where more than one record names `path`, the first of these wins: the kind the parent's listing gives
         the entry; SYMLINK for a recorded link, such as one met on the way to a scope root; FILE for recorded
@@ -366,8 +366,8 @@ class _SnapshotEntries:
         """
         return self._kinds.get(path)
 
-    def read_link_target(self, path: RootRelativePath) -> PurePosixPath | None:
-        """The recorded target of the link at `path`; see `EntryLookup.read_link_target`.
+    def find_link_target(self, path: RootRelativePath) -> PurePosixPath | None:
+        """The recorded target of the link at `path`; see `EntryLookup.find_link_target`.
 
         Args:
             path: The root-relative link, one `kind` answered SYMLINK for.
