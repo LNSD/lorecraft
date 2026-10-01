@@ -96,8 +96,9 @@ def find_root(start: Path) -> Path:
         try:
             holds_specs = disk_location(candidate, SPECS_DIR).is_dir()
         except OSError as exc:
-            # Python 3.12's `is_dir` raises every failure but a missing path, a PermissionError for one; 3.13 and
-            # later answer False. Raised here, it is a failure of this search, not a bare OSError for the command.
+            # Through Python 3.13, `is_dir` answers False only for ENOENT, ENOTDIR, EBADF and ELOOP and raises any
+            # other failure, a PermissionError under an unsearchable parent for one; 3.14 answers False for every
+            # failure. Raised here, it is a failure of this search, not a bare OSError for the command.
             raise RootCandidateInspectError(candidate, OsRefusal.of(exc), source=exc) from exc
         if holds_specs:
             return candidate
@@ -115,7 +116,7 @@ def resolve_root(path: Path) -> Path:
     try:
         is_directory = resolved.is_dir()
     except OSError as exc:
-        # As in `find_root`: Python 3.12's `is_dir` raises where 3.13 and later answer False.
+        # As in `find_root`: through Python 3.13 `is_dir` raises a failure other than absence, where 3.14 answers False.
         raise RootInspectError(resolved, OsRefusal.of(exc), source=exc) from exc
     if not is_directory:
         raise InvalidRootError(resolved)
