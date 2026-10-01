@@ -3,8 +3,8 @@
 A parse tree is a pure function of the text, so a document is parsed once and every check shares the result.
 The Markdown parser is wenmode, and this module is the only place it is used: its nodes are mutable and its API
 is pre-1.0, so what leaves here is always this package's own frozen nodes, never a wenmode type. The tree keeps
-the frontmatter, the document's top-level headings, and how many prose words each heading's section holds. The
-content itself is not kept: no check reads it yet.
+the frontmatter, the document's top-level headings, how many prose words each heading's section holds, and every
+link's destination and line. The rest of the content is not kept: no check reads it yet.
 
 A prose word is whitespace-delimited text outside code blocks, table rows and headings: a section's words say how
 concise its prose is, and code and tables are free because they are the examples and references a document exists
@@ -20,13 +20,15 @@ from typing import Final
 
 from wenmode import Wenmode
 from wenmode.ast import plain_text
-from wenmode.nodes import Code, Node, Parent, Position, Root
+from wenmode.nodes import Code, Image, Node, Parent, Position, Root
 from wenmode.nodes import Heading as WenmodeHeading
+from wenmode.nodes import Link as WenmodeLink
 from wenmode.plugins import frontmatter
 from wenmode.plugins.frontmatter import FrontmatterPlugin
 
 from .frontmatter import FrontmatterNode, MissingFrontmatter, decode_frontmatter
 from .heading import Heading
+from .link import Link
 from .position import LineNumber
 
 _FRONTMATTER_KEY: Final[str] = 'frontmatter'
@@ -42,10 +44,12 @@ class ParsedDocument:
     Attributes:
         frontmatter: The frontmatter block, or the reason there is no usable one.
         headings: The document's own top-level headings, in document order.
+        links: Every link and image anywhere in the document, nested ones included, in document order.
     """
 
     frontmatter: FrontmatterNode
     headings: tuple[Heading, ...]
+    links: tuple[Link, ...]
 
 
 def parse_document(text: str) -> ParsedDocument:
@@ -61,7 +65,11 @@ def parse_document(text: str) -> ParsedDocument:
     markdown = Wenmode(plugins=[_frontmatter_plugin()], positions=True)
     root = markdown.parse(text)
     block_words = [_prose_words(text, block) for block in root.children]
-    return ParsedDocument(frontmatter=_frontmatter(root), headings=_headings(text, root.children, block_words))
+    return ParsedDocument(
+        frontmatter=_frontmatter(root),
+        headings=_headings(text, root.children, block_words),
+        links=tuple(_links(text, root)),
+    )
 
 
 def parse_frontmatter(text: str) -> FrontmatterNode:
@@ -119,6 +127,21 @@ def _headings(text: str, blocks: list[Node], block_words: list[int]) -> tuple[He
             )
         )
     return tuple(headings)
+
+
+def _links(text: str, node: Node) -> list[Link]:
+    """Every link and image in the node and below it, the node itself included, in document order.
+
+    The whole tree is walked, unlike for the headings: a link in a list item or a blockquote is as much the
+    document's as one in a top-level paragraph. An image inside a link's text comes after that link.
+    """
+    links: list[Link] = []
+    if isinstance(node, WenmodeLink | Image):
+        links.append(Link(url=node.url, line=_line(text, node)))
+    if isinstance(node, Parent):
+        for child in node.children:
+            links.extend(_links(text, child))
+    return links
 
 
 def _section_words(blocks: list[Node], block_words: list[int], heading_index: int, level: int) -> int:
@@ -187,14 +210,14 @@ def _source_words(source: str) -> int:
     return words
 
 
-def _line(text: str, block: Node) -> LineNumber:
-    """The document line a block starts on.
+def _line(text: str, node: Node) -> LineNumber:
+    """The document line a node starts on, a block or an inline alike.
 
-    wenmode reports a block's position as a character offset into the text; every line before the offset ends in
+    wenmode reports a node's position as a character offset into the text; every line before the offset ends in
     a ``\\n``, a ``\\r\\n`` included.
     """
-    if block.position is None:
-        # Unreachable while the parser is built with `positions=True`, which sets every block's position; the
-        # field is optional in wenmode's type only because a parser without it leaves it unset.
-        return LineNumber(1)
-    return LineNumber(text.count('\n', 0, block.position.start) + 1)
+    if node.position is None:
+        # The field is optional in wenmode's type only because a parser built without `positions=True` leaves it
+        # unset; every parser that reaches here is built with it.
+        raise AssertionError('unreachable: the parser is built with positions=True, so every node has a position')
+    return LineNumber(text.count('\n', 0, node.position.start) + 1)

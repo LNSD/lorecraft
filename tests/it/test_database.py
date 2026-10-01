@@ -1,5 +1,5 @@
-"""The database over a hand-built snapshot: the model, each frontmatter, each parse tree and each token count are
-computed once, and the layout guard reads the same snapshot.
+"""The database over a hand-built snapshot: the model, each frontmatter, each parse tree, each token count and each
+skill's parse tree are computed once, and the layout guard reads the same snapshot.
 
 Every snapshot here is built in memory, so no case reads the disk: the database is what wires the virtual view,
 the model loader, the layout guard and the parser together.
@@ -16,10 +16,13 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentDecodeError, DocumentRef
 from lorecraft.project.layout import LinkedLayoutError
-from lorecraft.project.syntax import Frontmatter, count_tokens
+from lorecraft.project.skill import SkillDecodeError, SkillRef
+from lorecraft.project.syntax import Frontmatter, LineNumber, count_tokens
+from lorecraft.project.syntax import Link as MarkdownLink
 from lorecraft.vfs import Link, Snapshot
 
 GUIDE: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('guide'))
+REVIEW: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/review'))
 
 
 def _snapshot(guide: bytes) -> Snapshot:
@@ -31,6 +34,11 @@ def _snapshot(guide: bytes) -> Snapshot:
             RootRelativePath.parse('docs/code/guide.md'): guide,
         }
     )
+
+
+def _skill_snapshot(skill: bytes) -> Snapshot:
+    """A snapshot holding one skill, ``.agents/skills/review/``, whose ``SKILL.md`` holds ``skill``."""
+    return Snapshot.of_files({RootRelativePath.parse('.agents/skills/review/SKILL.md'): skill})
 
 
 @pytest.mark.it
@@ -173,3 +181,59 @@ class TestDatabase:
 
         #: Then
         assert exc_info.value.ref == GUIDE, 'the error names the document that could not be decoded'
+
+    def test_skill_parse_of_a_skill_returns_its_links(self) -> None:
+        #: Given
+        database = Database(_skill_snapshot(b'---\nname: review\n---\n# Review\n\nSee [the guide](guide.md).\n'))
+
+        #: When
+        document = database.skill_parse(REVIEW)
+
+        #: Then
+        assert document.links == (MarkdownLink(url='guide.md', line=LineNumber(6)),), (
+            'the SKILL.md bytes parse into a tree holding its links'
+        )
+
+    def test_skill_parse_called_twice_returns_the_first_answer(self) -> None:
+        #: Given
+        database = Database(_skill_snapshot(b'---\nname: review\n---\n# Review\n'))
+        first = database.skill_parse(REVIEW)
+
+        #: When
+        second = database.skill_parse(REVIEW)
+
+        #: Then
+        assert second is first, 'a skill is parsed once per database, then shared by every check'
+
+    def test_skill_parse_of_a_linked_skill_parses_the_skill_the_link_leads_to(self) -> None:
+        #: Given
+        # What a scan records for `.agents/skills/review -> ../../skills/review`: the link in the skills directory,
+        # and the SKILL.md at the real path it leads to.
+        shipped = Snapshot.of_files(
+            {RootRelativePath.parse('skills/review/SKILL.md'): b'---\nname: review\n---\n[the guide](guide.md)\n'}
+        )
+        snapshot = Snapshot(
+            listings=shipped.listings,
+            files=shipped.files,
+            links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),),
+        )
+        database = Database(snapshot)
+
+        #: When
+        document = database.skill_parse(REVIEW)
+
+        #: Then
+        assert document.links == (MarkdownLink(url='guide.md', line=LineNumber(4)),), (
+            'the ref names the linked entry, and the tree is parsed from the SKILL.md the link leads to'
+        )
+
+    def test_skill_parse_of_a_skill_that_is_not_utf8_raises_skill_decode_error(self) -> None:
+        #: Given
+        database = Database(_skill_snapshot(b'---\nname: caf\xe9\n---\n'))
+
+        #: When
+        with pytest.raises(SkillDecodeError) as exc_info:
+            database.skill_parse(REVIEW)
+
+        #: Then
+        assert exc_info.value.ref == REVIEW, 'the error names the skill that could not be decoded'

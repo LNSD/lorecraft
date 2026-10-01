@@ -8,7 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from lorecraft.checks import Database, SkillCheckRun, Violation, run_skills
+from lorecraft.checks import Database, Finding, SkillCheckRun, Violation, run_skills
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.syntax import LineNumber
 from lorecraft.vfs import take_snapshot
@@ -192,3 +193,70 @@ class TestRunSkills:
                 ),
             ),
         ], 'the scalar is one finding on its line, and the run goes on to check the other skill'
+
+    def test_run_skills_with_an_absolute_link_reports_it_after_the_frontmatter_findings(self, tmp_path: Path) -> None:
+        #: Given
+        _write(
+            tmp_path,
+            '.agents/skills/review/SKILL.md',
+            b'---\nname: audit\ndescription: Review a change\n---\n# Review\n\nRead [the guide](/docs/guide.md).\n',
+        )
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert [report.violations for report in run.reports] == [
+            (
+                Violation(
+                    line=LineNumber(2),
+                    rule='skill.name-matches-directory',
+                    message="`name` is 'audit'; expected 'review', the name of the skill directory",
+                ),
+                Violation(
+                    line=LineNumber(7),
+                    rule='skill.link-absolute',
+                    message='`/docs/guide.md` is absolute; link relative to the skill root',
+                ),
+            )
+        ], 'the link is checked beside the frontmatter, and its finding follows the frontmatter findings'
+
+    def test_run_skills_with_an_absolute_link_in_a_linked_skill_reports_it_where_the_agent_finds_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(
+            tmp_path,
+            'skills/review/SKILL.md',
+            b'---\nname: review\ndescription: Review a change\n---\n![flow](/assets/flow.png)\n',
+        )
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (
+            Finding(
+                path=RootRelativePath.parse('.agents/skills/review/SKILL.md'),
+                line=LineNumber(5),
+                rule='skill.link-absolute',
+                message='`/assets/flow.png` is absolute; link relative to the skill root',
+            ),
+        ), 'the linked skill is parsed through its link, and the finding names the SKILL.md under the skills directory'
+
+    def test_run_skills_with_an_undecodable_skill_reports_only_that_it_is_undecodable(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/latin/SKILL.md', b'---\nname: latin\n---\n[caf\xe9](/abs.md)\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert [finding.rule for finding in run.findings()] == ['skill.undecodable'], (
+            'a skill that is not UTF-8 is never parsed, so no link finding joins the undecodable one'
+        )

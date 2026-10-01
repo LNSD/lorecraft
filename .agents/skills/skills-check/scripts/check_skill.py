@@ -249,9 +249,7 @@ def check_body(root: Path, skill_dir: Path, path: Path, kind: SkillKind, links: 
                     )
                 continue
             if target_path.startswith('/'):
-                findings.append(
-                    Finding(rel, number, 'link.absolute', f'`{target}` is absolute; link relative to the skill root')
-                )
+                # `lorecraft check skills` reports this as `skill.link-absolute`, for `SKILL.md` only.
                 continue
 
             resolved = (path.parent / target_path).resolve()

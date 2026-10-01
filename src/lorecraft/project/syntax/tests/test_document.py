@@ -1,5 +1,5 @@
-"""Parsing a document's text into its parse tree: where the frontmatter block is found, which headings count, and how
-many prose words each section holds.
+"""Parsing a document's text into its parse tree: where the frontmatter block is found, which headings count, how
+many prose words each section holds, and which links the document holds.
 
 ``parse_document`` and ``parse_frontmatter`` are pure, so every case here is a text literal. The Markdown parser
 behind them decides what counts as a block; these pin the rules the checks report against.
@@ -10,6 +10,7 @@ import pytest
 from ..document import parse_document, parse_frontmatter
 from ..frontmatter import Frontmatter, FrontmatterKey, InvalidYamlFrontmatter, MissingFrontmatter
 from ..heading import Heading
+from ..link import Link
 from ..position import LineNumber
 
 
@@ -313,3 +314,121 @@ class TestParseDocumentWords:
 
         #: Then
         assert document.headings[0].words == 2, 'the frontmatter and the heading text are not section prose'
+
+
+@pytest.mark.unit
+class TestParseDocumentLinks:
+    def test_parse_document_with_an_inline_link_returns_its_url_and_line(self) -> None:
+        #: Given
+        text = '# Guide\n\nSee [the rules](docs/rules.md).\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.links == (Link(url='docs/rules.md', line=LineNumber(3)),), (
+            'an inline link carries its destination and the document line it is on'
+        )
+
+    def test_parse_document_with_link_syntax_in_the_frontmatter_returns_only_the_body_links(self) -> None:
+        #: Given
+        text = '---\nname: review\ndescription: See [the guide](/guide.md)\n---\nRead [the rules](rules.md).\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.links == (Link(url='rules.md', line=LineNumber(5)),), (
+            'the frontmatter block is YAML, not Markdown, so link syntax inside it is not a link'
+        )
+
+    def test_parse_document_with_an_unused_link_definition_returns_no_links(self) -> None:
+        #: Given
+        text = 'No link here.\n\n[rules]: /docs/rules.md\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.links == (), 'a definition no link uses points nowhere, so it is not a link'
+
+    def test_parse_document_with_an_image_returns_its_source_as_a_link(self) -> None:
+        #: Given
+        text = '![diagram](assets/flow.png)\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.links == (Link(url='assets/flow.png', line=LineNumber(1)),), (
+            'an image points at a file as a link does, so its source is a link'
+        )
+
+    def test_parse_document_with_a_reference_style_link_returns_it_at_the_line_it_is_used(self) -> None:
+        #: Given
+        text = 'See [the rules][rules].\n\n[rules]: docs/rules.md\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.links == (Link(url='docs/rules.md', line=LineNumber(1)),), (
+            'a reference-style link is reported where it is used, with the destination its definition gives'
+        )
+
+    def test_parse_document_with_an_autolink_returns_its_url(self) -> None:
+        #: Given
+        text = 'Read <https://agentskills.io/specification>.\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.links == (Link(url='https://agentskills.io/specification', line=LineNumber(1)),), (
+            'an autolink is a link to its own text'
+        )
+
+    def test_parse_document_with_a_link_in_inline_code_returns_no_link(self) -> None:
+        #: Given
+        text = 'Write `[text](/absolute)` to link.\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.links == (), 'link syntax inside inline code is code, not a link'
+
+    def test_parse_document_with_a_link_in_a_fenced_code_block_returns_no_link(self) -> None:
+        #: Given
+        text = '```markdown\n[text](/absolute)\n```\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.links == (), 'link syntax inside a fenced code block is code, not a link'
+
+    def test_parse_document_with_links_in_nested_blocks_returns_each_in_document_order(self) -> None:
+        #: Given
+        text = '# Guide\n\n- first [one](a.md)\n\n> quoted [two](b.md)\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.links == (
+            Link(url='a.md', line=LineNumber(3)),
+            Link(url='b.md', line=LineNumber(5)),
+        ), 'a link in a list item or a blockquote is found, each on its own document line'
+
+    def test_parse_document_with_crlf_line_endings_returns_each_link_on_its_document_line(self) -> None:
+        #: Given
+        text = '# Guide\r\n\r\n[one](a.md)\r\n\r\n[two](b.md)\r\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert [link.line for link in document.links] == [LineNumber(3), LineNumber(5)], (
+            'a CRLF line ending counts as one line break'
+        )
