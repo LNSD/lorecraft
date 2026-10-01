@@ -107,5 +107,11 @@ def validate_skill(
 
 
 def _one_violation(rule: str, message: str, line: LineNumber) -> SkillCheckResult:
-    """The result of a skill whose frontmatter is unusable: one violation, on the line it is found at."""
+    """The result of a skill whose frontmatter is unusable: one violation, on the line it is found at.
+
+    Args:
+        rule: Identifier the violation is reported under.
+        message: Explanation printed with the violation.
+        line: Line the violation is reported on.
+    """
     return SkillCheckResult(violations=(Violation(line=line, rule=rule, message=message),))

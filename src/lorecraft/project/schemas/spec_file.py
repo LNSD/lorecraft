@@ -82,8 +82,9 @@ class UnknownSpecAspectError(Error):
 
 
 class NotASpecStemError(Error):
-    """A prose file whose stem does not start with a corpus name, such as ``README.md``: prose kept beside the
-    specifications, not a misnamed specification.
+    """A prose file whose stem does not start with a corpus name, such as ``README.md``.
+
+    It is prose kept beside the specifications, not a misnamed specification.
 
     Attributes:
         path: Root-relative path of the prose file.
@@ -189,20 +190,32 @@ def parse_spec_file(path: RootRelativePath) -> SpecFile:
 
 
 def schema_filename(name: SchemaName, aspect: SpecAspect) -> str:
-    """The filename of one aspect at a ``<corpus>`` or ``<corpus>-<namespace>`` stem; never raises."""
+    """The filename of one aspect at a `<corpus>` or `<corpus>-<namespace>` stem; never raises.
+
+    Args:
+        name: Schema whose stem the filename starts with.
+        aspect: Aspect that picks the `.<aspect>.json` suffix.
+    """
     return f'{schema_name_stem(name)}.{aspect.value}{_JSON_SUFFIX}'
 
 
 def prose_filename(name: SchemaName) -> str:
-    """The filename of the prose at a ``<corpus>`` or ``<corpus>-<namespace>`` stem; never raises."""
+    """The filename of the prose at a `<corpus>` or `<corpus>-<namespace>` stem; never raises.
+
+    Args:
+        name: Schema whose stem the `.md` filename is built from.
+    """
     return f'{schema_name_stem(name)}{_PROSE_SUFFIX}'
 
 
 def _split_filename(path: RootRelativePath) -> tuple[str, SpecAspect | None]:
     """Split a filename into its stem text and its aspect, None for prose.
 
+    Args:
+        path: Root-relative path of the file; only its final name is read, and `path` is carried into any error.
+
     Raises:
-        NotASpecFileError: If the name is neither ``<stem>.md`` nor ``<stem>.<token>.json``.
+        NotASpecFileError: If the name is neither `<stem>.md` nor `<stem>.<token>.json`.
         UnknownSpecAspectError: If the JSON token is not a ``SpecAspect``.
     """
     filename = path.name

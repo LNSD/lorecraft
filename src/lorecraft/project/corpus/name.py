@@ -62,6 +62,9 @@ class CorpusName:
     def parse(cls, raw: str) -> Self:
         """Return a validated corpus name.
 
+        Args:
+            raw: Candidate directory name, kept exactly as spelled.
+
         Raises:
             EmptyCorpusNameError: If the name is empty.
             InvalidCorpusNameCharacterError: If a character falls outside lowercase snake case.
@@ -87,4 +90,5 @@ class CorpusName:
                 raise InvalidCorpusNameCharacterError(self.value, position)
 
     def __str__(self) -> str:
+        """The directory name exactly as supplied, which also prefixes the corpus's rule identifiers."""
         return self.value

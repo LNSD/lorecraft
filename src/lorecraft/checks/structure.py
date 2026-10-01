@@ -64,7 +64,12 @@ def validate_structure(aspects: tuple[StructureAspect, ...], *, headings: tuple[
 
 
 def _check_title(aspect: StructureAspect, headings: tuple[Heading, ...]) -> list[Violation]:
-    """Check the number of H1 titles, and that one opens the document when the aspect requires it."""
+    """Check the number of H1 titles, and that one opens the document when the aspect requires it.
+
+    Args:
+        aspect: The structure aspect whose `title` rule applies; one without a `title` yields no violation.
+        headings: Every heading of the document, in document order, of any level.
+    """
     if aspect.title is None:
         return []
     violations: list[Violation] = []
@@ -79,7 +84,12 @@ def _check_title(aspect: StructureAspect, headings: tuple[Heading, ...]) -> list
 
 
 def _check_empty(aspect: StructureAspect, headings: tuple[Heading, ...]) -> list[Violation]:
-    """Report every heading whose section holds nothing, when the aspect forbids empty sections."""
+    """Report every heading whose section holds nothing, when the aspect forbids empty sections.
+
+    Args:
+        aspect: The structure aspect; with `forbid_empty_sections` off nothing is reported.
+        headings: Every heading of the document, of any level; the title and subsections included.
+    """
     if not aspect.forbid_empty_sections:
         return []
     violations: list[Violation] = []
@@ -96,7 +106,12 @@ def _check_empty(aspect: StructureAspect, headings: tuple[Heading, ...]) -> list
 
 
 def _check_forbidden(aspect: StructureAspect, sections: tuple[Heading, ...]) -> list[Violation]:
-    """Report the first occurrence of every section the aspect forbids."""
+    """Report the first occurrence of every section the aspect forbids.
+
+    Args:
+        aspect: The structure aspect whose `forbidden` names are looked for.
+        sections: The document's H2 headings, in document order.
+    """
     violations: list[Violation] = []
     for name in aspect.forbidden:
         for section in sections:
@@ -111,6 +126,10 @@ def _check_outline(aspect: StructureAspect, sections: tuple[Heading, ...]) -> li
 
     One violation at most: past the first divergence every later entry is measured against sections it was
     never meant to match, and what that cascade reports says nothing.
+
+    Args:
+        aspect: The structure aspect whose `outline` is matched; an empty outline yields no violation.
+        sections: The document's H2 headings, in document order.
     """
     if not aspect.outline:
         return []
@@ -159,8 +178,12 @@ def _check_section_words(aspect: StructureAspect, sections: tuple[Heading, ...])
     """Report every section holding more prose words than its outline entry allows, its subsections included.
 
     A section the outline names takes the cap of the entry naming it, which may be none. Any other section takes
-    the cap of the ``any`` run it falls in: the first ``any`` entry after the entry naming the last named section
+    the cap of the `any` run it falls in: the first `any` entry after the entry naming the last named section
     before it. In a document that follows the outline, that is the run which matches it.
+
+    Args:
+        aspect: The structure aspect whose `outline` entries carry the word caps.
+        sections: The document's H2 headings, in document order, each with its prose word count.
     """
     violations: list[Violation] = []
     last_named_at = -1  # the outline index of the last named section passed; -1 before any
@@ -183,7 +206,12 @@ def _check_section_words(aspect: StructureAspect, sections: tuple[Heading, ...])
 
 
 def _entry_index(outline: tuple[OutlineEntry, ...], name: str) -> int | None:
-    """Where in the outline the section entry naming ``name`` sits, or None when no entry names it."""
+    """Where in the outline the section entry naming `name` sits, or None when no entry names it.
+
+    Args:
+        outline: The entries to search, in outline order.
+        name: Heading text of the section to find.
+    """
     for index, entry in enumerate(outline):
         match entry:
             case SectionEntry():
@@ -197,7 +225,12 @@ def _entry_index(outline: tuple[OutlineEntry, ...], name: str) -> int | None:
 
 
 def _run_cap(outline: tuple[OutlineEntry, ...], after: int) -> int | None:
-    """The cap of the first ``any`` entry past outline index ``after``, or None when there is no such entry."""
+    """The cap of the first `any` entry past outline index `after`, or None when there is no such entry.
+
+    Args:
+        outline: The entries to search, in outline order.
+        after: Outline index of the last named section passed, exclusive; -1 searches from the start.
+    """
     for entry in outline[after + 1 :]:
         match entry:
             case AnySections():

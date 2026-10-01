@@ -125,7 +125,7 @@ class InvalidCorpusNameCharacterError(Error):
 class CorpusName:
     """A validated corpus name.
 
-    A valid name matches ``[a-z_][a-z0-9_]*``:
+    A valid name matches `[a-z_][a-z0-9_]*`:
 
     - Is not empty.
     - Starts with a lowercase ASCII letter or underscore.

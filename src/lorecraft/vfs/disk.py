@@ -29,10 +29,14 @@ from .view import (
 
 
 def disk_location(root: Path, path: RootRelativePath) -> Path:
-    """The disk location of ``path`` under ``root``; the one place a root-relative path meets the disk.
+    """The disk location of `path` under `root`; the one place a root-relative path meets the disk.
 
-    ``RootRelativePath`` deliberately has no ``__fspath__``, so this join is the only way one reaches ``open``
-    or ``os``: never relative to the working directory, always below a root.
+    `RootRelativePath` deliberately has no `__fspath__`, so this join is the only way one reaches `open`
+    or `os`: never relative to the working directory, always below a root.
+
+    Args:
+        root: The workspace root on disk; joined as given, symlinks not resolved.
+        path: The root-relative path to locate; `.` yields the root itself.
     """
     return root / path.value
 
@@ -48,13 +52,19 @@ class DiskFileSystem(FileSystem):
     def __init__(self, root: Path) -> None:
         """Remember the root, made real once: the constructor's only I/O.
 
-        ``resolve_dir`` compares real paths against this root, so it must be real itself; a caller's root,
-        such as a test's raw ``tmp_path``, is resolved here rather than at every call.
+        `resolve_dir` compares real paths against this root, so it must be real itself; a caller's root,
+        such as a test's raw `tmp_path`, is resolved here rather than at every call.
+
+        Args:
+            root: The workspace root directory; may be spelled through symlinks, and is kept in its real form.
         """
         self._root = Path(os.path.realpath(root))
 
     def list_dir(self, path: RootRelativePath) -> tuple[DirEntry, ...]:
-        """List one directory on disk; see ``FileSystem.list_dir``.
+        """List one directory on disk; see `FileSystem.list_dir`.
+
+        Args:
+            path: The root-relative directory to list; a link on the way, or at it, is followed by the OS.
 
         Raises:
             DirListError: If the directory exists but cannot be read.
@@ -68,7 +78,10 @@ class DiskFileSystem(FileSystem):
         return entries
 
     def read_text(self, path: RootRelativePath) -> str:
-        """Read one file on disk as UTF-8 text; see ``FileSystem.read_text``.
+        """Read one file on disk as UTF-8 text; see `FileSystem.read_text`.
+
+        Args:
+            path: The root-relative file to read; a link on the way, or at it, is followed by the OS.
 
         Raises:
             TextDecodeError: If the bytes are not UTF-8.
@@ -81,7 +94,10 @@ class DiskFileSystem(FileSystem):
         return decode_text(path, data)
 
     def entry_kind(self, path: RootRelativePath) -> EntryKind | None:
-        """What the entry at ``path`` itself is on disk, from ``os.lstat``; see ``FileSystem.entry_kind``.
+        """What the entry at `path` itself is on disk, from `os.lstat`; see `FileSystem.entry_kind`.
+
+        Args:
+            path: The root-relative entry to inspect; a final symlink is reported as SYMLINK, not followed.
 
         Raises:
             EntryInspectError: If the entry exists but cannot be inspected.
@@ -97,7 +113,10 @@ class DiskFileSystem(FileSystem):
         return _kind_of_mode(mode)
 
     def resolve_dir(self, path: RootRelativePath) -> RootRelativePath | None:
-        """Resolve a directory's symlink chain on disk; see ``FileSystem.resolve_dir``.
+        """Resolve a directory's symlink chain on disk; see `FileSystem.resolve_dir`.
+
+        Args:
+            path: The root-relative path to resolve; every link in it is followed, in or out of the root.
 
         Raises:
             DirResolveError: If the operating system refuses the lookup, such as a permission error on a
@@ -127,7 +146,10 @@ class DiskFileSystem(FileSystem):
         return RootRelativePath.parse(relative.as_posix())
 
     def resolve_file(self, path: RootRelativePath) -> RootRelativePath | None:
-        """Resolve a file's symlink chain on disk; see ``FileSystem.resolve_file``.
+        """Resolve a file's symlink chain on disk; see `FileSystem.resolve_file`.
+
+        Args:
+            path: The root-relative path to resolve; every link in it is followed, in or out of the root.
 
         Raises:
             FileResolveError: If the operating system refuses the lookup, such as a permission error on a
@@ -279,10 +301,15 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
     the root is recorded relative to the link's directory (see ``Link``).
 
     Every symlink met is recorded, and followed only under a scope root that asks for it
-    (``ScanRoot.follow_links``). Without it a scope root with a symlink on the way to it is not listed, and a
+    (`ScanRoot.follow_links`). Without it a scope root with a symlink on the way to it is not listed, and a
     symlink entry is neither entered nor read through. With it the scan goes where the link leads, when that
     is under the root: a directory is listed at its real path, with the depth left at the link, and a regular
     file has its bytes recorded at its real path. Either way every listing and every file sits at a real path.
+
+    Args:
+        root: The workspace root on disk; nothing outside it is read.
+        scope: The directories to read, each with its own depth and link policy; empty yields an empty snapshot.
+            Overlapping roots are merged, a directory listed again only when a root asks for more under it.
 
     Raises:
         SnapshotDirListError: If a directory in scope cannot be listed.
@@ -363,6 +390,15 @@ def _follow_listed_link(
     link costs depth as a DIRECTORY entry does. A regular file has its bytes read into ``files``, at any
     depth, as a FILE entry has. A link that leads nowhere under the root is left as recorded.
 
+    Args:
+        root: The workspace root on disk.
+        link: The root-relative symlink just listed, already recorded in `links`.
+        depth: The depth the directory holding the link was listed at; 0 means a linked directory is not queued.
+        links: Every symlink recorded so far, keyed by path; mutated with each link met along the chain.
+        files: File bytes recorded so far, keyed by real path; mutated when the link leads to a regular file.
+        pending: Directories still to list as (real path, depth, follow links); mutated when the link leads to
+            a directory.
+
     Raises:
         SnapshotEntryInspectError: If a component of the chain exists but cannot be inspected.
         SnapshotLinkReadError: If a link of the chain exists but its target cannot be read.
@@ -412,6 +448,12 @@ def _walk_to_real_path(
     A snapshot has no record for a lone file, so a scope root that is one is seen only through a listing of
     its parent: a scope that must answer whether a root exists lists that parent too.
 
+    Args:
+        root: The workspace root on disk.
+        path: The root-relative path to walk, spelled as given (links unresolved, no `..` above the root).
+        links: Every symlink recorded so far, keyed by path; mutated with each symlink the walk meets.
+        follow_links: Whether a symlink is spliced in and followed; when false the walk ends at the first one.
+
     Returns:
         The real path and its kind, or ``None`` when no directory or regular file under the root is there:
         a component is missing, a component on the way is no directory, the last one is neither a
@@ -457,7 +499,11 @@ def _walk_to_real_path(
 
 
 def _lstat_kind(root: Path, path: RootRelativePath) -> EntryKind | None:
-    """What ``path`` itself is, a final symlink not followed; ``None`` when it is missing.
+    """What `path` itself is, a final symlink not followed; `None` when it is missing.
+
+    Args:
+        root: The workspace root on disk.
+        path: The root-relative entry to inspect; a symlink on the way is the caller's to have followed.
 
     Raises:
         SnapshotEntryInspectError: If the path exists but cannot be inspected.
@@ -472,7 +518,11 @@ def _lstat_kind(root: Path, path: RootRelativePath) -> EntryKind | None:
 
 
 def _kind_of_mode(mode: int) -> EntryKind:
-    """Classify an ``lstat`` mode: a symlink is SYMLINK, never what it points at."""
+    """Classify an `lstat` mode: a symlink is SYMLINK, never what it points at.
+
+    Args:
+        mode: The `st_mode` of an `os.lstat` result, so a symlink shows as one.
+    """
     if stat.S_ISLNK(mode):
         return EntryKind.SYMLINK
     if stat.S_ISDIR(mode):
@@ -483,7 +533,11 @@ def _kind_of_mode(mode: int) -> EntryKind:
 
 
 def _read_bytes(root: Path, path: RootRelativePath) -> bytes | None:
-    """A listed file's bytes; ``None`` when it vanished after the listing.
+    """A listed file's bytes; `None` when it vanished after the listing.
+
+    Args:
+        root: The workspace root on disk.
+        path: The root-relative file to read; a final symlink is followed by the OS.
 
     Raises:
         SnapshotFileReadError: If the file exists but cannot be read.
@@ -497,10 +551,14 @@ def _read_bytes(root: Path, path: RootRelativePath) -> bytes | None:
 
 
 def _read_link(root: Path, path: RootRelativePath) -> PurePosixPath | None:
-    """A listed symlink's target as ``os.readlink`` returns it; ``None`` when it vanished after the listing.
+    """A listed symlink's target as `os.readlink` returns it; `None` when it vanished after the listing.
 
     An absolute target under the root comes back relative to the link's directory; see
-    ``_spell_relative_if_under_root``.
+    `_spell_relative_if_under_root`.
+
+    Args:
+        root: The workspace root on disk.
+        path: The root-relative symlink whose target is read; the link itself, not what it leads to.
 
     Raises:
         SnapshotLinkReadError: If the symlink exists but cannot be read.
@@ -515,7 +573,7 @@ def _read_link(root: Path, path: RootRelativePath) -> PurePosixPath | None:
 
 
 def _spell_relative_if_under_root(root: Path, link: RootRelativePath, target: PurePosixPath) -> PurePosixPath:
-    """Rewrite an absolute ``target`` naming a path under the root relative to the directory of ``link``.
+    """Rewrite an absolute `target` naming a path under the root relative to the directory of `link`.
 
     A snapshot does not record where the root sits, so the virtual view cannot follow an absolute target,
     while the disk view follows one that leads into the root. Spelled from the link's directory, the same
@@ -526,6 +584,11 @@ def _spell_relative_if_under_root(root: Path, link: RootRelativePath, target: Pu
     directory to the next), so one ``..`` per component of it climbs exactly to the root. The rest of the
     target is kept as written, ``..`` included, for the view to walk the way the kernel does. A relative
     target, or an absolute one outside the root, is returned unchanged.
+
+    Args:
+        root: The workspace root on disk; compared both as given and made real.
+        link: The root-relative path of the symlink, whose directory the result is spelled from.
+        target: The link's target as `os.readlink` returned it.
     """
     if not target.is_absolute():
         return target
@@ -538,7 +601,11 @@ def _spell_relative_if_under_root(root: Path, link: RootRelativePath, target: Pu
 
 
 def _scan(root: Path, path: RootRelativePath) -> tuple[DirEntry, ...] | None:
-    """List one directory with a single ``os.scandir``, sorted by name.
+    """List one directory with a single `os.scandir`, sorted by name.
+
+    Args:
+        root: The workspace root on disk.
+        path: The root-relative directory to list; a link on the way, or at it, is followed by the OS.
 
     Returns:
         The entries in name order, or ``None`` when the path is missing, is not a directory, or is a link
@@ -562,7 +629,11 @@ def _scan(root: Path, path: RootRelativePath) -> tuple[DirEntry, ...] | None:
 
 
 def _entry_kind(entry: os.DirEntry[str]) -> EntryKind:
-    """Classify a scanned entry by what it is itself, never by what a symlink points at."""
+    """Classify a scanned entry by what it is itself, never by what a symlink points at.
+
+    Args:
+        entry: An entry from `os.scandir`; no link is followed to classify it.
+    """
     if entry.is_symlink():
         return EntryKind.SYMLINK
     if entry.is_dir(follow_symlinks=False):

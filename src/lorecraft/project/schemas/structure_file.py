@@ -25,10 +25,13 @@ JSON_SCHEMA_DIALECT: Final[str] = 'https://json-schema.org/draft/2020-12/schema'
 
 # Runs once per process, before mutmut swaps a mutant in, so no test can ever see a mutant of it.
 def _frontmatter_json_schema() -> dict[str, JsonValue]:  # pragma: no mutate block
-    """What an editor holds the ``frontmatter`` key to: any schema the Draft 2020-12 meta-schema accepts that also
-    states ``"type": "object"`` at its root. ``StructureAspect`` refuses the same schemas when it loads the file, and
+    """What an editor holds the ``frontmatter`` key to.
+
+    That is any schema the Draft 2020-12 meta-schema accepts that also states ``"type": "object"`` at its root.
+    ``StructureAspect`` refuses the same schemas when it loads the file, and
     a few more no schema here can state, such as one carrying ``$id``. A ``null`` is refused here and at load alike.
-    A fresh dict each call, so no caller can change the source of the generated schema."""
+    A fresh dict each call, so no caller can change the source of the generated schema.
+    """
     return {
         'allOf': [
             {'$ref': JSON_SCHEMA_DIALECT},
@@ -39,8 +42,10 @@ def _frontmatter_json_schema() -> dict[str, JsonValue]:  # pragma: no mutate blo
 
 # Runs once per process, before mutmut swaps a mutant in, so no test can ever see a mutant of it.
 def _code_frontmatter_example() -> dict[str, JsonValue]:  # pragma: no mutate block
-    """The frontmatter schema of a rule document in docs/code/, as an example: a closed object whose two fields are
-    required strings. A fresh dict for each example that shows it."""
+    """The frontmatter schema of a rule document in docs/code/, as an example.
+
+    It is a closed object whose two fields are required strings. A fresh dict for each example that shows it.
+    """
     return {
         'type': 'object',
         'required': ['name', 'description'],
@@ -51,9 +56,11 @@ def _code_frontmatter_example() -> dict[str, JsonValue]:  # pragma: no mutate bl
 
 # Runs once per process, before mutmut swaps a mutant in, so no test can ever see a mutant of it.
 def _code_outline_example() -> list[JsonValue]:  # pragma: no mutate block
-    """The outline of a rule document in docs/code/, as an example: its own sections, then the Checklist and the
-    two references, with a word cap on each of its own sections and on the Checklist. A fresh list for each example
-    that shows it."""
+    """The outline of a rule document in docs/code/, as an example.
+
+    It is its own sections, then the Checklist and the two references, with a word cap on each of its own sections
+    and on the Checklist. A fresh list for each example that shows it.
+    """
     return [
         {'any': True, 'words': 350},
         {'section': 'Checklist', 'words': 250},
@@ -118,8 +125,7 @@ class StructureFileAny(_StructureFileModel):
 
 
 class StructureFile(_StructureFileModel):
-    """A structure specification: the frontmatter schema, section outline and token budget a document governed by
-    this file must follow."""
+    """A structure specification: the frontmatter schema, outline and token budget a governed document follows."""
 
     model_config = ConfigDict(
         title='Structure specification',
@@ -171,11 +177,16 @@ class StructureFile(_StructureFileModel):
     @field_validator('frontmatter', mode='before')
     @classmethod
     def _refuse_null_frontmatter(cls, value: object) -> object:
-        """Refuse ``"frontmatter": null``, as the editor's schema does, so the two agree on it: no frontmatter rule
-        is written by leaving the key out. A validator runs only on a value the file states, never on the default.
+        """Refuse `"frontmatter": null`, as the editor's schema does, so the two agree on it.
+
+        No frontmatter rule is written by leaving the key out. A validator runs only on a value the file states,
+        never on the default.
+
+        Args:
+            value: The raw value of the `frontmatter` key before pydantic coerces it; returned unchanged unless `None`.
 
         Raises:
-            ValueError: If the file states the key as ``null``; pydantic reports it as a validation error.
+            ValueError: If the file states the key as `null`; pydantic reports it as a validation error.
         """
         if value is None:
             raise ValueError('may not be null; leave the key out for no frontmatter rule')

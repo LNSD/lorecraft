@@ -30,9 +30,16 @@ FEAT: Final[CorpusName] = CorpusName.parse('feat')
 
 
 def _spec(stem: str, *, frontmatter: bool = True, structure: bool = False) -> Spec:
-    """A spec at ``docs/__meta__/<stem>.md``, with ``<stem>.structure.json`` beside it when either flag is set: its
-    ``frontmatter`` key states a schema when ``frontmatter`` is set, and it forbids empty sections when ``structure``
-    is."""
+    """A spec at `docs/__meta__/<stem>.md`, with `<stem>.structure.json` beside it when either flag is set.
+
+    Its `frontmatter` key states a schema when `frontmatter` is set, and it forbids empty sections when
+    `structure` is.
+
+    Args:
+        stem: Specification stem, such as `code` or `code-python`; parsed into the spec's name.
+        frontmatter: Whether the structure file states a frontmatter schema.
+        structure: Whether the structure file forbids empty sections.
+    """
     files = [SPECS_DIR / f'{stem}.md']
     structure_aspect: StructureAspect | None = None
     if frontmatter or structure:
@@ -62,7 +69,12 @@ def _ref(corpus: str, filename: str) -> DocumentRef:
 
 
 def _code_model(specs: tuple[Spec, ...], filenames: tuple[str, ...]) -> WorkspaceModel:
-    """A model with the single corpus ``code``: ``specs[0]`` is its corpus spec, the rest its namespace specs."""
+    """A model with the single corpus `code`: `specs[0]` is its corpus spec, the rest its namespace specs.
+
+    Args:
+        specs: The corpus spec first, then its namespace specs, which must already be broad to narrow.
+        filenames: Stems of the documents the corpus lists, each parsed as a `code` document.
+    """
     corpus = Corpus(
         name=CODE,
         spec=specs[0],
@@ -548,7 +560,11 @@ def two_corpora_model() -> WorkspaceModel:
 
 
 def _regular_skill(directory: str) -> SkillLocation:
-    """The location of a skill whose directory and ``SKILL.md`` are no links."""
+    """The location of a skill whose directory and `SKILL.md` are no links.
+
+    Args:
+        directory: Root-relative skill directory, such as `.agents/skills/audit`.
+    """
     path = RootRelativePath.parse(directory)
     return SkillLocation(SkillRef(path), resolves_to=path, file_resolves_to=path / 'SKILL.md')
 
@@ -573,8 +589,10 @@ REVIEW_ALIAS: Final[SkillLocation] = SkillLocation(
 
 @pytest.fixture(scope='function')
 def skills_model() -> WorkspaceModel:
-    """No corpus; two agents reading ``.agents/skills``, one of them through the ``.claude/skills`` link, and
-    the three skills above in it."""
+    """No corpus, two agents reading ``.agents/skills``, and the three skills above in it.
+
+    One of the agents reads it through the ``.claude/skills`` link.
+    """
     universal = RootRelativePath.parse('.agents/skills')
     return WorkspaceModel(
         corpora=(),

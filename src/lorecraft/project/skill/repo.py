@@ -160,14 +160,21 @@ class Repository:
     """Discover skills directories and the skills directly inside them, and read a skill."""
 
     def __init__(self, fs: FileSystem) -> None:
-        """Remember the seam; performs no I/O."""
+        """Remember the seam; performs no I/O.
+
+        Args:
+            fs: View of the repository every listing, resolution and read goes through; a disk or a snapshot.
+        """
         self._fs = fs
 
     def resolve_skills_dir(self, skills_dir: RootRelativePath) -> RootRelativePath | None:
         """The real directory a skills directory leads to, following every symlink on the way.
 
+        Args:
+            skills_dir: Skills directory as the layout names it, such as `.agents/skills`; it may be a link.
+
         Returns:
-            The real directory, root-relative, or ``None`` when the repository has no such skills directory:
+            The real directory, root-relative, or `None` when the repository has no such skills directory:
             the path is missing, a link dangles or loops, the target is not a directory, or it lies outside
             the root.
 
@@ -225,7 +232,10 @@ class Repository:
         return tuple(locations)
 
     def get_skill(self, ref: SkillRef) -> Skill:
-        """Read one skill's ``SKILL.md``, through the link its entry may be.
+        """Read one skill's `SKILL.md`, through the link its entry may be.
+
+        Args:
+            ref: Skill to read, as `list_skills` names it; its path is read through the seam.
 
         Raises:
             SkillDecodeError: If the file is not UTF-8.
@@ -240,7 +250,10 @@ class Repository:
         return Skill(ref, text)
 
     def _resolve_entry(self, entry: RootRelativePath) -> RootRelativePath | None:
-        """The real directory a symlinked entry leads to, or ``None`` when no directory under the root is there.
+        """The real directory a symlinked entry leads to, or `None` when no directory under the root is there.
+
+        Args:
+            entry: Symlinked entry directly inside a skills directory.
 
         Raises:
             SkillEntryResolveError: If the operating system refuses the lookup.

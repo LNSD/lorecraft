@@ -64,9 +64,16 @@ class _CorpusFiles:
 
 
 def load_workspace(schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository) -> WorkspaceModel:
-    """Build the snapshot: parse the spec filenames, keep corpus stems whose docs/<corpus>/ is a directory, list
-    the Markdown files directly inside each, build a structure aspect from every spec that has one, and find the
-    agents' skills directories and the skills in them.
+    """Build the workspace model of the snapshot.
+
+    Parse the spec filenames, keep corpus stems whose docs/<corpus>/ is a directory, list the Markdown files
+    directly inside each, build a structure aspect from every spec that has one, and find the agents' skills
+    directories and the skills in them.
+
+    Args:
+        schemas: Repository the specification files are listed and read from.
+        documents: Repository the corpus directories and their Markdown files are listed from.
+        skills: Repository the agents' skills directories are resolved and their skills listed from.
 
     Raises:
         DirListError: If the specification directory or docs/ cannot be listed.
@@ -80,9 +87,9 @@ def load_workspace(schemas: SchemaRepository, documents: DocumentRepository, ski
         InvalidWordCapError: If an outline word cap is below 1.
         RepeatedOutlineSectionError: If an outline names a section twice.
         ForbiddenOutlineSectionError: If a specification forbids a section its outline names.
-        AdjacentAnyRunsError: If an outline places two ``any`` runs side by side.
+        AdjacentAnyRunsError: If an outline places two `any` runs side by side.
         InvalidFrontmatterSchemaError: If a frontmatter schema is rejected by the meta-schema.
-        FrontmatterSchemaIdError: If a schema in a frontmatter schema carries ``$id``.
+        FrontmatterSchemaIdError: If a schema in a frontmatter schema carries `$id`.
         ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
         UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
         DirResolveError: If a skills directory cannot be resolved.
@@ -120,8 +127,11 @@ def load_workspace(schemas: SchemaRepository, documents: DocumentRepository, ski
 def load_model(fs: FileSystem) -> WorkspaceModel:
     """Wire one filesystem view into the three repositories and load the workspace model through them.
 
-    The view decides where the model comes from: a ``DiskFileSystem`` reads the disk as it is at each call,
-    and a ``VirtualFileSystem`` answers from one snapshot, so the model reflects a single moment.
+    The view decides where the model comes from: a `DiskFileSystem` reads the disk as it is at each call,
+    and a `VirtualFileSystem` answers from one snapshot, so the model reflects a single moment.
+
+    Args:
+        fs: View of the repository the model is loaded from, rooted at the workspace root.
 
     Raises:
         DirListError: If the specification directory or docs/ cannot be listed.
@@ -135,9 +145,9 @@ def load_model(fs: FileSystem) -> WorkspaceModel:
         InvalidWordCapError: If an outline word cap is below 1.
         RepeatedOutlineSectionError: If an outline names a section twice.
         ForbiddenOutlineSectionError: If a specification forbids a section its outline names.
-        AdjacentAnyRunsError: If an outline places two ``any`` runs side by side.
+        AdjacentAnyRunsError: If an outline places two `any` runs side by side.
         InvalidFrontmatterSchemaError: If a frontmatter schema is rejected by the meta-schema.
-        FrontmatterSchemaIdError: If a schema in a frontmatter schema carries ``$id``.
+        FrontmatterSchemaIdError: If a schema in a frontmatter schema carries `$id`.
         ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
         UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
         DirResolveError: If a skills directory cannot be resolved.
@@ -155,7 +165,10 @@ def load_model(fs: FileSystem) -> WorkspaceModel:
 def _group_spec_files(spec_paths: list[RootRelativePath]) -> dict[CorpusName, _CorpusFiles]:
     """Parse every file in the specification directory and file it under the corpus its stem names.
 
-    A file whose name does not parse as a specification filename, such as ``README.md``, is left out.
+    A file whose name does not parse as a specification filename, such as `README.md`, is left out.
+
+    Args:
+        spec_paths: Every file listed in the specification directory, in listing order.
     """
     groups: dict[CorpusName, _CorpusFiles] = {}
     for path in spec_paths:
@@ -183,6 +196,12 @@ def _load_corpus(
 ) -> Corpus:
     """Decode the corpus spec and its namespace specs.
 
+    Args:
+        schemas: Repository the structure specifications are read from.
+        corpus_name: Name of the corpus being built, the stem its specification files share.
+        files: Specification files at the corpus stem and at each of its namespace stems.
+        refs: Documents listed in the corpus directory; sorted by filename into the corpus.
+
     Raises:
         StructureSchemaReadError: If a structure specification cannot be read.
         StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
@@ -193,9 +212,9 @@ def _load_corpus(
         InvalidWordCapError: If an outline word cap is below 1.
         RepeatedOutlineSectionError: If an outline names a section twice.
         ForbiddenOutlineSectionError: If a specification forbids a section its outline names.
-        AdjacentAnyRunsError: If an outline places two ``any`` runs side by side.
+        AdjacentAnyRunsError: If an outline places two `any` runs side by side.
         InvalidFrontmatterSchemaError: If a frontmatter schema is rejected by the meta-schema.
-        FrontmatterSchemaIdError: If a schema in a frontmatter schema carries ``$id``.
+        FrontmatterSchemaIdError: If a schema in a frontmatter schema carries `$id`.
         ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
         UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
     """
@@ -218,6 +237,11 @@ def _load_corpus(
 def _load_spec(schemas: SchemaRepository, name: SchemaName, spec_files: list[SpecFile]) -> Spec:
     """Build one spec from the files at its stem, decoding its structure JSON into an aspect.
 
+    Args:
+        schemas: Repository the structure specification is read from.
+        name: Stem the spec sits at: the corpus alone, or the corpus and a namespace.
+        spec_files: Files at that stem; one with no structure file gives a spec with no structure aspect.
+
     Raises:
         StructureSchemaReadError: If the structure specification cannot be read.
         StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
@@ -228,9 +252,9 @@ def _load_spec(schemas: SchemaRepository, name: SchemaName, spec_files: list[Spe
         InvalidWordCapError: If an outline word cap is below 1.
         RepeatedOutlineSectionError: If an outline names a section twice.
         ForbiddenOutlineSectionError: If a specification forbids a section its outline names.
-        AdjacentAnyRunsError: If an outline places two ``any`` runs side by side.
+        AdjacentAnyRunsError: If an outline places two `any` runs side by side.
         InvalidFrontmatterSchemaError: If a frontmatter schema is rejected by the meta-schema.
-        FrontmatterSchemaIdError: If a schema in a frontmatter schema carries ``$id``.
+        FrontmatterSchemaIdError: If a schema in a frontmatter schema carries `$id`.
         ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
         UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
     """
@@ -246,6 +270,10 @@ def _load_spec(schemas: SchemaRepository, name: SchemaName, spec_files: list[Spe
 
 def _list_document_refs(documents: DocumentRepository, corpus_name: CorpusName) -> list[DocumentRef]:
     """The refs of the validly named Markdown files the repository lists in the corpus; the rest are left out.
+
+    Args:
+        documents: Repository the corpus directory is listed from.
+        corpus_name: Corpus whose directory is listed.
 
     Raises:
         CorpusListError: If the corpus directory cannot be listed.
@@ -265,6 +293,9 @@ def _load_skills_dirs(skills: SkillRepository) -> tuple[SkillsDir, ...]:
 
     Sorted by agent then path, so the model does not depend on the order the agents are registered in.
 
+    Args:
+        skills: Repository each declared skills directory is resolved through.
+
     Raises:
         DirResolveError: If a skills directory cannot be resolved.
     """
@@ -282,10 +313,14 @@ def _load_skills_dirs(skills: SkillRepository) -> tuple[SkillsDir, ...]:
 
 
 def _list_skill_locations(skills: SkillRepository, skills_dirs: tuple[SkillsDir, ...]) -> tuple[SkillLocation, ...]:
-    """The location of every skill in the real directories behind ``skills_dirs``, each once, sorted by directory.
+    """The location of every skill in the real directories behind `skills_dirs`, each once, sorted by directory.
 
     Two agents reading one real directory add no second skill: the directory is listed once. The locations are
     sorted as a whole, since one skills directory may sit inside another.
+
+    Args:
+        skills: Repository each real directory is listed through.
+        skills_dirs: Skills directories the agents read; only the real directory each leads to is listed.
 
     Raises:
         SkillsDirListError: If a skills directory cannot be listed.

@@ -23,6 +23,9 @@ class AspectFilename:
     def parse(cls, filename: str) -> Self:
         """Parse the entire filename stem as the name.
 
+        Args:
+            filename: Document filename without its extension; kept whole, hyphens and all.
+
         Raises:
             EmptyAspectNameError: If the stem is empty.
             InvalidAspectNameCharacterError: If a character of the stem is not lowercase with valid separators.
@@ -32,4 +35,5 @@ class AspectFilename:
         return cls(name=AspectName.parse(filename))
 
     def __str__(self) -> str:
+        """The filename stem, without its extension."""
         return str(self.name)

@@ -84,7 +84,10 @@ class RootInspectError(Error):
 
 
 def find_root(start: Path) -> Path:
-    """The first of ``start`` and its parents holding ``docs/__meta__/`` as a directory, resolved.
+    """The first of `start` and its parents holding `docs/__meta__/` as a directory, resolved.
+
+    Args:
+        start: Directory the search begins at, then climbs from. A relative path is resolved first.
 
     Raises:
         RootNotFoundError: If no directory from ``start`` upward holds ``docs/__meta__/``.
@@ -107,6 +110,9 @@ def find_root(start: Path) -> Path:
 
 def resolve_root(path: Path) -> Path:
     """Resolve an explicit root (symlinks followed) and require it to be a directory.
+
+    Args:
+        path: The root as given, such as the `--root` option. Symlinks are followed; it need not be absolute.
 
     Raises:
         InvalidRootError: If the resolved path is not an existing directory.

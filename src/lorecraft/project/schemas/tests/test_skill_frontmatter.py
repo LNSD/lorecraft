@@ -1,6 +1,8 @@
-"""The skill frontmatter's string fields: each value object keeps valid text as written and refuses every rule it
-checks, and as a pydantic type parses a field, refuses an invalid one as a validation error, serializes it back and
-renders its rules as JSON Schema."""
+"""The skill frontmatter's string fields.
+
+Each value object keeps valid text as written and refuses every rule it checks, and as a pydantic type parses a
+field, refuses an invalid one as a validation error, serializes it back and renders its rules as JSON Schema.
+"""
 
 import pytest
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError

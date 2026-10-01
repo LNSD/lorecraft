@@ -72,8 +72,11 @@ class Anchor:
         """The anchor GitHub derives from a heading's rendered text, before a repeated heading is numbered.
 
         The rule is github-slugger's, which GitHub uses: lowercase the text, turn each space into a hyphen, and
-        drop every character an anchor does not hold. Spaces are not collapsed, so ``C++ & Rust`` is ``c--rust``:
-        the dropped ``&`` leaves the spaces on either side of it.
+        drop every character an anchor does not hold. Spaces are not collapsed, so `C++ & Rust` is `c--rust`:
+        the dropped `&` leaves the spaces on either side of it.
+
+        Args:
+            text: The heading's rendered text: what it shows, not its Markdown source.
         """
         kept: list[str] = []
         for character in text.lower().replace(' ', '-'):
@@ -108,11 +111,16 @@ class Anchor:
         return cls(candidate)
 
     def __str__(self) -> str:
+        """The anchor without the leading `#`, as a link fragment is compared with it."""
         return self.value
 
 
 def _is_anchor_character(character: str) -> bool:
-    """Whether an anchor holds the character: the one statement of the format ``Anchor`` documents."""
+    """Whether an anchor holds the character: the one statement of the format `Anchor` documents.
+
+    Args:
+        character: A single character, tested on its own.
+    """
     # Lowercase is tested one character at a time rather than as `value == value.lower()`: the only rule of
     # `str.lower` that depends on its neighbours turns a capital sigma final, and a capital sigma fails here on its
     # own. Lowering a character never yields one that a second lowering changes, so a lowered heading or fragment

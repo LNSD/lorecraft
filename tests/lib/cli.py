@@ -14,10 +14,20 @@ _ALIAS_COMMAND: Final[tuple[str, ...]] = (str(Path(sys.executable).parent / _ALI
 
 
 def run_cli(*arguments: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
-    """Run the installed CLI in a subprocess and capture what it wrote."""
+    """Run the installed CLI in a subprocess and capture what it wrote.
+
+    Args:
+        arguments: Command-line arguments passed to `lorecraft`, after the program name.
+        cwd: Directory the process starts in. The test's own working directory when omitted.
+    """
     return subprocess.run([*_COMMAND, *arguments], capture_output=True, text=True, timeout=30, cwd=cwd)
 
 
 def run_alias(*arguments: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
-    """Run the installed ``lc`` alias in a subprocess and capture what it wrote."""
+    """Run the installed `lc` alias in a subprocess and capture what it wrote.
+
+    Args:
+        arguments: Command-line arguments passed to `lc`, after the program name.
+        cwd: Directory the process starts in. The test's own working directory when omitted.
+    """
     return subprocess.run([*_ALIAS_COMMAND, *arguments], capture_output=True, text=True, timeout=30, cwd=cwd)

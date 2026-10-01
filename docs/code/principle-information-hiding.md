@@ -91,10 +91,10 @@ class SectionIndex:
     """Maps a line of a document to the section containing it."""
 
     def insert(self, first_line: int, heading: str) -> None:
-        """Record that the section ``heading`` begins at ``first_line``."""
+        """Record that the section `heading` begins at `first_line`."""
 
     def covering(self, line_number: int) -> str | None:
-        """Return the heading of the section containing ``line_number``, or None."""
+        """Return the heading of the section containing `line_number`, or None."""
 ```
 
 3. **Depend on the published surface, not on someone else's underscore**

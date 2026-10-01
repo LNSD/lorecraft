@@ -13,19 +13,31 @@ from ..skill_metadata import ListedFile, ListedFiles, ListedFileState, listed_by
 
 
 def _mapping(text: str) -> Frontmatter:
-    """Parse a frontmatter literal that the case writes as a mapping."""
+    """Parse a frontmatter literal that the case writes as a mapping.
+
+    Args:
+        text: The document text, `---` delimiters included.
+    """
     frontmatter = parse_frontmatter(text)
     assert isinstance(frontmatter, Frontmatter), 'the case writes a frontmatter that decodes to a mapping'
     return frontmatter
 
 
 def _in_scope(written: str) -> ListedFile:
-    """A listed path the snapshot read."""
+    """A listed path the snapshot read.
+
+    Args:
+        written: The path as the subkey writes it.
+    """
     return ListedFile(written=written, state=ListedFileState.IN_SCOPE)
 
 
 def _outside_scope(written: str) -> ListedFile:
-    """A listed path the snapshot never read."""
+    """A listed path the snapshot never read.
+
+    Args:
+        written: The path as the subkey writes it.
+    """
     return ListedFile(written=written, state=ListedFileState.OUTSIDE_SCOPE)
 
 

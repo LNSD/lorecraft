@@ -43,12 +43,16 @@ type ChangeSet = frozenset[Change]
 def diff(old: Snapshot, new: Snapshot) -> ChangeSet:
     """Compare two snapshots entry by entry. Pure; empty when they are equal.
 
-    Every path ``Snapshot.entries`` reports for either snapshot is compared, so a directory that gains a
-    child shows the child ADDED, not the directory MODIFIED. A path only in ``new`` is ADDED; only in
-    ``old`` is DELETED; in both with a different kind is DELETED (the entry the model knew is gone, and one
-    ``Change`` per path keeps the stronger signal); in both with different bytes, or as a symlink with a
+    Every path `Snapshot.entries` reports for either snapshot is compared, so a directory that gains a
+    child shows the child ADDED, not the directory MODIFIED. A path only in `new` is ADDED; only in
+    `old` is DELETED; in both with a different kind is DELETED (the entry the model knew is gone, and one
+    `Change` per path keeps the stronger signal); in both with different bytes, or as a symlink with a
     different target, is MODIFIED; anything else is no change, which is how a touch, a write-then-rename or a
-    three-event save collapses to one ``Change`` or none.
+    three-event save collapses to one `Change` or none.
+
+    Args:
+        old: The earlier snapshot, the state the model last knew.
+        new: The later snapshot; paths only it records are ADDED.
     """
     old_entries = old.entries()
     new_entries = new.entries()
@@ -71,7 +75,11 @@ def diff(old: Snapshot, new: Snapshot) -> ChangeSet:
 
 
 def _file_bytes(snapshot: Snapshot) -> dict[RootRelativePath, bytes]:
-    """The snapshot's file bytes keyed by path."""
+    """The snapshot's file bytes keyed by path.
+
+    Args:
+        snapshot: The snapshot whose recorded files are indexed; only `files`, not listings, are read.
+    """
     found: dict[RootRelativePath, bytes] = {}
     for file in snapshot.files:
         found[file.path] = file.data
@@ -79,7 +87,11 @@ def _file_bytes(snapshot: Snapshot) -> dict[RootRelativePath, bytes]:
 
 
 def _link_targets(snapshot: Snapshot) -> dict[RootRelativePath, PurePosixPath]:
-    """The snapshot's symlink targets keyed by the link's path."""
+    """The snapshot's symlink targets keyed by the link's path.
+
+    Args:
+        snapshot: The snapshot whose recorded links are indexed; targets are as recorded, not resolved.
+    """
     found: dict[RootRelativePath, PurePosixPath] = {}
     for link in snapshot.links:
         found[link.path] = link.target

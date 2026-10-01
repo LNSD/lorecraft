@@ -411,7 +411,9 @@ class FrontmatterSchema:
     schema: dict[str, object]
 
     def __post_init__(self) -> None:
-        """Refuse a schema that is not a well-formed Draft 2020-12 schema, that leaves it for another resource or
+        """Refuse a schema this aspect cannot hold a document's frontmatter to.
+
+        That is a schema that is not a well-formed Draft 2020-12 schema, that leaves it for another resource or
         dialect anywhere inside it, or that does not describe an object.
 
         Raises:
@@ -443,10 +445,13 @@ class FrontmatterSchema:
     def validate(self, data: Mapping[object, object]) -> tuple[FrontmatterProblem, ...]:
         """Hold one decoded frontmatter to the schema. Pure: raises nothing.
 
-        The messages are ``jsonschema``'s own, unlike ``SkillFrontmatterSchema``'s: the schema is the
-        repository's, so the validator's wording names constraints its authors wrote. Two errors ``jsonschema``
+        The messages are `jsonschema`'s own, unlike `SkillFrontmatterSchema`'s: the schema is the
+        repository's, so the validator's wording names constraints its authors wrote. Two errors `jsonschema`
         reports on the whole block are split instead, in its own wording: an absent required field, and each
         field the schema does not allow, get a problem of their own, on that field.
+
+        Args:
+            data: The decoded frontmatter mapping. Keys that are not strings are reported, not rejected.
 
         Returns:
             One problem per field at fault, ordered by the field and then the message, or ``()`` when the
@@ -470,7 +475,12 @@ class FrontmatterSchema:
 
 
 def _frontmatter_problems(error: SchemaValidationError, data: Mapping[object, object]) -> list[FrontmatterProblem]:
-    """The problems one ``jsonschema`` error in ``data`` reports, each on the top-level field it concerns."""
+    """The problems one `jsonschema` error in `data` reports, each on the top-level field it concerns.
+
+    Args:
+        error: One error from validating `data` against the schema; its path and validator pick the problems.
+        data: The frontmatter that was validated, read to tell which required fields are absent.
+    """
     if error.path:
         # Anything wrong below the top-level field, such as a key its value lacks, is that field's value at fault.
         field = str(error.path[0])
@@ -508,7 +518,12 @@ def _frontmatter_problems(error: SchemaValidationError, data: Mapping[object, ob
 
 
 def _additional_keys(schema: Mapping[str, object], instance: Mapping[object, object]) -> list[object]:
-    """The keys of ``instance`` that neither ``properties`` nor ``patternProperties`` of ``schema`` names."""
+    """The keys of `instance` that neither `properties` nor `patternProperties` of `schema` names.
+
+    Args:
+        schema: The object schema whose `additionalProperties` rule fired.
+        instance: The mapping that was validated; its keys are checked in order.
+    """
     # The meta-schema proved both are objects when the schema was built; absent, they name nothing.
     properties = schema.get('properties')
     named = properties if isinstance(properties, Mapping) else {}
@@ -527,9 +542,12 @@ def _additional_keys(schema: Mapping[str, object], instance: Mapping[object, obj
 def _schemas_within(schema: Mapping[str, object]) -> Iterator[Mapping[str, object]]:
     """The schema itself, then every object subschema inside it, at any depth.
 
-    Only the places Draft 2020-12 reads a schema from are walked, such as ``properties`` or ``items``, so a value
-    under ``enum`` or ``const`` that happens to hold ``$id`` is data, not a schema, and is not visited. A boolean
+    Only the places Draft 2020-12 reads a schema from are walked, such as `properties` or `items`, so a value
+    under `enum` or `const` that happens to hold `$id` is data, not a schema, and is not visited. A boolean
     subschema holds no keyword, so it is skipped.
+
+    Args:
+        schema: The schema to walk; it is yielded first, unchanged.
     """
     yield schema
     for subschema in DRAFT202012.subresources_of(schema):
@@ -575,8 +593,10 @@ class StructureAspect:
     authority: str = field(init=False)
 
     def __post_init__(self) -> None:
-        """Derive the authority from the path, then refuse rules that check nothing, that no count, cap or budget
-        satisfies, or that contradict themselves.
+        """Derive the authority from the path, then refuse rules that are not usable.
+
+        A rule is not usable when it checks nothing, when no count, cap or budget satisfies it, or when it
+        contradicts itself.
 
         A frontmatter schema is checked when it is built, before the aspect is.
 
@@ -700,14 +720,22 @@ class StructureAspect:
 
 
 def _title_rule(title: StructureFileTitle | None) -> TitleRule | None:
-    """The title rule a file's ``title`` field states, or None when the file states none."""
+    """The title rule a file's `title` field states, or None when the file states none.
+
+    Args:
+        title: The file's `title` field, as read; `None` when the file leaves it out.
+    """
     if title is None:
         return None
     return TitleRule(count=title.count, first=title.first)
 
 
 def _frontmatter_schema(path: RootRelativePath, schema: dict[str, JsonValue] | None) -> FrontmatterSchema | None:
-    """The frontmatter schema a file's ``frontmatter`` key states, or None when the file states none.
+    """The frontmatter schema a file's `frontmatter` key states, or None when the file states none.
+
+    Args:
+        path: Root-relative path of the structure file, carried into the schema and any error it raises.
+        schema: The file's `frontmatter` JSON Schema, as read; `None` when the file leaves it out.
 
     Raises:
         InvalidFrontmatterSchemaError: If the schema is rejected by the meta-schema.
@@ -723,7 +751,11 @@ def _frontmatter_schema(path: RootRelativePath, schema: dict[str, JsonValue] | N
 
 
 def _describe_entry(entry: OutlineEntry) -> str:
-    """How an outline entry is named in a rejection: its section name, or ``any`` for a run."""
+    """How an outline entry is named in a rejection: its section name, or `any` for a run.
+
+    Args:
+        entry: The outline entry being named.
+    """
     match entry:
         case SectionEntry():
             return f'section {entry.name!r}'
@@ -734,7 +766,11 @@ def _describe_entry(entry: OutlineEntry) -> str:
 
 
 def _problems(error: ValidationError) -> tuple[str, ...]:
-    """Every problem pydantic found in one file, each as ``<field path>: <message>``."""
+    """Every problem pydantic found in one file, each as `<field path>: <message>`.
+
+    Args:
+        error: The validation error raised for one structure file; a problem with no location is the bare message.
+    """
     problems: list[str] = []
     for detail in error.errors(include_url=False):
         location = '.'.join(str(part) for part in detail['loc'])

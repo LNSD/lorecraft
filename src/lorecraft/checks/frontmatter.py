@@ -55,15 +55,17 @@ def validate_frontmatter(
 ) -> FrontmatterCheckResult:
     """Check one document's frontmatter against the frontmatter schemas that govern it. Pure: raises nothing.
 
-    A ``name`` that differs from the filename is ``frontmatter.name-matches-filename``. A field a schema rejects
-    is ``<corpus>.<field>``, a field it does not allow is ``<corpus>.unknown-field``, and a problem that concerns
-    no field is ``<corpus>.frontmatter``. A top-level key written again is ``frontmatter.duplicate-key``, on each
+    A `name` that differs from the filename is `frontmatter.name-matches-filename`. A field a schema rejects
+    is `<corpus>.<field>`, a field it does not allow is `<corpus>.unknown-field`, and a problem that concerns
+    no field is `<corpus>.frontmatter`. A top-level key written again is `frontmatter.duplicate-key`, on each
     later occurrence.
 
     Args:
         schemas: Applied in order; each violation names the structure specification the schema is written in.
             Empty means the document is ungoverned, which yields no violations.
-        filename: The document's filename, which the frontmatter ``name`` must equal.
+        frontmatter: The document's frontmatter node; a missing, unparseable or non-mapping block is itself the
+            only violation.
+        filename: The document's filename, which the frontmatter `name` must equal.
         corpus: The document's corpus, which namespaces the rule of every schema violation.
     """
     # The skill check has no such guard: every skill is held to the Agent Skills specification, while a document
@@ -121,5 +123,11 @@ def validate_frontmatter(
 
 
 def _one_violation(rule: str, message: str, line: LineNumber) -> FrontmatterCheckResult:
-    """The result of a document whose frontmatter is unusable: one violation, on the line it is found at."""
+    """The result of a document whose frontmatter is unusable: one violation, on the line it is found at.
+
+    Args:
+        rule: Identifier the violation is reported under.
+        message: Explanation printed with the violation.
+        line: Line the violation is reported on.
+    """
     return FrontmatterCheckResult(violations=(Violation(line=line, rule=rule, message=message),))

@@ -16,7 +16,13 @@ from lorecraft.vfs import take_snapshot
 
 
 def _write(root: Path, relative: str, data: bytes = b'') -> Path:
-    """Write one file under the root, creating its parents, and return its path."""
+    """Write one file under the root, creating its parents, and return its path.
+
+    Args:
+        root: Directory the file is written under, as the repository root.
+        relative: Path of the file below `root`, with `/` separators.
+        data: Bytes written to the file, so a test can write content that is not UTF-8. Empty by default.
+    """
     path = root / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
@@ -24,7 +30,11 @@ def _write(root: Path, relative: str, data: bytes = b'') -> Path:
 
 
 def _run_every_skill(database: Database) -> SkillCheckRun:
-    """Check every skill the database's model lists."""
+    """Check every skill the database's model lists.
+
+    Args:
+        database: Database over the snapshot whose skills are checked.
+    """
     return run_skills(database, database.model().skills())
 
 
@@ -32,10 +42,13 @@ def _run_every_skill(database: Database) -> SkillCheckRun:
 def skills_tree(tmp_path: Path) -> Path:
     """A root whose skills produce every kind of report.
 
-    Under ``.agents/skills/``: ``clean`` conforms; ``misnamed`` names another skill; ``undescribed`` has no
-    description; ``bare`` has no frontmatter; ``latin`` is not UTF-8; ``extended`` uses a field outside the
-    specification; and ``shipped`` is a link to ``skills/shipped/``, outside the skills directories, which
+    Under `.agents/skills/`: `clean` conforms; `misnamed` names another skill; `undescribed` has no
+    description; `bare` has no frontmatter; `latin` is not UTF-8; `extended` uses a field outside the
+    specification; and `shipped` is a link to `skills/shipped/`, outside the skills directories, which
     conforms.
+
+    Args:
+        tmp_path: Directory the tree is written into, as the repository root; returned.
     """
     skills = '.agents/skills'
     _write(tmp_path, f'{skills}/clean/SKILL.md', b'---\nname: clean\ndescription: A clean skill\n---\n')
@@ -337,10 +350,11 @@ class TestRunSkills:
 
 
 def _write_skill(root: Path, metadata: str) -> None:
-    """Write the skill ``.agents/skills/x/``, a plain directory, with its ``metadata`` block on line 4.
+    """Write the skill `.agents/skills/x/`, a plain directory, with its `metadata` block on line 4.
 
     Args:
-        metadata: The lines of the ``metadata`` mapping, each indented and ending in a newline.
+        root: Directory the skill is written under, as the repository root.
+        metadata: The lines of the `metadata` mapping, each indented and ending in a newline.
     """
     _write(
         root, '.agents/skills/x/SKILL.md', f'---\nname: x\ndescription: A skill\nmetadata:\n{metadata}---\n'.encode()

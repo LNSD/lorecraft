@@ -102,9 +102,12 @@ class Snapshot:
     def of_files(cls, files: Mapping[RootRelativePath, bytes]) -> Self:
         """Build a snapshot from file bytes alone, deriving every DIRECTORY entry and listing.
 
-        Every directory on the way to a file is listed, the root ``.`` included. No path may sit under
+        Every directory on the way to a file is listed, the root `.` included. No path may sit under
         another path of the mapping. For tests and, later, the overlay; a scan uses the constructor because
         it also sees symlinks and other entries.
+
+        Args:
+            files: File bytes keyed by root-relative path; kept as given, and a directory is never a key.
         """
         listed: dict[RootRelativePath, set[DirEntry]] = {}
         for path in files:
@@ -155,7 +158,11 @@ class VirtualFileSystem(FileSystem):
     """
 
     def __init__(self, snapshot: Snapshot) -> None:
-        """Index the snapshot's tuples into private dicts; performs no I/O."""
+        """Index the snapshot's tuples into private dicts; performs no I/O.
+
+        Args:
+            snapshot: The recorded state every answer comes from; never changed, and never re-read from disk.
+        """
         self._listings: dict[RootRelativePath, tuple[DirEntry, ...]] = {}
         for listing in snapshot.listings:
             self._listings[listing.path] = listing.entries
@@ -179,13 +186,16 @@ class VirtualFileSystem(FileSystem):
             self._directories.update(path.parents)
 
     def list_dir(self, path: RootRelativePath) -> tuple[DirEntry, ...]:
-        """The recorded listing of the directory ``path`` leads to; see ``FileSystem.list_dir``.
+        """The recorded listing of the directory `path` leads to; see `FileSystem.list_dir`.
 
-        A recorded link on the way, or at it, is followed, as ``resolve_dir`` follows it, so a linked directory
+        A recorded link on the way, or at it, is followed, as `resolve_dir` follows it, so a linked directory
         lists as the directory it leads to when the scan listed that one.
 
+        Args:
+            path: The root-relative directory to list; only what the snapshot recorded can answer.
+
         Returns:
-            The entries in name order, or ``()`` for a missing, non-directory, unentered or out-of-scope
+            The entries in name order, or `()` for a missing, non-directory, unentered or out-of-scope
             path, and for a link the snapshot cannot follow to a listed directory.
         """
         directory = self.resolve_dir(path)
@@ -194,15 +204,18 @@ class VirtualFileSystem(FileSystem):
         return self._listings.get(directory, ())
 
     def read_text(self, path: RootRelativePath) -> str:
-        """Decode the recorded bytes of the file ``path`` leads to; see ``FileSystem.read_text``.
+        """Decode the recorded bytes of the file `path` leads to; see `FileSystem.read_text`.
 
-        A recorded link on the way to the file, or at it, is followed, as ``resolve_dir`` follows one to a
+        A recorded link on the way to the file, or at it, is followed, as `resolve_dir` follows one to a
         directory. A link the scan did not follow to its file has no bytes here and reads as a missing file,
         as an OTHER entry does.
 
+        Args:
+            path: The root-relative file to read; it must be a file whose bytes the snapshot recorded.
+
         Raises:
             TextDecodeError: If the bytes are not UTF-8.
-            UnrecordedFileError: If ``path`` leads to no regular file in the snapshot.
+            UnrecordedFileError: If `path` leads to no regular file in the snapshot.
         """
         real_path = self._resolve(path)
         if real_path is None:
@@ -213,14 +226,17 @@ class VirtualFileSystem(FileSystem):
         return decode_text(path, data)
 
     def entry_kind(self, path: RootRelativePath) -> EntryKind | None:
-        """What the recorded entry at ``path`` itself is; see ``FileSystem.entry_kind``.
+        """What the recorded entry at `path` itself is; see `FileSystem.entry_kind`.
 
-        A recorded link on the way to ``path`` is followed, as ``resolve_dir`` follows it; a recorded link at
-        ``path`` is SYMLINK.
+        A recorded link on the way to `path` is followed, as `resolve_dir` follows it; a recorded link at
+        `path` is SYMLINK.
+
+        Args:
+            path: The root-relative entry to look up; the root itself is a DIRECTORY.
 
         Returns:
             The kind the parent's listing gives the entry, or, for an entry the snapshot recorded outside a
-            listing of its parent, the kind ``Snapshot.entries`` gives it. ``None`` for a path the snapshot
+            listing of its parent, the kind `Snapshot.entries` gives it. `None` for a path the snapshot
             recorded nothing at, and where the parent leads to no directory it knows of.
         """
         if path == ROOT:
@@ -244,13 +260,16 @@ class VirtualFileSystem(FileSystem):
         return None
 
     def resolve_dir(self, path: RootRelativePath) -> RootRelativePath | None:
-        """Follow the recorded links in ``path`` and return the real directory it leads to; see ``FileSystem``.
+        """Follow the recorded links in `path` and return the real directory it leads to; see `FileSystem`.
+
+        Args:
+            path: The root-relative path to resolve; only links the snapshot recorded are followed.
 
         Returns:
-            The real directory, root-relative, or ``None`` where the disk answers ``None`` (missing, a
+            The real directory, root-relative, or `None` where the disk answers `None` (missing, a
             dangling or looping link, a file on the way or at the end) and also wherever the chain leaves
             what the snapshot recorded: above the root, an absolute target (one outside the root, since
-            ``take_snapshot`` spells every target under it relative), or a directory outside the scope.
+            `take_snapshot` spells every target under it relative), or a directory outside the scope.
         """
         real_path = self._resolve(path)
         if real_path is None or real_path in self._files:
@@ -258,10 +277,13 @@ class VirtualFileSystem(FileSystem):
         return real_path
 
     def resolve_file(self, path: RootRelativePath) -> RootRelativePath | None:
-        """Follow the recorded links in ``path`` and return the recorded file it leads to; see ``FileSystem``.
+        """Follow the recorded links in `path` and return the recorded file it leads to; see `FileSystem`.
+
+        Args:
+            path: The root-relative path to resolve; only links the snapshot recorded are followed.
 
         Returns:
-            The real file, root-relative, or ``None`` where ``resolve_dir`` lists, and also for a directory and
+            The real file, root-relative, or `None` where `resolve_dir` lists, and also for a directory and
             for a file whose bytes the snapshot did not record, such as one a link the scan did not follow
             leads to.
         """
@@ -271,16 +293,19 @@ class VirtualFileSystem(FileSystem):
         return real_path
 
     def is_listed(self, path: RootRelativePath) -> bool:
-        """Whether the scan listed the directory ``path`` leads to, every recorded link on the way followed.
+        """Whether the scan listed the directory `path` leads to, every recorded link on the way followed.
 
-        Only a view over a snapshot can answer it, so ``FileSystem`` does not declare it: the disk has no scope.
+        Only a view over a snapshot can answer it, so `FileSystem` does not declare it: the disk has no scope.
         A listed directory is one whose every entry the snapshot holds, so a name it does not list is not there;
         under a directory the scan did not list, the snapshot cannot tell.
+
+        Args:
+            path: The root-relative directory to ask about; a link in it is followed as `resolve_dir` does.
 
         Returns:
             True for a directory the snapshot holds a listing of, an empty one included. False for a directory the
             scan did not enter, such as one beyond a scan root's depth or an ancestor of a scan root, and wherever
-            ``resolve_dir`` returns ``None``.
+            `resolve_dir` returns `None`.
         """
         directory = self.resolve_dir(path)
         if directory is None:
@@ -288,15 +313,18 @@ class VirtualFileSystem(FileSystem):
         return directory in self._listings
 
     def _resolve(self, path: RootRelativePath) -> RootRelativePath | None:
-        """Follow the recorded links in ``path`` and return the real directory or recorded file it leads to.
+        """Follow the recorded links in `path` and return the real directory or recorded file it leads to.
 
         The walk goes one component at a time from the root, as the kernel does: a recorded link splices
-        its target into the components still to walk, ``..`` steps up from the real directory reached so
+        its target into the components still to walk, `..` steps up from the real directory reached so
         far, and any other component must be a directory the snapshot knows of, or, as the last one, a file
         it recorded.
 
+        Args:
+            path: The root-relative path to walk, spelled as given; links in it are followed, `..` is not present.
+
         Returns:
-            The real path, root-relative, or ``None`` when the snapshot holds nothing there; ``resolve_dir``
+            The real path, root-relative, or `None` when the snapshot holds nothing there; `resolve_dir`
             lists the cases.
         """
         # ``path`` holds no ``..`` (its type guarantees it), but a spliced link target may, so the walk
@@ -327,10 +355,13 @@ class VirtualFileSystem(FileSystem):
         return resolved
 
     def _is_directory(self, path: RootRelativePath) -> bool:
-        """True when the snapshot knows ``path`` is a real directory.
+        """True when the snapshot knows `path` is a real directory.
 
         Known means listed, an ancestor of something recorded, or a DIRECTORY entry of a listed parent (a
         directory the scan did not enter).
+
+        Args:
+            path: A root-relative path already walked to a real location; a link is not followed here.
         """
         if path in self._directories:
             return True

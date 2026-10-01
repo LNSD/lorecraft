@@ -1,5 +1,7 @@
-"""A document's parse tree: the frontmatter node, the headings and their anchors, the links, and the line positions
-every check reports against.
+"""A document's parse tree.
+
+It holds the frontmatter node, the headings and their anchors, the links, and the line positions every check
+reports against.
 
 Beside it, ``count_tokens``: what a document's raw text costs an agent, counted without parsing it.
 """
