@@ -237,3 +237,15 @@ class TestDatabase:
 
         #: Then
         assert exc_info.value.ref == REVIEW, 'the error names the skill that could not be decoded'
+
+    def test_skill_frontmatter_called_twice_returns_the_first_answer(self) -> None:
+        #: Given
+        database = Database(_skill_snapshot(b'---\nname: review\n---\n'))
+        first = database.skill_frontmatter(REVIEW)
+
+        #: When
+        second = database.skill_frontmatter(REVIEW)
+
+        #: Then
+        assert isinstance(first, Frontmatter), 'the skill bytes decode into a frontmatter node'
+        assert second is first, 'a skill frontmatter is decoded once per database, then shared by every check'
