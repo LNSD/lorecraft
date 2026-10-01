@@ -1,6 +1,6 @@
 """The snapshot value and the virtual view over hand-built snapshots.
 
-Nothing here touches the disk: every snapshot is built with ``Snapshot.of_files`` or its constructor, so
+Nothing here touches the disk: every snapshot is built with ``Snapshot.from_files`` or its constructor, so
 the SYMLINK and OTHER entries a scan would record are written out by hand. The scan itself is covered in
 ``tests/it/test_filesystem.py``.
 """
@@ -108,8 +108,8 @@ def _refused_chain_snapshot() -> Snapshot:
 
 
 @pytest.mark.unit
-class TestSnapshotOfFiles:
-    def test_of_files_with_nested_files_derives_every_listing_and_directory_entry(self) -> None:
+class TestSnapshotFromFiles:
+    def test_from_files_with_nested_files_derives_every_listing_and_directory_entry(self) -> None:
         #: Given
         files = {
             RootRelativePath.parse('docs/code/b.md'): b'b',
@@ -118,7 +118,7 @@ class TestSnapshotOfFiles:
         }
 
         #: When
-        snapshot = Snapshot.of_files(files)
+        snapshot = Snapshot.from_files(files)
 
         #: Then
         assert snapshot.listings == (
@@ -133,12 +133,12 @@ class TestSnapshotOfFiles:
             ),
         ), 'every directory on the way to a file is listed, root included, entries sorted by name'
 
-    def test_of_files_with_unsorted_paths_records_files_sorted_by_path(self) -> None:
+    def test_from_files_with_unsorted_paths_records_files_sorted_by_path(self) -> None:
         #: Given
         files = {RootRelativePath.parse('docs/b.md'): b'b', RootRelativePath.parse('docs/a.md'): b'a'}
 
         #: When
-        snapshot = Snapshot.of_files(files)
+        snapshot = Snapshot.from_files(files)
 
         #: Then
         assert snapshot.files == (
@@ -146,22 +146,22 @@ class TestSnapshotOfFiles:
             FileBytes(RootRelativePath.parse('docs/b.md'), b'b'),
         ), 'file records are sorted by path whatever the mapping order'
 
-    def test_of_files_with_no_files_returns_an_empty_snapshot(self) -> None:
+    def test_from_files_with_no_files_returns_an_empty_snapshot(self) -> None:
         #: Given
         files: dict[RootRelativePath, bytes] = {}
 
         #: When
-        snapshot = Snapshot.of_files(files)
+        snapshot = Snapshot.from_files(files)
 
         #: Then
         assert snapshot == Snapshot(listings=(), files=(), links=()), 'no files is no listing, no bytes, no link'
 
-    def test_of_files_with_files_records_an_empty_scope(self) -> None:
+    def test_from_files_with_files_records_an_empty_scope(self) -> None:
         #: Given
         files = {RootRelativePath.parse('docs/a.md'): b'a'}
 
         #: When
-        snapshot = Snapshot.of_files(files)
+        snapshot = Snapshot.from_files(files)
 
         #: Then
         assert snapshot.scope == (), 'nothing was scanned, so no scan root is recorded, not even one for docs/'
@@ -171,8 +171,8 @@ class TestSnapshotOfFiles:
 class TestSnapshotEquality:
     def test_equal_snapshots_built_twice_compare_equal(self) -> None:
         #: Given
-        first = Snapshot.of_files({RootRelativePath.parse('docs/a.md'): b'a'})
-        second = Snapshot.of_files({RootRelativePath.parse('docs/a.md'): b'a'})
+        first = Snapshot.from_files({RootRelativePath.parse('docs/a.md'): b'a'})
+        second = Snapshot.from_files({RootRelativePath.parse('docs/a.md'): b'a'})
 
         #: When
         equal = first == second
@@ -182,8 +182,8 @@ class TestSnapshotEquality:
 
     def test_equal_snapshots_built_twice_hash_equal(self) -> None:
         #: Given
-        first = Snapshot.of_files({RootRelativePath.parse('docs/a.md'): b'a'})
-        second = Snapshot.of_files({RootRelativePath.parse('docs/a.md'): b'a'})
+        first = Snapshot.from_files({RootRelativePath.parse('docs/a.md'): b'a'})
+        second = Snapshot.from_files({RootRelativePath.parse('docs/a.md'): b'a'})
 
         #: When
         distinct = {first, second}
@@ -193,8 +193,8 @@ class TestSnapshotEquality:
 
     def test_snapshots_with_different_bytes_compare_unequal(self) -> None:
         #: Given
-        before = Snapshot.of_files({RootRelativePath.parse('docs/a.md'): b'a'})
-        after = Snapshot.of_files({RootRelativePath.parse('docs/a.md'): b'b'})
+        before = Snapshot.from_files({RootRelativePath.parse('docs/a.md'): b'a'})
+        after = Snapshot.from_files({RootRelativePath.parse('docs/a.md'): b'b'})
 
         #: When
         equal = before == after
@@ -246,7 +246,7 @@ class TestSnapshotEntries:
 
     def test_entries_of_a_snapshot_listing_the_root_leaves_the_root_out(self) -> None:
         #: Given
-        snapshot = Snapshot.of_files({RootRelativePath.parse('a.md'): b'a'})
+        snapshot = Snapshot.from_files({RootRelativePath.parse('a.md'): b'a'})
 
         #: When
         entries = snapshot.entries()
@@ -298,7 +298,7 @@ class TestVirtualFileSystemListDir:
     def test_list_dir_with_a_listed_directory_returns_its_entries_sorted_by_name(self) -> None:
         #: Given
         virtual = VirtualFileSystem(
-            Snapshot.of_files({RootRelativePath.parse('docs/b.md'): b'', RootRelativePath.parse('docs/a.md'): b''})
+            Snapshot.from_files({RootRelativePath.parse('docs/b.md'): b'', RootRelativePath.parse('docs/a.md'): b''})
         )
 
         #: When
@@ -428,7 +428,7 @@ class TestVirtualFileSystemListDir:
 class TestVirtualFileSystemReadText:
     def test_read_text_with_a_utf8_file_returns_its_text(self) -> None:
         #: Given
-        virtual = VirtualFileSystem(Snapshot.of_files({RootRelativePath.parse('docs/guide.md'): '# Guía\n'.encode()}))
+        virtual = VirtualFileSystem(Snapshot.from_files({RootRelativePath.parse('docs/guide.md'): '# Guía\n'.encode()}))
 
         #: When
         text = virtual.read_text(RootRelativePath.parse('docs/guide.md'))
@@ -439,7 +439,7 @@ class TestVirtualFileSystemReadText:
     def test_read_text_with_non_utf8_bytes_raises_decode_text_error(self) -> None:
         #: Given
         latin = RootRelativePath.parse('docs/latin.md')
-        virtual = VirtualFileSystem(Snapshot.of_files({latin: b'caf\xe9\n'}))
+        virtual = VirtualFileSystem(Snapshot.from_files({latin: b'caf\xe9\n'}))
 
         #: When
         with pytest.raises(TextDecodeError) as exc_info:

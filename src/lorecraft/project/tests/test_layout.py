@@ -64,7 +64,7 @@ class TestRequireRealLayout:
     def test_require_real_layout_with_real_directories_returns_without_raising(self) -> None:
         #: Given
         fs = VirtualFileSystem(
-            Snapshot.of_files({SPECS_DIR / 'code.md': b'# Code\n', DOCS_DIR / 'code' / 'logging.md': b''})
+            Snapshot.from_files({SPECS_DIR / 'code.md': b'# Code\n', DOCS_DIR / 'code' / 'logging.md': b''})
         )
 
         #: When
