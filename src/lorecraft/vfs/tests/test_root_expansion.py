@@ -12,9 +12,8 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 
-from ..root_expansion import RealPath, linked_scan_root, real_scan_root, walk_to_real_path
+from ..root_expansion import MAX_LINKS, RealPath, linked_scan_root, real_scan_root, walk_to_real_path
 from ..scan_root import ScanRoot
-from ..snapshot import MAX_LINKS
 from ..view import EntryKind
 
 
