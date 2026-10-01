@@ -121,3 +121,56 @@ class TestLinkToRelativePath:
 
         #: Then
         assert path is None, f'an empty destination spells no path, got {path}'
+
+
+@pytest.mark.unit
+class TestLinkToNormalisedRelativePath:
+    def test_to_normalised_relative_path_with_dot_components_returns_them_dropped(self) -> None:
+        #: Given
+        link = Link(url='references/./a%20b.md#usage', line=LineNumber(1))
+
+        #: When
+        path = link.to_normalised_relative_path()
+
+        #: Then
+        assert path == PurePosixPath('references/a b.md'), f'a `.` component names nothing, got {path}'
+
+    def test_to_normalised_relative_path_with_a_parent_below_the_start_returns_it_cancelled(self) -> None:
+        #: Given
+        link = Link(url='references/deep/../a.md', line=LineNumber(1))
+
+        #: When
+        path = link.to_normalised_relative_path()
+
+        #: Then
+        assert path == PurePosixPath('references/a.md'), f'a `..` cancels the component before it, got {path}'
+
+    def test_to_normalised_relative_path_with_a_parent_cancelling_every_component_returns_the_start(self) -> None:
+        #: Given
+        link = Link(url='references/..', line=LineNumber(1))
+
+        #: When
+        path = link.to_normalised_relative_path()
+
+        #: Then
+        assert path == PurePosixPath('.'), f'nothing is left but the directory the path is read from, got {path}'
+
+    def test_to_normalised_relative_path_with_a_leading_parent_keeps_it_first(self) -> None:
+        #: Given
+        link = Link(url='a/../../b.md', line=LineNumber(1))
+
+        #: When
+        path = link.to_normalised_relative_path()
+
+        #: Then
+        assert path == PurePosixPath('../b.md'), f'a `..` with nothing before it to cancel stays, got {path}'
+
+    def test_to_normalised_relative_path_with_a_url_returns_none(self) -> None:
+        #: Given
+        link = Link(url='https://agentskills.io/../specification', line=LineNumber(1))
+
+        #: When
+        path = link.to_normalised_relative_path()
+
+        #: Then
+        assert path is None, f'a destination that spells no relative path has none to normalise, got {path}'

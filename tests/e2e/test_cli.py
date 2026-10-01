@@ -7,9 +7,9 @@ well as the installed version and environment. Every version output, and `inspec
 snapshot file under `__snapshots__/`. So is what `check` and `inspect` print for a root whose `docs/` or
 `docs/__meta__/` is a symlink into that fixture, what `check frontmatter` and `check skills` print for a root
 whose frontmatter writes a key twice, and what `check skills` prints for a skill linking to an absolute path, for
-one linking to a heading it does not have, for one whose `SKILL.md` and a resource link outside the skill, and for
-one whose `metadata` repeats a file name, lists a path outside what the command reads, or lists a file the
-repository does not have.
+one linking to a heading it does not have, for one whose `SKILL.md` and a resource link outside the skill, for one
+whose `SKILL.md` and a resource link a file the skill does not hold, and for one whose `metadata` repeats a file
+name, lists a path outside what the command reads, or lists a file the repository does not have.
 """
 
 from pathlib import Path
@@ -250,6 +250,30 @@ def escaping_link_root(tmp_path: Path) -> Path:
     (tmp_path / '.agents' / 'skills' / 'review' / 'references' / 'steps.md').write_text(
         '# Steps\n\nBack to [the skill](../SKILL.md).\n', encoding='utf-8'
     )
+    return tmp_path
+
+
+@pytest.fixture(scope='function')
+def broken_link_root(tmp_path: Path) -> Path:
+    """A root holding one skill whose `SKILL.md` and a resource each link a file the skill does not hold.
+
+    The resource links `steps.md` beside it, which, read from the skill root, names nothing; its link to
+    `references/steps.md` resolves. Apart from the two broken links the skill is clean, so the two link-broken
+    findings are the only ones the check prints.
+
+    Args:
+        tmp_path: Directory the skill is written into, as the repository root.
+    """
+    (tmp_path / '.agents' / 'skills' / 'review' / 'references').mkdir(parents=True)
+    (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').write_text(
+        '---\nname: review\ndescription: Review a change\n---\n# Review\n\n'
+        'Follow [the steps](references/steps.md) and [the checklist](references/checklist.md).\n',
+        encoding='utf-8',
+    )
+    (tmp_path / '.agents' / 'skills' / 'review' / 'references' / 'guide.md').write_text(
+        '# Guide\n\nSee [the steps](references/steps.md), not [the steps](steps.md).\n', encoding='utf-8'
+    )
+    (tmp_path / '.agents' / 'skills' / 'review' / 'references' / 'steps.md').write_text('# Steps\n', encoding='utf-8')
     return tmp_path
 
 
@@ -515,6 +539,20 @@ class TestCheckSkillsSnapshots:
         #: Then
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the link-escapes findings, one in the resource, match the reviewed snapshot'
+
+    def test_check_skills_with_broken_links_prints_each_link_broken_finding_in_its_file(
+        self, snapshot: SnapshotAssertion, broken_link_root: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('check', 'skills', '--root', str(broken_link_root))
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, 'the link-broken findings, one in the resource, match the reviewed snapshot'
 
     def test_check_skills_with_a_repeated_metadata_file_name_prints_the_duplicate_name_finding(
         self, snapshot: SnapshotAssertion, duplicate_name_root: Path

@@ -1,0 +1,4 @@
+.agents/skills/review/SKILL.md:7: [skill.link-broken] `references/checklist.md` names nothing in the skill
+  = help: link a file or a directory the skill holds, relative to the skill root
+.agents/skills/review/references/guide.md:3: [skill.link-broken] `steps.md` names nothing in the skill
+  = help: link a file or a directory the skill holds, relative to the skill root

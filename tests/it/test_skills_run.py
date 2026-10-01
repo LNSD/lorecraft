@@ -9,7 +9,7 @@ from typing import Final
 
 import pytest
 
-from lorecraft.checks import Database, Finding, SkillCheckRun, Violation, run_skills
+from lorecraft.checks import Database, Finding, Note, NoteKind, SkillCheckRun, Violation, run_skills
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.syntax import LineNumber
@@ -898,3 +898,201 @@ class TestRunSkillsResources:
         assert run.findings() == (), (
             'a file metadata links in is named from the skill root, even in a nested resource, so no link to it escapes'
         )
+
+
+def _broken(path: str, line: int, url: str) -> Finding:
+    """The `skill.link-broken` finding of a link, located in its file.
+
+    Args:
+        path: The file holding the link, as an agent reaches it, relative to the root.
+        line: The line the link is on.
+        url: The link's destination, decoded, as the message shows it.
+    """
+    return Finding(
+        path=RootRelativePath.parse(path),
+        line=LineNumber(line),
+        rule='skill.link-broken',
+        message=f'`{url}` names nothing in the skill',
+        notes=(Note(NoteKind.HELP, 'link a file or a directory the skill holds, relative to the skill root'),),
+    )
+
+
+@pytest.mark.it
+class TestRunSkillsBrokenLinks:
+    def test_run_skills_with_a_broken_link_in_skill_md_reports_only_it(self, tmp_path: Path) -> None:
+        #: Given
+        skill = '.agents/skills/review'
+        _write(
+            tmp_path,
+            f'{skill}/SKILL.md',
+            _REVIEW_FRONTMATTER + b'# Review\n\nRun [the script](scripts/run.py) from [scripts](scripts/).\n\n'
+            b'Read [the steps](references/steps.md).\n',
+        )
+        _write(tmp_path, f'{skill}/scripts/run.py')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (_broken(f'{skill}/SKILL.md', 9, 'references/steps.md'),), (
+            'a file and a directory the skill holds resolve, whatever their kind, and the missing file does not'
+        )
+
+    def test_run_skills_with_a_broken_link_in_a_nested_resource_reports_it_there(self, tmp_path: Path) -> None:
+        #: Given
+        skill = '.agents/skills/review'
+        _write(tmp_path, f'{skill}/SKILL.md', _REVIEW_FRONTMATTER)
+        _write(tmp_path, f'{skill}/references/a.md', b'# A\n')
+        _write(
+            tmp_path,
+            f'{skill}/references/deep/guide.md',
+            b'# Guide\n\nSee [a](references/a.md), not [a](a.md) or [itself](guide.md).\n',
+        )
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (
+            _broken(f'{skill}/references/deep/guide.md', 3, 'a.md'),
+            _broken(f'{skill}/references/deep/guide.md', 3, 'guide.md'),
+        ), 'a link in a resource is read from the skill root, not from the resource, so only the first resolves'
+
+    def test_run_skills_with_a_link_through_a_symlinked_directory_in_the_skill_resolves_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        skill = '.agents/skills/review'
+        _write(
+            tmp_path,
+            f'{skill}/SKILL.md',
+            _REVIEW_FRONTMATTER + b'# Review\n\nSee [d](guides/d.md) and [e](guides/e.md).\n',
+        )
+        _write(tmp_path, 'shared/guides/d.md', b'# D\n')
+        (tmp_path / '.agents' / 'skills' / 'review' / 'guides').symlink_to('../../../shared/guides')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (_broken(f'{skill}/SKILL.md', 7, 'guides/e.md'),), (
+            'the symlink inside the skill is followed to the files it leads to, and a file it lacks is missing'
+        )
+
+    def test_run_skills_with_a_broken_link_in_a_linked_skill_reports_it_where_the_agent_finds_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(
+            tmp_path,
+            'skills/review/SKILL.md',
+            _REVIEW_FRONTMATTER + b'# Review\n\nSee [a](references/a.md) and [b](references/b.md).\n',
+        )
+        _write(tmp_path, 'skills/review/references/a.md', b'# A\n\nBack to [the skill](SKILL.md), on to [c](c.md).\n')
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (
+            _broken('.agents/skills/review/SKILL.md', 7, 'references/b.md'),
+            _broken('.agents/skills/review/references/a.md', 3, 'c.md'),
+        ), 'each finding names its file where an agent reaches it, under the skills directory, not under skills/'
+
+    def test_run_skills_with_a_link_to_a_missing_file_metadata_lists_reports_only_the_missing_file(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(
+            tmp_path,
+            '.agents/skills/review/SKILL.md',
+            b'---\nname: review\ndescription: Review a change\nmetadata:\n  references: docs/feat/absent.md\n---\n'
+            b'See [absent](references/absent.md).\n',
+        )
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert [(str(finding.path), finding.line.value, finding.rule) for finding in run.findings()] == [
+            ('.agents/skills/review/SKILL.md', 4, 'skill.metadata-missing-file'),
+        ], 'the listed file that is missing is reported once, by the metadata rule, and the link to it is not broken'
+
+    def test_run_skills_with_escaping_links_reports_them_escaping_and_never_broken(self, tmp_path: Path) -> None:
+        #: Given
+        skill = '.agents/skills/review'
+        _write(
+            tmp_path,
+            f'{skill}/SKILL.md',
+            _REVIEW_FRONTMATTER + b'# Review\n\nSee [back in](../review/references/a.md) and [out](../gone.md).\n',
+        )
+        _write(tmp_path, f'{skill}/references/a.md', b'# A\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert [(finding.line.value, finding.rule) for finding in run.findings()] == [
+            (7, 'skill.link-escapes'),
+            (7, 'skill.link-escapes'),
+        ], 'a link above the skill root is the escape rule alone, whether a file lies where it leads or not'
+
+    def test_run_skills_with_unparseable_frontmatter_judges_no_link_broken_but_reports_an_escape(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        # the YAML does not parse, so the `references` it means to list cannot be read
+        skill = '.agents/skills/review'
+        _write(
+            tmp_path,
+            f'{skill}/SKILL.md',
+            b'---\nname: review\nmetadata: {references: docs/code/logging.md\n---\n'
+            b'See [logging](references/logging.md) and [gone](references/gone.md).\n',
+        )
+        _write(
+            tmp_path, f'{skill}/references/a.md', b'[logging](references/logging.md) [gone](gone.md) [out](../x.md)\n'
+        )
+        _write(tmp_path, 'docs/code/logging.md')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert [(str(finding.path), finding.rule) for finding in run.findings()] == [
+            (f'{skill}/SKILL.md', 'skill.frontmatter-unparseable'),
+            (f'{skill}/references/a.md', 'skill.link-escapes'),
+        ], 'with metadata unknown no link is judged broken, in the SKILL.md or a resource, and the escape still is'
+
+    def test_run_skills_with_an_undecodable_skill_md_judges_no_resource_link_broken_but_reports_an_escape(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        skill = '.agents/skills/review'
+        _write(
+            tmp_path,
+            f'{skill}/SKILL.md',
+            b'---\nname: caf\xe9\nmetadata:\n  references: docs/code/logging.md\n---\n',
+        )
+        _write(
+            tmp_path, f'{skill}/references/a.md', b'[logging](references/logging.md) [gone](gone.md) [out](../x.md)\n'
+        )
+        _write(tmp_path, 'docs/code/logging.md')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert [(str(finding.path), finding.rule) for finding in run.findings()] == [
+            (f'{skill}/SKILL.md', 'skill.undecodable'),
+            (f'{skill}/references/a.md', 'skill.link-escapes'),
+        ], 'a SKILL.md that is not UTF-8 hides its metadata, so no resource link is judged broken, and the escape is'

@@ -10,7 +10,8 @@ not share a file name, each must lie in what the snapshot read, and each must le
 The check is pure: it takes the skill's frontmatter and the files it lists, each with what the snapshot can tell
 about it, and returns violations. Reading the lists is `listed_by_subkey`; locating each path in the snapshot
 happens above the check, in `checks.run`. It is the sibling of the frontmatter half in `skill`, and reports in
-the same `SkillCheckResult`.
+the same `SkillCheckResult`. Where each listed file lands in the skill is `linked_in_paths`, which the link check
+reads too: a link to one of those paths names a file the skill carries once it is installed.
 """
 
 from dataclasses import dataclass
@@ -87,6 +88,23 @@ def listed_by_subkey(frontmatter: Frontmatter) -> tuple[tuple[str, tuple[str, ..
     return tuple(listed)
 
 
+def linked_in_paths(frontmatter: Frontmatter) -> frozenset[PurePosixPath]:
+    """Every path inside the skill a linking subkey links a file in at, such as `references/logging.md`.
+
+    Each path a subkey lists lands at `<subkey>/<file name>`, whether or not the snapshot holds a file at the path
+    listed, and whatever the skill directory holds where it lands. Read through `listed_by_subkey`, so a
+    `metadata` that lists no file links nothing in.
+
+    Args:
+        frontmatter: The skill's decoded frontmatter, whose `metadata` mapping is read.
+    """
+    paths: set[PurePosixPath] = set()
+    for subkey, written_paths in listed_by_subkey(frontmatter):
+        for written in written_paths:
+            paths.add(_linked_in_path(subkey, written))
+    return frozenset(paths)
+
+
 def validate_skill_metadata(*, frontmatter: Frontmatter, listed: tuple[ListedFiles, ...]) -> SkillCheckResult:
     """Check the files a skill lists under `metadata`, subkey by subkey. Pure: raises nothing.
 
@@ -117,7 +135,7 @@ def validate_skill_metadata(*, frontmatter: Frontmatter, listed: tuple[ListedFil
                     rule='skill.metadata-duplicate-name',
                     message=(
                         f'`metadata.{subkey}` lists `{first}` and `{repeat}`, '
-                        f'which both link in as `{subkey}/{PurePosixPath(repeat).name}`'
+                        f'which both link in as `{_linked_in_path(subkey, repeat)}`'
                     ),
                 )
             )
@@ -141,6 +159,16 @@ def validate_skill_metadata(*, frontmatter: Frontmatter, listed: tuple[ListedFil
                 )
             )
     return SkillCheckResult(violations=tuple(violations))
+
+
+def _linked_in_path(subkey: str, written: str) -> PurePosixPath:
+    """The path inside the skill a listed file lands at: the subkey's directory, then the file's name alone.
+
+    Args:
+        subkey: `references`, `scripts` or `assets`: the skill directory the file lands in.
+        written: The path exactly as the subkey writes it.
+    """
+    return PurePosixPath(subkey) / PurePosixPath(written).name
 
 
 def _repeated_names(files: tuple[ListedFile, ...]) -> tuple[tuple[str, str], ...]:
