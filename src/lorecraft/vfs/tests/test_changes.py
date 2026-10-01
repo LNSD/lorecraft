@@ -1,6 +1,6 @@
 """The change set between two hand-built snapshots.
 
-Nothing here touches the disk: every snapshot is built with ``Snapshot.of_files``, or with its constructor
+Nothing here touches the disk: every snapshot is built with ``Snapshot.from_files``, or with its constructor
 where a symlink a scan would record must be written out by hand.
 """
 
@@ -64,8 +64,8 @@ def _linked_skill_file(data: bytes) -> Snapshot:
 class TestDiff:
     def test_diff_with_equal_file_snapshots_returns_empty(self) -> None:
         #: Given
-        old = Snapshot.of_files({RootRelativePath.parse('docs/a.md'): b'a'})
-        new = Snapshot.of_files({RootRelativePath.parse('docs/a.md'): b'a'})
+        old = Snapshot.from_files({RootRelativePath.parse('docs/a.md'): b'a'})
+        new = Snapshot.from_files({RootRelativePath.parse('docs/a.md'): b'a'})
         expected: ChangeSet = frozenset()
 
         #: When
@@ -76,9 +76,9 @@ class TestDiff:
 
     def test_diff_with_the_same_bytes_in_a_new_object_returns_empty(self) -> None:
         #: Given
-        old = Snapshot.of_files({RootRelativePath.parse('docs/a.md'): b'a'})
+        old = Snapshot.from_files({RootRelativePath.parse('docs/a.md'): b'a'})
         # A distinct bytes object with the same content: a touch, or a save that wrote the same text.
-        new = Snapshot.of_files({RootRelativePath.parse('docs/a.md'): bytes(bytearray(b'a'))})
+        new = Snapshot.from_files({RootRelativePath.parse('docs/a.md'): bytes(bytearray(b'a'))})
         expected: ChangeSet = frozenset()
 
         #: When
@@ -114,8 +114,10 @@ class TestDiff:
 
     def test_diff_with_a_new_file_returns_it_added(self) -> None:
         #: Given
-        old = Snapshot.of_files({RootRelativePath.parse('docs/a.md'): b'a'})
-        new = Snapshot.of_files({RootRelativePath.parse('docs/a.md'): b'a', RootRelativePath.parse('docs/b.md'): b'b'})
+        old = Snapshot.from_files({RootRelativePath.parse('docs/a.md'): b'a'})
+        new = Snapshot.from_files(
+            {RootRelativePath.parse('docs/a.md'): b'a', RootRelativePath.parse('docs/b.md'): b'b'}
+        )
         expected = frozenset({Change(RootRelativePath.parse('docs/b.md'), ChangeKind.ADDED)})
 
         #: When
@@ -126,8 +128,10 @@ class TestDiff:
 
     def test_diff_with_a_removed_file_returns_it_deleted(self) -> None:
         #: Given
-        old = Snapshot.of_files({RootRelativePath.parse('docs/a.md'): b'a', RootRelativePath.parse('docs/b.md'): b'b'})
-        new = Snapshot.of_files({RootRelativePath.parse('docs/a.md'): b'a'})
+        old = Snapshot.from_files(
+            {RootRelativePath.parse('docs/a.md'): b'a', RootRelativePath.parse('docs/b.md'): b'b'}
+        )
+        new = Snapshot.from_files({RootRelativePath.parse('docs/a.md'): b'a'})
         expected = frozenset({Change(RootRelativePath.parse('docs/b.md'), ChangeKind.DELETED)})
 
         #: When
@@ -138,8 +142,8 @@ class TestDiff:
 
     def test_diff_with_changed_bytes_returns_the_file_modified(self) -> None:
         #: Given
-        old = Snapshot.of_files({RootRelativePath.parse('docs/a.md'): b'a'})
-        new = Snapshot.of_files({RootRelativePath.parse('docs/a.md'): b'changed'})
+        old = Snapshot.from_files({RootRelativePath.parse('docs/a.md'): b'a'})
+        new = Snapshot.from_files({RootRelativePath.parse('docs/a.md'): b'changed'})
         expected = frozenset({Change(RootRelativePath.parse('docs/a.md'), ChangeKind.MODIFIED)})
 
         #: When
@@ -150,7 +154,7 @@ class TestDiff:
 
     def test_diff_with_a_file_replaced_by_a_symlink_returns_it_deleted(self) -> None:
         #: Given
-        old = Snapshot.of_files({RootRelativePath.parse('docs/a.md'): b'a'})
+        old = Snapshot.from_files({RootRelativePath.parse('docs/a.md'): b'a'})
         new = _docs_link('a.md', 'b.md')
         expected = frozenset({Change(RootRelativePath.parse('docs/a.md'), ChangeKind.DELETED)})
 
@@ -162,7 +166,7 @@ class TestDiff:
 
     def test_diff_with_a_directory_replaced_by_a_symlink_returns_it_and_its_files_deleted(self) -> None:
         #: Given
-        old = Snapshot.of_files({RootRelativePath.parse('docs/code/a.md'): b'a'})
+        old = Snapshot.from_files({RootRelativePath.parse('docs/code/a.md'): b'a'})
         new = _docs_link('code', '../elsewhere')
         expected = frozenset(
             {
@@ -179,8 +183,8 @@ class TestDiff:
 
     def test_diff_with_a_new_directory_returns_it_and_its_files_added(self) -> None:
         #: Given
-        old = Snapshot.of_files({RootRelativePath.parse('docs/a.md'): b'a'})
-        new = Snapshot.of_files(
+        old = Snapshot.from_files({RootRelativePath.parse('docs/a.md'): b'a'})
+        new = Snapshot.from_files(
             {
                 RootRelativePath.parse('docs/a.md'): b'a',
                 RootRelativePath.parse('docs/code/b.md'): b'b',
@@ -203,8 +207,8 @@ class TestDiff:
 
     def test_diff_with_a_renamed_file_returns_the_old_path_deleted_and_the_new_path_added(self) -> None:
         #: Given
-        old = Snapshot.of_files({RootRelativePath.parse('docs/a.md'): b'same'})
-        new = Snapshot.of_files({RootRelativePath.parse('docs/b.md'): b'same'})
+        old = Snapshot.from_files({RootRelativePath.parse('docs/a.md'): b'same'})
+        new = Snapshot.from_files({RootRelativePath.parse('docs/b.md'): b'same'})
         expected = frozenset(
             {
                 Change(RootRelativePath.parse('docs/a.md'), ChangeKind.DELETED),
