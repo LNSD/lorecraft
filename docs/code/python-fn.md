@@ -91,6 +91,10 @@ Before committing code, verify:
 - [python-typing](python-typing.md) - Related: Owns the annotation on each parameter and return value
 - [python-docstrings](python-docstrings.md) - Related: Owns prose for parameters whose names need explanation
 - [python-dataclasses](python-dataclasses.md) - Related: Owns defaults for fields on structured records
+- [python-fn-names](python-fn-names.md) - Related: Owns what a function name promises about cost, effect,
+  and absence
+- [python-fn-conv](python-fn-conv.md) - Related: Owns the names of conversions, constructors, and modified
+  copies
 
 ## External References
 
