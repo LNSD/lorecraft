@@ -1,1 +1,1 @@
-{"checked": 2, "findings": [{"file": "docs/code/python-typing.md", "line": 1, "rule": "budget.tokens", "message": "4 tokens; the budget is 3 (per code-python.structure.json)", "spec": "docs/__meta__/code-python.structure.json"}], "ungoverned": []}
+{"checked": 2, "findings": [{"file": "docs/code/python-typing.md", "line": 1, "rule": "budget.tokens", "message": "4 tokens; the budget is 3 (per code-python.structure.json)", "spec": "docs/__meta__/code-python.structure.json", "notes": []}], "ungoverned": []}

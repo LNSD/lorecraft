@@ -44,7 +44,7 @@
     },
     "StructureFileSection": {
       "additionalProperties": false,
-      "description": "An outline entry naming one section, fixing its position against every other name in the outline.",
+      "description": "An outline entry naming one section, fixing its position against every other name in the outline.\n\nIts `description` and `examples` tell the author of a document that lacks the section what to write there.",
       "examples": [
         {
           "section": "Checklist",
@@ -53,6 +53,14 @@
         {
           "optional": true,
           "section": "References"
+        },
+        {
+          "description": "The items a reviewer verifies before committing a change the document governs.",
+          "examples": [
+            "Before committing code, verify:\n\n- [ ] Every new record is a `@dataclass` unless it decodes data arriving from outside the process\n- [ ] Every list, dict, or set default uses `field(default_factory=...)`\n- [ ] Every record used as a dict key, set member, or compared identity is `frozen=True`\n- [ ] Every record's class docstring lists all public fields under `Attributes:`"
+          ],
+          "section": "Checklist",
+          "words": 250
         }
       ],
       "properties": {
@@ -83,6 +91,44 @@
           "description": "The most words of prose the section may hold, its H3 subsections included; no cap when absent.",
           "examples": [
             250
+          ]
+        },
+        "description": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What the section holds; reported as help when a document lacks the section. No help when absent.",
+          "examples": [
+            "The items a reviewer verifies before committing a change the document governs."
+          ]
+        },
+        "examples": {
+          "anyOf": [
+            {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A non-empty list of Markdown samples of the section's body, each without its heading. Each is illustrative, written as if it belonged to an actual document of the corpus, not a placeholder. The check reports only the first, as a note, when a document lacks the section; the rest serve a reader of the specification. No sample when absent.",
+          "examples": [
+            [
+              "Before committing code, verify:\n\n- [ ] Every new record is a `@dataclass` unless it decodes data arriving from outside the process\n- [ ] Every list, dict, or set default uses `field(default_factory=...)`\n- [ ] Every record used as a dict key, set member, or compared identity is `frozen=True`\n- [ ] Every record's class docstring lists all public fields under `Attributes:`"
+            ]
           ]
         }
       },
@@ -272,7 +318,7 @@
     },
     "outline": {
       "default": [],
-      "description": "The order of the document's sections, matched left to right. A named section is required unless optional, and may be named once; an `{\"any\": true}` entry matches a run of sections the outline does not name, and two may not sit side by side. An entry's `words` caps each section it matches; an entry without one caps none. A word is a whitespace-delimited token of prose: fenced code and table rows are not counted.",
+      "description": "The order of the document's sections, matched left to right. A named section is required unless optional, and may be named once; an `{\"any\": true}` entry matches a run of sections the outline does not name, and two may not sit side by side. An entry's `words` caps each section it matches; an entry without one caps none. A word is a whitespace-delimited token of prose: fenced code and table rows are not counted. A named section's `description` and the first of its `examples` tell the author of a document that lacks it what to write there.",
       "examples": [
         [
           {

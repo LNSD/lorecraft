@@ -3,7 +3,26 @@ docs/code/logging.md:1: [frontmatter.missing] no `---` delimited frontmatter blo
 docs/code/python-typing.md:1: [frontmatter.missing] no `---` delimited frontmatter block
 docs/code/logging.md:1: [structure.empty] section `Logging` is empty; omit it rather than leaving it empty (per code.md)
 docs/code/logging.md:1: [structure.outline] missing required section `Checklist` (per code.md)
+  = help: The items a reviewer verifies before committing a change the rule document governs.
+  = note: for example:
+          ## Checklist
+
+          Before committing code, verify:
+
+          - [ ] Every module that logs has exactly one `logger = logging.getLogger(__name__)` after its imports
+          - [ ] No logger is stored as `self.logger` or any other instance or class attribute
+          - [ ] Every log call inside an `except` block uses `logger.exception(...)`
 docs/code/python-typing.md:1: [structure.empty] section `Python typing` is empty; omit it rather than leaving it empty (per code.md)
 docs/code/python-typing.md:1: [structure.outline] missing required section `Checklist` (per code.md)
+  = help: The items a reviewer verifies before committing a change the rule document governs.
+  = note: for example:
+          ## Checklist
+
+          Before committing code, verify:
+
+          - [ ] Every module that logs has exactly one `logger = logging.getLogger(__name__)` after its imports
+          - [ ] No logger is stored as `self.logger` or any other instance or class attribute
+          - [ ] Every log call inside an `except` block uses `logger.exception(...)`
 docs/code/python-typing.md:1: [structure.outline] missing required section `References` (per code-python.md)
+  = help: Links to the documents this one builds on.
 .agents/skills/beta/SKILL.md:2: [skill.name-matches-directory] `name` is 'alpha'; expected 'beta', the name of the skill directory

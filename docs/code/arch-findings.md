@@ -12,9 +12,10 @@ and only the command line turns it into text.
 
 ## From Violation to Output
 
-A check returns violations: the line, the rule, the message, and the specification that states the rule, or none
-for a rule the check holds itself. A violation names no document. The run knows which document it checked, and
-locates each violation there as a finding. It collects one report per document or skill, in the order it was
+A check returns violations: the line, the rule, the message, the specification that states the rule, or none
+for a rule the check holds itself, and any notes: help or context for fixing it, kept apart from the message. A
+violation names no document. The run knows which document it checked, and locates each violation there as a
+finding. It collects one report per document or skill, in the order it was
 given them, into one run per check. The command line renders the runs as text or JSON and chooses the exit code.
 Nothing before it prints.
 
@@ -61,6 +62,7 @@ Before committing code, verify:
 
 - [ ] A violation names the specification file that states its rule, or none for a rule the check holds
 - [ ] A new rule has a dotted identifier of its own, and no existing identifier changes
+- [ ] Help or context for fixing a violation travels as a note, never inside its message
 - [ ] A problem in a document is a finding; only what stops judging at all is raised
 - [ ] Output order and exit codes stay deterministic for the same revision
 - [ ] Nothing below the command line prints or logs

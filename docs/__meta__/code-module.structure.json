@@ -11,14 +11,49 @@
   },
   "tokens": 3500,
   "outline": [
-    { "section": "Responsibility", "words": 120 },
-    { "section": "Role", "words": 150 },
-    { "section": "Belongs Here" },
-    { "section": "Belongs Elsewhere" },
-    { "section": "Invariants" },
-    { "section": "Examples" },
+    {
+      "section": "Responsibility",
+      "words": 120,
+      "description": "One sentence stating the package's responsibility, without \"and\", followed by the one reason the package changes. A responsibility that needs \"and\" is two packages, or a co-location the section must justify.",
+      "examples": ["Be the one boundary between Lorecraft and the files under the workspace root. It changes when the way the disk is\nread changes, or the way a captured state of it is represented."]
+    },
+    {
+      "section": "Role",
+      "words": 150,
+      "description": "The one role the package plays, named in bold, from the role vocabulary of the architecture rules, followed by what that role means for this package and nothing more about the role in general.",
+      "examples": ["**Input.** It reads the disk once, into a snapshot, and every package above it reads through a view that answers\nfrom that snapshot. It reads what its caller declares: the scope arrives as scan roots that the caller passes in,\nand the package never knows why those directories matter or what the files in them mean."]
+    },
+    {
+      "section": "Belongs Here",
+      "description": "The tests a reader applies to new code to decide that it belongs in this package, stated as conditions on the code rather than a list of what exists today.",
+      "examples": ["- Code that lists a directory, reads a file's bytes or reads a symlink's target under the workspace root.\n- The snapshot, its parts, and the code that builds one, from the disk or by hand.\n- The view contract, and each view that answers it, from the disk or from a snapshot.\n- Following a chain of symlinks to where it leads, and refusing the ones that leave the root.\n- The difference between two snapshots."]
+    },
+    {
+      "section": "Belongs Elsewhere",
+      "description": "A table of the code a reader is tempted to put here and the package it goes in instead, one row per case; each row points to the neighbour and does not restate its rules.",
+      "examples": ["| Code that… | Belongs in |\n|---|---|\n| Names `docs/`, a skills directory or any other fixed directory | `lorecraft.layout` |\n| Decides what an entry is to Lorecraft: a document, a specification, a skill | `lorecraft.project` |\n| Parses or decodes the bytes of a file | `lorecraft.project` |\n| Keeps a value derived from a file for the snapshot's lifetime | `lorecraft.checks` |\n| Finds the workspace root, or maps a command-line argument onto it | `lorecraft.cli` |"]
+    },
+    {
+      "section": "Invariants",
+      "description": "A bulleted list of the conditions a change must keep for the package to stay in its role, each verifiable against a diff: what the package may import, read, cache, hold and hand upward.",
+      "examples": ["- A snapshot is an immutable value. It holds listings, bytes and symlink targets, and never a handle, a stat result\n  or an mtime, so two snapshots compare and hash structurally.\n- Every path crossing the boundary is root-relative. The root is joined to a path only inside this package, and\n  every answer leaves root-relative again.\n- Code above reads through the view contract and never names a concrete view, except the code that builds one."]
+    },
+    {
+      "section": "Examples",
+      "description": "One to three Bad/Good pairs, Bad first: each Bad is code a plausible change puts into the wrong package, each Good the same intent placed correctly, written as a fabricated example.",
+      "examples": ["```python\n# ❌ Bad — the boundary hard-codes the layout: a new corpus directory edits the input layer, and a test that\n# captures any other tree still scans docs/\ndef capture(root: Path) -> TreeState:\n    return _scan(root, roots=(ReadRoot(WorkspacePath.parse('docs'), depth=1),))\n```\n\n```python\n# ✅ Good — the caller declares the scope; the boundary reads what it is told\ndef capture(root: Path, roots: tuple[ReadRoot, ...]) -> TreeState:\n    return _scan(root, roots=roots)\n```"]
+    },
     { "any": true },
-    { "section": "References" },
-    { "section": "External References", "optional": true }
+    {
+      "section": "References",
+      "description": "The architecture document the Role names and each one the invariants build on, as Foundation; principle-single-responsibility as Foundation; and for a subpackage, the parent's module document as Extends.",
+      "examples": ["- [arch-snapshot-model](arch-snapshot-model.md) - Foundation: The Input role\n- [arch-vfs](arch-vfs.md) - Foundation: The one boundary with the disk, and the snapshot as a value\n- [arch-project-model](arch-project-model.md) - Foundation: The scope is declared, and symlinks decide where a\n  path leads\n- [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One reason to change\n- [principle-validate-at-edge](principle-validate-at-edge.md) - Foundation: The boundary is where paths are\n  proved root-relative"]
+    },
+    {
+      "section": "External References",
+      "optional": true,
+      "description": "Links to external articles, books or specifications that support the package's rules.",
+      "examples": ["- [Python docs — `os.scandir`](https://docs.python.org/3/library/os.html#os.scandir)\n- [Python docs — `os.readlink`](https://docs.python.org/3/library/os.html#os.readlink)\n- [Python docs — `os.lstat`](https://docs.python.org/3/library/os.html#os.lstat)"]
+    }
   ]
 }

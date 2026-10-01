@@ -3,6 +3,7 @@
 ``parse`` deserializes a file's text into the dialect's shape, and construction refuses rules that are not usable.
 """
 
+import json
 from textwrap import dedent
 from typing import Final
 
@@ -41,6 +42,29 @@ from ..structure import (
 )
 
 SPEC_PATH: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
+
+# What a rule document's Checklist holds, as the outline entry naming it states it.
+CHECKLIST_DESCRIPTION: Final[str] = (
+    'The items a reviewer verifies before committing a change the rule document governs.'
+)
+
+# The body of the Checklist of docs/code/logging.md, trimmed: an example of a rule document's Checklist.
+LOGGING_CHECKLIST: Final[str] = (
+    'Before committing code, verify:\n'
+    '\n'
+    '- [ ] Every module that logs has exactly one `logger = logging.getLogger(__name__)` after its imports\n'
+    '- [ ] No logger is stored as `self.logger` or any other instance or class attribute\n'
+    '- [ ] No log call sits in a per-line loop, whatever its level'
+)
+
+# The body of the Checklist of docs/code/python-docstrings.md, trimmed: a second example of the same section.
+DOCSTRINGS_CHECKLIST: Final[str] = (
+    'Before committing code, verify:\n'
+    '\n'
+    '- [ ] Every new class and public function has a docstring whose first line is a one-line summary\n'
+    '- [ ] No `Returns:` section restates the return annotation\n'
+    '- [ ] A generator documents `Yields:`, never `Returns:`'
+)
 
 
 @pytest.mark.unit
@@ -84,6 +108,140 @@ class TestStructureAspectParse:
             tokens=5000,
             frontmatter=FrontmatterSchema(path=SPEC_PATH, schema={'type': 'object', 'required': ['name']}),
         ), 'every field is read into its typed rule, and an entry without `words` has no cap'
+
+    def test_parse_with_a_section_description_and_examples_carries_them_into_its_entry_in_order(self) -> None:
+        #: Given
+        schema = StructureSchema(
+            json.dumps(
+                {
+                    'outline': [
+                        {
+                            'section': 'Checklist',
+                            'description': CHECKLIST_DESCRIPTION,
+                            'examples': [LOGGING_CHECKLIST, DOCSTRINGS_CHECKLIST],
+                        }
+                    ]
+                }
+            )
+        )
+
+        #: When
+        aspect = StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert aspect.outline == (
+            SectionEntry(
+                name='Checklist',
+                description=CHECKLIST_DESCRIPTION,
+                examples=(LOGGING_CHECKLIST, DOCSTRINGS_CHECKLIST),
+            ),
+        ), f'a section entry keeps its description and every example, in order, got {aspect.outline!r}'
+
+    def test_parse_with_a_section_without_description_or_examples_states_neither(self) -> None:
+        #: Given
+        schema = StructureSchema('{"outline": [{"section": "Checklist"}]}')
+
+        #: When
+        aspect = StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert aspect.outline == (SectionEntry(name='Checklist', description=None, examples=()),), (
+            f'both keys are optional, and absent they state nothing, got {aspect.outline!r}'
+        )
+
+    def test_parse_with_an_empty_section_description_raises_structure_spec_decode_error(self) -> None:
+        #: Given
+        schema = StructureSchema('{"outline": [{"section": "Checklist", "description": ""}]}')
+
+        #: When
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
+            StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'an empty description would print empty help, so it is refused'
+
+    def test_parse_with_an_empty_list_of_section_examples_raises_structure_spec_decode_error(self) -> None:
+        #: Given
+        schema = StructureSchema('{"outline": [{"section": "Checklist", "examples": []}]}')
+
+        #: When
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
+            StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'no examples are written by leaving the key out, so `[]` is refused'
+
+    def test_parse_with_an_empty_section_example_raises_structure_spec_decode_error(self) -> None:
+        #: Given
+        schema = StructureSchema(
+            json.dumps({'outline': [{'section': 'Checklist', 'examples': [LOGGING_CHECKLIST, '']}]})
+        )
+
+        #: When
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
+            StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'an empty example would print a heading alone, so it is refused'
+
+    def test_parse_with_a_section_description_that_is_not_a_string_raises_structure_spec_decode_error(self) -> None:
+        #: Given
+        schema = StructureSchema(
+            json.dumps({'outline': [{'section': 'Checklist', 'description': [CHECKLIST_DESCRIPTION]}]})
+        )
+
+        #: When
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
+            StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'a description is one string of text, not a list of lines'
+
+    def test_parse_with_section_examples_given_as_one_string_raises_structure_spec_decode_error(self) -> None:
+        #: Given
+        schema = StructureSchema(json.dumps({'outline': [{'section': 'Checklist', 'examples': LOGGING_CHECKLIST}]}))
+
+        #: When
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
+            StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'examples are a list, so one bare string is refused'
+
+    def test_parse_with_a_section_example_that_is_not_a_string_raises_structure_spec_decode_error(self) -> None:
+        #: Given
+        schema = StructureSchema('{"outline": [{"section": "Checklist", "examples": [3]}]}')
+
+        #: When
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
+            StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'the file is read strictly, so a number is not an example'
+
+    def test_parse_with_a_description_on_an_any_run_raises_structure_spec_decode_error(self) -> None:
+        #: Given
+        # a run can never be missing, so nothing would ever report what it holds
+        schema = StructureSchema('{"outline": [{"any": true, "description": "The document\'s own sections."}]}')
+
+        #: When
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
+            StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'only a named section takes a description'
+
+    def test_parse_with_examples_on_an_any_run_raises_structure_spec_decode_error(self) -> None:
+        #: Given
+        # a run can never be missing, so nothing would ever report an example of it
+        schema = StructureSchema(json.dumps({'outline': [{'any': True, 'examples': [LOGGING_CHECKLIST]}]}))
+
+        #: When
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
+            StructureAspect.parse(SPEC_PATH, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'only a named section takes examples'
 
     def test_parse_with_only_a_frontmatter_schema_returns_an_aspect_with_that_schema(self) -> None:
         #: Given
