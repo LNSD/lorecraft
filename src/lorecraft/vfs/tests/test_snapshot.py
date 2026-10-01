@@ -995,3 +995,84 @@ class TestVirtualFileSystemResolveFile:
 
         #: Then
         assert resolved is None, 'docs/code/missing.md was never recorded, so it leads to no file'
+
+
+@pytest.mark.unit
+class TestVirtualFileSystemIsListed:
+    def test_is_listed_with_a_listed_directory_returns_true(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code')
+
+        #: When
+        listed = virtual.is_listed(path)
+
+        #: Then
+        assert listed is True, 'the snapshot holds a listing of docs/code'
+
+    def test_is_listed_with_an_empty_listed_directory_returns_true(self) -> None:
+        #: Given
+        snapshot = Snapshot(listings=(Listing(RootRelativePath.parse('docs/empty'), ()),), files=())
+        virtual = VirtualFileSystem(snapshot)
+        path = RootRelativePath.parse('docs/empty')
+
+        #: When
+        listed = virtual.is_listed(path)
+
+        #: Then
+        assert listed is True, 'a listing with no entries is still a listing: the directory is known to be empty'
+
+    def test_is_listed_through_linked_directories_returns_true_for_the_listed_target(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('.claude/skills/beta')
+
+        #: When
+        listed = virtual.is_listed(path)
+
+        #: Then
+        assert listed is True, 'the links .claude/skills and beta lead to .agents/skills/alpha, which was listed'
+
+    def test_is_listed_with_an_unentered_directory_returns_false(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code/sub')
+
+        #: When
+        listed = virtual.is_listed(path)
+
+        #: Then
+        assert listed is False, 'sub is an entry of docs/code the scan never entered'
+
+    def test_is_listed_with_an_ancestor_of_a_listing_returns_false(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('.agents')
+
+        #: When
+        listed = virtual.is_listed(path)
+
+        #: Then
+        assert listed is False, '.agents is known to be a directory, but its entries were never read'
+
+    def test_is_listed_with_a_file_returns_false(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code/a.md')
+
+        #: When
+        listed = virtual.is_listed(path)
+
+        #: Then
+        assert listed is False, 'a file leads to no directory'
+
+    def test_is_listed_with_a_path_outside_the_scope_returns_false(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('src')
+
+        #: When
+        listed = virtual.is_listed(path)
+
+        #: Then
+        assert listed is False, 'src lies outside the scanned scope'

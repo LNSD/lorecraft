@@ -384,3 +384,121 @@ class TestRunSkillsMetadata:
 
         #: Then
         assert run.findings() == (), 'a skill whose metadata has no references, scripts or assets links nothing in'
+
+    def test_run_skills_with_a_skill_listing_a_source_file_reports_it_outside_the_scope(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/code/a.md')
+        _write(tmp_path, 'src/tool.py')
+        _write_skill(tmp_path, '  references: docs/code/a.md\n  scripts: src/tool.py\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (
+            Finding(
+                path=RootRelativePath.parse('.agents/skills/x/SKILL.md'),
+                line=LineNumber(4),
+                rule='skill.metadata-outside-scope',
+                message=(
+                    '`metadata.scripts` lists `src/tool.py`, which lorecraft does not read; list a file directly '
+                    'in docs/, in a real directory directly in docs/, or directly in a skill directory'
+                ),
+            ),
+        ), 'src/ is never read, so the file there is outside the scope, while the document under docs/ is in it'
+
+    def test_run_skills_with_a_skill_listing_a_nested_document_reports_it_outside_the_scope(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/feat/deep/a.md')
+        _write_skill(tmp_path, '  references: docs/feat/deep/a.md\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert [finding.rule for finding in run.findings()] == ['skill.metadata-outside-scope'], (
+            'docs/ is read one level deep, so a document two levels under it is outside the scope'
+        )
+
+    def test_run_skills_with_a_skill_listing_a_path_climbing_out_reports_it_outside_the_scope(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write_skill(tmp_path, '  references: ../elsewhere/a.md\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert [finding.rule for finding in run.findings()] == ['skill.metadata-outside-scope'], (
+            'a path that is not root-relative names nothing the snapshot can read'
+        )
+
+    def test_run_skills_with_a_skill_listing_its_own_file_reports_nothing(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/x/template.json')
+        _write_skill(tmp_path, '  assets: .agents/skills/x/template.json\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (), 'the skill directory is listed, so a file in it is in the scope'
+
+    def test_run_skills_with_a_skill_listing_an_absent_document_reports_nothing(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/feat/present.md')
+        _write_skill(tmp_path, '  references: docs/feat/absent.md\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (), (
+            'docs/feat/ is listed, so a file it lacks is in the scope; a missing file is not yet a finding'
+        )
+
+    def test_run_skills_with_a_linked_skill_listing_an_absent_file_of_its_own_reports_nothing(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(
+            tmp_path,
+            'skills/y/SKILL.md',
+            b'---\nname: y\ndescription: A skill\nmetadata:\n  assets: skills/y/absent.md\n---\n',
+        )
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'y').symlink_to('../../skills/y')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (), (
+            'skills/y/ is listed through the link to it, so a file it lacks is in the scope; '
+            'a missing file is not yet a finding'
+        )
+
+    def test_run_skills_with_a_skill_breaking_every_metadata_rule_reports_each_in_order(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/code/a.md')
+        _write(tmp_path, 'docs/feat/a.md')
+        _write_skill(tmp_path, '  references: docs/code/a.md docs/feat/a.md\n  scripts: src/tool.py\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert [finding.rule for finding in run.findings()] == [
+            'skill.metadata-duplicate-name',
+            'skill.metadata-outside-scope',
+        ], 'each path is checked in the order written, references before scripts'

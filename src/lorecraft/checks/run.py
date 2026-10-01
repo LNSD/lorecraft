@@ -10,12 +10,14 @@ every run the same way.
 The skill check runs over skills instead: the refs it is handed are the model's ``SkillRef``s, the parts it reads
 are the frontmatter, the links and the heading anchors of each ``SKILL.md``, and the Agent Skills specification
 governs every one of them, so a skill is never ungoverned. The files a skill links in through ``metadata`` are
-checked too. It reports in a shape of its own, a ``SkillCheckRun`` of ``SkillReport``s.
+checked too, against what the snapshot holds at each path listed. It reports in a shape of its own, a
+``SkillCheckRun`` of ``SkillReport``s.
 """
 
 from dataclasses import dataclass
 from typing import assert_never
 
+from lorecraft.core.path import RootRelativePath, RootRelativePathError
 from lorecraft.project.document import DocumentDecodeError, DocumentRef
 from lorecraft.project.schemas import SKILL_FRONTMATTER_SCHEMA, StructureAspect
 from lorecraft.project.skill import SkillDecodeError, SkillRef
@@ -35,7 +37,7 @@ from .frontmatter import validate_frontmatter
 from .reporting import Finding, Violation
 from .skill import SkillCheckResult, validate_skill
 from .skill_link import validate_skill_links
-from .skill_metadata import validate_skill_metadata
+from .skill_metadata import ListedFile, ListedFiles, ListedFileState, listed_by_subkey, validate_skill_metadata
 from .structure import validate_structure
 
 
@@ -320,7 +322,9 @@ def run_skills(database: Database, refs: tuple[SkillRef, ...]) -> SkillCheckRun:
                     SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name=ref.directory.name
                 )
                 link_result = _skill_links(database, ref)
-                metadata_result = validate_skill_metadata(frontmatter=frontmatter)
+                metadata_result = validate_skill_metadata(
+                    frontmatter=frontmatter, listed=_listed_files(database, frontmatter)
+                )
                 violations = frontmatter_result.violations + link_result.violations + metadata_result.violations
                 reports.append(SkillReport(ref, violations=violations))
             case MissingFrontmatter() | InvalidYamlFrontmatter() | NonMappingFrontmatter():
@@ -343,6 +347,40 @@ def _skill_links(database: Database, ref: SkillRef) -> SkillCheckResult:
     """
     parsed = database.skill_parse(ref)
     return validate_skill_links(links=parsed.links, anchors=parsed.anchors)
+
+
+def _listed_files(database: Database, frontmatter: Frontmatter) -> tuple[ListedFiles, ...]:
+    """The files a skill's ``metadata`` lists, subkey by subkey, each path with what the snapshot holds there.
+
+    A path written twice is located twice, so each of its entries carries its own state. Raises nothing.
+    """
+    listed: list[ListedFiles] = []
+    for subkey, written_paths in listed_by_subkey(frontmatter):
+        files: list[ListedFile] = []
+        for written in written_paths:
+            files.append(ListedFile(written=written, state=_listed_file_state(database, written)))
+        listed.append(ListedFiles(subkey=subkey, files=tuple(files)))
+    return tuple(listed)
+
+
+def _listed_file_state(database: Database, written: str) -> ListedFileState:
+    """What the snapshot can tell about one path a skill lists under ``metadata``, as written there.
+
+    The path is parsed here, once: one that is absolute or climbs with ``..`` names nothing under the root the
+    snapshot was taken of, so it is outside the scope like any other path the snapshot never read. A file is in
+    the scope wherever the snapshot holds it, links followed, even in a directory it did not list, such as a file a
+    linked ``SKILL.md`` leads to. Otherwise the path's directory decides: listed, the path is in the scope; not,
+    the snapshot cannot tell, and the path is outside it.
+    """
+    try:
+        path = RootRelativePath.parse(written)
+    except RootRelativePathError:
+        return ListedFileState.OUTSIDE_SCOPE
+    if database.resolve_file(path) is not None:
+        return ListedFileState.IN_SCOPE
+    if database.is_listed(path.parent):
+        return ListedFileState.IN_SCOPE
+    return ListedFileState.OUTSIDE_SCOPE
 
 
 def _budgeted(aspects: tuple[StructureAspect, ...]) -> tuple[StructureAspect, ...]:

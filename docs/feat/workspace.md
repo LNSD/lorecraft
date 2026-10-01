@@ -70,11 +70,11 @@ line is refused with a reason, since it was asked for.
 
 A command reads `docs/` and the directories directly in it once, when it starts, and works from that copy,
 so it sees one moment of the tree even while files change. It reads each agent's skills directory, such as
-`.agents/skills/`, and the skill directories in it the same way. Under `docs/` a symlink is recorded, not
-followed. Under a skills directory a symlink to a directory or a file in the repository is followed, so a skill
-linked to where its files live is read; one leading outside the repository is not. The model records where each
-skill's directory and `SKILL.md` lead, so a command resolves a skill path it is given in the snapshot and asks
-the model the rest.
+`.agents/skills/`, and the skill directories in it the same way, but no directory inside a skill. Under `docs/`
+a symlink is recorded, not followed, so a linked directory there is not read. Under a skills directory a symlink
+to a directory or a file in the repository is followed, so a skill linked to where its files live is read; one
+leading outside the repository is not. The model records where each skill's directory and `SKILL.md` lead, so
+a command resolves a skill path it is given in the snapshot and asks the model the rest.
 
 `docs/` and `docs/__meta__/` themselves must be real directories. Behind a symlink the snapshot would hold no
 specification, so a command stops with an error naming the linked directory rather than read an empty model.
