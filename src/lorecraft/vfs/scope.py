@@ -7,18 +7,20 @@ directory, depth and link policy, and never from which directories the snapshot 
 the scope covers but the disk lacks is still in the scope, and everything in it is missing.
 
 Links are the one thing the declaration cannot settle alone, since a link decides where a path leads. The
-answer follows the links the snapshot recorded, the way the scan and `VirtualFileSystem` follow them, and only
-those: a scan records every link in what it lists and every link on the way to a scope root, so inside the
-scope no other link exists. Whether a link's target exists plays no part.
+answer follows the links the snapshot recorded, and only those: a scan records every link in what it lists and
+every link on the way to a scope root, so inside the scope no other link exists. Whether a link's target exists
+plays no part. How a root expands through a link is not repeated here: the scan and this query both apply the
+rules of `root_expansion.py`, the scan to what it finds on disk and this query to what the snapshot recorded.
 """
 
-from collections.abc import Mapping
 from pathlib import PurePosixPath
 
-from lorecraft.core.path import ROOT, RootRelativePath
+from lorecraft.core.path import RootRelativePath
 
+from .root_expansion import linked_scan_root, real_scan_root, walk_to_real_path
 from .scan_root import ScanRoot
-from .snapshot import MAX_LINKS, Link
+from .snapshot import Link
+from .view import EntryKind
 
 
 def is_in_scope(scope: tuple[ScanRoot, ...], links: tuple[Link, ...], path: RootRelativePath) -> bool:
@@ -26,8 +28,8 @@ def is_in_scope(scope: tuple[ScanRoot, ...], links: tuple[Link, ...], path: Root
 
     The path's directory is walked from the root through the recorded `links`, to where it really
     is; the entry there is in the scope when a root covers it (`ScanRoot.is_covering`). The roots are the scope's,
-    each at the real directory the scan starts at, and, for a root that follows links, one more for each link
-    the scan follows from it: the real directory the link leads to, with the depth the link leaves.
+    each at the real directory the scan starts at, and one more for each link the scan follows: the real
+    directory the link leads to, with the depth the link leaves.
 
     Args:
         scope: The scope the snapshot of `links` was taken of, `Snapshot.scope`; another scope's answer would not
@@ -41,107 +43,88 @@ def is_in_scope(scope: tuple[ScanRoot, ...], links: tuple[Link, ...], path: Root
         target, one climbing above the root or out of a directory the walk stepped into by name, as the scan
         refuses too, or a chain longer than `MAX_LINKS`.
     """
-    targets: dict[RootRelativePath, PurePosixPath] = {}
-    for link in links:
-        targets[link.path] = link.target
-
-    directory = _walk_recorded_links(targets, path.parent)
+    recorded = _RecordedLinks(links)
+    directory = walk_to_real_path(path.parent, recorded, follow_links=True)
     if directory is None:
         return False
-    entry = directory / path.name
-    for scan_root in _real_scan_roots(scope, targets):
+    entry = directory.path / path.name
+    for scan_root in _real_scan_roots(scope, recorded):
         if scan_root.is_covering(entry):
             return True
     return False
 
 
-def _real_scan_roots(
-    scope: tuple[ScanRoot, ...], links: Mapping[RootRelativePath, PurePosixPath]
-) -> tuple[ScanRoot, ...]:
+class _RecordedLinks:
+    """What the walks of the scope query see: the links a snapshot recorded, and nothing else.
+
+    The `EntryLookup` this query hands to the rules of `root_expansion.py`. A component with no link recorded
+    is taken as a directory, whether or not one exists, since the question is where a path would lead, not
+    what is there.
+    """
+
+    def __init__(self, links: tuple[Link, ...]) -> None:
+        """Index the recorded links by path.
+
+        Args:
+            links: Every link the snapshot recorded, `Snapshot.links`.
+        """
+        self._targets: dict[RootRelativePath, PurePosixPath] = {}
+        for link in links:
+            self._targets[link.path] = link.target
+
+    def paths(self) -> tuple[RootRelativePath, ...]:
+        """Every recorded link's root-relative path."""
+        return tuple(self._targets)
+
+    def kind(self, path: RootRelativePath) -> EntryKind:
+        """SYMLINK where a link is recorded at `path`, DIRECTORY anywhere else; see `EntryLookup.kind`.
+
+        Args:
+            path: The root-relative entry the walk reached.
+        """
+        if path in self._targets:
+            return EntryKind.SYMLINK
+        return EntryKind.DIRECTORY
+
+    def read_link_target(self, path: RootRelativePath) -> PurePosixPath | None:
+        """The recorded target of the link at `path`; see `EntryLookup.read_link_target`.
+
+        Args:
+            path: The root-relative link, one `kind` answered SYMLINK for.
+        """
+        return self._targets.get(path)
+
+
+def _real_scan_roots(scope: tuple[ScanRoot, ...], recorded: _RecordedLinks) -> tuple[ScanRoot, ...]:
     """Every root the scan of `scope` lists from, each at a real directory, links it follows included.
 
-    This retraces `take_snapshot` from the declaration. A root that follows links starts where its directory
-    leads; one that does not starts at its directory, as written. Then each recorded link a following root
-    covers, in a directory listed with depth left, adds a following root at the real directory it leads to,
-    one level shallower, as the scan queues it; those roots add their own. The depth falls with each link, so
-    the roots are finite.
+    This retraces `take_snapshot` from the declaration, through the same rules: each declared root starts where
+    `real_scan_root` puts it, and each recorded link adds the root `linked_scan_root` gives for a root
+    already found; those roots add their own. The depth falls with each link, so the roots are finite.
 
     Args:
         scope: The declared roots, as `take_snapshot` was handed them.
-        links: Every link the snapshot recorded, keyed by its root-relative path.
+        recorded: Every link the snapshot recorded, as the walks see them.
     """
     real_roots: list[ScanRoot] = []
     for scan_root in scope:
-        if not scan_root.follow_links:
-            # Kept as written. With a link on the way the scan lists nothing here, and the root then covers nothing
-            # a query reaches either: a walked path never lies under a recorded link, since the walk follows it.
-            real_roots.append(scan_root)
-            continue
-        directory = _walk_recorded_links(links, scan_root.directory)
-        if directory is not None:
-            real_roots.append(ScanRoot(directory, scan_root.depth, follow_links=True))
+        real_root = real_scan_root(scan_root, recorded)
+        if real_root is not None:
+            real_roots.append(real_root)
 
-    pending: list[ScanRoot] = []
-    for scan_root in real_roots:
-        if scan_root.follow_links:
-            pending.append(scan_root)
+    # Where each recorded link leads, walked once rather than once for every root that lists it.
+    linked_directories: dict[RootRelativePath, RootRelativePath] = {}
+    for link in recorded.paths():
+        leads_to = walk_to_real_path(link, recorded, follow_links=True)
+        if leads_to is not None:
+            linked_directories[link] = leads_to.path
+
+    pending = list(real_roots)
     while pending:
         scan_root = pending.pop()
-        for link in links:
-            if not scan_root.is_covering(link):
-                continue
-            depth_at_link = scan_root.depth - scan_root.listing_level(link)
-            if depth_at_link == 0:
-                continue  # the scan reads a linked file here, but lists no linked directory
-            target = _walk_recorded_links(links, link)
-            if target is None:
-                continue
-            linked_root = ScanRoot(target, depth_at_link - 1, follow_links=True)
-            if linked_root not in real_roots:
+        for link, directory in linked_directories.items():
+            linked_root = linked_scan_root(scan_root, link, directory)
+            if linked_root is not None and linked_root not in real_roots:
                 real_roots.append(linked_root)
                 pending.append(linked_root)
     return tuple(real_roots)
-
-
-def _walk_recorded_links(
-    links: Mapping[RootRelativePath, PurePosixPath], path: RootRelativePath
-) -> RootRelativePath | None:
-    """Where `path` leads, every recorded link on the way followed and every other component taken as written.
-
-    The walk follows the rules of the scan's own walk, `_walk_to_real_path` in `disk.py`: a link splices its
-    target into the components still to walk, and the walk gives up where the scan does. Unlike it, a
-    component with no link recorded is stepped into whether or not it exists, since the question is where the
-    path would lead, not what is there.
-
-    Args:
-        links: Every link the snapshot recorded, keyed by its root-relative path.
-        path: The root-relative path to walk, spelled as given.
-
-    Returns:
-        The path with every recorded link resolved, or `None` when a link's target is absolute, climbs above
-        the root or with `..` out of a directory the walk stepped into by name since the last link, or the
-        chain is longer than `MAX_LINKS`.
-    """
-    resolved = ROOT
-    remaining = list(path.parts)
-    links_followed = 0
-    stepped_into_directory = False  # since the last link, or since the start
-    while remaining:
-        part = remaining.pop(0)
-        if part == '..':
-            if resolved == ROOT or stepped_into_directory:
-                return None
-            resolved = resolved.parent
-            continue
-        candidate = resolved / part
-        target = links.get(candidate)
-        if target is None:
-            resolved = candidate
-            stepped_into_directory = True
-            continue
-        links_followed += 1
-        if target.is_absolute() or links_followed > MAX_LINKS:
-            return None
-        remaining = list(target.parts) + remaining
-        stepped_into_directory = False
-    return resolved
