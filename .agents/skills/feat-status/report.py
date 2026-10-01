@@ -4,10 +4,9 @@
 Parses YAML frontmatter from docs/feat/*.md and generates a status report
 grouped by maturity level (stable, experimental, unstable, development, unknown).
 
-This is the one script in this repository that sits off the script convention -- a
-plain python3 script with its own frontmatter parser and its own table renderer,
-rather than a PEP 723 script run through uv -- and it is first in line to be
-replaced by the lorecraft library.
+This is the one standalone script left in this repository: a plain python3 script,
+needing nothing outside the standard library, with its own frontmatter parser and
+its own table renderer. The lorecraft library is to replace it.
 """
 
 import re

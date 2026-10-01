@@ -1,8 +1,8 @@
 ---
 name: skills-check
 description: Write skills that comply with the Agent Skills specification, and check skills under .agents/skills/ and skills/ against it. Use before creating or editing a SKILL.md or any file in a skill directory, when reviewing a skill change, or before committing one
-compatibility: Requires uv to run the script in scripts/; it declares its own dependencies and resolves them on the first run. Nothing is built and no service is contacted.
-allowed-tools: Bash(uv run lorecraft check skills*) Bash(.agents/skills/skills-check/scripts/check_skill.py*) Bash(just check-skills*) Bash(git diff*) Bash(git status*) Bash(git merge-base*) Bash(ls .agents/skills/*) Bash(ls skills/*)
+compatibility: Requires the lorecraft command, run through uv run lorecraft in this repository's synced development environment, and a git checkout. No service is contacted.
+allowed-tools: Bash(uv run lorecraft check skills*) Bash(just check-skills*) Bash(git diff*) Bash(git status*) Bash(git merge-base*) Bash(grep -l *) Bash(ls .agents/skills/*) Bash(ls skills/*)
 ---
 
 # Skills Check
@@ -25,7 +25,8 @@ A skill's location decides the rules it is held to.
 | `skills/<name>/` | Project skill | Agents in other repositories, after the skill is installed there | The specification only; nothing may depend on this repository's agent or layout |
 
 Project skills live in `skills/`, and each is linked into `.agents/skills/` by a symlink so this repository's
-agents use it too. The script resolves the symlink and checks the skill once, as a project skill.
+agents use it too. `lorecraft check skills` reads each skill in `.agents/skills/`, so it checks a project skill
+once, through that symlink.
 
 Workspace skills may use these Claude Code extensions in the body, because only this repository's agents load
 them. None is a frontmatter field: every skill's frontmatter is held to the specification alone (§2).
@@ -114,8 +115,9 @@ within a subkey, because the link keeps only the file name. A path must name a f
 `lorecraft check skills` snapshot reads (see `docs/feat/workspace.md`, section One Snapshot); any other is
 reported as outside the scope.
 
-`metadata` is also the reverse index: `scripts/check_skill.py --linking docs/code/logging.md` names every skill
-that depends on that file, which is how a document change finds the skills it may have stranded (§8).
+`metadata` is also the reverse index: `grep -l docs/code/logging.md skills/*/SKILL.md` names every project skill
+whose `SKILL.md` names that file, its `metadata` included, which is how a document change finds the skills it
+may have stranded (§8).
 
 ## 5. The changeset
 
@@ -128,16 +130,15 @@ Uncommitted work is the default subject. For a whole branch use
 those instead. A change to any file in a skill directory is a change to that skill.
 
 A change under `docs/` is also a change to every project skill that links the file. Add those skills to the
-subject: `scripts/check_skill.py --linking <path>` (one `--linking` per file) prints them, one per line.
+subject: `grep -l <path> skills/*/SKILL.md` prints them, one per line (§4).
 
-## 6. Run the checks
+## 6. Run the check
 
-Two checks decide every mechanical rule between them. Do not check those rules by hand.
+`lorecraft check skills` decides every mechanical rule. Do not check those rules by hand.
 
-**`lorecraft check skills`** decides the frontmatter: YAML validity, the six fields and their limits,
-`metadata` value types, and `name` against the directory. It holds `SKILL.md` to 500 lines, frontmatter
-included, and reports a longer one as `skill.lines-budget`. It also reports four kinds of link, each in the file
-holding it:
+It decides the frontmatter: YAML validity, the six fields and their limits, `metadata` value types, and `name`
+against the directory. It holds `SKILL.md` to 500 lines, frontmatter included, and reports a longer one as
+`skill.lines-budget`. It also reports four kinds of link, each in the file holding it:
 
 - In every Markdown file of the skill, a relative link that, read from the skill root, climbs above it, as
   `skill.link-escapes`.
@@ -147,8 +148,7 @@ holding it:
 - In `SKILL.md` only, a `#fragment` link that names no heading of the file, as `skill.link-fragment`. A
   fragment into another file is not checked.
 
-For a skill
-that links files in through `metadata`, it reports linked files that share a name under one subkey
+For a skill that links files in through `metadata`, it reports linked files that share a name under one subkey
 (`skill.metadata-duplicate-name`), that are not a file in the repository (`skill.metadata-missing-file`), or that
 lie outside the scope above (`skill.metadata-outside-scope`).
 
@@ -156,31 +156,17 @@ lie outside the scope above (`skill.metadata-outside-scope`).
 uv run lorecraft check skills                           # every skill
 uv run lorecraft check skills .agents/skills/code-test  # named skills
 uv run lorecraft check skills --format json             # machine-readable
+uv run lorecraft check skills --help                    # arguments, options and exit codes
 ```
 
-**`scripts/check_skill.py`** checks nothing in a skill's files. It reports a skill directory outside
-`.agents/skills/` and `skills/` (`skill.location`) and one without a `SKILL.md` (`skill.missing`), and
-`--linking` names the skills that link a file in (§5).
+Findings print to stdout as `path:line: [rule] message`; the summary goes to stderr. Exit 0 means no
+findings, 1 means findings, 2 means the run could not start.
 
-It is executable and declares its own dependencies, so run it directly; `uv` resolves them on the first run.
-It finds the repository root by walking up, so the working directory does not matter:
+Name a skill by its directory or its `SKILL.md`, not by the directory that holds it: a bare `.agents/skills/`
+names no skill, and the run stops with exit 2. Pass no paths to check them all — that is what
+`just check-skills`, the repository's gate, runs.
 
-```bash
-.agents/skills/skills-check/scripts/check_skill.py                        # every skill
-.agents/skills/skills-check/scripts/check_skill.py .agents/skills/code-test   # named skills
-.agents/skills/skills-check/scripts/check_skill.py --linking docs/code/logging.md   # skills that link a file
-.agents/skills/skills-check/scripts/check_skill.py --format json          # machine-readable
-.agents/skills/skills-check/scripts/check_skill.py --help                 # flags and exit codes
-```
-
-Findings print to stdout as `path:line: [rule] message`; the skill count goes to stderr. Exit 0 means no
-findings, 1 means findings, 2 means bad usage.
-
-Name skill directories, not the directory that holds them: a bare `.agents/skills/` is read as one skill and
-reports `skill.location`. Pass no paths to check them all — that is what `just check-skills`, the repository's
-gate, runs, after `lorecraft check skills`.
-
-## 7. Walk what the checks cannot decide
+## 7. Walk what the check cannot decide
 
 For each changed skill, check:
 
@@ -199,12 +185,12 @@ For each changed skill, check:
 
 A skill may restate a default, a limit, a rule id, or a section outline from a document under `docs/` so an
 agent does not need to open the document. Each restatement is a copy that the document's next change strands,
-and no script can tell a stale copy from a fresh one. So:
+and no check can tell a stale copy from a fresh one. So:
 
 - For a changed project skill, list what it restates from each file in `metadata.references`, and check each
   item against the document's current text. A link to the document's section beats a copied value where the
   agent can afford the read.
-- For a changed document, take the skills that `--linking` named (§5) and do the same for the sections that
+- For a changed document, take the skills that `grep -l` named (§5) and do the same for the sections that
   changed. A skill that restates something the document no longer says is a finding against the skill, in the
   same change.
 - When the document and the code disagree, that is `/feat-validate`'s finding, not this skill's. Report it

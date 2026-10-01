@@ -71,9 +71,8 @@ typecheck *EXTRA_FLAGS:
 
 ## Docs
 
-# Each check exits 0 when clean and 1 when it reports findings. just runs each
-# line in its own shell and stops at the first non-zero exit, so a findings exit
-# fails the recipe; fix what the first check reports, then rerun for the rest.
+# Each check exits 0 when clean, 1 when it reports findings and 2 when it cannot
+# run, so a findings exit fails the recipe.
 
 # Check this repository's own documents with every lorecraft check
 [group: 'docs']
@@ -81,17 +80,11 @@ check-docs *EXTRA_FLAGS:
     @echo "📚 Checking documents..."
     uv run lorecraft check {{EXTRA_FLAGS}}
 
-# Check this repository's own skills: the frontmatter, the line budget and the links against the Agent Skills specification (lorecraft check skills), then where each skill lives (check_skill)
+# Check this repository's own skills against the Agent Skills specification: the frontmatter, the line budget and the links (lorecraft check skills)
 [group: 'docs']
 check-skills *EXTRA_FLAGS:
-    #!/usr/bin/env bash
-    # Both halves always run, so one pass shows every finding; the recipe fails when either does. The flags
-    # go to the script, the half that still has options of its own.
-    echo "📚 Checking skills..."
-    status=0
-    uv run lorecraft check skills || status=1
-    .agents/skills/skills-check/scripts/check_skill.py {{EXTRA_FLAGS}} || status=1
-    exit "$status"
+    @echo "📚 Checking skills..."
+    uv run lorecraft check skills {{EXTRA_FLAGS}}
 
 
 ## Codegen
