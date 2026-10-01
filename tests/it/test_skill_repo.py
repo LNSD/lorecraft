@@ -19,12 +19,21 @@ from lorecraft.project.skill import (
     Skill,
     SkillDecodeError,
     SkillDirListError,
+    SkillEntryResolveError,
+    SkillFileResolveError,
     SkillLocation,
     SkillReadError,
     SkillRef,
     SkillsDirListError,
 )
-from lorecraft.vfs import DirResolveError, DiskFileSystem
+from lorecraft.vfs import (
+    DirListError,
+    DirResolveError,
+    DiskFileSystem,
+    FileReadError,
+    FileResolveError,
+    TextDecodeError,
+)
 
 UNIVERSAL_DIR: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills')
 CLAUDE_DIR: Final[RootRelativePath] = RootRelativePath.parse('.claude/skills')
@@ -92,6 +101,27 @@ def _linked_location(directory: str, resolves_to: str, file_resolves_to: str) ->
 def locked_agents_dir(universal_dir: Path) -> Iterator[Path]:
     """An ``.agents/`` whose permissions refuse a search, restored afterwards so pytest can clean it up."""
     directory = universal_dir.parent
+    directory.chmod(0o000)
+    yield directory
+    directory.chmod(0o700)
+
+
+@pytest.fixture(scope='function')
+def locked_shared_skills_dir(tmp_path: Path) -> Iterator[Path]:
+    """A ``skills/`` holding a ``review`` skill, whose permissions refuse a search, restored for the cleanup."""
+    directory = tmp_path / 'skills'
+    _write_skill(directory / 'review')
+    directory.chmod(0o000)
+    yield directory
+    directory.chmod(0o700)
+
+
+@pytest.fixture(scope='function')
+def locked_texts_dir(tmp_path: Path) -> Iterator[Path]:
+    """A ``texts/`` holding a ``REVIEW.md``, whose permissions refuse a search, restored for the cleanup."""
+    directory = tmp_path / 'texts'
+    directory.mkdir()
+    (directory / 'REVIEW.md').write_text('', encoding='utf-8')
     directory.chmod(0o000)
     yield directory
     directory.chmod(0o700)
@@ -213,6 +243,54 @@ class TestRepositoryListSkills:
             _linked_location('.agents/skills/audit', '.agents/skills/review', '.agents/skills/review/SKILL.md'),
             _location('.agents/skills/review'),
         ), 'each entry under the skills directory is a skill of its own, as an agent sees them'
+
+    def test_list_skills_with_a_file_sorting_before_a_skill_leaves_out_only_the_file(
+        self, repository: Repository, universal_dir: Path
+    ) -> None:
+        #: Given
+        # 'README.md' sorts before 'review', so the file is passed over before the skill is reached
+        (universal_dir / 'README.md').write_text('', encoding='utf-8')
+        _write_skill(universal_dir / 'review')
+
+        #: When
+        skills = repository.list_skills(UNIVERSAL_DIR)
+
+        #: Then
+        assert skills == (_location('.agents/skills/review'),), (
+            'a file beside the skills is left out, and the listing goes on to the skills after it'
+        )
+
+    def test_list_skills_with_a_dangling_entry_sorting_before_a_skill_leaves_out_only_the_entry(
+        self, repository: Repository, universal_dir: Path
+    ) -> None:
+        #: Given
+        # 'aaa' sorts before 'review', so the dangling link is passed over before the skill is reached
+        (universal_dir / 'aaa').symlink_to('../../skills/aaa')
+        _write_skill(universal_dir / 'review')
+
+        #: When
+        skills = repository.list_skills(UNIVERSAL_DIR)
+
+        #: Then
+        assert skills == (_location('.agents/skills/review'),), (
+            'a link that leads nowhere is left out, and the listing goes on to the skills after it'
+        )
+
+    def test_list_skills_with_a_file_sorting_before_the_skill_file_returns_the_skill(
+        self, repository: Repository, universal_dir: Path
+    ) -> None:
+        #: Given
+        # 'README.md' sorts before 'SKILL.md', so the skill directory is searched past it
+        _write_skill(universal_dir / 'review')
+        (universal_dir / 'review' / 'README.md').write_text('', encoding='utf-8')
+
+        #: When
+        skills = repository.list_skills(UNIVERSAL_DIR)
+
+        #: Then
+        assert skills == (_location('.agents/skills/review'),), (
+            'another file beside SKILL.md does not stop the directory from being a skill'
+        )
 
     def test_list_skills_with_a_directory_without_a_skill_file_leaves_it_out(
         self, repository: Repository, universal_dir: Path
@@ -377,6 +455,8 @@ class TestRepositoryListSkills:
 
         #: Then
         assert str(exc_info.value.skills_dir) == f'.agents/{locked.name}', 'the error names the skills directory'
+        assert isinstance(exc_info.value.source, DirListError), 'its source is the failed listing'
+        assert f'.agents/{locked.name}' in str(exc_info.value), 'the message names the skills directory'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
     def test_list_skills_with_an_unreadable_skill_directory_raises_skill_dir_list_error(
@@ -391,6 +471,43 @@ class TestRepositoryListSkills:
 
         #: Then
         assert str(exc_info.value.directory).endswith(f'skills/{locked.name}'), 'the error names the skill directory'
+        assert isinstance(exc_info.value.source, DirListError), 'its source is the failed listing'
+        assert f'.agents/skills/{locked.name}' in str(exc_info.value), 'the message names the skill directory'
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
+    def test_list_skills_with_a_skill_entry_linked_into_an_unsearchable_directory_raises_skill_entry_resolve_error(
+        self, repository: Repository, universal_dir: Path, locked_shared_skills_dir: Path
+    ) -> None:
+        #: Given
+        (universal_dir / 'review').symlink_to(f'../../{locked_shared_skills_dir.name}/review')
+        entry = RootRelativePath.parse('.agents/skills/review')
+
+        #: When
+        with pytest.raises(SkillEntryResolveError) as exc_info:
+            repository.list_skills(UNIVERSAL_DIR)
+
+        #: Then
+        assert exc_info.value.entry == entry, 'the error names the entry whose link could not be followed'
+        assert isinstance(exc_info.value.source, DirResolveError), 'its source is the refused resolve'
+        assert str(entry) in str(exc_info.value), 'the message names the entry'
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
+    def test_list_skills_with_a_skill_file_linked_into_an_unsearchable_directory_raises_skill_file_resolve_error(
+        self, repository: Repository, universal_dir: Path, locked_texts_dir: Path
+    ) -> None:
+        #: Given
+        (universal_dir / 'review').mkdir()
+        (universal_dir / 'review' / 'SKILL.md').symlink_to(f'../../../{locked_texts_dir.name}/REVIEW.md')
+        skill_file = RootRelativePath.parse('.agents/skills/review/SKILL.md')
+
+        #: When
+        with pytest.raises(SkillFileResolveError) as exc_info:
+            repository.list_skills(UNIVERSAL_DIR)
+
+        #: Then
+        assert exc_info.value.skill_file == skill_file, 'the error names the SKILL.md whose link could not be followed'
+        assert isinstance(exc_info.value.source, FileResolveError), 'its source is the refused resolve'
+        assert str(skill_file) in str(exc_info.value), 'the message names the SKILL.md'
 
 
 @pytest.mark.it
@@ -436,6 +553,8 @@ class TestRepositoryGetSkill:
 
         #: Then
         assert exc_info.value.ref == ref, 'the error names the skill that is not UTF-8'
+        assert isinstance(exc_info.value.source, TextDecodeError), 'its source is the failed decode'
+        assert '.agents/skills/review' in str(exc_info.value), 'the message names the skill'
 
     def test_get_skill_with_no_skill_file_raises_skill_read_error(
         self, repository: Repository, universal_dir: Path
@@ -450,3 +569,6 @@ class TestRepositoryGetSkill:
 
         #: Then
         assert type(exc_info.value) is SkillReadError, 'a missing SKILL.md is unreadable, not undecodable'
+        assert exc_info.value.ref == ref, 'the error names the skill that could not be read'
+        assert isinstance(exc_info.value.source, FileReadError), 'its source is the failed read'
+        assert '.agents/skills/review' in str(exc_info.value), 'the message names the skill'
