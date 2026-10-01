@@ -126,6 +126,11 @@ Each item is an invariant or a placement test, phrased so that it can be checked
 
 See [code.md §4](code.md#4-cross-reference-rules) for relationship types and direction rules.
 
+#### External References (optional)
+
+Links to the outside sources the package is built on, such as the documentation of the system calls it makes.
+[code.md §1](code.md#1-core-principles) states which external links a rule document may carry.
+
 ## Template
 
 ```markdown
@@ -172,6 +177,10 @@ scope: "pkg:{{import.path}}"
 
 - [{{architecture-document}}]({{architecture-document}}.md) - Foundation: {{The role vocabulary}}
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One reason to change
+
+## External References {{OPTIONAL}}
+
+- [{{External reference title}}]({{url}})
 ```
 
 ## References
