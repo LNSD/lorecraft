@@ -1,34 +1,39 @@
-"""How a scan root expands through symlinks, defined once for the scan and for the scope query.
+"""How a path walks through symlinks, defined once for the scan, the scope query and the virtual view.
 
 `take_snapshot` in `disk.py` expands each root of a scope as it lists the disk; `ScopeIndex` in `scope.py`
-expands the same roots afterwards, from the links the snapshot recorded. Both go through the rules here, so
-what the scan lists and what the query says it lists cannot drift apart:
+expands the same roots afterwards, from the links the snapshot recorded; `VirtualFileSystem` in `snapshot.py`
+resolves a path through the same links. All three go through the rules here, so what the scan lists, what the
+query says it lists and what the view reaches cannot drift apart:
 
 - `real_scan_root`: where the scan of a root starts, walked through the links on the way when it follows them.
 - `walk_to_real_path`: where a path leads, which links are followed, and which `..` steps are refused.
 - `linked_scan_root`: the root a followed link adds, and the depth the link uses up.
 
-The two callers differ only in where a walk learns what an entry is, which is what `EntryLookup` stands for:
-the disk, read as the walk goes, or the links a snapshot recorded.
+The callers differ only in where a walk learns what an entry is, which is what `EntryLookup` stands for: the
+disk, read as the walk goes, the links a snapshot recorded, or everything a snapshot recorded.
 """
 
 from dataclasses import dataclass
 from pathlib import PurePosixPath
-from typing import Protocol, assert_never
+from typing import Final, Protocol, assert_never
 
 from lorecraft.core.path import ROOT, RootRelativePath
 
 from .scan_root import ScanRoot
-from .snapshot import MAX_LINKS
 from .view import EntryKind
+
+MAX_LINKS: Final[int] = 40
+"""Links followed before a chain counts as a loop; Linux's MAXSYMLINKS, past which the disk reports ELOOP.
+
+Every walk here counts against it, so the scan, the scope query and the virtual view give up on the same chain."""
 
 
 class EntryLookup(Protocol):
     """Where a walk learns what an entry is and where a link leads.
 
     A protocol rather than the links themselves, because the scan learns both from the disk as it walks,
-    inspecting each component and recording each link it reads, while the scope query has only the links a
-    snapshot recorded.
+    inspecting each component and recording each link it reads, the scope query has only the links a snapshot
+    recorded, and the virtual view has the snapshot's listings and files besides.
     """
 
     def kind(self, path: RootRelativePath) -> EntryKind | None:
@@ -43,7 +48,7 @@ class EntryLookup(Protocol):
         """Read the target of the symlink at `path`; `None` when it is gone.
 
         The disk implementation records each target it reads in the links of the scan, so reading is not free
-        of effect; the recorded-link implementation only looks it up.
+        of effect; the snapshot implementations only look it up.
 
         Args:
             path: A root-relative entry `kind` answered SYMLINK for.
@@ -69,14 +74,14 @@ def walk_to_real_path(path: RootRelativePath, entries: EntryLookup, *, follow_li
 
     Walks the components from the root, one real directory to the next. Without `follow_links` the walk ends
     at the first symlink, which leaves the path unread. With it a symlink splices its target into the
-    components still to walk, as the kernel does and as `VirtualFileSystem` does over the snapshot. The `..`
-    refusal below is the walk's own; `VirtualFileSystem` does not refuse those.
+    components still to walk, as the kernel does.
 
-    The view knows a directory only by what the snapshot recorded in it or under it. A directory the walk
-    stepped into by name since the last link has nothing recorded in it yet, so a `..` climbing back out of
-    one, as in `tmp/../review`, makes a chain the view could not walk: the walk ends there instead of reaching
-    what the view would not. A `..` climbing out of the directory a link sits in is followed, since the
-    recorded link makes that directory and its ancestors known.
+    The `..` refusal below is the walk's own, and the kernel has no such rule. A snapshot knows a directory
+    only by what it recorded in it or under it, and a directory the walk stepped into by name since the last
+    link has nothing recorded in it yet, so a `..` climbing back out of one, as in `tmp/../review`, makes a
+    chain a snapshot could not vouch for: the walk ends there, for the scan and the views over its snapshot
+    alike. A `..` climbing out of the directory a link sits in is followed, since the recorded link makes
+    that directory and its ancestors known.
 
     Args:
         path: The root-relative path to walk, spelled as given, links unresolved.
@@ -91,7 +96,7 @@ def walk_to_real_path(path: RootRelativePath, entries: EntryLookup, *, follow_li
 
     Raises:
         Exception: Whatever `entries` raises: the disk lookup's `SnapshotEntryInspectError` and
-            `SnapshotLinkReadError`; the recorded-link lookup raises nothing.
+            `SnapshotLinkReadError`; the snapshot lookups raise nothing.
     """
     resolved = ROOT
     remaining = list(path.parts)
@@ -148,7 +153,7 @@ def real_scan_root(scan_root: ScanRoot, entries: EntryLookup) -> ScanRoot | None
 
     Raises:
         Exception: Whatever `entries` raises: the disk lookup's `SnapshotEntryInspectError` and
-            `SnapshotLinkReadError`; the recorded-link lookup raises nothing.
+            `SnapshotLinkReadError`; the snapshot lookups raise nothing.
     """
     leads_to = walk_to_real_path(scan_root.directory, entries, follow_links=scan_root.follow_links)
     if leads_to is None or leads_to.kind is not EntryKind.DIRECTORY:

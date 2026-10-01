@@ -23,7 +23,7 @@ from lorecraft.project.layout import LinkedLayoutError
 from lorecraft.project.skill import SkillDecodeError, SkillRef
 from lorecraft.project.syntax import Frontmatter, LineNumber, count_tokens
 from lorecraft.project.syntax import Link as MarkdownLink
-from lorecraft.vfs import Link, ScanRoot, Snapshot
+from lorecraft.vfs import DirEntry, EntryKind, FileBytes, Link, Listing, ScanRoot, Snapshot
 
 GUIDE: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('guide'))
 REVIEW: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/review'))
@@ -51,6 +51,37 @@ def _skill_snapshot(skill: bytes) -> Snapshot:
         skill: Bytes of the skill's `SKILL.md`.
     """
     return Snapshot.of_files({RootRelativePath.parse('.agents/skills/review/SKILL.md'): skill})
+
+
+def _refused_chain_snapshot() -> Snapshot:
+    """What `take_snapshot` records for a link chain the scan refuses, whose target another root lists anyway.
+
+    The tree is `refused_chain_tree` of the filesystem tier, scanned with `skills` one level deep through its
+    links and `a` one level deep. `skills/l` names `../a/tmp/../b`, whose `..` climbs out of `a/tmp`, a
+    directory stepped into by name since the link, so the scan does not follow it; `skills/m` names `../a/b`
+    and is followed. The root `a` lists `a/b` either way.
+    """
+    return Snapshot(
+        listings=(
+            Listing(
+                RootRelativePath.parse('a'), (DirEntry('b', EntryKind.DIRECTORY), DirEntry('tmp', EntryKind.DIRECTORY))
+            ),
+            Listing(RootRelativePath.parse('a/b'), (DirEntry('SKILL.md', EntryKind.FILE),)),
+            Listing(RootRelativePath.parse('a/tmp'), ()),
+            Listing(
+                RootRelativePath.parse('skills'), (DirEntry('l', EntryKind.SYMLINK), DirEntry('m', EntryKind.SYMLINK))
+            ),
+        ),
+        files=(FileBytes(RootRelativePath.parse('a/b/SKILL.md'), b'---\nname: b\n---\n'),),
+        links=(
+            Link(RootRelativePath.parse('skills/l'), PurePosixPath('../a/tmp/../b')),
+            Link(RootRelativePath.parse('skills/m'), PurePosixPath('../a/b')),
+        ),
+        scope=(
+            ScanRoot(RootRelativePath.parse('skills'), depth=1, follow_links=True),
+            ScanRoot(RootRelativePath.parse('a'), depth=1),
+        ),
+    )
 
 
 @pytest.mark.it
@@ -156,6 +187,43 @@ class TestDatabase:
 
         #: Then
         assert in_scope is True, 'every question after the first is answered from the same expanded scan roots'
+
+    def test_resolve_through_a_refused_link_chain_returns_none(self) -> None:
+        #: Given
+        database = Database(_refused_chain_snapshot())
+        path = RootRelativePath.parse('skills/l/SKILL.md')
+
+        #: When
+        resolved = database.resolve(path)
+
+        #: Then
+        assert resolved is None, (
+            'the scan refuses ../a/tmp/../b, so skills/l/SKILL.md leads nowhere, though a/b/SKILL.md is recorded'
+        )
+
+    def test_resolve_file_through_a_refused_link_chain_returns_none(self) -> None:
+        #: Given
+        database = Database(_refused_chain_snapshot())
+        path = RootRelativePath.parse('skills/l/SKILL.md')
+
+        #: When
+        resolved = database.resolve_file(path)
+
+        #: Then
+        assert resolved is None, (
+            'the scan refuses ../a/tmp/../b, so skills/l/SKILL.md leads to no file, though a/b/SKILL.md is recorded'
+        )
+
+    def test_resolve_file_through_a_followed_link_returns_the_real_file(self) -> None:
+        #: Given
+        database = Database(_refused_chain_snapshot())
+        path = RootRelativePath.parse('skills/m/SKILL.md')
+
+        #: When
+        resolved = database.resolve_file(path)
+
+        #: Then
+        assert resolved == RootRelativePath.parse('a/b/SKILL.md'), 'the scan follows skills/m to a/b'
 
     def test_frontmatter_of_a_listed_document_returns_its_decoded_block(self) -> None:
         #: Given

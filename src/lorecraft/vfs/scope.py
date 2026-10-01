@@ -112,6 +112,9 @@ class _RecordedLinks:
 
         Args:
             path: The root-relative link, one `kind` answered SYMLINK for.
+
+        Returns:
+            The target as recorded, or `None` when no target was recorded at `path`.
         """
         return self._targets.get(path)
 

@@ -66,6 +66,47 @@ def _skills_snapshot() -> Snapshot:
     )
 
 
+def _refused_chain_snapshot() -> Snapshot:
+    """A scan-shaped snapshot of link chains the scan refuses, whose targets another root lists anyway.
+
+    The scope is `skills` one level deep through its links, and `a` one level deep. `skills/l` names
+    `../a/tmp/../b`, whose `..` climbs out of `a/tmp`, a directory stepped into by name since the link, so the
+    scan does not follow it; `skills/m` names `../a/b` and is followed. `skills/inner` names `../a/tmp` and is
+    followed; `skills/nested` names `inner/..`, whose `..` climbs out of the `a/tmp` that `skills/inner` stepped
+    into by name, so it is refused too, though the disk follows it to `a`. The root `a` lists `a`, `a/b` and
+    `a/tmp` either way. It is what `take_snapshot` records for that tree.
+    """
+    return Snapshot(
+        listings=(
+            Listing(
+                RootRelativePath.parse('a'), (DirEntry('b', EntryKind.DIRECTORY), DirEntry('tmp', EntryKind.DIRECTORY))
+            ),
+            Listing(RootRelativePath.parse('a/b'), (DirEntry('SKILL.md', EntryKind.FILE),)),
+            Listing(RootRelativePath.parse('a/tmp'), ()),
+            Listing(
+                RootRelativePath.parse('skills'),
+                (
+                    DirEntry('inner', EntryKind.SYMLINK),
+                    DirEntry('l', EntryKind.SYMLINK),
+                    DirEntry('m', EntryKind.SYMLINK),
+                    DirEntry('nested', EntryKind.SYMLINK),
+                ),
+            ),
+        ),
+        files=(FileBytes(RootRelativePath.parse('a/b/SKILL.md'), b'---\nname: b\n---\n'),),
+        links=(
+            Link(RootRelativePath.parse('skills/inner'), PurePosixPath('../a/tmp')),
+            Link(RootRelativePath.parse('skills/l'), PurePosixPath('../a/tmp/../b')),
+            Link(RootRelativePath.parse('skills/m'), PurePosixPath('../a/b')),
+            Link(RootRelativePath.parse('skills/nested'), PurePosixPath('inner/..')),
+        ),
+        scope=(
+            ScanRoot(RootRelativePath.parse('skills'), depth=1, follow_links=True),
+            ScanRoot(RootRelativePath.parse('a'), depth=1),
+        ),
+    )
+
+
 @pytest.mark.unit
 class TestSnapshotOfFiles:
     def test_of_files_with_nested_files_derives_every_listing_and_directory_entry(self) -> None:
@@ -371,6 +412,17 @@ class TestVirtualFileSystemListDir:
         #: Then
         assert entry in entries, 'the fifo pipe is listed as other, neither a file nor a directory'
 
+    def test_list_dir_through_a_link_climbing_out_of_a_directory_stepped_into_returns_empty(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_refused_chain_snapshot())
+        path = RootRelativePath.parse('skills/l')
+
+        #: When
+        entries = virtual.list_dir(path)
+
+        #: Then
+        assert entries == (), 'the scan refuses ../a/tmp/../b, so skills/l lists nothing, though a/b is listed'
+
 
 @pytest.mark.unit
 class TestVirtualFileSystemReadText:
@@ -494,6 +546,22 @@ class TestVirtualFileSystemReadText:
         #: Then
         assert type(exc_info.value) is UnrecordedFileError, 'a directory has no bytes, so it reads as a missing file'
         assert exc_info.value.path == path, 'the error names the root-relative path that was read'
+
+    def test_read_text_through_a_link_climbing_out_of_a_directory_stepped_into_raises_unrecorded_file_error(
+        self,
+    ) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_refused_chain_snapshot())
+        path = RootRelativePath.parse('skills/l/SKILL.md')
+
+        #: When
+        with pytest.raises(UnrecordedFileError) as exc_info:
+            virtual.read_text(path)
+
+        #: Then
+        assert type(exc_info.value) is UnrecordedFileError, (
+            'the scan refuses the chain through skills/l, so a/b/SKILL.md is not read through it, though recorded'
+        )
 
 
 @pytest.mark.unit
@@ -636,6 +704,17 @@ class TestVirtualFileSystemEntryKind:
 
         #: Then
         assert kind is None, 'src lies outside the scanned scope, so the snapshot holds nothing there'
+
+    def test_entry_kind_through_a_link_climbing_out_of_a_directory_stepped_into_returns_none(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_refused_chain_snapshot())
+        path = RootRelativePath.parse('skills/l/SKILL.md')
+
+        #: When
+        kind = virtual.entry_kind(path)
+
+        #: Then
+        assert kind is None, 'the scan refuses the chain through skills/l, so its parent leads to no directory'
 
 
 @pytest.mark.unit
@@ -915,6 +994,47 @@ class TestVirtualFileSystemResolveDir:
         #: Then
         assert resolved is None, 'src lies outside the scanned scope, so it leads to no directory'
 
+    def test_resolve_dir_with_a_link_climbing_out_of_a_directory_stepped_into_returns_none(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_refused_chain_snapshot())
+        path = RootRelativePath.parse('skills/l')
+
+        #: When
+        resolved = virtual.resolve_dir(path)
+
+        #: Then
+        assert resolved is None, (
+            'the target ../a/tmp/../b climbs out of a/tmp, stepped into by name, so the scan refuses the chain'
+        )
+
+    def test_resolve_dir_with_a_link_climbing_out_of_its_own_directory_returns_the_target(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_refused_chain_snapshot())
+        path = RootRelativePath.parse('skills/m')
+
+        #: When
+        resolved = virtual.resolve_dir(path)
+
+        #: Then
+        assert resolved == RootRelativePath.parse('a/b'), (
+            'the target ../a/b climbs only out of skills, where the link sits'
+        )
+
+    def test_resolve_dir_with_a_link_whose_dotdot_climbs_out_of_a_directory_another_link_stepped_into_returns_none(
+        self,
+    ) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_refused_chain_snapshot())
+        path = RootRelativePath.parse('skills/nested')
+
+        #: When
+        resolved = virtual.resolve_dir(path)
+
+        #: Then
+        assert resolved is None, (
+            'inner/.. climbs out of a/tmp, which skills/inner stepped into by name, so the scan refuses the chain'
+        )
+
 
 @pytest.mark.unit
 class TestVirtualFileSystemResolveFile:
@@ -1018,3 +1138,27 @@ class TestVirtualFileSystemResolveFile:
 
         #: Then
         assert resolved is None, 'docs/code/missing.md was never recorded, so it leads to no file'
+
+    def test_resolve_file_through_a_link_climbing_out_of_a_directory_stepped_into_returns_none(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_refused_chain_snapshot())
+        path = RootRelativePath.parse('skills/l/SKILL.md')
+
+        #: When
+        resolved = virtual.resolve_file(path)
+
+        #: Then
+        assert resolved is None, (
+            'the scan refuses the chain through skills/l, so a/b/SKILL.md is not reached through it, though recorded'
+        )
+
+    def test_resolve_file_through_a_link_climbing_out_of_its_own_directory_returns_the_real_file(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_refused_chain_snapshot())
+        path = RootRelativePath.parse('skills/m/SKILL.md')
+
+        #: When
+        resolved = virtual.resolve_file(path)
+
+        #: Then
+        assert resolved == RootRelativePath.parse('a/b/SKILL.md'), 'the scan follows skills/m to a/b'
