@@ -13,11 +13,7 @@ from .frontmatter_problem import (
     WrongTypeProblem,
 )
 from .name import SchemaName, parse_schema_name, schema_name_stem
-from .repo import (
-    CorpusSchemasListError,
-    Repository,
-    StructureSchemaReadError,
-)
+from .repo import Repository, StructureSchemaReadError
 from .skill import SKILL_FRONTMATTER_SCHEMA, SkillFrontmatterSchema
 from .skill_frontmatter import (
     EmptySkillCompatibilityError,
@@ -104,7 +100,6 @@ __all__ = [
     'ForeignFrontmatterDialectError',
     'UntypedFrontmatterSchemaError',
     'StructureSchemaReadError',
-    'CorpusSchemasListError',
     'Repository',
     'SkillFrontmatter',
     'SkillName',
