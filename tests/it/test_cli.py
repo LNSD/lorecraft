@@ -1229,6 +1229,7 @@ class TestCheckSkillsCommand:
                         'relative to the skill root'
                     ),
                     'spec': None,
+                    'notes': [],
                 }
             ],
             'ungoverned': [],
