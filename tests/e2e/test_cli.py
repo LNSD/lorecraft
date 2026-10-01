@@ -5,7 +5,8 @@ at all. This suite runs from the checkout, so the verbose command must report it
 well as the installed version and environment. Every version output, and `inspect`, `check`, `check frontmatter`,
 `check structure`, `check budget` and `check skills` over a checked-in workspace fixture, is compared to a reviewed
 snapshot file under `__snapshots__/`. So is what `check` and `inspect` print for a root whose `docs/` or
-`docs/__meta__/` is a symlink into that fixture.
+`docs/__meta__/` is a symlink into that fixture, and what `check frontmatter` and `check skills` print for a root
+whose frontmatter writes a key twice.
 """
 
 from pathlib import Path
@@ -167,6 +168,27 @@ class TestInspectSnapshots:
         )
 
 
+@pytest.fixture(scope='function')
+def duplicate_key_root(tmp_path: Path) -> Path:
+    """A root holding one document and one skill, each of whose frontmatter writes a key twice.
+
+    Apart from the repetition both are clean, so the duplicate-key finding is the only one either check prints.
+    """
+    (tmp_path / 'docs' / '__meta__').mkdir(parents=True)
+    (tmp_path / 'docs' / '__meta__' / 'code.structure.json').write_text(
+        '{"frontmatter": {"type": "object"}}\n', encoding='utf-8'
+    )
+    (tmp_path / 'docs' / 'code').mkdir()
+    (tmp_path / 'docs' / 'code' / 'guide.md').write_text(
+        '---\nname: guide\ntype: rule\ntype: pattern\n---\n', encoding='utf-8'
+    )
+    (tmp_path / '.agents' / 'skills' / 'review').mkdir(parents=True)
+    (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').write_text(
+        '---\nname: review\ndescription: Review a change\ndescription: Audit a change\n---\n', encoding='utf-8'
+    )
+    return tmp_path
+
+
 @pytest.mark.e2e
 class TestCheckFrontmatterSnapshots:
     # Every finding prints root-relative, so the output is the same in every checkout and nothing is redacted.
@@ -199,6 +221,20 @@ class TestCheckFrontmatterSnapshots:
         #: Then
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the JSON report matches the reviewed snapshot'
+
+    def test_check_frontmatter_with_a_key_written_twice_prints_the_duplicate_key_finding(
+        self, snapshot: SnapshotAssertion, duplicate_key_root: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('check', 'frontmatter', '--root', str(duplicate_key_root))
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, 'the duplicate-key finding matches the reviewed snapshot'
 
 
 @pytest.mark.e2e
@@ -301,6 +337,20 @@ class TestCheckSkillsSnapshots:
         #: Then
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the JSON report matches the reviewed snapshot'
+
+    def test_check_skills_with_a_key_written_twice_prints_the_duplicate_key_finding(
+        self, snapshot: SnapshotAssertion, duplicate_key_root: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('check', 'skills', '--root', str(duplicate_key_root))
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, 'the duplicate-key finding matches the reviewed snapshot'
 
 
 @pytest.mark.e2e

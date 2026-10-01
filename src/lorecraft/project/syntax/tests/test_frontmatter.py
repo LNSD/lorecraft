@@ -82,6 +82,116 @@ class TestDecodeFrontmatter:
         assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
         assert node.keys == (FrontmatterKey('name', LineNumber(3)),), 'only keys written as strings are listed'
 
+    def test_decode_frontmatter_with_a_key_repeated_with_the_same_value_lists_every_occurrence(self) -> None:
+        #: Given
+        block = 'name: guide\ntype: rule\nname: guide\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a mapping that repeats a key is still frontmatter, got {node!r}'
+        assert node.keys == (
+            FrontmatterKey('name', LineNumber(2)),
+            FrontmatterKey('type', LineNumber(3)),
+            FrontmatterKey('name', LineNumber(4)),
+        ), 'a key written twice is listed once per occurrence, in document order'
+
+    def test_decode_frontmatter_with_a_key_repeated_with_another_value_keeps_the_last_value(self) -> None:
+        #: Given
+        block = 'name: guide\ntype: rule\nname: other\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == Frontmatter(
+            data={'name': 'other', 'type': 'rule'},
+            keys=(
+                FrontmatterKey('name', LineNumber(2)),
+                FrontmatterKey('type', LineNumber(3)),
+                FrontmatterKey('name', LineNumber(4)),
+            ),
+        ), 'the data holds the value of the last occurrence, and the keys list every occurrence'
+
+    def test_decode_frontmatter_with_an_equals_key_lists_it_on_its_document_line(self) -> None:
+        #: Given
+        block = 'name: guide\n=: 1\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == Frontmatter(
+            data={'name': 'guide', '=': 1},
+            keys=(
+                FrontmatterKey('name', LineNumber(2)),
+                FrontmatterKey('=', LineNumber(3)),
+            ),
+        ), 'a plain `=` key, which YAML tags as a value key, decodes to a string key and is listed with its line'
+
+    def test_decode_frontmatter_with_an_equals_key_repeated_lists_every_occurrence(self) -> None:
+        #: Given
+        block = '=: a\n=: b\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == Frontmatter(
+            data={'=': 'b'},
+            keys=(
+                FrontmatterKey('=', LineNumber(2)),
+                FrontmatterKey('=', LineNumber(3)),
+            ),
+        ), 'a `=` key written twice is listed once per occurrence, like any other key'
+
+    def test_decode_frontmatter_with_a_key_repeated_under_the_value_tag_lists_both_and_finds_the_last(self) -> None:
+        #: Given
+        block = 'name: wrong\n!!value name: guide\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a mapping that repeats a key is still frontmatter, got {node!r}'
+        assert node.data == {'name': 'guide'}, 'the key tagged `!!value` decodes to the same string, and its value wins'
+        assert node.keys == (
+            FrontmatterKey('name', LineNumber(2)),
+            FrontmatterKey('name', LineNumber(3)),
+        ), 'a key tagged `!!value` is listed as the string it decodes to'
+        assert node.key_line('name') == LineNumber(3), 'the line of the key is the one whose value the data holds'
+
+    def test_decode_frontmatter_with_a_merge_overriding_a_written_key_lists_only_the_written_keys(self) -> None:
+        #: Given
+        block = 'name: review\ndescription: d\n<<: {name: other, license: MIT}\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == Frontmatter(
+            data={'name': 'review', 'license': 'MIT', 'description': 'd'},
+            keys=(
+                FrontmatterKey('name', LineNumber(2)),
+                FrontmatterKey('description', LineNumber(3)),
+            ),
+        ), 'the keys are the ones the mapping writes, in document order; the data holds the merge as PyYAML gives it'
+
+    def test_decode_frontmatter_with_a_merge_through_an_alias_lists_only_the_written_keys(self) -> None:
+        #: Given
+        block = 'base: &b\n  name: x\n<<: *b\nname: review\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a mapping with a merge is still frontmatter, got {node!r}'
+        assert node.keys == (
+            FrontmatterKey('base', LineNumber(2)),
+            FrontmatterKey('name', LineNumber(5)),
+        ), 'neither the merge key nor the keys it brings in are listed, only the ones the mapping writes'
+
     def test_decode_frontmatter_with_invalid_yaml_returns_the_parsers_problem_and_line(self) -> None:
         #: Given
         block = 'name: [unclosed\n'
@@ -138,6 +248,19 @@ class TestFrontmatterKeyLine:
 
         #: Then
         assert line == LineNumber(3), f'the type key is on line 3, got {line}'
+
+    def test_key_line_with_a_repeated_key_returns_the_line_of_its_last_occurrence(self) -> None:
+        #: Given
+        frontmatter = Frontmatter(
+            data={'name': 'other'},
+            keys=(FrontmatterKey('name', LineNumber(2)), FrontmatterKey('name', LineNumber(5))),
+        )
+
+        #: When
+        line = frontmatter.key_line('name')
+
+        #: Then
+        assert line == LineNumber(5), f'the last occurrence is the one whose value the data holds, got {line}'
 
     def test_key_line_with_an_absent_key_returns_none(self) -> None:
         #: Given

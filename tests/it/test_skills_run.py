@@ -8,8 +8,9 @@ from pathlib import Path
 
 import pytest
 
-from lorecraft.checks import Database, SkillCheckRun, run_skills
+from lorecraft.checks import Database, SkillCheckRun, Violation, run_skills
 from lorecraft.project.layout import SNAPSHOT_SCOPE
+from lorecraft.project.syntax import LineNumber
 from lorecraft.vfs import take_snapshot
 
 
@@ -112,3 +113,56 @@ class TestRunSkills:
         #: Then
         bare = [finding.rule for finding in run.findings() if finding.path.parent.name == 'bare']
         assert bare == ['skill.frontmatter-missing'], 'the run reads the snapshot, not the disk as it is now'
+
+    def test_run_skills_with_the_wrong_name_written_last_reports_it_and_the_repetition_on_that_line(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(
+            tmp_path,
+            '.agents/skills/review/SKILL.md',
+            b'---\nname: review\ndescription: Review a change\nname: audit\n---\n',
+        )
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert [report.violations for report in run.reports] == [
+            (
+                Violation(
+                    line=LineNumber(4),
+                    rule='skill.name-matches-directory',
+                    message="`name` is 'audit'; expected 'review', the name of the skill directory",
+                ),
+                Violation(
+                    line=LineNumber(4),
+                    rule='skill.duplicate-key',
+                    message="'name' is already written on line 2",
+                ),
+            )
+        ], 'the name the decoder kept is judged on the last line it is written on, beside the repetition'
+
+    def test_run_skills_with_the_right_name_written_last_reports_only_the_repetition(self, tmp_path: Path) -> None:
+        #: Given
+        _write(
+            tmp_path,
+            '.agents/skills/review/SKILL.md',
+            b'---\nname: audit\ndescription: Review a change\nname: review\n---\n',
+        )
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert [report.violations for report in run.reports] == [
+            (
+                Violation(
+                    line=LineNumber(4),
+                    rule='skill.duplicate-key',
+                    message="'name' is already written on line 2",
+                ),
+            )
+        ], 'the decoder kept the right name, so the overwritten wrong one is reported only as a repetition'
