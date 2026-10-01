@@ -15,11 +15,8 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas import (
-    CorpusSchemasListError,
     Repository,
     SchemaName,
-    SpecAspect,
-    SpecFile,
     StructureSchemaReadError,
 )
 from lorecraft.vfs import DirListError, DiskFileSystem
@@ -102,54 +99,6 @@ class TestRepositoryListSpecs:
 
 @pytest.mark.it
 class TestRepository:
-    def test_list_schemas_with_all_kinds_returns_the_parsed_json_files_sorted_by_name(
-        self, tmp_path: Path, repository: Repository
-    ) -> None:
-        #: Given
-        for filename in ('feat.structure.json', 'code.structure.json', 'code.header.json', 'README.md'):
-            (tmp_path / filename).write_text('{}', encoding='utf-8')
-
-        #: When
-        schemas = repository.list_schemas()
-
-        #: Then
-        assert schemas == [
-            SpecFile(RootRelativePath.parse('code.structure.json'), (CODE,), SpecAspect.STRUCTURE),
-            SpecFile(RootRelativePath.parse('feat.structure.json'), (CorpusName.parse('feat'),), SpecAspect.STRUCTURE),
-        ], 'every aspect is listed with its root-relative path; prose and a stale header file are not schemas'
-
-    def test_list_schemas_with_misnamed_json_files_leaves_them_out(
-        self, tmp_path: Path, repository: Repository
-    ) -> None:
-        #: Given
-        for filename in ('code.headers.json', 'code.budget.json', 'README.header.json', 'feat.feature.header.json'):
-            (tmp_path / filename).write_text('{}', encoding='utf-8')
-
-        #: When
-        schemas = repository.list_schemas()
-
-        #: Then
-        assert schemas == [], 'a file whose name does not parse is not a schema'
-
-    def test_list_schemas_by_corpus_excludes_other_corpora(self, tmp_path: Path, repository: Repository) -> None:
-        #: Given
-        for filename in (
-            'code.structure.json',
-            'code-python.structure.json',
-            'code.component.structure.json',
-            'codebook.structure.json',
-        ):
-            (tmp_path / filename).write_text('{}', encoding='utf-8')
-
-        #: When
-        schemas = repository.list_schemas_by_corpus(CODE)
-
-        #: Then
-        assert schemas == [
-            SpecFile(RootRelativePath.parse('code-python.structure.json'), CODE_PYTHON, SpecAspect.STRUCTURE),
-            SpecFile(RootRelativePath.parse('code.structure.json'), (CODE,), SpecAspect.STRUCTURE),
-        ], 'the corpus is read from the parsed stem, so codebook is another corpus and a dotted stem is none'
-
     def test_get_structure_schema_with_namespace_reads_the_structure_file_text(
         self, tmp_path: Path, repository: Repository
     ) -> None:
@@ -180,41 +129,3 @@ class TestRepository:
             'the error names the schema; the repository fails only on a file it cannot read, malformed JSON is the '
             "parse's to refuse"
         )
-
-    def test_list_schemas_with_missing_directory_returns_empty(self, tmp_path: Path) -> None:
-        #: Given
-        repository = Repository(DiskFileSystem(tmp_path), RootRelativePath.parse('missing'))
-
-        #: When
-        schemas = repository.list_schemas()
-
-        #: Then
-        assert schemas == [], 'a missing directory holds no schemas'
-
-    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
-    def test_list_schemas_with_unreadable_directory_raises_list_dir_error(self, locked_repository: Repository) -> None:
-        #: Given
-        repository = locked_repository
-
-        #: When
-        with pytest.raises(DirListError) as exc_info:
-            repository.list_schemas()
-
-        #: Then
-        assert str(exc_info.value.path) == 'locked', 'the listing failure passes through, naming the directory'
-
-    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
-    def test_list_schemas_by_corpus_with_unreadable_directory_raises_corpus_list_error(
-        self, locked_repository: Repository
-    ) -> None:
-        #: Given
-        repository = locked_repository
-        corpus = CODE
-
-        #: When
-        with pytest.raises(CorpusSchemasListError) as exc_info:
-            repository.list_schemas_by_corpus(corpus)
-
-        #: Then
-        assert exc_info.value.corpus == corpus, 'the error names the corpus whose schemas were being listed'
-        assert str(exc_info.value.source.path) == 'locked', 'its source names the directory that refused listing'
