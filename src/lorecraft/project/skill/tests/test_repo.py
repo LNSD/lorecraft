@@ -12,10 +12,11 @@ from typing import Final
 import pytest
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.vfs import DirEntry, EntryKind, Link, Listing, Snapshot, TextDecodeError, VirtualFileSystem
+from lorecraft.vfs import DirEntry, EntryKind, Link, Listing, RootExit, Snapshot, TextDecodeError, VirtualFileSystem
 
+from ..outside import OutsideSymlink
 from ..ref import SkillLocation, SkillRef, SkillResourceLocation, SkillResourceRef
-from ..repo import Repository, SkillResource, SkillResourceDecodeError, SkillResourceReadError
+from ..repo import Repository, SkillResource, SkillResourceDecodeError, SkillResourceListing, SkillResourceReadError
 
 SKILL: Final[str] = '.agents/skills/review'
 REVIEW: Final[SkillLocation] = SkillLocation(
@@ -54,6 +55,17 @@ def _repository(files: Mapping[str, bytes], symlinks: Mapping[str, str]) -> Repo
     return Repository(VirtualFileSystem(snapshot))
 
 
+def _outside(path: str, link: str, target: str) -> OutsideSymlink:
+    """A symlink reached at `path` whose chain leaves the root through `link`, which targets `target`.
+
+    Args:
+        path: Where an agent reaches the symlink, root-relative.
+        link: The link the chain leaves the root through, at its real path.
+        target: That link's target, as recorded.
+    """
+    return OutsideSymlink(RootRelativePath.parse(path), RootExit(RootRelativePath.parse(link), PurePosixPath(target)))
+
+
 def _resource(path: str, resolves_to: str | None = None) -> SkillResourceLocation:
     """The location of a resource of the `review` skill.
 
@@ -82,7 +94,7 @@ class TestRepositoryListSkillResources:
         )
 
         #: When
-        resources = repository.list_skill_resources(REVIEW)
+        resources = repository.list_skill_resources(REVIEW).resources
 
         #: Then
         assert resources == (
@@ -96,7 +108,7 @@ class TestRepositoryListSkillResources:
         repository = _repository({f'{SKILL}/SKILL.md': b''}, {})
 
         #: When
-        resources = repository.list_skill_resources(REVIEW)
+        resources = repository.list_skill_resources(REVIEW).resources
 
         #: Then
         assert resources == (), 'the top-level SKILL.md is the skill itself, not one of its resources'
@@ -112,7 +124,7 @@ class TestRepositoryListSkillResources:
         )
 
         #: When
-        resources = repository.list_skill_resources(review)
+        resources = repository.list_skill_resources(review).resources
 
         #: Then
         assert resources == (_resource(f'{SKILL}/references/a.md'),), (
@@ -124,7 +136,7 @@ class TestRepositoryListSkillResources:
         repository = _repository({f'{SKILL}/SKILL.md': b'', f'{SKILL}/examples/SKILL.md': b''}, {})
 
         #: When
-        resources = repository.list_skill_resources(REVIEW)
+        resources = repository.list_skill_resources(REVIEW).resources
 
         #: Then
         assert resources == (_resource(f'{SKILL}/examples/SKILL.md'),), (
@@ -144,7 +156,7 @@ class TestRepositoryListSkillResources:
         )
 
         #: When
-        resources = repository.list_skill_resources(REVIEW)
+        resources = repository.list_skill_resources(REVIEW).resources
 
         #: Then
         assert resources == (), 'only a file whose name ends in .md is a resource'
@@ -157,7 +169,7 @@ class TestRepositoryListSkillResources:
         )
 
         #: When
-        resources = repository.list_skill_resources(REVIEW)
+        resources = repository.list_skill_resources(REVIEW).resources
 
         #: Then
         assert resources == (_resource(f'{SKILL}/guides/deeper/d.md', 'shared/guides/deeper/d.md'),), (
@@ -172,7 +184,7 @@ class TestRepositoryListSkillResources:
         )
 
         #: When
-        resources = repository.list_skill_resources(REVIEW)
+        resources = repository.list_skill_resources(REVIEW).resources
 
         #: Then
         assert resources == (_resource(f'{SKILL}/notes.md', 'notes/e.md'),), (
@@ -187,7 +199,7 @@ class TestRepositoryListSkillResources:
         )
 
         #: When
-        resources = repository.list_skill_resources(REVIEW)
+        resources = repository.list_skill_resources(REVIEW).resources
 
         #: Then
         assert resources == (), 'an agent reaches the file as `notes`, so by its name it is no resource'
@@ -206,7 +218,7 @@ class TestRepositoryListSkillResources:
         )
 
         #: When
-        resources = repository.list_skill_resources(REVIEW)
+        resources = repository.list_skill_resources(REVIEW).resources
 
         #: Then
         assert resources == (_resource(f'{SKILL}/references/a.md'),), (
@@ -221,7 +233,7 @@ class TestRepositoryListSkillResources:
         )
 
         #: When
-        resources = repository.list_skill_resources(REVIEW)
+        resources = repository.list_skill_resources(REVIEW).resources
 
         #: Then
         assert resources == (_resource(f'{SKILL}/references/a.md'),), (
@@ -237,7 +249,7 @@ class TestRepositoryListSkillResources:
         )
 
         #: When
-        resources = repository.list_skill_resources(REVIEW)
+        resources = repository.list_skill_resources(REVIEW).resources
 
         #: Then
         assert resources == (_resource(f'{SKILL}/references/a.md'),), (
@@ -255,7 +267,7 @@ class TestRepositoryListSkillResources:
         )
 
         #: When
-        resources = repository.list_skill_resources(REVIEW)
+        resources = repository.list_skill_resources(REVIEW).resources
 
         #: Then
         assert resources == (_resource(f'{SKILL}/references/deep/b.md'),), (
@@ -275,7 +287,7 @@ class TestRepositoryListSkillResources:
         )
 
         #: When
-        resources = repository.list_skill_resources(REVIEW)
+        resources = repository.list_skill_resources(REVIEW).resources
 
         #: Then
         assert resources == (
@@ -291,12 +303,14 @@ class TestRepositoryListSkillResources:
         )
 
         #: When
-        resources = repository.list_skill_resources(REVIEW)
+        resources = repository.list_skill_resources(REVIEW).resources
 
         #: Then
         assert resources == (), 'a symlink that leads to nothing is left out without failing the listing'
 
-    def test_list_skill_resources_with_a_symlink_leading_outside_the_root_leaves_it_out(self) -> None:
+    def test_list_skill_resources_with_a_symlink_leading_outside_the_root_records_it_and_lists_no_resource(
+        self,
+    ) -> None:
         #: Given
         # `take_snapshot` keeps a target outside the root absolute, and follows nothing behind it
         repository = _repository(
@@ -305,10 +319,44 @@ class TestRepositoryListSkillResources:
         )
 
         #: When
-        resources = repository.list_skill_resources(REVIEW)
+        listing = repository.list_skill_resources(REVIEW)
 
         #: Then
-        assert resources == (), 'a symlink leading outside the root has no real file under it to list'
+        assert listing == SkillResourceListing(
+            resources=(),
+            outside_symlinks=(
+                _outside(f'{SKILL}/outside', f'{SKILL}/outside', '/srv/guides'),
+                _outside(f'{SKILL}/outside.md', f'{SKILL}/outside.md', '/srv/guides/a.md'),
+            ),
+        ), 'a symlink leading outside the root, whatever its name, is recorded where it is reached, not followed'
+
+    def test_list_skill_resources_with_a_symlink_climbing_above_the_root_records_it(self) -> None:
+        #: Given
+        repository = _repository({f'{SKILL}/SKILL.md': b''}, {f'{SKILL}/shared': '../../../../shared'})
+
+        #: When
+        listing = repository.list_skill_resources(REVIEW)
+
+        #: Then
+        assert listing.outside_symlinks == (_outside(f'{SKILL}/shared', f'{SKILL}/shared', '../../../../shared'),), (
+            'a `..` climbing above the root leaves it as an absolute target does'
+        )
+
+    def test_list_skill_resources_with_a_chain_leaving_the_root_records_the_link_it_leaves_through(self) -> None:
+        #: Given
+        # `references -> ../../../hop`, and `hop -> /srv/refs` at the root
+        repository = _repository(
+            {f'{SKILL}/SKILL.md': b'', 'README.md': b''},
+            {f'{SKILL}/references': '../../../hop', 'hop': '/srv/refs'},
+        )
+
+        #: When
+        listing = repository.list_skill_resources(REVIEW)
+
+        #: Then
+        assert listing.outside_symlinks == (_outside(f'{SKILL}/references', 'hop', '/srv/refs'),), (
+            'the symlink is named where an agent reaches it, and the link the chain leaves through is recorded'
+        )
 
     def test_list_skill_resources_with_a_symlinked_skill_entry_names_the_resources_under_the_entry(self) -> None:
         #: Given
@@ -324,7 +372,7 @@ class TestRepositoryListSkillResources:
         )
 
         #: When
-        resources = repository.list_skill_resources(audit)
+        resources = repository.list_skill_resources(audit).resources
 
         #: Then
         assert resources == (
@@ -355,7 +403,7 @@ class TestRepositoryListSkillResources:
         )
 
         #: When
-        resources = repository.list_skill_resources(audit)
+        resources = repository.list_skill_resources(audit).resources
 
         #: Then
         assert resources == (
@@ -364,6 +412,33 @@ class TestRepositoryListSkillResources:
                 resolves_to=RootRelativePath.parse('skills/audit/references/a.md'),
             ),
         ), 'the skills directory holds the entry the skill is named by, so the review skill is never counted'
+
+
+@pytest.mark.unit
+class TestRepositoryFindSkillsDirExit:
+    def test_find_skills_dir_exit_with_a_skills_directory_linked_outside_records_it(self) -> None:
+        #: Given
+        repository = _repository({'.claude/README.md': b''}, {'.claude/skills': '/srv/skills'})
+
+        #: When
+        outside = repository.find_skills_dir_exit(RootRelativePath.parse('.claude/skills'))
+
+        #: Then
+        assert outside == _outside('.claude/skills', '.claude/skills', '/srv/skills'), (
+            'the skills directory is recorded as declared, with the link it leaves through'
+        )
+
+    def test_find_skills_dir_exit_with_a_skills_directory_linked_inside_returns_none(self) -> None:
+        #: Given
+        repository = _repository(
+            {'.claude/README.md': b'', f'{SKILL}/SKILL.md': b''}, {'.claude/skills': '../.agents/skills'}
+        )
+
+        #: When
+        outside = repository.find_skills_dir_exit(RootRelativePath.parse('.claude/skills'))
+
+        #: Then
+        assert outside is None, 'a skills directory linked to another in the repository does not lead outside'
 
 
 @pytest.mark.unit

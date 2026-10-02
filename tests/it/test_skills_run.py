@@ -1434,3 +1434,204 @@ class TestRunSkillsNameMatchesDirectory:
                 message="`name` is 'audit'; expected 'review', the name of the skill directory",
             ),
         ), 'a name that differs from the skill directory is the one finding'
+
+
+_CLEAN_SKILL_MD: Final[bytes] = b'---\nname: review\ndescription: Review a change\n---\n'
+"""A `SKILL.md` the skill `review` passes every other rule with."""
+
+
+def _outside_finding(path: str, link: str, target: Path | str) -> Finding:
+    """The `skill.symlink-outside` finding at `path`, whose chain leaves the repository at `link -> target`.
+
+    Args:
+        path: Where an agent reaches the symlink, root-relative.
+        link: The link the chain leaves the repository through, root-relative.
+        target: That link's target, as the scan read it.
+    """
+    return Finding(
+        path=RootRelativePath.parse(path),
+        line=LineNumber(1),
+        rule='skill.symlink-outside',
+        message='symlink leads outside the repository',
+        notes=(
+            Note(NoteKind.NOTE, f'leaves the repository at {link} -> {target}'),
+            Note(NoteKind.HELP, 'keep every file a skill loads inside the repository'),
+        ),
+    )
+
+
+@pytest.fixture(scope='function')
+def repository_beside_elsewhere(tmp_path: Path) -> Path:
+    """An empty repository root, `tmp_path/repository`, beside `tmp_path/elsewhere`, a directory outside it.
+
+    `elsewhere` holds a conforming skill, `x`, and a Markdown file, `x.md`, for a link to lead to.
+
+    Args:
+        tmp_path: Directory the repository and the directory outside it are written into.
+
+    Returns:
+        The repository root.
+    """
+    _write(tmp_path, 'elsewhere/x/SKILL.md', b'---\nname: x\ndescription: Kept outside\n---\n')
+    _write(tmp_path, 'elsewhere/x.md', _CLEAN_SKILL_MD)
+    root = tmp_path / 'repository'
+    root.mkdir()
+    return root
+
+
+@pytest.mark.it
+class TestRunSkillsSymlinkOutside:
+    def test_run_skills_with_a_skills_directory_linked_outside_reports_it_at_the_skills_directory(
+        self, repository_beside_elsewhere: Path
+    ) -> None:
+        #: Given
+        root = repository_beside_elsewhere
+        elsewhere = root.parent / 'elsewhere'
+        (root / '.claude').mkdir()
+        (root / '.claude' / 'skills').symlink_to(elsewhere)
+        database = Database(take_snapshot(root, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (_outside_finding('.claude/skills', '.claude/skills', elsewhere),), (
+            'an agent would load its skills from outside the repository, so the skills directory is reported'
+        )
+
+    def test_run_skills_with_a_skill_entry_linked_outside_reports_it_at_the_entry(
+        self, repository_beside_elsewhere: Path
+    ) -> None:
+        #: Given
+        root = repository_beside_elsewhere
+        target = root.parent / 'elsewhere' / 'x'
+        (root / '.agents' / 'skills').mkdir(parents=True)
+        (root / '.agents' / 'skills' / 'x').symlink_to(target)
+        database = Database(take_snapshot(root, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (_outside_finding('.agents/skills/x', '.agents/skills/x', target),), (
+            'the entry an agent lists is reported where it is listed'
+        )
+
+    def test_run_skills_with_a_skill_entry_linked_outside_checks_no_skill(
+        self, repository_beside_elsewhere: Path
+    ) -> None:
+        #: Given
+        root = repository_beside_elsewhere
+        (root / '.agents' / 'skills').mkdir(parents=True)
+        (root / '.agents' / 'skills' / 'x').symlink_to(root.parent / 'elsewhere' / 'x')
+        database = Database(take_snapshot(root, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.reports == (), 'the entry is no skill, so no other rule judges what lies behind it'
+
+    def test_run_skills_with_a_skill_file_linked_outside_reports_it_at_the_skill_file(
+        self, repository_beside_elsewhere: Path
+    ) -> None:
+        #: Given
+        root = repository_beside_elsewhere
+        target = root.parent / 'elsewhere' / 'x.md'
+        (root / '.agents' / 'skills' / 'review').mkdir(parents=True)
+        (root / '.agents' / 'skills' / 'review' / 'SKILL.md').symlink_to(target)
+        database = Database(take_snapshot(root, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (
+            _outside_finding('.agents/skills/review/SKILL.md', '.agents/skills/review/SKILL.md', target),
+        ), 'the SKILL.md an agent would read from outside the repository is reported, and nothing else'
+
+    def test_run_skills_with_a_directory_inside_a_skill_linked_outside_reports_it_where_the_agent_reaches_it(
+        self, repository_beside_elsewhere: Path
+    ) -> None:
+        #: Given
+        root = repository_beside_elsewhere
+        target = root.parent / 'elsewhere' / 'x'
+        _write(root, '.agents/skills/review/SKILL.md', _CLEAN_SKILL_MD)
+        (root / '.agents' / 'skills' / 'review' / 'references').symlink_to(target)
+        database = Database(take_snapshot(root, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (
+            _outside_finding('.agents/skills/review/references', '.agents/skills/review/references', target),
+        ), 'a directory of the skill linked from outside is reported, and nothing behind it is read'
+
+    def test_run_skills_with_a_chain_inside_the_repository_that_leaves_it_reports_the_link_it_leaves_through(
+        self, repository_beside_elsewhere: Path
+    ) -> None:
+        #: Given
+        root = repository_beside_elsewhere
+        elsewhere = root.parent / 'elsewhere'
+        (root / '.agents' / 'skills').mkdir(parents=True)
+        (root / '.agents' / 'skills' / 'x').symlink_to('../../hop/x')
+        (root / 'hop').symlink_to(elsewhere)
+        database = Database(take_snapshot(root, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (_outside_finding('.agents/skills/x', 'hop', elsewhere),), (
+            'the finding is at the entry an agent lists, and its note names the link the chain leaves through'
+        )
+
+    def test_run_skills_with_a_link_climbing_above_the_repository_reports_it(
+        self, repository_beside_elsewhere: Path
+    ) -> None:
+        #: Given
+        root = repository_beside_elsewhere
+        _write(root, '.agents/skills/review/SKILL.md', _CLEAN_SKILL_MD)
+        (root / '.agents' / 'skills' / 'review' / 'shared').symlink_to('../../../../elsewhere/x')
+        database = Database(take_snapshot(root, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (
+            _outside_finding('.agents/skills/review/shared', '.agents/skills/review/shared', '../../../../elsewhere/x'),
+        ), 'a `..` climbing above the root leaves the repository as an absolute target does'
+
+    def test_run_skills_with_a_link_dangling_inside_the_repository_reports_nothing(
+        self, repository_beside_elsewhere: Path
+    ) -> None:
+        #: Given
+        root = repository_beside_elsewhere
+        _write(root, '.agents/skills/review/SKILL.md', _CLEAN_SKILL_MD)
+        (root / '.agents' / 'skills' / 'gone').symlink_to('../../skills/gone')
+        (root / '.agents' / 'skills' / 'review' / 'references').symlink_to('../../../missing')
+        database = Database(take_snapshot(root, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (), 'a link dangling inside the repository is not one leading outside it'
+
+    def test_run_skills_with_a_skills_directory_linked_inside_the_repository_reports_nothing(
+        self, repository_beside_elsewhere: Path
+    ) -> None:
+        #: Given
+        root = repository_beside_elsewhere
+        _write(root, '.agents/skills/review/SKILL.md', _CLEAN_SKILL_MD)
+        (root / '.claude').mkdir()
+        (root / '.claude' / 'skills').symlink_to('../.agents/skills')
+        database = Database(take_snapshot(root, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (), 'a skills directory linked to another inside the repository is self-contained'

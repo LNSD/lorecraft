@@ -13,7 +13,9 @@ of each of the skill's resources, and the Agent Skills specification governs eve
 ungoverned. The files a skill links in through `metadata` are checked too, against what the snapshot holds at each
 path listed, and so is each path inside the skill a link names, against what the snapshot holds there. It reports
 in a shape of its own, a `SkillCheckRun` of `SkillReport`s, each locating a violation in the file it was found in:
-the `SKILL.md`, or a resource.
+the `SKILL.md`, or a resource. A symlink of the skill layout whose chain leaves the repository is reported at the
+path an agent reaches it by, in a `SymlinkReport`: under its skill's report when it is inside a skill, and in the
+run's own layout reports when it is a skills directory, an entry or an entry's `SKILL.md`, none of which is a skill.
 """
 
 from dataclasses import dataclass
@@ -23,7 +25,13 @@ from typing import Literal, assert_never
 from lorecraft.core.path import RootRelativePath, RootRelativePathError
 from lorecraft.project.document import DocumentDecodeError, DocumentRef
 from lorecraft.project.schemas import SKILL_FRONTMATTER_SCHEMA, StructureAspect
-from lorecraft.project.skill import SkillDecodeError, SkillRef, SkillResourceDecodeError, SkillResourceRef
+from lorecraft.project.skill import (
+    OutsideSymlink,
+    SkillDecodeError,
+    SkillRef,
+    SkillResourceDecodeError,
+    SkillResourceRef,
+)
 from lorecraft.project.syntax import (
     Frontmatter,
     FrontmatterNode,
@@ -50,6 +58,7 @@ from .skill_metadata import (
     listed_by_subkey,
     validate_skill_metadata,
 )
+from .skill_symlink import validate_outside_symlink
 from .structure import validate_structure
 
 
@@ -109,6 +118,24 @@ class SkillResourceReport:
 
 
 @dataclass(frozen=True, slots=True)
+class SymlinkReport:
+    """The outcome of checking one symlink of the skill layout whose chain leaves the repository.
+
+    Attributes:
+        path: Where an agent reaches the symlink, the report path: a skills directory as declared, an entry in a
+            skills directory, an entry's `SKILL.md`, or a path inside a skill.
+        violations: What the check found at the symlink, without its path.
+    """
+
+    path: RootRelativePath
+    violations: tuple[Violation, ...]
+
+    def findings(self) -> tuple[Finding, ...]:
+        """Every violation, located at the symlink."""
+        return tuple(Finding.at(self.path, violation) for violation in self.violations)
+
+
+@dataclass(frozen=True, slots=True)
 class SkillReport:
     """The outcome of checking one selected skill.
 
@@ -116,21 +143,25 @@ class SkillReport:
         ref: The skill the report is about; its `SKILL.md` path is the report path of `violations`.
         violations: What the check found in the skill's `SKILL.md`, without its path; empty when it conforms.
         resources: One per resource of the skill, in the order the database lists them, by path.
+        symlinks: One per symlink inside the skill whose chain leaves the repository, by path.
     """
 
     ref: SkillRef
     violations: tuple[Violation, ...]
     resources: tuple[SkillResourceReport, ...]
+    symlinks: tuple[SymlinkReport, ...]
 
     def findings(self) -> tuple[Finding, ...]:
         """Every violation, located in its file; empty exactly when the skill is clean.
 
         Findings in the `SKILL.md` come first, in the order the check found them, then each resource's, in report
-        order.
+        order, then each symlink's.
         """
         findings = [Finding.at(self.ref.path, violation) for violation in self.violations]
         for resource in self.resources:
             findings.extend(resource.findings())
+        for symlink in self.symlinks:
+            findings.extend(symlink.findings())
         return tuple(findings)
 
 
@@ -139,14 +170,19 @@ class SkillCheckRun:
     """One pass of the skill check over the selected skills: what the text and JSON printers consume.
 
     Attributes:
+        layout: One per skills directory, skill entry or entry's `SKILL.md` whose symlink chain leaves the
+            repository, by path. None of them is a skill, so none is among `reports`, and none is counted as one.
         reports: One per selected skill, in the order the refs were given.
     """
 
+    layout: tuple[SymlinkReport, ...]
     reports: tuple[SkillReport, ...]
 
     def findings(self) -> tuple[Finding, ...]:
-        """Every finding of every report, in report order; empty exactly when the run is clean."""
+        """Every finding of the layout, then of every report, in report order; empty exactly when the run is clean."""
         findings: list[Finding] = []
+        for symlink in self.layout:
+            findings.extend(symlink.findings())
         for report in self.reports:
             findings.extend(report.findings())
         return tuple(findings)
@@ -189,6 +225,8 @@ def run_frontmatter(database: Database, refs: tuple[DocumentRef, ...]) -> CheckR
         UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not state
             an object.
         DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
+        EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot be
+            inspected, or a link's target read, while looking for where it leaves the repository.
         SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
         SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
         SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
@@ -250,6 +288,8 @@ def run_structure(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun
         UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not state
             an object.
         DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
+        EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot be
+            inspected, or a link's target read, while looking for where it leaves the repository.
         SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
         SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
         SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
@@ -311,6 +351,8 @@ def run_budget(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
         UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not state
             an object.
         DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
+        EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot be
+            inspected, or a link's target read, while looking for where it leaves the repository.
         SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
         SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
         SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
@@ -346,6 +388,10 @@ def run_skills(database: Database, refs: tuple[SkillRef, ...]) -> SkillCheckRun:
     Each resource of the skill is checked on its own, whatever its `SKILL.md` holds, and reported in its own
     report: its links' violations, in document order, or, when it is not UTF-8, the single violation
     `skill.undecodable` at line 1, without a parse.
+
+    A symlink inside a skill whose chain leaves the repository is `skill.symlink-outside`, in the skill's report.
+    So is each skills directory, skill entry and entry's `SKILL.md` whose chain leaves it, in the run's layout
+    reports, whichever skills are selected: an agent lists the same skills directories to load any one skill.
 
     Which files `metadata` links in is known only when the `SKILL.md`'s frontmatter is a mapping. When it is
     missing, unparseable or not a mapping, or the `SKILL.md` is not UTF-8, any path might be linked in, so no
@@ -409,8 +455,23 @@ def run_skills(database: Database, refs: tuple[SkillRef, ...]) -> SkillCheckRun:
             case _:
                 assert_never(frontmatter)
         resources = _skill_resource_reports(database, ref, linked_in=linked_in)
-        reports.append(SkillReport(ref, violations=violations, resources=resources))
-    return SkillCheckRun(reports=tuple(reports))
+        symlinks = _symlink_reports(database.skill_resources(ref).outside_symlinks)
+        reports.append(SkillReport(ref, violations=violations, resources=resources, symlinks=symlinks))
+    layout = _symlink_reports(database.model().outside_symlinks)
+    return SkillCheckRun(layout=layout, reports=tuple(reports))
+
+
+def _symlink_reports(outside_symlinks: tuple[OutsideSymlink, ...]) -> tuple[SymlinkReport, ...]:
+    """One report per symlink whose chain leaves the repository, in the order given. Raises nothing.
+
+    Args:
+        outside_symlinks: The symlinks, as the model or a skill's resource listing records them.
+    """
+    reports: list[SymlinkReport] = []
+    for outside in outside_symlinks:
+        result = validate_outside_symlink(leaves_at=outside.leaves_at)
+        reports.append(SymlinkReport(outside.path, violations=result.violations))
+    return tuple(reports)
 
 
 def _link_target(database: Database, ref: SkillRef) -> RootRelativePath | None:
@@ -520,7 +581,7 @@ def _skill_resource_reports(
         SkillResourceReadError: If a resource is missing from the snapshot; a decode failure is a finding.
     """
     reports: list[SkillResourceReport] = []
-    for location in database.skill_resources(ref):
+    for location in database.skill_resources(ref).resources:
         resource = location.ref
         parsed = _skill_resource_parse(database, resource)
         match parsed:

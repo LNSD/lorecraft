@@ -81,7 +81,7 @@ def _code_model(specs: tuple[Spec, ...], filenames: tuple[str, ...]) -> Workspac
         namespace_specs=specs[1:],
         documents=tuple(_ref('code', filename) for filename in filenames),
     )
-    return WorkspaceModel(corpora=(corpus,), skills_dirs=(), skill_locations=())
+    return WorkspaceModel(corpora=(corpus,), skills_dirs=(), skill_locations=(), outside_symlinks=())
 
 
 @pytest.mark.unit
@@ -556,7 +556,7 @@ def two_corpora_model() -> WorkspaceModel:
         namespace_specs=(),
         documents=(_ref('feat', 'cli-check'),),
     )
-    return WorkspaceModel(corpora=(code, feat), skills_dirs=(), skill_locations=())
+    return WorkspaceModel(corpora=(code, feat), skills_dirs=(), skill_locations=(), outside_symlinks=())
 
 
 def _regular_skill(directory: str) -> SkillLocation:
@@ -603,6 +603,7 @@ def skills_model() -> WorkspaceModel:
             SkillsDir(agent=AgentName('codex'), path=universal, resolves_to=universal),
         ),
         skill_locations=(AUDIT, REVIEW, REVIEW_ALIAS),
+        outside_symlinks=(),
     )
 
 

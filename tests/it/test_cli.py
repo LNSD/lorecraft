@@ -1400,6 +1400,42 @@ class TestCheckSkillsCommand:
             'ungoverned': [],
         }, 'the skill is read through its link and reported where an agent finds it'
 
+    def test_check_skills_with_json_format_over_a_skill_entry_linked_outside_reports_it_without_counting_a_skill(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        root = tmp_path / 'repository'
+        _write(root, '.agents/skills/review/SKILL.md', '---\nname: review\ndescription: Review a change\n---\n')
+        _write(tmp_path, 'elsewhere/x/SKILL.md', '---\nname: x\ndescription: Kept outside\n---\n')
+        (root / '.agents' / 'skills' / 'x').symlink_to(tmp_path / 'elsewhere' / 'x')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills', '--root', str(root), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 1,
+            'findings': [
+                {
+                    'file': '.agents/skills/x',
+                    'line': 1,
+                    'rule': 'skill.symlink-outside',
+                    'message': 'symlink leads outside the repository',
+                    'spec': None,
+                    'notes': [
+                        {
+                            'kind': 'note',
+                            'text': f'leaves the repository at .agents/skills/x -> {tmp_path / "elsewhere" / "x"}',
+                        },
+                        {'kind': 'help', 'text': 'keep every file a skill loads inside the repository'},
+                    ],
+                }
+            ],
+            'ungoverned': [],
+        }, 'the entry is reported where an agent lists it, and only the skill inside the repository is counted'
+
     def test_check_skills_with_json_format_over_a_skill_named_after_where_its_link_leads_reports_the_listed_name(
         self, tmp_path: Path
     ) -> None:

@@ -29,6 +29,7 @@ from .view import (
     FileResolveError,
     FileSystem,
     OsRefusal,
+    RootExit,
     TextDecodeError,
     UnrecordedFileError,
 )
@@ -51,6 +52,7 @@ __all__ = [
     'SnapshotLinkReadError',
     'EntryKind',
     'DirEntry',
+    'RootExit',
     'OsRefusal',
     'DirListError',
     'FileReadError',

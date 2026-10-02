@@ -39,7 +39,7 @@ A query is a method of the database, computed on first use and memoized until th
 result is an immutable value. The queries are layered:
 
 - **Structure**: the project model, the index of the scope the snapshot was taken of, and a skill's resource
-  listing, the Markdown files inside a skill beside its `SKILL.md`. They read listings, symlink targets, the
+  listing, the Markdown files inside a skill beside its `SKILL.md` and its symlinks that lead outside the root. They read listings, symlink targets, the
   declared scope and specifications, never a document's content: an edit to a document's text leaves them valid,
   and a retargeted symlink on the way to a skill does not. A resource listing reads only the listings and symlink
   targets its skill's walk reaches, so a change the walk does not reach leaves it valid.
