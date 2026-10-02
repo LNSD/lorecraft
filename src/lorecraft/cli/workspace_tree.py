@@ -122,7 +122,7 @@ def _corpus_line(corpus: Corpus) -> _Line:
         corpus: Corpus drawn as one line, with its specs and documents as children.
     """
     spec_lines: list[_Line] = []
-    for spec in (corpus.spec, *corpus.namespace_specs):
+    for spec in (corpus.corpus_spec, *corpus.namespace_specs):
         spec_lines.append(_Line(f'{spec.name}: {_file_names(spec.files)}'))
     parts = [_Line(f'specs ({len(spec_lines)})', tuple(spec_lines))]
 
@@ -172,7 +172,7 @@ def _json_corpus(corpus: Corpus) -> dict[str, object]:
         corpus: Corpus whose specs and documents become the object's keys.
     """
     specs: list[dict[str, object]] = []
-    for spec in (corpus.spec, *corpus.namespace_specs):
+    for spec in (corpus.corpus_spec, *corpus.namespace_specs):
         # The key is `stem` for the specification name: the JSON is the command's published output, so it keeps
         # the word the code has since moved away from.
         specs.append({'stem': str(spec.name), 'files': _paths(spec.files)})

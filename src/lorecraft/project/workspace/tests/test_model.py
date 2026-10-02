@@ -17,27 +17,59 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.ref import DocumentRef
 from lorecraft.project.layout import SPECS_DIR
 from lorecraft.project.schemas import (
+    CorpusSpecName,
     FrontmatterSchema,
+    NamespaceSpecName,
     StructureSpec,
     parse_spec_name,
 )
 from lorecraft.project.skill import NamedDir, OutsideSymlink, SkillLocation, SkillRef, SkillsDir
 from lorecraft.vfs import RootExit
 
-from ..model import Corpus, Governance, Spec, WorkspaceModel, namespace_order_key
+from ..model import Corpus, CorpusSpec, Governance, NamespaceSpec, WorkspaceModel, namespace_order_key
 
 CODE: Final[CorpusName] = CorpusName.parse('code')
 FEAT: Final[CorpusName] = CorpusName.parse('feat')
 
 
-def _spec(name: str, *, frontmatter: bool = True, structure: bool = False) -> Spec:
-    """A spec at `docs/__meta__/<name>.md`, with `<name>.structure.json` beside it when either flag is set.
-
-    Its `frontmatter` key states a schema when `frontmatter` is set, and it forbids empty sections when
-    `structure` is.
+def _corpus_spec(name: str, *, frontmatter: bool = True, structure: bool = False) -> CorpusSpec:
+    """A corpus spec at `docs/__meta__/<name>.md`, with `<name>.structure.json` beside it when either flag is set.
 
     Args:
-        name: Specification name, such as `code` or `code-python`; parsed into the spec's name.
+        name: Corpus name, such as `code`, which is the specification name.
+        frontmatter: Whether the structure file states a frontmatter schema.
+        structure: Whether the structure file forbids empty sections.
+    """
+    spec_name = parse_spec_name(name)
+    assert isinstance(spec_name, CorpusSpecName), f'{name} is not a corpus spec name'
+    files, structure_spec = _spec_files(name, frontmatter=frontmatter, structure=structure)
+    return CorpusSpec(name=spec_name, files=files, structure=structure_spec)
+
+
+def _namespace_spec(name: str, *, frontmatter: bool = True, structure: bool = False) -> NamespaceSpec:
+    """A namespace spec at `docs/__meta__/<name>.md`, with `<name>.structure.json` beside it when either flag is set.
+
+    Args:
+        name: Specification name, such as `code-python`: the corpus, a hyphen, then the namespace.
+        frontmatter: Whether the structure file states a frontmatter schema.
+        structure: Whether the structure file forbids empty sections.
+    """
+    spec_name = parse_spec_name(name)
+    assert isinstance(spec_name, NamespaceSpecName), f'{name} is not a namespace spec name'
+    files, structure_spec = _spec_files(name, frontmatter=frontmatter, structure=structure)
+    return NamespaceSpec(name=spec_name, files=files, structure=structure_spec)
+
+
+def _spec_files(
+    name: str, *, frontmatter: bool, structure: bool
+) -> tuple[tuple[RootRelativePath, ...], StructureSpec | None]:
+    """The files at a specification name and the structure specification decoded from them.
+
+    The files are `<name>.md`, and `<name>.structure.json` when either flag is set. Its `frontmatter` key states a
+    schema when `frontmatter` is set, and it forbids empty sections when `structure` is.
+
+    Args:
+        name: Specification name, such as `code` or `code-python`.
         frontmatter: Whether the structure file states a frontmatter schema.
         structure: Whether the structure file forbids empty sections.
     """
@@ -58,28 +90,27 @@ def _spec(name: str, *, frontmatter: bool = True, structure: bool = False) -> Sp
             frontmatter=frontmatter_schema,
         )
         files.append(path)
-    return Spec(
-        name=parse_spec_name(name),
-        files=tuple(sorted(files, key=str)),
-        structure=structure_spec,
-    )
+    return tuple(sorted(files, key=str)), structure_spec
 
 
 def _ref(corpus: str, filename: str) -> DocumentRef:
     return DocumentRef(CorpusName.parse(corpus), AspectFilename.parse(filename))
 
 
-def _code_model(specs: tuple[Spec, ...], filenames: tuple[str, ...]) -> WorkspaceModel:
-    """A model with the single corpus `code`: `specs[0]` is its corpus spec, the rest its namespace specs.
+def _code_model(
+    corpus_spec: CorpusSpec, namespace_specs: tuple[NamespaceSpec, ...], filenames: tuple[str, ...]
+) -> WorkspaceModel:
+    """A model with the single corpus `code`, its corpus spec and its namespace specs.
 
     Args:
-        specs: The corpus spec first, then its namespace specs, which must already be broad to narrow.
+        corpus_spec: The spec of the `code` corpus.
+        namespace_specs: The namespace specs narrowing it, which must already be broad to narrow.
         filenames: Stems of the documents the corpus lists, each parsed as a `code` document.
     """
     corpus = Corpus(
         name=CODE,
-        spec=specs[0],
-        namespace_specs=specs[1:],
+        corpus_spec=corpus_spec,
+        namespace_specs=namespace_specs,
         documents=tuple(_ref('code', filename) for filename in filenames),
     )
     return WorkspaceModel(corpora=(corpus,), skills_dirs=(), skill_locations=(), named_dirs=(), outside_symlinks=())
@@ -89,9 +120,10 @@ def _code_model(specs: tuple[Spec, ...], filenames: tuple[str, ...]) -> Workspac
 class TestGovernance:
     def test_governance_with_the_corpus_spec_alone_returns_the_corpus_spec(self) -> None:
         #: Given
-        specs = (_spec('code'),)
+        corpus_spec = _corpus_spec('code')
+        namespace_specs = ()
         filename = 'logging'
-        model = _code_model(specs, (filename,))
+        model = _code_model(corpus_spec, namespace_specs, (filename,))
         ref = _ref('code', filename)
 
         #: When
@@ -105,9 +137,14 @@ class TestGovernance:
 
     def test_governance_with_nested_namespaces_returns_the_matching_namespaces_broad_to_narrow(self) -> None:
         #: Given
-        specs = (_spec('code'), _spec('code-pattern'), _spec('code-python'), _spec('code-python-errors'))
+        corpus_spec = _corpus_spec('code')
+        namespace_specs = (
+            _namespace_spec('code-pattern'),
+            _namespace_spec('code-python'),
+            _namespace_spec('code-python-errors'),
+        )
         filename = 'python-errors-reporting'
-        model = _code_model(specs, (filename,))
+        model = _code_model(corpus_spec, namespace_specs, (filename,))
         ref = _ref('code', filename)
 
         #: When
@@ -123,9 +160,10 @@ class TestGovernance:
 
     def test_governance_with_a_namespace_equal_to_the_filename_includes_that_namespace(self) -> None:
         #: Given
-        specs = (_spec('code'), _spec('code-python'))
+        corpus_spec = _corpus_spec('code')
+        namespace_specs = (_namespace_spec('code-python'),)
         filename = 'python'
-        model = _code_model(specs, (filename,))
+        model = _code_model(corpus_spec, namespace_specs, (filename,))
         ref = _ref('code', filename)
 
         #: When
@@ -139,9 +177,10 @@ class TestGovernance:
 
     def test_governance_with_a_namespace_that_is_only_a_prefix_excludes_that_namespace(self) -> None:
         #: Given
-        specs = (_spec('code'), _spec('code-python'))
+        corpus_spec = _corpus_spec('code')
+        namespace_specs = (_namespace_spec('code-python'),)
         filename = 'pythonic'
-        model = _code_model(specs, (filename,))
+        model = _code_model(corpus_spec, namespace_specs, (filename,))
         ref = _ref('code', filename)
 
         #: When
@@ -155,9 +194,10 @@ class TestGovernance:
 
     def test_governance_with_a_prose_only_corpus_spec_still_lists_the_corpus_spec_first(self) -> None:
         #: Given
-        specs = (_spec('code', frontmatter=False), _spec('code-python'))
+        corpus_spec = _corpus_spec('code', frontmatter=False)
+        namespace_specs = (_namespace_spec('code-python'),)
         filename = 'python-typing'
-        model = _code_model(specs, (filename,))
+        model = _code_model(corpus_spec, namespace_specs, (filename,))
         ref = _ref('code', filename)
 
         #: When
@@ -171,9 +211,10 @@ class TestGovernance:
 
     def test_governance_with_a_prose_only_namespace_includes_the_prose_only_namespace(self) -> None:
         #: Given
-        specs = (_spec('code'), _spec('code-python', frontmatter=False))
+        corpus_spec = _corpus_spec('code')
+        namespace_specs = (_namespace_spec('code-python', frontmatter=False),)
         filename = 'python-typing'
-        model = _code_model(specs, (filename,))
+        model = _code_model(corpus_spec, namespace_specs, (filename,))
         ref = _ref('code', filename)
 
         #: When
@@ -187,9 +228,10 @@ class TestGovernance:
 
     def test_frontmatter_schemas_with_the_corpus_spec_alone_returns_the_corpus_schema(self) -> None:
         #: Given
-        specs = (_spec('code'),)
+        corpus_spec = _corpus_spec('code')
+        namespace_specs = ()
         filename = 'logging'
-        model = _code_model(specs, (filename,))
+        model = _code_model(corpus_spec, namespace_specs, (filename,))
         governance = model.governance(_ref('code', filename))
 
         #: When
@@ -202,9 +244,14 @@ class TestGovernance:
 
     def test_frontmatter_schemas_with_nested_namespaces_returns_the_schemas_broad_to_narrow(self) -> None:
         #: Given
-        specs = (_spec('code'), _spec('code-pattern'), _spec('code-python'), _spec('code-python-errors'))
+        corpus_spec = _corpus_spec('code')
+        namespace_specs = (
+            _namespace_spec('code-pattern'),
+            _namespace_spec('code-python'),
+            _namespace_spec('code-python-errors'),
+        )
         filename = 'python-errors-reporting'
-        model = _code_model(specs, (filename,))
+        model = _code_model(corpus_spec, namespace_specs, (filename,))
         governance = model.governance(_ref('code', filename))
 
         #: When
@@ -219,9 +266,10 @@ class TestGovernance:
 
     def test_frontmatter_schemas_with_a_namespace_equal_to_the_filename_includes_the_namespace_schema(self) -> None:
         #: Given
-        specs = (_spec('code'), _spec('code-python'))
+        corpus_spec = _corpus_spec('code')
+        namespace_specs = (_namespace_spec('code-python'),)
         filename = 'python'
-        model = _code_model(specs, (filename,))
+        model = _code_model(corpus_spec, namespace_specs, (filename,))
         governance = model.governance(_ref('code', filename))
 
         #: When
@@ -235,9 +283,10 @@ class TestGovernance:
 
     def test_frontmatter_schemas_with_a_namespace_that_is_only_a_prefix_excludes_the_namespace_schema(self) -> None:
         #: Given
-        specs = (_spec('code'), _spec('code-python'))
+        corpus_spec = _corpus_spec('code')
+        namespace_specs = (_namespace_spec('code-python'),)
         filename = 'pythonic'
-        model = _code_model(specs, (filename,))
+        model = _code_model(corpus_spec, namespace_specs, (filename,))
         governance = model.governance(_ref('code', filename))
 
         #: When
@@ -250,9 +299,10 @@ class TestGovernance:
 
     def test_frontmatter_schemas_with_a_prose_only_corpus_spec_returns_no_schemas(self) -> None:
         #: Given
-        specs = (_spec('code', frontmatter=False), _spec('code-python'))
+        corpus_spec = _corpus_spec('code', frontmatter=False)
+        namespace_specs = (_namespace_spec('code-python'),)
         filename = 'python-typing'
-        model = _code_model(specs, (filename,))
+        model = _code_model(corpus_spec, namespace_specs, (filename,))
         governance = model.governance(_ref('code', filename))
 
         #: When
@@ -265,9 +315,10 @@ class TestGovernance:
 
     def test_frontmatter_schemas_with_a_corpus_structure_without_a_schema_returns_no_schemas(self) -> None:
         #: Given
-        specs = (_spec('code', frontmatter=False, structure=True), _spec('code-python'))
+        corpus_spec = _corpus_spec('code', frontmatter=False, structure=True)
+        namespace_specs = (_namespace_spec('code-python'),)
         filename = 'python-typing'
-        model = _code_model(specs, (filename,))
+        model = _code_model(corpus_spec, namespace_specs, (filename,))
         governance = model.governance(_ref('code', filename))
 
         #: When
@@ -280,9 +331,10 @@ class TestGovernance:
 
     def test_frontmatter_schemas_with_a_namespace_structure_without_a_schema_adds_no_namespace_schema(self) -> None:
         #: Given
-        specs = (_spec('code'), _spec('code-python', frontmatter=False, structure=True))
+        corpus_spec = _corpus_spec('code')
+        namespace_specs = (_namespace_spec('code-python', frontmatter=False, structure=True),)
         filename = 'python-typing'
-        model = _code_model(specs, (filename,))
+        model = _code_model(corpus_spec, namespace_specs, (filename,))
         governance = model.governance(_ref('code', filename))
 
         #: When
@@ -295,9 +347,10 @@ class TestGovernance:
 
     def test_structure_specs_with_nested_namespaces_returns_the_structures_broad_to_narrow(self) -> None:
         #: Given
-        specs = (_spec('code', structure=True), _spec('code-python', structure=True))
+        corpus_spec = _corpus_spec('code', structure=True)
+        namespace_specs = (_namespace_spec('code-python', structure=True),)
         filename = 'python-typing'
-        model = _code_model(specs, (filename,))
+        model = _code_model(corpus_spec, namespace_specs, (filename,))
         governance = model.governance(_ref('code', filename))
 
         #: When
@@ -311,9 +364,10 @@ class TestGovernance:
 
     def test_structure_specs_with_a_corpus_spec_without_a_structure_returns_no_structures(self) -> None:
         #: Given
-        specs = (_spec('code', frontmatter=False), _spec('code-python', structure=True))
+        corpus_spec = _corpus_spec('code', frontmatter=False)
+        namespace_specs = (_namespace_spec('code-python', structure=True),)
         filename = 'python-typing'
-        model = _code_model(specs, (filename,))
+        model = _code_model(corpus_spec, namespace_specs, (filename,))
         governance = model.governance(_ref('code', filename))
 
         #: When
@@ -326,9 +380,10 @@ class TestGovernance:
 
     def test_structure_specs_with_a_namespace_without_a_structure_returns_the_corpus_structure(self) -> None:
         #: Given
-        specs = (_spec('code', structure=True), _spec('code-python', frontmatter=False))
+        corpus_spec = _corpus_spec('code', structure=True)
+        namespace_specs = (_namespace_spec('code-python', frontmatter=False),)
         filename = 'python-typing'
-        model = _code_model(specs, (filename,))
+        model = _code_model(corpus_spec, namespace_specs, (filename,))
         governance = model.governance(_ref('code', filename))
 
         #: When
@@ -342,9 +397,10 @@ class TestGovernance:
     def test_structure_specs_with_a_corpus_structure_stating_only_frontmatter_returns_both_structures(self) -> None:
         #: Given
         # the corpus file states only a frontmatter schema; the namespace file states only an outline rule
-        specs = (_spec('code'), _spec('code-python', frontmatter=False, structure=True))
+        corpus_spec = _corpus_spec('code')
+        namespace_specs = (_namespace_spec('code-python', frontmatter=False, structure=True),)
         filename = 'python-typing'
-        model = _code_model(specs, (filename,))
+        model = _code_model(corpus_spec, namespace_specs, (filename,))
         governance = model.governance(_ref('code', filename))
 
         #: When
@@ -358,7 +414,7 @@ class TestGovernance:
 
     def test_governance_with_a_ref_of_a_corpus_the_model_lacks_raises_value_error(self) -> None:
         #: Given
-        model = _code_model((_spec('code'),), ('logging',))
+        model = _code_model(_corpus_spec('code'), (), ('logging',))
         foreign_ref = _ref('feat', 'cli-check')
 
         #: When
@@ -373,7 +429,7 @@ class TestGovernance:
 class TestCorpus:
     def test_directory_of_a_corpus_returns_its_directory_under_docs(self) -> None:
         #: Given
-        corpus = Corpus(name=CODE, spec=_spec('code'), namespace_specs=(), documents=())
+        corpus = Corpus(name=CODE, corpus_spec=_corpus_spec('code'), namespace_specs=(), documents=())
 
         #: When
         directory = corpus.directory
@@ -383,7 +439,7 @@ class TestCorpus:
 
     def test_governance_with_a_ref_of_another_corpus_raises_value_error(self) -> None:
         #: Given
-        corpus = Corpus(name=CODE, spec=_spec('code'), namespace_specs=(), documents=())
+        corpus = Corpus(name=CODE, corpus_spec=_corpus_spec('code'), namespace_specs=(), documents=())
         foreign_ref = _ref('feat', 'cli-check')
 
         #: When
@@ -397,8 +453,8 @@ class TestCorpus:
         #: Given
         corpus = Corpus(
             name=CODE,
-            spec=_spec('code'),
-            namespace_specs=(_spec('code-python'),),
+            corpus_spec=_corpus_spec('code'),
+            namespace_specs=(_namespace_spec('code-python'),),
             documents=(),
         )
         ref = _ref('code', 'python-typing')
@@ -407,74 +463,52 @@ class TestCorpus:
         governance = corpus.governance(ref)
 
         #: Then
-        assert governance == Governance(ref, _spec('code'), (_spec('code-python'),)), (
+        assert governance == Governance(ref, _corpus_spec('code'), (_namespace_spec('code-python'),)), (
             'the governance carries the ref and the corpus spec followed by the matching namespace spec'
         )
 
-    def test_construct_with_a_namespace_spec_as_the_corpus_spec_raises_value_error(self) -> None:
-        #: Given
-        namespace_spec = _spec('code-python')
-
-        #: When
-        with pytest.raises(ValueError, match='code'):
-            Corpus(name=CODE, spec=namespace_spec, namespace_specs=(), documents=())
-
-        #: Then
-        assert namespace_spec.namespace is not None, 'the rejected spec is a namespace spec, not a corpus spec'
-
     def test_construct_with_the_corpus_spec_of_another_corpus_raises_value_error(self) -> None:
         #: Given
-        feat_spec = _spec('feat')
+        feat_spec = _corpus_spec('feat')
 
         #: When
         with pytest.raises(ValueError, match='code'):
-            Corpus(name=CODE, spec=feat_spec, namespace_specs=(), documents=())
+            Corpus(name=CODE, corpus_spec=feat_spec, namespace_specs=(), documents=())
 
         #: Then
-        assert feat_spec.corpus == FEAT, 'the rejected spec belongs to another corpus'
-
-    def test_construct_with_a_corpus_spec_among_namespace_specs_raises_value_error(self) -> None:
-        #: Given
-        corpus_spec = _spec('code')
-
-        #: When
-        with pytest.raises(ValueError, match='code'):
-            Corpus(name=CODE, spec=corpus_spec, namespace_specs=(corpus_spec,), documents=())
-
-        #: Then
-        assert corpus_spec.namespace is None, 'the rejected namespace spec has no namespace'
+        assert feat_spec.name.corpus == FEAT, 'the rejected spec belongs to another corpus'
 
     def test_construct_with_a_namespace_spec_of_another_corpus_raises_value_error(self) -> None:
         #: Given
-        feat_namespace = _spec('feat-cli')
+        feat_namespace = _namespace_spec('feat-cli')
 
         #: When
         with pytest.raises(ValueError, match='code'):
-            Corpus(name=CODE, spec=_spec('code'), namespace_specs=(feat_namespace,), documents=())
+            Corpus(name=CODE, corpus_spec=_corpus_spec('code'), namespace_specs=(feat_namespace,), documents=())
 
         #: Then
-        assert feat_namespace.corpus == FEAT, 'the rejected namespace spec belongs to another corpus'
+        assert feat_namespace.name.corpus == FEAT, 'the rejected namespace spec belongs to another corpus'
 
     def test_construct_with_a_narrower_namespace_before_a_broader_one_raises_value_error(self) -> None:
         #: Given
-        broad_to_narrow = (_spec('code-python'), _spec('code-python-errors'))
+        broad_to_narrow = (_namespace_spec('code-python'), _namespace_spec('code-python-errors'))
         narrow_first = (broad_to_narrow[1], broad_to_narrow[0])
 
         #: When
         with pytest.raises(ValueError, match='code'):
-            Corpus(name=CODE, spec=_spec('code'), namespace_specs=narrow_first, documents=())
+            Corpus(name=CODE, corpus_spec=_corpus_spec('code'), namespace_specs=narrow_first, documents=())
 
         #: Then
         assert narrow_first != broad_to_narrow, 'the rejected order is the accepted order reversed'
 
     def test_construct_with_sibling_namespaces_out_of_value_order_raises_value_error(self) -> None:
         #: Given
-        value_order = (_spec('code-pattern'), _spec('code-python'))
+        value_order = (_namespace_spec('code-pattern'), _namespace_spec('code-python'))
         unsorted_siblings = (value_order[1], value_order[0])
 
         #: When
         with pytest.raises(ValueError, match='code'):
-            Corpus(name=CODE, spec=_spec('code'), namespace_specs=unsorted_siblings, documents=())
+            Corpus(name=CODE, corpus_spec=_corpus_spec('code'), namespace_specs=unsorted_siblings, documents=())
 
         #: Then
         assert unsorted_siblings != value_order, 'siblings with the same segment count are accepted in value order'
@@ -485,24 +519,35 @@ class TestCorpus:
 
         #: When
         with pytest.raises(ValueError, match='cli-check'):
-            Corpus(name=CODE, spec=_spec('code'), namespace_specs=(), documents=(foreign_ref,))
+            Corpus(name=CODE, corpus_spec=_corpus_spec('code'), namespace_specs=(), documents=(foreign_ref,))
 
         #: Then
         assert foreign_ref.corpus == FEAT, 'the rejected ref belongs to another corpus'
 
 
 @pytest.mark.unit
-class TestSpec:
-    def test_is_governing_with_a_corpus_spec_returns_true_for_any_filename(self) -> None:
+class TestNamespaceSpec:
+    def test_is_governing_with_a_filename_its_namespace_prefixes_returns_true(self) -> None:
         #: Given
-        corpus_spec = _spec('code')
+        namespace_spec = _namespace_spec('code-python')
+        filename = AspectFilename.parse('python-typing')
+
+        #: When
+        governs = namespace_spec.is_governing(filename)
+
+        #: Then
+        assert governs, 'python is a hyphen-delimited prefix of python-typing, so the namespace spec governs it'
+
+    def test_is_governing_with_a_filename_its_namespace_does_not_prefix_returns_false(self) -> None:
+        #: Given
+        namespace_spec = _namespace_spec('code-python')
         filename = AspectFilename.parse('logging')
 
         #: When
-        governs = corpus_spec.is_governing(filename)
+        governs = namespace_spec.is_governing(filename)
 
         #: Then
-        assert governs, 'a corpus spec governs every document of its corpus, whatever the filename'
+        assert not governs, 'python is no prefix of logging, so the namespace spec does not govern it'
 
 
 @pytest.mark.unit
@@ -533,13 +578,13 @@ def two_corpora_model() -> WorkspaceModel:
     """Corpora ``code`` (two documents) and ``feat`` (one document)."""
     code = Corpus(
         name=CODE,
-        spec=_spec('code'),
+        corpus_spec=_corpus_spec('code'),
         namespace_specs=(),
         documents=(_ref('code', 'logging'), _ref('code', 'python-typing')),
     )
     feat = Corpus(
         name=FEAT,
-        spec=_spec('feat'),
+        corpus_spec=_corpus_spec('feat'),
         namespace_specs=(),
         documents=(_ref('feat', 'cli-check'),),
     )

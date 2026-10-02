@@ -245,7 +245,7 @@ def _namespaces(model: WorkspaceModel, corpus: CorpusName) -> tuple[str, ...]:
     """
     loaded = model.find_corpus(corpus)
     assert loaded is not None, f'the model lists corpus {corpus}'
-    return tuple(str(spec.namespace) for spec in loaded.namespace_specs)
+    return tuple(str(spec.name.namespace) for spec in loaded.namespace_specs)
 
 
 def _document_paths(model: WorkspaceModel) -> tuple[str, ...]:
@@ -485,7 +485,7 @@ class TestLoadWorkspaceEdgeCases:
         #: Then
         code = model.find_corpus(CODE)
         assert code is not None, 'the corpus still loads from its prose specification'
-        assert code.spec.files == (SPECS_DIR / 'code.md',), 'a file no file type claims is not part of the spec'
+        assert code.corpus_spec.files == (SPECS_DIR / 'code.md',), 'a file no file type claims is not part of the spec'
 
     def test_load_workspace_with_a_dotted_stem_leaves_it_out_of_the_corpus_spec(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -499,7 +499,9 @@ class TestLoadWorkspaceEdgeCases:
         #: Then
         feat = model.find_corpus(FEAT)
         assert feat is not None, 'the corpus loads from its prose specification'
-        assert feat.spec.files == (SPECS_DIR / 'feat.md',), 'feat.feature is not a spec name, so its file is not a spec'
+        assert feat.corpus_spec.files == (SPECS_DIR / 'feat.md',), (
+            'feat.feature is not a spec name, so its file is not a spec'
+        )
 
     def test_load_workspace_with_a_dotted_stem_alone_builds_no_corpus(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -550,8 +552,8 @@ class TestLoadWorkspaceEdgeCases:
         #: Then
         corpus = model.find_corpus(CODE)
         assert corpus is not None, 'the corpus still loads from its prose specification'
-        assert corpus.spec.files == (SPECS_DIR / 'code.md',), 'the header file is not one of the spec files'
-        assert corpus.spec.structure is None, 'and it states no rules'
+        assert corpus.corpus_spec.files == (SPECS_DIR / 'code.md',), 'the header file is not one of the spec files'
+        assert corpus.corpus_spec.structure is None, 'and it states no rules'
 
     def test_load_workspace_with_a_malformed_frontmatter_schema_raises_invalid_frontmatter_schema_error(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
