@@ -25,8 +25,9 @@ A skill's location decides the rules it is held to.
 | `skills/<name>/` | Project skill | Agents in other repositories, after the skill is installed there | The specification only; nothing may depend on this repository's agent or layout |
 
 Project skills live in `skills/`, and each is linked into `.agents/skills/` by a symlink so this repository's
-agents use it too. `lorecraft check skills` reads each skill in `.agents/skills/`, so it checks a project skill
-once, through that symlink.
+agents use it too; by convention the symlink takes the skill's name, though the check does not require it.
+`lorecraft check skills` reads each skill in `.agents/skills/`, so it checks a project skill once, through that
+symlink.
 
 Workspace skills may use these Claude Code extensions in the body, because only this repository's agents load
 them. None is a frontmatter field: every skill's frontmatter is held to the specification alone (§2).
@@ -47,7 +48,7 @@ must be quoted, and a value containing `"` is quoted with `'`.
 
 | Field | Required | Rule |
 |---|---|---|
-| `name` | Yes | 1-64 characters: lowercase `a-z`, `0-9`, and hyphens. No leading, trailing, or consecutive hyphens. Must equal the directory name |
+| `name` | Yes | 1-64 characters: lowercase `a-z`, `0-9`, and hyphens. No leading, trailing, or consecutive hyphens. Must equal the name of the directory the skill's files live in: for a project skill, its directory in `skills/` |
 | `description` | Yes | 1-1024 characters. What the skill does, then when to use it |
 | `license` | No | A license name, or the name of a bundled license file |
 | `compatibility` | No | 1-500 characters. Environment requirements: products, system packages, network access. Omit it when there are none |
@@ -137,9 +138,9 @@ subject: `grep -l <path> skills/*/SKILL.md` prints them, one per line (§4).
 `lorecraft check skills` decides every mechanical rule. Do not check those rules by hand.
 
 It decides the frontmatter: YAML validity, the six fields and their limits, `metadata` value types, and `name`
-against the directory. It holds `SKILL.md` to 500 lines, frontmatter included, and reports a longer one as
-`skill.lines-budget`. It also reports four kinds of link in every Markdown file of the skill, each in the file
-holding it:
+against the directory the skill's files live in, through any symlink. It holds `SKILL.md` to 500 lines,
+frontmatter included, and reports a longer one as `skill.lines-budget`. It also reports four kinds of link in
+every Markdown file of the skill, each in the file holding it:
 
 - A relative link that, read from the skill root, climbs above it, as `skill.link-escapes`.
 - A relative link inside the skill that names no file or directory the skill holds, and no file `metadata`

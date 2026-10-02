@@ -12,9 +12,9 @@ components: "module:lorecraft.cli.commands.check.skills,module:lorecraft.checks.
 
 `lorecraft check skills` holds each skill's `SKILL.md` to the
 [Agent Skills specification](https://agentskills.io/specification): its frontmatter, a `name` matching its
-directory, and at most 500 lines. It reports a link in any skill Markdown file that is absolute, names a heading
-its file lacks, leaves the skill or names nothing there, and a `metadata` path that repeats a file name, is
-missing or lies outside what it reads. It reads the skills the [workspace](workspace.md) lists; a bare
+directory through any symlink, and at most 500 lines. It reports a link in any skill Markdown file that is
+absolute, names a missing heading, leaves the skill or names nothing there, and a `metadata` path repeating a
+file name, missing, or outside what it reads. It reads the skills the [workspace](workspace.md) lists; a bare
 `lorecraft check` runs it too.
 
 ## Table of Contents
@@ -103,8 +103,8 @@ the link findings. A skill's `SKILL.md` findings come first, then each resource'
 
 `name` is compared as written, with no Unicode normalisation, so a full-width letter is a `skill.name` finding.
 An optional field written with no value, such as `license:`, is read as absent and accepted. The name is
-compared with the directory first, then the specification is applied, then repeated keys are reported, as the
-[frontmatter check](cli-check-frontmatter.md#findings) does. Every message is Lorecraft's own, so it does not
+compared with the directory, through any symlink, then the specification is applied, then repeated keys
+are reported, as the [frontmatter check](cli-check-frontmatter.md#findings) does. Every message is Lorecraft's own, so it does not
 change with the version of the library that validates the fields.
 
 A `skill.metadata-*` finding is on the line of the `metadata` key. Within a subkey, repeated file
@@ -120,7 +120,7 @@ and it suppresses no other finding; any other finding about that key is on the l
 | `skill.frontmatter-missing` | The `SKILL.md` does not open with a `---` delimited block |
 | `skill.frontmatter-unparseable` | The block is not valid YAML, or is not a mapping |
 | `skill.undecodable` | The `SKILL.md` or a resource is not valid UTF-8; a resource reports it alone, and its links are not checked |
-| `skill.name-matches-directory` | `name` is not the name of the skill's directory |
+| `skill.name-matches-directory` | `name` is not the name of the directory the skill's files live in, read through any symlink: for `.agents/skills/bar -> ../../skills/foo`, `name` must be `foo`. A link's own name is not compared; when it differs from the directory's, a note on the finding names the link |
 | `skill.duplicate-key` | A top-level key is written again; the message gives the line of the first occurrence |
 | `skill.<field>` | The specification rejects that field, or requires it and it is absent |
 | `skill.unknown-field` | A field the specification does not define, such as `model`, or a key that is not a string, such as `123` |
