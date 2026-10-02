@@ -1,17 +1,19 @@
-"""The specification filename grammar: the stem a file sits at, and the aspect it carries.
+"""The specification filename grammar: the stem a file sits at, and the file type that claims it.
 
-A specification file in ``docs/__meta__/`` is either ``<stem>.md``, the prose of a specification, or
-``<stem>.<aspect>.json``, one machine-checkable aspect of it. The only aspect is ``structure``, whose file also
-holds the frontmatter schema. A ``header`` file, where that schema was once kept, is an unknown aspect here like
-any other, and is left out. The stem is one of the two forms ``name.py`` describes, and holds no dot.
+A file's extension is what follows its last dot. What a specification file is comes from its file type, which a
+file name pattern claims: `*.md` claims the prose of a specification, and `*.structure.json` its structure
+specification, the machine-checkable rules, which also hold the frontmatter schema. A `<stem>.<token>.json` that
+no pattern claims, such as a `header` file where that schema was once kept, is of no file type and is left out.
+The stem is what is left of the filename once the pattern's suffix is stripped: one of the two forms `name.py`
+describes, and it holds no dot.
 
-``parse_spec_file`` is the one place this grammar is read, and ``schema_filename`` and ``prose_filename`` the
-only places it is written. Every other module takes the parsed records.
+`parse_spec_file` is the one place this grammar is read, and `spec_filename` the only place it is written.
+Every other module takes the parsed records.
 """
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Final
+from typing import Final, assert_never
 
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
@@ -20,29 +22,36 @@ from lorecraft.project.corpus import CorpusName, EmptyCorpusNameError, InvalidCo
 
 from .name import SchemaName, parse_schema_name, schema_name_stem
 
-_PROSE_SUFFIX: Final[str] = '.md'
 _JSON_SUFFIX: Final[str] = '.json'
 
 
-class SpecAspect(Enum):
-    """The machine-checkable aspect a ``<stem>.<aspect>.json`` file carries; the value is the filename token."""
+class SpecFileType(Enum):
+    """What a specification file is; the value is the file name pattern that claims it."""
 
-    STRUCTURE = 'structure'
+    PROSE = '*.md'
+    """The specification in prose, written for a reader."""
+    STRUCTURE = '*.structure.json'
+    """The structure specification: the rules a check can decide, the frontmatter schema among them."""
+
+    @property
+    def suffix(self) -> str:
+        """What a filename this type claims ends with: the pattern without its leading `*`."""
+        return self.value.removeprefix('*')
 
 
 @dataclass(frozen=True, slots=True)
 class SpecFile:
-    """A file at a ``<corpus>`` or ``<corpus>-<namespace>`` stem.
+    """A file at a `<corpus>` or `<corpus>-<namespace>` stem.
 
     Attributes:
         path: Root-relative path of the file.
         name: The stem, parsed.
-        aspect: The aspect of a JSON file, or None for the ``.md`` prose.
+        type: The file type whose pattern claims the filename.
     """
 
     path: RootRelativePath
     name: SchemaName
-    aspect: SpecAspect | None
+    type: SpecFileType
 
     @property
     def corpus(self) -> CorpusName:
@@ -51,7 +60,7 @@ class SpecFile:
 
 
 class NotASpecFileError(Error):
-    """The filename is neither ``<stem>.md`` nor ``<stem>.<token>.json``.
+    """No file type's pattern claims the filename at a non-empty stem, and it is not a `<stem>.<token>.json` either.
 
     Attributes:
         path: Root-relative path of the rejected file.
@@ -61,15 +70,15 @@ class NotASpecFileError(Error):
 
     def __init__(self, path: RootRelativePath) -> None:
         self.path = path
-        super().__init__(f'{path} is neither <stem>.md nor <stem>.<aspect>.json')
+        super().__init__(f'{path}: no file type claims it at a stem; the patterns are {_pattern_list()}')
 
 
-class UnknownSpecAspectError(Error):
-    """The token of a ``<stem>.<token>.json`` file is not a known aspect.
+class UnknownSpecFileTypeError(Error):
+    """No specification file type claims a `<stem>.<token>.json` file.
 
     Attributes:
         path: Root-relative path of the rejected file.
-        token: The rejected token.
+        token: The text between the stem and `.json`, such as `header`.
     """
 
     path: RootRelativePath
@@ -78,11 +87,11 @@ class UnknownSpecAspectError(Error):
     def __init__(self, path: RootRelativePath, token: str) -> None:
         self.path = path
         self.token = token
-        super().__init__(f'{path}: aspect {token!r} is not structure')
+        super().__init__(f'{path}: no file type claims *.{token}.json; the patterns are {_pattern_list()}')
 
 
 class NotASpecStemError(Error):
-    """A prose file whose stem does not start with a corpus name, such as ``README.md``.
+    """A prose file whose stem does not start with a corpus name, such as `README.md`.
 
     It is prose kept beside the specifications, not a misnamed specification.
 
@@ -156,24 +165,24 @@ class InvalidSpecStemError(Error):
 def parse_spec_file(path: RootRelativePath) -> SpecFile:
     """Parse the filename of one file in the specification directory.
 
-    The rules apply in order, and the first one broken selects the error: the filename shape, the aspect
-    token, a dot left in the stem, then the stem's tokens.
+    The rules apply in order, and the first one broken selects the error: the filename shape, the file type, a
+    dot left in the stem, then the stem's tokens.
 
     Args:
         path: Root-relative path of the file; only its name is parsed.
 
     Raises:
-        NotASpecFileError: If the name is neither ``<stem>.md`` nor ``<stem>.<token>.json``.
-        UnknownSpecAspectError: If the JSON token is not a ``SpecAspect``.
+        NotASpecFileError: If no pattern claims the name at a non-empty stem and it is not `<stem>.<token>.json`.
+        UnknownSpecFileTypeError: If no `SpecFileType` claims a `<stem>.<token>.json` name.
         NotASpecStemError: If a prose file's stem does not start with a valid corpus name.
         DottedSpecStemError: If the stem holds a dot.
         InvalidSpecStemError: If any other stem token does not parse.
     """
-    stem, aspect = _split_filename(path)
+    stem, file_type = _split_filename(path)
 
     if '.' in stem:
         # `feat.component.structure.json` is not a stem with a type in it: a stem is `<corpus>` or
-        # `<corpus>-<namespace>`, and the only dots in a specification filename set off the aspect and the suffix.
+        # `<corpus>-<namespace>`, and the only dots in a specification filename are its pattern's.
         raise DottedSpecStemError(path, stem)
 
     try:
@@ -181,59 +190,59 @@ def parse_spec_file(path: RootRelativePath) -> SpecFile:
     except (EmptyCorpusNameError, InvalidCorpusNameCharacterError) as exc:
         # A prose file whose first token is not a corpus name (README.md) is not a misnamed spec, it is simply
         # not a spec; a JSON file at such a stem can only be a misnaming.
-        if aspect is None:
-            raise NotASpecStemError(path, source=exc) from exc
-        raise InvalidSpecStemError(path, source=exc) from exc
+        match file_type:
+            case SpecFileType.PROSE:
+                raise NotASpecStemError(path, source=exc) from exc
+            case SpecFileType.STRUCTURE:
+                raise InvalidSpecStemError(path, source=exc) from exc
+            case _:
+                assert_never(file_type)
     except (EmptyAspectNamespaceError, InvalidAspectNamespaceCharacterError) as exc:
         raise InvalidSpecStemError(path, source=exc) from exc
-    return SpecFile(path=path, name=name, aspect=aspect)
+    return SpecFile(path=path, name=name, type=file_type)
 
 
-def schema_filename(name: SchemaName, aspect: SpecAspect) -> str:
-    """The filename of one aspect at a `<corpus>` or `<corpus>-<namespace>` stem; never raises.
+def spec_filename(name: SchemaName, file_type: SpecFileType) -> str:
+    """The filename of one file type at a `<corpus>` or `<corpus>-<namespace>` stem; never raises.
 
     Args:
         name: Schema whose stem the filename starts with.
-        aspect: Aspect that picks the `.<aspect>.json` suffix.
+        file_type: Type whose pattern the filename matches, such as `*.structure.json`.
     """
-    return f'{schema_name_stem(name)}.{aspect.value}{_JSON_SUFFIX}'
+    return f'{schema_name_stem(name)}{file_type.suffix}'
 
 
-def prose_filename(name: SchemaName) -> str:
-    """The filename of the prose at a `<corpus>` or `<corpus>-<namespace>` stem; never raises.
-
-    Args:
-        name: Schema whose stem the `.md` filename is built from.
-    """
-    return f'{schema_name_stem(name)}{_PROSE_SUFFIX}'
-
-
-def _split_filename(path: RootRelativePath) -> tuple[str, SpecAspect | None]:
-    """Split a filename into its stem text and its aspect, None for prose.
+def _split_filename(path: RootRelativePath) -> tuple[str, SpecFileType]:
+    """Split a filename into its stem text and the file type whose pattern claims it.
 
     Args:
         path: Root-relative path of the file; only its final name is read, and `path` is carried into any error.
 
     Raises:
-        NotASpecFileError: If the name is neither `<stem>.md` nor `<stem>.<token>.json`.
-        UnknownSpecAspectError: If the JSON token is not a ``SpecAspect``.
+        NotASpecFileError: If no pattern claims the name at a non-empty stem and it is not `<stem>.<token>.json`.
+        UnknownSpecFileTypeError: If no `SpecFileType` claims a `<stem>.<token>.json` name.
     """
     filename = path.name
 
-    if filename.endswith(_PROSE_SUFFIX):
-        stem = filename.removesuffix(_PROSE_SUFFIX)
-        if not stem:
-            raise NotASpecFileError(path)
-        return stem, None
+    # The first type whose pattern matches claims the file, so no pattern's suffix may end another's: a `*.json`
+    # declared before `*.structure.json` would claim every structure specification at a dotted stem.
+    for file_type in SpecFileType:
+        if filename.endswith(file_type.suffix):
+            stem = filename.removesuffix(file_type.suffix)
+            if not stem:
+                raise NotASpecFileError(path)
+            return stem, file_type
 
     if filename.endswith(_JSON_SUFFIX):
-        # Split at the last dot before the suffix, so only the final token is the aspect; a dot left in the stem
-        # is rejected by the caller.
+        # Split at the last dot before `.json`, so only the final token is the one no pattern claims; a name no
+        # type claims is rejected here, before the caller looks for a dot left in its stem.
         stem, separator, token = filename.removesuffix(_JSON_SUFFIX).rpartition('.')
-        if not separator or not stem or not token:
-            raise NotASpecFileError(path)
-        if token not in SpecAspect:
-            raise UnknownSpecAspectError(path, token)
-        return stem, SpecAspect(token)
+        if separator and stem and token:
+            raise UnknownSpecFileTypeError(path, token)
 
     raise NotASpecFileError(path)
+
+
+def _pattern_list() -> str:
+    """Every file type's pattern, in declaration order, for an error message: `*.md, *.structure.json`."""
+    return ', '.join(file_type.value for file_type in SpecFileType)

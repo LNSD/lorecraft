@@ -1,10 +1,10 @@
 """The committed structure schema is a JSON Schema every specification this repository carries passes.
 
-``docs/schemas/structure.spec.json`` is rendered by ``just gen`` from ``StructureFile``, the pydantic model
-``StructureAspect.parse`` deserializes each file with, so the schema and the validation cannot disagree about a
-shape; CI's ``gen-check`` job keeps the committed file current. What is left to hold is the file an editor reads:
+`docs/schemas/structure.spec.json` is rendered by `just gen` from `StructureFile`, the pydantic model
+`StructureSpec.parse` deserializes each file with, so the schema and the validation cannot disagree about a
+shape; CI's `gen-check` job keeps the committed file current. What is left to hold is the file an editor reads:
 that it is a well-formed schema, that it accepts every specification this repository writes, and that it holds the
-``frontmatter`` key, whose JSON Schema is written out rather than rendered, to a schema describing an object.
+`frontmatter` key, whose JSON Schema is written out rather than rendered, to a schema describing an object.
 """
 
 import json

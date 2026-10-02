@@ -119,7 +119,7 @@ class TestRepository:
 
         #: Then
         assert schema == '{"title": "Python"}', (
-            'get_structure_schema reads code-python.structure.json, leaving the parse to StructureAspect'
+            'get_structure_schema reads code-python.structure.json, leaving the parse to StructureSpec'
         )
 
     def test_get_structure_schema_with_missing_file_raises_structure_schema_read_error(

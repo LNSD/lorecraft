@@ -309,7 +309,7 @@ class TestLoadWorkspaceAmp:
         assert crate.files == (SPECS_DIR / 'code-crate.structure.json',), (
             'a namespace spec with JSON files and no prose still loads'
         )
-        assert crate.structure is not None, 'the structure aspect is decoded'
+        assert crate.structure is not None, 'the structure specification is decoded'
         assert crate.structure.frontmatter is not None, 'the frontmatter schema is decoded with it'
         assert crate.structure.frontmatter.path == SPECS_DIR / 'code-crate.structure.json', (
             'the frontmatter schema carries the path of the specification it is written in'
@@ -472,7 +472,7 @@ class TestLoadWorkspaceEdgeCases:
         #: Then
         assert _document_paths(model) == ('docs/code/logging.md',), 'a subdirectory of a corpus is not listed'
 
-    def test_load_workspace_with_an_unknown_json_aspect_leaves_it_out_and_loads_the_corpus(
+    def test_load_workspace_with_a_json_no_file_type_claims_leaves_it_out_and_loads_the_corpus(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
@@ -484,7 +484,7 @@ class TestLoadWorkspaceEdgeCases:
         #: Then
         code = model.find_corpus(CODE)
         assert code is not None, 'the corpus still loads from its prose stem'
-        assert code.spec.files == (SPECS_DIR / 'code.md',), 'a misnamed aspect token is not part of the spec'
+        assert code.spec.files == (SPECS_DIR / 'code.md',), 'a file no file type claims is not part of the spec'
 
     def test_load_workspace_with_a_dotted_stem_leaves_it_out_of_the_corpus_spec(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -568,7 +568,7 @@ class TestLoadWorkspaceEdgeCases:
         #: Then
         assert exc_info.value.path == SPECS_DIR / 'code.structure.json', 'the error names the rejected specification'
 
-    def test_load_workspace_with_a_structure_spec_builds_the_structure_aspect(
+    def test_load_workspace_with_a_structure_spec_file_builds_the_structure_spec(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
@@ -580,10 +580,10 @@ class TestLoadWorkspaceEdgeCases:
         #: Then
         ref = model.find_document(RootRelativePath.parse('docs/code/logging.md'))
         assert ref is not None, 'the document is listed'
-        aspects = model.governance(ref).structure_specs()
-        assert tuple(aspect.path for aspect in aspects) == (SPECS_DIR / 'code.structure.json',), (
-            'the corpus structure specification governs its document'
-        )
+        structure_specs = model.governance(ref).structure_specs()
+        assert tuple(structure_spec.path for structure_spec in structure_specs) == (
+            SPECS_DIR / 'code.structure.json',
+        ), 'the corpus structure specification governs its document'
 
     def test_load_workspace_with_an_invalid_structure_spec_raises_empty_structure_spec_error(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
