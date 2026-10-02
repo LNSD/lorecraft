@@ -2,6 +2,7 @@
 
 import subprocess
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Final
 
@@ -13,14 +14,17 @@ _COMMAND: Final[tuple[str, ...]] = (str(Path(sys.executable).parent / _CONSOLE_S
 _ALIAS_COMMAND: Final[tuple[str, ...]] = (str(Path(sys.executable).parent / _ALIAS_SCRIPT_NAME),)
 
 
-def run_cli(*arguments: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+def run_cli(
+    *arguments: str, cwd: Path | None = None, env: Mapping[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
     """Run the installed CLI in a subprocess and capture what it wrote.
 
     Args:
         arguments: Command-line arguments passed to `lorecraft`, after the program name.
         cwd: Directory the process starts in. The test's own working directory when omitted.
+        env: The whole environment the process starts with, replacing the test's own. The test's own when omitted.
     """
-    return subprocess.run([*_COMMAND, *arguments], capture_output=True, text=True, timeout=30, cwd=cwd)
+    return subprocess.run([*_COMMAND, *arguments], capture_output=True, text=True, timeout=30, cwd=cwd, env=env)
 
 
 def run_alias(*arguments: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:

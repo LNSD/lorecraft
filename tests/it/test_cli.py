@@ -269,6 +269,21 @@ class TestVersionOption:
         assert result.exit_code == 0, result.output
         assert result.output.strip() == f'lorecraft {__version__}', '-V prints the short version'
 
+    def test_version_option_followed_by_a_command_and_its_arguments_prints_only_the_short_version(self) -> None:
+        #: Given
+        app = build_app()
+        # a check over a root that does not exist, which would exit 2 were it run
+        arguments = ['--version', 'check', 'frontmatter', '--root', 'missing']
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.output == f'lorecraft {__version__}\n', (
+            'the option prints the short version and exits, whatever follows it on the command line'
+        )
+
 
 @pytest.mark.it
 class TestVersionCommand:
@@ -2503,6 +2518,23 @@ class TestCheckAllCommand:
         #: Then
         assert result.exit_code == 2, result.output
         assert result.stdout == '', 'after an error nothing is printed but the error'
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores file permissions')
+    def test_check_with_an_unreadable_document_exits_as_invalid_input_and_names_it(self, workspace: Path) -> None:
+        #: Given
+        (workspace / 'docs' / 'code' / 'logging.md').chmod(0o000)
+        app = build_app()
+        arguments = ['check', '--root', str(workspace)]
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stdout == '', 'after an error nothing is printed but the error'
+        assert result.stderr == 'error: cannot snapshot file docs/code/logging.md: permission denied\n', (
+            'a document the run cannot read stops it, naming the document and the refusal'
+        )
 
     def test_check_with_a_linked_specs_directory_exits_as_invalid_input(self, linked_specs_workspace: Path) -> None:
         #: Given
