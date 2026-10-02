@@ -24,6 +24,7 @@ from lorecraft.cli.check_run import (
 )
 from lorecraft.cli.failure import report_failure
 from lorecraft.cli.registry import register_group
+from lorecraft.cli.select import select_whole
 from lorecraft.core.error import Error
 
 app: typer.Typer = typer.Typer(
@@ -73,10 +74,10 @@ def check_all(
         runs: list[tuple[DocumentCheck, CheckRun]] = []
         for check in registered_checks():
             runs.append((check, check.run(database, refs)))
-        skill_refs = database.model().skills()
+        skill_selections = select_whole(database.model().skills())
         skill_runs: list[tuple[SkillCheck, SkillCheckRun]] = []
         for skill_check in registered_skill_checks():
-            skill_runs.append((skill_check, skill_check.run(database, skill_refs)))
+            skill_runs.append((skill_check, skill_check.run(database, skill_selections)))
     except Error as exc:
         report_failure(exc)
         raise typer.Exit(code=2) from exc

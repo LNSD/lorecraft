@@ -12,8 +12,9 @@ directory (the real one, and the one linked to it), how it refuses a directory n
 directory, and what it prints for a skill linking to an absolute path, for one linking to a heading it does not
 have, for one whose `SKILL.md` and a resource link outside the skill, for one whose `SKILL.md` and a resource link a
 file the skill does not hold, for one whose resource links to an absolute path and to a heading it does not have,
-for one whose `metadata` repeats a file name, lists a path outside what the command reads, or lists a file the
-repository does not have, and for one holding a symlink that leads outside the repository.
+for one whose `SKILL.md` and a resource link to an absolute path, named by its directory and by its `SKILL.md`, which
+checks that file alone, for one whose `metadata` repeats a file name, lists a path outside what the command reads,
+or lists a file the repository does not have, and for one holding a symlink that leads outside the repository.
 """
 
 from pathlib import Path
@@ -299,6 +300,27 @@ def resource_absolute_and_fragment_link_root(tmp_path: Path) -> Path:
     (tmp_path / '.agents' / 'skills' / 'review' / 'references' / 'guide.md').write_text(
         '# Guide\n\nRead [the docs](/docs/guide.md).\n\nSee [the usage](#usage), not [the guide](#guide).\n',
         encoding='utf-8',
+    )
+    return tmp_path
+
+
+@pytest.fixture(scope='function')
+def skill_and_resource_absolute_link_root(tmp_path: Path) -> Path:
+    """A root holding one skill whose `SKILL.md` and whose resource each link to a file from the filesystem root.
+
+    Apart from the two links the skill is clean, so a run over the whole skill prints two link-absolute findings,
+    one per file, and a run over its `SKILL.md` alone prints the one in the `SKILL.md`.
+
+    Args:
+        tmp_path: Directory the skill is written into, as the repository root.
+    """
+    (tmp_path / '.agents' / 'skills' / 'review' / 'references').mkdir(parents=True)
+    (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').write_text(
+        '---\nname: review\ndescription: Review a change\n---\n# Review\n\nRead [the steps](/steps.md).\n',
+        encoding='utf-8',
+    )
+    (tmp_path / '.agents' / 'skills' / 'review' / 'references' / 'guide.md').write_text(
+        '# Guide\n\nRead [the docs](/docs/guide.md).\n', encoding='utf-8'
     )
     return tmp_path
 
@@ -726,6 +748,40 @@ class TestCheckSkillsSnapshots:
         #: Then
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'both link findings, in the resource, match the reviewed snapshot'
+
+    def test_check_skills_with_a_skill_directory_prints_the_findings_of_its_skill_md_and_its_resources(
+        self, snapshot: SnapshotAssertion, skill_and_resource_absolute_link_root: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        root = skill_and_resource_absolute_link_root
+        arguments = ('check', 'skills', '--root', str(root), '.agents/skills/review')
+
+        #: When
+        result = run_cli(*arguments, cwd=root)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, 'the link-absolute findings of both files match the reviewed snapshot'
+        assert result.stderr == 'checked 1 skill(s), 2 finding(s)\n', 'the whole skill is checked'
+
+    def test_check_skills_with_a_skill_md_prints_the_findings_of_that_file_alone(
+        self, snapshot: SnapshotAssertion, skill_and_resource_absolute_link_root: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        root = skill_and_resource_absolute_link_root
+        arguments = ('check', 'skills', '--root', str(root), '.agents/skills/review/SKILL.md')
+
+        #: When
+        result = run_cli(*arguments, cwd=root)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, 'the link-absolute finding of the SKILL.md alone matches the snapshot'
+        assert result.stderr == 'checked 1 skill(s), 1 finding(s)\n', (
+            'the skill is checked by its SKILL.md alone, and its resource is not read'
+        )
 
     def test_check_skills_with_a_skill_md_over_500_lines_prints_the_lines_budget_finding(
         self, snapshot: SnapshotAssertion, long_skill_root: Path
