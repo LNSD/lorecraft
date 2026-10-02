@@ -12,7 +12,7 @@ import os
 from pathlib import Path, PurePosixPath
 
 from lorecraft.agents import SKILL_ENTRY_FILENAME
-from lorecraft.checks import Database
+from lorecraft.checks import Database, SkillScope, SkillSelection
 from lorecraft.core.error import Error
 from lorecraft.core.path import ROOT, RootRelativePath
 from lorecraft.project.corpus import CorpusName, EmptyCorpusNameError, InvalidCorpusNameCharacterError
@@ -259,7 +259,9 @@ class UnlistedSkillPathError(Error):
         )
 
 
-def select_skills_at(database: Database, root: Path, working_directory: Path, argument: Path) -> tuple[SkillRef, ...]:
+def select_skills_at(
+    database: Database, root: Path, working_directory: Path, argument: Path
+) -> tuple[SkillSelection, ...]:
     """Map one CLI argument onto the model's skills, resolving it through the snapshot rather than the disk.
 
     The argument names a skills directory, a skill by its directory, or a skill by its `SKILL.md`, through a link
@@ -279,6 +281,9 @@ def select_skills_at(database: Database, root: Path, working_directory: Path, ar
     naming the directory two entries link to selects both. `skills/`, where entries of a skills directory link to,
     is no skills directory, so it names no skill.
 
+    A path naming a directory selects each skill whole; one naming a `SKILL.md`, by that name or as the file a
+    linked `SKILL.md` leads to, selects its `SKILL.md` alone.
+
     Args:
         database: The snapshot the argument is resolved in, and the model it must name a skill of.
         root: The resolved workspace root; the argument is located relative to it.
@@ -286,8 +291,8 @@ def select_skills_at(database: Database, root: Path, working_directory: Path, ar
         argument: The path as typed; quoted verbatim in the error message.
 
     Returns:
-        The skills at the named path, each once, in the model's order; empty only for a skills directory that
-        holds no skill.
+        The skills at the named path, each once, in the model's order, with what the path named of each; empty only
+        for a skills directory that holds no skill.
 
     Raises:
         UnlistedSkillPathError: If the argument lies outside the root, the snapshot holds nothing at it,
@@ -300,7 +305,7 @@ def select_skills_at(database: Database, root: Path, working_directory: Path, ar
     spelled = _find_spelling_under_root(root, named)
     if spelled is None:
         raise UnlistedSkillPathError(argument)
-    listed = _find_listed_skill(database, spelled)
+    listed = _select_listed_skill(database, spelled)
     if listed is not None:
         return (listed,)
     real_path = database.find_real_path(spelled)
@@ -308,34 +313,63 @@ def select_skills_at(database: Database, root: Path, working_directory: Path, ar
         raise UnlistedSkillPathError(argument)
     model = database.model()
     if model.has_skills_dir(real_path):
-        return model.skills_in(real_path)
+        return select_whole(model.skills_in(real_path))
     refs = model.locate_skills(real_path)
     if not refs:
         raise UnlistedSkillPathError(argument)
-    return refs
+    selections: list[SkillSelection] = []
+    for ref in refs:
+        # A skill is located at the real directory its entry leads to or at the real file its `SKILL.md` leads
+        # to; only the second names the file, such as `shared/LINT.md` that a linked `SKILL.md` leads to.
+        if model.skill_location(ref).file_resolves_to == real_path:
+            selections.append(SkillSelection(ref, SkillScope.SKILL_FILE))
+        else:
+            selections.append(SkillSelection(ref, SkillScope.WHOLE_SKILL))
+    return tuple(selections)
 
 
-def _find_listed_skill(database: Database, spelled: RootRelativePath) -> SkillRef | None:
+def select_whole(refs: tuple[SkillRef, ...]) -> tuple[SkillSelection, ...]:
+    """Each skill selected whole, in the order given.
+
+    Args:
+        refs: The skills to select, such as every skill the model lists or those a skills directory holds.
+    """
+    selections: list[SkillSelection] = []
+    for ref in refs:
+        selections.append(SkillSelection(ref, SkillScope.WHOLE_SKILL))
+    return tuple(selections)
+
+
+def _select_listed_skill(database: Database, spelled: RootRelativePath) -> SkillSelection | None:
     """The skill listed at the entry `spelled` names, by the entry's directory or its `SKILL.md`, or `None`.
 
     The entry's parent is followed through the snapshot, so a linked skills directory such as `.claude/skills`
     leads to the real one the model lists its skills under. The entry itself is kept as spelled: following it
     would lead to the directory its files live in, which every entry linked there shares.
 
+    The skill is selected by its `SKILL.md` alone when `spelled` ends in `SKILL.md`, and whole when it names the
+    entry's directory. The spelling decides it here because the argument is read by its spelling; a path resolved
+    to its real location has only that location to tell the file from the directory.
+
     Args:
         database: The snapshot the entry's parent is resolved in, and the model it must name a skill of.
         spelled: The argument, root-relative and taken by its spelling alone.
     """
     entry = spelled
+    scope = SkillScope.WHOLE_SKILL
     if spelled.name == SKILL_ENTRY_FILENAME:
         entry = spelled.parent
+        scope = SkillScope.SKILL_FILE
     # The root is no entry: it has no name, and no skill is listed at it.
     if entry == ROOT:
         return None
     real_parent = database.find_real_path(entry.parent)
     if real_parent is None:
         return None
-    return database.model().find_skill(real_parent / entry.name)
+    ref = database.model().find_skill(real_parent / entry.name)
+    if ref is None:
+        return None
+    return SkillSelection(ref, scope)
 
 
 def _find_spelling_under_root(root: Path, named: Path) -> RootRelativePath | None:

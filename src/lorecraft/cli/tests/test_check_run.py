@@ -1,7 +1,7 @@
 """The check registry a bare ``lorecraft check`` reads, the selection, and the summary of a bare run.
 
 What a check module's registration may and may not do; then the selection's refusal of an unreadable working
-directory, and the summary of a bare run with no checks.
+directory, how the skills several paths name are merged, and the summary of a bare run with no checks.
 
 The registry is process-wide, so these cases register only the frontmatter check itself, or a rival under its name
 that is refused before it is stored; a new name would join every later bare run in the same process.
@@ -11,7 +11,8 @@ from pathlib import Path
 
 import pytest
 
-from lorecraft.checks import Database, SkillCheckRun, run_frontmatter, run_skills
+from lorecraft.checks import Database, SkillCheckRun, SkillScope, SkillSelection, run_frontmatter, run_skills
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.skill import SkillRef
 from lorecraft.vfs import OsRefusal
 
@@ -20,6 +21,7 @@ from ..check_run import (
     DuplicateCheckError,
     SkillCheck,
     WorkingDirectoryReadError,
+    merge_selections,
     print_runs,
     register_check,
     register_skill_check,
@@ -31,12 +33,12 @@ from ..commands.check.frontmatter import FRONTMATTER_CHECK
 from ..commands.check.skills import SKILLS_CHECK
 
 
-def _rival_skill_run(database: Database, refs: tuple[SkillRef, ...]) -> SkillCheckRun:
+def _rival_skill_run(database: Database, selections: tuple[SkillSelection, ...]) -> SkillCheckRun:
     """Stand-in run for a rival skill check that must be refused before it is ever run.
 
     Args:
         database: Unused; the check is refused at registration and never run.
-        refs: Unused, for the same reason.
+        selections: Unused, for the same reason.
     """
     raise AssertionError('a refused check is never run')
 
@@ -150,6 +152,75 @@ class TestSelectDocuments:
         #: Then
         assert exc_info.value.refusal is OsRefusal.NOT_FOUND, 'a deleted working directory is refused as not found'
         assert isinstance(exc_info.value.source, FileNotFoundError), 'the operating system failure is kept'
+
+
+def _skill(path: str) -> SkillRef:
+    """The skill at `path`, root-relative.
+
+    Args:
+        path: The skill's directory, with `/` separators.
+    """
+    return SkillRef(RootRelativePath.parse(path))
+
+
+@pytest.mark.unit
+class TestMergeSelections:
+    def test_merge_selections_with_the_whole_skill_after_its_skill_file_keeps_it_whole_at_the_first_place(
+        self,
+    ) -> None:
+        #: Given
+        review = _skill('.agents/skills/review')
+        lint = _skill('.agents/skills/lint')
+        selections = (
+            SkillSelection(review, SkillScope.SKILL_FILE),
+            SkillSelection(lint, SkillScope.WHOLE_SKILL),
+            SkillSelection(review, SkillScope.WHOLE_SKILL),
+        )
+
+        #: When
+        merged = merge_selections(selections)
+
+        #: Then
+        assert merged == (
+            SkillSelection(review, SkillScope.WHOLE_SKILL),
+            SkillSelection(lint, SkillScope.WHOLE_SKILL),
+        ), 'the wider selection wins, at the place the skill was first named'
+
+    def test_merge_selections_with_the_skill_file_after_the_whole_skill_keeps_it_whole(self) -> None:
+        #: Given
+        review = _skill('.agents/skills/review')
+        selections = (SkillSelection(review, SkillScope.WHOLE_SKILL), SkillSelection(review, SkillScope.SKILL_FILE))
+
+        #: When
+        merged = merge_selections(selections)
+
+        #: Then
+        assert merged == (SkillSelection(review, SkillScope.WHOLE_SKILL),), (
+            'a narrower selection named later never narrows a whole one'
+        )
+
+    def test_merge_selections_with_the_skill_file_twice_keeps_it_once(self) -> None:
+        #: Given
+        review = _skill('.agents/skills/review')
+        selections = (SkillSelection(review, SkillScope.SKILL_FILE), SkillSelection(review, SkillScope.SKILL_FILE))
+
+        #: When
+        merged = merge_selections(selections)
+
+        #: Then
+        assert merged == (SkillSelection(review, SkillScope.SKILL_FILE),), 'a skill named twice is checked once'
+
+    def test_merge_selections_with_distinct_skills_keeps_the_order_they_were_named_in(self) -> None:
+        #: Given
+        review = _skill('.agents/skills/review')
+        lint = _skill('.agents/skills/lint')
+        selections = (SkillSelection(review, SkillScope.SKILL_FILE), SkillSelection(lint, SkillScope.WHOLE_SKILL))
+
+        #: When
+        merged = merge_selections(selections)
+
+        #: Then
+        assert merged == selections, 'distinct skills keep their scope and the order the paths named them in'
 
 
 @pytest.mark.unit

@@ -1,0 +1,2 @@
+.agents/skills/review/SKILL.md:7: [skill.link-absolute] `/steps.md` is absolute
+  = help: link relative to the skill root
