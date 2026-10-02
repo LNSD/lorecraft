@@ -3,7 +3,8 @@
 An argument is only spelled on disk: the disk is asked only where it leads above the root, the part under the
 root is taken as spelled, and its links are followed through the snapshot, so it names what the model saw even
 when the tree changed since. A skill argument naming an entry of an agent's skills directory keeps that entry's
-own link unfollowed, so it names the skill an agent lists there and not every entry linked to the same directory.
+own link unfollowed, so it names the skill an agent lists there and not every entry linked to the same directory;
+one whose entry or `SKILL.md` leads outside the repository names no skill, and the run reports that symlink.
 A skill argument naming an agent's skills directory selects every skill listed there. Any other directory a skill
 argument names is spelled before the snapshot is taken, so the snapshot reads it and the model lists the skills in
 it under that spelling. An explicit path is a boundary, so it is rejected with the most specific reason it fails,
@@ -248,7 +249,8 @@ class UnlistedSkillPathError(Error):
 
     It lies outside the root, the snapshot holds nothing at it, or no skill the model lists is there: it is a
     directory with no `SKILL.md` at its root or in a directory directly inside it, and no symlink leading outside
-    the repository either, or it is the root itself.
+    the repository either, or it is the root itself. An agent's entry, or its `SKILL.md`, leading outside the
+    repository is no such argument: it selects no skill, and the run reports the symlink.
 
     Attributes:
         argument: The path exactly as typed.
@@ -300,7 +302,9 @@ def select_skills_at(
     First as an entry of an agent's skills directory, as an agent lists it: the links above the entry are followed
     through the snapshot, the entry itself is kept by its name, and the skill the model lists there is returned
     alone. So `.agents/skills/beta` selects `beta` even when it links to `alpha`, and `.claude/skills/beta`,
-    through a linked skills directory, selects it too.
+    through a linked skills directory, selects it too. An entry the model lists no skill at because it, or its
+    `SKILL.md`, leads outside the repository selects none, named by the entry or by its `SKILL.md`: the run reports
+    that symlink, as it does for a named directory leading outside.
 
     Then as a directory the snapshot was taken to read, `named_skill_dirs` of the arguments: the skills the model
     lists there, under the argument's spelling. A directory with a `SKILL.md` at its root is one skill, and any other
@@ -328,7 +332,8 @@ def select_skills_at(
 
     Returns:
         The skills at the named path, each once, in the model's order, with what the path named of each; empty only
-        for an agent's skills directory that holds no skill, or a named one holding only symlinks leading outside.
+        for an agent's skills directory that holds no skill, a named one holding only symlinks leading outside, or an
+        agent's entry that leads outside, or whose `SKILL.md` does.
 
     Raises:
         UnlistedSkillPathError: If the argument lies outside the root, the snapshot holds nothing at it,
@@ -344,6 +349,8 @@ def select_skills_at(
     listed = _select_listed_skill(database, spelled)
     if listed is not None:
         return (listed,)
+    if _is_entry_leading_outside(database, spelled):
+        return ()  # no skill is there: the run reports the symlink, as for a named directory leading outside
     model = database.model()
     # Before the canonical path is asked: a named path leading outside the repository leads to none, and is reported.
     in_named_dir = _select_named_skills(model, spelled)
@@ -375,12 +382,36 @@ def select_whole(refs: tuple[SkillRef, ...]) -> tuple[SkillSelection, ...]:
     return tuple(selections)
 
 
-def _select_listed_skill(database: Database, spelled: RootRelativePath) -> SkillSelection | None:
-    """The skill listed at the entry `spelled` names, by the entry's directory or its `SKILL.md`, or `None`.
+def _listed_entry_path(database: Database, spelled: RootRelativePath) -> RootRelativePath | None:
+    """Where the model lists the entry `spelled` names, by the entry's directory or its `SKILL.md`, or `None`.
 
     The entry's parent is followed through the snapshot, so a linked skills directory such as `.claude/skills`
     leads to the canonical one the model lists its skills under. The entry itself is kept as spelled: following it
-    would lead to the directory its files live in, which every entry linked there shares.
+    would lead to the directory its files live in, which every entry linked there shares. The model records an
+    entry's symlink leading outside under that path too.
+
+    Args:
+        database: The snapshot the entry's parent is resolved in.
+        spelled: The argument, root-relative and taken by its spelling alone.
+
+    Returns:
+        `<canonical parent>/<entry name>`, or `None` for the root, which is no entry, or for an entry whose parent
+        the snapshot holds nothing at.
+    """
+    entry = spelled
+    if spelled.name == SKILL_ENTRY_FILENAME:
+        entry = spelled.parent
+    # The root is no entry: it has no name, and no skill is listed at it.
+    if entry == ROOT:
+        return None
+    canonical_parent = database.find_canonical_path(entry.parent)
+    if canonical_parent is None:
+        return None
+    return canonical_parent / entry.name
+
+
+def _select_listed_skill(database: Database, spelled: RootRelativePath) -> SkillSelection | None:
+    """The skill listed at the entry `spelled` names, by the entry's directory or its `SKILL.md`, or `None`.
 
     The skill is selected by its `SKILL.md` alone when `spelled` ends in `SKILL.md`, and whole when it names the
     entry's directory. The spelling decides it here because the argument is read by its spelling; a path resolved
@@ -390,21 +421,35 @@ def _select_listed_skill(database: Database, spelled: RootRelativePath) -> Skill
         database: The snapshot the entry's parent is resolved in, and the model it must name a skill of.
         spelled: The argument, root-relative and taken by its spelling alone.
     """
-    entry = spelled
-    scope = SkillScope.WHOLE_SKILL
-    if spelled.name == SKILL_ENTRY_FILENAME:
-        entry = spelled.parent
-        scope = SkillScope.SKILL_FILE
-    # The root is no entry: it has no name, and no skill is listed at it.
-    if entry == ROOT:
+    listed_entry = _listed_entry_path(database, spelled)
+    if listed_entry is None:
         return None
-    canonical_parent = database.find_canonical_path(entry.parent)
-    if canonical_parent is None:
-        return None
-    ref = database.model().find_skill(canonical_parent / entry.name)
+    ref = database.model().find_skill(listed_entry)
     if ref is None:
         return None
-    return SkillSelection(ref, scope)
+    if spelled.name == SKILL_ENTRY_FILENAME:
+        return SkillSelection(ref, SkillScope.SKILL_FILE)
+    return SkillSelection(ref, SkillScope.WHOLE_SKILL)
+
+
+def _is_entry_leading_outside(database: Database, spelled: RootRelativePath) -> bool:
+    """True when `spelled` names an agent's entry, or its `SKILL.md`, and either leads outside the repository.
+
+    The model records such an entry as an outside symlink at the entry, or at its `SKILL.md`, and lists no skill
+    there.
+
+    Args:
+        database: The snapshot the entry's parent is resolved in, and the model whose outside symlinks are looked up.
+        spelled: The argument, root-relative and taken by its spelling alone.
+    """
+    listed_entry = _listed_entry_path(database, spelled)
+    if listed_entry is None:
+        return False
+    model = database.model()
+    # Only an agent's skills directory: a directory a command named records its outside symlinks itself.
+    if not model.has_skills_dir(listed_entry.parent):
+        return False
+    return model.has_outside_symlink(listed_entry) or model.has_outside_symlink(listed_entry / SKILL_ENTRY_FILENAME)
 
 
 def _select_named_skills(model: WorkspaceModel, spelled: RootRelativePath) -> tuple[SkillSelection, ...] | None:
