@@ -54,8 +54,9 @@ why. Which tool the author had open while writing it is process, not consequence
 history in five years needs the intent and the constraint that forced the shape; the tooling tells them
 nothing they can act on. The kernel's reason for recording it is provenance across thousands of
 contributors who do not know one another, reviewed through mailing lists, under a legal certification
-regime. This project has one author, and the author is the committer. The provenance problem the trailer
-solves does not exist here.
+regime. This project answers provenance another way: a person opens every pull request, signs off every
+commit, and answers the review, as `CONTRIBUTING.md` requires, and a pull request no person answers for is
+closed. The trailer would add nothing that sign-off does not already promise.
 
 **Vendor neutrality.** A product name or a session URL welds permanent, immutable history to one company's
 product and one company's URL scheme. Session links rot the moment a vendor changes a route or retires a
@@ -70,3 +71,11 @@ This is not a claim that the work was done without tools, and it is not an instr
 anything. Nobody is misled by the absence of a trailer: a commit asserts that its author reviewed the
 change and stands behind it, which is exactly what happened. What is refused is crediting a tool as a
 party to the work, and binding a permanent record to a vendor.
+
+## Whose messages it covers
+
+The rule covers what this repository's own commit skill writes: every message its owner's agents draft or amend.
+An outside contributor is governed by `CONTRIBUTING.md`, which makes disclosure their choice and suggests an
+`Assisted-by:` trailer over `Co-Authored-By:` when they make it, since a tool is not an author. A trailer a
+contributor chose stays in their commit through review and squash; the reasons above are this project's for its
+own messages, not grounds to rewrite someone else's.
