@@ -19,8 +19,8 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentDecodeError, DocumentRef
-from lorecraft.project.layout import LinkedLayoutError
-from lorecraft.project.skill import SkillDecodeError, SkillRef
+from lorecraft.project.layout import LinkedLayoutError, scope_with_named_dirs
+from lorecraft.project.skill import NamedDir, SkillDecodeError, SkillLocation, SkillRef
 from lorecraft.project.syntax import Frontmatter, LineNumber, count_tokens
 from lorecraft.project.syntax import Link as MarkdownLink
 from lorecraft.vfs import DirEntry, EntryKind, FileBytes, Link, Listing, ScanRoot, Snapshot
@@ -116,6 +116,28 @@ class TestDatabase:
 
         #: Then
         assert model.documents() == (GUIDE,), 'the model is loaded from the snapshot alone'
+
+    def test_model_from_a_snapshot_whose_scope_names_a_directory_lists_its_skills(self) -> None:
+        #: Given
+        files = Snapshot.from_files({RootRelativePath.parse('skills/review/SKILL.md'): b''})
+        scope = scope_with_named_dirs((RootRelativePath.parse('skills'),))
+        snapshot = Snapshot(listings=files.listings, files=files.files, scope=scope)
+
+        #: When
+        model = Database(snapshot).model()
+
+        #: Then
+        assert model.find_named_dir(RootRelativePath.parse('skills')) == NamedDir(
+            RootRelativePath.parse('skills'),
+            skills=(
+                SkillLocation(
+                    SkillRef(RootRelativePath.parse('skills/review')),
+                    resolves_to=RootRelativePath.parse('skills/review'),
+                    file_resolves_to=RootRelativePath.parse('skills/review/SKILL.md'),
+                ),
+            ),
+            outside_symlinks=(),
+        ), 'the directory named is read from the scope the snapshot records, so the snapshot alone carries it'
 
     def test_model_called_twice_returns_the_first_answer(self) -> None:
         #: Given

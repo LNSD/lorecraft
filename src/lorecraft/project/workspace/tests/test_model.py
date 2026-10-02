@@ -21,7 +21,7 @@ from lorecraft.project.schemas import (
     parse_schema_name,
     schema_name_stem,
 )
-from lorecraft.project.skill import SkillLocation, SkillRef, SkillsDir
+from lorecraft.project.skill import NamedDir, SkillLocation, SkillRef, SkillsDir
 
 from ..model import Corpus, Governance, Spec, WorkspaceModel, namespace_order_key
 
@@ -81,7 +81,7 @@ def _code_model(specs: tuple[Spec, ...], filenames: tuple[str, ...]) -> Workspac
         namespace_specs=specs[1:],
         documents=tuple(_ref('code', filename) for filename in filenames),
     )
-    return WorkspaceModel(corpora=(corpus,), skills_dirs=(), skill_locations=(), outside_symlinks=())
+    return WorkspaceModel(corpora=(corpus,), skills_dirs=(), skill_locations=(), named_dirs=(), outside_symlinks=())
 
 
 @pytest.mark.unit
@@ -556,7 +556,7 @@ def two_corpora_model() -> WorkspaceModel:
         namespace_specs=(),
         documents=(_ref('feat', 'cli-check'),),
     )
-    return WorkspaceModel(corpora=(code, feat), skills_dirs=(), skill_locations=(), outside_symlinks=())
+    return WorkspaceModel(corpora=(code, feat), skills_dirs=(), skill_locations=(), named_dirs=(), outside_symlinks=())
 
 
 def _regular_skill(directory: str) -> SkillLocation:
@@ -586,12 +586,15 @@ REVIEW_ALIAS: Final[SkillLocation] = SkillLocation(
 )
 """A second entry linked to the ``review`` skill's directory."""
 
+GAMMA: Final[SkillLocation] = _regular_skill('skills/gamma')
+"""A skill in `skills/`, a directory no agent reads, which a command names."""
+
 
 @pytest.fixture(scope='function')
 def skills_model() -> WorkspaceModel:
-    """No corpus, two agents reading ``.agents/skills``, and the three skills above in it.
+    """No corpus, two agents reading `.agents/skills`, the three skills above in it, and `skills/` named.
 
-    One of the agents reads it through the ``.claude/skills`` link.
+    One of the agents reads it through the `.claude/skills` link. A command names `skills`, which holds `gamma`.
     """
     universal = RootRelativePath.parse('.agents/skills')
     return WorkspaceModel(
@@ -603,6 +606,7 @@ def skills_model() -> WorkspaceModel:
             SkillsDir(agent=AgentName('codex'), path=universal, resolves_to=universal),
         ),
         skill_locations=(AUDIT, REVIEW, REVIEW_ALIAS),
+        named_dirs=(NamedDir(RootRelativePath.parse('skills'), skills=(GAMMA,), outside_symlinks=()),),
         outside_symlinks=(),
     )
 
@@ -675,7 +679,9 @@ class TestWorkspaceModel:
         refs = model.skills()
 
         #: Then
-        assert refs == (AUDIT.ref, REVIEW.ref, REVIEW_ALIAS.ref), 'one ref per location, in the stored order'
+        assert refs == (AUDIT.ref, REVIEW.ref, REVIEW_ALIAS.ref), (
+            "one ref per location of the agents' skills, in the stored order, and none of a named directory"
+        )
 
     def test_eq_with_a_skill_link_retargeted_under_the_same_ref_returns_false(
         self, skills_model: WorkspaceModel
@@ -705,6 +711,18 @@ class TestWorkspaceModel:
 
         #: Then
         assert location == AUDIT, 'the location the model records for the ref is returned'
+
+    def test_skill_location_with_a_skill_in_a_named_directory_returns_where_its_files_live(
+        self, skills_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        ref = GAMMA.ref
+
+        #: When
+        location = skills_model.skill_location(ref)
+
+        #: Then
+        assert location == GAMMA, 'the location a named directory records for the ref is returned'
 
     def test_skill_location_with_a_skill_the_model_lacks_raises_value_error(self, skills_model: WorkspaceModel) -> None:
         #: Given
@@ -748,6 +766,16 @@ class TestWorkspaceModel:
 
         #: Then
         assert ref is None, 'the directory a link leads to is no entry of a skills directory'
+
+    def test_find_skill_with_a_skill_in_a_named_directory_returns_none(self, skills_model: WorkspaceModel) -> None:
+        #: Given
+        directory = RootRelativePath.parse('skills/gamma')
+
+        #: When
+        ref = skills_model.find_skill(directory)
+
+        #: Then
+        assert ref is None, "only the agents' skills are found by their entry"
 
     def test_find_skill_with_a_path_that_is_no_skill_returns_none(self, skills_model: WorkspaceModel) -> None:
         #: Given
@@ -818,53 +846,75 @@ class TestWorkspaceModel:
         #: Then
         assert refs == (), 'no skill is listed in a skills directory that holds none'
 
-    def test_locate_skills_with_the_directory_of_a_regular_skill_returns_every_entry_there(
+    def test_find_named_dir_with_a_named_directory_returns_its_record(self, skills_model: WorkspaceModel) -> None:
+        #: Given
+        path = RootRelativePath.parse('skills')
+
+        #: When
+        named_dir = skills_model.find_named_dir(path)
+
+        #: Then
+        assert named_dir == NamedDir(path, skills=(GAMMA,), outside_symlinks=()), (
+            'the record of the directory named there is returned'
+        )
+
+    def test_find_named_dir_with_a_skill_in_a_named_directory_returns_none(self, skills_model: WorkspaceModel) -> None:
+        #: Given
+        path = RootRelativePath.parse('skills/gamma')
+
+        #: When
+        named_dir = skills_model.find_named_dir(path)
+
+        #: Then
+        assert named_dir is None, 'only the directory named is found, never a skill inside it'
+
+    def test_locate_skill_files_with_the_file_of_a_regular_skill_returns_every_entry_leading_there(
         self, skills_model: WorkspaceModel
     ) -> None:
         #: Given
-        path = RootRelativePath.parse('.agents/skills/review')
+        path = RootRelativePath.parse('.agents/skills/review/SKILL.md')
 
         #: When
-        refs = skills_model.locate_skills(path)
+        refs = skills_model.locate_skill_files(path)
 
         #: Then
         assert refs == (REVIEW.ref, REVIEW_ALIAS.ref), (
-            'the skill in the directory and the entry linked to it are both there, in the model order'
+            'the skill holding the file and the entry linked to it both read it, in the model order'
         )
 
-    def test_locate_skills_with_the_real_directory_of_a_linked_skill_returns_its_ref(
-        self, skills_model: WorkspaceModel
-    ) -> None:
-        #: Given
-        path = RootRelativePath.parse('skills/audit')
-
-        #: When
-        refs = skills_model.locate_skills(path)
-
-        #: Then
-        assert refs == (AUDIT.ref,), 'a linked skill is where its files live'
-
-    def test_locate_skills_with_the_file_a_linked_skill_file_leads_to_returns_its_ref(
+    def test_locate_skill_files_with_the_file_a_linked_skill_file_leads_to_returns_its_ref(
         self, skills_model: WorkspaceModel
     ) -> None:
         #: Given
         path = RootRelativePath.parse('shared/audit.md')
 
         #: When
-        refs = skills_model.locate_skills(path)
+        refs = skills_model.locate_skill_files(path)
 
         #: Then
         assert refs == (AUDIT.ref,), 'a skill whose SKILL.md is a link is at the file the link leads to'
 
-    def test_locate_skills_with_the_entry_of_a_linked_skill_returns_empty(self, skills_model: WorkspaceModel) -> None:
+    def test_locate_skill_files_with_the_file_of_a_skill_in_a_named_directory_returns_its_ref(
+        self, skills_model: WorkspaceModel
+    ) -> None:
         #: Given
-        path = RootRelativePath.parse('.agents/skills/audit')
+        path = RootRelativePath.parse('skills/gamma/SKILL.md')
 
         #: When
-        refs = skills_model.locate_skills(path)
+        refs = skills_model.locate_skill_files(path)
 
         #: Then
-        assert refs == (), 'the entry is a link, not a real path, so no skill is at it'
+        assert refs == (GAMMA.ref,), 'a skill a named directory holds is located by its SKILL.md too'
+
+    def test_locate_skill_files_with_the_directory_of_a_skill_returns_empty(self, skills_model: WorkspaceModel) -> None:
+        #: Given
+        path = RootRelativePath.parse('skills/audit')
+
+        #: When
+        refs = skills_model.locate_skill_files(path)
+
+        #: Then
+        assert refs == (), 'a directory is no SKILL.md, even where a linked skill keeps its files'
 
     def test_skill_agents_with_two_directories_leading_to_the_skill_returns_both_agents(
         self, skills_model: WorkspaceModel
