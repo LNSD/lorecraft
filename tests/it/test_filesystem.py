@@ -1066,8 +1066,9 @@ class TestTakeSnapshot:
             ),
             files=(FileBytes(RootRelativePath.parse('.agents/skills/alpha/SKILL.md'), b'---\n'),),
             links=(Link(RootRelativePath.parse('.claude/skills'), PurePosixPath('../.agents/skills')),),
+            climbed_directories=(RootRelativePath.parse('.claude'),),
             scope=SNAPSHOT_SCOPE,
-        ), 'the linked agent directory is one link; its skills are listed once, at their real path'
+        ), 'the linked agent directory is one link, its chain walked for the record; its skills are listed once'
 
     def test_take_snapshot_with_an_absolute_link_under_the_root_records_it_relative_to_the_link(
         self, aliased_root_with_an_absolute_link: Path
@@ -1158,6 +1159,7 @@ class TestTakeSnapshot:
             ),
             files=(FileBytes(RootRelativePath.parse('skills/review/SKILL.md'), b'---\n'),),
             links=(Link(RootRelativePath.parse('.claude/skills'), PurePosixPath('../skills')),),
+            climbed_directories=(RootRelativePath.parse('.claude'),),
             scope=scope,
         ), 'the directory the scope root leads to is listed at its real path, down to the depth'
 
@@ -1180,6 +1182,10 @@ class TestTakeSnapshot:
             ),
             files=(FileBytes(RootRelativePath.parse('skills/review/SKILL.md'), b'---\n'),),
             links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),),
+            climbed_directories=(
+                RootRelativePath.parse('.agents'),
+                RootRelativePath.parse('.agents/skills'),
+            ),
             scope=scope,
         ), 'the entry stays a symlink, and the directory it leads to is listed at its real path'
 
@@ -1201,6 +1207,10 @@ class TestTakeSnapshot:
             listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('review', EntryKind.SYMLINK),)),),
             files=(),
             links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),),
+            climbed_directories=(
+                RootRelativePath.parse('.agents'),
+                RootRelativePath.parse('.agents/skills'),
+            ),
             scope=scope,
         ), 'a linked entry costs depth as a directory entry does, so at depth 0 it is recorded and not entered'
 
@@ -1223,6 +1233,7 @@ class TestTakeSnapshot:
                 Link(RootRelativePath.parse('.claude/skills'), PurePosixPath('../current')),
                 Link(RootRelativePath.parse('current'), PurePosixPath('skills')),
             ),
+            climbed_directories=(RootRelativePath.parse('.claude'),),
             scope=scope,
         ), 'both links of the chain are recorded, so the virtual view can walk it to the listed directory'
 
@@ -1281,6 +1292,10 @@ class TestTakeSnapshot:
             listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('SKILL.md', EntryKind.SYMLINK),)),),
             files=(FileBytes(RootRelativePath.parse('REVIEW.md'), b'---\n'),),
             links=(Link(RootRelativePath.parse('.agents/skills/SKILL.md'), PurePosixPath('../../REVIEW.md')),),
+            climbed_directories=(
+                RootRelativePath.parse('.agents'),
+                RootRelativePath.parse('.agents/skills'),
+            ),
             scope=scope,
         ), 'the entry stays a symlink, and the file it leads to is read at its real path, whatever the depth'
 
@@ -1305,7 +1320,7 @@ class TestTakeSnapshot:
             scope=scope,
         ), 'a link leading outside the root is recorded, and no bytes outside the root are read'
 
-    def test_take_snapshot_following_a_link_that_climbs_out_of_a_directory_it_stepped_into_lists_nothing_through_it(
+    def test_take_snapshot_following_a_link_that_climbs_out_of_a_directory_it_stepped_into_lists_where_it_leads(
         self, tmp_path: Path
     ) -> None:
         #: Given
@@ -1321,11 +1336,19 @@ class TestTakeSnapshot:
 
         #: Then
         assert snapshot == Snapshot(
-            listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('review', EntryKind.SYMLINK),)),),
-            files=(),
+            listings=(
+                Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('review', EntryKind.SYMLINK),)),
+                Listing(RootRelativePath.parse('skills/review'), (DirEntry('SKILL.md', EntryKind.FILE),)),
+            ),
+            files=(FileBytes(RootRelativePath.parse('skills/review/SKILL.md'), b'---\n'),),
             links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/tmp/../review')),),
+            climbed_directories=(
+                RootRelativePath.parse('.agents'),
+                RootRelativePath.parse('.agents/skills'),
+                RootRelativePath.parse('skills/tmp'),
+            ),
             scope=scope,
-        ), 'the snapshot records nothing in skills/tmp, so the view could not walk this chain: the scan does not either'
+        ), 'the `..` after skills/tmp is skills, so the link leads to skills/review, and skills/tmp is recorded climbed'
 
     def test_take_snapshot_with_a_following_root_over_a_plain_one_follows_the_links_it_lists(
         self, tmp_path: Path
@@ -1349,6 +1372,7 @@ class TestTakeSnapshot:
             ),
             files=(FileBytes(RootRelativePath.parse('shared/a.md'), b'# A\n'),),
             links=(Link(RootRelativePath.parse('docs/shared'), PurePosixPath('../shared')),),
+            climbed_directories=(RootRelativePath.parse('docs'),),
             scope=scope,
         ), 'a directory two roots reach has its links followed when either root asks for it'
 
@@ -1422,6 +1446,10 @@ class TestTakeSnapshot:
             ),
             files=(),
             links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),),
+            climbed_directories=(
+                RootRelativePath.parse('.agents'),
+                RootRelativePath.parse('.agents/skills'),
+            ),
             scope=scope,
         ), 'the link spends the one level of depth, so the directory inside its target is listed and not entered'
 
@@ -1450,18 +1478,23 @@ class TestTakeSnapshot:
                 Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),
                 Link(RootRelativePath.parse('skills/review/references'), PurePosixPath('../../shared/references')),
             ),
+            climbed_directories=(
+                RootRelativePath.parse('.agents'),
+                RootRelativePath.parse('.agents/skills'),
+                RootRelativePath.parse('skills'),
+                RootRelativePath.parse('skills/review'),
+            ),
             scope=scope,
         ), 'a directory reached through a followed link has its own links followed as well'
 
-    def test_take_snapshot_following_a_link_that_climbs_out_of_one_directory_it_stepped_into_lists_nothing_through_it(
+    def test_take_snapshot_following_a_link_that_climbs_out_of_a_missing_directory_lists_nothing_through_it(
         self, tmp_path: Path
     ) -> None:
         #: Given
         (tmp_path / 'skills' / 'review').mkdir(parents=True)
         (tmp_path / 'skills' / 'review' / 'SKILL.md').write_bytes(b'---\n')
-        (tmp_path / 'tmp').mkdir()
         (tmp_path / '.agents' / 'skills').mkdir(parents=True)
-        # after the link, the walk steps into tmp alone before the `..`
+        # tmp does not exist, so the operating system fails the lookup at it, before the `..`
         (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../tmp/../skills/review')
         scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=1, follow_links=True),)
 
@@ -1473,8 +1506,9 @@ class TestTakeSnapshot:
             listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('review', EntryKind.SYMLINK),)),),
             files=(),
             links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../tmp/../skills/review')),),
+            climbed_directories=(RootRelativePath.parse('.agents'), RootRelativePath.parse('.agents/skills')),
             scope=scope,
-        ), 'the snapshot records nothing in tmp, so the view could not walk this chain: the scan does not either'
+        ), 'a `..` after a missing directory is no step at all, so the link leads nowhere and nothing is listed'
 
     def test_take_snapshot_following_a_chain_as_long_as_the_system_follows_lists_the_directory_it_leads_to(
         self, tmp_path: Path, chain_of_40_links: str
@@ -1548,6 +1582,10 @@ class TestTakeSnapshot:
             ),
             files=(FileBytes(RootRelativePath.parse('shared/deep/b.md'), b'# B\n'),),
             links=(Link(RootRelativePath.parse('skills/x/refs'), PurePosixPath('../../shared')),),
+            climbed_directories=(
+                RootRelativePath.parse('skills'),
+                RootRelativePath.parse('skills/x'),
+            ),
             scope=scope,
         ), 'the link inside a skill is followed, and the directory it leads to is listed with no depth limit'
 
@@ -1574,6 +1612,7 @@ class TestTakeSnapshot:
             ),
             files=(FileBytes(RootRelativePath.parse('skills/x/SKILL.md'), b'---\n'),),
             links=(Link(RootRelativePath.parse('skills/x/up'), PurePosixPath('..')),),
+            climbed_directories=(RootRelativePath.parse('skills/x'),),
             scope=scope,
         ), 'the link leads back to skills/, already listed with no limit, so the scan ends instead of looping'
 
@@ -1600,6 +1639,10 @@ class TestTakeSnapshot:
             links=(
                 Link(RootRelativePath.parse('a/to-b'), PurePosixPath('../b')),
                 Link(RootRelativePath.parse('b/to-a'), PurePosixPath('../a')),
+            ),
+            climbed_directories=(
+                RootRelativePath.parse('a'),
+                RootRelativePath.parse('b'),
             ),
             scope=scope,
         ), 'a/ leads to b/ and b/ back to a/, already listed with no limit, so the scan ends'
@@ -2873,20 +2916,21 @@ def scope_parity_tree(tmp_path: Path) -> Path:
     return tmp_path
 
 
-# The scope of the refused-chain tree: `skills/` one level deep through its links, and `a/` one level deep.
-REFUSED_CHAIN_SCOPE: Final[tuple[ScanRoot, ...]] = (
+# The scope of the climbing-chain tree: `skills/` one level deep through its links, and `a/` one level deep.
+CLIMBING_CHAIN_SCOPE: Final[tuple[ScanRoot, ...]] = (
     ScanRoot(RootRelativePath.parse('skills'), depth=1, follow_links=True),
     ScanRoot(RootRelativePath.parse('a'), depth=1),
 )
 
 
 @pytest.fixture(scope='function')
-def refused_chain_tree(tmp_path: Path) -> Path:
-    """A root with a link chain the scan refuses, whose target another root of `REFUSED_CHAIN_SCOPE` lists.
+def climbing_chain_tree(tmp_path: Path) -> Path:
+    """A root with link chains whose `..` climbs out of a directory stepped into by name, for `CLIMBING_CHAIN_SCOPE`.
 
-    `skills/l` names `../a/tmp/../b`: the disk follows it to `a/b/`, but its `..` climbs out of `a/tmp/`, a
-    directory stepped into by name since the link, so the scan refuses it. `skills/m` names `../a/b` and is
-    followed. The root `a/` lists `a/b/` either way.
+    `skills/l` names `../a/tmp/../b`, which the disk follows to `a/b/`, a directory the root `a/` lists as well.
+    `skills/m` names `../a/b` directly. `skills/far` names `../c/tmp/../d`, through `c/tmp/`, a directory no root
+    lists. `skills/n` names `../a/missing/../b`, which the disk does not follow, since `a/missing` does not exist.
+    `skills/out` names `../a/tmp/../../..`, which climbs above the root after stepping into `a/tmp/`.
 
     Args:
         tmp_path: Directory the tree is written into, as the repository root.
@@ -2894,10 +2938,205 @@ def refused_chain_tree(tmp_path: Path) -> Path:
     (tmp_path / 'a' / 'b').mkdir(parents=True)
     (tmp_path / 'a' / 'b' / 'SKILL.md').write_bytes(b'---\nname: b\n---\n')
     (tmp_path / 'a' / 'tmp').mkdir()
+    (tmp_path / 'c' / 'd').mkdir(parents=True)
+    (tmp_path / 'c' / 'd' / 'SKILL.md').write_bytes(b'---\nname: d\n---\n')
+    (tmp_path / 'c' / 'tmp').mkdir()
     (tmp_path / 'skills').mkdir()
+    (tmp_path / 'skills' / 'far').symlink_to('../c/tmp/../d')
     (tmp_path / 'skills' / 'l').symlink_to('../a/tmp/../b')
     (tmp_path / 'skills' / 'm').symlink_to('../a/b')
+    (tmp_path / 'skills' / 'n').symlink_to('../a/missing/../b')
+    (tmp_path / 'skills' / 'out').symlink_to('../a/tmp/../../..')
     return tmp_path
+
+
+@pytest.mark.it
+class TestVirtualFileSystemMatchesDiskThroughClimbingLinks:
+    # A `..` after a directory stepped into by name is that directory's parent on disk, and over the snapshot too.
+
+    def test_list_dir_through_a_climb_out_of_a_directory_stepped_into_agrees_with_disk(
+        self, climbing_chain_tree: Path
+    ) -> None:
+        #: Given
+        disk = DiskFileSystem(climbing_chain_tree)
+        virtual = VirtualFileSystem(take_snapshot(climbing_chain_tree, CLIMBING_CHAIN_SCOPE))
+        path = 'skills/l'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'both views list a/b through a/tmp/..'
+
+    def test_find_entry_kind_through_a_climb_out_of_a_directory_stepped_into_agrees_with_disk(
+        self, climbing_chain_tree: Path
+    ) -> None:
+        #: Given
+        disk = DiskFileSystem(climbing_chain_tree)
+        virtual = VirtualFileSystem(take_snapshot(climbing_chain_tree, CLIMBING_CHAIN_SCOPE))
+        path = 'skills/l/SKILL.md'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.find_entry_kind, virtual.find_entry_kind, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'both views find a/b/SKILL.md a file'
+
+    def test_read_text_through_a_climb_out_of_an_unlisted_directory_agrees_with_disk(
+        self, climbing_chain_tree: Path
+    ) -> None:
+        #: Given
+        disk = DiskFileSystem(climbing_chain_tree)
+        virtual = VirtualFileSystem(take_snapshot(climbing_chain_tree, CLIMBING_CHAIN_SCOPE))
+        path = 'skills/far/SKILL.md'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.read_text, virtual.read_text, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'the climbed directories show c/tmp, so both views read c/d/SKILL.md'
+
+    def test_find_real_file_through_a_climb_out_of_an_unlisted_directory_agrees_with_disk(
+        self, climbing_chain_tree: Path
+    ) -> None:
+        #: Given
+        disk = DiskFileSystem(climbing_chain_tree)
+        virtual = VirtualFileSystem(take_snapshot(climbing_chain_tree, CLIMBING_CHAIN_SCOPE))
+        path = 'skills/far/SKILL.md'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.find_real_file, virtual.find_real_file, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'both views resolve skills/far/SKILL.md to c/d/SKILL.md'
+
+    def test_find_real_dir_through_a_climb_out_of_a_missing_directory_agrees_with_disk(
+        self, climbing_chain_tree: Path
+    ) -> None:
+        #: Given
+        disk = DiskFileSystem(climbing_chain_tree)
+        virtual = VirtualFileSystem(take_snapshot(climbing_chain_tree, CLIMBING_CHAIN_SCOPE))
+        path = 'skills/n'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.find_real_dir, virtual.find_real_dir, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'a/missing does not exist, so neither view climbs out of it'
+
+    def test_find_root_exit_through_a_climb_above_the_root_out_of_a_directory_stepped_into_agrees_with_disk(
+        self, climbing_chain_tree: Path
+    ) -> None:
+        #: Given
+        disk = DiskFileSystem(climbing_chain_tree)
+        virtual = VirtualFileSystem(take_snapshot(climbing_chain_tree, CLIMBING_CHAIN_SCOPE))
+        path = 'skills/out'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.find_root_exit, virtual.find_root_exit, path)
+
+        #: Then
+        assert (virtual_answer, disk_answer) == (
+            RootExit(RootRelativePath.parse('skills/out'), PurePosixPath('../a/tmp/../../..')),
+            RootExit(RootRelativePath.parse('skills/out'), PurePosixPath('../a/tmp/../../..')),
+        ), 'both walks climb above the root at skills/out, after stepping into a/tmp'
+
+
+# A plain root like the layout's `docs/`: one level deep, its links recorded and not followed.
+PLAIN_DOCS_SCOPE: Final[tuple[ScanRoot, ...]] = (ScanRoot(DOCS_DIR, depth=1),)
+
+
+@pytest.fixture(scope='function')
+def plain_climbing_tree(tmp_path: Path) -> Path:
+    """A root whose `docs/` holds links climbing out of directories they step into, for `PLAIN_DOCS_SCOPE`.
+
+    `docs/linked` names `code/../feat`, and leads to `docs/feat/`, which the root lists. `docs/out` names
+    `../src/../../..`, which steps into `src/`, outside the scope, and climbs above the root.
+
+    Args:
+        tmp_path: Directory the tree is written into, as the repository root.
+    """
+    (tmp_path / 'docs' / 'code').mkdir(parents=True)
+    (tmp_path / 'docs' / 'feat').mkdir()
+    (tmp_path / 'docs' / 'feat' / 'a.md').write_bytes(b'# A\n')
+    (tmp_path / 'src').mkdir()
+    (tmp_path / 'docs' / 'linked').symlink_to('code/../feat')
+    (tmp_path / 'docs' / 'out').symlink_to('../src/../../..')
+    return tmp_path
+
+
+@pytest.mark.it
+class TestPlainRootWalksItsLinksForTheRecord:
+    # A root that does not follow links still walks each link it records, for the record alone, so the views and
+    # the scope query take the same steps through it as the disk.
+
+    def test_take_snapshot_with_a_plain_root_records_the_climbs_on_its_links_and_lists_nothing_through_them(
+        self, plain_climbing_tree: Path
+    ) -> None:
+        #: When
+        snapshot = take_snapshot(plain_climbing_tree, PLAIN_DOCS_SCOPE)
+
+        #: Then
+        assert snapshot == Snapshot(
+            listings=(
+                Listing(
+                    RootRelativePath.parse('docs'),
+                    (
+                        DirEntry('code', EntryKind.DIRECTORY),
+                        DirEntry('feat', EntryKind.DIRECTORY),
+                        DirEntry('linked', EntryKind.SYMLINK),
+                        DirEntry('out', EntryKind.SYMLINK),
+                    ),
+                ),
+                Listing(RootRelativePath.parse('docs/code'), ()),
+                Listing(RootRelativePath.parse('docs/feat'), (DirEntry('a.md', EntryKind.FILE),)),
+            ),
+            files=(FileBytes(RootRelativePath.parse('docs/feat/a.md'), b'# A\n'),),
+            links=(
+                Link(RootRelativePath.parse('docs/linked'), PurePosixPath('code/../feat')),
+                Link(RootRelativePath.parse('docs/out'), PurePosixPath('../src/../../..')),
+            ),
+            climbed_directories=(
+                RootRelativePath.parse('docs'),
+                RootRelativePath.parse('docs/code'),
+                RootRelativePath.parse('src'),
+            ),
+            scope=PLAIN_DOCS_SCOPE,
+        ), 'the climbs on both chains are recorded, src/ included, and nothing is listed or read through a link'
+
+    def test_find_root_exit_through_a_link_of_a_plain_root_climbing_above_the_root_agrees_with_disk(
+        self, plain_climbing_tree: Path
+    ) -> None:
+        #: Given
+        disk = DiskFileSystem(plain_climbing_tree)
+        virtual = VirtualFileSystem(take_snapshot(plain_climbing_tree, PLAIN_DOCS_SCOPE))
+        path = 'docs/out'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.find_root_exit, virtual.find_root_exit, path)
+
+        #: Then
+        assert (virtual_answer, disk_answer) == (
+            RootExit(RootRelativePath.parse('docs/out'), PurePosixPath('../src/../../..')),
+            RootExit(RootRelativePath.parse('docs/out'), PurePosixPath('../src/../../..')),
+        ), 'the scan recorded the climb out of src/, so both walks leave the root at docs/out'
+
+    def test_is_in_scope_through_a_link_of_a_plain_root_climbing_out_of_a_directory_agrees_with_the_scan(
+        self, plain_climbing_tree: Path
+    ) -> None:
+        #: Given
+        snapshot = take_snapshot(plain_climbing_tree, PLAIN_DOCS_SCOPE)
+        path = RootRelativePath.parse('docs/linked/a.md')
+        virtual = VirtualFileSystem(snapshot)
+        reached = virtual.find_real_file(path)
+
+        #: When
+        declared = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories).is_in_scope(path)
+
+        #: Then
+        assert (declared, reached) == (True, RootRelativePath.parse('docs/feat/a.md')), (
+            'docs/linked leads to docs/feat, which the scan lists, so the path is in scope and reached'
+        )
 
 
 def _is_listed(snapshot: Snapshot, directory: RootRelativePath) -> bool:
@@ -2927,7 +3166,7 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('docs')
         listed = _is_listed(snapshot, directory)
-        index = ScopeIndex(snapshot.scope, snapshot.links)
+        index = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories)
 
         #: When
         declared = index.is_in_scope(directory / 'absent.md')
@@ -2940,7 +3179,7 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('docs/feat')
         listed = _is_listed(snapshot, directory)
-        index = ScopeIndex(snapshot.scope, snapshot.links)
+        index = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories)
 
         #: When
         declared = index.is_in_scope(directory / 'absent.md')
@@ -2955,7 +3194,7 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('docs/feat/deep')
         listed = _is_listed(snapshot, directory)
-        index = ScopeIndex(snapshot.scope, snapshot.links)
+        index = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories)
 
         #: When
         declared = index.is_in_scope(directory / 'absent.md')
@@ -2972,7 +3211,7 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('docs/linked')
         listed = _is_listed(snapshot, directory)
-        index = ScopeIndex(snapshot.scope, snapshot.links)
+        index = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories)
 
         #: When
         declared = index.is_in_scope(directory / 'absent.md')
@@ -2989,7 +3228,7 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('docs/alias')
         listed = _is_listed(snapshot, directory)
-        index = ScopeIndex(snapshot.scope, snapshot.links)
+        index = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories)
 
         #: When
         declared = index.is_in_scope(directory / 'absent.md')
@@ -3004,7 +3243,7 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('.agents/skills/y')
         listed = _is_listed(snapshot, directory)
-        index = ScopeIndex(snapshot.scope, snapshot.links)
+        index = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories)
 
         #: When
         declared = index.is_in_scope(directory / 'absent.md')
@@ -3019,7 +3258,7 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('skills/y')
         listed = _is_listed(snapshot, directory)
-        index = ScopeIndex(snapshot.scope, snapshot.links)
+        index = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories)
 
         #: When
         declared = index.is_in_scope(directory / 'absent.md')
@@ -3034,7 +3273,7 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('skills/y/sub')
         listed = _is_listed(snapshot, directory)
-        index = ScopeIndex(snapshot.scope, snapshot.links)
+        index = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories)
 
         #: When
         declared = index.is_in_scope(directory / 'absent.md')
@@ -3051,7 +3290,7 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('.claude/skills/x')
         listed = _is_listed(snapshot, directory)
-        index = ScopeIndex(snapshot.scope, snapshot.links)
+        index = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories)
 
         #: When
         declared = index.is_in_scope(directory / 'absent.md')
@@ -3064,7 +3303,7 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('.agents/skills/x/lib')
         listed = _is_listed(snapshot, directory)
-        index = ScopeIndex(snapshot.scope, snapshot.links)
+        index = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories)
 
         #: When
         declared = index.is_in_scope(directory / 'absent.md')
@@ -3079,7 +3318,7 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('src')
         listed = _is_listed(snapshot, directory)
-        index = ScopeIndex(snapshot.scope, snapshot.links)
+        index = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories)
 
         #: When
         declared = index.is_in_scope(directory / 'absent.md')
@@ -3097,7 +3336,7 @@ class TestFindRealFileMatchesScan:
         #: Given
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         path = RootRelativePath.parse('.agents/skills/y/SKILL.md')
-        declared = ScopeIndex(snapshot.scope, snapshot.links).is_in_scope(path)
+        declared = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories).is_in_scope(path)
         virtual = VirtualFileSystem(snapshot)
 
         #: When
@@ -3114,7 +3353,7 @@ class TestFindRealFileMatchesScan:
         #: Given
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         path = RootRelativePath.parse('.claude/skills/x/SKILL.md')
-        declared = ScopeIndex(snapshot.scope, snapshot.links).is_in_scope(path)
+        declared = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories).is_in_scope(path)
         virtual = VirtualFileSystem(snapshot)
 
         #: When
@@ -3131,7 +3370,7 @@ class TestFindRealFileMatchesScan:
         #: Given
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         path = RootRelativePath.parse('docs/alias/a.md')
-        declared = ScopeIndex(snapshot.scope, snapshot.links).is_in_scope(path)
+        declared = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories).is_in_scope(path)
         virtual = VirtualFileSystem(snapshot)
 
         #: When
@@ -3148,7 +3387,7 @@ class TestFindRealFileMatchesScan:
         #: Given
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         path = RootRelativePath.parse('docs/linked/a.md')
-        declared = ScopeIndex(snapshot.scope, snapshot.links).is_in_scope(path)
+        declared = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories).is_in_scope(path)
         virtual = VirtualFileSystem(snapshot)
 
         #: When
@@ -3163,7 +3402,7 @@ class TestFindRealFileMatchesScan:
         #: Given
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         path = RootRelativePath.parse('.agents/skills/x/lib/a.md')
-        declared = ScopeIndex(snapshot.scope, snapshot.links).is_in_scope(path)
+        declared = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories).is_in_scope(path)
         virtual = VirtualFileSystem(snapshot)
 
         #: When
@@ -3175,12 +3414,12 @@ class TestFindRealFileMatchesScan:
         )
 
     def test_find_real_file_through_a_link_climbing_out_of_its_own_directory_agrees_with_the_scope(
-        self, refused_chain_tree: Path
+        self, climbing_chain_tree: Path
     ) -> None:
         #: Given
-        snapshot = take_snapshot(refused_chain_tree, REFUSED_CHAIN_SCOPE)
+        snapshot = take_snapshot(climbing_chain_tree, CLIMBING_CHAIN_SCOPE)
         path = RootRelativePath.parse('skills/m/SKILL.md')
-        declared = ScopeIndex(snapshot.scope, snapshot.links).is_in_scope(path)
+        declared = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories).is_in_scope(path)
         virtual = VirtualFileSystem(snapshot)
 
         #: When
@@ -3191,13 +3430,47 @@ class TestFindRealFileMatchesScan:
             'the target ../a/b climbs only out of skills/, where the link sits, so the scan follows it'
         )
 
-    def test_find_real_file_through_a_refused_chain_to_a_listed_directory_agrees_with_the_scope(
-        self, refused_chain_tree: Path
+    def test_find_real_file_through_a_chain_climbing_out_of_a_directory_stepped_into_agrees_with_the_scope(
+        self, climbing_chain_tree: Path
     ) -> None:
         #: Given
-        snapshot = take_snapshot(refused_chain_tree, REFUSED_CHAIN_SCOPE)
+        snapshot = take_snapshot(climbing_chain_tree, CLIMBING_CHAIN_SCOPE)
         path = RootRelativePath.parse('skills/l/SKILL.md')
-        declared = ScopeIndex(snapshot.scope, snapshot.links).is_in_scope(path)
+        declared = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories).is_in_scope(path)
+        virtual = VirtualFileSystem(snapshot)
+
+        #: When
+        reached = virtual.find_real_file(path)
+
+        #: Then
+        assert (reached, declared) == (RootRelativePath.parse('a/b/SKILL.md'), True), (
+            'the `..` after a/tmp is a, so skills/l leads to a/b and its SKILL.md is read through it'
+        )
+
+    def test_find_real_file_through_a_chain_climbing_out_of_an_unlisted_directory_agrees_with_the_scope(
+        self, climbing_chain_tree: Path
+    ) -> None:
+        #: Given
+        snapshot = take_snapshot(climbing_chain_tree, CLIMBING_CHAIN_SCOPE)
+        path = RootRelativePath.parse('skills/far/SKILL.md')
+        declared = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories).is_in_scope(path)
+        virtual = VirtualFileSystem(snapshot)
+
+        #: When
+        reached = virtual.find_real_file(path)
+
+        #: Then
+        assert (reached, declared) == (RootRelativePath.parse('c/d/SKILL.md'), True), (
+            'no root lists c/tmp, but the scan records climbing out of it, so both walks reach c/d'
+        )
+
+    def test_find_real_file_through_a_chain_climbing_out_of_a_missing_directory_agrees_with_the_scope(
+        self, climbing_chain_tree: Path
+    ) -> None:
+        #: Given
+        snapshot = take_snapshot(climbing_chain_tree, CLIMBING_CHAIN_SCOPE)
+        path = RootRelativePath.parse('skills/n/SKILL.md')
+        declared = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories).is_in_scope(path)
         virtual = VirtualFileSystem(snapshot)
         target_listed = _is_listed(snapshot, RootRelativePath.parse('a/b'))
 
@@ -3205,8 +3478,8 @@ class TestFindRealFileMatchesScan:
         reached = virtual.find_real_file(path)
 
         #: Then
-        assert (reached is not None, declared, target_listed) == (False, False, True), (
-            'the scan refuses ../a/tmp/../b, so a/b/SKILL.md is not reached through skills/l, though a/ lists a/b'
+        assert (reached, declared, target_listed) == (None, False, True), (
+            'a/missing does not exist, so skills/n leads nowhere, though a/ lists the a/b its `..` would reach'
         )
 
 

@@ -74,13 +74,16 @@ class Snapshot:
     snapshot alone. A link is always recorded, and followed only under a scan root that asks for it: where the
     scan did not follow one that leads outside the scope, what the disk view reads through it is not here.
 
-    Every listing and every file sits at a real path, with no symlink on the way to it. That is what lets the
-    virtual view treat every ancestor of a listing, a file or a link as a directory when it follows a chain.
+    Every listing, file, link and climbed directory sits at a real path, with no symlink on the way to it. So
+    when the virtual view follows a chain, it treats as a directory every listing, every climbed directory, and
+    every ancestor of a listing, a file, a link or a climbed directory.
 
     Reserved, not implemented: `with_file(path, data) -> Snapshot`, a copy with one file's bytes
     replaced (and a FILE entry added to the parent listing when absent), for a server pushing unsaved
     buffers. It is a rebuild of `files` with one record replaced and of one `Listing`; keep the
-    representation such that it stays so.
+    representation such that it stays so. A partial rescan, by contrast, cannot drop one record alone: like the
+    links met along a chain, `climbed_directories` records no provenance, so a partial rescan must walk every
+    recorded link again to drop a climb no chain takes any more.
 
     Attributes:
         listings: Every directory the scan listed, sorted by path. A SYMLINK or OTHER entry appears in
@@ -88,8 +91,13 @@ class Snapshot:
         files: The bytes of every FILE entry of every listing, and of every regular file a link the scan
             followed leads to, sorted by path. The second kind may sit in a directory the scan did not list.
         links: The target of every SYMLINK entry of every listing, and of a symlink met on the way to a
-            scope root or along a chain the scan followed, sorted by path. Empty when the snapshot was
+            scope root or along the chain of a recorded link, sorted by path. The scan walks every recorded
+            link's chain for the record, also under a root that does not follow links. Empty when the snapshot was
             built by `from_files`.
+        climbed_directories: Every directory a `..` climbed out of on the way to a scope root or along the chain
+            of a recorded link, sorted. Such a `..` may climb out of a directory the scan stepped into by name and
+            listed nothing in, as `tmp/../review` does; this is how a walk over the snapshot knows `tmp` is a
+            directory. Empty when the snapshot was built by `from_files`.
         scope: The scan roots `take_snapshot` was given, in the order given and unmerged. Empty when nothing
             was scanned, as for a snapshot built by `from_files` or by hand, and then no path is in scope.
     """
@@ -97,6 +105,7 @@ class Snapshot:
     listings: tuple[Listing, ...]
     files: tuple[FileBytes, ...]
     links: tuple[Link, ...] = ()
+    climbed_directories: tuple[RootRelativePath, ...] = ()
     # Defaults to empty, as `links` does: a snapshot built by hand scanned nothing, so it declares no scope.
     scope: tuple[ScanRoot, ...] = ()
 
@@ -138,9 +147,12 @@ class Snapshot:
           no listed parent to name it, so without this an empty one would come and go unseen. The root is
           left out: it always exists.
         - A file a followed link leads to, as FILE.
-        - A symlink met on the way to a scope root, or along a chain the scan followed, as SYMLINK.
+        - A symlink met on the way to a scope root, or along the chain of a recorded link, as SYMLINK.
+        - A directory a `..` climbed out of on such a chain, as DIRECTORY, unless another record names it.
         """
         found: dict[RootRelativePath, EntryKind] = {}
+        for directory in self.climbed_directories:
+            found[directory] = EntryKind.DIRECTORY
         for listing in self.listings:
             if listing.path != ROOT:
                 found[listing.path] = EntryKind.DIRECTORY
@@ -159,7 +171,7 @@ class VirtualFileSystem(FileSystem):
     Anything the snapshot did not record answers like a missing path on disk: an empty listing, a
     ``UnrecordedFileError``, or no directory. A path is walked through the recorded links by
     `find_real_path`, the walk the scan itself took, so the view reaches nothing through a link chain the
-    scan refused.
+    scan did not follow.
     """
 
     def __init__(self, snapshot: Snapshot) -> None:
@@ -247,8 +259,7 @@ class VirtualFileSystem(FileSystem):
             The real directory, root-relative, or `None` where the disk answers `None` (missing, a
             dangling or looping link, a file on the way or at the end) and also wherever the chain leaves
             what the snapshot recorded: above the root, an absolute target (one outside the root, since
-            `take_snapshot` spells every target under it relative), a directory outside the scope, or a `..`
-            the scan refuses too (see `find_real_path`).
+            `take_snapshot` spells every target under it relative), or a directory outside the scope.
         """
         leads_to = self._find_real_path(path)
         match leads_to:
@@ -302,7 +313,7 @@ class VirtualFileSystem(FileSystem):
 
         The walk is `find_real_path`, the one the scan took over the disk, here over what the snapshot
         recorded (`_SnapshotEntries`): every component must be a directory the snapshot knows of or, as the
-        last one, a file, and a recorded link splices its target in, refused where the scan refuses it.
+        last one, a file, a recorded link splices its target in, and a `..` climbs to the parent.
 
         Args:
             path: The root-relative path to walk, spelled as given; links in it are followed.
@@ -339,12 +350,16 @@ class _SnapshotEntries:
         # twice keeps the kind `kind` documents. Only a self-inconsistent snapshot records a path twice with two
         # kinds; one taken by `take_snapshot` never does.
         self._kinds: dict[RootRelativePath, EntryKind] = {ROOT: EntryKind.DIRECTORY}
-        # A listing sits at a real path, so it and every ancestor of it are directories. A recorded file's
-        # ancestors are too, since it also sits at a real path, and so are a recorded link's, since the scan
-        # meets a link only in a real directory.
+        # A listing sits at a real path, so it and every ancestor of it are directories, and so is a climbed
+        # directory. A recorded file's ancestors are too, since it also sits at a real path, and so are a
+        # recorded link's, since the scan meets a link only in a real directory.
         for listing in snapshot.listings:
             self._kinds[listing.path] = EntryKind.DIRECTORY
             for ancestor in listing.path.parents:
+                self._kinds[ancestor] = EntryKind.DIRECTORY
+        for directory in snapshot.climbed_directories:
+            self._kinds[directory] = EntryKind.DIRECTORY
+            for ancestor in directory.parents:
                 self._kinds[ancestor] = EntryKind.DIRECTORY
         for file in snapshot.files:
             for ancestor in file.path.parents:
@@ -366,8 +381,8 @@ class _SnapshotEntries:
         Where more than one record names `path`, the first of these wins: the kind the parent's listing gives
         the entry; SYMLINK for a recorded link, such as one met on the way to a scope root; FILE for recorded
         bytes, such as a file a followed link leads to; DIRECTORY for a listed directory, such as a scope root,
-        or an ancestor of anything recorded. The listing comes first, where `Snapshot.entries` lets a link or a
-        file override it; the two differ only on a snapshot that contradicts itself.
+        a climbed directory, or an ancestor of anything recorded. The listing comes first, where `Snapshot.entries`
+        lets a link or a file override it; the two differ only on a snapshot that contradicts itself.
 
         Args:
             path: A root-relative entry the walk reached, every link on the way to it already followed.
@@ -388,3 +403,11 @@ class _SnapshotEntries:
             The target as recorded, or `None` when no target was recorded at `path`.
         """
         return self._targets.get(path)
+
+    def may_climb_out_of(self, directory: RootRelativePath) -> bool:
+        """Always true: the walk stepped into `directory` only where the snapshot records one; see `EntryLookup`.
+
+        Args:
+            directory: The real directory the walk climbs out of.
+        """
+        return True

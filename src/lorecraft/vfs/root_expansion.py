@@ -6,13 +6,13 @@ resolves a path through the same links. All three go through the rules here, so 
 query says it lists and what the view reaches cannot drift apart:
 
 - `find_real_scan_root`: where the scan of a root starts, walked through the links on the way when it follows them.
-- `find_real_path`: where a path leads, which links are followed, which `..` steps are refused, and where a chain
-  leaves the root.
+- `find_real_path`: where a path leads, which links are followed, and where a chain leaves the root.
 - `find_linked_scan_root`: the root a followed link adds, and the depth the link uses up, none when the root has no
   limit.
 
 The callers differ only in where a walk learns what an entry is, which is what `EntryLookup` stands for: the
-disk, read as the walk goes, the links a snapshot recorded, or everything a snapshot recorded.
+disk, read as the walk goes, the links and climbed directories a snapshot recorded, or everything a snapshot
+recorded.
 """
 
 from dataclasses import dataclass
@@ -57,6 +57,21 @@ class EntryLookup(Protocol):
         """
         ...
 
+    def may_climb_out_of(self, directory: RootRelativePath) -> bool:
+        """Whether a `..` may climb from `directory` to its parent, because `directory` is a real directory.
+
+        Not free of effect, as `find_link_target` is not: the scan's implementation records `directory` among the
+        directories it climbed out of, as it records each link target it reads, so the snapshot knows it even
+        where the scan lists nothing in it. The disk and the snapshot view answer true: the walk stepped into
+        `directory` only where they found a directory. Only the scope query can answer false: it takes a component
+        it knows nothing of for a directory, and `..` makes that guess matter (see `ScopeIndex`).
+
+        Args:
+            directory: The directory the walk is in, not the root; reached by stepping into it or as the
+                directory of a link it followed.
+        """
+        ...
+
 
 @dataclass(frozen=True, slots=True)
 class RealPath:
@@ -74,16 +89,12 @@ class RealPath:
 def find_real_path(path: RootRelativePath, entries: EntryLookup, *, follow_links: bool) -> RealPath | RootExit | None:
     """The real directory or regular file `path` leads to, where it leaves the root, or `None` where it stops.
 
-    Walks the components from the root, one real directory to the next. Without `follow_links` the walk ends
-    at the first symlink, which leaves the path unread. With it a symlink splices its target into the
-    components still to walk, as the kernel does.
-
-    The `..` refusal below is the walk's own, and the kernel has no such rule. A snapshot knows a directory
-    only by what it recorded in it or under it, and a directory the walk stepped into by name since the last
-    link has nothing recorded in it yet, so a `..` climbing back out of one, as in `tmp/../review`, makes a
-    chain a snapshot could not vouch for: the walk ends there, for the scan and the views over its snapshot
-    alike. A `..` climbing out of the directory a link sits in is followed, since the recorded link makes
-    that directory and its ancestors known.
+    Walks the components from the root, one real directory to the next, so every step leaves the walk at a real,
+    root-relative path, as the kernel resolves one. A `..` takes it to the parent of the real directory it is in.
+    Without `follow_links` the walk ends at the first symlink, which leaves the path unread. With it a symlink
+    splices its target into the components still to walk, and the walk goes on from the link's directory.
+    Whether the walk goes on is decided from that real path alone: anywhere under the root it does, and a `..`
+    above the root leaves it, whatever directories the chain stepped into on the way.
 
     Args:
         path: The root-relative path to walk, spelled as given, links unresolved.
@@ -92,10 +103,15 @@ def find_real_path(path: RootRelativePath, entries: EntryLookup, *, follow_links
 
     Returns:
         The real path and its kind; a `RootExit` when a followed link's target is absolute or a `..` climbs above
-        the root; or `None` when no directory or regular file is there: a component is missing, a component on
-        the way is no directory, the last one is neither a directory, a regular file nor a symlink, a symlink is
-        not followed or is gone, a `..` climbs out of a directory the walk stepped into, or the chain is longer
-        than `MAX_LINKS`.
+        the root; or `None` where the walk stops under the root, each for the reason given:
+
+        - A component is missing, or is neither a directory, a regular file nor a symlink: nothing is there to
+          step into or end at.
+        - A regular file is not the last component: a file is no directory to step into.
+        - A symlink is not followed, or is gone since its kind was read: nothing is read through it.
+        - The chain follows more than `MAX_LINKS` links: it counts as a loop, as the disk reports one.
+        - `entries` will not let a `..` climb out of a directory it does not know to be real; only the scope
+          query refuses one (see `EntryLookup.may_climb_out_of`).
 
     Raises:
         Exception: Whatever `entries` raises: the disk lookup's `SnapshotEntryInspectError` and
@@ -105,7 +121,6 @@ def find_real_path(path: RootRelativePath, entries: EntryLookup, *, follow_links
     remaining = list(path.parts)
     links_followed = 0
     last_link: RootExit | None = None  # the link followed last, as the exit it would be
-    stepped_into_directory = False  # since the last link, or since the start
     while remaining:
         part = remaining.pop(0)
         if part == '..':
@@ -113,7 +128,8 @@ def find_real_path(path: RootRelativePath, entries: EntryLookup, *, follow_links
                 if last_link is None:
                     raise AssertionError('a root-relative path holds no `..`, so this one came from a link target')
                 return last_link
-            if stepped_into_directory:
+            # Records the climb in the scan; only the scope query ever answers no, for a directory it only guessed.
+            if not entries.may_climb_out_of(resolved):
                 return None
             resolved = resolved.parent
             continue
@@ -122,7 +138,6 @@ def find_real_path(path: RootRelativePath, entries: EntryLookup, *, follow_links
         match kind:
             case EntryKind.DIRECTORY:
                 resolved = candidate
-                stepped_into_directory = True
             case EntryKind.FILE:
                 if remaining:
                     return None  # a file is no directory to step into
@@ -140,7 +155,6 @@ def find_real_path(path: RootRelativePath, entries: EntryLookup, *, follow_links
                 if target.is_absolute():
                     return last_link
                 remaining = list(target.parts) + remaining
-                stepped_into_directory = False
             case _:
                 assert_never(kind)
     return RealPath(resolved, EntryKind.DIRECTORY)
