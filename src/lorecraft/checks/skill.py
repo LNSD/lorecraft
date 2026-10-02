@@ -5,15 +5,16 @@ The specification is a frontmatter schema, `SkillFrontmatterSchema`, and says wh
 reads no validator's error record. It is the sibling of the frontmatter check, and keeps its skeleton: the same
 guards, then the name, then the problems, then the keys written twice.
 
-The check is pure: it takes the specification, the skill's frontmatter node, the name of the real directory the
-skill's files live in and the name of the entry an agent reads it by, and returns violations. Reading the
-`SKILL.md`, following the entry's link and deciding what a decode failure means happen above it, in `checks.run`,
+The check is pure: it takes the specification, the skill's frontmatter node, the name of the directory an
+agent lists the skill by and, when that directory is a link, where it leads, and returns violations. Reading the
+`SKILL.md`, finding where a link leads and deciding what a decode failure means happen above it, in `checks.run`,
 the database and the model.
 """
 
 from dataclasses import dataclass
 from typing import Final, assert_never
 
+from lorecraft.core.path import ROOT, RootRelativePath
 from lorecraft.project.schemas import SkillFrontmatterSchema
 from lorecraft.project.syntax import (
     Frontmatter,
@@ -34,9 +35,6 @@ _FIRST_LINE: Final[LineNumber] = LineNumber(1)
 _RULE_NAMESPACE: Final[str] = 'skill'
 """The namespace of every rule the skill check reports, as the corpus is for the frontmatter check."""
 
-_NAME_RULE: Final[str] = 'skill.name-matches-directory'
-"""The rule a `name` breaks when it differs from the name of the real directory the skill's files live in."""
-
 
 @dataclass(frozen=True, slots=True)
 class SkillCheckResult:
@@ -54,7 +52,7 @@ def validate_skill(
     *,
     frontmatter: FrontmatterNode,
     directory_name: str,
-    entry_name: str,
+    link_target: RootRelativePath | None,
 ) -> SkillCheckResult:
     """Check one skill's frontmatter against the Agent Skills specification. Pure: raises nothing.
 
@@ -66,12 +64,12 @@ def validate_skill(
     Args:
         schema: Always `SKILL_FRONTMATTER_SCHEMA`, the one instance.
         frontmatter: The frontmatter node of the skill's `SKILL.md`.
-        directory_name: The name of the real directory the skill's files live in, which the frontmatter `name`
-            must equal: the entry itself for a regular directory, or the directory a linked entry leads to. A link
-            is transparent, as it is to an agent reading the skill. When the `SKILL.md` is itself a link to a file
-            elsewhere, this is still the skill directory, never the parent of the file the link leads to.
-        entry_name: The name of the entry under the agent's skills directory that the skill is read by. It plays
-            no part in the verdict: when it differs from `directory_name`, it only words a note on the finding.
+        directory_name: The name of the skill directory as an agent lists it in its skills directory, which the
+            frontmatter `name` must equal. An agent never resolves a link itself, so where a linked directory or
+            `SKILL.md` leads plays no part.
+        link_target: The real directory the listed directory leads to when it is a link, or `None` when it is
+            not. It plays no part in the verdict: a failing `name` finding carries a note naming it when its name
+            differs from `directory_name`, so a reader sees why the name they know is not the one expected.
     """
     match frontmatter:
         case MissingFrontmatter():
@@ -94,8 +92,11 @@ def validate_skill(
     name = frontmatter.data.get('name')
     if isinstance(name, str) and name != directory_name:
         violations.append(
-            _name_violation(
-                name, line=field_line(frontmatter, 'name'), directory_name=directory_name, entry_name=entry_name
+            Violation(
+                line=field_line(frontmatter, 'name'),
+                rule='skill.name-matches-directory',
+                message=f'`name` is {name!r}; expected {directory_name!r}, the name of the skill directory',
+                notes=_link_notes(directory_name, link_target),
             )
         )
 
@@ -114,31 +115,20 @@ def validate_skill(
     return SkillCheckResult(violations=tuple(violations))
 
 
-def _name_violation(name: str, *, line: LineNumber, directory_name: str, entry_name: str) -> Violation:
-    """The violation of a `name` that differs from the name of the skill directory.
+def _link_notes(directory_name: str, link_target: RootRelativePath | None) -> tuple[Note, ...]:
+    """The note naming where a listed skill directory leads, when it is a link to a directory named otherwise.
 
-    When the skill is read through a link named otherwise than the directory, a note names the link, so a reader
-    who knows the skill by the link's name sees where the expected name comes from.
+    The target is named by its root-relative path, so the root, whose own name is empty, reads as such.
 
     Args:
-        name: The frontmatter `name`, as written.
-        line: The line `name` is written on.
-        directory_name: The name of the real directory the skill's files live in, which `name` must equal.
-        entry_name: The name of the entry the agent reads the skill by; it only words the note.
+        directory_name: The name of the skill directory as an agent lists it.
+        link_target: The real directory the listed directory leads to, or `None` when it is not a link.
     """
-    notes: tuple[Note, ...] = ()
-    if entry_name != directory_name:
-        notes = (
-            Note(
-                NoteKind.NOTE, f'the skill is read through the link {entry_name!r}, which leads to {directory_name!r}'
-            ),
-        )
-    return Violation(
-        line=line,
-        rule=_NAME_RULE,
-        message=f'`name` is {name!r}; expected {directory_name!r}, the name of the skill directory',
-        notes=notes,
-    )
+    if link_target is None or link_target.name == directory_name:
+        return ()
+    if link_target == ROOT:
+        return (Note(NoteKind.NOTE, f'{directory_name!r} is a link to the repository root'),)
+    return (Note(NoteKind.NOTE, f'{directory_name!r} is a link to {str(link_target)!r}'),)
 
 
 def _one_violation(rule: str, message: str, line: LineNumber) -> SkillCheckResult:
