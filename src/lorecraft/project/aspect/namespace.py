@@ -6,6 +6,8 @@ from typing import Self
 
 from lorecraft.core.error import Error
 
+from .filename import AspectFilename
+
 
 class EmptyAspectNamespaceError(Error):
     """A namespace is empty."""
@@ -70,13 +72,14 @@ class AspectNamespace:
         """
         _reject_invalid_namespace(self.value)
 
-    def is_prefix_of(self, document_name: str) -> bool:
+    def is_prefix_of(self, filename: AspectFilename) -> bool:
         """Return whether this namespace is the whole name or its hyphen-delimited prefix.
 
         Args:
-            document_name: Document filename stem to test; not validated.
+            filename: Document filename stem to test.
         """
-        return document_name == self.value or document_name.startswith(f'{self.value}-')
+        name = str(filename)
+        return name == self.value or name.startswith(f'{self.value}-')
 
     def __str__(self) -> str:
         """The namespace exactly as supplied, as findings print it."""
