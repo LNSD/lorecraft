@@ -341,10 +341,10 @@ class TestInspectCommand:
         assert lines[0] == str(workspace.resolve()), 'the tree is headed by the resolved root'
         assert '│           └── logging.md [code]' in lines, 'a rule document sits under its corpus, with its spec'
 
-    def test_inspect_with_json_prints_the_model_as_one_json_document(self, workspace: Path) -> None:
+    def test_inspect_with_json_format_prints_the_model_as_one_json_document(self, workspace: Path) -> None:
         #: Given
         app = build_app()
-        arguments = ['inspect', str(workspace), '--json']
+        arguments = ['inspect', str(workspace), '--format', 'json']
 
         #: When
         result = runner.invoke(app, arguments)
@@ -355,7 +355,31 @@ class TestInspectCommand:
         assert document['root'] == str(workspace.resolve()), 'the root is reported resolved'
         assert [corpus['name'] for corpus in document['corpora']] == ['code'], 'the one spec-backed corpus is found'
 
-    def test_inspect_with_json_over_a_root_with_skills_prints_each_directory_and_each_skill(
+    def test_inspect_with_the_deprecated_json_flag_prints_the_model_as_json(self, workspace: Path) -> None:
+        #: Given
+        app = build_app()
+        arguments = ['inspect', str(workspace), '--json']
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)['root'] == str(workspace.resolve()), '`--json` still prints the JSON model'
+
+    def test_inspect_with_both_format_and_json_exits_with_a_usage_error(self, workspace: Path) -> None:
+        #: Given
+        app = build_app()
+        arguments = ['inspect', str(workspace), '--format', 'json', '--json']
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stdout == '', 'no model is printed when both options are given'
+
+    def test_inspect_with_json_format_over_a_root_with_skills_prints_each_directory_and_each_skill(
         self, tmp_path: Path
     ) -> None:
         #: Given
@@ -367,7 +391,7 @@ class TestInspectCommand:
         (tmp_path / '.claude').mkdir()
         (tmp_path / '.claude' / 'skills').symlink_to('../.agents/skills')
         app = build_app()
-        arguments = ['inspect', str(tmp_path), '--json']
+        arguments = ['inspect', str(tmp_path), '--format', 'json']
 
         #: When
         result = runner.invoke(app, arguments)
@@ -387,7 +411,7 @@ class TestInspectCommand:
             ],
         }, 'the linked agent directory and the skill linked from outside it are both in the document'
 
-    def test_inspect_with_a_malformed_frontmatter_schema_exits_one_and_names_it(
+    def test_inspect_with_a_malformed_frontmatter_schema_exits_two_and_names_it(
         self, malformed_schema_workspace: Path
     ) -> None:
         #: Given
@@ -398,7 +422,7 @@ class TestInspectCommand:
         result = runner.invoke(app, arguments)
 
         #: Then
-        assert result.exit_code == 1, result.output
+        assert result.exit_code == 2, result.output
         assert 'error: invalid structure schema docs/__meta__/code.structure.json' in result.output, (
             'the failure names the specification the load rejected'
         )
@@ -430,7 +454,7 @@ class TestInspectCommand:
         assert result.exit_code == 2, 'a root that does not exist is rejected before any scan'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
-    def test_inspect_with_an_unreadable_directory_exits_one_and_names_it(self, unreadable_workspace: Path) -> None:
+    def test_inspect_with_an_unreadable_directory_exits_two_and_names_it(self, unreadable_workspace: Path) -> None:
         #: Given
         app = build_app()
         arguments = ['inspect', str(unreadable_workspace)]
@@ -439,12 +463,12 @@ class TestInspectCommand:
         result = runner.invoke(app, arguments)
 
         #: Then
-        assert result.exit_code == 1, result.output
+        assert result.exit_code == 2, result.output
         assert 'error: cannot snapshot directory docs: permission denied' in result.output, (
             'the failure names the step, the path the scan stopped at, and the refusal'
         )
 
-    def test_inspect_with_a_linked_specs_directory_exits_one_and_names_it(self, linked_specs_workspace: Path) -> None:
+    def test_inspect_with_a_linked_specs_directory_exits_two_and_names_it(self, linked_specs_workspace: Path) -> None:
         #: Given
         app = build_app()
         arguments = ['inspect', str(linked_specs_workspace)]
@@ -453,23 +477,23 @@ class TestInspectCommand:
         result = runner.invoke(app, arguments)
 
         #: Then
-        assert result.exit_code == 1, result.output
+        assert result.exit_code == 2, result.output
         assert result.stdout == '', 'no model is drawn for a layout the snapshot could not read'
         assert result.stderr == (
             'error: docs/__meta__ is a symlink, which lorecraft does not follow: '
             'docs/__meta__/ must be a real directory\n'
         ), 'the failure names the linked directory instead of drawing a model with no corpora'
 
-    def test_inspect_with_a_linked_docs_directory_exits_one_and_names_it(self, linked_docs_workspace: Path) -> None:
+    def test_inspect_with_a_linked_docs_directory_exits_two_and_names_it(self, linked_docs_workspace: Path) -> None:
         #: Given
         app = build_app()
-        arguments = ['inspect', str(linked_docs_workspace), '--json']
+        arguments = ['inspect', str(linked_docs_workspace), '--format', 'json']
 
         #: When
         result = runner.invoke(app, arguments)
 
         #: Then
-        assert result.exit_code == 1, result.output
+        assert result.exit_code == 2, result.output
         assert result.stdout == '', 'no JSON document is printed for a layout the snapshot could not read'
         assert result.stderr == (
             'error: docs is a symlink, which lorecraft does not follow: docs/ must be a real directory\n'

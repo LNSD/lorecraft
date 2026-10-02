@@ -320,7 +320,7 @@ class TestInspectSnapshots:
     ) -> None:
         #: Given
         expected = snapshot.use_extension(JsonTextSnapshotExtension)
-        arguments = ('inspect', str(WORKSPACE_FIXTURE), '--json')
+        arguments = ('inspect', str(WORKSPACE_FIXTURE), '--format', 'json')
 
         #: When
         result = run_cli(*arguments)
@@ -1131,7 +1131,7 @@ class TestLinkedLayoutSnapshots:
         assert result.stdout == '', 'a run that could not start prints nothing on stdout'
         assert result.stderr == expected, 'the root discovered through the link is refused, as the snapshot shows'
 
-    def test_inspect_with_a_linked_specs_directory_prints_the_error_and_exits_one(
+    def test_inspect_with_a_linked_specs_directory_prints_the_error_and_exits_two(
         self, snapshot: SnapshotAssertion, linked_specs_root: Path
     ) -> None:
         #: Given
@@ -1142,11 +1142,11 @@ class TestLinkedLayoutSnapshots:
         result = run_cli(*arguments)
 
         #: Then
-        assert result.returncode == 1, result.stderr
+        assert result.returncode == 2, result.stderr
         assert result.stdout == '', 'no model is drawn for a layout the snapshot could not read'
         assert result.stderr == expected, 'the error naming the linked directory matches the reviewed snapshot'
 
-    def test_inspect_with_a_linked_docs_directory_prints_the_error_and_exits_one(
+    def test_inspect_with_a_linked_docs_directory_prints_the_error_and_exits_two(
         self, snapshot: SnapshotAssertion, linked_docs_root: Path
     ) -> None:
         #: Given
@@ -1157,6 +1157,6 @@ class TestLinkedLayoutSnapshots:
         result = run_cli(*arguments)
 
         #: Then
-        assert result.returncode == 1, result.stderr
+        assert result.returncode == 2, result.stderr
         assert result.stdout == '', 'no model is drawn for a layout the snapshot could not read'
         assert result.stderr == expected, 'the error naming the linked directory matches the reviewed snapshot'

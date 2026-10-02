@@ -29,8 +29,8 @@ Every command below calls `lorecraft` directly. Where it is not on `PATH`, run `
 Do not resolve specifications by hand. `lorecraft inspect` resolves them with the same rules the checks apply:
 
 ```bash
-lorecraft inspect          # a tree: corpora, their specification names, each document with its own, then the skills
-lorecraft inspect --json   # the same model; each document's governed_by lists its files
+lorecraft inspect                 # a tree: corpora, their specification names, each document with its own, then the skills
+lorecraft inspect --format json   # the same model; each document's governed_by lists its files
 ```
 
 In the tree, each document is followed by the names of the specifications governing it, broad to narrow:

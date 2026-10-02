@@ -13,14 +13,13 @@ import typer
 
 from lorecraft.checks import run_skills
 from lorecraft.cli.check_run import (
-    CheckExit,
-    OutputFormat,
     SkillCheck,
     print_skill_run,
     register_skill_check,
     select_skills,
 )
 from lorecraft.cli.failure import report_failure
+from lorecraft.cli.output import ExitStatus, OutputFormat
 from lorecraft.core.error import Error
 
 from . import app
@@ -64,8 +63,8 @@ def skills(
         run = SKILLS_CHECK.run(database, selections)
     except Error as exc:
         report_failure(exc)
-        raise typer.Exit(code=CheckExit.FAILURE) from exc
+        raise typer.Exit(code=ExitStatus.FAILURE) from exc
 
     print_skill_run(run, output_format)
     if run.findings():
-        raise typer.Exit(code=CheckExit.FINDINGS)
+        raise typer.Exit(code=ExitStatus.FINDINGS)
