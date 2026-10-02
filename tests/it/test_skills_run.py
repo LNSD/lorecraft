@@ -9,9 +9,21 @@ from typing import Final
 
 import pytest
 
-from lorecraft.checks import Database, Finding, Note, NoteKind, SkillCheckRun, Violation, run_skills
+from lorecraft.checks import (
+    Database,
+    Finding,
+    Note,
+    NoteKind,
+    SkillCheckRun,
+    SkillReport,
+    SkillScope,
+    SkillSelection,
+    Violation,
+    run_skills,
+)
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.layout import SNAPSHOT_SCOPE
+from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import LineNumber
 from lorecraft.vfs import take_snapshot
 
@@ -31,12 +43,15 @@ def _write(root: Path, relative: str, data: bytes = b'') -> Path:
 
 
 def _run_every_skill(database: Database) -> SkillCheckRun:
-    """Check every skill the database's model lists.
+    """Check every skill the database's model lists, each whole.
 
     Args:
         database: Database over the snapshot whose skills are checked.
     """
-    return run_skills(database, database.model().skills())
+    selections: list[SkillSelection] = []
+    for ref in database.model().skills():
+        selections.append(SkillSelection(ref, SkillScope.WHOLE_SKILL))
+    return run_skills(database, tuple(selections))
 
 
 @pytest.fixture(scope='function')
@@ -1635,3 +1650,75 @@ class TestRunSkillsSymlinkOutside:
 
         #: Then
         assert run.findings() == (), 'a skills directory linked to another inside the repository is self-contained'
+
+
+@pytest.mark.it
+class TestRunSkillsSkillFile:
+    def test_run_skills_with_the_skill_file_alone_reports_no_resource(self, tmp_path: Path) -> None:
+        #: Given
+        skill = '.agents/skills/review'
+        _write(tmp_path, f'{skill}/SKILL.md', _REVIEW_FRONTMATTER + b'# Review\n\nSee [/x.md](/x.md).\n')
+        _write(tmp_path, f'{skill}/references/a.md', b'# A\n\nSee [/y.md](/y.md).\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        selection = SkillSelection(SkillRef(RootRelativePath.parse(skill)), SkillScope.SKILL_FILE)
+
+        #: When
+        run = run_skills(database, (selection,))
+
+        #: Then
+        assert run.reports == (
+            SkillReport(
+                selection.ref,
+                violations=(
+                    Violation(
+                        line=LineNumber(7),
+                        rule='skill.link-absolute',
+                        message='`/x.md` is absolute',
+                        notes=(Note(NoteKind.HELP, 'link relative to the skill root'),),
+                    ),
+                ),
+                resources=(),
+                symlinks=(),
+            ),
+        ), 'the SKILL.md is checked and no resource is read or reported'
+
+    def test_run_skills_with_the_skill_file_alone_judges_a_link_to_a_resource_present(self, tmp_path: Path) -> None:
+        #: Given
+        skill = '.agents/skills/review'
+        _write(
+            tmp_path,
+            f'{skill}/SKILL.md',
+            _REVIEW_FRONTMATTER + b'# Review\n\nSee [a](references/a.md) and [b](references/b.md).\n',
+        )
+        _write(tmp_path, f'{skill}/references/a.md', b'# A\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        selection = SkillSelection(SkillRef(RootRelativePath.parse(skill)), SkillScope.SKILL_FILE)
+
+        #: When
+        run = run_skills(database, (selection,))
+
+        #: Then
+        assert run.findings() == (_broken(f'{skill}/SKILL.md', 7, 'references/b.md'),), (
+            'a link to a resource still resolves against the skill, and only the one naming nothing is broken'
+        )
+
+    def test_run_skills_with_the_skill_file_alone_reports_the_layout_but_no_link_inside_the_skill(
+        self, repository_beside_elsewhere: Path
+    ) -> None:
+        #: Given
+        root = repository_beside_elsewhere
+        target = root.parent / 'elsewhere' / 'x'
+        skill = '.agents/skills/review'
+        _write(root, f'{skill}/SKILL.md', _CLEAN_SKILL_MD)
+        (root / skill / 'references').symlink_to(target)
+        (root / '.agents' / 'skills' / 'x').symlink_to(target)
+        database = Database(take_snapshot(root, SNAPSHOT_SCOPE))
+        selection = SkillSelection(SkillRef(RootRelativePath.parse(skill)), SkillScope.SKILL_FILE)
+
+        #: When
+        run = run_skills(database, (selection,))
+
+        #: Then
+        assert run.findings() == (_outside_finding('.agents/skills/x', '.agents/skills/x', target),), (
+            'the skills directory an agent lists is still judged, but no link inside a skill checked by its SKILL.md'
+        )
