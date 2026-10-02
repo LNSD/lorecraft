@@ -11,9 +11,6 @@ This skill verifies that documented functionality is actually implemented in the
 implementation aligns with what's documented. It also checks for test coverage and warns about untested
 functionality.
 
-`docs/feat/` is empty today and the checker package holds only `__init__.py`, so there is nothing to validate
-yet. The moment a feature doc lands, this is the skill that keeps it honest.
-
 ## When to Use This Skill
 
 Verifies a feature doc against the code: does the documented behaviour actually exist, and is it tested?
