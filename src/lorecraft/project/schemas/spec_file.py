@@ -1,11 +1,12 @@
-"""The specification filename grammar: the stem a file sits at, and the file type that claims it.
+"""The specification filename grammar: the specification name a file sits at, and the file type that claims it.
 
 A file's extension is what follows its last dot. What a specification file is comes from its file type, which a
 file name pattern claims: `*.md` claims the prose of a specification, and `*.structure.json` its structure
-specification, the machine-checkable rules, which also hold the frontmatter schema. A `<stem>.<token>.json` that
+specification, the machine-checkable rules, which also hold the frontmatter schema. A `<name>.<token>.json` that
 no pattern claims, such as a `header` file where that schema was once kept, is of no file type and is left out.
-The stem is what is left of the filename once the pattern's suffix is stripped: one of the two forms `name.py`
-describes, and it holds no dot.
+The specification name is what is left of the filename once the pattern's suffix is stripped: one of the two forms
+`name.py` describes, and it holds no dot. Until it parses, that text is only the filename's stem, which is what
+the errors below carry.
 
 `parse_spec_file` is the one place this grammar is read, and `spec_filename` the only place it is written.
 Every other module takes the parsed records.
@@ -20,7 +21,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import EmptyAspectNamespaceError, InvalidAspectNamespaceCharacterError
 from lorecraft.project.corpus import CorpusName, EmptyCorpusNameError, InvalidCorpusNameCharacterError
 
-from .name import SchemaName, parse_schema_name, schema_name_stem
+from .name import SpecName, parse_spec_name
 
 _JSON_SUFFIX: Final[str] = '.json'
 
@@ -41,22 +42,22 @@ class SpecFileType(Enum):
 
 @dataclass(frozen=True, slots=True)
 class SpecFile:
-    """A file at a `<corpus>` or `<corpus>-<namespace>` stem.
+    """A file at a `<corpus>` or `<corpus>-<namespace>` specification name.
 
     Attributes:
         path: Root-relative path of the file.
-        name: The stem, parsed.
+        name: The specification name, parsed.
         type: The file type whose pattern claims the filename.
     """
 
     path: RootRelativePath
-    name: SchemaName
+    name: SpecName
     type: SpecFileType
 
     @property
     def corpus(self) -> CorpusName:
-        """The corpus this file's stem belongs to."""
-        return self.name[0]
+        """The corpus this file's specification name belongs to."""
+        return self.name.corpus
 
 
 class NotASpecFileError(Error):
@@ -108,12 +109,12 @@ class NotASpecStemError(Error):
     ) -> None:
         self.path = path
         self.source = source
-        super().__init__(f'{path} is not at a specification stem')
+        super().__init__(f'{path} is not at a specification name')
         self.__cause__ = source
 
 
 class DottedSpecStemError(Error):
-    """A stem holds a dot, where a stem is ``<corpus>`` or ``<corpus>-<namespace>``.
+    """A stem holds a dot, where a specification name is `<corpus>` or `<corpus>-<namespace>`.
 
     Attributes:
         path: Root-relative path of the rejected file.
@@ -126,11 +127,11 @@ class DottedSpecStemError(Error):
     def __init__(self, path: RootRelativePath, stem: str) -> None:
         self.path = path
         self.stem = stem
-        super().__init__(f'{path}: stem {stem!r} holds a dot; a stem is <corpus> or <corpus>-<namespace>')
+        super().__init__(f'{path}: stem {stem!r} holds a dot; a specification name is <corpus> or <corpus>-<namespace>')
 
 
 class InvalidSpecStemError(Error):
-    """A stem has a specification form but a token that does not parse.
+    """A stem has the form of a specification name but a token that does not parse.
 
     Attributes:
         path: Root-relative path of the rejected file.
@@ -158,7 +159,7 @@ class InvalidSpecStemError(Error):
     ) -> None:
         self.path = path
         self.source = source
-        super().__init__(f'{path} is not at a valid specification stem')
+        super().__init__(f'{path} is not at a valid specification name')
         self.__cause__ = source
 
 
@@ -181,12 +182,12 @@ def parse_spec_file(path: RootRelativePath) -> SpecFile:
     stem, file_type = _split_filename(path)
 
     if '.' in stem:
-        # `feat.component.structure.json` is not a stem with a type in it: a stem is `<corpus>` or
+        # `feat.component.structure.json` is not a name with a type in it: a specification name is `<corpus>` or
         # `<corpus>-<namespace>`, and the only dots in a specification filename are its pattern's.
         raise DottedSpecStemError(path, stem)
 
     try:
-        name = parse_schema_name(stem)
+        name = parse_spec_name(stem)
     except (EmptyCorpusNameError, InvalidCorpusNameCharacterError) as exc:
         # A prose file whose first token is not a corpus name (README.md) is not a misnamed spec, it is simply
         # not a spec; a JSON file at such a stem can only be a misnaming.
@@ -202,14 +203,14 @@ def parse_spec_file(path: RootRelativePath) -> SpecFile:
     return SpecFile(path=path, name=name, type=file_type)
 
 
-def spec_filename(name: SchemaName, file_type: SpecFileType) -> str:
-    """The filename of one file type at a `<corpus>` or `<corpus>-<namespace>` stem; never raises.
+def spec_filename(name: SpecName, file_type: SpecFileType) -> str:
+    """The filename of one file type at a `<corpus>` or `<corpus>-<namespace>` specification name; never raises.
 
     Args:
-        name: Schema whose stem the filename starts with.
+        name: Specification name the filename starts with.
         file_type: Type whose pattern the filename matches, such as `*.structure.json`.
     """
-    return f'{schema_name_stem(name)}{file_type.suffix}'
+    return f'{name}{file_type.suffix}'
 
 
 def _split_filename(path: RootRelativePath) -> tuple[str, SpecFileType]:

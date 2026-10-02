@@ -11,7 +11,7 @@ components: "module:lorecraft.cli,module:lorecraft.checks,module:lorecraft.proje
 ## Summary
 
 `lorecraft check frontmatter` validates the YAML frontmatter at the top of each document against the
-`frontmatter` key of every structure specification, `<stem>.structure.json`, that the document's path selects,
+`frontmatter` key of every structure specification, `<name>.structure.json`, that the document's path selects,
 and checks that the frontmatter `name` equals the filename. It is also one of the checks a bare
 `lorecraft check` runs.
 
@@ -28,13 +28,13 @@ and checks that the frontmatter `name` equals the filename. It is also one of th
 ## Key Concepts
 
 - **Frontmatter**: The YAML mapping between two `---` lines that opens a document.
-- **Frontmatter schema**: The `frontmatter` key of a `<stem>.structure.json` file; a JSON Schema the
+- **Frontmatter schema**: The `frontmatter` key of a `<name>.structure.json` file; a JSON Schema the
   frontmatter must satisfy, as [spec-structure-frontmatter](spec-structure-frontmatter.md) describes.
 - **Layer**: Each frontmatter schema that applies to a document; every one is applied on its own, so a
   document governed by a corpus schema and a namespace schema must satisfy both.
 - **`check header`**: An alias of this command, kept for the name the check had when its schemas lived in
-  `<stem>.header.json` files. It is hidden from `--help`, behaves identically, and is not a second check: a
-  bare `lorecraft check` runs the frontmatter check once. A leftover `<stem>.header.json` is not read.
+  `<name>.header.json` files. It is hidden from `--help`, behaves identically, and is not a second check: a
+  bare `lorecraft check` runs the frontmatter check once. A leftover `<name>.header.json` is not read.
 
 ## Configuration
 

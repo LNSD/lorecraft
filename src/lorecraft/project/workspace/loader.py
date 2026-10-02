@@ -1,8 +1,8 @@
 """Build the workspace model from the specification directory, the corpus directories and the skills directories.
 
 Discovery is spec-first: a directory under `docs/` is a corpus only when `docs/__meta__/` holds a file at
-its stem. The loader lists the specification directory, parses each filename once with `parse_spec_file`,
-sorts the parsed files into corpus stems and namespace stems, keeps the corpora whose
+its specification name. The loader lists the specification directory, parses each filename once with
+`parse_spec_file`, sorts the parsed files into corpus specs and namespace specs, keeps the corpora whose
 `docs/<corpus>/` is a regular directory, lists the Markdown files directly inside each, and builds a
 `StructureSpec` from every structure specification, which proves each one usable, its frontmatter schema
 included, before any document is read.
@@ -22,6 +22,7 @@ it propagates unchanged to the command that loads the model, which reports it.
 """
 
 from dataclasses import dataclass, field
+from typing import assert_never
 
 from lorecraft.agents import iter_agents
 from lorecraft.core.path import ROOT, RootRelativePath
@@ -35,7 +36,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.ref import DocumentRef
 from lorecraft.project.document.repo import Repository as DocumentRepository
 from lorecraft.project.layout import SPECS_DIR
-from lorecraft.project.schemas.name import SchemaName
+from lorecraft.project.schemas.name import CorpusSpecName, NamespaceSpecName, SpecName
 from lorecraft.project.schemas.repo import Repository as SchemaRepository
 from lorecraft.project.schemas.spec_file import (
     DottedSpecStemError,
@@ -60,11 +61,11 @@ from .model import Corpus, Spec, WorkspaceModel, namespace_order_key
 
 @dataclass(slots=True)
 class _CorpusFiles:
-    """The specification files naming one corpus, gathered before ``docs/<corpus>/`` is checked.
+    """The specification files naming one corpus, gathered before `docs/<corpus>/` is checked.
 
     Attributes:
-        spec: Files at the ``<corpus>`` stem; empty when the corpus has no spec of its own.
-        namespaces: Files at each ``<corpus>-<namespace>`` stem, keyed by namespace.
+        spec: Files at the `<corpus>` specification name; empty when the corpus has no spec of its own.
+        namespaces: Files at each `<corpus>-<namespace>` specification name, keyed by namespace.
     """
 
     spec: list[SpecFile] = field(default_factory=list)
@@ -80,7 +81,7 @@ def load_workspace(
 ) -> WorkspaceModel:
     """Build the workspace model of the snapshot.
 
-    Parse the spec filenames, keep corpus stems whose docs/<corpus>/ is a directory, list the Markdown files
+    Parse the spec filenames, keep corpus specs whose docs/<corpus>/ is a directory, list the Markdown files
     directly inside each, build a structure specification from every spec that has one, find the agents' skills
     directories and the skills in them, and the skills in each directory a command names.
 
@@ -197,7 +198,7 @@ def load_model(fs: FileSystem, *, named_dirs: tuple[RootRelativePath, ...] = ())
 
 
 def _group_spec_files(spec_paths: list[RootRelativePath]) -> dict[CorpusName, _CorpusFiles]:
-    """Parse every file in the specification directory and file it under the corpus its stem names.
+    """Parse every file in the specification directory and file it under the corpus its specification name starts with.
 
     A file whose name does not parse as a specification filename, such as `README.md`, is left out.
 
@@ -218,10 +219,13 @@ def _group_spec_files(spec_paths: list[RootRelativePath]) -> dict[CorpusName, _C
             continue
 
         group = groups.setdefault(spec_file.corpus, _CorpusFiles())
-        if len(spec_file.name) == 1:
-            group.spec.append(spec_file)
-        else:
-            group.namespaces.setdefault(spec_file.name[1], []).append(spec_file)
+        match spec_file.name:
+            case CorpusSpecName():
+                group.spec.append(spec_file)
+            case NamespaceSpecName(namespace=namespace):
+                group.namespaces.setdefault(namespace, []).append(spec_file)
+            case _:
+                assert_never(spec_file.name)
     return groups
 
 
@@ -232,8 +236,8 @@ def _load_corpus(
 
     Args:
         schemas: Repository the structure specifications are read from.
-        corpus_name: Name of the corpus being built, the stem its specification files share.
-        files: Specification files at the corpus stem and at each of its namespace stems.
+        corpus_name: Name of the corpus being built, which every specification name of its files starts with.
+        files: Specification files at the corpus spec's name and at each of its namespace specs' names.
         refs: Documents listed in the corpus directory; sorted by filename into the corpus.
 
     Raises:
@@ -252,13 +256,14 @@ def _load_corpus(
         ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
         UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
     """
-    spec = _load_spec(schemas, (corpus_name,), files.spec)
+    spec = _load_spec(schemas, CorpusSpecName(corpus_name), files.spec)
 
     # Broad to narrow: every namespace matching one filename is a prefix of that filename, so segment count
     # is broadness and two matches never tie; the value tiebreak only orders non-matching siblings.
     namespace_specs: list[Spec] = []
     for namespace in sorted(files.namespaces, key=namespace_order_key):
-        namespace_specs.append(_load_spec(schemas, (corpus_name, namespace), files.namespaces[namespace]))
+        name = NamespaceSpecName(corpus_name, namespace)
+        namespace_specs.append(_load_spec(schemas, name, files.namespaces[namespace]))
 
     return Corpus(
         name=corpus_name,
@@ -268,13 +273,13 @@ def _load_corpus(
     )
 
 
-def _load_spec(schemas: SchemaRepository, name: SchemaName, spec_files: list[SpecFile]) -> Spec:
-    """Build one spec from the files at its stem, decoding its structure JSON into a structure specification.
+def _load_spec(schemas: SchemaRepository, name: SpecName, spec_files: list[SpecFile]) -> Spec:
+    """Build one spec from the files at its name, decoding its structure JSON into a structure specification.
 
     Args:
         schemas: Repository the structure specification is read from.
-        name: Stem the spec sits at: the corpus alone, or the corpus and a namespace.
-        spec_files: Files at that stem; one with no structure file gives a spec with no structure specification.
+        name: Specification name the spec sits at: the corpus alone, or the corpus and a namespace.
+        spec_files: Files at that name; one with no structure file gives a spec with no structure specification.
 
     Raises:
         StructureSchemaReadError: If the structure specification cannot be read.

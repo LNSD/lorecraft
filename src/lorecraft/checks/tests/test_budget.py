@@ -13,18 +13,18 @@ from lorecraft.project.syntax import LineNumber
 from ..budget import validate_budget
 
 
-def _structure_spec(tokens: int | None, stem: str = 'code') -> StructureSpec:
-    """A structure specification at `docs/__meta__/<stem>.structure.json` with the given budget.
+def _structure_spec(tokens: int | None, spec_name: str = 'code') -> StructureSpec:
+    """A structure specification at `docs/__meta__/<spec_name>.structure.json` with the given budget.
 
     It forbids empty sections as well, so a structure specification without a budget still states a rule and can be
     built.
 
     Args:
         tokens: The whole-file token budget; `None` sets no budget.
-        stem: File stem of the specification file.
+        spec_name: Specification name the file sits at, such as `code` or `code-python`.
     """
     return StructureSpec(
-        path=SPECS_DIR / f'{stem}.structure.json',
+        path=SPECS_DIR / f'{spec_name}.structure.json',
         title=None,
         forbid_empty_sections=True,
         outline=(),
@@ -88,7 +88,7 @@ class TestValidateBudget:
     def test_validate_budget_with_two_layers_applies_each_and_names_its_own_file(self) -> None:
         #: Given
         corpus = _structure_spec(tokens=100)
-        namespace = _structure_spec(tokens=11, stem='code-python')
+        namespace = _structure_spec(tokens=11, spec_name='code-python')
 
         #: When
         result = validate_budget((corpus, namespace), token_count=12)

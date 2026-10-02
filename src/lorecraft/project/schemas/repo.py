@@ -13,7 +13,7 @@ from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
 from lorecraft.vfs import EntryKind, FileReadError, FileSystem, UnrecordedFileError
 
-from .name import SchemaName, schema_name_stem
+from .name import SpecName
 from .spec_file import SpecFileType, spec_filename
 from .structure import StructureSchema
 
@@ -22,22 +22,22 @@ class StructureSchemaReadError(Error):
     """A structure schema the model names cannot be read.
 
     Attributes:
-        name: The schema whose structure file was being read.
+        name: The specification name whose structure file was being read.
         source: The failure to read the file.
     """
 
-    name: SchemaName
+    name: SpecName
     source: FileReadError | UnrecordedFileError
 
-    def __init__(self, name: SchemaName, *, source: FileReadError | UnrecordedFileError) -> None:
+    def __init__(self, name: SpecName, *, source: FileReadError | UnrecordedFileError) -> None:
         self.name = name
         self.source = source
-        super().__init__(f'cannot read the structure schema {schema_name_stem(name)}')
+        super().__init__(f'cannot read the structure schema {name}')
         self.__cause__ = source
 
 
 class Repository:
-    """Expose specification files under one directory by schema name."""
+    """Expose specification files under one directory by specification name."""
 
     def __init__(self, fs: FileSystem, specs_dir: RootRelativePath) -> None:
         """Remember the seam and the root-relative directory; performs no I/O.
@@ -62,14 +62,14 @@ class Repository:
         entries = self._fs.list_dir(self._specs_dir)
         return [self._specs_dir / entry.name for entry in entries if entry.kind is EntryKind.FILE]
 
-    def get_structure_schema(self, name: SchemaName) -> StructureSchema:
+    def get_structure_schema(self, name: SpecName) -> StructureSchema:
         """Read one structure schema's text, undecoded.
 
         `StructureSpec.parse` deserializes and validates it in one step, so the JSON is read once, by the
         model that states its shape.
 
         Args:
-            name: Schema whose `<stem>.structure.json` file is read from the specification directory.
+            name: Specification name whose `<name>.structure.json` file is read from the specification directory.
 
         Raises:
             StructureSchemaReadError: If the file cannot be read.

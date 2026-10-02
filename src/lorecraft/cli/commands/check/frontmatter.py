@@ -1,13 +1,13 @@
 """The `check frontmatter` command: validate documentation frontmatter.
 
 This is the composition root of the frontmatter check: it selects the documents of one snapshot, hands them to
-``run_frontmatter``, and prints the run. Every ``Error`` escaping that flow is reported here and exits 2; a document
+`run_frontmatter`, and prints the run. Every `Error` escaping that flow is reported here and exits 2; a document
 that cannot be decoded is a finding, not an error. The module also registers the check, so a bare
-``lorecraft check`` runs it too.
+`lorecraft check` runs it too.
 
-``check header`` is kept as a hidden alias of the command: the check's name from when the frontmatter schema had a
-``<stem>.header.json`` file of its own. It is the same handler under a second name, not a second check, so a bare
-``lorecraft check`` still runs the frontmatter check once.
+`check header` is kept as a hidden alias of the command: the check's name from when the frontmatter schema had a
+`<name>.header.json` file of its own. It is the same handler under a second name, not a second check, so a bare
+`lorecraft check` still runs the frontmatter check once.
 """
 
 from pathlib import Path

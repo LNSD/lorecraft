@@ -42,9 +42,13 @@ A document in `docs/__meta__/` that defines the metadata, structure, and content
 
 An additional specification selected by a document's filename, when a namespace equals the name or is a hyphen-delimited prefix of it: `code-python.md` for `python-*` code rule documents, `feat-cli.md` for `cli-*` feature documents. It adds to the corpus specification and cannot relax it.
 
+### Specification name
+
+What a specification file's name says it governs: the filename with its [file type](#file-type)'s pattern suffix stripped, so `code.md` and `code.structure.json` are both at the name `code`. It is `<corpus>`, the name of a corpus specification, or `<corpus>-<namespace>`, the name of a [namespace specification](#namespace-specification), such as `code-python`.
+
 ### Aspect
 
-The part of a name after its corpus: in `docs/code/python-fn.md`, or the stem `code-python-fn`, the corpus is `code` and the aspect is `python-fn`. An aspect splits into a namespace and a [facet](#facet): `python-fn` is the namespace `python` plus the facet `fn`. The middle of a specification filename, `structure` in `code.structure.json`, is not an aspect: what that file is comes from its [file type](#file-type).
+The part of a name after its corpus: in `docs/code/python-fn.md`, or the [specification name](#specification-name) `code-python-fn`, the corpus is `code` and the aspect is `python-fn`. An aspect splits into a namespace and a [facet](#facet): `python-fn` is the namespace `python` plus the facet `fn`. The middle of a specification filename, `structure` in `code.structure.json`, is not an aspect: what that file is comes from its [file type](#file-type).
 
 ### Facet
 
@@ -62,7 +66,7 @@ A feature document's maturity label: `development`, `unstable`, `experimental`, 
 
 ### Machine-checkable companion
 
-A JSON file beside a format specification that holds the rules a checker can decide: the structure specification, `<stem>.structure.json`, holding the section structure with its word caps, the token budget and the frontmatter schema.
+A JSON file beside a format specification that holds the rules a checker can decide: the structure specification, `<name>.structure.json`, holding the section structure with its word caps, the token budget and the frontmatter schema.
 
 ### File type
 
