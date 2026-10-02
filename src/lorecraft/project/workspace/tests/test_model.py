@@ -20,8 +20,11 @@ from lorecraft.project.schemas import (
     CorpusSpecName,
     FrontmatterSchema,
     NamespaceSpecName,
+    SpecFileType,
     StructureSpec,
+    StructureSpecFile,
     parse_spec_name,
+    spec_filename,
 )
 from lorecraft.project.skill import NamedDir, OutsideSymlink, SkillLocation, SkillRef, SkillsDir
 from lorecraft.vfs import ResolvedPath, RootExit
@@ -73,15 +76,16 @@ def _spec_files(
         frontmatter: Whether the structure file states a frontmatter schema.
         structure: Whether the structure file forbids empty sections.
     """
-    files = [SPECS_DIR / f'{name}.md']
+    spec_name = parse_spec_name(name)
+    files = [SPECS_DIR / spec_filename(spec_name, SpecFileType.PROSE)]
     structure_spec: StructureSpec | None = None
     if frontmatter or structure:
-        path = SPECS_DIR / f'{name}.structure.json'
+        path = SPECS_DIR / spec_filename(spec_name, SpecFileType.STRUCTURE)
         frontmatter_schema: FrontmatterSchema | None = None
         if frontmatter:
             frontmatter_schema = FrontmatterSchema(path=path, schema={'type': 'object'})
         structure_spec = StructureSpec(
-            path=path,
+            file=StructureSpecFile(path=path, name=spec_name),
             title=None,
             forbid_empty_sections=structure,
             outline=(),

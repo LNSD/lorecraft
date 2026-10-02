@@ -9,7 +9,7 @@ The specification name is what is left of the filename once the pattern's suffix
 the errors below carry.
 
 `parse_spec_file` is the one place this grammar is read, and `spec_filename` the only place it is written.
-Every other module takes the parsed records.
+Every other module takes the parsed records: a `ProseSpecFile` or a `StructureSpecFile`, together a `SpecFile`.
 """
 
 from dataclasses import dataclass
@@ -41,23 +41,54 @@ class SpecFileType(Enum):
 
 
 @dataclass(frozen=True, slots=True)
-class SpecFile:
-    """A file at a `<corpus>` or `<corpus>-<namespace>` specification name.
+class ProseSpecFile:
+    """The prose of a specification, `<name>.md`, at a `<corpus>` or `<corpus>-<namespace>` specification name.
 
     Attributes:
         path: Root-relative path of the file.
         name: The specification name, parsed.
-        type: The file type whose pattern claims the filename.
     """
 
     path: RootRelativePath
     name: SpecName
-    type: SpecFileType
+
+    @property
+    def type(self) -> SpecFileType:
+        """The file type whose pattern claims the filename: always `SpecFileType.PROSE`."""
+        return SpecFileType.PROSE
 
     @property
     def corpus(self) -> CorpusName:
         """The corpus this file's specification name belongs to."""
         return self.name.corpus
+
+
+@dataclass(frozen=True, slots=True)
+class StructureSpecFile:
+    """The structure specification `<name>.structure.json` at a `<corpus>` or `<corpus>-<namespace>` specification name.
+
+    Attributes:
+        path: Root-relative path of the file.
+        name: The specification name, parsed.
+    """
+
+    path: RootRelativePath
+    name: SpecName
+
+    @property
+    def type(self) -> SpecFileType:
+        """The file type whose pattern claims the filename: always `SpecFileType.STRUCTURE`."""
+        return SpecFileType.STRUCTURE
+
+    @property
+    def corpus(self) -> CorpusName:
+        """The corpus this file's specification name belongs to."""
+        return self.name.corpus
+
+
+# One record per file type, rather than one record with a `type` field, so code that takes only a structure
+# specification file says so in its annotation, and a prose file cannot reach it.
+type SpecFile = ProseSpecFile | StructureSpecFile
 
 
 class NotASpecFileError(Error):
@@ -164,7 +195,7 @@ class InvalidSpecStemError(Error):
 
 
 def parse_spec_file(path: RootRelativePath) -> SpecFile:
-    """Parse the filename of one file in the specification directory.
+    """Parse the filename of one file in the specification directory into the record of its file type.
 
     The rules apply in order, and the first one broken selects the error: the filename shape, the file type, a
     dot left in the stem, then the stem's tokens.
@@ -200,7 +231,14 @@ def parse_spec_file(path: RootRelativePath) -> SpecFile:
                 assert_never(file_type)
     except (EmptyAspectNamespaceError, InvalidAspectNamespaceCharacterError) as exc:
         raise InvalidSpecStemError(path, source=exc) from exc
-    return SpecFile(path=path, name=name, type=file_type)
+
+    match file_type:
+        case SpecFileType.PROSE:
+            return ProseSpecFile(path=path, name=name)
+        case SpecFileType.STRUCTURE:
+            return StructureSpecFile(path=path, name=name)
+        case _:
+            assert_never(file_type)
 
 
 def spec_filename(name: SpecName, file_type: SpecFileType) -> str:
