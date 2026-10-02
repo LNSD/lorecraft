@@ -3,9 +3,9 @@
 An argument is only spelled on disk: the disk is asked only where it leads above the root, the part under the
 root is taken as spelled, and its links are followed through the snapshot, so it names what the model saw even
 when the tree changed since. A skill argument naming an entry of a skills directory keeps that entry's own link
-unfollowed, so it names the skill an agent lists there and not every entry linked to the same directory. An
-explicit path is a boundary, so it is rejected with the most specific reason it fails, where discovery would
-simply have ignored the file.
+unfollowed, so it names the skill an agent lists there and not every entry linked to the same directory. A skill
+argument naming a skills directory selects every skill listed there. An explicit path is a boundary, so it is
+rejected with the most specific reason it fails, where discovery would simply have ignored the file.
 """
 
 import os
@@ -254,23 +254,30 @@ class UnlistedSkillPathError(Error):
 
     def __init__(self, argument: Path) -> None:
         self.argument = argument
-        super().__init__(f'{argument}: not a skill the workspace lists; name a skill directory or its SKILL.md')
+        super().__init__(
+            f'{argument}: not a skill the workspace lists; name a skills directory, a skill directory, or a SKILL.md'
+        )
 
 
 def select_skills_at(database: Database, root: Path, working_directory: Path, argument: Path) -> tuple[SkillRef, ...]:
     """Map one CLI argument onto the model's skills, resolving it through the snapshot rather than the disk.
 
-    The argument names a skill by its directory or by its `SKILL.md`, through a link or not: a skill kept in
-    `skills/review/` and linked from `.agents/skills/review` is named by either path. The part of the
-    argument under the root is taken by its spelling alone, then read in two ways, in order.
+    The argument names a skills directory, a skill by its directory, or a skill by its `SKILL.md`, through a link
+    or not: a skill kept in `skills/review/` and linked from `.agents/skills/review` is named by either path. The
+    part of the argument under the root is taken by its spelling alone, then read in three ways, in order.
 
     First as an entry of a skills directory, as an agent lists it: the links above the entry are followed through
     the snapshot, the entry itself is kept by its name, and the skill the model lists there is returned alone. So
     `.agents/skills/beta` selects `beta` even when it links to `alpha`, and `.claude/skills/beta`, through
     a linked skills directory, selects it too.
 
-    Otherwise as a real path: every link in it is followed through the snapshot, and every skill the model lists
-    at the real path it leads to is returned, so naming the directory two entries link to selects both.
+    Then as a skills directory: every link in it is followed through the snapshot, and when a skills directory the
+    model lists leads to the real path it reaches, every skill listed there is returned, possibly none. So
+    `.claude/skills`, a link to `.agents/skills`, selects the skills `.agents/skills` lists, under their refs there.
+
+    Otherwise as a real path: every skill the model lists at the real path the argument leads to is returned, so
+    naming the directory two entries link to selects both. `skills/`, where entries of a skills directory link to,
+    is no skills directory, so it names no skill.
 
     Args:
         database: The snapshot the argument is resolved in, and the model it must name a skill of.
@@ -279,7 +286,8 @@ def select_skills_at(database: Database, root: Path, working_directory: Path, ar
         argument: The path as typed; quoted verbatim in the error message.
 
     Returns:
-        The skills at the named path, in the model's order; never empty.
+        The skills at the named path, each once, in the model's order; empty only for a skills directory that
+        holds no skill.
 
     Raises:
         UnlistedSkillPathError: If the argument lies outside the root, the snapshot holds nothing at it,
@@ -298,7 +306,10 @@ def select_skills_at(database: Database, root: Path, working_directory: Path, ar
     real_path = database.find_real_path(spelled)
     if real_path is None:
         raise UnlistedSkillPathError(argument)
-    refs = database.model().locate_skills(real_path)
+    model = database.model()
+    if model.has_skills_dir(real_path):
+        return model.skills_in(real_path)
+    refs = model.locate_skills(real_path)
     if not refs:
         raise UnlistedSkillPathError(argument)
     return refs

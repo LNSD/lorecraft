@@ -759,6 +759,65 @@ class TestWorkspaceModel:
         #: Then
         assert ref is None, 'the skills directory itself is no skill'
 
+    def test_has_skills_dir_with_the_real_directory_agents_read_returns_true(
+        self, skills_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        real_path = RootRelativePath.parse('.agents/skills')
+
+        #: When
+        listed = skills_model.has_skills_dir(real_path)
+
+        #: Then
+        assert listed is True, 'a skills directory leads to the real directory, directly or through a link'
+
+    def test_has_skills_dir_with_a_linked_skills_directory_returns_false(self, skills_model: WorkspaceModel) -> None:
+        #: Given
+        path = RootRelativePath.parse('.claude/skills')
+
+        #: When
+        listed = skills_model.has_skills_dir(path)
+
+        #: Then
+        assert listed is False, 'a link is no real path, so no skills directory resolves to it'
+
+    def test_has_skills_dir_with_a_directory_no_agent_reads_returns_false(self, skills_model: WorkspaceModel) -> None:
+        #: Given
+        path = RootRelativePath.parse('skills')
+
+        #: When
+        listed = skills_model.has_skills_dir(path)
+
+        #: Then
+        assert listed is False, 'a directory skills link into is no skills directory'
+
+    def test_skills_in_with_a_skills_directory_returns_every_skill_listed_there(
+        self, skills_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        real_path = RootRelativePath.parse('.agents/skills')
+
+        #: When
+        refs = skills_model.skills_in(real_path)
+
+        #: Then
+        assert refs == (AUDIT.ref, REVIEW.ref, REVIEW_ALIAS.ref), (
+            'every entry of the real directory, linked or not, in the model order'
+        )
+
+    def test_skills_in_with_a_skills_directory_holding_no_skill_returns_empty(
+        self, skills_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        model = replace(skills_model, skill_locations=())
+        real_path = RootRelativePath.parse('.agents/skills')
+
+        #: When
+        refs = model.skills_in(real_path)
+
+        #: Then
+        assert refs == (), 'no skill is listed in a skills directory that holds none'
+
     def test_locate_skills_with_the_directory_of_a_regular_skill_returns_every_entry_there(
         self, skills_model: WorkspaceModel
     ) -> None:
