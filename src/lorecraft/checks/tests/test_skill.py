@@ -4,6 +4,8 @@
 leads when it is a link, held to the one Agent Skills specification; no ``SKILL.md`` is read.
 """
 
+from textwrap import dedent
+
 import pytest
 
 from lorecraft.core.path import ROOT, RootRelativePath
@@ -49,6 +51,28 @@ class TestValidateSkill:
 
         #: Then
         assert result.violations == (), 'all six fields of the specification are accepted'
+
+    def test_validate_skill_with_an_optional_field_written_without_a_value_returns_no_violations(self) -> None:
+        #: Given
+        frontmatter = parse_frontmatter(
+            dedent(
+                """\
+                ---
+                name: review
+                description: Review a change. Use before a PR
+                license:
+                ---
+                """
+            )
+        )
+
+        #: When
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
+        )
+
+        #: Then
+        assert result.violations == (), 'an optional field written with no value is read as absent, and accepted'
 
     def test_validate_skill_without_a_frontmatter_block_reports_it_missing_on_line_one(self) -> None:
         #: Given
