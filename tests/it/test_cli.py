@@ -1232,6 +1232,39 @@ class TestCheckSkillsCommand:
             'ungoverned': [],
         }, 'the escaping link is reported in the resource holding it, and the skill is counted once'
 
+    def test_check_skills_with_json_format_naming_a_skill_md_reports_the_findings_of_that_file_alone(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(
+            tmp_path,
+            '.agents/skills/review/SKILL.md',
+            '---\nname: review\ndescription: Review a change\n---\n# Review\n\nRead [the guide](/docs/guide.md).\n',
+        )
+        _write(tmp_path, '.agents/skills/review/references/guide.md', '# Guide\n\nBack to [the skill](../SKILL.md).\n')
+        skill_md = tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md'
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills', str(skill_md), '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 1,
+            'findings': [
+                {
+                    'file': '.agents/skills/review/SKILL.md',
+                    'line': 7,
+                    'rule': 'skill.link-absolute',
+                    'message': '`/docs/guide.md` is absolute',
+                    'spec': None,
+                    'notes': [{'kind': 'help', 'text': 'link relative to the skill root'}],
+                }
+            ],
+            'ungoverned': [],
+        }, 'the SKILL.md named is checked and counted as its skill, and the escaping link in its resource is not read'
+
     def test_check_skills_with_json_format_over_a_skill_with_absolute_and_fragment_links_in_a_resource_reports_both(
         self, tmp_path: Path
     ) -> None:

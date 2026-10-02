@@ -52,13 +52,14 @@ missing, or outside what it reads, and a symlink leaving the repository. It read
 | `--format <text\|json>` | `text` | The output format, as [cli-check](cli-check.md#output) describes |
 
 A path names a skills directory, a skill directory or a `SKILL.md`, through a link or not. A skills directory an
-agent reads, such as `.claude/skills`, selects every skill listed there, reported under the real directory, and none
-when it holds none; `skills/`, which entries of a skills directory only link into, is not one. An entry of a skills
+agent reads, such as `.claude/skills`, selects every skill listed there, reported under the real directory,
+possibly none; `skills/`, which entries of a skills directory only link into, is not one. An entry of a skills
 directory selects that entry alone, even when it links to another; the directory entries lead to selects each of
-them, and a `SKILL.md` that is a link is named by its target too. Under the repository root the path is resolved in
-the [snapshot](workspace.md#one-snapshot), not on disk, so it names what the run reads; `..` is taken by its
-spelling. Above the root a link is followed on disk, so the root may be reached through one. A path that leads to no
-skill the workspace lists refuses the run.
+them, and a `SKILL.md` that is a link is named by its target too. A `SKILL.md` checks that file alone, as
+[Usage](#usage) shows. Under the repository root the path is resolved in the
+[snapshot](workspace.md#one-snapshot), not on disk; `..` is taken by its spelling. Above the root a link is
+followed on disk, so the root may be reached through one. A path that leads to no skill the workspace lists
+refuses the run.
 
 ## Usage
 
@@ -68,12 +69,21 @@ lorecraft check skills
 
 # Check one skill just written
 lorecraft check skills .agents/skills/review
+
+# Check its SKILL.md alone
+lorecraft check skills .agents/skills/review/SKILL.md
 ```
 
 ```text
 .agents/skills/review/SKILL.md:2: [skill.name-matches-directory] `name` is 'audit'; expected 'review', the name of the skill directory
 checked 1 skill(s), 1 finding(s)
 ```
+
+A skill named by its directory, by a skills directory, or by no path is checked whole. One named by its `SKILL.md`,
+directly, through a link, or by the file a linked `SKILL.md` leads to, has that file checked alone: its frontmatter,
+its length, its links and its `metadata`. No resource or symlink inside the skill is looked at, yet a link to a
+resource still names something in the skill. A skill named both ways in one run is checked whole, once, where first
+named.
 
 The output and the exit status are the ones every check shares: see [Output](cli-check.md#output) and
 [Exit Status](cli-check.md#exit-status). The specification governs every skill, so none is ever listed as

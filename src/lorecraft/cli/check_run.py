@@ -21,15 +21,14 @@ from typing import Literal
 
 import typer
 
-from lorecraft.checks import CheckRun, Database, Finding, SkillCheckRun, format_finding
+from lorecraft.checks import CheckRun, Database, Finding, SkillCheckRun, SkillScope, SkillSelection, format_finding
 from lorecraft.core.error import Error
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
-from lorecraft.project.skill import SkillRef
 from lorecraft.vfs import OsRefusal, take_snapshot
 
 from .root import get_root, resolve_root
-from .select import select_document, select_skills_at
+from .select import select_document, select_skills_at, select_whole
 
 type CheckRunner = Callable[[Database, tuple[DocumentRef, ...]], CheckRun]
 """A check's run: it checks the documents it is handed, read through one database, and reports in one shape."""
@@ -51,8 +50,9 @@ class DocumentCheck:
     ungoverned: str
 
 
-type SkillCheckRunner = Callable[[Database, tuple[SkillRef, ...]], SkillCheckRun]
-"""A skill check's run: it checks the skills it is handed, read through one database."""
+type SkillCheckRunner = Callable[[Database, tuple[SkillSelection, ...]], SkillCheckRun]
+"""A skill check's run: it checks the skills it is handed, each whole or by its `SKILL.md` alone, read through one
+database."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -218,16 +218,17 @@ def select_documents(root: Path | None, paths: list[Path] | None) -> tuple[Datab
     return database, tuple(refs)
 
 
-def select_skills(root: Path | None, paths: list[Path] | None) -> tuple[Database, tuple[SkillRef, ...]]:
+def select_skills(root: Path | None, paths: list[Path] | None) -> tuple[Database, tuple[SkillSelection, ...]]:
     """Establish the root, snapshot it once, open the database over that snapshot, and select the skills.
 
     Args:
         root: The `--root` option; `None` searches upward from the working directory.
         paths: The skills named on the command line, each by a skills directory, a skill directory, or a
-            `SKILL.md`; `None` or empty selects every skill the model lists. A path naming a skills directory
-            selects every skill listed in it, possibly none; one naming an entry of a skills directory selects
-            that skill alone; one naming the real directory entries lead to selects each of them. A skill two
-            paths name is selected once.
+            `SKILL.md`; `None` or empty selects every skill the model lists, whole. A path naming a skills
+            directory selects every skill listed in it, possibly none; one naming an entry of a skills directory
+            selects that skill alone; one naming the real directory entries lead to selects each of them. A
+            directory selects each skill whole, a `SKILL.md` its `SKILL.md` alone. A skill two paths name is
+            selected once, at its first place, and whole when either path names it whole.
 
     Raises:
         WorkingDirectoryReadError: If no root is given, or a path is named, and the working directory cannot be read.
@@ -268,14 +269,42 @@ def select_skills(root: Path | None, paths: list[Path] | None) -> tuple[Database
     root_path = get_root(_working_directory()) if root is None else resolve_root(root)
     database = Database(take_snapshot(root_path, SNAPSHOT_SCOPE))
     if not paths:
-        return database, database.model().skills()
+        return database, select_whole(database.model().skills())
     working_directory = _working_directory()
-    refs: list[SkillRef] = []
+    named: list[SkillSelection] = []
     for argument in paths:
-        for ref in select_skills_at(database, root_path, working_directory, argument):
-            if ref not in refs:
-                refs.append(ref)
-    return database, tuple(refs)
+        named.extend(select_skills_at(database, root_path, working_directory, argument))
+    return database, merge_selections(tuple(named))
+
+
+def merge_selections(selections: tuple[SkillSelection, ...]) -> tuple[SkillSelection, ...]:
+    """The selections with one per skill, each at the place its skill was first named.
+
+    A whole selection replaces one of the same skill's `SKILL.md` alone, wherever either comes, since checking
+    the whole skill checks its `SKILL.md` too.
+
+    Args:
+        selections: What each path named, in the order the paths were given.
+    """
+    merged: list[SkillSelection] = []
+    for selection in selections:
+        _add_selection(merged, selection)
+    return tuple(merged)
+
+
+def _add_selection(selections: list[SkillSelection], selection: SkillSelection) -> None:
+    """Add a selection to the ones merged so far, by the rule `merge_selections` states.
+
+    Args:
+        selections: The selections merged so far, in the order their skills were first named; updated in place.
+        selection: The next selection to merge.
+    """
+    for index, selected in enumerate(selections):
+        if selected.ref == selection.ref:
+            if selection.scope is SkillScope.WHOLE_SKILL:
+                selections[index] = selection
+            return
+    selections.append(selection)
 
 
 def print_run(run: CheckRun, output_format: Literal['text', 'json'], ungoverned: str) -> None:

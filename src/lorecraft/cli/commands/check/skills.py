@@ -28,7 +28,7 @@ def skills(
         typer.Argument(
             help=(
                 'Skills to check, each by a skills directory, a skill directory, or a SKILL.md, relative to the '
-                'current directory. '
+                'current directory; a SKILL.md checks that file alone. '
                 "Defaults to every skill in the agents' skills directories under ROOT."
             )
         ),
@@ -44,14 +44,16 @@ def skills(
 ) -> None:
     """Check each skill against the Agent Skills specification: its SKILL.md and its other Markdown files.
 
+    A skill named by its SKILL.md has that file checked alone.
+
     Exit 0 when clean, 1 when findings exist, and 2 for invalid input.
 
     Raises:
         typer.Exit: With the documented status code for findings or invalid input.
     """
     try:
-        database, refs = select_skills(root, paths)
-        run = SKILLS_CHECK.run(database, refs)
+        database, selections = select_skills(root, paths)
+        run = SKILLS_CHECK.run(database, selections)
     except Error as exc:
         report_failure(exc)
         raise typer.Exit(code=2) from exc
