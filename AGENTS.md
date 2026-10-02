@@ -86,16 +86,29 @@ library is to replace it too.
 Skills live in two places, and the difference is who loads them:
 
 - **`skills/` holds project skills**, shipped to other repositories: the workflow a Lorecraft user follows to
-  write and check their specifications, documents and code rules. A project skill assumes nothing about this
-  repository — no `just` recipe, no workspace skill, no path outside what its `metadata` links in — and calls
-  the installed `lorecraft` command rather than vendoring a script.
+  write and check their specifications, documents, code rules and skills. A project skill assumes nothing about
+  this repository — no `just` recipe, no workspace skill, no path outside what its `metadata` links in — and
+  calls the installed `lorecraft` command rather than vendoring a script.
 - **`.agents/skills/` holds workspace skills**, for working on this repository. It also links each project
-  skill in by symlink, so this repository's agents run the same skills its users do: that is the dogfooding
-  above, applied to skills. `.claude/skills` is a symlink to `.agents/skills/`, so Claude Code and Codex-style
-  agents read the same definitions.
+  skill in by symlink, named as the skill, so this repository's agents run the same skills its users do: that
+  is the dogfooding above, applied to skills. `.claude/skills` is a symlink to `.agents/skills/`, so Claude Code
+  and Codex-style agents read the same definitions.
 
-`/skills-check` holds each kind to its own rules. Prefer a skill over a direct `uv run` or `just` invocation for
-any operation it covers. A user-level skill of the same name may exist; the repository-local skill wins.
+`/skills-check` holds every skill to the Agent Skills specification. This repository adds, by kind:
+
+- A workspace skill may use two extensions the specification does not define, because only this repository's
+  agents load it. One is dynamic context in the body, a `!` followed by a backticked command that the agent runs
+  before loading the skill, each followed by a line telling the agent to run the command itself if it arrives as
+  literal text. The other is a comma-separated `allowed-tools`. Neither adds a frontmatter field: every skill's
+  frontmatter holds to the six fields the specification defines. A project skill uses neither.
+- A workspace skill names a repository file as a path in backticks. A project skill links it in through
+  `metadata` instead, as `/skills-check` describes.
+- `just check-skills` is the gate. It checks every skill an agent reads, so each project skill is checked once,
+  through its symlink.
+- When a skill restates a feature doc and the doc disagrees with the code, that is `/feat-validate`'s finding.
+
+Commit scopes by kind are `/commit`'s. Prefer a skill over a direct `uv run` or `just` invocation for any
+operation it covers. A user-level skill of the same name may exist; the repository-local skill wins.
 
 | Skill | Route to it when |
 |---|---|
