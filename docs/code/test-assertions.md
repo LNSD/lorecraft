@@ -56,7 +56,7 @@ thought to check cannot change unnoticed.
 assert result.violations == (
     Violation(line=LineNumber(3), rule='frontmatter.duplicate-key', message="'name' is already written on line 2"),
 ), 'a key written twice is one violation, on the line that repeats it'
-assert report.violations == (), 'an ungoverned document is never checked, whatever its text'
+assert report.violations == (), 'a document that conforms to its specifications carries no violation'
 ```
 
 ## 3. Project Only When the Sequence Is the Fact
