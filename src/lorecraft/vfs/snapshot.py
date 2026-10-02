@@ -13,7 +13,7 @@ from typing import Self, assert_never
 
 from lorecraft.core.path import ROOT, RootRelativePath
 
-from .root_expansion import RealPath, find_real_path
+from .root_expansion import CanonicalDirectory, CanonicalFile, find_canonical_path
 from .scan_root import ScanRoot
 from .view import DirEntry, EntryKind, FileSystem, RootExit, UnrecordedFileError, decode_text
 
@@ -170,7 +170,7 @@ class VirtualFileSystem(FileSystem):
 
     Anything the snapshot did not record answers like a missing path on disk: an empty listing, a
     ``UnrecordedFileError``, or no directory. A path is walked through the recorded links by
-    `find_real_path`, the walk the scan itself took, so the view reaches nothing through a link chain the
+    `find_canonical_path`, the walk the scan itself took, so the view reaches nothing through a link chain the
     scan did not follow.
     """
 
@@ -261,11 +261,11 @@ class VirtualFileSystem(FileSystem):
             what the snapshot recorded: above the root, an absolute target (one outside the root, since
             `take_snapshot` spells every target under it relative), or a directory outside the scope.
         """
-        leads_to = self._find_real_path(path)
+        leads_to = self._find_canonical_path(path)
         match leads_to:
-            case RealPath(path=directory, kind=EntryKind.DIRECTORY):
+            case CanonicalDirectory(path=directory):
                 return directory
-            case RealPath() | RootExit() | None:
+            case CanonicalFile() | RootExit() | None:
                 return None
             case _:
                 assert_never(leads_to)
@@ -281,13 +281,13 @@ class VirtualFileSystem(FileSystem):
             for a file whose bytes the snapshot did not record, such as one a link the scan did not follow
             leads to.
         """
-        leads_to = self._find_real_path(path)
+        leads_to = self._find_canonical_path(path)
         match leads_to:
-            case RealPath(path=file, kind=EntryKind.FILE):
+            case CanonicalFile(path=file):
                 if file not in self._files:
                     return None
                 return file
-            case RealPath() | RootExit() | None:
+            case CanonicalDirectory() | RootExit() | None:
                 return None
             case _:
                 assert_never(leads_to)
@@ -299,19 +299,19 @@ class VirtualFileSystem(FileSystem):
             path: The root-relative path to walk; only links the snapshot recorded are followed, and nothing
                 outside the root is read, since the snapshot holds nothing there.
         """
-        leads_to = self._find_real_path(path)
+        leads_to = self._find_canonical_path(path)
         match leads_to:
             case RootExit():
                 return leads_to
-            case RealPath() | None:
+            case CanonicalDirectory() | CanonicalFile() | None:
                 return None
             case _:
                 assert_never(leads_to)
 
-    def _find_real_path(self, path: RootRelativePath) -> RealPath | RootExit | None:
+    def _find_canonical_path(self, path: RootRelativePath) -> CanonicalDirectory | CanonicalFile | RootExit | None:
         """Walk `path` through the recorded links to the real directory or file it leads to.
 
-        The walk is `find_real_path`, the one the scan took over the disk, here over what the snapshot
+        The walk is `find_canonical_path`, the one the scan took over the disk, here over what the snapshot
         recorded (`_SnapshotEntries`): every component must be a directory the snapshot knows of or, as the
         last one, a file, a recorded link splices its target in, and a `..` climbs to the parent.
 
@@ -319,16 +319,16 @@ class VirtualFileSystem(FileSystem):
             path: The root-relative path to walk, spelled as given; links in it are followed.
 
         Returns:
-            The real path and its kind, where the chain leaves the root, or `None` when the snapshot holds
+            The real directory or file, where the chain leaves the root, or `None` when the snapshot holds
             nothing there; `find_real_dir` lists the cases.
         """
-        return find_real_path(path, self._entries, follow_links=True)
+        return find_canonical_path(path, self._entries, follow_links=True)
 
 
 class _SnapshotEntries:
     """What a walk of the virtual view sees: every entry a snapshot recorded, and nothing else.
 
-    The `EntryLookup` the view hands to `find_real_path`. It differs from the scope query's recorded links
+    The `EntryLookup` the view hands to `find_canonical_path`. It differs from the scope query's recorded links
     in one way: a path the snapshot recorded nothing at is nothing, never assumed a directory, since the view
     answers what is there and not only where a path would lead.
     """

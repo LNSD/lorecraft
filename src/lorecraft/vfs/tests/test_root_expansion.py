@@ -12,7 +12,14 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 
-from ..root_expansion import MAX_LINKS, RealPath, find_linked_scan_root, find_real_path, find_real_scan_root
+from ..root_expansion import (
+    MAX_LINKS,
+    CanonicalDirectory,
+    CanonicalFile,
+    find_canonical_path,
+    find_linked_scan_root,
+    find_real_scan_root,
+)
 from ..scan_root import ScanRoot
 from ..view import EntryKind, RootExit
 
@@ -93,168 +100,168 @@ class _FakeTree:
 
 
 @pytest.mark.unit
-class TestFindRealPath:
-    def test_find_real_path_with_a_directory_returns_it_as_a_directory(self) -> None:
+class TestFindCanonicalPath:
+    def test_find_canonical_path_with_a_directory_returns_it_as_a_directory(self) -> None:
         #: Given
         tree = _FakeTree(directories=('docs', 'docs/code'))
         path = _path('docs/code')
         #: When
-        leads_to = find_real_path(path, tree, follow_links=False)
+        leads_to = find_canonical_path(path, tree, follow_links=False)
 
         #: Then
-        assert leads_to == RealPath(_path('docs/code'), EntryKind.DIRECTORY), 'a directory leads to itself'
+        assert leads_to == CanonicalDirectory(_path('docs/code')), 'a directory leads to itself'
 
-    def test_find_real_path_with_a_regular_file_returns_it_as_a_file(self) -> None:
+    def test_find_canonical_path_with_a_regular_file_returns_it_as_a_file(self) -> None:
         #: Given
         tree = _FakeTree(directories=('docs',), files=('docs/a.md',))
         path = _path('docs/a.md')
         #: When
-        leads_to = find_real_path(path, tree, follow_links=False)
+        leads_to = find_canonical_path(path, tree, follow_links=False)
 
         #: Then
-        assert leads_to == RealPath(_path('docs/a.md'), EntryKind.FILE), 'a regular file at the end ends the walk'
+        assert leads_to == CanonicalFile(_path('docs/a.md')), 'a regular file at the end ends the walk'
 
-    def test_find_real_path_through_a_file_component_returns_none(self) -> None:
+    def test_find_canonical_path_through_a_file_component_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(directories=('docs',), files=('docs/a.md',))
         path = _path('docs/a.md/b')
         #: When
-        leads_to = find_real_path(path, tree, follow_links=False)
+        leads_to = find_canonical_path(path, tree, follow_links=False)
 
         #: Then
         assert leads_to is None, 'a file on the way is no directory to step into'
 
-    def test_find_real_path_with_a_missing_component_returns_none(self) -> None:
+    def test_find_canonical_path_with_a_missing_component_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(directories=('docs',))
         path = _path('docs/nope/a.md')
         #: When
-        leads_to = find_real_path(path, tree, follow_links=False)
+        leads_to = find_canonical_path(path, tree, follow_links=False)
 
         #: Then
         assert leads_to is None, 'nothing is there to step into'
 
-    def test_find_real_path_with_an_other_entry_returns_none(self) -> None:
+    def test_find_canonical_path_with_an_other_entry_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(directories=('docs',), others=('docs/fifo',))
         path = _path('docs/fifo')
         #: When
-        leads_to = find_real_path(path, tree, follow_links=False)
+        leads_to = find_canonical_path(path, tree, follow_links=False)
 
         #: Then
         assert leads_to is None, 'an entry that is neither a directory nor a regular file is nowhere to read'
 
-    def test_find_real_path_following_a_link_returns_the_directory_it_leads_to(self) -> None:
+    def test_find_canonical_path_following_a_link_returns_the_directory_it_leads_to(self) -> None:
         #: Given
         tree = _FakeTree(directories=('skills', 'skills/a'), links={'docs': 'skills'})
         path = _path('docs/a')
         #: When
-        leads_to = find_real_path(path, tree, follow_links=True)
+        leads_to = find_canonical_path(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to == RealPath(_path('skills/a'), EntryKind.DIRECTORY), 'the link splices its target in'
+        assert leads_to == CanonicalDirectory(_path('skills/a')), 'the link splices its target in'
 
-    def test_find_real_path_not_following_links_with_a_link_on_the_way_returns_none(self) -> None:
+    def test_find_canonical_path_not_following_links_with_a_link_on_the_way_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(directories=('skills', 'skills/a'), links={'docs': 'skills'})
         path = _path('docs/a')
         #: When
-        leads_to = find_real_path(path, tree, follow_links=False)
+        leads_to = find_canonical_path(path, tree, follow_links=False)
 
         #: Then
         assert leads_to is None, 'without following links the walk ends at the first one'
 
-    def test_find_real_path_with_a_link_that_vanished_returns_none(self) -> None:
+    def test_find_canonical_path_with_a_link_that_vanished_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(gone_links=('docs',))
         path = _path('docs/a')
         #: When
-        leads_to = find_real_path(path, tree, follow_links=True)
+        leads_to = find_canonical_path(path, tree, follow_links=True)
 
         #: Then
         assert leads_to is None, 'a link gone before its target was read leads nowhere'
 
-    def test_find_real_path_with_an_absolute_target_returns_the_link_as_the_exit(self) -> None:
+    def test_find_canonical_path_with_an_absolute_target_returns_the_link_as_the_exit(self) -> None:
         #: Given
         tree = _FakeTree(links={'docs': '/srv/docs'})
         path = _path('docs')
         #: When
-        leads_to = find_real_path(path, tree, follow_links=True)
+        leads_to = find_canonical_path(path, tree, follow_links=True)
 
         #: Then
         assert leads_to == RootExit(_path('docs'), PurePosixPath('/srv/docs')), 'an absolute target is outside the root'
 
-    def test_find_real_path_with_a_target_climbing_above_the_root_returns_the_link_as_the_exit(self) -> None:
+    def test_find_canonical_path_with_a_target_climbing_above_the_root_returns_the_link_as_the_exit(self) -> None:
         #: Given
         tree = _FakeTree(links={'docs': '../docs'})
         path = _path('docs')
         #: When
-        leads_to = find_real_path(path, tree, follow_links=True)
+        leads_to = find_canonical_path(path, tree, follow_links=True)
 
         #: Then
         assert leads_to == RootExit(_path('docs'), PurePosixPath('../docs')), 'a target above the root is outside it'
 
-    def test_find_real_path_with_a_link_deeper_down_climbing_above_the_root_returns_it_as_the_exit(self) -> None:
+    def test_find_canonical_path_with_a_link_deeper_down_climbing_above_the_root_returns_it_as_the_exit(self) -> None:
         #: Given
         tree = _FakeTree(directories=('a',), links={'a/l': '../../outside'})
         path = _path('a/l')
         #: When
-        leads_to = find_real_path(path, tree, follow_links=True)
+        leads_to = find_canonical_path(path, tree, follow_links=True)
 
         #: Then
         assert leads_to == RootExit(_path('a/l'), PurePosixPath('../../outside')), (
             'climbing out of the link directory to the root and once more leaves the root'
         )
 
-    def test_find_real_path_with_a_chain_leaving_the_root_returns_the_last_link_as_the_exit(self) -> None:
+    def test_find_canonical_path_with_a_chain_leaving_the_root_returns_the_last_link_as_the_exit(self) -> None:
         #: Given
         tree = _FakeTree(directories=('a',), links={'a/l': '../hop/x', 'hop': '/srv/team'})
         path = _path('a/l')
         #: When
-        leads_to = find_real_path(path, tree, follow_links=True)
+        leads_to = find_canonical_path(path, tree, follow_links=True)
 
         #: Then
         assert leads_to == RootExit(_path('hop'), PurePosixPath('/srv/team')), (
             'the exit is the link the chain leaves through, not the one it started at'
         )
 
-    def test_find_real_path_not_following_links_with_an_absolute_target_returns_none(self) -> None:
+    def test_find_canonical_path_not_following_links_with_an_absolute_target_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(links={'docs': '/srv/docs'})
         path = _path('docs')
         #: When
-        leads_to = find_real_path(path, tree, follow_links=False)
+        leads_to = find_canonical_path(path, tree, follow_links=False)
 
         #: Then
         assert leads_to is None, 'a walk that follows no link never learns where one leads'
 
-    def test_find_real_path_with_a_target_climbing_out_of_the_link_directory_returns_where_it_leads(
+    def test_find_canonical_path_with_a_target_climbing_out_of_the_link_directory_returns_where_it_leads(
         self,
     ) -> None:
         #: Given
         tree = _FakeTree(directories=('a', 'b'), links={'a/l': '../b'})
         path = _path('a/l')
         #: When
-        leads_to = find_real_path(path, tree, follow_links=True)
+        leads_to = find_canonical_path(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to == RealPath(_path('b'), EntryKind.DIRECTORY), 'the directory a link sits in is known'
+        assert leads_to == CanonicalDirectory(_path('b')), 'the directory a link sits in is known'
 
-    def test_find_real_path_with_a_target_climbing_out_of_a_directory_stepped_into_returns_where_it_leads(
+    def test_find_canonical_path_with_a_target_climbing_out_of_a_directory_stepped_into_returns_where_it_leads(
         self,
     ) -> None:
         #: Given
         tree = _FakeTree(directories=('a', 'a/tmp', 'a/alpha'), links={'a/x': 'tmp/../alpha'})
         path = _path('a/x')
         #: When
-        leads_to = find_real_path(path, tree, follow_links=True)
+        leads_to = find_canonical_path(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to == RealPath(_path('a/alpha'), EntryKind.DIRECTORY), (
+        assert leads_to == CanonicalDirectory(_path('a/alpha')), (
             'a `..` after a real directory stepped into by name is its parent'
         )
 
-    def test_find_real_path_with_nested_steps_and_climbs_returns_where_it_leads(self) -> None:
+    def test_find_canonical_path_with_nested_steps_and_climbs_returns_where_it_leads(self) -> None:
         #: Given
         tree = _FakeTree(
             directories=('a', 'a/tmp', 'a/tmp/sub', 'b', 'b/alpha'),
@@ -262,85 +269,85 @@ class TestFindRealPath:
         )
         path = _path('a/x')
         #: When
-        leads_to = find_real_path(path, tree, follow_links=True)
+        leads_to = find_canonical_path(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to == RealPath(_path('b/alpha'), EntryKind.DIRECTORY), (
+        assert leads_to == CanonicalDirectory(_path('b/alpha')), (
             'each `..` climbs out of the real directory the walk is in, however it got there'
         )
 
-    def test_find_real_path_with_a_target_climbing_back_into_the_root_returns_the_root(self) -> None:
+    def test_find_canonical_path_with_a_target_climbing_back_into_the_root_returns_the_root(self) -> None:
         #: Given
         tree = _FakeTree(directories=('a', 'a/tmp'), links={'a/x': 'tmp/../..'})
         path = _path('a/x')
         #: When
-        leads_to = find_real_path(path, tree, follow_links=True)
+        leads_to = find_canonical_path(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to == RealPath(_path('.'), EntryKind.DIRECTORY), 'the root is a directory a chain may end at'
+        assert leads_to == CanonicalDirectory(_path('.')), 'the root is a directory a chain may end at'
 
-    def test_find_real_path_with_a_target_climbing_above_the_root_through_a_stepped_into_directory_returns_the_exit(
+    def test_find_canonical_path_with_a_climb_above_the_root_through_a_stepped_into_directory_returns_the_exit(
         self,
     ) -> None:
         #: Given
         tree = _FakeTree(directories=('a', 'a/tmp'), links={'a/x': 'tmp/../../..'})
         path = _path('a/x')
         #: When
-        leads_to = find_real_path(path, tree, follow_links=True)
+        leads_to = find_canonical_path(path, tree, follow_links=True)
 
         #: Then
         assert leads_to == RootExit(_path('a/x'), PurePosixPath('tmp/../../..')), (
             'past the root is outside it, whatever directories the chain stepped into on the way'
         )
 
-    def test_find_real_path_with_a_climb_through_a_link_climbs_out_of_the_directory_it_leads_to(self) -> None:
+    def test_find_canonical_path_with_a_climb_through_a_link_climbs_out_of_the_directory_it_leads_to(self) -> None:
         #: Given
         tree = _FakeTree(directories=('a', 'b', 'b/c'), links={'a/x': 'y/..', 'a/y': '../b/c'})
         path = _path('a/x')
         #: When
-        leads_to = find_real_path(path, tree, follow_links=True)
+        leads_to = find_canonical_path(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to == RealPath(_path('b'), EntryKind.DIRECTORY), (
+        assert leads_to == CanonicalDirectory(_path('b')), (
             'a `..` after a link is the parent of where the link leads, as the kernel resolves it'
         )
 
-    def test_find_real_path_with_a_climb_through_a_file_returns_none(self) -> None:
+    def test_find_canonical_path_with_a_climb_through_a_file_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(directories=('a', 'a/alpha'), files=('a/f',), links={'a/x': 'f/../alpha'})
         path = _path('a/x')
         #: When
-        leads_to = find_real_path(path, tree, follow_links=True)
+        leads_to = find_canonical_path(path, tree, follow_links=True)
 
         #: Then
         assert leads_to is None, 'a file is no directory to climb out of'
 
-    def test_find_real_path_with_a_climb_through_a_missing_directory_returns_none(self) -> None:
+    def test_find_canonical_path_with_a_climb_through_a_missing_directory_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(directories=('a', 'a/alpha'), links={'a/x': 'missing/../alpha'})
         path = _path('a/x')
         #: When
-        leads_to = find_real_path(path, tree, follow_links=True)
+        leads_to = find_canonical_path(path, tree, follow_links=True)
 
         #: Then
         assert leads_to is None, 'a missing directory is nothing to climb out of'
 
-    def test_find_real_path_with_a_climb_the_lookup_refuses_returns_none(self) -> None:
+    def test_find_canonical_path_with_a_climb_the_lookup_refuses_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(directories=('a', 'a/tmp', 'a/alpha'), links={'a/x': 'tmp/../alpha'}, unclimbable=('a/tmp',))
         path = _path('a/x')
         #: When
-        leads_to = find_real_path(path, tree, follow_links=True)
+        leads_to = find_canonical_path(path, tree, follow_links=True)
 
         #: Then
         assert leads_to is None, 'a `..` the lookup does not vouch for ends the walk'
 
-    def test_find_real_path_with_a_looping_link_returns_none(self) -> None:
+    def test_find_canonical_path_with_a_looping_link_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(links={'docs': 'docs'})
         path = _path('docs')
         #: When
-        leads_to = find_real_path(path, tree, follow_links=True)
+        leads_to = find_canonical_path(path, tree, follow_links=True)
 
         #: Then
         assert leads_to is None, f'a chain longer than {MAX_LINKS} links counts as a loop'
