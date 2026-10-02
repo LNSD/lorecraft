@@ -3,7 +3,7 @@ name: "cli-check-skills"
 description: "lorecraft check skills: validating the frontmatter of each agent skill's SKILL.md against the Agent Skills specification, the name-matches-directory rule, duplicate keys, the 500-line budget on a SKILL.md, links in any of a skill's Markdown files that are absolute, name a heading the file lacks, leave the skill or name nothing in it, and the skill-root resolution they follow, the files a skill links in through `metadata`, symlinks in the skill layout that lead outside the repository, how a skill is named on the command line, and the rule identifiers it reports. Load when a skill finding needs explaining, when running the skill check on its own, or when a skill is not checked"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft.cli.commands.check.skills,module:lorecraft.checks.skill,module:lorecraft.checks.frontmatter_duplicate,module:lorecraft.checks.skill_length,module:lorecraft.checks.skill_link,module:lorecraft.checks.skill_metadata,module:lorecraft.checks.skill_symlink,module:lorecraft.checks.run,module:lorecraft.project.schemas.skill,module:lorecraft.project.schemas.skill_frontmatter,module:lorecraft.project.schemas.frontmatter_problem,module:lorecraft.project.skill,module:lorecraft.project.syntax.lines"
+components: "module:lorecraft.cli,module:lorecraft.checks,module:lorecraft.project"
 ---
 
 # `lorecraft check skills`
@@ -121,10 +121,10 @@ the link findings. A skill's `SKILL.md` findings come first, then each resource'
 An optional field written with no value, such as `license:`, is read as absent and accepted. The name is
 compared with the directory agents list, through any symlink, then the specification applied, then repeated keys
 reported, as the [frontmatter check](cli-check-frontmatter.md#findings) does. Every message is Lorecraft's own,
-so it does not change with the version of the library that validates the fields.
+whatever version of the library validating the fields is installed.
 
-A `skill.metadata-*` finding is on the line of the `metadata` key. Within a subkey, repeated file
-names come first, then missing paths, then paths outside the scope, each in the order written
+A `skill.metadata-*` finding is on the line of the `metadata` key, after the `SKILL.md`'s link findings. Within a
+subkey, repeated file names come first, then missing paths, then paths outside the scope, each in the order written
 and once per occurrence.
 
 A top-level key written again is a `skill.duplicate-key` finding, on the line of each occurrence after the first,
@@ -160,9 +160,12 @@ and it suppresses no other finding; any other finding about that key is on the l
 ## Code References
 
 - `src/lorecraft/cli/commands/check/skills.py` - Declares the command and registers the check with the group
+- `src/lorecraft/cli/check_run.py` - Selects the skills a run checks, merging a skill named twice, and prints the report
+- `src/lorecraft/cli/select.py` - Maps a path argument onto the skills it names, or refuses it
 - `src/lorecraft/checks/skill.py` - The check of one skill's frontmatter
 - `src/lorecraft/checks/skill_length.py` - Holds a `SKILL.md` to the 500-line budget
 - `src/lorecraft/checks/frontmatter_duplicate.py` - Reports a key written twice, for this check and the frontmatter check
+- `src/lorecraft/checks/frontmatter_problem.py` - Names the rule a schema problem breaks and the line it is reported on, for this check and the frontmatter check
 - `src/lorecraft/checks/skill_link.py` - Reports an absolute link, a dangling fragment link, or a link leaving the skill or naming nothing in it
 - `src/lorecraft/checks/run.py` - Reads each skill and its resources, looks up each path a link names, and locates each finding in its file
 - `src/lorecraft/checks/skill_metadata.py` - Reports a duplicate, missing or out-of-scope file in a skill's `metadata`

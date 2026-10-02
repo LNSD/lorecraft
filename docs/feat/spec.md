@@ -3,7 +3,7 @@ name: "spec"
 description: "The specification files under docs/__meta__/: the file types the *.md and *.structure.json patterns claim and the stem left before the pattern, how a stem makes a directory under docs/ a corpus, how corpus and namespace stems layer onto a document, and what an absent or malformed file means. Load when adding a corpus or a namespace specification, or asking why a document is governed, ungoverned or not checked at all"
 type: "meta"
 status: "experimental"
-components: "module:lorecraft.project.schemas.spec_file,module:lorecraft.project.schemas.name,module:lorecraft.project.workspace"
+components: "module:lorecraft.project"
 ---
 
 # Specification Files
@@ -42,20 +42,31 @@ path says which files govern it. Every command that reads a repository loads the
 ### Filenames
 
 A file in `docs/__meta__/` is a specification file when a file type's pattern claims its name: `<stem>.md` or
-`<stem>.structure.json`. The stem opens with a corpus name, lowercase letters, digits and underscores, and a
-corpus name holds no hyphen, so the corpus ends at the first hyphen: a corpus of several words is spelled with
-underscores, so `docs/cli_specs/` is governed by `cli_specs.md` and narrowed by `cli_specs-<namespace>.md`. What
-follows is the namespace: lowercase letters and digits in hyphen-separated words. A stem holds no dot. A file
-whose name does not parse, such as `README.md` or a `<stem>.<token>.json` that no pattern claims, is left out,
+`<stem>.structure.json`. The stem opens with a corpus name, lowercase letters, digits and underscores starting
+with a letter or an underscore, and a corpus name holds no hyphen, so the corpus ends at the first hyphen: a
+corpus of several words is spelled with underscores, so `docs/cli_specs/` is governed by `cli_specs.md` and
+narrowed by `cli_specs-<namespace>.md`. What follows is the namespace: lowercase letters and digits in
+hyphen-separated words, starting with a letter. A stem holds no dot. A file whose name does not parse, such as
+`README.md`, `1abc.md`, `feat-2col.md` or a `<stem>.<token>.json` that no pattern claims, is left out,
 and so is a namespace stem whose corpus has no file at its own stem, or no directory under `docs/`. A
 `<stem>.header.json` from before the frontmatter schema moved into the structure specification is claimed by no
 pattern, like any other unknown JSON file, so it is left out and not read.
 
 ### Loading
 
-Every specification file is read and validated before any document, from one snapshot of the tree. A file that
-cannot be read, is not valid JSON, or does not state usable rules in its dialect stops the whole command with
-an error naming the file.
+Every structure specification whose stem the rules above keep is read and validated before any document, from
+one snapshot of the tree. A prose file is never read: its name alone counts. Nor is any file at a stem left out
+above, such as a namespace stem whose corpus has no directory. A structure specification that cannot be read,
+is not valid JSON, or does not state usable rules in its dialect stops the whole command with an error naming
+the file.
+
+### Governed or Not
+
+Each check decides on its own whether a document is governed. A namespace specification never stands in for its
+corpus specification: with no corpus structure file, a document is ungoverned for every check. With one, the
+structure check governs it whatever keys the files state, the budget check when a structure file that applies
+sets `tokens`, and the frontmatter check only when the corpus file itself states `frontmatter`. An ungoverned
+document is listed, never failed.
 
 ## Limitations
 
@@ -85,8 +96,7 @@ follows the rule above: `feat-cli` governs `cli` and would be extended by a `fea
 A document is governed by its corpus specification, then by each namespace specification whose namespace equals
 its filename or is a hyphen-delimited prefix of it, broad to narrow: `feat-cli` governs `cli.md` and
 `cli-check.md`, not `client.md`. Each is applied on its own, so an extension only adds rules and cannot relax
-its base. A document whose corpus specification has no file a check reads, or whose files state none of the
-keys it reads, is ungoverned for that check and reported as such; frontmatter needs its key in the corpus file.
+its base.
 
 ### References Point to the Base
 

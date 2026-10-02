@@ -3,7 +3,7 @@ name: "cli-check-structure"
 description: "lorecraft check structure: validating each document's H1 title, section order, empty and forbidden sections, and per-section word caps against the structure specifications its path selects, and the rule identifiers it reports. Load when a structure or word cap finding needs explaining, or when running the structure check on its own"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft.cli.commands.check.structure,module:lorecraft.checks.structure,module:lorecraft.project.schemas.structure,module:lorecraft.project.syntax,spec:feat,spec:code"
+components: "module:lorecraft.cli,module:lorecraft.checks,module:lorecraft.project,spec:feat,spec:code"
 ---
 
 # `lorecraft check structure`
@@ -31,7 +31,8 @@ left empty or forbidden, and the prose words each section holds. It is also one 
 - **Structure specification**: A `<stem>.structure.json` file stating the outline, as
   [spec-structure-outline](spec-structure-outline.md) describes, and the word caps, as
   [spec-structure-budget](spec-structure-budget.md) describes.
-- **Word cap**: The most prose words a section may hold. Prose excludes fenced code blocks and table rows.
+- **Word cap**: The most prose words a section may hold. Prose excludes code blocks, fenced or indented, table
+  rows and heading text.
 - **Layer**: Each structure specification that applies to a document; every one is applied on its own, so a
   document must pass the corpus specification and each namespace specification alike.
 
@@ -56,6 +57,17 @@ lorecraft check structure docs/feat/cli-check-structure.md
 ```text
 docs/feat/spec-demo.md:15: [structure.empty] section `Key Concepts` is empty; omit it rather than leaving it empty (per feat.md)
 docs/feat/spec-demo.md:15: [structure.outline] expected section `Table of Contents`, found `Key Concepts` (per feat.md)
+  = help: Links to the sections below it, one numbered entry per section, starting at Key Concepts.
+  = note: for example:
+          ## Table of Contents
+
+          1. [Key Concepts](#key-concepts)
+          2. [Configuration](#configuration)
+          3. [Usage](#usage)
+          4. [Limitations](#limitations)
+          5. [Findings](#findings)
+          6. [References](#references)
+          7. [Code References](#code-references)
 checked 1 file(s), 2 finding(s)
 ```
 
@@ -79,11 +91,11 @@ docs/feat/spec-demo.md:1: [structure.outline] missing required section `Key Conc
 checked 1 file(s), 1 finding(s)
 ```
 
-Every message ends by naming the prose specification the rule comes from, such as `(per feat.md)`, so a
-reader is sent to the rule rather than to the JSON. The output and the exit status are the ones every check
-shares: see [Output](cli-check.md#output) and [Exit Status](cli-check.md#exit-status). A document in a corpus
-with no structure specification is listed as `<corpus>.ungoverned` with the reason `no structure spec for this
-corpus; structure unvalidated`.
+Every message but `structure.undecodable`'s ends by naming the prose specification the rule comes from, such
+as `(per feat.md)`, so a reader is sent to the rule rather than to the JSON. The output and the exit status
+are the ones every check shares: see [Output](cli-check.md#output) and [Exit Status](cli-check.md#exit-status).
+A document in a corpus with no structure specification is listed as `<corpus>.ungoverned` with the reason `no
+structure spec for this corpus; structure unvalidated`.
 
 ## Limitations
 
@@ -94,6 +106,8 @@ corpus; structure unvalidated`.
 - The `tokens` budget a structure specification may set is not read here; `lorecraft check budget` applies it.
 
 ## Findings
+
+A document's findings are reported by line, then by rule identifier.
 
 | Rule | Reported when |
 |------|---------------|
@@ -115,4 +129,6 @@ corpus; structure unvalidated`.
 
 - `src/lorecraft/cli/commands/check/structure.py` - Declares the command and registers the check with the group
 - `src/lorecraft/checks/structure.py` - The check of one document's headings
+- `src/lorecraft/checks/run.py` - Decides whether a document is governed, and parses it
+- `src/lorecraft/project/syntax/document.py` - Reads a document's headings and counts each section's prose words
 - `src/lorecraft/project/schemas/structure.py` - Loads and validates a structure specification

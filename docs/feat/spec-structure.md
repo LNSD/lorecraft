@@ -3,7 +3,7 @@ name: "spec-structure"
 description: "The structure specification file: <stem>.structure.json as the machine-checkable half of a specification, its $schema and description keys, the rule that a file states at least one rule, how a namespace file adds to the corpus file, what is refused on load, and editor validation with the generated docs/schemas/structure.spec.json. Load when creating a structure specification, pointing an editor at the dialect's schema, or one is reported invalid"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft.project.schemas.structure,module:lorecraft.project.schemas.structure_file,spec:feat,spec:code"
+components: "module:lorecraft.project,spec:feat,spec:code"
 ---
 
 # Structure Specification Files
@@ -81,9 +81,9 @@ document could satisfy or that contradicts another.
 ### Validating in an Editor
 
 The dialect's shape is published as a JSON Schema, `docs/schemas/structure.spec.json` in the lorecraft
-repository, generated from the same model the checks read a file with. Keep a copy beside your specifications
-and point `$schema` at it, and an editor validates a structure specification as it is written. It states the
-shape only; a rule that no shape can state is checked on load.
+repository, generated from the same model the checks read a file with. Keep a copy at the same path in your
+repository, where the `$schema` value above points from `docs/__meta__/`, and an editor validates a structure
+specification as it is written. It states the shape only; a rule that no shape can state is checked on load.
 
 ## Limitations
 

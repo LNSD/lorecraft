@@ -3,7 +3,7 @@ name: "workspace"
 description: "The fixed repository layout lorecraft reads: the root holding docs/__meta__/, corpus directories under docs/, the flat Markdown documents inside them, what is left out without a report, and the one snapshot every command reads. Load when laying out a repository for lorecraft, or asking why a directory or a file is not checked"
 type: "meta"
 status: "experimental"
-components: "module:lorecraft.project.layout,module:lorecraft.project.workspace,module:lorecraft.project.corpus,module:lorecraft.project.aspect"
+components: "module:lorecraft.project"
 ---
 
 # Workspace Layout
@@ -13,7 +13,8 @@ components: "module:lorecraft.project.layout,module:lorecraft.project.workspace,
 lorecraft reads one opinionated layout, and it cannot be configured: documentation lives in `docs/`, its
 specifications in `docs/__meta__/`, and each directory beside them is a corpus of flat Markdown documents. A
 repository adopts lorecraft by arranging its documentation this way; nothing else registers a corpus or a
-document. What lorecraft finds in that layout is the workspace model, which every command reads.
+document. What lorecraft finds in that layout is the workspace model, which every command that reads a
+repository works from.
 
 ## Table of Contents
 
@@ -24,7 +25,8 @@ document. What lorecraft finds in that layout is the workspace model, which ever
 
 ## Key Concepts
 
-- **Root**: The directory that holds `docs/__meta__/`; every path lorecraft prints is relative to it.
+- **Root**: The directory that holds `docs/__meta__/`; every path a finding or the model names is relative to
+  it, the root itself is printed absolute, and a refused path argument is echoed as typed.
 - **Corpus**: A directory directly under `docs/` whose documents specifications govern, named by the
   directory.
 - **Document**: A Markdown file directly inside a corpus directory.

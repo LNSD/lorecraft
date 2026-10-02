@@ -3,7 +3,7 @@ name: "spec-structure-outline"
 description: "The outline keys of a structure specification: the title rule for H1 headings, the outline of H2 sections with required, optional and any entries, empty_sections and forbidden sections, how a namespace outline adds to the corpus outline, and which outlines are refused on load. Load when writing or changing a section outline, requiring, ordering or forbidding a section, or an outline is reported invalid"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft.project.schemas.structure,module:lorecraft.project.schemas.structure_file,module:lorecraft.checks.structure,spec:feat,spec:code"
+components: "module:lorecraft.project,module:lorecraft.checks,spec:feat,spec:code"
 ---
 
 # Section Outline Rules

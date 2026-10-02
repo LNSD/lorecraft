@@ -3,7 +3,7 @@ name: "cli-inspect"
 description: "lorecraft inspect: printing the workspace model a repository root declares, its corpora, their specification stems and files, the stems governing each document, and the agent skills with the agents that read them, as a tree or as JSON. Load when asking which specifications govern a document, why a document is not checked, which agents read a skill, or scripting against the workspace model"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft.cli.commands.inspect,module:lorecraft.cli.workspace_tree,module:lorecraft.project.workspace"
+components: "module:lorecraft.cli,module:lorecraft.project"
 ---
 
 # `lorecraft inspect`
@@ -58,22 +58,22 @@ lorecraft inspect ../other-repo --json
 ### Output
 
 The text form is a tree on stdout, rooted at the absolute root path. A document's stems follow it in
-brackets. An excerpt, from this repository:
+brackets. An excerpt, from a repository with two feature documents and two skills:
 
 ```text
 └── feat (docs/feat)
     ├── specs (2)
     │   ├── feat: feat.md, feat.structure.json
     │   └── feat-cli: feat-cli.md, feat-cli.structure.json
-    └── documents (5)
+    └── documents (2)
         ├── cli.md [feat, feat-cli]
-        ├── cli-check.md [feat, feat-cli]
+        └── cli-check.md [feat, feat-cli]
 ```
 
 With `--json`, stdout is one object. It holds `root`, and `corpora`, each with `name`, `directory`, `specs` as
 `stem` and `files`, and `documents` as `path` and `governed_by`. `governed_by` lists the files of each governing
-stem, broad to narrow, so a reader opens a document's specifications without mapping a stem to its files. Paths
-are root-relative.
+stem, broad to narrow, so a reader opens a document's specifications without mapping a stem to its files. `root`
+is absolute, and every other path is root-relative.
 
 ```json
 {
@@ -115,7 +115,7 @@ skills, and both exit `0`.
 | `2`  | A usage error, including a `ROOT` that is not an existing directory |
 
 ```text
-error: invalid JSON in schema docs/__meta__/feat.structure.json: Expecting property name enclosed in double quotes
+error: invalid structure schema docs/__meta__/feat.structure.json: Invalid JSON: key must be a string at line 2 column 3
 ```
 
 ## Limitations
@@ -123,6 +123,8 @@ error: invalid JSON in schema docs/__meta__/feat.structure.json: Expecting prope
 - A skill is shown as found, not as valid: `inspect` does not read a `SKILL.md`;
   [check skills](cli-check-skills.md) does.
 - A skill entry that is a symlink does not show where it leads.
+- A skills directory, a skill entry or a `SKILL.md` whose symlink leads outside the repository is left out of
+  the tree; [check skills](cli-check-skills.md) reports it.
 - A file the model [leaves out](workspace.md#left-out-not-reported), such as a Markdown file in a
   subdirectory of a corpus, is not shown at all.
 

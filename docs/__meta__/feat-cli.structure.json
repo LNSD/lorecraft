@@ -6,8 +6,8 @@
     "properties": {
       "components": {
         "type": "string",
-        "pattern": "(?:^|,)\\s*module:lorecraft\\.cli(?:\\.[a-z0-9_]+)+\\s*(?:,|$)",
-        "description": "Holds at least one module:lorecraft.cli entry: the module that declares the command, under lorecraft.cli.commands, or lorecraft.cli.app for cli.md. Which module is the right one is verified by reading."
+        "pattern": "(?:^|,)\\s*module:lorecraft\\.cli\\s*(?:,|$)",
+        "description": "Holds module:lorecraft.cli, the package that declares every command."
       }
     }
   },
