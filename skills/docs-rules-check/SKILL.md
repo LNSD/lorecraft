@@ -3,7 +3,7 @@ name: docs-rules-check
 description: Review documents under docs/ and the Lorecraft specifications in docs/__meta__/ that govern them - run lorecraft check for frontmatter, section outline, word caps and token budget, walk each specification's checklist for what a machine cannot decide, and check that each changed specification loads, that its prose and JSON agree, and that it governs the documents intended. Use after editing anything under docs/, when reviewing a pull request that touches docs/, before committing, when lorecraft check exits 2 or a document is unexpectedly ungoverned, or when setting the checks up in CI. Not for writing documents or specifications; see /docs-rules and /docs-rules-creator
 compatibility: Requires the lorecraft command, on PATH or run through uvx lorecraft, or uv run lorecraft in a uv project that declares Lorecraft as a dependency, and a git checkout
 metadata:
-  references: docs/feat/cli-check.md docs/feat/cli-check-frontmatter.md docs/feat/cli-check-structure.md docs/feat/cli-check-budget.md docs/feat/cli-inspect.md docs/feat/spec.md docs/feat/spec-structure.md docs/feat/spec-structure-budget.md docs/feat/spec-structure-frontmatter.md docs/feat/spec-structure-outline.md
+  references: docs/feat/cli-check.md docs/feat/cli-check-frontmatter.md docs/feat/cli-check-structure.md docs/feat/cli-check-budget.md docs/feat/cli-check-skills.md docs/feat/cli-inspect.md docs/feat/spec.md docs/feat/spec-structure.md docs/feat/spec-structure-budget.md docs/feat/spec-structure-frontmatter.md docs/feat/spec-structure-outline.md
 allowed-tools: Bash(lorecraft check*) Bash(lorecraft inspect*) Bash(uvx lorecraft *) Bash(uv run lorecraft *) Bash(git diff *) Bash(git status *) Bash(git merge-base *) Bash(grep *) Bash(ls docs/*)
 ---
 
@@ -55,7 +55,7 @@ patterns, `name` against the filename, the title, section order, empty and forbi
 token budget. Do not check those by hand.
 
 ```bash
-lorecraft check                              # every check over every document, one read of the tree
+lorecraft check                              # every check over every document and skill, one read of the tree
 lorecraft check frontmatter <files>          # frontmatter, the structure spec's frontmatter key
 lorecraft check structure <files>            # sections and word caps, against <stem>.structure.json
 lorecraft check budget <files>               # the whole-file token budget, the structure spec's tokens key
@@ -70,6 +70,9 @@ could not happen: a rejected path, or a specification that cannot be loaded — 
 identifiers are explained in its guide: [check](references/cli-check.md),
 [frontmatter](references/cli-check-frontmatter.md), [structure](references/cli-check-structure.md),
 [budget](references/cli-check-budget.md).
+
+A bare run checks every agent skill too. A `skill.*` finding is about a skill, not a document, and falls
+outside this review; [check skills](references/cli-check-skills.md#findings) explains each.
 
 A word cap or budget finding on a section the change added to blocks, like any other finding. One on a section
 the change did not touch is pre-existing: report it as such. The fix for an overage is to move or cut, never to
@@ -158,6 +161,7 @@ Findings, per document or stem, most severe first, one per line, with the fix:
 
 ## Setting the checks up in CI
 
-`lorecraft check` with no arguments is the whole gate: it runs every check over every document and exits
-non-zero on a finding or a specification that cannot load. Run it in CI and in a pre-commit hook as is; do not
-narrow it to changed files, since a change to one document or specification can break another.
+`lorecraft check` with no arguments is the whole gate: it runs every check over every document and every
+skill, and exits non-zero on a finding or a specification that cannot load. Run it in CI and in a pre-commit
+hook as is; do not narrow it to changed files, since a change to one document or specification can break
+another.

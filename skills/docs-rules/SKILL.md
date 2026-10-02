@@ -29,7 +29,7 @@ Every command below calls `lorecraft` directly. Where it is not on `PATH`, run `
 Do not resolve specifications by hand. `lorecraft inspect` resolves them with the same rules the checks apply:
 
 ```bash
-lorecraft inspect          # a tree: corpora, their specification stems, each document with its stems
+lorecraft inspect          # a tree: corpora, their specification stems, each document with its stems, then the skills
 lorecraft inspect --json   # the same model; each document's governed_by lists its files
 ```
 
@@ -37,7 +37,8 @@ In the tree, each document is followed by the stems governing it, broad to narro
 code-pattern]` answers to `docs/__meta__/code.md`, then `docs/__meta__/code-pattern.md`. The `.json` file at
 the same stem is the machine-checkable half the checks run: `<stem>.structure.json`, for the frontmatter
 under its `frontmatter` key, the sections, the word caps and the token budget. [cli-inspect](references/cli-inspect.md)
-describes the output.
+describes the output. The tree ends with the agent skills and the agents that read them, which writing a
+document does not need.
 
 A document not yet written is not listed: create the file, empty if need be, and run it again. A file that
 exists but is not listed is outside every corpus, and a corpus with no specification for an aspect is
