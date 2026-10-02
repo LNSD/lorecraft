@@ -7,12 +7,12 @@ This is the composition root of the skill check: it selects the skills of one sn
 """
 
 from pathlib import Path
-from typing import Annotated, Final, Literal
+from typing import Annotated, Final
 
 import typer
 
 from lorecraft.checks import run_skills
-from lorecraft.cli.check_run import SkillCheck, print_skill_run, register_skill_check, select_skills
+from lorecraft.cli.check_run import OutputFormat, SkillCheck, print_skill_run, register_skill_check, select_skills
 from lorecraft.cli.failure import report_failure
 from lorecraft.core.error import Error
 
@@ -38,9 +38,9 @@ def skills(
         typer.Option('--root', help='Repository root. Defaults to the nearest parent containing docs/__meta__.'),
     ] = None,
     output_format: Annotated[
-        Literal['text', 'json'],
+        OutputFormat,
         typer.Option('--format', help='Output format: text or json.'),
-    ] = 'text',
+    ] = OutputFormat.TEXT,
 ) -> None:
     """Check each skill against the Agent Skills specification: its SKILL.md and its other Markdown files.
 
