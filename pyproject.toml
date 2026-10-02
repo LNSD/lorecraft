@@ -179,6 +179,11 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 # A test's name says what it pins; its module still carries a docstring.
 "**/tests/**" = ["D101", "D102", "D103", "D106"]
+# Typer prints a command's docstring as its `--help` and stops at a form feed, `\f`, which marks where the sections
+# for code readers begin. A raw docstring would hold a backslash and an `f` instead, so these stay non-raw. The root
+# callback in `cli/app.py` is left out: it raises nothing, so it has no section to cut. The rule is in
+# docs/code/python-typer.md.
+"src/lorecraft/cli/commands/**" = ["D301"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

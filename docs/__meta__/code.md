@@ -170,7 +170,7 @@ narrowed by every `code-<namespace>.md` specification whose namespace matches it
 name: "rule-name-kebab-case"
 description: "Brief description. Load when [trigger conditions]"
 type: "principle|core|arch|pkg|meta"
-scope: "global|pkg:<name>"
+scope: "global|pkg:<name>|<purl>"
 ---
 ```
 
@@ -181,7 +181,7 @@ scope: "global|pkg:<name>"
 | `name`        | YES      | `^[a-z0-9]+(-[a-z0-9]+)*$`   | Unique identifier matching filename (minus .md)                        |
 | `description` | YES      | Single line, succinct        | Discovery-optimized description (see Description Guidelines below)     |
 | `type`        | YES      | `principle`, `core`, `arch`, `pkg`, or `meta` | Rule category (see Type Definitions below)              |
-| `scope`       | YES      | `^(global\|pkg:[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)*)$` | Application scope: global or package-specific |
+| `scope`       | YES      | `global`, `pkg:<name>`, or a purl | Application scope: global, one package of the project, or one dependency |
 
 **All four values are double-quoted**, as the block above writes them. YAML accepts a bare `type: core`, so
 the two forms coexist happily and drift apart silently; one form means a diff on the field is always a change
@@ -192,7 +192,7 @@ of value, never a change of style.
 | Type   | Purpose                          | Scope           | Characteristics                                      |
 |--------|----------------------------------|-----------------|------------------------------------------------------|
 | `principle` | Universal software principles | Always `global` | Best practices for optimal code quality              |
-| `core` | Fundamental coding patterns      | Always `global` | Applicable across entire codebase                    |
+| `core` | Fundamental coding patterns      | `global`, or a dependency's purl | Applicable across entire codebase |
 | `arch` | Architectural patterns           | Always `global` | High-level organizational and structural patterns    |
 | `pkg`  | Package-specific patterns        | `pkg:<name>`    | Patterns for individual packages or modules          |
 | `meta` | Documentation about documentation| Always `global` | Format specifications and conventions                |
@@ -210,6 +210,13 @@ only holds for one language, one layer, or one dependency is not a principle.
 Fundamental coding standards applicable across the entire codebase: how exceptions are raised and reported, how
 modules and imports are laid out, how code is documented, how tests are organized, how logging is written.
 Most rules are `core`.
+
+A `core` rule about using one third-party dependency is scoped to that dependency's package URL, a
+[purl](https://github.com/package-url/purl-spec), written whole as its specification defines it: its
+ecosystem decides the rest, as in `pkg:pypi/typer`, `pkg:cargo/serde` or `pkg:docker/library/nginx`. A purl
+always holds a `/`, which tells it from a `pkg:<name>` scope naming a package of this project. The scope
+says which dependency the rule is about, so the rule is found from the dependency, and a change that drops
+the dependency knows which rules go with it.
 
 #### `arch` - Architectural Rules
 
@@ -248,7 +255,8 @@ The two fields are not independent. A document that breaks one of these pairings
 
 | Constraint | Meaning |
 |------------|---------|
-| `type: principle`, `core`, or `arch` | ⇒ `scope: "global"` |
+| `type: principle` or `arch` | ⇒ `scope: "global"` |
+| `type: core` | ⇒ `scope: "global"`, or the purl of the one dependency the rule is about |
 | `type: pkg` | ⇒ `scope: "pkg:<name>"` |
 | `name: pkg-<x>` | ⇒ `type: pkg` (a `pkg-` name implies the type; a group of package-scoped documents may carry it under its own prefix) |
 | `type: meta` | ⇒ `scope: "global"`, and the file lives in `docs/__meta__/` |
@@ -593,7 +601,7 @@ Use this template when creating new rule documents:
 name: "{{rule-name-kebab-case}}"
 description: "{{Brief summary. Load when [trigger conditions], no period}}"
 type: "{{principle|core|arch|pkg|meta}}"
-scope: "{{global or pkg:<name>}}"
+scope: "{{global, pkg:<name>, or a dependency's purl}}"
 ---
 
 # {{Document Title - Human Readable}}
@@ -657,7 +665,7 @@ Before committing a rule document:
 - [ ] Valid YAML frontmatter with opening and closing `---`
 - [ ] `name` is kebab-case and matches filename (minus .md)
 - [ ] `type` is one of: `principle`, `core`, `arch`, `pkg`, `meta`
-- [ ] `scope` is valid: `global` or `pkg:<name>` (snake_case, dotted for nesting)
+- [ ] `scope` is valid: `global`, `pkg:<name>` (snake_case, dotted for nesting), or a dependency's purl
 - [ ] `type` and `scope` are paired as [§2](#2-frontmatter-requirements) requires
 - [ ] `description` includes "Load when" trigger clause (no ending period)
 - [ ] Frontmatter is valid YAML (no syntax errors)

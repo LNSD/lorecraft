@@ -71,7 +71,7 @@ Both recipes accept extra flags, which are passed straight through to ruff.
 
 The select list is deliberately narrow: `E` (pycodestyle), `F` (pyflakes), `I` (isort ordering),
 `B` (bugbear), and `D` (pydocstyle, Google convention, with the exemptions
-`docs/code/python-docstrings.md` gives). `D` checks a docstring's layout,
+`pyproject.toml` declares, each with its reason beside it). `D` checks a docstring's layout,
 never its Markdown. **There is no type checker in this repository** — no mypy, no pyright, no pre-commit
 hook. An annotation is a claim nothing verifies, so a wrong one survives every gate here and must be
 caught by review.

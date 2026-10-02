@@ -24,7 +24,7 @@ Every python rule document contains the following parts in order.
 | `name` | `python-<facet>` or `python-<facet>-<segment>` | Matches filename minus `.md` |
 | `description` | Discovery-optimized summary | No trailing period |
 | `type` | `"core"` | Always |
-| `scope` | `"global"` | Always |
+| `scope` | `"pkg:pypi/<name>"` or `"global"` | The package's purl for a document about one package; `"global"` otherwise |
 
 Every value is **quoted**, `type` included. This is the form [code.md §2](code.md#2-frontmatter-requirements)
 writes and the form the sibling templates pin; a bare `type: core` is a defect to fix, not a variant.
@@ -32,6 +32,12 @@ writes and the form the sibling templates pin; a bare `type: core` is a defect t
 A `python-*` document is `"core"`. A rule about packaging, distribution shape, or build configuration governs
 where code lives rather than how it is written, which is a different subject and takes `"arch"`
 ([code.md §2](code.md#2-frontmatter-requirements)).
+
+A `python-*` document about one third-party package, its API and how the project uses it, is scoped to that
+package's purl: `python-typer` is `"pkg:pypi/typer"`, and a document about anyio's task groups is
+`"pkg:pypi/anyio"`. Every other `python-*` document is `"global"`, one about a standard-library module
+included, since the standard library has no package to name. A package mentioned beside the language's own
+constructs, as pydantic is in a document choosing between it and `@dataclass`, does not narrow the scope.
 
 See [code.md §2](code.md#2-frontmatter-requirements) for field rules and description guidelines.
 See [code.md §3](code.md#3-naming-schema) for full naming rules.
@@ -48,8 +54,9 @@ The title is not the filename respelled. `python-typing` is "Type Annotations", 
 
 #### Scope line (omitted)
 
-**No scope line.** A `python-*` document is `scope: "global"` and governs all Python code in the project, so a
-bold line saying so restates the frontmatter, the title, and the corpus-wide mandate in
+**No scope line.** A `python-*` document is `scope: "global"` and governs all Python code in the project, or is
+scoped to the one dependency it is about, `pkg:pypi/<name>`, as [code.md §2](code.md#2-frontmatter-requirements)
+has it. Either way a bold line saying so restates the frontmatter, the title, and the corpus-wide mandate in
 [code.md §1](code.md#1-core-principles). The H1 is followed directly by the doctrine paragraph.
 
 Write one only where the document's subject is genuinely narrower than Python source — a single file type, a
@@ -191,7 +198,7 @@ Every python rule document MUST follow this template:
 name: "python-<facet>[-<segment>]"
 description: "{{Brief summary. Load when [trigger conditions], no period}}"
 type: "core"
-scope: "global"
+scope: "{{pkg:pypi/<name> for a document about one package, or global}}"
 ---
 
 # {{Construct the document governs}}

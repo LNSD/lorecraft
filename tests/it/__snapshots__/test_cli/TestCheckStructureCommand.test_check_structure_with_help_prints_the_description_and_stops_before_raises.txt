@@ -1,0 +1,21 @@
+                                                                                
+ Usage: lorecraft check structure [OPTIONS] [paths]...                          
+                                                                                
+ Check section structure against the target repository's structure              
+ specifications.                                                                
+                                                                                
+ Exit 0 when clean, 1 when findings exist, and 2 for invalid input or           
+ specifications.                                                                
+                                                                                
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│   paths      <path>  Markdown files to check, relative to the current        │
+│                      directory. Defaults to every Markdown file directly     │
+│                      inside a corpus directory under ROOT/docs.              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --root          <path>       Repository root. Defaults to the nearest parent │
+│                              containing docs/__meta__.                       │
+│ --format        <text|json>  Output format: text or json. [default: text]    │
+│ --help                       Show this message and exit.                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+

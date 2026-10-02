@@ -1,6 +1,6 @@
 {
   "$schema": "../schemas/structure.spec.json",
-  "description": "Narrows code.structure.json for docs/code/python-*.md, which is applied as well. The prose authority is docs/__meta__/code-python.md; a python document's rule sections are named by their rules, so this file adds only the fixed type and scope in the frontmatter, and that References is not optional here. Where References sits is code.structure.json's business.",
+  "description": "Narrows code.structure.json for docs/code/python-*.md, which is applied as well. The prose authority is docs/__meta__/code-python.md; a python document's rule sections are named by their rules, so this file adds only the fixed type and the scopes allowed in the frontmatter, and that References is not optional here. Where References sits is code.structure.json's business.",
   "frontmatter": {
     "type": "object",
     "properties": {
@@ -8,7 +8,10 @@
         "const": "core",
         "$comment": "A python-* document says how Python source is written, which is always core. A rule about packaging, distribution shape, or build configuration governs where code lives instead, and belongs under a prefix that names that subject."
       },
-      "scope": { "const": "global" }
+      "scope": {
+        "pattern": "^(?:global|pkg:pypi/[a-z0-9]+(?:[-._][a-z0-9]+)*)$",
+        "$comment": "global, or the package URL of the one dependency a python-* document is about, as in pkg:pypi/typer."
+      }
     }
   },
   "outline": [
