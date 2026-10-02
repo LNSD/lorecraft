@@ -10,8 +10,8 @@ scope: "global"
 A test's directory says what it needs to run, and its marker says the same thing to pytest. Those two facts
 must agree, because the directory is what a reader selects on and the marker is what `just` and CI select on,
 and a test whose marker disagrees with its directory runs in a suite that cannot satisfy it. Everything inside
-a test function — its name, its structure, its assertions, its fixtures — is owned by
-[test-functions](test-functions.md). This document owns where a test lives and what selects it.
+a test function — its name, its structure, its fixtures — is owned by [test-functions](test-functions.md),
+and what it asserts by [test-assertions](test-assertions.md). This document owns where a test lives and what selects it.
 
 ## 1. One Tier, One Directory
 
@@ -276,7 +276,8 @@ Before committing code, verify:
 
 ## References
 
-- [test-functions](test-functions.md) - Related: Owns everything inside the test function — naming, one behaviour and one case per test, assertions, fixtures
+- [test-functions](test-functions.md) - Related: Owns everything inside the test function — naming, one behaviour and one case per test, fixtures
+- [test-assertions](test-assertions.md) - Related: Owns what a test asserts and the message each assertion carries
 - [pattern-resource-lifecycle](pattern-resource-lifecycle.md) - Related: Owns the acquire/release contract a scoped fixture drives
 - [logging](logging.md) - Related: Owns the log lines a failing test is read through
 - [python-modules](python-modules.md) - Related: Owns the import form a co-located unit test uses and the ban on underscored package names

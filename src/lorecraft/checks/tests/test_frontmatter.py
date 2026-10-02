@@ -159,9 +159,13 @@ class TestValidateFrontmatter:
         result = validate_frontmatter(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
 
         #: Then
-        assert [(violation.line, violation.rule) for violation in result.violations] == [
-            (LineNumber(3), 'code.unknown-field')
-        ], 'a field the schema does not allow is reported on its own line, as the skill check reports one'
+        assert len(result.violations) == 1, (
+            f'a field the schema does not allow is reported once, got {result.violations}'
+        )
+        assert result.violations[0].line == LineNumber(3), 'the unknown field is reported on the line it is written on'
+        assert result.violations[0].rule == 'code.unknown-field', (
+            'a field outside the schema breaks the unknown-field rule'
+        )
 
     def test_validate_frontmatter_with_a_name_mismatch_and_a_schema_problem_reports_the_name_first(self) -> None:
         #: Given

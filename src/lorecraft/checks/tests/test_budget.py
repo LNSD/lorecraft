@@ -43,9 +43,14 @@ class TestValidateBudget:
         result = validate_budget(aspects, token_count=7)
 
         #: Then
-        assert [(violation.line, violation.rule, violation.message) for violation in result.violations] == [
-            (LineNumber(1), 'budget.tokens', '7 tokens; the budget is 6 (per code.structure.json)')
-        ], 'a file over the token budget is reported once, on line 1'
+        assert len(result.violations) == 1, f'a file over the token budget is reported once, got {result.violations}'
+        assert result.violations[0].line == LineNumber(1), (
+            'a budget violation has no line of its own, so it is on line 1'
+        )
+        assert result.violations[0].rule == 'budget.tokens', 'going over the budget breaks the token budget rule'
+        assert result.violations[0].message == '7 tokens; the budget is 6 (per code.structure.json)', (
+            'the message states the tokens found, the budget and the specification it comes from'
+        )
 
     def test_validate_budget_with_a_file_at_the_budget_returns_no_violations(self) -> None:
         #: Given
