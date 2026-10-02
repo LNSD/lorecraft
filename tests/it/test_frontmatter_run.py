@@ -11,7 +11,14 @@ from typing import Final
 
 import pytest
 
-from lorecraft.checks import CheckRun, Database, Violation, run_frontmatter
+from lorecraft.checks import (
+    CheckRun,
+    Database,
+    GovernedDocumentReport,
+    UngovernedDocumentReport,
+    Violation,
+    run_frontmatter,
+)
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.syntax import LineNumber
@@ -112,7 +119,7 @@ class TestRunFrontmatter:
         run = _run_every_document(database)
 
         #: Then
-        ungoverned = [report.ref.path for report in run.reports if not report.governed]
+        ungoverned = [report.ref.path for report in run.reports if isinstance(report, UngovernedDocumentReport)]
         assert ungoverned == [RootRelativePath.parse('docs/feat/overview.md')], (
             'the feat structure specification states no frontmatter schema, so its one document is ungoverned'
         )
@@ -146,7 +153,7 @@ class TestRunFrontmatter:
         run = _run_every_document(database)
 
         #: Then
-        assert [report.violations for report in run.reports] == [
+        assert [report.violations for report in run.reports if isinstance(report, GovernedDocumentReport)] == [
             (
                 Violation(
                     line=LineNumber(4),
@@ -172,7 +179,7 @@ class TestRunFrontmatter:
         run = _run_every_document(database)
 
         #: Then
-        assert [report.violations for report in run.reports] == [
+        assert [report.violations for report in run.reports if isinstance(report, GovernedDocumentReport)] == [
             (
                 Violation(
                     line=LineNumber(4),
@@ -196,7 +203,7 @@ class TestRunFrontmatter:
         run = _run_every_document(database)
 
         #: Then
-        assert [report.violations for report in run.reports] == [
+        assert [report.violations for report in run.reports if isinstance(report, GovernedDocumentReport)] == [
             (),
             (
                 Violation(
@@ -227,7 +234,7 @@ class TestRunFrontmatter:
         run = _run_every_document(database)
 
         #: Then
-        assert [report.violations for report in run.reports] == [
+        assert [report.violations for report in run.reports if isinstance(report, GovernedDocumentReport)] == [
             (),
             (
                 Violation(
@@ -255,7 +262,11 @@ class TestRunFrontmatter:
         run = _run_every_document(database)
 
         #: Then
-        assert [(report.ref.path, report.governed) for report in run.reports] == [
-            (RootRelativePath.parse('docs/api/intro.md'), False),
-            (RootRelativePath.parse('docs/code/guide.md'), True),
-        ], 'the api corpus states no frontmatter schema, and skipping its document does not end the run'
+        reports = [(report.ref.path, type(report)) for report in run.reports]
+        assert len(reports) == 2, f'every selected document is reported, got {reports}'
+        assert reports[0] == (RootRelativePath.parse('docs/api/intro.md'), UngovernedDocumentReport), (
+            'the api corpus states no frontmatter schema, so its document is ungoverned'
+        )
+        assert reports[1] == (RootRelativePath.parse('docs/code/guide.md'), GovernedDocumentReport), (
+            'skipping the ungoverned document does not end the run'
+        )

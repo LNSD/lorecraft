@@ -65,23 +65,37 @@ from .structure import validate_structure
 
 
 @dataclass(frozen=True, slots=True)
-class DocumentReport:
-    """The outcome of checking one selected document.
+class GovernedDocumentReport:
+    """The outcome of checking one selected document that a specification governs for the check's aspect.
 
     Attributes:
         ref: The document the report is about; its path is the report path.
-        governed: False when no specification governs the document for the check's aspect; the document was
-            then never parsed.
-        violations: What the check found, without the document's path; empty for an ungoverned document.
+        violations: What the check found, without the document's path; empty when the document conforms.
     """
 
     ref: DocumentRef
-    governed: bool
     violations: tuple[Violation, ...]
 
     def findings(self) -> tuple[Finding, ...]:
         """Every violation, located in the report's document; empty exactly when the document is clean."""
         return tuple(Finding.at(self.ref.path, violation) for violation in self.violations)
+
+
+@dataclass(frozen=True, slots=True)
+class UngovernedDocumentReport:
+    """The outcome of selecting a document no specification governs for the check's aspect.
+
+    The document was never parsed, so there is nothing it could violate.
+
+    Attributes:
+        ref: The document the report is about; its path is the report path.
+    """
+
+    ref: DocumentRef
+
+
+type DocumentReport = GovernedDocumentReport | UngovernedDocumentReport
+"""The outcome of checking one selected document: governed and checked, or ungoverned and never read."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,10 +109,16 @@ class CheckRun:
     reports: tuple[DocumentReport, ...]
 
     def findings(self) -> tuple[Finding, ...]:
-        """Every finding of every report, in report order; empty exactly when the run is clean."""
+        """Every finding of every governed report, in report order; empty exactly when the run is clean."""
         findings: list[Finding] = []
         for report in self.reports:
-            findings.extend(report.findings())
+            match report:
+                case GovernedDocumentReport():
+                    findings.extend(report.findings())
+                case UngovernedDocumentReport():
+                    pass
+                case _:
+                    assert_never(report)
         return tuple(findings)
 
 
@@ -263,17 +283,17 @@ def run_frontmatter(database: Database, refs: tuple[DocumentRef, ...]) -> CheckR
     for ref in refs:
         schemas = database.model().governance(ref).frontmatter_schemas()
         if not schemas:
-            reports.append(DocumentReport(ref, governed=False, violations=()))
+            reports.append(UngovernedDocumentReport(ref))
             continue
         frontmatter = _frontmatter(database, ref)
         match frontmatter:
             case DocumentDecodeError():
-                reports.append(DocumentReport(ref, governed=True, violations=(_undecodable('frontmatter'),)))
+                reports.append(GovernedDocumentReport(ref, violations=(_undecodable('frontmatter'),)))
             case Frontmatter() | MissingFrontmatter() | InvalidYamlFrontmatter() | NonMappingFrontmatter():
                 result = validate_frontmatter(
                     schemas, frontmatter=frontmatter, filename=ref.filename, corpus=ref.corpus
                 )
-                reports.append(DocumentReport(ref, governed=True, violations=result.violations))
+                reports.append(GovernedDocumentReport(ref, violations=result.violations))
             case _:
                 assert_never(frontmatter)
     return CheckRun(reports=tuple(reports))
@@ -326,15 +346,15 @@ def run_structure(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun
     for ref in refs:
         aspects = database.model().governance(ref).structure_specs()
         if not aspects:
-            reports.append(DocumentReport(ref, governed=False, violations=()))
+            reports.append(UngovernedDocumentReport(ref))
             continue
         document = _parse(database, ref)
         match document:
             case DocumentDecodeError():
-                reports.append(DocumentReport(ref, governed=True, violations=(_undecodable('structure'),)))
+                reports.append(GovernedDocumentReport(ref, violations=(_undecodable('structure'),)))
             case ParsedDocument():
                 result = validate_structure(aspects, headings=document.headings)
-                reports.append(DocumentReport(ref, governed=True, violations=result.violations))
+                reports.append(GovernedDocumentReport(ref, violations=result.violations))
             case _:
                 assert_never(document)
     return CheckRun(reports=tuple(reports))
@@ -389,15 +409,15 @@ def run_budget(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
     for ref in refs:
         aspects = _budgeted(database.model().governance(ref).structure_specs())
         if not aspects:
-            reports.append(DocumentReport(ref, governed=False, violations=()))
+            reports.append(UngovernedDocumentReport(ref))
             continue
         token_count = _tokens(database, ref)
         match token_count:
             case DocumentDecodeError():
-                reports.append(DocumentReport(ref, governed=True, violations=(_undecodable('budget'),)))
+                reports.append(GovernedDocumentReport(ref, violations=(_undecodable('budget'),)))
             case int():
                 result = validate_budget(aspects, token_count=token_count)
-                reports.append(DocumentReport(ref, governed=True, violations=result.violations))
+                reports.append(GovernedDocumentReport(ref, violations=result.violations))
             case _:
                 assert_never(token_count)
     return CheckRun(reports=tuple(reports))
