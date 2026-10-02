@@ -116,6 +116,11 @@ npx skills add https://github.com/lnsd/lorecraft/tree/main/skills
 
 Or copy them into your agent's skills directory, such as `.claude/skills/` or `.agents/skills/`.
 
+## Contributing
+
+Read [CONTRIBUTING.md](https://github.com/lnsd/lorecraft/blob/main/CONTRIBUTING.md) before opening a pull request. Pull requests opened by autonomous
+agents are closed without review.
+
 ## License
 
 <sup>

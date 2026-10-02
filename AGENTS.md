@@ -35,6 +35,8 @@ If you are an AI agent working on this repository, follow these rules first:
 3. Run everything Python through `uv run`. Never install into a system interpreter, never use bare `pip`.
 4. Keep changes small and readable. Readability over cleverness, always.
 5. Update this guide in the same change that makes one of its statements untrue.
+6. Never open a pull request on your own. A person who answers for the change opens it, and a pull request
+   opened by an autonomous agent is closed without review, as `CONTRIBUTING.md` states.
 
 ## Authority Order
 
@@ -66,6 +68,7 @@ library is to replace it too.
 | Resource | Purpose |
 |---|---|
 | `AGENTS.md` | Project-level agent policy and workflow; this file |
+| `CONTRIBUTING.md` | What a pull request needs before it is reviewed, and who may open one |
 | `.agents/skills/` | Workspace skills, for agents working on this repository, and a symlink to each project skill |
 | `.claude/skills/` | Compatibility symlink to `.agents/skills/` |
 | `skills/` | Project skills, shipped for agents in repositories that use Lorecraft |
