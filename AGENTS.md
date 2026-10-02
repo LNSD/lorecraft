@@ -198,6 +198,8 @@ and do not broaden scope for convenience.
 - Do not add an abstraction, a generic, or a callback parameter to save a few lines.
 - Prefer types that prevent invalid states over defensive checks for states that "shouldn't happen", and
   validate external input at boundaries rather than throughout trusted internal code.
+  [docs/code/python-typing.md](docs/code/python-typing.md#1-make-an-invalid-state-unrepresentable) owns making
+  an invalid state unrepresentable.
 - Never expose secrets, keys, or credentials; use environment variables.
 - When something genuinely must be subtle, say why in a comment at that spot.
 
