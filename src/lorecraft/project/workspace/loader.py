@@ -401,12 +401,12 @@ def _list_named_dirs(
     """One record per directory a command names, other than one the agents read, sorted by path, each once.
 
     A path leading to an agent's skills directory, or to an entry of one, is left to the agents' skills: a command
-    selects those through `skills_dirs` and `skill_locations`, and a record here would list them, and the symlinks
-    leading outside in them, a second time under another name. A path whose symlink chain leaves the repository is
-    recorded as a directory holding that one outside symlink, as an agent's declared skills directory is: a link
-    leading outside is reported, never skipped. Any other path leading to no directory under the root, such as a
-    file or a dangling link, is no named directory, and neither is one leading to the root itself, which is the
-    whole repository.
+    selects those through `skills_dirs` and `skill_locations`, or through `outside_symlinks` for an entry leading
+    outside, and a record here would list them, and the symlinks leading outside in them, a second time under
+    another name. A path whose symlink chain leaves the repository is recorded as a directory holding that one
+    outside symlink, as an agent's declared skills directory is: a link leading outside is reported, never skipped.
+    Any other path leading to no directory under the root, such as a file or a dangling link, is no named directory,
+    and neither is one leading to the root itself, which is the whole repository.
 
     Args:
         skills: Repository each named directory is resolved and listed through.

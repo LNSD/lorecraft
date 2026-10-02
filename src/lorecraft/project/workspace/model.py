@@ -327,6 +327,18 @@ class WorkspaceModel:
                 return named_dir
         return None
 
+    def has_outside_symlink(self, path: RootRelativePath) -> bool:
+        """True when the model records a symlink leading outside the repository at this path.
+
+        Args:
+            path: Where an agent reaches the symlink, root-relative, compared whole and lexically against each
+                outside symlink's `path`: a link is found by its own name, never by where it leads.
+        """
+        for outside in self.outside_symlinks:
+            if outside.path == path:
+                return True
+        return False
+
     def locate_skill_files(self, path: RootRelativePath) -> tuple[SkillRef, ...]:
         """The skills whose `SKILL.md` leads to this canonical file, in an agent's skills directory or a named one.
 
