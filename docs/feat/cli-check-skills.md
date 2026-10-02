@@ -29,8 +29,9 @@ missing, or outside what it reads, and a symlink leaving the repository. It read
 
 ## Key Concepts
 
-- **Skill**: A directory directly inside an agent's skills directory, such as `.agents/skills/review/`, that
-  holds a `SKILL.md`. The entry may be a symlink to a directory elsewhere in the repository, never outside it.
+- **Skill**: A directory directly inside an agent's skills directory, such as `.agents/skills/review/`, or one
+  named on the command line, or directly inside one, that holds a `SKILL.md`. The entry may be a symlink to a directory elsewhere in the
+  repository, never outside it.
 - **Resource**: A Markdown file inside a skill other than its top-level `SKILL.md`, at any depth, such as
   `references/guide.md`. It is named under the skill's directory, through any symlink on the way.
 - **Skill root**: A relative link in any Markdown file of a skill is read from the skill's directory, as the
@@ -47,19 +48,18 @@ missing, or outside what it reads, and a symlink leaving the repository. It read
 
 | Argument or option | Default | Description |
 |--------------------|---------|-------------|
-| `PATHS...`         | every skill | The skills to check, each by a skills directory, a skill directory, or a `SKILL.md`, relative to the working directory |
+| `PATHS...`         | every skill an agent reads | The skills to check, each by a skill directory, a directory of skills, or a `SKILL.md`, relative to the working directory |
 | `--root <path>`    | nearest parent holding `docs/__meta__/` | The repository root, as [cli-check](cli-check.md#root-discovery) describes |
 | `--format <text\|json>` | `text` | The output format, as [cli-check](cli-check.md#output) describes |
 
-A path names a skills directory, a skill directory or a `SKILL.md`, through a link or not. A skills directory an
-agent reads, such as `.claude/skills`, selects every skill listed there, reported under the real directory,
-possibly none; `skills/`, which entries of a skills directory only link into, is not one. An entry of a skills
-directory selects that entry alone, even when it links to another; the directory entries lead to selects each of
-them, and a `SKILL.md` that is a link is named by its target too. A `SKILL.md` checks that file alone, as
-[Usage](#usage) shows. Under the repository root the path is resolved in the
-[snapshot](workspace.md#one-snapshot), not on disk; `..` is taken by its spelling. Above the root a link is
-followed on disk, so the root may be reached through one. A path that leads to no skill the workspace lists
-refuses the run.
+A path names a skill directory, a directory of skills or a `SKILL.md`, through a link or not. A skills directory
+an agent reads, such as `.claude/skills`, selects every skill listed there, reported under the real directory,
+possibly none; an entry of one selects that entry alone, even when it links to another. Any other directory is one
+skill when a `SKILL.md` is at its root, and otherwise holds each directory directly in it that has one. Its skills
+are named as the path spells them: `skills/review` is checked as `skills/review`, not as the entry linking there.
+The file a linked `SKILL.md` leads to names that skill too. Under the root the path is resolved in the
+[snapshot](workspace.md#one-snapshot), `..` by its spelling; above it a link is followed on disk. A path leading
+to no skill and no symlink leaving the repository refuses the run.
 
 ## Usage
 
@@ -72,6 +72,9 @@ lorecraft check skills .agents/skills/review
 
 # Check its SKILL.md alone
 lorecraft check skills .agents/skills/review/SKILL.md
+
+# Check the skills kept in skills/, which no agent reads
+lorecraft check skills skills
 ```
 
 ```text
@@ -94,19 +97,19 @@ ungoverned, and `ungoverned` is always empty in the JSON report.
 - A fragment after a path, such as `guide.md#usage`, is not checked against the file it names.
 - An HTML heading (`<h2>`) has no anchor.
 - Only the `metadata` subkeys `references`, `scripts` and `assets` are read.
-- A skill entry or `SKILL.md` that is a symlink is read where it leads; one that dangles is not a skill, and is
-  not reported, and one leading outside the repository is reported.
-- Without `--root`, the root is found by its `docs/__meta__/`, so a repository with skills and no specifications
-  needs `--root`.
+- A linked skill entry or `SKILL.md` is read where it leads; one that dangles is skipped silently.
+- A repository with skills and no `docs/__meta__/` needs `--root`.
+- The root is never read for skills, which would read the whole repository.
+- A `metadata` path is judged by what the run reads: naming `skills/gamma` or `skills` can judge a path into a
+  sibling skill outside the scope or missing.
 - A key repeated inside a nested mapping such as `metadata`, or a non-string key, is not reported as repeated.
 - A field supplied only through a YAML merge (`<<`) has no line of its own, so a finding about it is on line 1.
 - A key written as a YAML alias (`*k`) is placed on its anchor's line, so a finding about it is there.
-- Run on its own, the check reads no document, so it accepts a root whose `docs/` or `docs/__meta__/` is a
-  symlink; a check over documents refuses it.
+- Run alone, it accepts a linked `docs/` or `docs/__meta__/`, which a check over documents refuses.
 
 ## Findings
 
-A finding is reported in the file it is about, named as an agent reads it, under the skills directory: a link
+A finding is reported in the file it is about, named under the skills directory or the path given: a link
 finding on the link's line, in the `SKILL.md` or the resource holding it. A frontmatter finding is at the
 `SKILL.md`, on the line of the field it concerns, on the line the YAML parser stopped at when the block does not
 parse, or on line 1 when the field is absent, the key is not a string, or the whole block is at fault. A
@@ -133,7 +136,7 @@ and it suppresses no other finding; any other finding about that key is on the l
 | `skill.frontmatter-missing` | The `SKILL.md` does not open with a `---` delimited block |
 | `skill.frontmatter-unparseable` | The block is not valid YAML, or is not a mapping |
 | `skill.undecodable` | The `SKILL.md` or a resource is not valid UTF-8; a resource reports it alone, and its links are not checked |
-| `skill.name-matches-directory` | `name` is not the name of the directory an agent lists the skill by, through any symlink: for `.agents/skills/bar -> ../../skills/foo`, `name` must be `bar`. Where a link leads plays no part in the verdict; when its name differs, a note on the finding names it, root-relative, or as the repository root |
+| `skill.name-matches-directory` | `name` is not the name of the directory an agent lists the skill by, or the path given names it by, through any symlink: for `.agents/skills/bar -> ../../skills/foo`, `name` must be `bar`. Where a link leads plays no part in the verdict; when its name differs, a note on the finding names it, root-relative, or as the repository root |
 | `skill.duplicate-key` | A top-level key is written again; the message gives the line of the first occurrence |
 | `skill.<field>` | The specification rejects that field, or requires it and it is absent |
 | `skill.unknown-field` | A field the specification does not define, such as `model`, or a key that is not a string, such as `123` |
@@ -146,7 +149,7 @@ and it suppresses no other finding; any other finding about that key is on the l
 | `skill.metadata-duplicate-name` | A path under a `metadata` subkey has the file name of an earlier one, so both link in as one path; the message names both |
 | `skill.metadata-missing-file` | A listed path in scope, as the [workspace declares it](workspace.md#one-snapshot), leads to no regular file in the snapshot: nothing is there, not even its directory, a directory is, or a link dangles, leaves the repository or reaches a file lorecraft does not read |
 | `skill.metadata-outside-scope` | A listed path is in a directory the command does not read, or is absolute or climbs with `..` |
-| `skill.symlink-outside` | A skills directory an agent declares, an entry in one, an entry's `SKILL.md`, or a file or directory inside a skill is a symlink whose chain leaves the repository: a link targets a path outside it, or a `..` climbs above the root. Judged from the link targets the snapshot recorded; nothing outside the root is read. On line 1 at the symlink, named where an agent reaches it, with a note naming the link the chain leaves through and its target, and a help note says how to fix it. One not inside a skill is no skill: it is reported first, by path, whichever skills are selected, and counts no skill; one inside a skill comes after that skill's resources. A chain is judged by the real path each step reaches, as the operating system resolves it, so `tmp/../../..` leaves as surely as `../..`. A link that dangles or loops inside the repository is not reported |
+| `skill.symlink-outside` | A skills directory an agent declares, a path given, an entry in either, its `SKILL.md` or the one at the root of a directory given, or a file or directory inside a skill is a symlink whose chain leaves the repository: a link targets a path outside it, or a `..` climbs above the root. Judged from the link targets the snapshot recorded; nothing outside the root is read. On line 1 at the symlink, named where an agent reaches it, with a note naming the link the chain leaves through and its target, and a help note says how to fix it. One not inside a skill is no skill: it is reported first, by path, whichever skills are selected, and counts no skill; one inside a skill comes after that skill's resources. A chain is judged by the real path each step reaches, as the operating system resolves it, so `tmp/../../..` leaves as surely as `../..`. A link that dangles or loops inside the repository is not reported |
 
 ## References
 
