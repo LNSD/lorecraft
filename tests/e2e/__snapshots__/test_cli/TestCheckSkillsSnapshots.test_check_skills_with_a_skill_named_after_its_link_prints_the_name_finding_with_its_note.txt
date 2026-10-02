@@ -1,0 +1,2 @@
+.agents/skills/bar/SKILL.md:2: [skill.name-matches-directory] `name` is 'bar'; expected 'foo', the name of the skill directory
+  = note: the skill is read through the link 'bar', which leads to 'foo'

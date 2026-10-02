@@ -25,4 +25,3 @@ docs/code/python-typing.md:1: [structure.outline] missing required section `Chec
           - [ ] Every log call inside an `except` block uses `logger.exception(...)`
 docs/code/python-typing.md:1: [structure.outline] missing required section `References` (per code-python.md)
   = help: Links to the documents this one builds on.
-.agents/skills/beta/SKILL.md:2: [skill.name-matches-directory] `name` is 'alpha'; expected 'beta', the name of the skill directory

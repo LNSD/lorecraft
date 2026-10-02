@@ -1,1 +1,0 @@
-.agents/skills/beta/SKILL.md:2: [skill.name-matches-directory] `name` is 'alpha'; expected 'beta', the name of the skill directory
