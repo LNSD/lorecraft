@@ -213,11 +213,10 @@ accumulator — a findings buffer, a running counter — is not frozen, and is n
 ## 6. A Numeric Limit Validates in `__post_init__`
 
 A field with a meaningful range — a line budget, a heading depth, a finding limit, a line number — is checked
-in `__post_init__` and raises `ValueError` naming the field and the offending value. That holds for a record
-only code builds; a record built from input, such as a budget read from a specification, raises an `Error`
-variant instead, because the user fixes it ([error-boundaries](error-boundaries.md)).
+in `__post_init__`, and the error names the field and the offending value. Whether a check is needed at all,
+and what it raises, is owned by [error-boundaries](error-boundaries.md).
 
-The check is **mandatory, not optional**, and the reason is that Python offers nothing stronger. In a
+Where no type carries the bound, the check is **mandatory**, because Python offers nothing stronger. In a
 type-driven design the constraint would live in the type, so an out-of-range value would be unconstructible and
 no runtime check would be needed. Here the annotation is `int`, and `int` includes `-1`; the guarantee is
 weaker than a type-level one, and `__post_init__` is the only place it can be recovered. Skipping it does not
@@ -234,8 +233,8 @@ class LengthBudget:
 ```
 
 ```python
-# ✅ Good — the impossible values are rejected at construction, where the traceback
-# points at the caller that supplied them
+# ✅ Good — a record only code builds, so an impossible value is a caller's defect, rejected
+# at construction, where the traceback points at the caller that supplied it
 @dataclass
 class LengthBudget:
     max_lines: int = 400
@@ -316,7 +315,7 @@ Before committing code, verify:
       can legitimately be absent
 - [ ] Every record used as a dict key, set member, or compared identity is `frozen=True`
 - [ ] Every field with a meaningful numeric range has a `__post_init__` check naming the field and the
-      received value, raising `ValueError`, or an `Error` variant where input supplies the value
+      received value, raising what error-boundaries prescribes
 - [ ] Every record's class docstring lists all public fields under `Attributes:` with units and constraints
 
 ## References
@@ -329,8 +328,8 @@ Before committing code, verify:
   forward references
 - [python-naming](python-naming.md) - Related: Field and class naming, and `ClassVar` capability constants
 - [python-docstrings](python-docstrings.md) - Related: Docstring sections beyond `Attributes:`
-- [error-boundaries](error-boundaries.md) - Related: When a validation failure warrants a domain
-  error rather than `ValueError`
+- [error-boundaries](error-boundaries.md) - Related: Owns whether a guard raises an `Error` variant or
+  `ValueError`, and the questions a built-in in `Raises:` must pass first
 
 ## External References
 
