@@ -9,13 +9,14 @@ check joins that run without this module naming it.
 import importlib
 import pkgutil
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated
 
 import typer
 
 from lorecraft.checks import CheckRun, SkillCheckRun
 from lorecraft.cli.check_run import (
     DocumentCheck,
+    OutputFormat,
     SkillCheck,
     print_runs,
     registered_checks,
@@ -44,7 +45,7 @@ def check_all(
         typer.Option('--root', help='Repository root. Defaults to the nearest parent containing docs/__meta__.'),
     ] = None,
     output_format: Annotated[
-        Literal['text', 'json'] | None,
+        OutputFormat | None,
         typer.Option('--format', help='Output format: text or json. Defaults to text.'),
     ] = None,
 ) -> None:
@@ -82,7 +83,9 @@ def check_all(
         report_failure(exc)
         raise typer.Exit(code=2) from exc
 
-    print_runs(tuple(runs), tuple(skill_runs), output_format or 'text')
+    if output_format is None:
+        output_format = OutputFormat.TEXT
+    print_runs(tuple(runs), tuple(skill_runs), output_format)
     for _check, run in runs:
         if run.findings():
             raise typer.Exit(code=1)

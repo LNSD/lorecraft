@@ -7,12 +7,12 @@ document that cannot be decoded is a finding, not an error. The module also regi
 """
 
 from pathlib import Path
-from typing import Annotated, Final, Literal
+from typing import Annotated, Final
 
 import typer
 
 from lorecraft.checks import run_budget
-from lorecraft.cli.check_run import DocumentCheck, print_run, register_check, select_documents
+from lorecraft.cli.check_run import DocumentCheck, OutputFormat, print_run, register_check, select_documents
 from lorecraft.cli.failure import report_failure
 from lorecraft.core.error import Error
 
@@ -43,9 +43,9 @@ def budget(
         typer.Option('--root', help='Repository root. Defaults to the nearest parent containing docs/__meta__.'),
     ] = None,
     output_format: Annotated[
-        Literal['text', 'json'],
+        OutputFormat,
         typer.Option('--format', help='Output format: text or json.'),
-    ] = 'text',
+    ] = OutputFormat.TEXT,
 ) -> None:
     """Check each file's token count against the `tokens` budget in the target repository's structure specifications.
 
