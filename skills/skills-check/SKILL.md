@@ -29,8 +29,8 @@ An agent reads skills from its skills directories, such as `.agents/skills` or `
 the repository has, and every skill with the agents that read it:
 
 ```bash
-lorecraft inspect          # the skills follow the corpora in the tree
-lorecraft inspect --json   # agent_skills_dirs and skills
+lorecraft inspect                 # the skills follow the corpora in the tree
+lorecraft inspect --format json   # agent_skills_dirs and skills
 ```
 
 [cli-inspect](references/cli-inspect.md) describes the output. A skill is known by the entry an agent lists. A
