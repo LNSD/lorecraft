@@ -717,6 +717,48 @@ class TestWorkspaceModel:
         #: Then
         assert '.agents/skills/commit' in str(exc_info.value), 'the error names the skill the model does not list'
 
+    def test_find_skill_with_the_entry_of_a_regular_skill_returns_its_ref(self, skills_model: WorkspaceModel) -> None:
+        #: Given
+        directory = RootRelativePath.parse('.agents/skills/review')
+
+        #: When
+        ref = skills_model.find_skill(directory)
+
+        #: Then
+        assert ref == REVIEW.ref, 'the skill listed at the entry is returned, not the entry linked to it'
+
+    def test_find_skill_with_the_entry_of_a_linked_skill_returns_its_ref(self, skills_model: WorkspaceModel) -> None:
+        #: Given
+        directory = RootRelativePath.parse('.agents/skills/reviewer')
+
+        #: When
+        ref = skills_model.find_skill(directory)
+
+        #: Then
+        assert ref == REVIEW_ALIAS.ref, 'a linked entry is found by its own name'
+
+    def test_find_skill_with_the_real_directory_a_linked_skill_leads_to_returns_none(
+        self, skills_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        directory = RootRelativePath.parse('skills/audit')
+
+        #: When
+        ref = skills_model.find_skill(directory)
+
+        #: Then
+        assert ref is None, 'the directory a link leads to is no entry of a skills directory'
+
+    def test_find_skill_with_a_path_that_is_no_skill_returns_none(self, skills_model: WorkspaceModel) -> None:
+        #: Given
+        directory = RootRelativePath.parse('.agents/skills')
+
+        #: When
+        ref = skills_model.find_skill(directory)
+
+        #: Then
+        assert ref is None, 'the skills directory itself is no skill'
+
     def test_locate_skills_with_the_directory_of_a_regular_skill_returns_every_entry_there(
         self, skills_model: WorkspaceModel
     ) -> None:

@@ -222,9 +222,11 @@ def select_skills(root: Path | None, paths: list[Path] | None) -> tuple[Database
     """Establish the root, snapshot it once, open the database over that snapshot, and select the skills.
 
     Args:
-        root: The ``--root`` option; ``None`` searches upward from the working directory.
-        paths: The skills named on the command line, each by its directory or its ``SKILL.md``; ``None`` or
-            empty selects every skill the model lists. A skill two paths name is selected once.
+        root: The `--root` option; `None` searches upward from the working directory.
+        paths: The skills named on the command line, each by its directory or its `SKILL.md`; `None` or
+            empty selects every skill the model lists. A path naming an entry of a skills directory selects that
+            skill alone; one naming the real directory entries lead to selects each of them. A skill two paths
+            name is selected once.
 
     Raises:
         WorkingDirectoryReadError: If no root is given, or a path is named, and the working directory cannot be read.
@@ -236,7 +238,7 @@ def select_skills(root: Path | None, paths: list[Path] | None) -> tuple[Database
         SnapshotEntryInspectError: If an entry on the way to a scope root cannot be inspected.
         SnapshotFileReadError: If a file in scope cannot be read.
         SnapshotLinkReadError: If a symlink's target cannot be read.
-        LinkedLayoutError: If ``docs/`` or ``docs/__meta__/`` under the root is a symlink.
+        LinkedLayoutError: If `docs/` or `docs/__meta__/` under the root is a symlink.
         DirListError: If the specification directory or docs/ cannot be listed.
         CorpusListError: If a corpus directory cannot be listed.
         StructureSchemaReadError: If any structure specification cannot be read.
@@ -248,9 +250,9 @@ def select_skills(root: Path | None, paths: list[Path] | None) -> tuple[Database
         InvalidWordCapError: If an outline word cap is below 1.
         RepeatedOutlineSectionError: If an outline names a section twice.
         ForbiddenOutlineSectionError: If a specification forbids a section its outline names.
-        AdjacentAnyRunsError: If an outline places two ``any`` runs side by side.
+        AdjacentAnyRunsError: If an outline places two `any` runs side by side.
         InvalidFrontmatterSchemaError: If a frontmatter schema is rejected by the meta-schema.
-        FrontmatterSchemaIdError: If a schema in a frontmatter schema carries ``$id``.
+        FrontmatterSchemaIdError: If a schema in a frontmatter schema carries `$id`.
         ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
         UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
         DirResolveError: If a skills directory cannot be resolved.

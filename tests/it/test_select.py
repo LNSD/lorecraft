@@ -333,14 +333,15 @@ AUDIT: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/audit')
 COMMIT: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/commit'))
 LINT: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/lint'))
 REVIEW: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/review'))
+REVIEWER: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/reviewer'))
 
 
 @pytest.fixture(scope='function')
 def skills_database(tmp_path: Path) -> Database:
     """A database over a snapshot of `.agents/skills`.
 
-    It holds `commit`, `review` linked to `skills/review/`, `audit` linked to `commit`, and `lint`,
-    whose `SKILL.md` links to `shared/LINT.md`; `.claude/skills` links to the directory, and `drafts/` is
+    It holds `commit`, `review` and `reviewer` both linked to `skills/review/`, `audit` linked to `commit`, and
+    `lint`, whose `SKILL.md` links to `shared/LINT.md`; `.claude/skills` links to the directory, and `drafts/` is
     no skill.
 
     Args:
@@ -353,6 +354,7 @@ def skills_database(tmp_path: Path) -> Database:
     (tmp_path / '.agents' / 'skills' / 'lint').mkdir()
     (tmp_path / '.agents' / 'skills' / 'lint' / 'SKILL.md').symlink_to('../../../shared/LINT.md')
     (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
+    (tmp_path / '.agents' / 'skills' / 'reviewer').symlink_to('../../skills/review')
     (tmp_path / '.agents' / 'skills' / 'audit').symlink_to('commit')
     (tmp_path / '.claude').mkdir()
     (tmp_path / '.claude' / 'skills').symlink_to('../.agents/skills')
@@ -373,7 +375,7 @@ class TestSelectSkillsAt:
         #: Then
         assert refs == (REVIEW,), 'the argument maps onto the ref the model lists'
 
-    def test_select_skills_at_with_the_real_directory_of_a_linked_skill_returns_its_ref(
+    def test_select_skills_at_with_the_real_directory_two_entries_link_to_returns_both_refs(
         self, tmp_path: Path, skills_database: Database
     ) -> None:
         #: Given
@@ -383,7 +385,9 @@ class TestSelectSkillsAt:
         refs = select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert refs == (REVIEW,), 'a skill kept outside the skills directories is named by where its files live too'
+        assert refs == (REVIEW, REVIEWER), (
+            'a directory that is no entry selects every entry leading to it, in the model order'
+        )
 
     def test_select_skills_at_with_a_skill_file_behind_a_linked_skills_directory_returns_its_ref(
         self, tmp_path: Path, skills_database: Database
@@ -397,7 +401,7 @@ class TestSelectSkillsAt:
         #: Then
         assert refs == (REVIEW,), 'a skill is named by its SKILL.md, through any link'
 
-    def test_select_skills_at_with_a_directory_two_entries_lead_to_returns_both_refs(
+    def test_select_skills_at_with_the_entry_another_entry_links_to_returns_its_ref_alone(
         self, tmp_path: Path, skills_database: Database
     ) -> None:
         #: Given
@@ -407,9 +411,43 @@ class TestSelectSkillsAt:
         refs = select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert refs == (AUDIT, COMMIT), (
-            'every skill the model lists at the named directory is selected, in the model order'
-        )
+        assert refs == (COMMIT,), 'the entry named is the skill selected, not audit, which links to it'
+
+    def test_select_skills_at_with_a_linked_entry_returns_its_ref_alone(
+        self, tmp_path: Path, skills_database: Database
+    ) -> None:
+        #: Given
+        argument = tmp_path / '.agents' / 'skills' / 'audit'
+
+        #: When
+        refs = select_skills_at(skills_database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert refs == (AUDIT,), 'the linked entry is the skill selected, not commit, where it leads'
+
+    def test_select_skills_at_with_the_skill_file_of_a_linked_entry_returns_its_ref_alone(
+        self, tmp_path: Path, skills_database: Database
+    ) -> None:
+        #: Given
+        argument = tmp_path / '.agents' / 'skills' / 'audit' / 'SKILL.md'
+
+        #: When
+        refs = select_skills_at(skills_database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert refs == (AUDIT,), 'the SKILL.md under the linked entry names that entry alone'
+
+    def test_select_skills_at_with_a_linked_entry_behind_a_linked_skills_directory_returns_its_ref_alone(
+        self, tmp_path: Path, skills_database: Database
+    ) -> None:
+        #: Given
+        argument = tmp_path / '.claude' / 'skills' / 'audit'
+
+        #: When
+        refs = select_skills_at(skills_database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert refs == (AUDIT,), 'the linked skills directory is followed to the real one, and the entry kept by name'
 
     def test_select_skills_at_with_the_file_a_linked_skill_file_leads_to_returns_its_ref(
         self, tmp_path: Path, skills_database: Database
@@ -460,7 +498,7 @@ class TestSelectSkillsAt:
         refs = select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert refs == (AUDIT, COMMIT), 'a link above the root is followed on disk, where the snapshot records nothing'
+        assert refs == (COMMIT,), 'a link above the root is followed on disk, where the snapshot records nothing'
 
     def test_select_skills_at_through_a_link_above_the_root_and_one_added_under_it_raises_not_listed(
         self, tmp_path: Path, skills_database: Database, tmp_path_factory: pytest.TempPathFactory
@@ -517,7 +555,7 @@ class TestSelectSkillsAt:
         refs = select_skills_at(skills_database, tmp_path, working_directory, argument)
 
         #: Then
-        assert refs == (REVIEW,), 'a relative argument is spelled from the working directory, `..` included'
+        assert refs == (REVIEW, REVIEWER), 'a relative argument is spelled from the working directory, `..` included'
 
     def test_select_skills_at_with_a_link_removed_after_the_snapshot_returns_the_ref_the_snapshot_saw(
         self, tmp_path: Path, skills_database: Database
