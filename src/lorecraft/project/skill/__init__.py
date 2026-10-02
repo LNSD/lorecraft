@@ -4,9 +4,11 @@ A skill is a document of a special type. It lives outside `docs/`, in a director
 project skills directories the modelled agents read; its file is always named `SKILL.md`, so the directory
 carries its name; and its form is the Agent Skills specification's, not a corpus specification's. Beside its
 `SKILL.md` a skill may carry resources, other Markdown files at any depth, each with an identity and a location.
-A symlink the layout reaches whose chain leaves the repository is recorded too, as an `OutsideSymlink`.
+A symlink the layout reaches whose chain leaves the repository is recorded too, as an `OutsideSymlink`. A command
+may name another directory to check the skills in, recorded as a `NamedDir`: one skill, or a directory of skills.
 """
 
+from .named_dir import NamedDir
 from .outside import OutsideSymlink
 from .ref import SkillLocation, SkillRef, SkillResourceLocation, SkillResourceRef
 from .repo import (
@@ -34,6 +36,7 @@ __all__ = [
     'SkillResourceRef',
     'SkillResourceLocation',
     'SkillsDir',
+    'NamedDir',
     'OutsideSymlink',
     'SkillsListing',
     'SkillResourceListing',

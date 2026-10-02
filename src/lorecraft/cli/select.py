@@ -2,10 +2,12 @@
 
 An argument is only spelled on disk: the disk is asked only where it leads above the root, the part under the
 root is taken as spelled, and its links are followed through the snapshot, so it names what the model saw even
-when the tree changed since. A skill argument naming an entry of a skills directory keeps that entry's own link
-unfollowed, so it names the skill an agent lists there and not every entry linked to the same directory. A skill
-argument naming a skills directory selects every skill listed there. An explicit path is a boundary, so it is
-rejected with the most specific reason it fails, where discovery would simply have ignored the file.
+when the tree changed since. A skill argument naming an entry of an agent's skills directory keeps that entry's
+own link unfollowed, so it names the skill an agent lists there and not every entry linked to the same directory.
+A skill argument naming an agent's skills directory selects every skill listed there. Any other directory a skill
+argument names is spelled before the snapshot is taken, so the snapshot reads it and the model lists the skills in
+it under that spelling. An explicit path is a boundary, so it is rejected with the most specific reason it fails,
+where discovery would simply have ignored the file.
 """
 
 import os
@@ -244,7 +246,9 @@ def _reject_misplaced_document(model: WorkspaceModel, argument: Path, path: Root
 class UnlistedSkillPathError(Error):
     """An explicit skill argument does not name a skill the model lists.
 
-    It lies outside the root, the snapshot holds nothing at it, or no skill the model lists is there.
+    It lies outside the root, the snapshot holds nothing at it, or no skill the model lists is there: it is a
+    directory with no `SKILL.md` at its root or in a directory directly inside it, and no symlink leading outside
+    the repository either, or it is the root itself.
 
     Attributes:
         argument: The path exactly as typed.
@@ -254,9 +258,34 @@ class UnlistedSkillPathError(Error):
 
     def __init__(self, argument: Path) -> None:
         self.argument = argument
-        super().__init__(
-            f'{argument}: not a skill the workspace lists; name a skills directory, a skill directory, or a SKILL.md'
-        )
+        super().__init__(f'{argument}: no skill there; name a skill directory, a directory of skills, or a SKILL.md')
+
+
+def named_skill_dirs(root: Path, working_directory: Path, arguments: list[Path]) -> tuple[RootRelativePath, ...]:
+    """The directories skill arguments name, root-relative as spelled, for the snapshot to read and the model to list.
+
+    Spelled as `select_skills_at` spells an argument, without the snapshot, which is not taken yet. An argument
+    naming a `SKILL.md` names the directory holding it; one outside the root names none. Whether each is a
+    directory at all, and whether a skill, a skills directory or neither, only the snapshot and the model tell.
+
+    Args:
+        root: The resolved workspace root; each argument is located relative to it.
+        working_directory: What a relative argument is relative to.
+        arguments: The paths as typed.
+
+    Returns:
+        Each directory once, in the order first named.
+    """
+    directories: list[RootRelativePath] = []
+    for argument in arguments:
+        spelled = _find_spelling_under_root(root, Path(os.path.normpath(working_directory / argument)))
+        if spelled is None:
+            continue
+        if spelled.name == SKILL_ENTRY_FILENAME:
+            spelled = spelled.parent
+        if spelled not in directories:
+            directories.append(spelled)
+    return tuple(directories)
 
 
 def select_skills_at(
@@ -265,21 +294,28 @@ def select_skills_at(
     """Map one CLI argument onto the model's skills, resolving it through the snapshot rather than the disk.
 
     The argument names a skills directory, a skill by its directory, or a skill by its `SKILL.md`, through a link
-    or not: a skill kept in `skills/review/` and linked from `.agents/skills/review` is named by either path. The
-    part of the argument under the root is taken by its spelling alone, then read in three ways, in order.
+    or not. The part of the argument under the root is taken by its spelling alone, then read in four ways, in
+    order.
 
-    First as an entry of a skills directory, as an agent lists it: the links above the entry are followed through
-    the snapshot, the entry itself is kept by its name, and the skill the model lists there is returned alone. So
-    `.agents/skills/beta` selects `beta` even when it links to `alpha`, and `.claude/skills/beta`, through
-    a linked skills directory, selects it too.
+    First as an entry of an agent's skills directory, as an agent lists it: the links above the entry are followed
+    through the snapshot, the entry itself is kept by its name, and the skill the model lists there is returned
+    alone. So `.agents/skills/beta` selects `beta` even when it links to `alpha`, and `.claude/skills/beta`,
+    through a linked skills directory, selects it too.
 
-    Then as a skills directory: every link in it is followed through the snapshot, and when a skills directory the
-    model lists leads to the real path it reaches, every skill listed there is returned, possibly none. So
-    `.claude/skills`, a link to `.agents/skills`, selects the skills `.agents/skills` lists, under their refs there.
+    Then as a directory the snapshot was taken to read, `named_skill_dirs` of the arguments: the skills the model
+    lists there, under the argument's spelling. A directory with a `SKILL.md` at its root is one skill, and any other
+    holds each directory directly inside it with one. So `skills/review` selects the skill `skills/review`, and not
+    `.agents/skills/review`, which links to it: a skill named both ways is two. One holding no skill but a symlink
+    leading outside the repository, or leading outside itself, selects none: the run reports that symlink, as it
+    does for an agent's skills directory. One holding neither names no skill.
 
-    Otherwise as a real path: every skill the model lists at the real path the argument leads to is returned, so
-    naming the directory two entries link to selects both. `skills/`, where entries of a skills directory link to,
-    is no skills directory, so it names no skill.
+    Then as an agent's skills directory: every link in it is followed through the snapshot, and when a skills
+    directory the model lists leads to the real path it reaches, every skill listed there is returned, possibly
+    none. So `.claude/skills`, a link to `.agents/skills`, selects the skills `.agents/skills` lists, under their
+    refs there. The model never names such a directory, so the order of these two readings decides nothing.
+
+    Otherwise as a real file: every skill whose `SKILL.md` leads to the file the argument leads to, such as
+    `shared/LINT.md` that a linked `SKILL.md` leads to, is returned.
 
     A path naming a directory selects each skill whole; one naming a `SKILL.md`, by that name or as the file a
     linked `SKILL.md` leads to, selects its `SKILL.md` alone.
@@ -292,7 +328,7 @@ def select_skills_at(
 
     Returns:
         The skills at the named path, each once, in the model's order, with what the path named of each; empty only
-        for a skills directory that holds no skill.
+        for an agent's skills directory that holds no skill, or a named one holding only symlinks leading outside.
 
     Raises:
         UnlistedSkillPathError: If the argument lies outside the root, the snapshot holds nothing at it,
@@ -308,23 +344,22 @@ def select_skills_at(
     listed = _select_listed_skill(database, spelled)
     if listed is not None:
         return (listed,)
+    model = database.model()
+    # Before the real path is asked: a named path leading outside the repository leads to none, and is reported.
+    in_named_dir = _select_named_skills(model, spelled)
+    if in_named_dir is not None:
+        return in_named_dir
     real_path = database.find_real_path(spelled)
     if real_path is None:
         raise UnlistedSkillPathError(argument)
-    model = database.model()
     if model.has_skills_dir(real_path):
         return select_whole(model.skills_in(real_path))
-    refs = model.locate_skills(real_path)
+    refs = model.locate_skill_files(real_path)
     if not refs:
         raise UnlistedSkillPathError(argument)
     selections: list[SkillSelection] = []
     for ref in refs:
-        # A skill is located at the real directory its entry leads to or at the real file its `SKILL.md` leads
-        # to; only the second names the file, such as `shared/LINT.md` that a linked `SKILL.md` leads to.
-        if model.skill_location(ref).file_resolves_to == real_path:
-            selections.append(SkillSelection(ref, SkillScope.SKILL_FILE))
-        else:
-            selections.append(SkillSelection(ref, SkillScope.WHOLE_SKILL))
+        selections.append(SkillSelection(ref, SkillScope.SKILL_FILE))
     return tuple(selections)
 
 
@@ -370,6 +405,43 @@ def _select_listed_skill(database: Database, spelled: RootRelativePath) -> Skill
     if ref is None:
         return None
     return SkillSelection(ref, scope)
+
+
+def _select_named_skills(model: WorkspaceModel, spelled: RootRelativePath) -> tuple[SkillSelection, ...] | None:
+    """The skills of the directory a command named as `spelled`, or of the one holding a `SKILL.md` it names.
+
+    A directory selects each skill it holds whole. A `SKILL.md` selects its skill by that file alone, when the
+    directory holding it was named and is that one skill; a `SKILL.md` inside a directory of skills is no skill.
+    A named directory holding no skill but a symlink leading outside selects none, so the run reports the symlink;
+    so does a `SKILL.md` named that is itself such a symlink.
+
+    Args:
+        model: The model whose named directories are looked up.
+        spelled: The argument, root-relative and taken by its spelling alone.
+
+    Returns:
+        The selections, `()` for a named directory holding only symlinks leading outside, or `None` when no
+        named directory holding anything is there, so the argument is read another way.
+    """
+    if spelled.name != SKILL_ENTRY_FILENAME:
+        named_dir = model.find_named_dir(spelled)
+        if named_dir is None or named_dir.is_empty():
+            return None
+        refs: list[SkillRef] = []
+        for location in named_dir.skills:
+            refs.append(location.ref)
+        return select_whole(tuple(refs))
+
+    named_dir = model.find_named_dir(spelled.parent)
+    if named_dir is None:
+        return None
+    for location in named_dir.skills:
+        if location.ref.directory == spelled.parent:
+            return (SkillSelection(location.ref, SkillScope.SKILL_FILE),)
+    for outside in named_dir.outside_symlinks:
+        if outside.path == spelled:
+            return ()  # the `SKILL.md` named leads outside: the one skill it would be is that finding
+    return None
 
 
 def _find_spelling_under_root(root: Path, named: Path) -> RootRelativePath | None:

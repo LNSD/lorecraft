@@ -24,11 +24,11 @@ import typer
 from lorecraft.checks import CheckRun, Database, Finding, SkillCheckRun, SkillScope, SkillSelection, format_finding
 from lorecraft.core.error import Error
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.layout import SNAPSHOT_SCOPE
+from lorecraft.project.layout import SNAPSHOT_SCOPE, scope_with_named_dirs
 from lorecraft.vfs import OsRefusal, take_snapshot
 
 from .root import get_root, resolve_root
-from .select import select_document, select_skills_at, select_whole
+from .select import named_skill_dirs, select_document, select_skills_at, select_whole
 
 type CheckRunner = Callable[[Database, tuple[DocumentRef, ...]], CheckRun]
 """A check's run: it checks the documents it is handed, read through one database, and reports in one shape."""
@@ -221,14 +221,18 @@ def select_documents(root: Path | None, paths: list[Path] | None) -> tuple[Datab
 def select_skills(root: Path | None, paths: list[Path] | None) -> tuple[Database, tuple[SkillSelection, ...]]:
     """Establish the root, snapshot it once, open the database over that snapshot, and select the skills.
 
+    The directories the paths name are spelled first, so the one snapshot reads them beside the agents' skills
+    directories and the model lists the skills in them.
+
     Args:
         root: The `--root` option; `None` searches upward from the working directory.
         paths: The skills named on the command line, each by a skills directory, a skill directory, or a
-            `SKILL.md`; `None` or empty selects every skill the model lists, whole. A path naming a skills
-            directory selects every skill listed in it, possibly none; one naming an entry of a skills directory
-            selects that skill alone; one naming the real directory entries lead to selects each of them. A
-            directory selects each skill whole, a `SKILL.md` its `SKILL.md` alone. A skill two paths name is
-            selected once, at its first place, and whole when either path names it whole.
+            `SKILL.md`; `None` or empty selects every skill in the agents' skills directories, whole. A path
+            naming an agent's skills directory selects every skill listed in it, possibly none; one naming an
+            entry of it selects that skill alone. Any other directory is one skill when a `SKILL.md` is at its
+            root, and otherwise selects each skill directly inside it, under the path as spelled; one holding
+            none is refused. A directory selects each skill whole, a `SKILL.md` its `SKILL.md` alone. A skill two
+            paths name is selected once, at its first place, and whole when either path names it whole.
 
     Raises:
         WorkingDirectoryReadError: If no root is given, or a path is named, and the working directory cannot be read.
@@ -257,7 +261,7 @@ def select_skills(root: Path | None, paths: list[Path] | None) -> tuple[Database
         FrontmatterSchemaIdError: If a schema in a frontmatter schema carries `$id`.
         ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
         UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
-        DirResolveError: If a skills directory cannot be resolved.
+        DirResolveError: If a skills directory or a directory a path names cannot be resolved.
         EntryInspectError: If an entry on the way to a skills directory cannot be inspected, or a link's target
             read, while looking for where it leaves the repository.
         SkillsDirListError: If a skills directory cannot be listed.
@@ -267,10 +271,13 @@ def select_skills(root: Path | None, paths: list[Path] | None) -> tuple[Database
         UnlistedSkillPathError: If a named path is not a skill the model lists.
     """
     root_path = get_root(_working_directory()) if root is None else resolve_root(root)
-    database = Database(take_snapshot(root_path, SNAPSHOT_SCOPE))
     if not paths:
+        database = Database(take_snapshot(root_path, SNAPSHOT_SCOPE))
         return database, select_whole(database.model().skills())
     working_directory = _working_directory()
+    named_dirs = named_skill_dirs(root_path, working_directory, paths)
+    # The snapshot records the scope it was taken of, so the model reads the named directories from it.
+    database = Database(take_snapshot(root_path, scope_with_named_dirs(named_dirs)))
     named: list[SkillSelection] = []
     for argument in paths:
         named.extend(select_skills_at(database, root_path, working_directory, argument))

@@ -1,9 +1,10 @@
 """Explicit document and skill selection against a database over a snapshot of a real tree.
 
 Documents and skills are each selected against a database over a snapshot of `tmp_path`, and every argument is
-a real path, so `select_document` and `select_skills_at` resolve it the way the command line does. Each rule
-of the selection order has one test asserting the reason it produces, never the message. `select_skills` is
-driven with an explicit root, to pin how the skills several paths name are merged.
+a real path, so `select_document` and `select_skills_at` resolve it the way the command line does. A skill
+argument naming a directory no agent reads is selected against a database whose snapshot read it, as
+`select_skills` takes one. Each rule of the selection order has one test asserting the reason it produces, never
+the message. `select_skills` is driven with an explicit root, to pin how the skills several paths name are merged.
 """
 
 from pathlib import Path
@@ -24,6 +25,7 @@ from lorecraft.cli.select import (
     UnknownCorpusDocumentPathError,
     UnlistedDocumentPathError,
     UnlistedSkillPathError,
+    named_skill_dirs,
     select_document,
     select_skills_at,
 )
@@ -31,7 +33,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName, InvalidCorpusNameCharacterError
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.layout import SNAPSHOT_SCOPE
+from lorecraft.project.layout import SNAPSHOT_SCOPE, scope_with_named_dirs
 from lorecraft.project.skill import SkillRef
 from lorecraft.vfs import take_snapshot
 
@@ -336,6 +338,20 @@ COMMIT: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/commit
 LINT: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/lint'))
 REVIEW: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/review'))
 REVIEWER: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/reviewer'))
+SKILLS_REVIEW: Final[SkillRef] = SkillRef(RootRelativePath.parse('skills/review'))
+SKILLS_SOLO: Final[SkillRef] = SkillRef(RootRelativePath.parse('skills/solo'))
+
+
+def _database_naming(root: Path, working_directory: Path, argument: Path) -> Database:
+    """A database over a snapshot of `root` that reads the directory `argument` names, as `select_skills` takes one.
+
+    Args:
+        root: The repository root the snapshot is taken of.
+        working_directory: What a relative argument is relative to.
+        argument: The path as typed; the directory it names joins the snapshot and the model.
+    """
+    named_dirs = named_skill_dirs(root, working_directory, [argument])
+    return Database(take_snapshot(root, scope_with_named_dirs(named_dirs)))
 
 
 @pytest.fixture(scope='function')
@@ -344,7 +360,7 @@ def skills_database(tmp_path: Path) -> Database:
 
     It holds `commit`, `review` and `reviewer` both linked to `skills/review/`, `audit` linked to `commit`, and
     `lint`, whose `SKILL.md` links to `shared/LINT.md`; `.claude/skills` links to the directory, and `drafts/` is
-    no skill.
+    no skill. `skills/` also holds `solo`, which no entry links to, so no agent reads it.
 
     Args:
         tmp_path: Directory the tree is written into and snapshotted, as the repository root.
@@ -352,6 +368,7 @@ def skills_database(tmp_path: Path) -> Database:
     _write(tmp_path, '.agents/skills/commit/SKILL.md')
     _write(tmp_path, '.agents/skills/drafts/README.md')
     _write(tmp_path, 'skills/review/SKILL.md')
+    _write(tmp_path, 'skills/solo/SKILL.md')
     _write(tmp_path, 'shared/LINT.md')
     (tmp_path / '.agents' / 'skills' / 'lint').mkdir()
     (tmp_path / '.agents' / 'skills' / 'lint' / 'SKILL.md').symlink_to('../../../shared/LINT.md')
@@ -379,20 +396,20 @@ class TestSelectSkillsAt:
             'the argument maps onto the ref the model lists, and a directory selects the whole skill'
         )
 
-    def test_select_skills_at_with_the_real_directory_two_entries_link_to_selects_both_whole(
+    def test_select_skills_at_with_the_directory_two_entries_link_to_selects_it_as_a_skill_of_its_own(
         self, tmp_path: Path, skills_database: Database
     ) -> None:
         #: Given
         argument = tmp_path / 'skills' / 'review'
+        database = _database_naming(tmp_path, tmp_path, argument)
 
         #: When
-        selections = select_skills_at(skills_database, tmp_path, tmp_path, argument)
+        selections = select_skills_at(database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert selections == (
-            SkillSelection(REVIEW, SkillScope.WHOLE_SKILL),
-            SkillSelection(REVIEWER, SkillScope.WHOLE_SKILL),
-        ), 'a directory that is no entry selects every entry leading to it, in the model order'
+        assert selections == (SkillSelection(SKILLS_REVIEW, SkillScope.WHOLE_SKILL),), (
+            'a directory with a SKILL.md at its root is one skill, named as spelled, not the entries linked to it'
+        )
 
     def test_select_skills_at_with_a_skill_file_behind_a_linked_skills_directory_selects_the_file_alone(
         self, tmp_path: Path, skills_database: Database
@@ -492,20 +509,20 @@ class TestSelectSkillsAt:
             'the linked SKILL.md resolves to the file the model records for the skill, selected alone'
         )
 
-    def test_select_skills_at_with_the_real_skill_file_two_entries_lead_to_selects_the_file_of_both(
+    def test_select_skills_at_with_the_skill_file_of_a_directory_two_entries_link_to_selects_its_file_alone(
         self, tmp_path: Path, skills_database: Database
     ) -> None:
         #: Given
         argument = tmp_path / 'skills' / 'review' / 'SKILL.md'
+        database = _database_naming(tmp_path, tmp_path, argument)
 
         #: When
-        selections = select_skills_at(skills_database, tmp_path, tmp_path, argument)
+        selections = select_skills_at(database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert selections == (
-            SkillSelection(REVIEW, SkillScope.SKILL_FILE),
-            SkillSelection(REVIEWER, SkillScope.SKILL_FILE),
-        ), 'a SKILL.md that is no entry names the file of every entry leading to it'
+        assert selections == (SkillSelection(SKILLS_REVIEW, SkillScope.SKILL_FILE),), (
+            'the SKILL.md names the skill its directory is, as spelled, and that file alone of it'
+        )
 
     def test_select_skills_at_with_a_path_outside_the_root_raises_not_listed(
         self, tmp_path: Path, skills_database: Database, tmp_path_factory: pytest.TempPathFactory
@@ -602,18 +619,168 @@ class TestSelectSkillsAt:
         #: Then
         assert selections == (), 'a skills directory with no skill is a selection of none, not a refusal'
 
-    def test_select_skills_at_with_the_directory_skill_entries_link_into_raises_not_listed(
+    def test_select_skills_at_with_a_directory_of_skills_no_agent_reads_selects_each_skill_in_it_whole(
         self, tmp_path: Path, skills_database: Database
     ) -> None:
         #: Given
         argument = tmp_path / 'skills'
+        database = _database_naming(tmp_path, tmp_path, argument)
+
+        #: When
+        selections = select_skills_at(database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert selections == (
+            SkillSelection(SKILLS_REVIEW, SkillScope.WHOLE_SKILL),
+            SkillSelection(SKILLS_SOLO, SkillScope.WHOLE_SKILL),
+        ), 'each directory in it holding a SKILL.md is a skill, named under it, solo too, which no entry links to'
+
+    def test_select_skills_at_with_a_link_to_a_directory_of_skills_names_each_skill_under_the_link(
+        self, tmp_path: Path, skills_database: Database
+    ) -> None:
+        #: Given
+        (tmp_path / 'bundle').symlink_to('skills')
+        argument = tmp_path / 'bundle'
+        database = _database_naming(tmp_path, tmp_path, argument)
+
+        #: When
+        selections = select_skills_at(database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert selections == (
+            SkillSelection(SkillRef(RootRelativePath.parse('bundle/review')), SkillScope.WHOLE_SKILL),
+            SkillSelection(SkillRef(RootRelativePath.parse('bundle/solo')), SkillScope.WHOLE_SKILL),
+        ), 'the link is followed to the directory, and each skill keeps the spelling of the path named'
+
+    def test_select_skills_at_with_a_directory_holding_a_link_to_a_skill_selects_it_by_the_link(
+        self, tmp_path: Path, skills_database: Database
+    ) -> None:
+        #: Given
+        (tmp_path / 'bundle').mkdir()
+        (tmp_path / 'bundle' / 'solo').symlink_to('../skills/solo')
+        argument = tmp_path / 'bundle'
+        database = _database_naming(tmp_path, tmp_path, argument)
+
+        #: When
+        selections = select_skills_at(database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert selections == (
+            SkillSelection(SkillRef(RootRelativePath.parse('bundle/solo')), SkillScope.WHOLE_SKILL),
+        ), 'an entry linked to a skill directory is a skill named by the entry'
+
+    def test_select_skills_at_with_a_directory_holding_no_skill_raises_not_listed(
+        self, tmp_path: Path, skills_database: Database
+    ) -> None:
+        #: Given
+        argument = tmp_path / 'shared'
+        database = _database_naming(tmp_path, tmp_path, argument)
 
         #: When
         with pytest.raises(UnlistedSkillPathError) as exc_info:
-            select_skills_at(skills_database, tmp_path, tmp_path, argument)
+            select_skills_at(database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert exc_info.value.argument == argument, 'a directory no agent reads as its skills directory names no skill'
+        assert exc_info.value.argument == argument, (
+            'a directory with no SKILL.md at its root or in a directory inside it names no skill'
+        )
+
+    def test_select_skills_at_with_a_link_leading_outside_the_repository_selects_none(
+        self, tmp_path: Path, skills_database: Database, tmp_path_factory: pytest.TempPathFactory
+    ) -> None:
+        #: Given
+        outside = tmp_path_factory.mktemp('outside')
+        _write(outside, 'review/SKILL.md')
+        (tmp_path / 'elsewhere').symlink_to(outside)
+        argument = tmp_path / 'elsewhere'
+        database = _database_naming(tmp_path, tmp_path, argument)
+
+        #: When
+        selections = select_skills_at(database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert selections == (), 'the link is never followed out, so no skill is selected and the run reports it'
+
+    def test_select_skills_at_with_a_directory_whose_only_entry_leads_outside_selects_none(
+        self, tmp_path: Path, skills_database: Database, tmp_path_factory: pytest.TempPathFactory
+    ) -> None:
+        #: Given
+        outside = tmp_path_factory.mktemp('outside')
+        _write(outside, 'x/SKILL.md')
+        (tmp_path / 'onlyout').mkdir()
+        (tmp_path / 'onlyout' / 'x').symlink_to(outside / 'x')
+        argument = tmp_path / 'onlyout'
+        database = _database_naming(tmp_path, tmp_path, argument)
+
+        #: When
+        selections = select_skills_at(database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert selections == (), (
+            "a directory holding only a link leading outside selects none, as an agent's skills directory does"
+        )
+
+    def test_select_skills_at_with_a_skill_file_leading_outside_selects_none(
+        self, tmp_path: Path, skills_database: Database, tmp_path_factory: pytest.TempPathFactory
+    ) -> None:
+        #: Given
+        outside = tmp_path_factory.mktemp('outside')
+        _write(outside, 'audit.md')
+        (tmp_path / 'skills' / 'audit').mkdir()
+        (tmp_path / 'skills' / 'audit' / 'SKILL.md').symlink_to(outside / 'audit.md')
+        argument = tmp_path / 'skills' / 'audit' / 'SKILL.md'
+        database = _database_naming(tmp_path, tmp_path, argument)
+
+        #: When
+        selections = select_skills_at(database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert selections == (), 'the SKILL.md named leads outside, so it is reported, not checked nor refused'
+
+    def test_select_skills_at_with_the_parent_of_an_agent_skills_directory_raises_not_listed(
+        self, tmp_path: Path, skills_database: Database
+    ) -> None:
+        #: Given
+        argument = tmp_path / '.agents'
+        database = _database_naming(tmp_path, tmp_path, argument)
+
+        #: When
+        with pytest.raises(UnlistedSkillPathError) as exc_info:
+            select_skills_at(database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert exc_info.value.argument == argument, (
+            'skills/ under .agents holds no SKILL.md of its own, so .agents is neither a skill nor holds one'
+        )
+
+    def test_select_skills_at_with_a_trailing_slash_selects_as_without_it(
+        self, tmp_path: Path, skills_database: Database
+    ) -> None:
+        #: Given
+        argument = Path(f'{tmp_path / "skills"}/')
+        database = _database_naming(tmp_path, tmp_path, argument)
+
+        #: When
+        selections = select_skills_at(database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert selections == (
+            SkillSelection(SKILLS_REVIEW, SkillScope.WHOLE_SKILL),
+            SkillSelection(SKILLS_SOLO, SkillScope.WHOLE_SKILL),
+        ), 'a trailing slash names the same directory'
+
+    def test_select_skills_at_with_the_root_raises_not_listed(self, tmp_path: Path, skills_database: Database) -> None:
+        #: Given
+        _write(tmp_path, 'SKILL.md')
+        argument = tmp_path
+        database = _database_naming(tmp_path, tmp_path, argument)
+
+        #: When
+        with pytest.raises(UnlistedSkillPathError) as exc_info:
+            select_skills_at(database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert exc_info.value.argument == argument, 'the root is never read as a skill, which would read it whole'
 
     def test_select_skills_at_with_a_directory_that_is_no_skill_raises_not_listed(
         self, tmp_path: Path, skills_database: Database
@@ -647,15 +814,15 @@ class TestSelectSkillsAt:
         #: Given
         working_directory = tmp_path / '.agents' / 'skills'
         argument = Path('../../skills/review')
+        database = _database_naming(tmp_path, working_directory, argument)
 
         #: When
-        selections = select_skills_at(skills_database, tmp_path, working_directory, argument)
+        selections = select_skills_at(database, tmp_path, working_directory, argument)
 
         #: Then
-        assert selections == (
-            SkillSelection(REVIEW, SkillScope.WHOLE_SKILL),
-            SkillSelection(REVIEWER, SkillScope.WHOLE_SKILL),
-        ), 'a relative argument is spelled from the working directory, `..` included'
+        assert selections == (SkillSelection(SKILLS_REVIEW, SkillScope.WHOLE_SKILL),), (
+            'a relative argument is spelled from the working directory, `..` included'
+        )
 
     def test_select_skills_at_with_a_link_removed_after_the_snapshot_returns_the_ref_the_snapshot_saw(
         self, tmp_path: Path, skills_database: Database
@@ -735,6 +902,70 @@ class TestSelectSkills:
             'two names of one SKILL.md select it once, and still the file alone'
         )
 
+    def test_select_skills_with_an_entry_and_the_directory_it_links_to_selects_two_skills(
+        self, tmp_path: Path, skills_database: Database
+    ) -> None:
+        #: Given
+        paths = [tmp_path / '.agents' / 'skills' / 'review', tmp_path / 'skills' / 'review']
+
+        #: When
+        _database, selections = select_skills(tmp_path, paths)
+
+        #: Then
+        assert selections == (
+            SkillSelection(REVIEW, SkillScope.WHOLE_SKILL),
+            SkillSelection(SKILLS_REVIEW, SkillScope.WHOLE_SKILL),
+        ), 'each path names the skill by its own spelling, so the one directory is two skills'
+
+    def test_select_skills_with_a_directory_of_skills_and_one_skill_in_it_selects_that_skill_once(
+        self, tmp_path: Path, skills_database: Database
+    ) -> None:
+        #: Given
+        paths = [tmp_path / 'skills' / 'solo' / 'SKILL.md', tmp_path / 'skills']
+
+        #: When
+        _database, selections = select_skills(tmp_path, paths)
+
+        #: Then
+        assert selections == (
+            SkillSelection(SKILLS_SOLO, SkillScope.WHOLE_SKILL),
+            SkillSelection(SKILLS_REVIEW, SkillScope.WHOLE_SKILL),
+        ), 'the skill both name is one, selected where first named, whole since the directory names it whole'
+
+    def test_select_skills_with_a_skill_and_a_skill_nested_in_it_selects_both(
+        self, tmp_path: Path, skills_database: Database
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'skills/solo/nested/SKILL.md')
+        paths = [tmp_path / 'skills' / 'solo' / 'nested', tmp_path / 'skills' / 'solo']
+
+        #: When
+        _database, selections = select_skills(tmp_path, paths)
+
+        #: Then
+        assert selections == (
+            SkillSelection(SkillRef(RootRelativePath.parse('skills/solo/nested')), SkillScope.WHOLE_SKILL),
+            SkillSelection(SKILLS_SOLO, SkillScope.WHOLE_SKILL),
+        ), 'each directory named with a SKILL.md at its root is a skill of its own, the nested one too'
+
+    def test_select_skills_with_a_directory_an_agent_skills_directory_links_to_selects_the_agents_skills(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'skills/review/SKILL.md')
+        (tmp_path / '.agents').mkdir()
+        (tmp_path / '.agents' / 'skills').symlink_to('../skills')
+        paths = [tmp_path / 'skills']
+
+        #: When
+        database, selections = select_skills(tmp_path, paths)
+
+        #: Then
+        assert database.model().named_dirs == (), "the directory is an agent's skills directory, read the agents' way"
+        assert selections == (SkillSelection(SKILLS_REVIEW, SkillScope.WHOLE_SKILL),), (
+            'every skill the agent lists there is selected, under the real skills directory'
+        )
+
     def test_select_skills_with_no_path_selects_every_skill_whole(
         self, tmp_path: Path, skills_database: Database
     ) -> None:
@@ -752,3 +983,55 @@ class TestSelectSkills:
             SkillSelection(REVIEW, SkillScope.WHOLE_SKILL),
             SkillSelection(REVIEWER, SkillScope.WHOLE_SKILL),
         ), 'a run naming no path checks every skill whole'
+
+
+@pytest.mark.it
+class TestNamedSkillDirs:
+    def test_named_skill_dirs_with_a_directory_named_twice_returns_it_once(self, tmp_path: Path) -> None:
+        #: Given
+        arguments = [tmp_path / 'skills', Path('skills'), tmp_path / 'shared']
+
+        #: When
+        directories = named_skill_dirs(tmp_path, tmp_path, arguments)
+
+        #: Then
+        assert directories == (RootRelativePath.parse('skills'), RootRelativePath.parse('shared')), (
+            'each directory once, in the order first named, however it is spelled to the same path'
+        )
+
+    def test_named_skill_dirs_with_a_skill_file_returns_the_directory_holding_it(self, tmp_path: Path) -> None:
+        #: Given
+        arguments = [tmp_path / 'skills' / 'review' / 'SKILL.md']
+
+        #: When
+        directories = named_skill_dirs(tmp_path, tmp_path, arguments)
+
+        #: Then
+        assert directories == (RootRelativePath.parse('skills/review'),), 'a SKILL.md names the directory holding it'
+
+    def test_named_skill_dirs_with_a_path_outside_the_root_leaves_it_out(
+        self, tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
+    ) -> None:
+        #: Given
+        arguments = [tmp_path_factory.mktemp('outside'), tmp_path / 'skills']
+
+        #: When
+        directories = named_skill_dirs(tmp_path, tmp_path, arguments)
+
+        #: Then
+        assert directories == (RootRelativePath.parse('skills'),), 'a path outside the root names no directory under it'
+
+    def test_named_skill_dirs_with_a_relative_argument_spells_it_from_the_working_directory(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        working_directory = tmp_path / '.agents' / 'skills'
+        arguments = [Path('../../skills/review/')]
+
+        #: When
+        directories = named_skill_dirs(tmp_path, working_directory, arguments)
+
+        #: Then
+        assert directories == (RootRelativePath.parse('skills/review'),), (
+            'the argument is spelled from the working directory, `..` and a trailing slash taken lexically'
+        )
