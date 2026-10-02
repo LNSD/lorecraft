@@ -532,7 +532,7 @@ def _symlink_reports(outside_symlinks: tuple[OutsideSymlink, ...]) -> tuple[Syml
 
 
 def _link_target(database: Database, ref: SkillRef) -> RootRelativePath | None:
-    """The real directory a skill's listed directory leads to when it is a link, or `None` when it is not.
+    """The canonical directory a skill's listed directory leads to when it is a link, or `None` when it is not.
 
     Read from the location the model records, never from the disk. Raises nothing.
 
@@ -605,13 +605,13 @@ def _link_target_state(database: Database, ref: SkillRef, path: PurePosixPath) -
         ref: The skill the path is read from.
         path: A path inside the skill, relative to its root: normalised, with no `..` component, and not absolute.
     """
-    # Joined to `ref.directory`, the directory an agent reaches the skill by, never to the real directory it
-    # leads to: `find_real_path` then follows every symlink on the way, the skill's own entry and any inside it,
+    # Joined to `ref.directory`, the directory an agent reaches the skill by, never to the canonical directory it
+    # leads to: `find_canonical_path` then follows every symlink on the way, the skill's own entry and any inside it,
     # as an agent's read of the path would. Only what is left after the lexical normalisation is followed: a `..`
     # the link wrote already cancelled the component before it as spelled, so `guides/../SKILL.md` is
     # `SKILL.md`, whatever directory a `guides` symlink leads to. With no `..` left, the join stays root-relative.
     joined = ref.directory / str(path)
-    if database.find_real_path(joined) is None:
+    if database.find_canonical_path(joined) is None:
         return LinkTargetState.MISSING
     return LinkTargetState.PRESENT
 
@@ -695,7 +695,7 @@ def _listed_file_state(database: Database, written: str) -> ListedFileState:
         path = RootRelativePath.parse(written)
     except RootRelativePathError:
         return ListedFileState.OUTSIDE_SCOPE
-    if database.find_real_file(path) is not None:
+    if database.find_canonical_file(path) is not None:
         return ListedFileState.PRESENT
     if database.is_in_scope(path):
         return ListedFileState.MISSING

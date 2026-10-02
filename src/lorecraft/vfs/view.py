@@ -1,15 +1,16 @@
 """The contract of the filesystem boundary: entry kinds, the error families and the abstract view.
 
-Every path crossing this boundary is a ``RootRelativePath`` such as ``docs/code/logging.md``: never absolute,
-never holding a ``..`` component, so no argument can name a file outside the root. The type carries that
-proof, so no implementation checks it again. Nothing above the boundary sees a ``Path``, a handle, a stat
-result or an mtime. Three operations report where a symlink chain goes: ``find_real_dir`` and ``find_real_file``
-where it leads, as a root-relative directory or file, and ``find_root_exit`` where it leaves the root.
-``list_dir`` and ``read_text`` reach through a link on the way to the path they are given, or at it, and never
-report or classify a link's target. ``find_entry_kind`` reaches
+Every path crossing this boundary is a `RootRelativePath` such as `docs/code/logging.md`: never absolute,
+never holding a `..` component, so no argument can name a file outside the root. The type carries that
+proof, so no implementation checks it again. Nothing above the boundary sees a `Path`, a handle, a stat
+result or an mtime. Three operations report where a symlink chain goes: `find_canonical_dir` and
+`find_canonical_file` where it leads, as a root-relative directory or file, and `find_root_exit` where it leaves
+the root.
+`list_dir` and `read_text` reach through a link on the way to the path they are given, or at it, and never
+report or classify a link's target. `find_entry_kind` reaches
 through a link on the way and reports one at the path as a link, as a listing of its parent would. Every
-implementation of the view is this package's own: ``DiskFileSystem`` reads the disk under the workspace
-root, and ``VirtualFileSystem`` answers from a ``Snapshot``.
+implementation of the view is this package's own: `DiskFileSystem` reads the disk under the workspace
+root, and `VirtualFileSystem` answers from a `Snapshot`.
 """
 
 import errno
@@ -54,7 +55,7 @@ class RootExit:
     so nothing outside the root is read.
 
     Attributes:
-        link: The symlink, at its real path, the walk followed last before it left the root.
+        link: The symlink, at its canonical path, the walk followed last before it left the root.
         target: That link's target, unresolved: absolute, or relative to the link's directory and climbing with
             `..`. Where it climbs above the root, the `..` that does so may come from an earlier link of the chain.
     """
@@ -311,19 +312,19 @@ class FileSystem(ABC):
         """
 
     @abstractmethod
-    def find_real_dir(self, path: RootRelativePath) -> RootRelativePath | None:
-        """Follow every symlink in `path` and return the real directory it leads to, root-relative.
+    def find_canonical_dir(self, path: RootRelativePath) -> RootRelativePath | None:
+        """Follow every symlink in `path` and return the canonical directory it leads to, root-relative.
 
-        One of the three operations that say where a symlink chain goes, with `find_real_file` and
+        One of the three operations that say where a symlink chain goes, with `find_canonical_file` and
         `find_root_exit`, which reports where a chain this one refuses leaves the root: `list_dir` and
-        `read_text` follow a link without naming the real path. A regular directory resolves to itself,
+        `read_text` follow a link without naming the canonical path. A regular directory resolves to itself,
         and the root resolves to `.`.
 
         Args:
             path: The root-relative path to resolve; every symlink in it is followed.
 
         Returns:
-            The real directory, root-relative, or `None` when no directory under the root sits at the
+            The canonical directory, root-relative, or `None` when no directory under the root sits at the
             end of the chain: the path is missing, a link dangles or loops, a component or the target is
             not a directory, or the target lies outside the root and so has no root-relative spelling. A
             chain that leads outside the root resolves to `None` even when the operating system refuses
@@ -335,17 +336,17 @@ class FileSystem(ABC):
         """
 
     @abstractmethod
-    def find_real_file(self, path: RootRelativePath) -> RootRelativePath | None:
-        """Follow every symlink in `path` and return the real regular file it leads to, root-relative.
+    def find_canonical_file(self, path: RootRelativePath) -> RootRelativePath | None:
+        """Follow every symlink in `path` and return the canonical regular file it leads to, root-relative.
 
-        `find_real_dir`'s counterpart for a file: a regular file resolves to itself, and a link to one resolves
+        `find_canonical_dir`'s counterpart for a file: a regular file resolves to itself, and a link to one resolves
         to the file it leads to, wherever the chain goes on the way.
 
         Args:
             path: The root-relative path to resolve; every symlink in it is followed.
 
         Returns:
-            The real file, root-relative, or `None` when no regular file under the root sits at the end of
+            The canonical file, root-relative, or `None` when no regular file under the root sits at the end of
             the chain: the path is missing, a link dangles or loops, a component is not a directory, the
             target is not a regular file, or it lies outside the root. A chain that leads outside the root
             resolves to `None` even when the operating system refuses to search a directory on the way.

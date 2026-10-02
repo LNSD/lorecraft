@@ -8,7 +8,7 @@ sorts the parsed files into corpus stems and namespace stems, keeps the corpora 
 included, before any document is read.
 
 The skills come from the agents: the loader asks each agent in ``lorecraft.agents`` which project skills
-directories it reads, keeps the ones the repository has, and lists the skills in each real directory once. A
+directories it reads, keeps the ones the repository has, and lists the skills in each canonical directory once. A
 skills directory, a skill entry or a `SKILL.md` whose symlink chain leaves the repository is recorded in the model
 as an outside symlink, for a check to report. Any other entry that does not fit the layout is left out of the
 model; nothing it leaves out fails the run.
@@ -362,15 +362,15 @@ def _load_skills_dirs(skills: SkillRepository) -> tuple[tuple[SkillsDir, ...], t
 def _list_skill_locations(
     skills: SkillRepository, skills_dirs: tuple[SkillsDir, ...]
 ) -> tuple[tuple[SkillLocation, ...], tuple[OutsideSymlink, ...]]:
-    """The location of every skill in the real directories behind `skills_dirs`, each once, sorted by directory.
+    """The location of every skill in the canonical directories behind `skills_dirs`, each once, sorted by directory.
 
-    Two agents reading one real directory add no second skill: the directory is listed once. The locations are
+    Two agents reading one canonical directory add no second skill: the directory is listed once. The locations are
     sorted as a whole, since one skills directory may sit inside another. Returned beside them, sorted by path, is
     every entry and every entry's `SKILL.md` in those directories whose symlink chain leaves the repository.
 
     Args:
-        skills: Repository each real directory is listed through.
-        skills_dirs: Skills directories the agents read; only the real directory each leads to is listed.
+        skills: Repository each canonical directory is listed through.
+        skills_dirs: Skills directories the agents read; only the canonical directory each leads to is listed.
 
     Returns:
         A pair: the location of every skill; then every entry and entry's `SKILL.md` whose chain leaves the
@@ -382,14 +382,14 @@ def _list_skill_locations(
         SkillDirListError: If a skill directory cannot be listed.
         SkillFileResolveError: If a symlinked SKILL.md cannot be resolved.
     """
-    real_directories: set[RootRelativePath] = set()
+    canonical_directories: set[RootRelativePath] = set()
     for skills_dir in skills_dirs:
-        real_directories.add(skills_dir.resolves_to)
+        canonical_directories.add(skills_dir.resolves_to)
 
     locations: list[SkillLocation] = []
     outside_symlinks: list[OutsideSymlink] = []
-    for real_directory in real_directories:
-        listing = skills.list_skills(real_directory)
+    for canonical_directory in canonical_directories:
+        listing = skills.list_skills(canonical_directory)
         locations.extend(listing.skills)
         outside_symlinks.extend(listing.outside_symlinks)
     return tuple(sorted(locations)), tuple(sorted(outside_symlinks, key=lambda outside: outside.path))
@@ -426,25 +426,25 @@ def _list_named_dirs(
         SkillDirListError: If a named directory, or a skill directory in it, cannot be listed.
         SkillFileResolveError: If a symlinked SKILL.md cannot be resolved.
     """
-    agents_real_dirs: set[RootRelativePath] = set()
+    agents_canonical_dirs: set[RootRelativePath] = set()
     for skills_dir in skills_dirs:
-        agents_real_dirs.add(skills_dir.resolves_to)
+        agents_canonical_dirs.add(skills_dir.resolves_to)
 
     named_dirs: list[NamedDir] = []
     outside_symlinks: list[OutsideSymlink] = []
     for path in sorted(set(paths)):
-        if skills.find_real_dir(path.parent) in agents_real_dirs:
+        if skills.find_canonical_dir(path.parent) in agents_canonical_dirs:
             continue  # an entry of an agent's skills directory, leading outside or not
-        real_directory = skills.find_real_dir(path)
-        if real_directory is None:
+        canonical_directory = skills.find_canonical_dir(path)
+        if canonical_directory is None:
             leads_outside = skills.find_skills_dir_exit(path)
             if leads_outside is not None:
                 named_dirs.append(NamedDir(path, skills=(), outside_symlinks=(leads_outside,)))
                 outside_symlinks.append(leads_outside)
             continue
-        if real_directory == ROOT or real_directory in agents_real_dirs:
+        if canonical_directory == ROOT or canonical_directory in agents_canonical_dirs:
             continue
-        listing = skills.list_named_skills(path, real_directory)
+        listing = skills.list_named_skills(path, canonical_directory)
         named_dirs.append(NamedDir(path, skills=listing.skills, outside_symlinks=listing.outside_symlinks))
         outside_symlinks.extend(listing.outside_symlinks)
     return tuple(named_dirs), tuple(outside_symlinks)

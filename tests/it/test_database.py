@@ -231,7 +231,7 @@ class TestDatabase:
         #: Then
         assert in_scope is True, 'every question after the first is answered from the same expanded scan roots'
 
-    def test_find_real_path_through_a_link_climbing_out_of_a_directory_stepped_into_returns_the_real_file(
+    def test_find_canonical_path_through_a_link_climbing_out_of_a_directory_stepped_into_returns_the_canonical_file(
         self,
     ) -> None:
         #: Given
@@ -239,31 +239,33 @@ class TestDatabase:
         path = RootRelativePath.parse('skills/l/SKILL.md')
 
         #: When
-        resolved = database.find_real_path(path)
+        resolved = database.find_canonical_path(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('a/b/SKILL.md'), 'the `..` after a/tmp is a, so skills/l is a/b'
 
-    def test_find_real_file_through_a_link_climbing_out_of_an_unlisted_directory_returns_the_real_file(self) -> None:
+    def test_find_canonical_file_through_a_link_climbing_out_of_an_unlisted_directory_returns_the_canonical_file(
+        self,
+    ) -> None:
         #: Given
         database = Database(_climbing_chain_snapshot())
         path = RootRelativePath.parse('skills/far/SKILL.md')
 
         #: When
-        resolved = database.find_real_file(path)
+        resolved = database.find_canonical_file(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('c/d/SKILL.md'), (
             'no listing shows c/tmp, but the recorded climb out of it does'
         )
 
-    def test_find_real_file_through_a_link_climbing_out_of_a_missing_directory_returns_none(self) -> None:
+    def test_find_canonical_file_through_a_link_climbing_out_of_a_missing_directory_returns_none(self) -> None:
         #: Given
         database = Database(_climbing_chain_snapshot())
         path = RootRelativePath.parse('skills/n/SKILL.md')
 
         #: When
-        resolved = database.find_real_file(path)
+        resolved = database.find_canonical_file(path)
 
         #: Then
         assert resolved is None, 'a/missing does not exist, so skills/n leads to no file, though a/b/SKILL.md does'
@@ -279,13 +281,13 @@ class TestDatabase:
         #: Then
         assert in_scope is False, 'the scan never climbed out of a/missing, so the scope query does not either'
 
-    def test_find_real_file_through_a_followed_link_returns_the_real_file(self) -> None:
+    def test_find_canonical_file_through_a_followed_link_returns_the_canonical_file(self) -> None:
         #: Given
         database = Database(_climbing_chain_snapshot())
         path = RootRelativePath.parse('skills/m/SKILL.md')
 
         #: When
-        resolved = database.find_real_file(path)
+        resolved = database.find_canonical_file(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('a/b/SKILL.md'), 'the scan follows skills/m to a/b'
@@ -406,7 +408,7 @@ class TestDatabase:
     def test_skill_parse_of_a_linked_skill_parses_the_skill_the_link_leads_to(self) -> None:
         #: Given
         # What a scan records for `.agents/skills/review -> ../../skills/review`: the link in the skills directory,
-        # and the SKILL.md at the real path it leads to.
+        # and the SKILL.md at the canonical path it leads to.
         shipped = Snapshot.from_files(
             {RootRelativePath.parse('skills/review/SKILL.md'): b'---\nname: review\n---\n[the guide](guide.md)\n'}
         )

@@ -33,7 +33,7 @@ why a document is or is not checked, and which agents see a skill, without runni
 - **Governed by**: The specifications whose rules apply to a document, broad to narrow: their stems in the
   tree, and every file at those stems in the JSON.
 - **Agent skills directory**: A directory an agent reads skills from, such as `.claude/skills`, shown only when
-  the root has it, with the real directory it leads to when it is a symlink.
+  the root has it, with the canonical directory it leads to when it is a symlink.
 - **Skill**: A directory directly inside an agent skills directory that holds a `SKILL.md`.
 
 ## Configuration

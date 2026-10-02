@@ -122,7 +122,7 @@ def _location(directory: str) -> SkillLocation:
 
 
 def _linked_location(directory: str, resolves_to: str, file_resolves_to: str) -> SkillLocation:
-    """The location of a skill whose directory or `SKILL.md` is a link, with the real paths they lead to.
+    """The location of a skill whose directory or `SKILL.md` is a link, with the canonical paths they lead to.
 
     Args:
         directory: Root-relative path of the skill directory as an agent reaches it.
@@ -191,7 +191,7 @@ class TestRepositoryFindSkillsDir:
 
         #: Then
         assert universal_dir.is_dir(), 'the case turns on the skills directory existing'
-        assert resolved == UNIVERSAL_DIR, 'a regular skills directory is its own real directory'
+        assert resolved == UNIVERSAL_DIR, 'a regular skills directory is its own canonical directory'
 
     def test_find_skills_dir_with_a_directory_linked_to_another_returns_the_other(
         self, tmp_path: Path, repository: Repository, universal_dir: Path
