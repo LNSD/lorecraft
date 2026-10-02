@@ -27,7 +27,8 @@ def skills(
         list[Path] | None,
         typer.Argument(
             help=(
-                'Skills to check, each by its directory or its SKILL.md, relative to the current directory. '
+                'Skills to check, each by a skills directory, a skill directory, or a SKILL.md, relative to the '
+                'current directory. '
                 "Defaults to every skill in the agents' skills directories under ROOT."
             )
         ),

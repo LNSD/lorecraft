@@ -1717,6 +1717,43 @@ class TestCheckSkillsCommand:
         )
         assert result.stderr == 'checked 1 skill(s), 1 finding(s)\n', 'the skill named twice is checked once'
 
+    def test_check_skills_with_a_skills_directory_and_one_of_its_entries_checks_each_skill_once(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        skill_file = _write(tmp_path, '.agents/skills/review/SKILL.md', '---\nname: review\n---\n')
+        _write(tmp_path, '.agents/skills/lint/SKILL.md', '---\nname: lint\n---\n')
+        skills_dir = tmp_path / '.agents' / 'skills'
+        arguments = ['check', 'skills', str(skills_dir), str(skill_file.parent), '--root', str(tmp_path)]
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert result.stdout == (
+            '.agents/skills/lint/SKILL.md:1: [skill.description] `description` is required\n'
+            '.agents/skills/review/SKILL.md:1: [skill.description] `description` is required\n'
+        ), 'each skill of the directory is reported once, the one named again included'
+        assert result.stderr == 'checked 2 skill(s), 2 finding(s)\n', 'the skill named twice is checked once'
+
+    def test_check_skills_with_a_skills_directory_holding_no_skill_checks_none(self, tmp_path: Path) -> None:
+        #: Given
+        skills_dir = tmp_path / '.agents' / 'skills'
+        skills_dir.mkdir(parents=True)
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills', str(skills_dir), '--root', str(tmp_path)])
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stdout == '', 'no skill is checked, so nothing is reported'
+        assert result.stderr == 'checked 0 skill(s), 0 finding(s)\n', (
+            'an empty skills directory is a selection of no skill, not a refusal'
+        )
+
     def test_check_skills_with_a_linked_specs_directory_checks_the_skills(self, linked_specs_workspace: Path) -> None:
         #: Given
         _write(
@@ -1760,7 +1797,8 @@ class TestCheckSkillsCommand:
         assert result.exit_code == 2, result.output
         assert result.stdout == '', 'after an error nothing is printed but the error'
         assert result.stderr == (
-            f'error: {not_a_skill.parent}: not a skill the workspace lists; name a skill directory or its SKILL.md\n'
+            f'error: {not_a_skill.parent}: not a skill the workspace lists; '
+            'name a skills directory, a skill directory, or a SKILL.md\n'
         ), 'the error quotes the argument as typed and says what a skill argument names'
 
 
