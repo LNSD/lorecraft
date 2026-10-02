@@ -3,7 +3,7 @@ name: "spec-structure-frontmatter"
 description: "The frontmatter key of a structure specification: a Draft 2020-12 JSON Schema for a document's YAML frontmatter whose root states type object, checked against the meta-schema on load, with corpus and namespace schemas applied each on its own. Load when writing or changing a frontmatter schema, adding a frontmatter field, or a frontmatter schema is reported invalid"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft.project.schemas.structure,module:lorecraft.project.schemas.structure_file,module:lorecraft.checks.frontmatter,spec:feat,spec:code"
+components: "module:lorecraft.project,module:lorecraft.checks,spec:feat,spec:code"
 ---
 
 # Frontmatter Schemas
