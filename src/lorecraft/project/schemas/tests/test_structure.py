@@ -19,6 +19,8 @@ from ..frontmatter_problem import (
     UnknownFieldProblem,
     WrongTypeProblem,
 )
+from ..name import SpecName, parse_spec_name
+from ..spec_file import SpecFileType, StructureSpecFile, spec_filename
 from ..structure import (
     AdjacentAnyRunsError,
     AnySections,
@@ -36,12 +38,14 @@ from ..structure import (
     StructureSchema,
     StructureSpec,
     StructureSpecDecodeError,
-    StructureSpecFilenameError,
     TitleRule,
     UntypedFrontmatterSchemaError,
 )
 
-SPEC_PATH: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
+SPECS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__')
+SPEC_NAME: Final[SpecName] = parse_spec_name('code')
+SPEC_PATH: Final[RootRelativePath] = SPECS_DIR / spec_filename(SPEC_NAME, SpecFileType.STRUCTURE)
+SPEC_FILE: Final[StructureSpecFile] = StructureSpecFile(path=SPEC_PATH, name=SPEC_NAME)
 
 # What a rule document's Checklist holds, as the outline entry naming it states it.
 CHECKLIST_DESCRIPTION: Final[str] = (
@@ -92,11 +96,11 @@ class TestStructureSpecParse:
         )
 
         #: When
-        structure_spec = StructureSpec.parse(SPEC_PATH, schema)
+        structure_spec = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert structure_spec == StructureSpec(
-            path=SPEC_PATH,
+            file=SPEC_FILE,
             title=TitleRule(count=1, first=True),
             forbid_empty_sections=True,
             outline=(
@@ -126,7 +130,7 @@ class TestStructureSpecParse:
         )
 
         #: When
-        structure_spec = StructureSpec.parse(SPEC_PATH, schema)
+        structure_spec = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert structure_spec.outline == (
@@ -142,7 +146,7 @@ class TestStructureSpecParse:
         schema = StructureSchema('{"outline": [{"section": "Checklist"}]}')
 
         #: When
-        structure_spec = StructureSpec.parse(SPEC_PATH, schema)
+        structure_spec = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert structure_spec.outline == (SectionEntry(name='Checklist', description=None, examples=()),), (
@@ -155,7 +159,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'an empty description would print empty help, so it is refused'
@@ -166,7 +170,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'no examples are written by leaving the key out, so `[]` is refused'
@@ -179,7 +183,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'an empty example would print a heading alone, so it is refused'
@@ -192,7 +196,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a description is one string of text, not a list of lines'
@@ -203,7 +207,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'examples are a list, so one bare string is refused'
@@ -214,7 +218,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the file is read strictly, so a number is not an example'
@@ -226,7 +230,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'only a named section takes a description'
@@ -238,7 +242,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'only a named section takes examples'
@@ -248,7 +252,7 @@ class TestStructureSpecParse:
         schema = StructureSchema('{"frontmatter": {"type": "object"}}')
 
         #: When
-        structure_spec = StructureSpec.parse(SPEC_PATH, schema)
+        structure_spec = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert structure_spec.frontmatter == FrontmatterSchema(path=SPEC_PATH, schema={'type': 'object'}), (
@@ -261,7 +265,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(InvalidFrontmatterSchemaError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the error names the structure specification the schema is in'
@@ -275,7 +279,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(UntypedFrontmatterSchemaError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the object type is stated, not implied'
@@ -286,7 +290,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a boolean schema is refused by the shape'
@@ -297,7 +301,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, (
@@ -313,7 +317,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(FrontmatterSchemaIdError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the editor lets an $id through, the load refuses it naming the file'
@@ -328,7 +332,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(ForeignFrontmatterDialectError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the editor lets a foreign $schema through, the load refuses it'
@@ -341,7 +345,7 @@ class TestStructureSpecParse:
         schema = StructureSchema('{"tokens": 4000}')
 
         #: When
-        structure_spec = StructureSpec.parse(SPEC_PATH, schema)
+        structure_spec = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert structure_spec.tokens == 4000, 'a token budget is a rule, so a file stating only it is usable'
@@ -352,7 +356,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'no document satisfies a budget of 0 tokens'
@@ -364,7 +368,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a top-level `words` is not a field, so it is refused, not ignored'
@@ -375,7 +379,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'no section satisfies a cap of 0 words'
@@ -386,7 +390,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'no section in a run satisfies a cap of 0 words'
@@ -397,7 +401,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the file is read strictly, so a string is not a word cap'
@@ -408,7 +412,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a token budget is a whole number of tokens'
@@ -419,7 +423,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a JSON boolean is not a word cap, though Python treats it as one'
@@ -438,11 +442,11 @@ class TestStructureSpecParse:
         )
 
         #: When
-        structure_spec = StructureSpec.parse(SPEC_PATH, schema)
+        structure_spec = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert structure_spec == StructureSpec(
-            path=SPEC_PATH,
+            file=SPEC_FILE,
             title=None,
             forbid_empty_sections=False,
             outline=(),
@@ -466,7 +470,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the error names the rejected file'
@@ -483,7 +487,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'text that is not JSON is refused at the edge, naming the file'
@@ -503,7 +507,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'no document satisfies a count of 0'
@@ -522,7 +526,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the file is read strictly, so no value is coerced into another type'
@@ -542,7 +546,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the error names the rejected file'
@@ -553,7 +557,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the prose is named by the filename, so `spec` is not a field'
@@ -574,7 +578,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, '"forbidden" is the only value `empty_sections` takes'
@@ -593,7 +597,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a JSON boolean is not a count, though Python treats it as one'
@@ -608,7 +612,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert len(exc_info.value.problems) == 2, f'each wrong field is its own problem, got {exc_info.value.problems}'
@@ -636,7 +640,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'an outline entry is a section or an `any` run, nothing else'
@@ -655,7 +659,7 @@ class TestStructureSpecParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, '`forbidden` holds section names only'
@@ -665,12 +669,12 @@ class TestStructureSpecParse:
 class TestStructureSpecConstruction:
     def test_construction_without_any_rule_raises_empty_structure_spec_error(self) -> None:
         #: Given
-        path = SPEC_PATH
+        file = SPEC_FILE
 
         #: When
         with pytest.raises(EmptyStructureSpecError) as exc_info:
             StructureSpec(
-                path=path,
+                file=file,
                 title=None,
                 forbid_empty_sections=False,
                 outline=(),
@@ -680,7 +684,7 @@ class TestStructureSpecConstruction:
             )
 
         #: Then
-        assert exc_info.value.path == path, 'a specification stating no rule would check nothing'
+        assert exc_info.value.path == file.path, 'a specification stating no rule would check nothing'
 
     def test_construction_with_a_title_count_of_zero_raises_invalid_title_count_error(self) -> None:
         #: Given
@@ -689,7 +693,7 @@ class TestStructureSpecConstruction:
         #: When
         with pytest.raises(InvalidTitleCountError) as exc_info:
             StructureSpec(
-                path=SPEC_PATH,
+                file=SPEC_FILE,
                 title=title,
                 forbid_empty_sections=False,
                 outline=(),
@@ -713,7 +717,7 @@ class TestStructureSpecConstruction:
         #: When
         with pytest.raises(RepeatedOutlineSectionError) as exc_info:
             StructureSpec(
-                path=SPEC_PATH,
+                file=SPEC_FILE,
                 title=None,
                 forbid_empty_sections=False,
                 outline=outline,
@@ -736,7 +740,7 @@ class TestStructureSpecConstruction:
         #: When
         with pytest.raises(ForbiddenOutlineSectionError) as exc_info:
             StructureSpec(
-                path=SPEC_PATH,
+                file=SPEC_FILE,
                 title=None,
                 forbid_empty_sections=False,
                 outline=outline,
@@ -763,7 +767,7 @@ class TestStructureSpecConstruction:
         #: When
         with pytest.raises(AdjacentAnyRunsError) as exc_info:
             StructureSpec(
-                path=SPEC_PATH,
+                file=SPEC_FILE,
                 title=None,
                 forbid_empty_sections=False,
                 outline=outline,
@@ -783,7 +787,7 @@ class TestStructureSpecConstruction:
         #: When
         with pytest.raises(InvalidTokenBudgetError) as exc_info:
             StructureSpec(
-                path=SPEC_PATH,
+                file=SPEC_FILE,
                 title=None,
                 forbid_empty_sections=False,
                 outline=(),
@@ -803,7 +807,7 @@ class TestStructureSpecConstruction:
 
         #: When
         structure_spec = StructureSpec(
-            path=SPEC_PATH,
+            file=SPEC_FILE,
             title=None,
             forbid_empty_sections=False,
             outline=(),
@@ -824,7 +828,7 @@ class TestStructureSpecConstruction:
         #: When
         with pytest.raises(InvalidWordCapError) as exc_info:
             StructureSpec(
-                path=SPEC_PATH,
+                file=SPEC_FILE,
                 title=None,
                 forbid_empty_sections=False,
                 outline=outline,
@@ -848,7 +852,7 @@ class TestStructureSpecConstruction:
         #: When
         with pytest.raises(InvalidWordCapError) as exc_info:
             StructureSpec(
-                path=SPEC_PATH,
+                file=SPEC_FILE,
                 title=None,
                 forbid_empty_sections=False,
                 outline=outline,
@@ -870,11 +874,12 @@ class TestStructureSpecConstruction:
 class TestStructureSpecAuthority:
     def test_construction_at_a_namespace_path_derives_the_prose_at_its_stem(self) -> None:
         #: Given
-        path = RootRelativePath.parse('docs/__meta__/code-python.structure.json')
+        name = parse_spec_name('code-python')
+        file = StructureSpecFile(path=SPECS_DIR / spec_filename(name, SpecFileType.STRUCTURE), name=name)
 
         #: When
         structure_spec = StructureSpec(
-            path=path,
+            file=file,
             title=None,
             forbid_empty_sections=False,
             outline=(),
@@ -885,29 +890,6 @@ class TestStructureSpecAuthority:
 
         #: Then
         assert structure_spec.authority == 'code-python.md', 'the prose is the `.md` file at the same spec name'
-
-    def test_construction_at_a_path_that_is_not_a_spec_filename_raises_structure_spec_filename_error(self) -> None:
-        #: Given
-        path = RootRelativePath.parse('docs/__meta__/notes.txt')
-
-        #: When
-        with pytest.raises(StructureSpecFilenameError) as exc_info:
-            StructureSpec(
-                path=path,
-                title=None,
-                forbid_empty_sections=False,
-                outline=(),
-                forbidden=('Changelog',),
-                tokens=None,
-                frontmatter=None,
-            )
-
-        #: Then
-        assert exc_info.value.path == path, (
-            'a structure specification whose path names no prose has no authority to quote'
-        )
-        assert exc_info.value.source is exc_info.value.__cause__, 'why the filename is refused is kept as the cause'
-        assert str(path) in str(exc_info.value), f'the message names the file, got {exc_info.value}'
 
 
 @pytest.mark.unit

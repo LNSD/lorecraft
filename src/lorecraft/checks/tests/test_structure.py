@@ -9,7 +9,17 @@ from typing import Final
 import pytest
 
 from lorecraft.project.layout import SPECS_DIR
-from lorecraft.project.schemas import AnySections, OutlineEntry, SectionEntry, StructureSpec, TitleRule
+from lorecraft.project.schemas import (
+    AnySections,
+    OutlineEntry,
+    SectionEntry,
+    SpecFileType,
+    StructureSpec,
+    StructureSpecFile,
+    TitleRule,
+    parse_spec_name,
+    spec_filename,
+)
 from lorecraft.project.syntax import LineNumber, parse_document
 
 from ..reporting import Note, NoteKind
@@ -77,8 +87,9 @@ def _structure_spec(
         forbidden: Section names the document may not have.
         spec_name: Specification name the file sits at, such as `code` or `code-python`.
     """
+    name = parse_spec_name(spec_name)
     return StructureSpec(
-        path=SPECS_DIR / f'{spec_name}.structure.json',
+        file=StructureSpecFile(path=SPECS_DIR / spec_filename(name, SpecFileType.STRUCTURE), name=name),
         title=title,
         forbid_empty_sections=forbid_empty_sections,
         outline=outline,

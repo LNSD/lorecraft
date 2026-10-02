@@ -43,8 +43,9 @@ from lorecraft.project.schemas.spec_file import (
     InvalidSpecStemError,
     NotASpecFileError,
     NotASpecStemError,
+    ProseSpecFile,
     SpecFile,
-    SpecFileType,
+    StructureSpecFile,
     UnknownSpecFileTypeError,
     parse_spec_file,
 )
@@ -98,7 +99,6 @@ def load_workspace(
         CorpusListError: If a corpus directory cannot be listed.
         StructureSchemaReadError: If any structure specification cannot be read.
         StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
-        StructureSpecFilenameError: If a structure specification is not at a specification filename.
         EmptyStructureSpecError: If a structure specification states no rule.
         InvalidTitleCountError: If a title count is below 1.
         InvalidTokenBudgetError: If a token budget is below 1.
@@ -171,7 +171,6 @@ def load_model(fs: FileSystem, *, named_dirs: tuple[RootRelativePath, ...] = ())
         CorpusListError: If a corpus directory cannot be listed.
         StructureSchemaReadError: If any structure specification cannot be read.
         StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
-        StructureSpecFilenameError: If a structure specification is not at a specification filename.
         EmptyStructureSpecError: If a structure specification states no rule.
         InvalidTitleCountError: If a title count is below 1.
         InvalidTokenBudgetError: If a token budget is below 1.
@@ -243,7 +242,6 @@ def _load_corpus(
     Raises:
         StructureSchemaReadError: If a structure specification cannot be read.
         StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
-        StructureSpecFilenameError: If a structure specification is not at a specification filename.
         EmptyStructureSpecError: If a structure specification states no rule.
         InvalidTitleCountError: If a title count is below 1.
         InvalidTokenBudgetError: If a token budget is below 1.
@@ -307,7 +305,6 @@ def _load_structure(schemas: SchemaRepository, name: SpecName, spec_files: list[
     Raises:
         StructureSchemaReadError: If the structure specification cannot be read.
         StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
-        StructureSpecFilenameError: If a structure specification is not at a specification filename.
         EmptyStructureSpecError: If a structure specification states no rule.
         InvalidTitleCountError: If a title count is below 1.
         InvalidTokenBudgetError: If a token budget is below 1.
@@ -322,10 +319,15 @@ def _load_structure(schemas: SchemaRepository, name: SpecName, spec_files: list[
     """
     structure: StructureSpec | None = None
     for spec_file in spec_files:
-        if spec_file.type is SpecFileType.STRUCTURE:
-            # Building the structure specification is the check: StructureSpec.parse rejects text that is not JSON in
-            # the structure dialect, rules that are not usable, and a malformed frontmatter schema.
-            structure = StructureSpec.parse(spec_file.path, schemas.get_structure_schema(name))
+        match spec_file:
+            case StructureSpecFile():
+                # Building the structure specification is the check: StructureSpec.parse rejects text that is not JSON
+                # in the structure dialect, rules that are not usable, and a malformed frontmatter schema.
+                structure = StructureSpec.parse(spec_file, schemas.get_structure_schema(name))
+            case ProseSpecFile():
+                pass  # the prose is written for a reader, and no check decodes it
+            case _:
+                assert_never(spec_file)
     return structure
 
 

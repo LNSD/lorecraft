@@ -253,8 +253,6 @@ def run_frontmatter(database: Database, refs: tuple[DocumentRef, ...]) -> CheckR
         StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
         StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in the
             dialect's shape.
-        StructureSpecFilenameError: If the model is not loaded yet and a structure specification is not at a
-            specification filename.
         EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
         InvalidTitleCountError: If the model is not loaded yet and a title count is below 1.
         InvalidTokenBudgetError: If the model is not loaded yet and a token budget is below 1.
@@ -316,8 +314,6 @@ def run_structure(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun
         StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
         StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in the
             dialect's shape.
-        StructureSpecFilenameError: If the model is not loaded yet and a structure specification is not at a
-            specification filename.
         EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
         InvalidTitleCountError: If the model is not loaded yet and a title count is below 1.
         InvalidTokenBudgetError: If the model is not loaded yet and a token budget is below 1.
@@ -379,8 +375,6 @@ def run_budget(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
         StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
         StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in the
             dialect's shape.
-        StructureSpecFilenameError: If the model is not loaded yet and a structure specification is not at a
-            specification filename.
         EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
         InvalidTitleCountError: If the model is not loaded yet and a title count is below 1.
         InvalidTokenBudgetError: If the model is not loaded yet and a token budget is below 1.

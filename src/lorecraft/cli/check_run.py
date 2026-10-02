@@ -184,7 +184,6 @@ def select_documents(root: Path | None, paths: list[Path] | None) -> tuple[Datab
         CorpusListError: If a corpus directory cannot be listed.
         StructureSchemaReadError: If any structure specification cannot be read.
         StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
-        StructureSpecFilenameError: If a structure specification is not at a specification filename.
         EmptyStructureSpecError: If a structure specification states no rule.
         InvalidTitleCountError: If a title count is below 1.
         InvalidTokenBudgetError: If a token budget is below 1.
@@ -262,7 +261,6 @@ def select_skills(root: Path | None, paths: list[Path] | None) -> tuple[Database
         CorpusListError: If a corpus directory cannot be listed.
         StructureSchemaReadError: If any structure specification cannot be read.
         StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
-        StructureSpecFilenameError: If a structure specification is not at a specification filename.
         EmptyStructureSpecError: If a structure specification states no rule.
         InvalidTitleCountError: If a title count is below 1.
         InvalidTokenBudgetError: If a token budget is below 1.
