@@ -56,11 +56,12 @@ reads documents, however it was found.
 ### Document Selection
 
 A bare `lorecraft check` checks every document of the [workspace](workspace.md#documents), and every skill. A
-named document check does the same when given no paths. Given paths, it checks exactly those, and refuses the run when one is not such a
-document: a path outside `docs/` or inside `docs/__meta__/`, a file directly in `docs/`, a directory, a file that
-is not Markdown, one in a directory whose name is no corpus name or that no specification names, one in a
-subdirectory of a corpus, one the workspace does not list as a document, or a path the snapshot holds nothing at.
-Paths are relative to the working directory, not to the root.
+named document check does the same when given no paths. Given paths, it checks exactly those, each document once
+in the order first named (two paths that lead to one document in the snapshot name it once), and refuses the run
+when a path is not such a document: a path outside `docs/` or inside `docs/__meta__/`, a file directly in `docs/`,
+a directory, a file that is not Markdown, one in a directory whose name is no corpus name or that no specification
+names, one in a subdirectory of a corpus, one the workspace does not list as a document, or a path the snapshot
+holds nothing at. Paths are relative to the working directory, not to the root.
 
 Under the root a path is resolved in the [snapshot](workspace.md#one-snapshot), not on disk, so it names what
 the run reads: a link the snapshot recorded is followed to its target, and a link it never read is judged by its

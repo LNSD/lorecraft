@@ -190,7 +190,7 @@ def select_documents(root: Path | None, paths: list[Path] | None) -> tuple[Datab
     Args:
         root: The ``--root`` option; ``None`` searches upward from the working directory.
         paths: The documents named on the command line; ``None`` or empty selects every document the model
-            lists.
+            lists. A document two paths name, however each spells it, is selected once, at its first place.
 
     Raises:
         WorkingDirectoryReadError: If no root is given, or a path is named, and the working directory cannot be read.
@@ -248,7 +248,9 @@ def select_documents(root: Path | None, paths: list[Path] | None) -> tuple[Datab
     working_directory = _working_directory()
     refs: list[DocumentRef] = []
     for argument in paths:
-        refs.append(select_document(database, root_path, working_directory, argument))
+        ref = select_document(database, root_path, working_directory, argument)
+        if ref not in refs:
+            refs.append(ref)
     return database, tuple(refs)
 
 
