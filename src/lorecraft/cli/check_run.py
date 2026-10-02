@@ -17,11 +17,21 @@ import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Literal, assert_never
 
 import typer
 
-from lorecraft.checks import CheckRun, Database, Finding, SkillCheckRun, SkillScope, SkillSelection, format_finding
+from lorecraft.checks import (
+    CheckRun,
+    Database,
+    Finding,
+    GovernedDocumentReport,
+    SkillCheckRun,
+    SkillScope,
+    SkillSelection,
+    UngovernedDocumentReport,
+    format_finding,
+)
 from lorecraft.core.error import Error
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE, scope_with_named_dirs
@@ -397,10 +407,19 @@ def _json_report(run: CheckRun) -> dict[str, object]:
     Args:
         run: The run to report; its reports give the checked count and which documents are ungoverned.
     """
+    ungoverned: list[str] = []
+    for report in run.reports:
+        match report:
+            case GovernedDocumentReport():
+                pass
+            case UngovernedDocumentReport():
+                ungoverned.append(str(report.ref.path))
+            case _:
+                assert_never(report)
     return {
         'checked': len(run.reports),
         'findings': _json_findings(run.findings()),
-        'ungoverned': [str(report.ref.path) for report in run.reports if not report.governed],
+        'ungoverned': ungoverned,
     }
 
 
@@ -455,10 +474,14 @@ def _echo_lines(run: CheckRun, ungoverned: str) -> None:
         ungoverned: Text of an ungoverned document's line after its rule, as `DocumentCheck.ungoverned` states it.
     """
     for report in run.reports:
-        if not report.governed:
-            typer.echo(f'{report.ref.path}:1: [{report.ref.corpus}.ungoverned] {ungoverned}')
-        for finding in report.findings():
-            typer.echo(format_finding(finding))
+        match report:
+            case GovernedDocumentReport():
+                for finding in report.findings():
+                    typer.echo(format_finding(finding))
+            case UngovernedDocumentReport():
+                typer.echo(f'{report.ref.path}:1: [{report.ref.corpus}.ungoverned] {ungoverned}')
+            case _:
+                assert_never(report)
 
 
 def _working_directory() -> Path:

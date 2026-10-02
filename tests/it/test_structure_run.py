@@ -10,7 +10,7 @@ from typing import Final
 
 import pytest
 
-from lorecraft.checks import CheckRun, Database, run_structure
+from lorecraft.checks import CheckRun, Database, GovernedDocumentReport, UngovernedDocumentReport, run_structure
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.vfs import take_snapshot
@@ -125,7 +125,7 @@ class TestRunStructure:
         run = _run_every_document(database)
 
         #: Then
-        ungoverned = [report.ref.path for report in run.reports if not report.governed]
+        ungoverned = [report.ref.path for report in run.reports if isinstance(report, UngovernedDocumentReport)]
         assert ungoverned == [RootRelativePath.parse('docs/feat/overview.md')], (
             'the feat corpus has a spec but no structure file, so its one document is ungoverned'
         )
@@ -146,7 +146,11 @@ class TestRunStructure:
         run = _run_every_document(database)
 
         #: Then
-        assert [(report.ref.path, report.governed) for report in run.reports] == [
-            (RootRelativePath.parse('docs/api/intro.md'), False),
-            (RootRelativePath.parse('docs/code/guide.md'), True),
-        ], 'the api corpus has no structure specification, and skipping its document does not end the run'
+        reports = [(report.ref.path, type(report)) for report in run.reports]
+        assert len(reports) == 2, f'every selected document is reported, got {reports}'
+        assert reports[0] == (RootRelativePath.parse('docs/api/intro.md'), UngovernedDocumentReport), (
+            'the api corpus has no structure specification, so its document is ungoverned'
+        )
+        assert reports[1] == (RootRelativePath.parse('docs/code/guide.md'), GovernedDocumentReport), (
+            'skipping the ungoverned document does not end the run'
+        )
