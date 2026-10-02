@@ -33,7 +33,7 @@ from wenmode.plugins.frontmatter import FrontmatterPlugin
 
 from .anchor import Anchor
 from .frontmatter import FrontmatterNode, MissingFrontmatter, decode_frontmatter
-from .heading import Heading
+from .heading import Heading, HeadingLevel
 from .link import Link
 from .position import LineNumber
 
@@ -139,7 +139,7 @@ def _headings(text: str, blocks: list[Node], block_words: list[int]) -> tuple[He
         empty = following is None or (isinstance(following, WenmodeHeading) and following.depth <= block.depth)
         headings.append(
             Heading(
-                level=block.depth,
+                level=_heading_level(block.depth),
                 text=plain_text(block.children),
                 line=_line(text, _position(block)),
                 empty=empty,
@@ -147,6 +147,20 @@ def _headings(text: str, blocks: list[Node], block_words: list[int]) -> tuple[He
             )
         )
     return tuple(headings)
+
+
+def _heading_level(depth: int) -> HeadingLevel:
+    """A wenmode heading's depth as a heading level, which wenmode types as any `int`.
+
+    Args:
+        depth: The `depth` of a wenmode heading.
+    """
+    match depth:
+        case 1 | 2 | 3 | 4 | 5 | 6:
+            return depth
+        case _:
+            # wenmode follows CommonMark, which gives every ATX and setext heading a depth of 1 to 6.
+            raise AssertionError(f'unreachable: a Markdown heading is 1 to 6 deep, got {depth}')
 
 
 def _anchors(root: Root) -> frozenset[Anchor]:

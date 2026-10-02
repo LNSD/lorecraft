@@ -6,8 +6,12 @@ not a heading; the Markdown parser decides both (see ``document``).
 """
 
 from dataclasses import dataclass
+from typing import Literal, assert_never
 
 from .position import LineNumber
+
+type HeadingLevel = Literal[1, 2, 3, 4, 5, 6]
+"""A heading's depth: 1 for a title through 6, the deepest Markdown has."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,10 +29,25 @@ class Heading:
             are not prose.
     """
 
-    level: int
+    level: HeadingLevel
     text: str
     line: LineNumber
     empty: bool
     # Not range-checked: only the parser builds a heading, and it counts the words, so the value is never
     # below 0.
     words: int
+
+    def __post_init__(self) -> None:
+        """Fail on a level outside 1 to 6, which the type rules out but cannot stop at run time.
+
+        The type is checked only before the code runs, so a value that reached `level` through `Any` or a `cast`
+        is caught here instead.
+
+        Raises:
+            AssertionError: If `level` is not in 1..6.
+        """
+        match self.level:
+            case 1 | 2 | 3 | 4 | 5 | 6:
+                pass
+            case _:
+                assert_never(self.level)
