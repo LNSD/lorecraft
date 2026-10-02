@@ -10,7 +10,7 @@ components: "module:lorecraft.project,module:lorecraft.checks,spec:feat,spec:cod
 
 ## Summary
 
-A `<stem>.structure.json` file limits the length of the documents its stem governs in two ways. A `words` cap
+A `<name>.structure.json` file limits the length of the documents its name governs in two ways. A `words` cap
 on an outline entry keeps a section's prose concise for the person reading it, and the `tokens` key budgets the
 whole file, which is what loading the document costs an agent. `lorecraft check structure` applies the caps and
 `lorecraft check budget` the budget.

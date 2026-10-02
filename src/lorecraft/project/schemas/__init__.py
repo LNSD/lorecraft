@@ -1,6 +1,6 @@
 """The specifications: their files, the schemas they state, and the repository that reads them.
 
-That is the specification filenames and stems, the structure specification with the frontmatter schema it carries,
+That is the specification filenames and names, the structure specification with the frontmatter schema it carries,
 the repository that reads them, the skill frontmatter schema, and the problems both frontmatter schemas report.
 """
 
@@ -15,7 +15,7 @@ from .frontmatter_problem import (
     UnknownFieldProblem,
     WrongTypeProblem,
 )
-from .name import SchemaName, parse_schema_name, schema_name_stem
+from .name import CorpusSpecName, NamespaceSpecName, SpecName, parse_spec_name
 from .repo import Repository, StructureSchemaReadError
 from .skill import SKILL_FRONTMATTER_SCHEMA, SkillFrontmatterSchema
 from .skill_frontmatter import (
@@ -69,9 +69,10 @@ from .structure import (
 from .structure_file import StructureFile
 
 __all__ = [
-    'SchemaName',
-    'parse_schema_name',
-    'schema_name_stem',
+    'CorpusSpecName',
+    'NamespaceSpecName',
+    'SpecName',
+    'parse_spec_name',
     'SpecFileType',
     'SpecFile',
     'parse_spec_file',

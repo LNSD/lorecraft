@@ -10,7 +10,7 @@ components: "module:lorecraft.project,module:lorecraft.checks,spec:feat,spec:cod
 
 ## Summary
 
-The `frontmatter` key of a `<stem>.structure.json` file states the frontmatter rules of the documents its stem
+The `frontmatter` key of a `<name>.structure.json` file states the frontmatter rules of the documents its name
 governs, as a JSON Schema the frontmatter mapping must satisfy. Unlike the rest of the structure dialect, its
 value is JSON Schema Draft 2020-12 itself, so any editor and any JSON Schema tool reads it.
 `lorecraft check frontmatter` applies it, as `lorecraft check budget` applies the `tokens` key of the same
@@ -28,10 +28,10 @@ file.
 
 - **Frontmatter schema**: The value of the `frontmatter` key; its root describes the frontmatter as one
   object, and must say `"type": "object"` outright.
-- **Corpus schema**: The frontmatter schema at the corpus stem, which states the whole field set, usually with
-  `required` and `additionalProperties: false`. Without it the corpus's frontmatter is unchecked.
-- **Namespace schema**: A frontmatter schema at a namespace stem. It is applied beside the corpus schema, never
-  in place of it, so it states only the constraints it adds.
+- **Corpus schema**: The frontmatter schema at the corpus specification name, which states the whole field set,
+  usually with `required` and `additionalProperties: false`. Without it the corpus's frontmatter is unchecked.
+- **Namespace schema**: A frontmatter schema at a namespace specification name. It is applied beside the corpus
+  schema, never in place of it, so it states only the constraints it adds.
 
 ## Usage
 

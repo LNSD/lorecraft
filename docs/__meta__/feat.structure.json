@@ -36,7 +36,7 @@
       "components": {
         "type": "string",
         "pattern": "^\\s*(?:module:lorecraft\\.[a-z0-9_]+|(?:skill|spec):[a-z0-9_]+(?:[-._][a-z0-9_]+)*)(?:\\s*,\\s*(?:module:lorecraft\\.[a-z0-9_]+|(?:skill|spec):[a-z0-9_]+(?:[-._][a-z0-9_]+)*))*\\s*$",
-        "description": "Comma-separated, each entry prefixed module: (a top-level package of lorecraft, as in lorecraft.project, and nothing deeper), skill: (a skill directory, kebab-case), or spec: (a file stem under docs/__meta__/, kebab-case). The pattern fixes the prefix vocabulary, the character set, and that a module: entry is lorecraft.<package>; that a skill: or spec: entry is kebab-case is stated in feat.md section 2 and verified by reading, because one regular expression covering every prefix's spelling is less readable than the rule it encodes."
+        "description": "Comma-separated, each entry prefixed module: (a top-level package of lorecraft, as in lorecraft.project, and nothing deeper), skill: (a skill directory, kebab-case), or spec: (a specification name under docs/__meta__/, kebab-case). The pattern fixes the prefix vocabulary, the character set, and that a module: entry is lorecraft.<package>; that a skill: or spec: entry is kebab-case is stated in feat.md section 2 and verified by reading, because one regular expression covering every prefix's spelling is less readable than the rule it encodes."
       }
     }
   },

@@ -1,6 +1,6 @@
 ---
 name: "spec-structure"
-description: "The structure specification file: <stem>.structure.json as the machine-checkable half of a specification, its $schema and description keys, the rule that a file states at least one rule, how a namespace file adds to the corpus file, what is refused on load, and editor validation with the generated docs/schemas/structure.spec.json. Load when creating a structure specification, pointing an editor at the dialect's schema, or one is reported invalid"
+description: "The structure specification file: <name>.structure.json as the machine-checkable half of a specification, its $schema and description keys, the rule that a file states at least one rule, how a namespace file adds to the corpus file, what is refused on load, and editor validation with the generated docs/schemas/structure.spec.json. Load when creating a structure specification, pointing an editor at the dialect's schema, or one is reported invalid"
 type: "feature"
 status: "experimental"
 components: "module:lorecraft.project,spec:feat,spec:code"
@@ -10,8 +10,8 @@ components: "module:lorecraft.project,spec:feat,spec:code"
 
 ## Summary
 
-A `<stem>.structure.json` file holds the rules of a specification that a check can decide, for the documents
-its stem governs. It is a small JSON dialect: each key states one kind of rule, every key is optional, and a
+A `<name>.structure.json` file holds the rules of a specification that a check can decide, for the documents
+its name governs. It is a small JSON dialect: each key states one kind of rule, every key is optional, and a
 check reads only the keys it applies. A generated JSON Schema of the dialect lets an editor validate a file as
 it is written.
 
@@ -26,11 +26,11 @@ it is written.
 
 ## Key Concepts
 
-- **Structure specification**: A `<stem>.structure.json` file in `docs/__meta__/`, the machine-checkable half
-  of the prose `<stem>.md` beside it.
+- **Structure specification**: A `<name>.structure.json` file in `docs/__meta__/`, the machine-checkable half
+  of the prose `<name>.md` beside it.
 - **Rule key**: A top-level key that states one kind of rule. A file holds any subset of them.
 - **Layer**: Each structure specification that applies to a document: the corpus file, then every namespace
-  file whose stem matches, as [spec](spec.md#base-and-extension) resolves them. Every layer is applied on its
+  file whose name matches, as [spec](spec.md#base-and-extension) resolves them. Every layer is applied on its
   own.
 - **Editor schema**: `structure.spec.json`, the JSON Schema of the dialect's shape, generated from the model
   the checks read a file with.
@@ -62,7 +62,7 @@ has, with its shape.
 
 A namespace file is applied beside the corpus file, never in place of it. It states only what it adds, and it
 cannot relax what the corpus file says: a document must pass every layer. Here a namespace file tightens the
-rule above for the documents its stem matches:
+rule above for the documents its name matches:
 
 ```json
 {
@@ -88,12 +88,12 @@ specification as it is written. It states the shape only; a rule that no shape c
 ## Limitations
 
 - A file is selected by a document's path, never by its `type` or any other frontmatter value: its rules apply
-  to every document its stem governs.
+  to every document its name governs.
 - A layer only adds rules. No key lets a namespace file release a document from the corpus file.
 
 ## References
 
-- [spec](spec.md) - Base: stems, file types and how layers apply
+- [spec](spec.md) - Base: specification names, file types and how layers apply
 - [cli-check](cli-check.md) - Related: the checks that read a structure specification
 
 ## Code References

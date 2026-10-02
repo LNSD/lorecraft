@@ -29,16 +29,16 @@ Every command below calls `lorecraft` directly. Where it is not on `PATH`, run `
 Do not resolve specifications by hand. `lorecraft inspect` resolves them with the same rules the checks apply:
 
 ```bash
-lorecraft inspect          # a tree: corpora, their specification stems, each document with its stems, then the skills
+lorecraft inspect          # a tree: corpora, their specification names, each document with its own, then the skills
 lorecraft inspect --json   # the same model; each document's governed_by lists its files
 ```
 
-In the tree, each document is followed by the stems governing it, broad to narrow: `pattern-state.md [code,
-code-pattern]` answers to `docs/__meta__/code.md`, then `docs/__meta__/code-pattern.md`. The file at the
-same stem that the pattern `*.structure.json` claims, the structure specification, is the machine-checkable half
-the checks run: the frontmatter under its `frontmatter` key, the sections, the word caps and the token budget.
-[cli-inspect](references/cli-inspect.md) describes the output. The tree ends with the agent skills and the agents
-that read them, which writing a document does not need.
+In the tree, each document is followed by the names of the specifications governing it, broad to narrow:
+`pattern-state.md [code, code-pattern]` answers to `docs/__meta__/code.md`, then `docs/__meta__/code-pattern.md`.
+The file at the same specification name that the pattern `*.structure.json` claims, the structure specification,
+is the machine-checkable half the checks run: the frontmatter under its `frontmatter` key, the sections, the word
+caps and the token budget. [cli-inspect](references/cli-inspect.md) describes the output. The tree ends with the
+agent skills and the agents that read them, which writing a document does not need.
 
 A document not yet written is not listed: create the file, empty if need be, and run it again. A file that
 exists but is not listed is outside every corpus, and a corpus with no specification for a check is
@@ -65,7 +65,7 @@ If it needs a corpus that does not exist yet, that is a new specification: use `
 2. **Read a neighbour.** Open the closest existing document in the corpus. The specification states the rules;
    a neighbour shows the register and depth the corpus settled on.
 3. **Write the frontmatter first.** Deciding it forces you to decide what the document is. The
-   `frontmatter` key of each `<stem>.structure.json` states the fields exactly, and `name`, where a schema governs, matches the
+   `frontmatter` key of each `<name>.structure.json` states the fields exactly, and `name`, where a schema governs, matches the
    filename without `.md`.
 4. **Write the body** from the specification's template or outline, keeping its sections in order.
 5. **Run the checks** on the files you wrote, the frontmatter as soon as it exists:

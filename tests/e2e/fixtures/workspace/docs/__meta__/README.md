@@ -1,3 +1,3 @@
 # Specifications
 
-Not a specification stem, so the loader leaves it out.
+Not at a specification name, so the loader leaves it out.

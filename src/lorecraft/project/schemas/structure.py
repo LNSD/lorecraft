@@ -1,6 +1,6 @@
 r"""The structure specification: its file's decoded JSON, and the rules it is decoded into.
 
-The repository reads a `<stem>.structure.json` file's text, a `StructureSchema`, which proves nothing about
+The repository reads a `<name>.structure.json` file's text, a `StructureSchema`, which proves nothing about
 it. `StructureSpec.parse` is the check, in two steps at the edge. It deserializes the text straight into the
 strict, frozen `StructureFile` model, so JSON that is malformed or not the dialect's shape is refused before
 any rule is read. Then it maps the model to typed rules, and building the specification refuses a set of rules that
@@ -30,7 +30,7 @@ structure specification is not JSON Schema. It is this small dialect, whose fiel
       "forbidden": ["Changelog"]
     }
 
-The file does not name the prose it is the machine-checkable half of: that is `<stem>.md` beside it, and every
+The file does not name the prose it is the machine-checkable half of: that is `<name>.md` beside it, and every
 finding quotes it.
 
 - `$schema` points editors at `docs/schemas/structure.spec.json`, the JSON Schema `just gen` renders from
@@ -594,8 +594,8 @@ class StructureSpec:
     Not hashable when it states a frontmatter schema, since `FrontmatterSchema` holds a dict.
 
     Attributes:
-        path: Root-relative path of the JSON file, `<stem>.structure.json`; the prose it is the
-            machine-checkable half of is `<stem>.md` beside it, which `authority` names.
+        path: Root-relative path of the JSON file, `<name>.structure.json`; the prose it is the
+            machine-checkable half of is `<name>.md` beside it, which `authority` names.
         title: The title rule, or None when the specification states none.
         forbid_empty_sections: True when every section must hold content.
         outline: The section order, matched against a document's sections left to right; may be empty.

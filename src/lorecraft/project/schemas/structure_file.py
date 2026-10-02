@@ -1,6 +1,6 @@
 """The shape of a structure specification file, as it is written: the one declaration of its fields.
 
-These models describe the JSON a `<stem>.structure.json` file holds, field for field, where `StructureSpec`
+These models describe the JSON a `<name>.structure.json` file holds, field for field, where `StructureSpec`
 holds the rules decoded from it. They are the edge: `StructureSpec.parse` deserializes a file's text straight
 into `StructureFile` and nothing else reads the JSON, so a file that gets past them has this shape exactly. And
 `just gen` renders them into `docs/schemas/structure.spec.json`, the JSON Schema an editor validates the file
