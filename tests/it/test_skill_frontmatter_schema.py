@@ -51,7 +51,9 @@ class TestSkillFrontmatterSchema:
         frontmatters = {
             skill.parent.name: parse_frontmatter(skill.read_text(encoding='utf-8')) for skill in repository_skills()
         }
-        assert all(isinstance(node, Frontmatter) for node in frontmatters.values()), 'every skill opens with a mapping'
+        assert all(isinstance(node, Frontmatter) for node in frontmatters.values()), (
+            f'every skill opens with a mapping: {frontmatters}'
+        )
         data = {name: node.data for name, node in frontmatters.items() if isinstance(node, Frontmatter)}
 
         #: When

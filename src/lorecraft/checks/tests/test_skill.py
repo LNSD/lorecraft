@@ -141,9 +141,11 @@ class TestValidateSkill:
         )
 
         #: Then
-        assert [(violation.line, violation.rule) for violation in result.violations] == [
-            (LineNumber(3), 'skill.name')
-        ], 'a name the specification rejects is reported where it is written'
+        assert len(result.violations) == 1, (
+            f'a name the specification rejects is reported once, got {result.violations}'
+        )
+        assert result.violations[0].line == LineNumber(3), 'the malformed name is reported where it is written'
+        assert result.violations[0].rule == 'skill.name', 'a name the specification rejects breaks the name rule'
 
     def test_validate_skill_with_a_name_unlike_the_directory_reports_the_directory_rule(self) -> None:
         #: Given
