@@ -37,7 +37,7 @@ from typing import Final
 
 MAX_HEADING_DEPTH: Final[int] = 4
 _SPEC_SUFFIX: Final[str] = '.structure.json'
-CHECKERS_BY_ASPECT: Final[Mapping[str, Checker]] = index_checkers(CHECKERS)
+CHECKERS_BY_NAME: Final[Mapping[str, Checker]] = index_checkers(CHECKERS)
 ```
 
 ## 2. Spell the Type Inside `Final`
@@ -50,13 +50,13 @@ the day the literal changes, and the reader has to evaluate the value to learn t
 
 ```python
 # ❌ Bad — the type is whatever the value happens to be, so widening this list to a
-# fourth aspect changes the declared type of every signature that took it
-SPEC_ASPECTS: Final = ('frontmatter', 'structure', 'budget')
+# fourth check changes the declared type of every signature that took it
+CHECK_NAMES: Final = ('frontmatter', 'structure', 'budget')
 ```
 
 ```python
 # ✅ Good — the contract is stated, and the value can grow without changing it
-SPEC_ASPECTS: Final[tuple[str, ...]] = ('frontmatter', 'structure', 'budget')
+CHECK_NAMES: Final[tuple[str, ...]] = ('frontmatter', 'structure', 'budget')
 ```
 
 ## 3. A `Final` Name Holds an Immutable Value

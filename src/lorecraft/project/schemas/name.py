@@ -17,7 +17,7 @@ def parse_schema_name(stem: str) -> SchemaName:
     """Read the token before the first hyphen as the corpus and the rest as one namespace.
 
     Args:
-        stem: Specification filename without its aspect suffix, such as `code` or `code-python`.
+        stem: Specification filename with its file type's pattern suffix stripped, such as `code` or `code-python`.
 
     Raises:
         EmptyCorpusNameError: If the corpus token is empty.

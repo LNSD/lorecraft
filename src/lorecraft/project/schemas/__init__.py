@@ -1,7 +1,7 @@
 """The specifications: their files, the schemas they state, and the repository that reads them.
 
-That is the specification filenames and stems, the structure aspect with the frontmatter schema it carries, the
-repository that reads them, the skill frontmatter schema, and the problems both frontmatter schemas report.
+That is the specification filenames and stems, the structure specification with the frontmatter schema it carries,
+the repository that reads them, the skill frontmatter schema, and the problems both frontmatter schemas report.
 """
 
 from .frontmatter_problem import (
@@ -38,11 +38,11 @@ from .spec_file import (
     InvalidSpecStemError,
     NotASpecFileError,
     NotASpecStemError,
-    SpecAspect,
     SpecFile,
-    UnknownSpecAspectError,
+    SpecFileType,
+    UnknownSpecFileTypeError,
     parse_spec_file,
-    schema_filename,
+    spec_filename,
 )
 from .structure import (
     AdjacentAnyRunsError,
@@ -59,8 +59,8 @@ from .structure import (
     OutlineEntry,
     RepeatedOutlineSectionError,
     SectionEntry,
-    StructureAspect,
     StructureSchema,
+    StructureSpec,
     StructureSpecDecodeError,
     StructureSpecFilenameError,
     TitleRule,
@@ -72,17 +72,17 @@ __all__ = [
     'SchemaName',
     'parse_schema_name',
     'schema_name_stem',
-    'SpecAspect',
+    'SpecFileType',
     'SpecFile',
     'parse_spec_file',
-    'schema_filename',
+    'spec_filename',
     'DottedSpecStemError',
     'NotASpecFileError',
-    'UnknownSpecAspectError',
+    'UnknownSpecFileTypeError',
     'NotASpecStemError',
     'InvalidSpecStemError',
     'StructureSchema',
-    'StructureAspect',
+    'StructureSpec',
     'FrontmatterSchema',
     'TitleRule',
     'StructureFile',

@@ -115,7 +115,7 @@ the run with an error naming it: `inspect` exits `1`, `lorecraft check` exits `2
 owns the rules.
 
 - Each changed stem appears under its corpus. A file whose name does not parse — a hyphen in a corpus name,
-  a dot in a stem, an unknown aspect — is left out silently, and so is
+  a dot in a stem, a `<stem>.<token>.json` that no file type's pattern claims — is left out silently, and so is
   a namespace stem whose corpus has no file of its own or no directory under `docs/`.
 - Each document lists the stems intended. A namespace matches a filename that equals it or continues it with a
   hyphen: `code-python` governs `python-typing.md`, not `pythonic.md`.

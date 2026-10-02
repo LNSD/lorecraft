@@ -64,13 +64,15 @@ and locates each violation in its document.
 # ❌ Bad — the check asks the database for itself: it can read any document, so nothing bounds what a
 # change to one file invalidates, and a unit test needs a whole snapshot to test a rule about one heading
 def validate_sections(db: AnalysisDb, ref: DocRef) -> tuple[Violation, ...]:
-    return _outline_violations(db.parse(ref).headings, db.model().aspects_for(ref))
+    return _outline_violations(db.parse(ref).headings, db.model().governance(ref).structure_specs())
 ```
 
 ```python
 # ✅ Good — the run resolves the inputs; the check is tested with a tuple literal
-def validate_sections(aspects: tuple[OutlineRules, ...], *, headings: tuple[Heading, ...]) -> tuple[Violation, ...]:
-    return _outline_violations(headings, aspects)
+def validate_sections(
+    structure_specs: tuple[OutlineRules, ...], *, headings: tuple[Heading, ...]
+) -> tuple[Violation, ...]:
+    return _outline_violations(headings, structure_specs)
 ```
 
 ```python
@@ -102,7 +104,7 @@ Before committing code, verify:
 - [arch-snapshot-model](arch-snapshot-model.md) - Foundation: The Analysis role
 - [arch-database](arch-database.md) - Foundation: Revisions, the view and the queries
 - [arch-incremental](arch-incremental.md) - Foundation: The carry-over rule and persisted results
-- [arch-specifications](arch-specifications.md) - Foundation: A check applies the governing aspects it is handed
+- [arch-specifications](arch-specifications.md) - Foundation: A check applies the governing structure specifications it is handed
 - [arch-findings](arch-findings.md) - Foundation: From violation to finding, and findings apart from failures
 - [arch-project-model](arch-project-model.md) - Foundation: A per-file query keyed by identity, reading a location
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One reason to change
