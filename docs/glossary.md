@@ -26,7 +26,7 @@ A reusable set of agent instructions, sometimes with supporting scripts.
 
 ### Resource
 
-A Markdown file inside an [agent skill](#agent-skill) other than its top-level `SKILL.md`, at any depth, such as a reference the skill loads on demand. It is named where an agent reaches it, through any symlink inside the skill, and located at the canonical file that path leads to.
+A Markdown file inside an [agent skill](#agent-skill) other than its top-level `SKILL.md`, at any depth, such as a reference the skill loads on demand. It is named where an agent reaches it, through any symlink inside the skill, and located at the [resolved](#resolved-path) file that path leads to.
 
 ## Metadata and specifications
 
@@ -105,6 +105,10 @@ The difference of two snapshots, one entry per path: added, modified or deleted.
 ### Symlink
 
 A link in the filesystem, pointing at another path. The snapshot records each symlink's target, and only the filesystem boundary follows one. The project model records where a document's or skill's symlinks lead, apart from its identity, so a symlink retargeted to another file changes what the identity reads without changing any bytes. Never called just a "link".
+
+### Resolved path
+
+A path relative to the workspace root with every [symlink](#symlink) on the way followed, so no symlink is on the way to it or at it: with `.agents/skills/review` a link to `../../skills/review`, the resolved path of `.agents/skills/review/SKILL.md` is `skills/review/SKILL.md`. The project model names a document or skill where an agent reaches it and locates it at the resolved path that name leads to. Whether a path is resolved depends on the snapshot it is found in, so the code tells one apart by its type alone.
 
 ### Markdown link
 

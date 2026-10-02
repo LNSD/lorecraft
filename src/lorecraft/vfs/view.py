@@ -3,9 +3,8 @@
 Every path crossing this boundary is a `RootRelativePath` such as `docs/code/logging.md`: never absolute,
 never holding a `..` component, so no argument can name a file outside the root. The type carries that
 proof, so no implementation checks it again. Nothing above the boundary sees a `Path`, a handle, a stat
-result or an mtime. Three operations report where a symlink chain goes: `find_canonical_dir` and
-`find_canonical_file` where it leads, as a root-relative directory or file, and `find_root_exit` where it leaves
-the root.
+result or an mtime. Three operations report where a symlink chain goes: `find_dir` and `find_file` where it
+leads, as a resolved directory or file, and `find_root_exit` where it leaves the root.
 `list_dir` and `read_text` reach through a link on the way to the path they are given, or at it, and never
 report or classify a link's target. `find_entry_kind` reaches
 through a link on the way and reports one at the path as a link, as a listing of its parent would. Every
@@ -18,9 +17,20 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import PurePosixPath
+from typing import NewType
 
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
+
+ResolvedPath = NewType('ResolvedPath', RootRelativePath)
+"""A path relative to the workspace root with every symlink on the way followed: no symlink is on the way to it
+or at it.
+
+`find_dir` and `find_file` return one. Whether a path is resolved depends on the snapshot it was found in, so
+nothing can check it from the value: the distinction is static only. `ResolvedPath / name` is a plain
+`RootRelativePath`, since the entry it names may itself be a symlink; code that knows the entry is no symlink wraps it
+again, and says why where it does.
+"""
 
 
 class EntryKind(Enum):
@@ -55,7 +65,7 @@ class RootExit:
     so nothing outside the root is read.
 
     Attributes:
-        link: The symlink, at its canonical path, the walk followed last before it left the root.
+        link: The symlink, at its resolved path, the walk followed last before it left the root.
         target: That link's target, unresolved: absolute, or relative to the link's directory and climbing with
             `..`. Where it climbs above the root, the `..` that does so may come from an earlier link of the chain.
     """
@@ -312,19 +322,19 @@ class FileSystem(ABC):
         """
 
     @abstractmethod
-    def find_canonical_dir(self, path: RootRelativePath) -> RootRelativePath | None:
-        """Follow every symlink in `path` and return the canonical directory it leads to, root-relative.
+    def find_dir(self, path: RootRelativePath) -> ResolvedPath | None:
+        """Follow every symlink in `path` and return the resolved directory it leads to, root-relative.
 
-        One of the three operations that say where a symlink chain goes, with `find_canonical_file` and
+        One of the three operations that say where a symlink chain goes, with `find_file` and
         `find_root_exit`, which reports where a chain this one refuses leaves the root: `list_dir` and
-        `read_text` follow a link without naming the canonical path. A regular directory resolves to itself,
+        `read_text` follow a link without naming the resolved path. A regular directory resolves to itself,
         and the root resolves to `.`.
 
         Args:
             path: The root-relative path to resolve; every symlink in it is followed.
 
         Returns:
-            The canonical directory, root-relative, or `None` when no directory under the root sits at the
+            The resolved directory, root-relative, or `None` when no directory under the root sits at the
             end of the chain: the path is missing, a link dangles or loops, a component or the target is
             not a directory, or the target lies outside the root and so has no root-relative spelling. A
             chain that leads outside the root resolves to `None` even when the operating system refuses
@@ -336,17 +346,17 @@ class FileSystem(ABC):
         """
 
     @abstractmethod
-    def find_canonical_file(self, path: RootRelativePath) -> RootRelativePath | None:
-        """Follow every symlink in `path` and return the canonical regular file it leads to, root-relative.
+    def find_file(self, path: RootRelativePath) -> ResolvedPath | None:
+        """Follow every symlink in `path` and return the resolved regular file it leads to, root-relative.
 
-        `find_canonical_dir`'s counterpart for a file: a regular file resolves to itself, and a link to one resolves
+        `find_dir`'s counterpart for a file: a regular file resolves to itself, and a link to one resolves
         to the file it leads to, wherever the chain goes on the way.
 
         Args:
             path: The root-relative path to resolve; every symlink in it is followed.
 
         Returns:
-            The canonical file, root-relative, or `None` when no regular file under the root sits at the end of
+            The resolved file, root-relative, or `None` when no regular file under the root sits at the end of
             the chain: the path is missing, a link dangles or loops, a component is not a directory, the
             target is not a regular file, or it lies outside the root. A chain that leads outside the root
             resolves to `None` even when the operating system refuses to search a directory on the way.
@@ -360,7 +370,7 @@ class FileSystem(ABC):
     def find_root_exit(self, path: RootRelativePath) -> RootExit | None:
         """Where the symlink chain in `path` leaves the root, or `None` when it stays under it or leads nowhere.
 
-        The walk is the one the scan takes (`root_expansion.find_canonical_path`), so the scan, the scope query and
+        The walk is the one the scan takes (`root_expansion.find_destination`), so the scan, the scope query and
         both views agree on which chains leave the root. It stops at the link that leaves, so nothing outside the
         root is read: a chain leaves when a link on it has an absolute target outside the root, or a `..` on it
         climbs above the root, whatever directories it stepped into on the way. A chain that dangles or loops

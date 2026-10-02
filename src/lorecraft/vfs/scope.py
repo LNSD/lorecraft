@@ -25,11 +25,11 @@ from typing import assert_never
 from lorecraft.core.path import RootRelativePath
 
 from .root_expansion import (
-    CanonicalDirectory,
-    CanonicalFile,
-    find_canonical_path,
-    find_canonical_scan_root,
+    ResolvedDirectory,
+    ResolvedFile,
+    find_destination,
     find_linked_scan_root,
+    find_listed_scan_root,
 )
 from .scan_root import ScanRoot
 from .snapshot import Link
@@ -39,7 +39,7 @@ from .view import EntryKind, RootExit
 class ScopeIndex:
     """A scope expanded once through the links a snapshot recorded, to say whether any path is in it.
 
-    It holds the recorded links, indexed by path, and every root the scan lists from, each at a canonical directory,
+    It holds the recorded links, indexed by path, and every root the scan lists from, each at a resolved directory,
     one for each link the scan follows included. Both depend on the scope and the links alone, never on a path
     asked about, so one index answers every path of a snapshot. It never changes once built, so one index can be
     shared by every caller.
@@ -61,14 +61,14 @@ class ScopeIndex:
             climbed_directories: Every directory the scan climbed out of, `Snapshot.climbed_directories`.
         """
         self._recorded = _RecordedLinks(links, climbed_directories)
-        self._canonical_roots = _canonical_scan_roots(scope, self._recorded)
+        self._listed_roots = _listed_scan_roots(scope, self._recorded)
 
     def is_in_scope(self, path: RootRelativePath) -> bool:
         """Whether a scan of the scope lists the directory `path` sits in, so the snapshot holds whatever is there.
 
         The path's directory is walked from the root through the recorded links, to where it really is; the
         entry there is in the scope when a root covers it (`ScanRoot.is_covering`). The roots are the scope's,
-        each at the canonical directory the scan starts at, and one more for each link the scan follows: the canonical
+        each at the resolved directory the scan starts at, and one more for each link the scan follows: the resolved
         directory the link leads to, with the depth the link leaves.
 
         Args:
@@ -80,17 +80,17 @@ class ScopeIndex:
             absolute target, one climbing above the root, a `..` out of a directory the snapshot does not show to
             exist, or a chain longer than `MAX_LINKS`.
         """
-        walked = find_canonical_path(path.parent, self._recorded, follow_links=True)
+        walked = find_destination(path.parent, self._recorded, follow_links=True)
         match walked:
-            case CanonicalDirectory(path=directory):
+            case ResolvedDirectory(path=directory):
                 entry = directory / path.name
-            case CanonicalFile():
+            case ResolvedFile():
                 raise AssertionError('unreachable: the recorded lookup never answers FILE')
             case RootExit() | None:
                 return False
             case _:
                 assert_never(walked)
-        for scan_root in self._canonical_roots:
+        for scan_root in self._listed_roots:
             if scan_root.is_covering(entry):
                 return True
         return False
@@ -133,7 +133,7 @@ class _RecordedLinks:
     def find_kind(self, path: RootRelativePath) -> EntryKind:
         """SYMLINK where a link is recorded at `path`, DIRECTORY anywhere else; see `EntryLookup.find_kind`.
 
-        Never FILE: `ScopeIndex.is_in_scope` and `_canonical_scan_roots` raise on a walk that ends at a file, relying on
+        Never FILE: `ScopeIndex.is_in_scope` and `_listed_scan_roots` raise on a walk that ends at a file, relying on
         this.
 
         Args:
@@ -163,11 +163,11 @@ class _RecordedLinks:
         return directory in self._known_directories
 
 
-def _canonical_scan_roots(scope: tuple[ScanRoot, ...], recorded: _RecordedLinks) -> tuple[ScanRoot, ...]:
-    """Every root the scan of `scope` lists from, each at a canonical directory, links it follows included.
+def _listed_scan_roots(scope: tuple[ScanRoot, ...], recorded: _RecordedLinks) -> tuple[ScanRoot, ...]:
+    """Every root the scan of `scope` lists from, each at a resolved directory, links it follows included.
 
     This retraces `take_snapshot` from the declaration, through the same rules: each declared root starts where
-    `find_canonical_scan_root` puts it, and each recorded link adds the root `find_linked_scan_root` gives for a root
+    `find_listed_scan_root` puts it, and each recorded link adds the root `find_linked_scan_root` gives for a root
     already found; those roots add their own. The roots are finite: each added one sits at a directory a recorded
     link leads to, and its depth is either unlimited, when the root it came from has no limit, or less than that
     root's. A root found again is not added again, so a link leading back to an ancestor of itself ends the
@@ -177,32 +177,32 @@ def _canonical_scan_roots(scope: tuple[ScanRoot, ...], recorded: _RecordedLinks)
         scope: The declared roots, as `take_snapshot` was handed them.
         recorded: Every link the snapshot recorded, as the walks see them.
     """
-    canonical_roots: list[ScanRoot] = []
+    listed_roots: list[ScanRoot] = []
     for scan_root in scope:
-        canonical_root = find_canonical_scan_root(scan_root, recorded)
-        if canonical_root is not None:
-            canonical_roots.append(canonical_root)
+        listed_root = find_listed_scan_root(scan_root, recorded)
+        if listed_root is not None:
+            listed_roots.append(listed_root)
 
     # Where each recorded link leads, walked once rather than once for every root that lists it.
     linked_directories: dict[RootRelativePath, RootRelativePath] = {}
     for link in recorded.paths():
-        leads_to = find_canonical_path(link, recorded, follow_links=True)
+        leads_to = find_destination(link, recorded, follow_links=True)
         match leads_to:
-            case CanonicalDirectory(path=directory):
+            case ResolvedDirectory(path=directory):
                 linked_directories[link] = directory
-            case CanonicalFile():
+            case ResolvedFile():
                 raise AssertionError('unreachable: the recorded lookup never answers FILE')
             case RootExit() | None:
                 pass  # the scan follows no link that leads nowhere or out of the root
             case _:
                 assert_never(leads_to)
 
-    pending = list(canonical_roots)
+    pending = list(listed_roots)
     while pending:
         scan_root = pending.pop()
         for link, directory in linked_directories.items():
             linked_root = find_linked_scan_root(scan_root, link, directory)
-            if linked_root is not None and linked_root not in canonical_roots:
-                canonical_roots.append(linked_root)
+            if linked_root is not None and linked_root not in listed_roots:
+                listed_roots.append(linked_root)
                 pending.append(linked_root)
-    return tuple(canonical_roots)
+    return tuple(listed_roots)

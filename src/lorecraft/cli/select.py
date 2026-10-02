@@ -23,6 +23,7 @@ from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.workspace import WorkspaceModel
+from lorecraft.vfs import ResolvedPath
 
 
 class MissingDocumentPathError(Error):
@@ -193,8 +194,8 @@ def select_document(database: Database, root: Path, working_directory: Path, arg
     spelled = _find_spelling_under_root(root, named)
     if spelled is None:
         raise OutsideDocsDocumentPathError(argument)
-    document = database.find_canonical_file(spelled)
-    if document is None and database.find_canonical_path(spelled) is not None:
+    document = database.find_file(spelled)
+    if document is None and database.find_path(spelled) is not None:
         raise NonFileDocumentPathError(argument)
 
     model = database.model()
@@ -314,11 +315,11 @@ def select_skills_at(
     does for an agent's skills directory. One holding neither names no skill.
 
     Then as an agent's skills directory: every link in it is followed through the snapshot, and when a skills
-    directory the model lists leads to the canonical path it reaches, every skill listed there is returned, possibly
+    directory the model lists leads to the resolved path it reaches, every skill listed there is returned, possibly
     none. So `.claude/skills`, a link to `.agents/skills`, selects the skills `.agents/skills` lists, under their
     refs there. The model never names such a directory, so the order of these two readings decides nothing.
 
-    Otherwise as a canonical file: every skill whose `SKILL.md` leads to the file the argument leads to, such as
+    Otherwise as a resolved file: every skill whose `SKILL.md` leads to the file the argument leads to, such as
     `shared/LINT.md` that a linked `SKILL.md` leads to, is returned.
 
     A path naming a directory selects each skill whole; one naming a `SKILL.md`, by that name or as the file a
@@ -352,16 +353,16 @@ def select_skills_at(
     if _is_entry_leading_outside(database, spelled):
         return ()  # no skill is there: the run reports the symlink, as for a named directory leading outside
     model = database.model()
-    # Before the canonical path is asked: a named path leading outside the repository leads to none, and is reported.
+    # Before the resolved path is asked: a named path leading outside the repository leads to none, and is reported.
     in_named_dir = _select_named_skills(model, spelled)
     if in_named_dir is not None:
         return in_named_dir
-    canonical_path = database.find_canonical_path(spelled)
-    if canonical_path is None:
+    resolved_path = database.find_path(spelled)
+    if resolved_path is None:
         raise UnlistedSkillPathError(argument)
-    if model.has_skills_dir(canonical_path):
-        return select_whole(model.skills_in(canonical_path))
-    refs = model.locate_skill_files(canonical_path)
+    if model.has_skills_dir(resolved_path):
+        return select_whole(model.skills_in(resolved_path))
+    refs = model.locate_skill_files(resolved_path)
     if not refs:
         raise UnlistedSkillPathError(argument)
     selections: list[SkillSelection] = []
@@ -386,7 +387,7 @@ def _listed_entry_path(database: Database, spelled: RootRelativePath) -> RootRel
     """Where the model lists the entry `spelled` names, by the entry's directory or its `SKILL.md`, or `None`.
 
     The entry's parent is followed through the snapshot, so a linked skills directory such as `.claude/skills`
-    leads to the canonical one the model lists its skills under. The entry itself is kept as spelled: following it
+    leads to the resolved one the model lists its skills under. The entry itself is kept as spelled: following it
     would lead to the directory its files live in, which every entry linked there shares. The model records an
     entry's symlink leading outside under that path too.
 
@@ -395,7 +396,7 @@ def _listed_entry_path(database: Database, spelled: RootRelativePath) -> RootRel
         spelled: The argument, root-relative and taken by its spelling alone.
 
     Returns:
-        `<canonical parent>/<entry name>`, or `None` for the root, which is no entry, or for an entry whose parent
+        `<resolved parent>/<entry name>`, or `None` for the root, which is no entry, or for an entry whose parent
         the snapshot holds nothing at.
     """
     entry = spelled
@@ -404,10 +405,10 @@ def _listed_entry_path(database: Database, spelled: RootRelativePath) -> RootRel
     # The root is no entry: it has no name, and no skill is listed at it.
     if entry == ROOT:
         return None
-    canonical_parent = database.find_canonical_path(entry.parent)
-    if canonical_parent is None:
+    resolved_parent = database.find_path(entry.parent)
+    if resolved_parent is None:
         return None
-    return canonical_parent / entry.name
+    return resolved_parent / entry.name
 
 
 def _select_listed_skill(database: Database, spelled: RootRelativePath) -> SkillSelection | None:
@@ -415,7 +416,7 @@ def _select_listed_skill(database: Database, spelled: RootRelativePath) -> Skill
 
     The skill is selected by its `SKILL.md` alone when `spelled` ends in `SKILL.md`, and whole when it names the
     entry's directory. The spelling decides it here because the argument is read by its spelling; a path resolved
-    to its canonical path has only that location to tell the file from the directory.
+    to its resolved path has only that location to tell the file from the directory.
 
     Args:
         database: The snapshot the entry's parent is resolved in, and the model it must name a skill of.
@@ -446,8 +447,9 @@ def _is_entry_leading_outside(database: Database, spelled: RootRelativePath) -> 
     if listed_entry is None:
         return False
     model = database.model()
-    # Only an agent's skills directory: a directory a command named records its outside symlinks itself.
-    if not model.has_skills_dir(listed_entry.parent):
+    # Only an agent's skills directory: a directory a command named records its outside symlinks itself. The entry's
+    # parent is the one `_listed_entry_path` resolved, so it is a resolved path; the entry itself may be a link.
+    if not model.has_skills_dir(ResolvedPath(listed_entry.parent)):
         return False
     return model.has_outside_symlink(listed_entry) or model.has_outside_symlink(listed_entry / SKILL_ENTRY_FILENAME)
 

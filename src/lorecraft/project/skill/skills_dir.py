@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 from lorecraft.agents import AgentName
 from lorecraft.core.path import RootRelativePath
+from lorecraft.vfs import ResolvedPath
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,11 +19,11 @@ class SkillsDir:
     Attributes:
         agent: The agent that reads the directory.
         path: The directory as the agent declares it, root-relative and unresolved, such as `.claude/skills`.
-        resolves_to: The canonical directory `path` leads to, with no symlink on the way. Equal to `path` for a
+        resolves_to: The resolved directory `path` leads to, with no symlink on the way. Equal to `path` for a
             regular directory; another agent's directory when this one is a link to it, such as
             `.claude/skills -> ../.agents/skills`.
     """
 
     agent: AgentName
     path: RootRelativePath
-    resolves_to: RootRelativePath
+    resolves_to: ResolvedPath

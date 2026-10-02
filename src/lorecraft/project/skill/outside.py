@@ -18,11 +18,11 @@ class OutsideSymlink:
     """One symlink an agent reaches in the skill layout whose chain leaves the repository.
 
     Attributes:
-        path: Where an agent reaches the symlink: a skills directory as the agent declares it, an entry in a canonical
+        path: Where an agent reaches the symlink: a skills directory as the agent declares it, an entry in a resolved
             skills directory, the `SKILL.md` of that entry, or a path inside a skill, named under the skill's
             entry as a resource is. The link that leaves the root may be this one, one on the way to it, or one
             further along its chain.
-        leaves_at: The link the chain left the root through, at its canonical path, and that link's target as
+        leaves_at: The link the chain left the root through, at its resolved path, and that link's target as
             recorded.
     """
 
