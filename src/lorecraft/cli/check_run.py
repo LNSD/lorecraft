@@ -1,22 +1,22 @@
-"""The steps every ``check`` command shares.
+"""The steps every `check` command shares.
 
-They are the checks it can run, selecting the documents or the skills of one snapshot, and printing what the
-checks found.
+They are the checks it can run, selecting the documents or the skills of one snapshot, printing what the checks
+found, and the exit status it ends with.
 
-A check command is the composition root of its check: it calls ``select_documents``, hands what comes back to
-its run, and hands the run to ``print_run``. Everything a check reads comes from the one snapshot
-``select_documents`` takes, so a run sees a single moment of the tree even while files change under it. A check
-over skills does the same with ``select_skills`` and ``print_skill_run``.
+A check command is the composition root of its check: it calls `select_documents`, hands what comes back to
+its run, and hands the run to `print_run`. Everything a check reads comes from the one snapshot
+`select_documents` takes, so a run sees a single moment of the tree even while files change under it. A check
+over skills does the same with `select_skills` and `print_skill_run`.
 
-Each check module also declares its check with ``register_check``, or ``register_skill_check``, beside its
-command. That is how a bare ``lorecraft check`` finds every check to run without a list naming them: a new check
+Each check module also declares its check with `register_check`, or `register_skill_check`, beside its
+command. That is how a bare `lorecraft check` finds every check to run without a list naming them: a new check
 module joins it by registering, the way it joins the group by declaring its command.
 """
 
 import json
 from collections.abc import Callable
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, IntEnum
 from pathlib import Path
 from typing import assert_never
 
@@ -49,6 +49,19 @@ class OutputFormat(Enum):
     """A line per finding and per ungoverned document on stdout, and a summary line on stderr."""
     JSON = 'json'
     """One JSON report on stdout."""
+
+
+class CheckExit(IntEnum):
+    """The exit status of a `check` command, as `docs/feat/cli-check.md` documents it.
+
+    A clean run returns without raising, so no member stands for it. The status belongs to the `check` group alone:
+    another command may give the same number another meaning.
+    """
+
+    FINDINGS = 1
+    """At least one check reported a finding."""
+    FAILURE = 2
+    """The run could not start or could not finish: only the error is printed."""
 
 
 type CheckRunner = Callable[[Database, tuple[DocumentRef, ...]], CheckRun]
