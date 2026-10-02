@@ -1,0 +1,23 @@
+                                                                                
+ Usage: lorecraft check [OPTIONS] COMMAND [ARGS]...                             
+                                                                                
+ Run the documentation and skill checks: every check when no check is named, or 
+ the one named.                                                                 
+                                                                                
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --root          <path>       Repository root. Defaults to the nearest parent │
+│                              containing docs/__meta__.                       │
+│ --format        <text|json>  Output format: text or json. Defaults to text.  │
+│ --help                       Show this message and exit.                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ budget       Check each file's token count against the `tokens` budget in    │
+│              the target repository's structure specifications.               │
+│ frontmatter  Check frontmatter against the `frontmatter` schemas in the      │
+│              target repository's structure specifications.                   │
+│ skills       Check each skill against the Agent Skills specification: its    │
+│              SKILL.md and its other Markdown files.                          │
+│ structure    Check section structure against the target repository's         │
+│              structure specifications.                                       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+

@@ -31,8 +31,8 @@
       },
       "scope": {
         "type": "string",
-        "pattern": "^(?:global|pkg:[a-z_][a-z0-9_]*(?:\\.[a-z_][a-z0-9_]*)*)$",
-        "description": "global, or pkg:<name> naming a package by its full import path, starting with the import package, as in lorecraft.project.checks: snake_case, dotted for nesting."
+        "pattern": "^(?:global|pkg:[a-z_][a-z0-9_]*(?:\\.[a-z_][a-z0-9_]*)*|pkg:[a-z][a-z0-9.+-]*/[^\\s@?#/]+(?:/[^\\s@?#/]+)*(?:@[^\\s?#]+)?(?:\\?[^\\s#]+)?(?:#\\S+)?)$",
+        "description": "global; pkg:<name> naming a package of the project by its full import path, starting with the import package, as in lorecraft.project.checks: snake_case, dotted for nesting; or a core rule's one dependency by its package URL, a purl written whole as the purl specification defines it, as in pkg:pypi/typer, pkg:cargo/serde or pkg:docker/library/nginx; a purl holds a /, which a project package's scope never does."
       }
     }
   },

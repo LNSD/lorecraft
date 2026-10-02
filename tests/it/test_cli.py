@@ -272,6 +272,18 @@ class TestVersionOption:
 
 @pytest.mark.it
 class TestVersionCommand:
+    def test_version_command_with_help_prints_the_usage_and_the_options(self, snapshot: SnapshotAssertion) -> None:
+        #: Given
+        app = build_app()
+        expected = snapshot.use_extension(TextSnapshotExtension)
+
+        #: When
+        result = runner.invoke(app, ['version', '--help'], env=PLAIN_TERMINAL)
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stdout == expected, 'the version help matches the reviewed snapshot, with no docstring section'
+
     def test_version_command_without_verbose_prints_one_line(self) -> None:
         #: Given
         app = build_app()
@@ -286,6 +298,20 @@ class TestVersionCommand:
 
 @pytest.mark.it
 class TestInspectCommand:
+    def test_inspect_with_help_prints_the_description_and_stops_before_raises(
+        self, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        app = build_app()
+        expected = snapshot.use_extension(TextSnapshotExtension)
+
+        #: When
+        result = runner.invoke(app, ['inspect', '--help'], env=PLAIN_TERMINAL)
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stdout == expected, 'the inspect help matches the reviewed snapshot, with no docstring section'
+
     def test_inspect_with_a_workspace_root_draws_its_model(self, workspace: Path) -> None:
         #: Given
         app = build_app()
@@ -452,6 +478,22 @@ class TestInspectCommand:
 
 @pytest.mark.it
 class TestCheckFrontmatterCommand:
+    def test_check_frontmatter_with_help_prints_the_description_and_stops_before_raises(
+        self, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        app = build_app()
+        expected = snapshot.use_extension(TextSnapshotExtension)
+
+        #: When
+        result = runner.invoke(app, ['check', 'frontmatter', '--help'], env=PLAIN_TERMINAL)
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stdout == expected, (
+            'the check frontmatter help matches the reviewed snapshot, with no docstring section'
+        )
+
     def test_check_frontmatter_with_a_clean_corpus_exits_zero_and_counts_the_documents(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
@@ -831,6 +873,22 @@ class TestCheckHeaderAlias:
 
 @pytest.mark.it
 class TestCheckStructureCommand:
+    def test_check_structure_with_help_prints_the_description_and_stops_before_raises(
+        self, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        app = build_app()
+        expected = snapshot.use_extension(TextSnapshotExtension)
+
+        #: When
+        result = runner.invoke(app, ['check', 'structure', '--help'], env=PLAIN_TERMINAL)
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stdout == expected, (
+            'the check structure help matches the reviewed snapshot, with no docstring section'
+        )
+
     def test_check_structure_with_a_clean_corpus_exits_zero_and_counts_the_documents(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_STRUCTURE_SPEC)
@@ -967,6 +1025,22 @@ class TestCheckStructureCommand:
 
 @pytest.mark.it
 class TestCheckBudgetCommand:
+    def test_check_budget_with_help_prints_the_description_and_stops_before_raises(
+        self, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        app = build_app()
+        expected = snapshot.use_extension(TextSnapshotExtension)
+
+        #: When
+        result = runner.invoke(app, ['check', 'budget', '--help'], env=PLAIN_TERMINAL)
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stdout == expected, (
+            'the check budget help matches the reviewed snapshot, with no docstring section'
+        )
+
     def test_check_budget_with_a_clean_corpus_exits_zero_and_counts_the_documents(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_STRUCTURE_SPEC)
@@ -1054,6 +1128,22 @@ class TestCheckBudgetCommand:
 
 @pytest.mark.it
 class TestCheckSkillsCommand:
+    def test_check_skills_with_help_prints_the_description_and_stops_before_raises(
+        self, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        app = build_app()
+        expected = snapshot.use_extension(TextSnapshotExtension)
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills', '--help'], env=PLAIN_TERMINAL)
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stdout == expected, (
+            'the check skills help matches the reviewed snapshot, with no docstring section'
+        )
+
     def test_check_skills_with_json_format_over_clean_skills_reports_them_checked(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, '.agents/skills/commit/SKILL.md', '---\nname: commit\ndescription: Write a commit\n---\n')
@@ -2040,6 +2130,18 @@ class TestCheckSkillsCommand:
 
 @pytest.mark.it
 class TestCheckAllCommand:
+    def test_check_with_help_prints_the_options_and_every_check(self, snapshot: SnapshotAssertion) -> None:
+        #: Given
+        app = build_app()
+        expected = snapshot.use_extension(TextSnapshotExtension)
+
+        #: When
+        result = runner.invoke(app, ['check', '--help'], env=PLAIN_TERMINAL)
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stdout == expected, 'the check help matches the reviewed snapshot, with no docstring section'
+
     def test_check_with_a_clean_corpus_exits_zero_and_counts_the_documents_and_checks(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
