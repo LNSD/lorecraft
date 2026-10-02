@@ -884,7 +884,7 @@ class TestStructureSpecAuthority:
         )
 
         #: Then
-        assert structure_spec.authority == 'code-python.md', 'the prose is the `.md` file at the same stem'
+        assert structure_spec.authority == 'code-python.md', 'the prose is the `.md` file at the same spec name'
 
     def test_construction_at_a_path_that_is_not_a_spec_filename_raises_structure_spec_filename_error(self) -> None:
         #: Given

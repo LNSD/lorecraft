@@ -13,6 +13,7 @@ frontmatter schema, leaves the document ungoverned for that kind whatever the na
 """
 
 from dataclasses import dataclass
+from typing import assert_never
 
 from lorecraft.agents import AgentName
 from lorecraft.core.path import RootRelativePath
@@ -20,7 +21,7 @@ from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.ref import DocumentRef
 from lorecraft.project.layout import DOCS_DIR
-from lorecraft.project.schemas.name import SchemaName
+from lorecraft.project.schemas.name import CorpusSpecName, NamespaceSpecName, SpecName
 from lorecraft.project.schemas.structure import FrontmatterSchema, StructureSpec
 from lorecraft.project.skill.named_dir import NamedDir
 from lorecraft.project.skill.outside import OutsideSymlink
@@ -30,35 +31,39 @@ from lorecraft.project.skill.skills_dir import SkillsDir
 
 @dataclass(frozen=True, slots=True)
 class Spec:
-    """One specification stem in docs/__meta__ and the structure specification decoded from it.
+    """One specification name in docs/__meta__ and the structure specification decoded from it.
 
     Not hashable: a structure specification's `FrontmatterSchema` holds a dict, so instances must not be put in a
     set or used as a key.
 
     Attributes:
-        name: The stem, parsed.
-        files: Every root-relative file at this stem (prose and JSON), sorted; may be prose only.
-        structure: The structure specification, or None when `<stem>.structure.json` does not exist.
+        name: The specification name, parsed.
+        files: Every root-relative file at this specification name (prose and JSON), sorted; may be prose only.
+        structure: The structure specification, or None when `<name>.structure.json` does not exist.
     """
 
-    name: SchemaName
+    name: SpecName
     files: tuple[RootRelativePath, ...]
     structure: StructureSpec | None
 
     @property
     def corpus(self) -> CorpusName:
-        """The corpus this stem belongs to."""
-        return self.name[0]
+        """The corpus this spec belongs to, named first in its specification name."""
+        return self.name.corpus
 
     @property
     def namespace(self) -> AspectNamespace | None:
-        """The namespace of a ``<corpus>-<namespace>`` stem; None for a corpus stem."""
-        if len(self.name) == 1:
-            return None
-        return self.name[1]
+        """The namespace of a `<corpus>-<namespace>` specification name; None for a corpus spec's name."""
+        match self.name:
+            case CorpusSpecName():
+                return None
+            case NamespaceSpecName(namespace=namespace):
+                return namespace
+            case _:
+                assert_never(self.name)
 
     def is_governing(self, filename: AspectFilename) -> bool:
-        """True for a corpus stem always; for a namespace stem when the namespace matches.
+        """True for a corpus spec always; for a namespace spec when the namespace matches.
 
         Args:
             filename: Document filename stem whose governance is asked; matched by hyphen-delimited prefix.
@@ -136,8 +141,8 @@ class Corpus:
 
     Attributes:
         name: Directory name under docs/.
-        spec: The corpus stem; always present (discovery is spec-first), possibly prose only.
-        namespace_specs: Narrowing stems, sorted broad to narrow by (segment count, value).
+        spec: The corpus spec; always present (discovery is spec-first), possibly prose only.
+        namespace_specs: Narrowing specs, sorted broad to narrow by (segment count, value).
         documents: Refs of the Markdown files directly inside docs/<name>/, sorted by filename.
     """
 
@@ -150,15 +155,15 @@ class Corpus:
         """Reject a corpus whose parts do not all belong to it.
 
         Raises:
-            ValueError: If ``spec.name != (name,)``, a namespace spec has no namespace or another corpus,
-                ``namespace_specs`` is not broad-to-narrow, or a ref names another corpus.
+            ValueError: If `spec.name` is not `CorpusSpecName(name)`, a namespace spec has no namespace or
+                another corpus, `namespace_specs` is not broad-to-narrow, or a ref names another corpus.
         """
-        if self.spec.name != (self.name,):
-            raise ValueError(f'corpus {self.name} must carry its own corpus spec, got stem {self.spec.name}')
+        if self.spec.name != CorpusSpecName(self.name):
+            raise ValueError(f'corpus {self.name} must carry its own corpus spec, got {self.spec.name}')
         order_keys: list[tuple[int, str]] = []
         for namespace_spec in self.namespace_specs:
             if namespace_spec.namespace is None:
-                raise ValueError(f'corpus {self.name} lists corpus stem {namespace_spec.name} as a namespace spec')
+                raise ValueError(f'corpus {self.name} lists corpus spec {namespace_spec.name} as a namespace spec')
             if namespace_spec.corpus != self.name:
                 raise ValueError(f'corpus {self.name} lists namespace spec {namespace_spec.name} of another corpus')
             order_keys.append(namespace_order_key(namespace_spec.namespace))

@@ -21,6 +21,7 @@ from lorecraft.project.layout import SNAPSHOT_SCOPE, SPECS_DIR, scope_with_named
 from lorecraft.project.schemas import (
     EmptyStructureSpecError,
     InvalidFrontmatterSchemaError,
+    NamespaceSpecName,
     StructureSpecDecodeError,
 )
 from lorecraft.project.schemas import Repository as SchemaRepository
@@ -236,7 +237,7 @@ def _lorecraft_tree(root: Path) -> None:
 
 
 def _namespaces(model: WorkspaceModel, corpus: CorpusName) -> tuple[str, ...]:
-    """The namespace stems of one corpus in stored order, as strings.
+    """The namespaces of one corpus's namespace specs in stored order, as strings.
 
     Args:
         model: Loaded workspace model to read the corpus from.
@@ -269,7 +270,7 @@ class TestLoadWorkspaceAmp:
 
         #: Then
         assert tuple(corpus.name for corpus in model.corpora) == (CODE, FEAT), (
-            'only directories with a spec at their stem are corpora; blog/ and schemas/ have none'
+            'only directories with a spec at their name are corpora; blog/ and schemas/ have none'
         )
         assert _document_paths(model) == (
             'docs/code/crate-metadb-security.md',
@@ -360,7 +361,7 @@ class TestLoadWorkspaceTools:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert tuple(corpus.name for corpus in model.corpora) == (CODE,), 'docs/schemas/ has no stem'
+        assert tuple(corpus.name for corpus in model.corpora) == (CODE,), 'docs/schemas/ has no spec'
         assert _document_paths(model) == ('docs/code/logging.md',), 'only the code corpus is listed'
 
 
@@ -392,7 +393,7 @@ class TestLoadWorkspaceLorecraft:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert tuple(corpus.name for corpus in model.corpora) == (CODE, FEAT), 'docs/assets/ has no stem'
+        assert tuple(corpus.name for corpus in model.corpora) == (CODE, FEAT), 'docs/assets/ has no spec'
         assert _document_paths(model) == (
             'docs/code/logging.md',
             'docs/code/python-typing.md',
@@ -483,7 +484,7 @@ class TestLoadWorkspaceEdgeCases:
 
         #: Then
         code = model.find_corpus(CODE)
-        assert code is not None, 'the corpus still loads from its prose stem'
+        assert code is not None, 'the corpus still loads from its prose specification'
         assert code.spec.files == (SPECS_DIR / 'code.md',), 'a file no file type claims is not part of the spec'
 
     def test_load_workspace_with_a_dotted_stem_leaves_it_out_of_the_corpus_spec(
@@ -497,8 +498,8 @@ class TestLoadWorkspaceEdgeCases:
 
         #: Then
         feat = model.find_corpus(FEAT)
-        assert feat is not None, 'the corpus loads from its prose stem'
-        assert feat.spec.files == (SPECS_DIR / 'feat.md',), 'feat.feature is not a stem, so its file is not a spec'
+        assert feat is not None, 'the corpus loads from its prose specification'
+        assert feat.spec.files == (SPECS_DIR / 'feat.md',), 'feat.feature is not a spec name, so its file is not a spec'
 
     def test_load_workspace_with_a_dotted_stem_alone_builds_no_corpus(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -548,7 +549,7 @@ class TestLoadWorkspaceEdgeCases:
 
         #: Then
         corpus = model.find_corpus(CODE)
-        assert corpus is not None, 'the corpus still loads from its prose stem'
+        assert corpus is not None, 'the corpus still loads from its prose specification'
         assert corpus.spec.files == (SPECS_DIR / 'code.md',), 'the header file is not one of the spec files'
         assert corpus.spec.structure is None, 'and it states no rules'
 
@@ -648,8 +649,8 @@ class TestLoadWorkspaceEdgeCases:
         #: Then
         code = model.find_corpus(CODE)
         assert code is not None, 'the model lists the code corpus'
-        assert code.namespace_specs[0].name == (CODE, AspectNamespace.parse('python')), (
-            'the stem is parsed into corpus and namespace'
+        assert code.namespace_specs[0].name == NamespaceSpecName(CODE, AspectNamespace.parse('python')), (
+            'the specification name is parsed into corpus and namespace'
         )
 
     def test_load_workspace_with_a_symlinked_document_leaves_it_out(

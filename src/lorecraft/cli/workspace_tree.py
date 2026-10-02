@@ -10,7 +10,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.schemas import schema_name_stem
 from lorecraft.project.skill import SkillsDir
 from lorecraft.project.workspace import Corpus, Spec, WorkspaceModel
 
@@ -38,7 +37,7 @@ class _Line:
 def render_text(root: Path, model: WorkspaceModel) -> str:
     """Draw the model as a tree headed by the root, one section per part of the model.
 
-    A document is followed by the stems of the specs that govern it, broad to narrow. An agent's skills
+    A document is followed by the names of the specs that govern it, broad to narrow. An agent's skills
     directory is followed by the canonical directory it leads to when it is a link, and a skill by the agents
     that read it.
 
@@ -124,13 +123,13 @@ def _corpus_line(corpus: Corpus) -> _Line:
     """
     spec_lines: list[_Line] = []
     for spec in (corpus.spec, *corpus.namespace_specs):
-        spec_lines.append(_Line(f'{schema_name_stem(spec.name)}: {_file_names(spec.files)}'))
+        spec_lines.append(_Line(f'{spec.name}: {_file_names(spec.files)}'))
     parts = [_Line(f'specs ({len(spec_lines)})', tuple(spec_lines))]
 
     document_lines: list[_Line] = []
     for ref in corpus.documents:
-        stems = _governing_stems(corpus.governance(ref).specs())
-        document_lines.append(_Line(f'{ref.path.name} [{", ".join(stems)}]'))
+        spec_names = _governing_spec_names(corpus.governance(ref).specs())
+        document_lines.append(_Line(f'{ref.path.name} [{", ".join(spec_names)}]'))
     parts.append(_Line(f'documents ({len(document_lines)})', tuple(document_lines)))
 
     return _Line(f'{corpus.name} ({corpus.directory})', tuple(parts))
@@ -174,7 +173,9 @@ def _json_corpus(corpus: Corpus) -> dict[str, object]:
     """
     specs: list[dict[str, object]] = []
     for spec in (corpus.spec, *corpus.namespace_specs):
-        specs.append({'stem': schema_name_stem(spec.name), 'files': _paths(spec.files)})
+        # The key is `stem` for the specification name: the JSON is the command's published output, so it keeps
+        # the word the code has since moved away from.
+        specs.append({'stem': str(spec.name), 'files': _paths(spec.files)})
     documents: list[dict[str, object]] = []
     for ref in corpus.documents:
         documents.append(
@@ -188,16 +189,16 @@ def _json_corpus(corpus: Corpus) -> dict[str, object]:
     }
 
 
-def _governing_stems(specs: tuple[Spec, ...]) -> list[str]:
-    """The stems of the governing specs, broad to narrow, as the model orders them.
+def _governing_spec_names(specs: tuple[Spec, ...]) -> list[str]:
+    """The names of the governing specs, broad to narrow, as the model orders them.
 
     Args:
         specs: A document's governing specs, in the order the model gives them.
     """
-    stems: list[str] = []
+    spec_names: list[str] = []
     for spec in specs:
-        stems.append(schema_name_stem(spec.name))
-    return stems
+        spec_names.append(str(spec.name))
+    return spec_names
 
 
 def _governing_files(specs: tuple[Spec, ...]) -> list[str]:
