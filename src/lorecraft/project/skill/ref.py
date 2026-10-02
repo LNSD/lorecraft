@@ -8,7 +8,7 @@ model has to follow a link again to learn it.
 A resource, here, is a Markdown file inside a skill other than its own top-level `SKILL.md`, at any depth: the
 files the Agent Skills specification places beside `SKILL.md`, as far as they are Markdown. A resource is named
 the same way as its skill: a `SkillResourceRef` names it where an agent reaches it, under the skill's directory,
-and a `SkillResourceLocation` records the real file that path leads to.
+and a `SkillResourceLocation` records the canonical file that path leads to.
 
 Each pair is kept apart, as an IDE keeps a file's identity apart from the canonical path it resolves to: a link
 retargeted to another directory leaves the skill the same skill, named by the same ref, and changes only its
@@ -28,7 +28,7 @@ class SkillRef:
 
     Attributes:
         directory: The skill's directory, `<skills directory>/<skill name>`, root-relative. For an agent's
-            skill the skills directory is the real one, so a skill two agents reach, one of them through a
+            skill the skills directory is the canonical one, so a skill two agents reach, one of them through a
             linked skills directory such as `.claude/skills`, has one ref. The last component is the entry as
             listed: it may itself be a link to where the skill's files live, and the ref still names it here,
             under the skills directory, which is what makes it a skill. For a skill in a directory a command
@@ -51,11 +51,11 @@ class SkillLocation:
 
     Attributes:
         ref: The skill.
-        resolves_to: The real directory `ref.directory` leads to, with no symlink on the way. Equal to
+        resolves_to: The canonical directory `ref.directory` leads to, with no symlink on the way. Equal to
             `ref.directory` for a regular directory; the directory the skill's files live in when the entry,
             or a directory on the way to it, is a link, such as `skills/review` for
             `.agents/skills/review -> ../../skills/review`.
-        file_resolves_to: The real file the skill's `SKILL.md` leads to. `resolves_to / SKILL.md` unless
+        file_resolves_to: The canonical file the skill's `SKILL.md` leads to. `resolves_to / SKILL.md` unless
             that `SKILL.md` is itself a link, and then the file the link leads to, whatever its name.
     """
 
@@ -88,7 +88,7 @@ class SkillResourceLocation:
 
     Attributes:
         ref: The resource.
-        resolves_to: The real file `ref.path` leads to, with no symlink on the way. Equal to `ref.path` for a
+        resolves_to: The canonical file `ref.path` leads to, with no symlink on the way. Equal to `ref.path` for a
             file in a regular directory of a skill whose entry is no symlink; the file a symlink leads to, wherever
             it lives, otherwise.
     """

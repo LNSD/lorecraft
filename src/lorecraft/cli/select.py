@@ -192,8 +192,8 @@ def select_document(database: Database, root: Path, working_directory: Path, arg
     spelled = _find_spelling_under_root(root, named)
     if spelled is None:
         raise OutsideDocsDocumentPathError(argument)
-    document = database.find_real_file(spelled)
-    if document is None and database.find_real_path(spelled) is not None:
+    document = database.find_canonical_file(spelled)
+    if document is None and database.find_canonical_path(spelled) is not None:
         raise NonFileDocumentPathError(argument)
 
     model = database.model()
@@ -310,11 +310,11 @@ def select_skills_at(
     does for an agent's skills directory. One holding neither names no skill.
 
     Then as an agent's skills directory: every link in it is followed through the snapshot, and when a skills
-    directory the model lists leads to the real path it reaches, every skill listed there is returned, possibly
+    directory the model lists leads to the canonical path it reaches, every skill listed there is returned, possibly
     none. So `.claude/skills`, a link to `.agents/skills`, selects the skills `.agents/skills` lists, under their
     refs there. The model never names such a directory, so the order of these two readings decides nothing.
 
-    Otherwise as a real file: every skill whose `SKILL.md` leads to the file the argument leads to, such as
+    Otherwise as a canonical file: every skill whose `SKILL.md` leads to the file the argument leads to, such as
     `shared/LINT.md` that a linked `SKILL.md` leads to, is returned.
 
     A path naming a directory selects each skill whole; one naming a `SKILL.md`, by that name or as the file a
@@ -334,7 +334,7 @@ def select_skills_at(
         UnlistedSkillPathError: If the argument lies outside the root, the snapshot holds nothing at it,
             or no skill the model lists is there.
     """
-    # Lexical, like rust-analyzer's `AbsPath::normalize`: `..` drops the component before it even when that one
+    # Lexical, as an IDE normalises a path: `..` drops the component before it even when that one
     # is a link. Following links here would read the disk; the snapshot follows every link below the root.
     # `/` discards the working directory when the argument is absolute.
     named = Path(os.path.normpath(working_directory / argument))
@@ -345,16 +345,16 @@ def select_skills_at(
     if listed is not None:
         return (listed,)
     model = database.model()
-    # Before the real path is asked: a named path leading outside the repository leads to none, and is reported.
+    # Before the canonical path is asked: a named path leading outside the repository leads to none, and is reported.
     in_named_dir = _select_named_skills(model, spelled)
     if in_named_dir is not None:
         return in_named_dir
-    real_path = database.find_real_path(spelled)
-    if real_path is None:
+    canonical_path = database.find_canonical_path(spelled)
+    if canonical_path is None:
         raise UnlistedSkillPathError(argument)
-    if model.has_skills_dir(real_path):
-        return select_whole(model.skills_in(real_path))
-    refs = model.locate_skill_files(real_path)
+    if model.has_skills_dir(canonical_path):
+        return select_whole(model.skills_in(canonical_path))
+    refs = model.locate_skill_files(canonical_path)
     if not refs:
         raise UnlistedSkillPathError(argument)
     selections: list[SkillSelection] = []
@@ -379,12 +379,12 @@ def _select_listed_skill(database: Database, spelled: RootRelativePath) -> Skill
     """The skill listed at the entry `spelled` names, by the entry's directory or its `SKILL.md`, or `None`.
 
     The entry's parent is followed through the snapshot, so a linked skills directory such as `.claude/skills`
-    leads to the real one the model lists its skills under. The entry itself is kept as spelled: following it
+    leads to the canonical one the model lists its skills under. The entry itself is kept as spelled: following it
     would lead to the directory its files live in, which every entry linked there shares.
 
     The skill is selected by its `SKILL.md` alone when `spelled` ends in `SKILL.md`, and whole when it names the
     entry's directory. The spelling decides it here because the argument is read by its spelling; a path resolved
-    to its real location has only that location to tell the file from the directory.
+    to its canonical path has only that location to tell the file from the directory.
 
     Args:
         database: The snapshot the entry's parent is resolved in, and the model it must name a skill of.
@@ -398,10 +398,10 @@ def _select_listed_skill(database: Database, spelled: RootRelativePath) -> Skill
     # The root is no entry: it has no name, and no skill is listed at it.
     if entry == ROOT:
         return None
-    real_parent = database.find_real_path(entry.parent)
-    if real_parent is None:
+    canonical_parent = database.find_canonical_path(entry.parent)
+    if canonical_parent is None:
         return None
-    ref = database.model().find_skill(real_parent / entry.name)
+    ref = database.model().find_skill(canonical_parent / entry.name)
     if ref is None:
         return None
     return SkillSelection(ref, scope)
