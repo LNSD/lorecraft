@@ -231,23 +231,24 @@ these three prefixes:
 
 | Prefix    | Names                                            | Spelling                       | Example                   |
 |-----------|--------------------------------------------------|--------------------------------|---------------------------|
-| `module:` | A module or subpackage, by its full import path  | snake_case, dotted for nesting | `module:lorecraft.checks` |
+| `module:` | A top-level package of `lorecraft`               | `lorecraft.<package>`          | `module:lorecraft.checks` |
 | `skill:`  | A skill directory                                | kebab-case                     | `skill:docs-rules-check`  |
 | `spec:`   | A specification stem under `docs/__meta__/`      | kebab-case, extensions dropped | `spec:feat`               |
 
-A `module:` entry always starts with the import package, because two layers can hold a subpackage of the
-same name and a shorter name would not say which:
-`src/lorecraft/checks/frontmatter.py` is `module:lorecraft.checks.frontmatter`. A `spec:` entry names
-the stem, not one of its files: `spec:feat` stands for `feat.md` and every `feat.*.json` beside it.
+A `module:` entry names a top-level package and nothing deeper: `src/lorecraft/checks/frontmatter.py` is
+`module:lorecraft.checks`. The modules inside a package are renamed and split as its code changes, while the
+package a feature lives in is not, so a deeper entry goes stale on a refactor that leaves the feature alone. The
+Code References section names the files. A `spec:` entry names the stem, not one of its files: `spec:feat`
+stands for `feat.md` and every `feat.*.json` beside it.
 
 **Example:**
 ```yaml
-components: "module:lorecraft.checks.frontmatter,spec:feat,skill:docs-rules-check"
+components: "module:lorecraft.checks,spec:feat,skill:docs-rules-check"
 ```
 
-The schema enforces the prefix vocabulary and the character set of each entry. Which separator a given prefix
-uses — a dot for a module path, a hyphen for a skill directory — is stated in the table above and verified by
-reading, because a single regular expression covering all three at once is less readable than the rule it
+The schema enforces the prefix vocabulary, the character set of each entry, and that a `module:` entry is
+`lorecraft.<package>`. That a `skill:` or `spec:` entry is kebab-case is stated in the table above and verified
+by reading, because one regular expression covering every prefix's spelling is less readable than the rule it
 would encode.
 
 ### Description Guidelines

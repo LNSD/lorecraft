@@ -64,11 +64,9 @@ and it cannot go stale.
 
 ## 3. Frontmatter
 
-`components` names the module that declares the command, under `module:lorecraft.cli` — the command module
-under `lorecraft.cli.commands`, or `lorecraft.cli.app` for `cli.md` — beside the library modules the command
-composes. That entry is what makes a command's document findable from the code that a change to the command
-touches. The `frontmatter` key of [feat-cli.structure.json](feat-cli.structure.json) requires at least one
-`module:lorecraft.cli` entry; which one is right is verified by reading.
+`components` names `module:lorecraft.cli`, the package that declares every command, beside the other packages
+the command composes. That entry is what makes a command's document findable from the code that a change to
+the command touches. The `frontmatter` key of [feat-cli.structure.json](feat-cli.structure.json) requires it.
 
 ---
 
@@ -149,7 +147,7 @@ name: "cli-{{command}}-{{subcommand}}"
 description: "{{What the command does, its options and output. Load when [running or scripting it]}}"
 type: "{{feature|meta}}"
 status: "{{stable|experimental|unstable|development}}"
-components: "module:lorecraft.cli.commands.{{command}},{{prefix:name - the library modules it composes}}"
+components: "module:lorecraft.cli,{{prefix:name - the other packages it composes}}"
 ---
 
 # {{`lorecraft command subcommand`}}
@@ -207,7 +205,7 @@ lorecraft {{command}} {{subcommand}}
 - [ ] The document links to its base, the parent command's document, with `Base`, and does not link to or
       list its subcommands
 - [ ] What the base documents is linked, not restated
-- [ ] `components` holds the `module:lorecraft.cli` module that declares the command
+- [ ] `components` holds `module:lorecraft.cli`
 - [ ] A Configuration section tables every argument and option but `--help`, in `--help` order
 - [ ] A `feature` document's Usage has `### Output` and `### Exit Status`, or links to its base's
 - [ ] Every exit code the command can return is in the Exit Status table
