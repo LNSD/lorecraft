@@ -12,7 +12,17 @@ from typing import Final
 import pytest
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.vfs import DirEntry, EntryKind, Link, Listing, RootExit, Snapshot, TextDecodeError, VirtualFileSystem
+from lorecraft.vfs import (
+    DirEntry,
+    EntryKind,
+    Link,
+    Listing,
+    ResolvedPath,
+    RootExit,
+    Snapshot,
+    TextDecodeError,
+    VirtualFileSystem,
+)
 
 from ..outside import OutsideSymlink
 from ..ref import SkillLocation, SkillRef, SkillResourceLocation, SkillResourceRef
@@ -28,8 +38,8 @@ from ..repo import (
 SKILL: Final[str] = '.agents/skills/review'
 REVIEW: Final[SkillLocation] = SkillLocation(
     SkillRef(RootRelativePath.parse(SKILL)),
-    resolves_to=RootRelativePath.parse(SKILL),
-    file_resolves_to=RootRelativePath.parse(f'{SKILL}/SKILL.md'),
+    resolves_to=ResolvedPath(RootRelativePath.parse(SKILL)),
+    file_resolves_to=ResolvedPath(RootRelativePath.parse(f'{SKILL}/SKILL.md')),
 )
 """A skill in a regular directory, whose `SKILL.md` is no symlink."""
 
@@ -67,7 +77,7 @@ def _outside(path: str, link: str, target: str) -> OutsideSymlink:
 
     Args:
         path: Where an agent reaches the symlink, root-relative.
-        link: The link the chain leaves the root through, at its canonical path.
+        link: The link the chain leaves the root through, at its resolved path.
         target: That link's target, as recorded.
     """
     return OutsideSymlink(RootRelativePath.parse(path), RootExit(RootRelativePath.parse(link), PurePosixPath(target)))
@@ -78,11 +88,12 @@ def _resource(path: str, resolves_to: str | None = None) -> SkillResourceLocatio
 
     Args:
         path: Where an agent reaches the resource, root-relative.
-        resolves_to: The canonical file it leads to; `path` itself when omitted.
+        resolves_to: The resolved file it leads to; `path` itself when omitted.
     """
-    canonical = path if resolves_to is None else resolves_to
+    resolved = path if resolves_to is None else resolves_to
     return SkillResourceLocation(
-        SkillResourceRef(REVIEW.ref, RootRelativePath.parse(path)), resolves_to=RootRelativePath.parse(canonical)
+        SkillResourceRef(REVIEW.ref, RootRelativePath.parse(path)),
+        resolves_to=ResolvedPath(RootRelativePath.parse(resolved)),
     )
 
 
@@ -108,7 +119,7 @@ class TestRepositoryListSkillResources:
             _resource(f'{SKILL}/guide.md'),
             _resource(f'{SKILL}/references/a.md'),
             _resource(f'{SKILL}/references/deep/b.md'),
-        ), 'every Markdown file at any depth is a resource, each at its own canonical path, in path order'
+        ), 'every Markdown file at any depth is a resource, each at its own resolved path, in path order'
 
     def test_list_skill_resources_with_only_the_top_level_skill_file_returns_empty(self) -> None:
         #: Given
@@ -127,7 +138,9 @@ class TestRepositoryListSkillResources:
             {f'{SKILL}/SKILL.md': '../../../shared/review.md'},
         )
         review = SkillLocation(
-            REVIEW.ref, resolves_to=REVIEW.resolves_to, file_resolves_to=RootRelativePath.parse('shared/review.md')
+            REVIEW.ref,
+            resolves_to=REVIEW.resolves_to,
+            file_resolves_to=ResolvedPath(RootRelativePath.parse('shared/review.md')),
         )
 
         #: When
@@ -260,7 +273,7 @@ class TestRepositoryListSkillResources:
 
         #: Then
         assert resources == (_resource(f'{SKILL}/references/a.md'),), (
-            'every directory reached without a symlink is entered first, so the resource keeps its canonical name'
+            'every directory reached without a symlink is entered first, so the resource keeps its resolved name'
         )
 
     def test_list_skill_resources_with_a_symlink_to_a_deeper_directory_names_the_resources_where_they_really_are(
@@ -278,7 +291,7 @@ class TestRepositoryListSkillResources:
 
         #: Then
         assert resources == (_resource(f'{SKILL}/references/deep/b.md'),), (
-            'the symlink waits until references/deep/ is entered by its canonical path, so the resource keeps that name'
+            'the symlink waits until references/deep/ is entered by its resolved path, so the resource keeps that name'
         )
 
     def test_list_skill_resources_with_two_directories_linking_to_each_other_enters_each_once(self) -> None:
@@ -300,7 +313,7 @@ class TestRepositoryListSkillResources:
         assert resources == (
             _resource(f'{SKILL}/q/a.md', 'shared/q/a.md'),
             _resource(f'{SKILL}/q/to-s/b.md', 'shared/s/b.md'),
-        ), 'each canonical directory is entered once, so the walk ends, and each resource is listed once'
+        ), 'each resolved directory is entered once, so the walk ends, and each resource is listed once'
 
     def test_list_skill_resources_with_dangling_symlinks_leaves_them_out(self) -> None:
         #: Given
@@ -374,8 +387,8 @@ class TestRepositoryListSkillResources:
         )
         audit = SkillLocation(
             SkillRef(RootRelativePath.parse('.agents/skills/audit')),
-            resolves_to=RootRelativePath.parse('skills/audit'),
-            file_resolves_to=RootRelativePath.parse('skills/audit/SKILL.md'),
+            resolves_to=ResolvedPath(RootRelativePath.parse('skills/audit')),
+            file_resolves_to=ResolvedPath(RootRelativePath.parse('skills/audit/SKILL.md')),
         )
 
         #: When
@@ -385,7 +398,7 @@ class TestRepositoryListSkillResources:
         assert resources == (
             SkillResourceLocation(
                 SkillResourceRef(audit.ref, RootRelativePath.parse('.agents/skills/audit/references/a.md')),
-                resolves_to=RootRelativePath.parse('skills/audit/references/a.md'),
+                resolves_to=ResolvedPath(RootRelativePath.parse('skills/audit/references/a.md')),
             ),
         ), 'the resource is named under the skill entry, and located under the directory the entry leads to'
 
@@ -393,7 +406,7 @@ class TestRepositoryListSkillResources:
         self,
     ) -> None:
         #: Given
-        # the skill's canonical directory is `skills/audit`, so `.agents/skills` holds only the entry the skill is
+        # the skill's resolved directory is `skills/audit`, so `.agents/skills` holds only the entry the skill is
         # named by
         repository = _repository(
             {
@@ -406,8 +419,8 @@ class TestRepositoryListSkillResources:
         )
         audit = SkillLocation(
             SkillRef(RootRelativePath.parse('.agents/skills/audit')),
-            resolves_to=RootRelativePath.parse('skills/audit'),
-            file_resolves_to=RootRelativePath.parse('skills/audit/SKILL.md'),
+            resolves_to=ResolvedPath(RootRelativePath.parse('skills/audit')),
+            file_resolves_to=ResolvedPath(RootRelativePath.parse('skills/audit/SKILL.md')),
         )
 
         #: When
@@ -417,7 +430,7 @@ class TestRepositoryListSkillResources:
         assert resources == (
             SkillResourceLocation(
                 SkillResourceRef(audit.ref, RootRelativePath.parse('.agents/skills/audit/references/a.md')),
-                resolves_to=RootRelativePath.parse('skills/audit/references/a.md'),
+                resolves_to=ResolvedPath(RootRelativePath.parse('skills/audit/references/a.md')),
             ),
         ), 'the skills directory holds the entry the skill is named by, so the review skill is never counted'
 
@@ -427,13 +440,13 @@ def _skill_at(directory: str, resolves_to: str | None = None) -> SkillLocation:
 
     Args:
         directory: Where the skill is named, root-relative.
-        resolves_to: The canonical directory it leads to; `directory` itself when omitted.
+        resolves_to: The resolved directory it leads to; `directory` itself when omitted.
     """
-    canonical = directory if resolves_to is None else resolves_to
+    resolved = directory if resolves_to is None else resolves_to
     return SkillLocation(
         SkillRef(RootRelativePath.parse(directory)),
-        resolves_to=RootRelativePath.parse(canonical),
-        file_resolves_to=RootRelativePath.parse(f'{canonical}/SKILL.md'),
+        resolves_to=ResolvedPath(RootRelativePath.parse(resolved)),
+        file_resolves_to=ResolvedPath(RootRelativePath.parse(f'{resolved}/SKILL.md')),
     )
 
 
@@ -445,7 +458,7 @@ class TestRepositoryListNamedSkills:
         directory = RootRelativePath.parse('skills/review')
 
         #: When
-        listing = repository.list_named_skills(directory, directory)
+        listing = repository.list_named_skills(directory, ResolvedPath(directory))
 
         #: Then
         assert listing == SkillsListing(skills=(_skill_at('skills/review'),), outside_symlinks=()), (
@@ -460,7 +473,7 @@ class TestRepositoryListNamedSkills:
         directory = RootRelativePath.parse('skills')
 
         #: When
-        listing = repository.list_named_skills(directory, directory)
+        listing = repository.list_named_skills(directory, ResolvedPath(directory))
 
         #: Then
         assert listing == SkillsListing(
@@ -473,7 +486,7 @@ class TestRepositoryListNamedSkills:
         directory = RootRelativePath.parse('bundle')
 
         #: When
-        listing = repository.list_named_skills(directory, RootRelativePath.parse('skills'))
+        listing = repository.list_named_skills(directory, ResolvedPath(RootRelativePath.parse('skills')))
 
         #: Then
         assert listing == SkillsListing(skills=(_skill_at('bundle/review', 'skills/review'),), outside_symlinks=()), (
@@ -488,7 +501,7 @@ class TestRepositoryListNamedSkills:
         directory = RootRelativePath.parse('bundle')
 
         #: When
-        listing = repository.list_named_skills(directory, directory)
+        listing = repository.list_named_skills(directory, ResolvedPath(directory))
 
         #: Then
         assert listing == SkillsListing(skills=(_skill_at('bundle/review', 'skills/review'),), outside_symlinks=()), (
@@ -504,7 +517,7 @@ class TestRepositoryListNamedSkills:
         directory = RootRelativePath.parse('skills/review')
 
         #: When
-        listing = repository.list_named_skills(directory, directory)
+        listing = repository.list_named_skills(directory, ResolvedPath(directory))
 
         #: Then
         assert listing == SkillsListing(
@@ -518,7 +531,7 @@ class TestRepositoryListNamedSkills:
         directory = RootRelativePath.parse('docs')
 
         #: When
-        listing = repository.list_named_skills(directory, directory)
+        listing = repository.list_named_skills(directory, ResolvedPath(directory))
 
         #: Then
         assert listing == SkillsListing(skills=(), outside_symlinks=()), (
@@ -555,9 +568,9 @@ class TestRepositoryFindSkillsDirExit:
 
 @pytest.mark.unit
 class TestRepositoryGetSkillResource:
-    def test_get_skill_resource_with_a_location_behind_a_symlink_reads_the_canonical_file(self) -> None:
+    def test_get_skill_resource_with_a_location_behind_a_symlink_reads_the_resolved_file(self) -> None:
         #: Given
-        # nothing is at the ref's own path: only the recorded canonical file can answer
+        # nothing is at the ref's own path: only the recorded resolved file can answer
         repository = _repository({'notes/e.md': b'# Notes\n'}, {})
         location = _resource(f'{SKILL}/notes.md', 'notes/e.md')
 

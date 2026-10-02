@@ -9,7 +9,7 @@ checked-in workspace fixture, is compared to a reviewed snapshot file under `__s
 `inspect` print for a root whose `docs/` or `docs/__meta__/` is a symlink into that fixture, what `check frontmatter`
 and `check skills` print for a root whose frontmatter writes a key twice, what `check skills` prints for the fixture's
 skills named one at a time (an entry another entry links to, a linked entry, and the directory no agent reads that a
-linked entry leads to) and named by their skills directory (the canonical one, the one linked to it, and `skills/`,
+linked entry leads to) and named by their skills directory (the resolved one, the one linked to it, and `skills/`,
 which no agent reads), how it refuses a directory holding no skill, and what it prints for a skill linking to an
 absolute path, for one linking to a heading it does not have, for one whose `SKILL.md` and a resource link outside the
 skill, for one whose `SKILL.md` and a resource link a file the skill does not hold, for one whose resource links to an

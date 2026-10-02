@@ -15,6 +15,7 @@ from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName
 from lorecraft.project.skill import SkillLocation, SkillRef, SkillsDir
 from lorecraft.project.workspace import Corpus, CorpusSpec, NamespaceSpec, WorkspaceModel
+from lorecraft.vfs import ResolvedPath
 
 
 def _path(raw: str) -> RootRelativePath:
@@ -79,8 +80,8 @@ def _empty_model() -> WorkspaceModel:
 
 
 def _skills_model() -> WorkspaceModel:
-    """No corpus; two agents reading one canonical skills directory, one of them through a link, and two skills."""
-    universal = _path('.agents/skills')
+    """No corpus; two agents reading one resolved skills directory, one of them through a link, and two skills."""
+    universal = ResolvedPath(_path('.agents/skills'))
     return WorkspaceModel(
         corpora=(),
         skills_dirs=(
@@ -100,7 +101,10 @@ def _regular_skill(directory: str) -> SkillLocation:
         directory: The skill's directory, root-relative and slash-separated; its `SKILL.md` sits directly in it.
     """
     path = _path(directory)
-    return SkillLocation(SkillRef(path), resolves_to=path, file_resolves_to=path / 'SKILL.md')
+    # No link on the way, so the directory and its `SKILL.md` are their own resolved paths.
+    return SkillLocation(
+        SkillRef(path), resolves_to=ResolvedPath(path), file_resolves_to=ResolvedPath(path / 'SKILL.md')
+    )
 
 
 @pytest.mark.unit
@@ -166,7 +170,7 @@ class TestRenderText:
 
         #: Then
         assert text == expected, (
-            'a linked directory is drawn with where it leads, a canonical one alone, and a skill with the agents '
+            'a linked directory is drawn with where it leads, a resolved one alone, and a skill with the agents '
             'reading it'
         )
 

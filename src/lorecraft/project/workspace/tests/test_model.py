@@ -24,7 +24,7 @@ from lorecraft.project.schemas import (
     parse_spec_name,
 )
 from lorecraft.project.skill import NamedDir, OutsideSymlink, SkillLocation, SkillRef, SkillsDir
-from lorecraft.vfs import RootExit
+from lorecraft.vfs import ResolvedPath, RootExit
 
 from ..model import Corpus, CorpusSpec, Governance, NamespaceSpec, WorkspaceModel, namespace_order_key
 
@@ -598,13 +598,16 @@ def _regular_skill(directory: str) -> SkillLocation:
         directory: Root-relative skill directory, such as `.agents/skills/audit`.
     """
     path = RootRelativePath.parse(directory)
-    return SkillLocation(SkillRef(path), resolves_to=path, file_resolves_to=path / 'SKILL.md')
+    # No link on the way, so the directory and its `SKILL.md` are their own resolved paths.
+    return SkillLocation(
+        SkillRef(path), resolves_to=ResolvedPath(path), file_resolves_to=ResolvedPath(path / 'SKILL.md')
+    )
 
 
 AUDIT: Final[SkillLocation] = SkillLocation(
     SkillRef(RootRelativePath.parse('.agents/skills/audit')),
-    resolves_to=RootRelativePath.parse('skills/audit'),
-    file_resolves_to=RootRelativePath.parse('shared/audit.md'),
+    resolves_to=ResolvedPath(RootRelativePath.parse('skills/audit')),
+    file_resolves_to=ResolvedPath(RootRelativePath.parse('shared/audit.md')),
 )
 """A skill linked to ``skills/audit/``, whose ``SKILL.md`` is a link to ``shared/audit.md``."""
 
@@ -613,8 +616,8 @@ REVIEW: Final[SkillLocation] = _regular_skill('.agents/skills/review')
 
 REVIEW_ALIAS: Final[SkillLocation] = SkillLocation(
     SkillRef(RootRelativePath.parse('.agents/skills/reviewer')),
-    resolves_to=RootRelativePath.parse('.agents/skills/review'),
-    file_resolves_to=RootRelativePath.parse('.agents/skills/review/SKILL.md'),
+    resolves_to=ResolvedPath(RootRelativePath.parse('.agents/skills/review')),
+    file_resolves_to=ResolvedPath(RootRelativePath.parse('.agents/skills/review/SKILL.md')),
 )
 """A second entry linked to the ``review`` skill's directory."""
 
@@ -628,7 +631,7 @@ def skills_model() -> WorkspaceModel:
 
     One of the agents reads it through the `.claude/skills` link. A command names `skills`, which holds `gamma`.
     """
-    universal = RootRelativePath.parse('.agents/skills')
+    universal = ResolvedPath(RootRelativePath.parse('.agents/skills'))
     return WorkspaceModel(
         corpora=(),
         skills_dirs=(
@@ -721,8 +724,8 @@ class TestWorkspaceModel:
         #: Given
         retargeted = SkillLocation(
             AUDIT.ref,
-            resolves_to=RootRelativePath.parse('skills/review'),
-            file_resolves_to=RootRelativePath.parse('skills/review/SKILL.md'),
+            resolves_to=ResolvedPath(RootRelativePath.parse('skills/review')),
+            file_resolves_to=ResolvedPath(RootRelativePath.parse('skills/review/SKILL.md')),
         )
         other = replace(skills_model, skill_locations=(retargeted, REVIEW, REVIEW_ALIAS))
 
@@ -787,7 +790,7 @@ class TestWorkspaceModel:
         #: Then
         assert ref == REVIEW_ALIAS.ref, 'a linked entry is found by its own name'
 
-    def test_find_skill_with_the_canonical_directory_a_linked_skill_leads_to_returns_none(
+    def test_find_skill_with_the_resolved_directory_a_linked_skill_leads_to_returns_none(
         self, skills_model: WorkspaceModel
     ) -> None:
         #: Given
@@ -819,31 +822,32 @@ class TestWorkspaceModel:
         #: Then
         assert ref is None, 'the skills directory itself is no skill'
 
-    def test_has_skills_dir_with_the_canonical_directory_agents_read_returns_true(
+    def test_has_skills_dir_with_the_resolved_directory_agents_read_returns_true(
         self, skills_model: WorkspaceModel
     ) -> None:
         #: Given
-        canonical_path = RootRelativePath.parse('.agents/skills')
+        resolved_path = ResolvedPath(RootRelativePath.parse('.agents/skills'))
 
         #: When
-        listed = skills_model.has_skills_dir(canonical_path)
+        listed = skills_model.has_skills_dir(resolved_path)
 
         #: Then
-        assert listed is True, 'a skills directory leads to the canonical directory, directly or through a link'
+        assert listed is True, 'a skills directory leads to the resolved directory, directly or through a link'
 
     def test_has_skills_dir_with_a_linked_skills_directory_returns_false(self, skills_model: WorkspaceModel) -> None:
         #: Given
-        path = RootRelativePath.parse('.claude/skills')
+        # Typed as resolved only to be asked: the method compares lexically and never checks the claim.
+        path = ResolvedPath(RootRelativePath.parse('.claude/skills'))
 
         #: When
         listed = skills_model.has_skills_dir(path)
 
         #: Then
-        assert listed is False, 'a link is no canonical path, so no skills directory resolves to it'
+        assert listed is False, 'a link is no resolved path, so no skills directory resolves to it'
 
     def test_has_skills_dir_with_a_directory_no_agent_reads_returns_false(self, skills_model: WorkspaceModel) -> None:
         #: Given
-        path = RootRelativePath.parse('skills')
+        path = ResolvedPath(RootRelativePath.parse('skills'))
 
         #: When
         listed = skills_model.has_skills_dir(path)
@@ -855,14 +859,14 @@ class TestWorkspaceModel:
         self, skills_model: WorkspaceModel
     ) -> None:
         #: Given
-        canonical_path = RootRelativePath.parse('.agents/skills')
+        resolved_path = ResolvedPath(RootRelativePath.parse('.agents/skills'))
 
         #: When
-        refs = skills_model.skills_in(canonical_path)
+        refs = skills_model.skills_in(resolved_path)
 
         #: Then
         assert refs == (AUDIT.ref, REVIEW.ref, REVIEW_ALIAS.ref), (
-            'every entry of the canonical directory, linked or not, in the model order'
+            'every entry of the resolved directory, linked or not, in the model order'
         )
 
     def test_skills_in_with_a_skills_directory_holding_no_skill_returns_empty(
@@ -870,10 +874,10 @@ class TestWorkspaceModel:
     ) -> None:
         #: Given
         model = replace(skills_model, skill_locations=())
-        canonical_path = RootRelativePath.parse('.agents/skills')
+        resolved_path = ResolvedPath(RootRelativePath.parse('.agents/skills'))
 
         #: When
-        refs = model.skills_in(canonical_path)
+        refs = model.skills_in(resolved_path)
 
         #: Then
         assert refs == (), 'no skill is listed in a skills directory that holds none'
@@ -932,7 +936,7 @@ class TestWorkspaceModel:
         self, skills_model: WorkspaceModel
     ) -> None:
         #: Given
-        path = RootRelativePath.parse('.agents/skills/review/SKILL.md')
+        path = ResolvedPath(RootRelativePath.parse('.agents/skills/review/SKILL.md'))
 
         #: When
         refs = skills_model.locate_skill_files(path)
@@ -946,7 +950,7 @@ class TestWorkspaceModel:
         self, skills_model: WorkspaceModel
     ) -> None:
         #: Given
-        path = RootRelativePath.parse('shared/audit.md')
+        path = ResolvedPath(RootRelativePath.parse('shared/audit.md'))
 
         #: When
         refs = skills_model.locate_skill_files(path)
@@ -958,7 +962,7 @@ class TestWorkspaceModel:
         self, skills_model: WorkspaceModel
     ) -> None:
         #: Given
-        path = RootRelativePath.parse('skills/gamma/SKILL.md')
+        path = ResolvedPath(RootRelativePath.parse('skills/gamma/SKILL.md'))
 
         #: When
         refs = skills_model.locate_skill_files(path)
@@ -968,7 +972,7 @@ class TestWorkspaceModel:
 
     def test_locate_skill_files_with_the_directory_of_a_skill_returns_empty(self, skills_model: WorkspaceModel) -> None:
         #: Given
-        path = RootRelativePath.parse('skills/audit')
+        path = ResolvedPath(RootRelativePath.parse('skills/audit'))
 
         #: When
         refs = skills_model.locate_skill_files(path)
@@ -987,7 +991,7 @@ class TestWorkspaceModel:
 
         #: Then
         assert agents == (AgentName('claude-code'), AgentName('codex')), (
-            'an agent reads the skill whether its skills directory is the canonical one or a link to it'
+            'an agent reads the skill whether its skills directory is the resolved one or a link to it'
         )
 
     def test_skill_agents_with_a_skill_no_skills_directory_leads_to_returns_empty(

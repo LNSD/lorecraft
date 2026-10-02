@@ -47,7 +47,7 @@ and locates each violation in its document.
   scope and specifications. A value drawn from
   several files is a query of its own, with its own rule.
 - A per-file query is keyed by an identity, a ref, and carries over only when the next model, or for a resource
-  the next resource listing of its skill, locates the ref at the same canonical file and its bytes are unchanged.
+  the next resource listing of its skill, locates the ref at the same resolved file and its bytes are unchanged.
 - Each query's docstring states its carry-over rule: the changes that invalidate it. It is written or updated in
   the same change that adds or alters the query; the module docstring keeps only what holds for every query.
 - A check takes the values it judges, its subject's identity values included, such as a filename, a corpus name

@@ -36,8 +36,8 @@ use and kept for as long as the database lives (pattern-memoization):
 Three questions are asked of the snapshot's records directly and their answers are never cached, since an answer
 for one path is cheap:
 
-- `find_canonical_path(path)` and `find_canonical_file(path)`: where a path leads in the snapshot, like a lookup in
-  the IDE's virtual file system. They read the snapshot's records and nothing else and build nothing worth keeping.
+- `find_path(path)` and `find_file(path)`: where a path leads in the snapshot, like a lookup in the IDE's virtual
+  file system. They read the snapshot's records and nothing else and build nothing worth keeping.
 - `is_in_scope(path)`: whether the scan reads the directory a path sits in, like the IDE asking whether a file
   is in the project's content roots. It is configuration, not content: answered from the `ScopeIndex` cached
   above, built on the first call, with the path walked through the snapshot's recorded links to tell where it
@@ -57,7 +57,7 @@ count of every document whose bytes did not change, the frontmatter, the parse a
 whose bytes did not, the resources of every skill and the parse of every resource as their own docstrings state, and
 the model unless one of these changes invalidates it. An entry added or deleted under `docs/` invalidates it. So
 does an entry added or deleted in a skills directory, or in a skill's directory, both where the skill's entry names
-it and where a link leads it. So does an entry added or deleted at the canonical path a skill's linked `SKILL.md` leads
+it and where a link leads it. So does an entry added or deleted at the resolved path a skill's linked `SKILL.md` leads
 to, or on the way to it, since the loader resolves that link to find the skill. So does a link on the way to a skill
 or to its `SKILL.md` that changed its target, and so does a changed specification. So does a link that changed its
 target on the chain of a skills directory an agent declares, of an entry in a skills directory, or of an entry's
@@ -77,15 +77,15 @@ document, skill or resource, the model and each skill's resource listing read no
 only the scope, the links and the climbed directories, so keep them that way: data drawn from several documents
 belongs in a new cache with its own rule.
 
-A change names a canonical path, while a ref may name a path through a link: a skill's `SKILL.md` under a linked
-skill entry changes at the path the link leads to, not at the ref's. A snapshot maps a linked path to its canonical one
-and not back, so the model records each skill's `SkillLocation`, the canonical `SKILL.md` its ref leads to, and
+A change names a resolved path, while a ref may name a path through a link: a skill's `SKILL.md` under a linked
+skill entry changes at the path the link leads to, not at the ref's. A snapshot maps a linked path to its resolved one
+and not back, so the model records each skill's `SkillLocation`, the resolved `SKILL.md` its ref leads to, and
 `advance` would look that path up in the change set. A link retargeted to another skill leaves every file's bytes as
 they were and the ref as it was, like a file's identity in the IDE, while its location changes. So a skill's
-frontmatter, its parse and its line count carry over only when the two models locate its ref at the same canonical
+frontmatter, its parse and its line count carry over only when the two models locate its ref at the same resolved
 file and that file's bytes did not change. A resource is named the same way, through the symlinks on the way to it,
-and its `SkillResourceLocation` records the canonical file: its parse carries over only when the two databases'
-`skill_resources` locate its ref at the same canonical file and that file's bytes did not change.
+and its `SkillResourceLocation` records the resolved file: its parse carries over only when the two databases'
+`skill_resources` locate its ref at the same resolved file and that file's bytes did not change.
 """
 
 from lorecraft.core.path import RootRelativePath
@@ -103,7 +103,7 @@ from lorecraft.project.syntax import (
     parse_frontmatter,
 )
 from lorecraft.project.workspace import WorkspaceModel, load_model
-from lorecraft.vfs import ScopeIndex, Snapshot, VirtualFileSystem
+from lorecraft.vfs import ResolvedPath, ScopeIndex, Snapshot, VirtualFileSystem
 
 
 class Database:
@@ -147,7 +147,7 @@ class Database:
 
         - An entry added or deleted under `docs/`, or a changed specification.
         - An entry added or deleted in a skills directory or a named directory, in a skill's directory, or at or
-          on the way to the canonical path a skill's linked `SKILL.md` leads to.
+          on the way to the resolved path a skill's linked `SKILL.md` leads to.
         - A link that changed its target on the way to a skill or its `SKILL.md`, or on the chain of a skills
           directory an agent declares, a named directory, an entry of either, or such an entry's `SKILL.md`, a
           chain leaving the repository included; and a directory added or deleted that a `..` on such a chain
@@ -197,7 +197,7 @@ class Database:
         """
         reject_linked_layout(self._fs)
 
-    def find_canonical_path(self, path: RootRelativePath) -> RootRelativePath | None:
+    def find_path(self, path: RootRelativePath) -> ResolvedPath | None:
         """Where `path` leads in the snapshot, every recorded link on the way followed; never cached.
 
         Like the IDE's lookup of a path in its virtual file system: a path handed in from outside, such as a
@@ -207,25 +207,25 @@ class Database:
             path: The path to look up, relative to the snapshot root; it may name a directory or a file.
 
         Returns:
-            The canonical directory or the canonical file, root-relative, or `None` when the snapshot holds
+            The resolved directory or the resolved file, root-relative, or `None` when the snapshot holds
             neither there.
         """
-        directory = self._fs.find_canonical_dir(path)
+        directory = self._fs.find_dir(path)
         if directory is not None:
             return directory
-        return self._fs.find_canonical_file(path)
+        return self._fs.find_file(path)
 
-    def find_canonical_file(self, path: RootRelativePath) -> RootRelativePath | None:
+    def find_file(self, path: RootRelativePath) -> ResolvedPath | None:
         """The file `path` leads to in the snapshot, every recorded link on the way followed; never cached.
 
         Args:
             path: The path to look up, relative to the snapshot root; a directory leads to no file.
 
         Returns:
-            The canonical file, root-relative, or `None` when the snapshot holds no file there: nothing, a
+            The resolved file, root-relative, or `None` when the snapshot holds no file there: nothing, a
             directory, or a link it did not follow.
         """
-        return self._fs.find_canonical_file(path)
+        return self._fs.find_file(path)
 
     def is_in_scope(self, path: RootRelativePath) -> bool:
         """Whether the scan lists the directory `path` sits in, as the snapshot's scope declares it.
@@ -359,7 +359,7 @@ class Database:
         Cached apart from `skill_parse(ref)` and never read from it, as a document's token count is from its parse:
         the count needs the raw text, frontmatter included, not the tree.
 
-        Carry-over: kept for the next revision only when the next model locates the ref at the same canonical `SKILL.md`
+        Carry-over: kept for the next revision only when the next model locates the ref at the same resolved `SKILL.md`
         and that file's bytes did not change.
 
         A skill that cannot be read is not cached, so each call raises the same error again.
@@ -381,7 +381,7 @@ class Database:
     def skill_resources(self, ref: SkillRef) -> SkillResourceListing:
         """The resources of one skill and its symlinks leading outside the repository, listed on the first call.
 
-        Each resource is named where an agent reaches it, under the skill's directory, and located at the canonical file
+        Each resource is named where an agent reaches it, under the skill's directory, and located at the resolved file
         that path leads to, sorted by ref; `Repository.list_skill_resources` states which files are resources and
         which symlinks the walk follows. Each symlink whose chain leaves the repository is named the same way, with
         the link it leaves through, sorted by path. The skill's location is the model's, so the model is loaded
@@ -393,7 +393,7 @@ class Database:
           met leads to, or on the way there.
         - A symlink on any of those ways changed its target, one whose chain leaves the repository included: the
           listing records the link such a chain leaves through, and its target.
-        - The next model locates the skill's directory at another canonical directory, its `resolves_to`. Where its
+        - The next model locates the skill's directory at another resolved directory, its `resolves_to`. Where its
           `SKILL.md` leads plays no part, so a retargeted `SKILL.md` symlink alone leaves the listing valid.
 
         A change to any file's bytes leaves it valid, and so does any change the walk does not reach, whichever
@@ -450,11 +450,11 @@ class Database:
     def skill_resource_parse(self, ref: SkillResourceRef) -> ParsedDocument:
         """The parse tree of one resource of a skill, parsed from the snapshot on the first call for its ref.
 
-        The resource is read at the canonical file `skill_resources(ref.skill)` locates the ref at, never at `ref.path`,
+        The resource is read at the resolved file `skill_resources(ref.skill)` locates the ref at, never at `ref.path`,
         so the skill's resources are listed first if they are not yet.
 
         Carry-over: kept for the next revision only when the next `skill_resources(ref.skill)` locates the ref at the
-        same canonical file and that file's bytes did not change.
+        same resolved file and that file's bytes did not change.
 
         A resource that cannot be read is not cached, so each call raises the same error again.
 
@@ -465,7 +465,7 @@ class Database:
             ValueError: If `skill_resources(ref.skill)` lists no resource with this ref (refs from it never trigger
                 it).
             SkillResourceDecodeError: If the resource's bytes are not UTF-8.
-            SkillResourceReadError: If the snapshot holds no regular file at the canonical file the ref leads to.
+            SkillResourceReadError: If the snapshot holds no regular file at the resolved file the ref leads to.
             SkillResourcesListError: If the skill's resources are not listed yet and a directory the walk enters
                 cannot be listed.
             SkillResourcesSymlinkResolveError: If the skill's resources are not listed yet and a symlink the walk

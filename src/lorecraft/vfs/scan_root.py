@@ -26,9 +26,9 @@ class ScanRoot:
             listed by their parent and never entered.
         follow_links: When true, a symlink that leads somewhere under the root is followed: one on the way
             to `directory`, and one listed by the scan. A link to a directory costs depth as a DIRECTORY
-            entry does, and the directory is listed at its canonical path, wherever under the root that is. A
+            entry does, and the directory is listed at its resolved path, wherever under the root that is. A
             link to a regular file has the file's bytes read, as a FILE entry has, and recorded at the
-            file's canonical path. When false, a symlink is recorded and never followed.
+            file's resolved path. When false, a symlink is recorded and never followed.
     """
 
     directory: RootRelativePath
@@ -80,7 +80,7 @@ class ScanRoot:
         however far down, and the link policy is kept.
 
         Args:
-            directory: The canonical directory the returned root lists.
+            directory: The resolved directory the returned root lists.
             levels: How many levels below `self.directory` that directory is listed, as the scan counts them;
                 at least 1.
 

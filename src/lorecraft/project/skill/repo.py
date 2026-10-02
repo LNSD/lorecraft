@@ -9,7 +9,7 @@ agents state.
 A skill is `<skills directory>/<skill name>/SKILL.md` and nothing else, or a directory a command names with a
 `SKILL.md` at its root. Symlinks are followed here, unlike under `docs/`: an agent's skills directory is commonly
 a link to another one, a skill entry a link to where the skill's files live, and a `SKILL.md` a link to where its
-text lives. A skill is still named where it is listed, under the canonical skills directory of an agent or under the
+text lives. A skill is still named where it is listed, under the resolved skills directory of an agent or under the
 directory a command names as spelled: the place a link leads to is not a skill of its own. Where each link
 leads is recorded beside the ref, in its location, so what a skill is named by and where its files live are both
 known. A link whose chain leaves the repository is not followed out of it, and is recorded instead as an
@@ -35,6 +35,7 @@ from lorecraft.vfs import (
     FileReadError,
     FileResolveError,
     FileSystem,
+    ResolvedPath,
     RootExit,
     TextDecodeError,
     UnrecordedFileError,
@@ -72,7 +73,7 @@ class SkillResource:
 
 @dataclass(frozen=True, slots=True)
 class SkillsListing:
-    """What one canonical skills directory holds, as `Repository.list_skills` finds it.
+    """What one resolved skills directory holds, as `Repository.list_skills` finds it.
 
     Attributes:
         skills: The location of every skill directly inside it, sorted by ref.
@@ -211,7 +212,7 @@ class SkillResourcesListError(Error):
 
     Attributes:
         skill: The skill whose resources were being listed.
-        directory: The canonical directory that could not be listed.
+        directory: The resolved directory that could not be listed.
         source: The failure to list it.
     """
 
@@ -232,7 +233,7 @@ class SkillResourcesSymlinkResolveError(Error):
 
     Attributes:
         skill: The skill whose resources were being listed.
-        symlink: The symlink being followed, at its canonical path.
+        symlink: The symlink being followed, at its resolved path.
         source: The failure to resolve it, as a directory, as a file, or to where it leaves the repository.
     """
 
@@ -301,14 +302,14 @@ class Repository:
         """
         self._fs = fs
 
-    def find_skills_dir(self, skills_dir: RootRelativePath) -> RootRelativePath | None:
-        """The canonical directory a skills directory leads to, following every symlink on the way.
+    def find_skills_dir(self, skills_dir: RootRelativePath) -> ResolvedPath | None:
+        """The resolved directory a skills directory leads to, following every symlink on the way.
 
         Args:
             skills_dir: Skills directory as the layout names it, such as `.agents/skills`; it may be a link.
 
         Returns:
-            The canonical directory, root-relative, or `None` when the repository has no such skills directory:
+            The resolved directory, root-relative, or `None` when the repository has no such skills directory:
             the path is missing, a link dangles or loops, the target is not a directory, or it lies outside
             the root.
 
@@ -316,21 +317,21 @@ class Repository:
             DirResolveError: If the operating system refuses the lookup.
         """
         # A refused lookup is the resolve's own, with the skills directory as its path: nothing to add here.
-        return self._fs.find_canonical_dir(skills_dir)
+        return self._fs.find_dir(skills_dir)
 
-    def find_canonical_dir(self, path: RootRelativePath) -> RootRelativePath | None:
-        """The canonical directory a path leads to, following every symlink on the way, such as one a command names.
+    def find_dir(self, path: RootRelativePath) -> ResolvedPath | None:
+        """The resolved directory a path leads to, following every symlink on the way, such as one a command names.
 
         Args:
             path: A root-relative path, as spelled; it may be a link or lead through one.
 
         Returns:
-            The canonical directory, root-relative, or `None` when the path leads to no directory under the root.
+            The resolved directory, root-relative, or `None` when the path leads to no directory under the root.
 
         Raises:
             DirResolveError: If the operating system refuses the lookup.
         """
-        return self._fs.find_canonical_dir(path)
+        return self._fs.find_dir(path)
 
     def find_skills_dir_exit(self, skills_dir: RootRelativePath) -> OutsideSymlink | None:
         """The skills directory as a symlink leading outside the repository, or `None` when it does not lead out.
@@ -347,13 +348,13 @@ class Repository:
             return None
         return OutsideSymlink(skills_dir, leaves_at)
 
-    def list_skills(self, skills_dir: RootRelativePath) -> SkillsListing:
+    def list_skills(self, skills_dir: ResolvedPath) -> SkillsListing:
         """The location of every skill directly inside one skills directory, sorted by name, and its outside links.
 
         A skill is an entry that is, or leads to, a directory under the root holding a `SKILL.md` that is,
         or leads to, a regular file under the root. The ref names the entry, `<skills_dir>/<entry name>`,
         whether or not it is a symlink, so two entries leading to one directory are two skills, as an agent
-        sees them; its location records the canonical directory and the canonical `SKILL.md` each leads to.
+        sees them; its location records the resolved directory and the resolved `SKILL.md` each leads to.
 
         An entry whose link leads outside the root, or an entry whose `SKILL.md` is a link leading outside it, is
         no skill: it is recorded as an `OutsideSymlink`, at the entry or at `<entry>/SKILL.md`. Left out
@@ -362,7 +363,7 @@ class Repository:
         lists as nothing.
 
         Args:
-            skills_dir: A canonical skills directory, as `find_skills_dir` returns it: a link is not followed
+            skills_dir: A resolved skills directory, as `find_skills_dir` returns it: a link is not followed
                 here.
 
         Raises:
@@ -373,13 +374,13 @@ class Repository:
         """
         return self._list_entries(skills_dir, skills_dir)
 
-    def list_named_skills(self, directory: RootRelativePath, canonical_directory: RootRelativePath) -> SkillsListing:
+    def list_named_skills(self, directory: RootRelativePath, resolved_directory: ResolvedPath) -> SkillsListing:
         """The skills in a directory a command names: the directory itself, or each skill directly inside it.
 
         The directory is one skill when a `SKILL.md` is at its root: a regular file, or a link to one under the
         root. Otherwise it is read as a skills directory, as `list_skills` reads one, so each entry holding a
         `SKILL.md` is a skill. Either way a skill is named under `directory`, as the command spelled it, and
-        located at the canonical paths it leads to; a symlink leading outside the root is recorded as `list_skills`
+        located at the resolved paths it leads to; a symlink leading outside the root is recorded as `list_skills`
         records one, under `directory` too.
 
         A `SKILL.md` at the root whose link leaves the root still makes the directory one skill, so it lists no
@@ -387,7 +388,7 @@ class Repository:
 
         Args:
             directory: The directory as the command spelled it, root-relative; it may be a link or lead through one.
-            canonical_directory: The canonical directory `directory` leads to, as `find_skills_dir` returns it.
+            resolved_directory: The resolved directory `directory` leads to, as `find_skills_dir` returns it.
 
         Raises:
             SkillsDirListError: If the directory is read as a skills directory and cannot be listed.
@@ -395,56 +396,56 @@ class Repository:
             SkillDirListError: If the directory, or a skill directory in it, cannot be listed.
             SkillFileResolveError: If a symlinked `SKILL.md` cannot be resolved.
         """
-        skill_file = self._find_skill_file(canonical_directory)
+        skill_file = self._find_skill_file(resolved_directory)
         match skill_file:
             case RootRelativePath():
                 location = SkillLocation(
-                    SkillRef(directory), resolves_to=canonical_directory, file_resolves_to=skill_file
+                    SkillRef(directory), resolves_to=resolved_directory, file_resolves_to=skill_file
                 )
                 return SkillsListing(skills=(location,), outside_symlinks=())
             case RootExit():
                 outside = OutsideSymlink(directory / SKILL_ENTRY_FILENAME, skill_file)
                 return SkillsListing(skills=(), outside_symlinks=(outside,))
             case None:
-                return self._list_entries(directory, canonical_directory)
+                return self._list_entries(directory, resolved_directory)
             case _:
                 assert_never(skill_file)
 
-    def _list_entries(self, skills_dir: RootRelativePath, canonical_skills_dir: RootRelativePath) -> SkillsListing:
+    def _list_entries(self, skills_dir: RootRelativePath, resolved_skills_dir: ResolvedPath) -> SkillsListing:
         """The location of every skill directly inside a skills directory, and its outside links, each sorted.
 
         The rules are `list_skills`'s. Only the names differ: each skill and each outside link is named under
-        `skills_dir`, while every entry is listed and resolved under `canonical_skills_dir`, where it really is.
+        `skills_dir`, while every entry is listed and resolved under `resolved_skills_dir`, where it really is.
 
         Args:
-            skills_dir: The directory the skills are named under: the canonical one for an agent's skills directory,
+            skills_dir: The directory the skills are named under: the resolved one for an agent's skills directory,
                 and the one a command spelled for a directory it names.
-            canonical_skills_dir: The canonical directory `skills_dir` leads to, the one listed.
+            resolved_skills_dir: The resolved directory `skills_dir` leads to, the one listed.
 
         Raises:
-            SkillsDirListError: If the canonical skills directory cannot be listed.
+            SkillsDirListError: If the resolved skills directory cannot be listed.
             SkillEntryResolveError: If a symlinked entry cannot be resolved.
             SkillDirListError: If a skill directory cannot be listed.
             SkillFileResolveError: If a symlinked `SKILL.md` cannot be resolved.
         """
         try:
-            entries = self._fs.list_dir(canonical_skills_dir)
+            entries = self._fs.list_dir(resolved_skills_dir)
         except DirListError as exc:
-            raise SkillsDirListError(canonical_skills_dir, source=exc) from exc
+            raise SkillsDirListError(resolved_skills_dir, source=exc) from exc
 
         # The seam lists entries in name order, so the locations and the outside links come out sorted.
         locations: list[SkillLocation] = []
         outside_symlinks: list[OutsideSymlink] = []
         for entry in entries:
             directory = skills_dir / entry.name
-            canonical_entry = canonical_skills_dir / entry.name
+            resolved_entry = resolved_skills_dir / entry.name
             if entry.kind is EntryKind.DIRECTORY:
-                # The skills directory is canonical and so is this entry: nothing is left to resolve.
-                files_directory = canonical_entry
+                # The skills directory is resolved and so is this entry: nothing is left to resolve.
+                files_directory = ResolvedPath(resolved_entry)
             elif entry.kind is EntryKind.SYMLINK:
-                files_directory = self._find_canonical_entry(canonical_entry)
+                files_directory = self._find_entry_dir(resolved_entry)
                 if files_directory is None:
-                    leaves_at = self._find_entry_exit(canonical_entry)
+                    leaves_at = self._find_entry_exit(resolved_entry)
                     if leaves_at is not None:
                         outside_symlinks.append(OutsideSymlink(directory, leaves_at))
             else:
@@ -458,7 +459,7 @@ class Repository:
                         SkillLocation(SkillRef(directory), resolves_to=files_directory, file_resolves_to=skill_file)
                     )
                 case RootExit():
-                    # Named under the entry, as the skill would have been, not under the canonical directory.
+                    # Named under the entry, as the skill would have been, not under the resolved directory.
                     outside_symlinks.append(OutsideSymlink(directory / SKILL_ENTRY_FILENAME, skill_file))
                 case None:
                     pass
@@ -487,21 +488,21 @@ class Repository:
     def list_skill_resources(self, location: SkillLocation) -> SkillResourceListing:
         """The location of every resource of one skill, sorted by ref, and the symlinks in it leading outside.
 
-        The walk starts at the skill's canonical directory and goes down every directory inside it, at any depth. A
+        The walk starts at the skill's resolved directory and goes down every directory inside it, at any depth. A
         file is a resource when its name ends in `.md` and it is not the skill's own top-level `SKILL.md`; a
         `SKILL.md` below the top level is one like any other. Each resource is named where an agent reaches it,
-        under `location.ref.directory`, and its location records the canonical file that path leads to.
+        under `location.ref.directory`, and its location records the resolved file that path leads to.
 
         Symlinks inside the skill are followed. One that leads to a directory under the root is entered, and the
         files in it are named through the symlink; one whose name ends in `.md` and that leads to a regular file
-        under the root is listed, with that file as its canonical one. A symlink whose chain leaves the root, whatever
+        under the root is listed, with that file as its resolved one. A symlink whose chain leaves the root, whatever
         its name, is not followed and is recorded as an `OutsideSymlink`, named where an agent reaches it. Left out
         silently: a file whose name does not end in `.md`, and a symlink that dangles or loops.
 
         Three rules keep the walk finite and the resources the skill's own:
 
-        - No canonical directory is entered twice, so two directories that link to each other end the walk.
-        - A directory that holds the skill's own directory is never entered, whether the canonical directory the
+        - No resolved directory is entered twice, so two directories that link to each other end the walk.
+        - A directory that holds the skill's own directory is never entered, whether the resolved directory the
           skill's files live in or the directory the skill is named by, its entry in the skills directory. That
           keeps out `references/up -> ../..` in a regular skill, and `agents -> ../../.agents/skills` in a skill
           whose entry links to `skills/audit`: each holds other skills' files, or this skill's again.
@@ -521,7 +522,7 @@ class Repository:
         return _SkillResourcesWalk(self._fs, location).run()
 
     def get_skill_resource(self, location: SkillResourceLocation) -> SkillResource:
-        """Read one resource of a skill, at the canonical file its location records.
+        """Read one resource of a skill, at the resolved file its location records.
 
         Args:
             location: The resource to read, as `list_skill_resources` locates it; `location.resolves_to` is read
@@ -539,8 +540,8 @@ class Repository:
             raise SkillResourceReadError(location.ref, source=exc) from exc
         return SkillResource(location.ref, text)
 
-    def _find_canonical_entry(self, entry: RootRelativePath) -> RootRelativePath | None:
-        """The canonical directory a symlinked entry leads to, or `None` when no directory under the root is there.
+    def _find_entry_dir(self, entry: RootRelativePath) -> ResolvedPath | None:
+        """The resolved directory a symlinked entry leads to, or `None` when no directory under the root is there.
 
         Args:
             entry: Symlinked entry directly inside a skills directory.
@@ -549,7 +550,7 @@ class Repository:
             SkillEntryResolveError: If the operating system refuses the lookup.
         """
         try:
-            return self._fs.find_canonical_dir(entry)
+            return self._fs.find_dir(entry)
         except DirResolveError as exc:
             raise SkillEntryResolveError(entry, source=exc) from exc
 
@@ -568,15 +569,15 @@ class Repository:
         except EntryInspectError as exc:
             raise SkillEntryResolveError(entry, source=exc) from exc
 
-    def _find_skill_file(self, directory: RootRelativePath) -> RootRelativePath | RootExit | None:
-        """The canonical file of the `SKILL.md` in `directory`, where its link leaves the root, or `None`.
+    def _find_skill_file(self, directory: ResolvedPath) -> ResolvedPath | RootExit | None:
+        """The resolved file of the `SKILL.md` in `directory`, where its link leaves the root, or `None`.
 
-        A `SKILL.md` that is a regular file is its own canonical file. One that is a symlink counts when it leads
-        to a regular file under the root, and that file is its canonical one; when its chain leaves the root, where it
+        A `SKILL.md` that is a regular file is its own resolved file. One that is a symlink counts when it leads
+        to a regular file under the root, and that file is its resolved one; when its chain leaves the root, where it
         leaves is returned instead. A directory of that name, or a link that dangles or loops, counts for nothing.
 
         Args:
-            directory: A canonical directory, so a `SKILL.md` listed in it sits at a canonical path.
+            directory: A resolved directory, so a `SKILL.md` listed in it sits at a resolved path.
 
         Raises:
             SkillDirListError: If the directory cannot be listed.
@@ -592,29 +593,43 @@ class Repository:
             if entry.name != SKILL_ENTRY_FILENAME:
                 continue
             if entry.kind is EntryKind.FILE:
-                return skill_file
+                # A regular file listed in a resolved directory: no symlink is on the way to it or at it.
+                return ResolvedPath(skill_file)
             if entry.kind is EntryKind.SYMLINK:
                 try:
-                    canonical_file = self._fs.find_canonical_file(skill_file)
-                    if canonical_file is not None:
-                        return canonical_file
+                    resolved_file = self._fs.find_file(skill_file)
+                    if resolved_file is not None:
+                        return resolved_file
                     return self._fs.find_root_exit(skill_file)
                 except (FileResolveError, EntryInspectError) as exc:
                     raise SkillFileResolveError(skill_file, source=exc) from exc
         return None
 
 
+@dataclass(frozen=True, slots=True)
+class _PendingDirectory:
+    """A directory the walk over a skill's resources has yet to enter.
+
+    Attributes:
+        named: Where an agent reaches the directory, under the skill's ref directory.
+        resolved: The resolved directory it is, the one listed.
+    """
+
+    named: RootRelativePath
+    resolved: ResolvedPath
+
+
 class _SkillResourcesWalk:
     """One walk over the resources of a skill, the steps `Repository.list_skill_resources` carries out.
 
-    Every directory is held as a pair: the path an agent reaches it at, under the skill's ref directory, and the
-    canonical directory it is, which is the one listed. A file's name is joined to the first, and its canonical path to
-    the second. Directories and symlinks wait in two queues, and a symlink is followed only once no directory is left
-    to enter.
+    Every directory is held as a `_PendingDirectory`: the path an agent reaches it at, under the skill's ref
+    directory, and the resolved directory it is, which is the one listed. A file's name is joined to the first,
+    and its resolved path to the second. Directories and symlinks wait in two queues, and a symlink is followed
+    only once no directory is left to enter.
     """
 
     def __init__(self, fs: FileSystem, location: SkillLocation) -> None:
-        """Start a walk at the skill's canonical directory; performs no I/O.
+        """Start a walk at the skill's resolved directory; performs no I/O.
 
         Args:
             fs: View every listing and resolution goes through.
@@ -622,13 +637,14 @@ class _SkillResourcesWalk:
         """
         self._fs = fs
         self._location = location
-        self._entered: set[RootRelativePath] = set()
+        self._entered: set[ResolvedPath] = set()
         self._resources: list[SkillResourceLocation] = []
         self._outside_symlinks: list[OutsideSymlink] = []
-        # Each queue holds (path an agent reaches it at, canonical path), in the order the walk met them.
-        self._directories: deque[tuple[RootRelativePath, RootRelativePath]] = deque()
+        # Each queue holds its entries in the order the walk met them. A symlink waits as (path an agent reaches
+        # it at, its own path in a resolved directory); that second path is not resolved, since it is a link.
+        self._directories: deque[_PendingDirectory] = deque()
         self._symlinks: deque[tuple[RootRelativePath, RootRelativePath]] = deque()
-        self._directories.append((location.ref.directory, location.resolves_to))
+        self._directories.append(_PendingDirectory(location.ref.directory, location.resolves_to))
 
     def run(self) -> SkillResourceListing:
         """Walk the skill to the end, and return every resource and outside symlink found, each sorted; call once.
@@ -638,71 +654,72 @@ class _SkillResourcesWalk:
             SkillResourcesSymlinkResolveError: If a symlink the walk meets cannot be resolved.
         """
         while self._directories or self._symlinks:
-            # Symlinks wait until no directory is left: every canonical directory inside the skill is then entered first
-            # and named by its canonical path, so a symlink leading to one afterwards adds nothing.
+            # Symlinks wait until no directory is left: every resolved directory inside the skill is then entered first
+            # and named by its resolved path, so a symlink leading to one afterwards adds nothing.
             if self._directories:
-                named, canonical = self._directories.popleft()
-                self._enter(named, canonical)
+                pending = self._directories.popleft()
+                self._enter(pending.named, pending.resolved)
             else:
                 named, symlink = self._symlinks.popleft()
                 self._follow(named, symlink)
         outside_symlinks = sorted(self._outside_symlinks, key=lambda outside: outside.path)
         return SkillResourceListing(resources=tuple(sorted(self._resources)), outside_symlinks=tuple(outside_symlinks))
 
-    def _enter(self, named: RootRelativePath, canonical: RootRelativePath) -> None:
-        """List one canonical directory, unless it was entered already or holds the skill's own directory.
+    def _enter(self, named: RootRelativePath, resolved: ResolvedPath) -> None:
+        """List one resolved directory, unless it was entered already or holds the skill's own directory.
 
         Its resources are kept, its directories queued to be entered, and its symlinks queued to be followed.
 
         Args:
             named: Where an agent reaches the directory, under the skill's ref directory.
-            canonical: The canonical directory, the one listed.
+            resolved: The resolved directory, the one listed.
 
         Raises:
             SkillResourcesListError: If the directory cannot be listed.
         """
         # Keeps out a directory entered already, which ends symlink loops, and one holding the skill's own
-        # directory, canonical or as named in its skills directory, which would count other skills' files as its own.
+        # directory, resolved or as named in its skills directory, which would count other skills' files as its own.
         if (
-            canonical in self._entered
-            or canonical in self._location.resolves_to.parents
-            or canonical in self._location.ref.directory.parents
+            resolved in self._entered
+            or resolved in self._location.resolves_to.parents
+            or resolved in self._location.ref.directory.parents
         ):
             return
-        self._entered.add(canonical)
+        self._entered.add(resolved)
         try:
-            entries = self._fs.list_dir(canonical)
+            entries = self._fs.list_dir(resolved)
         except DirListError as exc:
-            raise SkillResourcesListError(self._location.ref, canonical, source=exc) from exc
+            raise SkillResourcesListError(self._location.ref, resolved, source=exc) from exc
 
         for entry in entries:
             entry_named = named / entry.name
-            entry_canonical = canonical / entry.name
+            entry_resolved = resolved / entry.name
+            # A directory or a file listed in a resolved directory is resolved too: no symlink is on the way to it
+            # or at it. A symlink is not, so it waits under its own path to be followed.
             if entry.kind is EntryKind.DIRECTORY:
-                self._directories.append((entry_named, entry_canonical))
+                self._directories.append(_PendingDirectory(entry_named, ResolvedPath(entry_resolved)))
             elif entry.kind is EntryKind.SYMLINK:
-                self._symlinks.append((entry_named, entry_canonical))
+                self._symlinks.append((entry_named, entry_resolved))
             elif entry.kind is EntryKind.FILE and self._is_resource_name(entry_named):
-                self._resources.append(
-                    SkillResourceLocation(SkillResourceRef(self._location.ref, entry_named), entry_canonical)
-                )
+                resource = SkillResourceRef(self._location.ref, entry_named)
+                self._resources.append(SkillResourceLocation(resource, ResolvedPath(entry_resolved)))
 
     def _follow(self, named: RootRelativePath, symlink: RootRelativePath) -> None:
         """Queue the directory a symlink leads to, keep the resource it leads to, or record it leading outside.
 
         Args:
             named: Where an agent reaches the symlink, under the skill's ref directory.
-            symlink: The symlink at its canonical path, in a canonical directory, so it is the one symlink on the way.
+            symlink: The symlink at its resolved path, in a resolved directory, so it is the one symlink on the way.
 
         Raises:
             SkillResourcesSymlinkResolveError: If the operating system refuses the lookup.
         """
         try:
-            directory = self._fs.find_canonical_dir(symlink)
+            directory = self._fs.find_dir(symlink)
         except DirResolveError as exc:
             raise SkillResourcesSymlinkResolveError(self._location.ref, symlink, source=exc) from exc
         if directory is not None:
-            self._directories.append((named, directory))
+            self._directories.append(_PendingDirectory(named, directory))
             return
 
         # Asked of every symlink, whatever its name: one leading outside the root is reported, not just skipped.
@@ -718,7 +735,7 @@ class _SkillResourcesWalk:
         if not self._is_resource_name(named):
             return
         try:
-            file = self._fs.find_canonical_file(symlink)
+            file = self._fs.find_file(symlink)
         except FileResolveError as exc:
             raise SkillResourcesSymlinkResolveError(self._location.ref, symlink, source=exc) from exc
         if file is not None:

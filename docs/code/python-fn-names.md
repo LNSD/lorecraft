@@ -97,9 +97,10 @@ A stored value with no computation is a `@property` or a plain attribute, not a 
 
 A lookup that may find nothing is named `find_<thing>` and returns `X | None`. A lookup that must succeed
 raises, and is named for the thing, under [§3](#3-no-get_-prefix-on-a-plain-accessor), or `require_<thing>`
-where a `find_` sibling exists. A tolerant twin of a raising lookup is `<name>_or_none`, as in SQLAlchemy's
-`one`/`one_or_none`. `try_` is not used: the `| None` return already says it, and a second marker can
-disagree with the annotation.
+where a `find_` sibling exists. A tolerant twin of a raising lookup is `<name>_or_none`: a query's `one`,
+which raises unless exactly one result matches, pairs with `one_or_none`, which returns `None` when none
+does. `try_` is not used: the `| None` return already says it, and a second marker can disagree with the
+annotation.
 
 ```python
 # ❌ Bad — `find_` promises a None the caller checks for, and raises instead
@@ -215,5 +216,4 @@ Before committing code, verify:
 
 - [Rust API Guidelines: Naming](https://rust-lang.github.io/api-guidelines/naming.html)
 - [Python Design FAQ: Why doesn't `list.sort()` return the sorted list?](https://docs.python.org/3/faq/design.html#why-doesn-t-list-sort-return-the-sorted-list)
-- [SQLAlchemy: `Result.one_or_none`](https://docs.sqlalchemy.org/en/20/core/connections.html#sqlalchemy.engine.Result.one_or_none)
 - [PDEP-8: In-place methods in pandas](https://pandas.pydata.org/pdeps/0008-inplace-methods-in-pandas.html)

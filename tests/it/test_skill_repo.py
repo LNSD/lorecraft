@@ -36,11 +36,14 @@ from lorecraft.vfs import (
     DiskFileSystem,
     FileReadError,
     FileResolveError,
+    ResolvedPath,
     RootExit,
     TextDecodeError,
 )
 
 UNIVERSAL_DIR: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills')
+UNIVERSAL_RESOLVED: Final[ResolvedPath] = ResolvedPath(UNIVERSAL_DIR)
+"""The universal skills directory as `list_skills` takes it: the tests create it as no link, so it is resolved."""
 CLAUDE_DIR: Final[RootRelativePath] = RootRelativePath.parse('.claude/skills')
 
 
@@ -118,11 +121,14 @@ def _location(directory: str) -> SkillLocation:
         directory: Root-relative path of the skill directory; it and its `SKILL.md` resolve to themselves.
     """
     path = RootRelativePath.parse(directory)
-    return SkillLocation(SkillRef(path), resolves_to=path, file_resolves_to=path / 'SKILL.md')
+    # No link on the way, so the directory and its `SKILL.md` are their own resolved paths.
+    return SkillLocation(
+        SkillRef(path), resolves_to=ResolvedPath(path), file_resolves_to=ResolvedPath(path / 'SKILL.md')
+    )
 
 
 def _linked_location(directory: str, resolves_to: str, file_resolves_to: str) -> SkillLocation:
-    """The location of a skill whose directory or `SKILL.md` is a link, with the canonical paths they lead to.
+    """The location of a skill whose directory or `SKILL.md` is a link, with the resolved paths they lead to.
 
     Args:
         directory: Root-relative path of the skill directory as an agent reaches it.
@@ -131,8 +137,8 @@ def _linked_location(directory: str, resolves_to: str, file_resolves_to: str) ->
     """
     return SkillLocation(
         SkillRef(RootRelativePath.parse(directory)),
-        resolves_to=RootRelativePath.parse(resolves_to),
-        file_resolves_to=RootRelativePath.parse(file_resolves_to),
+        resolves_to=ResolvedPath(RootRelativePath.parse(resolves_to)),
+        file_resolves_to=ResolvedPath(RootRelativePath.parse(file_resolves_to)),
     )
 
 
@@ -191,7 +197,7 @@ class TestRepositoryFindSkillsDir:
 
         #: Then
         assert universal_dir.is_dir(), 'the case turns on the skills directory existing'
-        assert resolved == UNIVERSAL_DIR, 'a regular skills directory is its own canonical directory'
+        assert resolved == UNIVERSAL_DIR, 'a regular skills directory is its own resolved directory'
 
     def test_find_skills_dir_with_a_directory_linked_to_another_returns_the_other(
         self, tmp_path: Path, repository: Repository, universal_dir: Path
@@ -255,7 +261,7 @@ class TestRepositoryListSkills:
         _write_skill(universal_dir / 'commit')
 
         #: When
-        skills = repository.list_skills(UNIVERSAL_DIR).skills
+        skills = repository.list_skills(UNIVERSAL_RESOLVED).skills
 
         #: Then
         assert skills == (_location('.agents/skills/commit'), _location('.agents/skills/review')), (
@@ -270,7 +276,7 @@ class TestRepositoryListSkills:
         (universal_dir / 'review').symlink_to('../../skills/review')
 
         #: When
-        skills = repository.list_skills(UNIVERSAL_DIR).skills
+        skills = repository.list_skills(UNIVERSAL_RESOLVED).skills
 
         #: Then
         assert skills == (_linked_location('.agents/skills/review', 'skills/review', 'skills/review/SKILL.md'),), (
@@ -285,7 +291,7 @@ class TestRepositoryListSkills:
         (universal_dir / 'audit').symlink_to('review')
 
         #: When
-        skills = repository.list_skills(UNIVERSAL_DIR).skills
+        skills = repository.list_skills(UNIVERSAL_RESOLVED).skills
 
         #: Then
         assert skills == (
@@ -302,7 +308,7 @@ class TestRepositoryListSkills:
         _write_skill(universal_dir / 'review')
 
         #: When
-        skills = repository.list_skills(UNIVERSAL_DIR).skills
+        skills = repository.list_skills(UNIVERSAL_RESOLVED).skills
 
         #: Then
         assert skills == (_location('.agents/skills/review'),), (
@@ -318,7 +324,7 @@ class TestRepositoryListSkills:
         _write_skill(universal_dir / 'review')
 
         #: When
-        skills = repository.list_skills(UNIVERSAL_DIR).skills
+        skills = repository.list_skills(UNIVERSAL_RESOLVED).skills
 
         #: Then
         assert skills == (_location('.agents/skills/review'),), (
@@ -334,7 +340,7 @@ class TestRepositoryListSkills:
         (universal_dir / 'review' / 'README.md').write_text('', encoding='utf-8')
 
         #: When
-        skills = repository.list_skills(UNIVERSAL_DIR).skills
+        skills = repository.list_skills(UNIVERSAL_RESOLVED).skills
 
         #: Then
         assert skills == (_location('.agents/skills/review'),), (
@@ -349,7 +355,7 @@ class TestRepositoryListSkills:
         (universal_dir / 'drafts' / 'README.md').write_text('', encoding='utf-8')
 
         #: When
-        skills = repository.list_skills(UNIVERSAL_DIR).skills
+        skills = repository.list_skills(UNIVERSAL_RESOLVED).skills
 
         #: Then
         assert skills == (), 'a directory with no SKILL.md is not a skill'
@@ -361,7 +367,7 @@ class TestRepositoryListSkills:
         (universal_dir / 'SKILL.md').write_text('', encoding='utf-8')
 
         #: When
-        skills = repository.list_skills(UNIVERSAL_DIR).skills
+        skills = repository.list_skills(UNIVERSAL_RESOLVED).skills
 
         #: Then
         assert skills == (), 'a skill is a directory inside a skills directory, never the skills directory itself'
@@ -373,7 +379,7 @@ class TestRepositoryListSkills:
         _write_skill(universal_dir / 'group' / 'review')
 
         #: When
-        skills = repository.list_skills(UNIVERSAL_DIR).skills
+        skills = repository.list_skills(UNIVERSAL_RESOLVED).skills
 
         #: Then
         assert skills == (), 'only an entry directly inside a skills directory is looked at'
@@ -387,7 +393,7 @@ class TestRepositoryListSkills:
         (universal_dir / 'review' / 'SKILL.md').symlink_to('../../../REVIEW.md')
 
         #: When
-        skills = repository.list_skills(UNIVERSAL_DIR).skills
+        skills = repository.list_skills(UNIVERSAL_RESOLVED).skills
 
         #: Then
         assert skills == (_linked_location('.agents/skills/review', '.agents/skills/review', 'REVIEW.md'),), (
@@ -403,7 +409,7 @@ class TestRepositoryListSkills:
         (universal_dir / 'review' / 'SKILL.md').symlink_to('../../../REVIEW.md')
 
         #: When
-        skills = repository.list_skills(UNIVERSAL_DIR).skills
+        skills = repository.list_skills(UNIVERSAL_RESOLVED).skills
 
         #: Then
         assert skills == (_linked_location('.agents/skills/review', '.agents/skills/review', 'REVIEW.md'),), (
@@ -418,7 +424,7 @@ class TestRepositoryListSkills:
         (universal_dir / 'review' / 'SKILL.md').symlink_to('../../../REVIEW.md')
 
         #: When
-        skills = repository.list_skills(UNIVERSAL_DIR).skills
+        skills = repository.list_skills(UNIVERSAL_RESOLVED).skills
 
         #: Then
         assert skills == (), 'a SKILL.md link that leads to no file does not make the directory a skill'
@@ -432,7 +438,7 @@ class TestRepositoryListSkills:
         (universal_dir / 'review' / 'SKILL.md').symlink_to('../../../notes')
 
         #: When
-        skills = repository.list_skills(UNIVERSAL_DIR).skills
+        skills = repository.list_skills(UNIVERSAL_RESOLVED).skills
 
         #: Then
         assert skills == (), 'a SKILL.md link that leads to a directory does not make the directory a skill'
@@ -447,7 +453,7 @@ class TestRepositoryListSkills:
         (universal_dir / 'review' / 'SKILL.md').symlink_to(outside)
 
         #: When
-        listing = repository.list_skills(UNIVERSAL_DIR)
+        listing = repository.list_skills(UNIVERSAL_RESOLVED)
 
         #: Then
         skill_file = UNIVERSAL_DIR / 'review' / 'SKILL.md'
@@ -462,7 +468,7 @@ class TestRepositoryListSkills:
         (universal_dir / 'review').symlink_to('../../skills/review')
 
         #: When
-        skills = repository.list_skills(UNIVERSAL_DIR).skills
+        skills = repository.list_skills(UNIVERSAL_RESOLVED).skills
 
         #: Then
         assert skills == (), 'a link that leads to no directory is not a skill and does not fail the listing'
@@ -479,7 +485,7 @@ class TestRepositoryListSkills:
         repository = Repository(DiskFileSystem(root))
 
         #: When
-        listing = repository.list_skills(UNIVERSAL_DIR)
+        listing = repository.list_skills(UNIVERSAL_RESOLVED)
 
         #: Then
         entry = UNIVERSAL_DIR / 'review'
@@ -494,7 +500,7 @@ class TestRepositoryListSkills:
         missing_skills_dir = tmp_path / '.agents' / 'skills'
 
         #: When
-        skills = repository.list_skills(UNIVERSAL_DIR).skills
+        skills = repository.list_skills(UNIVERSAL_RESOLVED).skills
 
         #: Then
         assert not missing_skills_dir.exists(), 'the case turns on the skills directory being absent'
@@ -509,7 +515,7 @@ class TestRepositoryListSkills:
 
         #: When
         with pytest.raises(SkillsDirListError) as exc_info:
-            repository.list_skills(UNIVERSAL_DIR)
+            repository.list_skills(UNIVERSAL_RESOLVED)
 
         #: Then
         assert str(exc_info.value.skills_dir) == f'.agents/{locked.name}', 'the error names the skills directory'
@@ -525,7 +531,7 @@ class TestRepositoryListSkills:
 
         #: When
         with pytest.raises(SkillDirListError) as exc_info:
-            repository.list_skills(UNIVERSAL_DIR)
+            repository.list_skills(UNIVERSAL_RESOLVED)
 
         #: Then
         assert str(exc_info.value.directory).endswith(f'skills/{locked.name}'), 'the error names the skill directory'
@@ -542,7 +548,7 @@ class TestRepositoryListSkills:
 
         #: When
         with pytest.raises(SkillEntryResolveError) as exc_info:
-            repository.list_skills(UNIVERSAL_DIR)
+            repository.list_skills(UNIVERSAL_RESOLVED)
 
         #: Then
         assert exc_info.value.entry == entry, 'the error names the entry whose link could not be followed'
@@ -560,7 +566,7 @@ class TestRepositoryListSkills:
 
         #: When
         with pytest.raises(SkillFileResolveError) as exc_info:
-            repository.list_skills(UNIVERSAL_DIR)
+            repository.list_skills(UNIVERSAL_RESOLVED)
 
         #: Then
         assert exc_info.value.skill_file == skill_file, 'the error names the SKILL.md whose link could not be followed'

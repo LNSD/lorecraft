@@ -237,7 +237,7 @@ class TestDiff:
     def test_diff_with_an_empty_linked_directory_removed_returns_it_deleted(self) -> None:
         #: Given
         # What a following scan records for `.agents/skills/review -> ../../skills/review`: the directory is
-        # listed at its canonical path, and no listing of `skills` names it.
+        # listed at its resolved path, and no listing of `skills` names it.
         old = _linked_skill(listings=(Listing(RootRelativePath.parse('skills/review'), ()),))
         new = _linked_skill(listings=())
         expected = frozenset({Change(RootRelativePath.parse('skills/review'), ChangeKind.DELETED)})
@@ -260,7 +260,7 @@ class TestDiff:
         #: Then
         assert changes == expected, 'a directory appearing where the link dangled is reported ADDED'
 
-    def test_diff_with_changed_bytes_behind_a_linked_file_returns_the_canonical_path_modified(self) -> None:
+    def test_diff_with_changed_bytes_behind_a_linked_file_returns_the_resolved_path_modified(self) -> None:
         #: Given
         old = _linked_skill_file(b'old')
         new = _linked_skill_file(b'new')
@@ -270,4 +270,4 @@ class TestDiff:
         changes = diff(old, new)
 
         #: Then
-        assert changes == expected, 'the file a followed link leads to is compared at its canonical path'
+        assert changes == expected, 'the file a followed link leads to is compared at its resolved path'

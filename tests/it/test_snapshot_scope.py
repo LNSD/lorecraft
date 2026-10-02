@@ -2,7 +2,7 @@
 
 `take_snapshot` reads the tree with `SNAPSHOT_SCOPE`, the scope every command passes, and the database answers
 from that one snapshot, so these see the layout, the scan and the queries wired together: what the snapshot holds
-inside a skill, what `Database.is_in_scope` and `Database.find_canonical_file` say about a path there, and which
+inside a skill, what `Database.is_in_scope` and `Database.find_file` say about a path there, and which
 resources `Database.skill_resources` lists for the skill and how `Database.skill_resource_parse` reads one.
 """
 
@@ -17,7 +17,7 @@ from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.skill import SkillRef, SkillResourceDecodeError, SkillResourceLocation, SkillResourceRef
 from lorecraft.project.syntax import LineNumber
 from lorecraft.project.syntax import Link as MarkdownLink
-from lorecraft.vfs import Link, Snapshot, take_snapshot
+from lorecraft.vfs import Link, ResolvedPath, Snapshot, take_snapshot
 
 SKILL: Final[str] = '.agents/skills/review'
 REVIEW: Final[SkillRef] = SkillRef(RootRelativePath.parse(SKILL))
@@ -41,11 +41,12 @@ def _skill_resource(path: str, resolves_to: str | None = None) -> SkillResourceL
 
     Args:
         path: Where an agent reaches the resource, root-relative.
-        resolves_to: The canonical file it leads to; `path` itself when omitted.
+        resolves_to: The resolved file it leads to; `path` itself when omitted.
     """
-    canonical = path if resolves_to is None else resolves_to
+    resolved = path if resolves_to is None else resolves_to
     return SkillResourceLocation(
-        SkillResourceRef(REVIEW, RootRelativePath.parse(path)), resolves_to=RootRelativePath.parse(canonical)
+        SkillResourceRef(REVIEW, RootRelativePath.parse(path)),
+        resolves_to=ResolvedPath(RootRelativePath.parse(resolved)),
     )
 
 
@@ -106,7 +107,7 @@ class TestSnapshotScopeInsideASkill:
 
         #: Then
         assert _file_paths(snapshot) == expected, (
-            'every file of the skill is read, nested ones and those its links lead to, at their canonical paths'
+            'every file of the skill is read, nested ones and those its links lead to, at their resolved paths'
         )
 
     def test_take_snapshot_records_a_link_leading_outside_the_root_without_following_it(self, skill_tree: Path) -> None:
@@ -210,7 +211,7 @@ class TestSnapshotScopeInsideASkill:
         #: Then
         assert in_scope is False, 'docs/ is still read one level deep, whatever the skills directories reach'
 
-    def test_find_canonical_file_below_a_linked_directory_inside_a_skill_returns_the_canonical_file(
+    def test_find_file_below_a_linked_directory_inside_a_skill_returns_the_resolved_file(
         self, skill_tree: Path
     ) -> None:
         #: Given
@@ -218,38 +219,36 @@ class TestSnapshotScopeInsideASkill:
         path = RootRelativePath.parse(f'{SKILL}/guides/deeper/d.md')
 
         #: When
-        canonical_file = database.find_canonical_file(path)
+        resolved_file = database.find_file(path)
 
         #: Then
-        assert canonical_file == RootRelativePath.parse('shared/guides/deeper/d.md'), (
-            'the file behind the link inside the skill is in the snapshot at its canonical path'
+        assert resolved_file == RootRelativePath.parse('shared/guides/deeper/d.md'), (
+            'the file behind the link inside the skill is in the snapshot at its resolved path'
         )
 
-    def test_find_canonical_file_with_a_link_to_a_file_inside_a_skill_returns_its_canonical_target(
-        self, skill_tree: Path
-    ) -> None:
+    def test_find_file_with_a_link_to_a_file_inside_a_skill_returns_its_resolved_target(self, skill_tree: Path) -> None:
         #: Given
         database = Database(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
         path = RootRelativePath.parse(f'{SKILL}/notes.md')
 
         #: When
-        canonical_file = database.find_canonical_file(path)
+        resolved_file = database.find_file(path)
 
         #: Then
-        assert canonical_file == RootRelativePath.parse('notes/e.md'), (
-            'the link inside the skill is followed to the file it names, read at its canonical path'
+        assert resolved_file == RootRelativePath.parse('notes/e.md'), (
+            'the link inside the skill is followed to the file it names, read at its resolved path'
         )
 
-    def test_find_canonical_file_through_a_link_leading_outside_the_root_returns_none(self, skill_tree: Path) -> None:
+    def test_find_file_through_a_link_leading_outside_the_root_returns_none(self, skill_tree: Path) -> None:
         #: Given
         database = Database(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
         path = RootRelativePath.parse(f'{SKILL}/outside/f.md')
 
         #: When
-        canonical_file = database.find_canonical_file(path)
+        resolved_file = database.find_file(path)
 
         #: Then
-        assert canonical_file is None, 'the file behind a link out of the repository was never read'
+        assert resolved_file is None, 'the file behind a link out of the repository was never read'
 
 
 @pytest.mark.it
@@ -270,7 +269,7 @@ class TestDatabaseSkillResources:
             _skill_resource(f'{SKILL}/references/a.md'),
             _skill_resource(f'{SKILL}/references/deep/b.md'),
         ), (
-            'nested resources and those behind symlinks are listed under the skill, at their canonical files; the '
+            'nested resources and those behind symlinks are listed under the skill, at their resolved files; the '
             'symlink back to the skill adds nothing, and the one outside the root is left out'
         )
 
@@ -292,7 +291,7 @@ class TestDatabaseSkillResources:
         assert resources == (
             SkillResourceLocation(
                 SkillResourceRef(audit, RootRelativePath.parse('.agents/skills/audit/references/a.md')),
-                resolves_to=RootRelativePath.parse('skills/audit/references/a.md'),
+                resolves_to=ResolvedPath(RootRelativePath.parse('skills/audit/references/a.md')),
             ),
         ), 'the walk starts where the model locates the entry, and names the resource under the entry'
 
@@ -307,7 +306,7 @@ class TestDatabaseSkillResources:
         #: Then
         assert second is first, "a skill's resources are listed once per database, then shared by every check"
 
-    def test_skill_resource_parse_of_a_resource_behind_a_symlinked_directory_parses_the_canonical_file(
+    def test_skill_resource_parse_of_a_resource_behind_a_symlinked_directory_parses_the_resolved_file(
         self, skill_tree: Path
     ) -> None:
         #: Given
