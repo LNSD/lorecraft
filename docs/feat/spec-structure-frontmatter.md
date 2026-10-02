@@ -78,7 +78,7 @@ when its root does not state `"type": "object"`, when any schema in it carries `
 a relative `$ref` resolves, or names another dialect in `$schema`. A value under `enum` or `const` is data, not
 a schema, so it is not searched. `description` and `$comment` are allowed
 anywhere. A refused schema stops the command with an error naming the structure specification:
-`lorecraft check` exits `2` and `lorecraft inspect` exits `1`.
+both `lorecraft check` and `lorecraft inspect` exit `2`.
 
 ## Limitations
 

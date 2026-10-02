@@ -127,7 +127,7 @@ still loads, and governs nothing.
 ## 6. Verify
 
 ```bash
-lorecraft inspect   # loads every specification; exit 1 names a file that cannot be loaded
+lorecraft inspect   # loads every specification; exit 2 names a file that cannot be loaded
 lorecraft check     # applies them to every document; exit 2 names a specification that cannot be loaded
 ```
 

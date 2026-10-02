@@ -52,6 +52,9 @@ one is added.
   usage and the error on stderr and exits `2`, before the command runs.
 - No command reads an environment variable or a configuration file: what a command does is decided by its
   command line and by the repository it reads.
+- A command exits `0` when it succeeds, `1` when it ran and found something, which only
+  [check](cli-check.md) does, and `2` when it could not run: a usage error, or a failure that stopped it.
+- A command that can print JSON takes `--format text|json`: `text` for a person to read, `json` for a script.
 - Output a reader can script against goes to stdout; summaries and errors go to stderr.
 - A failure that stops a command is printed as `error: <message>`, then one indented `caused by: <message>` line
   for each failure beneath it: what the command was doing first, then each step inside it that failed, down to

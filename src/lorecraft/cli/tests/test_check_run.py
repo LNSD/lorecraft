@@ -19,7 +19,6 @@ from lorecraft.vfs import OsRefusal
 from ..check_run import (
     DocumentCheck,
     DuplicateCheckError,
-    OutputFormat,
     SkillCheck,
     WorkingDirectoryReadError,
     merge_selections,
@@ -32,6 +31,7 @@ from ..check_run import (
 )
 from ..commands.check.frontmatter import FRONTMATTER_CHECK
 from ..commands.check.skills import SKILLS_CHECK
+from ..output import OutputFormat
 
 
 def _rival_skill_run(database: Database, selections: tuple[SkillSelection, ...]) -> SkillCheckRun:
