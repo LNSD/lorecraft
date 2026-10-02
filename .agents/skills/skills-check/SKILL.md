@@ -138,15 +138,15 @@ subject: `grep -l <path> skills/*/SKILL.md` prints them, one per line (§4).
 
 It decides the frontmatter: YAML validity, the six fields and their limits, `metadata` value types, and `name`
 against the directory. It holds `SKILL.md` to 500 lines, frontmatter included, and reports a longer one as
-`skill.lines-budget`. It also reports four kinds of link, each in the file holding it:
+`skill.lines-budget`. It also reports four kinds of link in every Markdown file of the skill, each in the file
+holding it:
 
-- In every Markdown file of the skill, a relative link that, read from the skill root, climbs above it, as
-  `skill.link-escapes`.
-- In every Markdown file of the skill, a relative link inside it that names no file or directory the skill
-  holds, and no file `metadata` links in, as `skill.link-broken`.
-- In `SKILL.md` only, an absolute link, a url that starts with `/`, as `skill.link-absolute`.
-- In `SKILL.md` only, a `#fragment` link that names no heading of the file, as `skill.link-fragment`. A
-  fragment into another file is not checked.
+- A relative link that, read from the skill root, climbs above it, as `skill.link-escapes`.
+- A relative link inside the skill that names no file or directory the skill holds, and no file `metadata`
+  links in, as `skill.link-broken`.
+- An absolute link, a url that starts with `/`, as `skill.link-absolute`.
+- A `#fragment` link that names no heading of the file holding it, as `skill.link-fragment`. A fragment into
+  another file is not checked.
 
 For a skill that links files in through `metadata`, it reports linked files that share a name under one subkey
 (`skill.metadata-duplicate-name`), that are not a file in the repository (`skill.metadata-missing-file`), or that

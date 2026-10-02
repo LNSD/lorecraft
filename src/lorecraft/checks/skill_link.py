@@ -6,13 +6,12 @@ paths relative to the skill root, in every Markdown file it carries: a link in `
 points at a file the skill does not carry once it is installed elsewhere, and is `skill.link-escapes`. One that
 stays inside must name a file or a directory the skill holds, or a file its `metadata` links in, or it is
 `skill.link-broken`; when the `metadata` cannot be read, which files it links in is unknown, and that rule is
-not judged. Both rules hold in the `SKILL.md` and in each resource alike.
+not judged. A link that starts at a filesystem root points at a file the skill does not carry either, and is
+`skill.link-absolute`. A fragment-only link, such as `#usage`, stays in the file that holds it, so the heading it
+names must be one of that file's own, or it is `skill.link-fragment`. All four rules hold in the `SKILL.md` and in
+each resource alike, so one validator checks the links of either.
 
-Two rules hold for the `SKILL.md` only. A link that starts at a filesystem root points at a file the skill does
-not carry either, and is `skill.link-absolute`. A fragment-only link, such as `#usage`, stays in the `SKILL.md`
-itself, so the heading it names must be one of that file's own, or it is `skill.link-fragment`.
-
-The check is pure: it takes the links and the heading anchors the parse tree holds, what the snapshot holds at
+The check is pure: it takes one file's links and the heading anchors its parse tree holds, what the snapshot holds at
 each path inside the skill a link names, and the paths `metadata` links files in at, and returns violations.
 Reading and parsing the files, and looking each path up in the snapshot, happen above it, in `checks.run` and the
 database. It is the sibling of the frontmatter half in `skill`, and reports in the same `SkillCheckResult`.
@@ -46,7 +45,7 @@ def validate_skill_links(
     targets: Mapping[PurePosixPath, LinkTargetState],
     linked_in: frozenset[PurePosixPath] | None,
 ) -> SkillCheckResult:
-    """Check the links of one skill's `SKILL.md`, in the order given. Pure: raises nothing.
+    """Check the links of one file of a skill, its `SKILL.md` or a resource, in order. Pure: raises nothing.
 
     A link whose destination starts with `/` is `skill.link-absolute`, on the link's line. A URL with a scheme,
     such as `https:`, never starts with `/`, and neither does a fragment-only link, so neither is one.
@@ -54,10 +53,11 @@ def validate_skill_links(
     A link whose destination starts with `#` is `skill.link-fragment`, on the link's line, when its fragment,
     percent-decoded and lowercased by `Anchor.from_fragment`, is none of the anchors. A bare `#` names no
     heading, so it is not one, and neither is a fragment after a path, such as `other.md#usage`: only a link into
-    the `SKILL.md` itself is checked.
+    the file itself is checked.
 
     A relative link is `skill.link-escapes`, on the link's line, when its path, normalised lexically, climbs
-    above the skill root: `../SKILL.md` does, and `references/../SKILL.md` does not. One that stays inside is
+    above the skill root. The path is read from the skill root, not from the file that holds it: `../SKILL.md`
+    climbs out from any file of the skill, and `references/../SKILL.md` does not. One that stays inside is
     `skill.link-broken`, on the link's line, when `targets` has it missing and it is not in `linked_in`; when
     `linked_in` is `None`, no link is.
 
@@ -70,12 +70,12 @@ def validate_skill_links(
     absolute, an escaping and a broken link carry a help note on how to fix it; a dangling fragment carries none.
 
     Args:
-        links: Every link and image of the skill's `SKILL.md`, in document order.
-        anchors: The heading anchors of that same `SKILL.md`, as `ParsedDocument.anchors` holds them. Empty
-            when the file has no heading, so that every fragment dangles.
+        links: Every link and image of the file, the skill's `SKILL.md` or one of its resources, in document order.
+        anchors: The heading anchors of that same file, as `ParsedDocument.anchors` holds them. Empty when the file
+            has no heading, so that every fragment dangles.
         targets: What the snapshot holds at each path inside the skill a link names, keyed by the path
             `link_path_in_skill` reads from the link; every such path of `links` is a key.
-        linked_in: Every path inside the skill a `metadata` subkey links a file in at, such as
+        linked_in: Every path inside the skill a `metadata` subkey of the skill's `SKILL.md` links a file in at, such as
             `references/logging.md`; a link to one is not broken, whatever the snapshot holds there. `None` when
             the skill's `metadata` is unknown, because its frontmatter cannot be read: any path might then be
             linked in, so `skill.link-broken` is not judged.
@@ -87,40 +87,6 @@ def validate_skill_links(
         elif _is_dangling_fragment(link.url, anchors):
             violations.append(_fragment_violation(link))
         elif _is_escaping(link):
-            violations.append(_escape_violation(link))
-        elif _is_broken(link, targets, linked_in):
-            violations.append(_broken_violation(link))
-    return SkillCheckResult(violations=tuple(violations))
-
-
-def validate_skill_resource_links(
-    *,
-    links: tuple[Link, ...],
-    targets: Mapping[PurePosixPath, LinkTargetState],
-    linked_in: frozenset[PurePosixPath] | None,
-) -> SkillCheckResult:
-    """Check the links of one resource of a skill, in the order given. Pure: raises nothing.
-
-    A relative link is `skill.link-escapes`, on the link's line, when its path, normalised lexically, climbs
-    above the skill root. The path is read from the skill root, not from the resource: `../SKILL.md` climbs out
-    from any file of the skill, and `references/../SKILL.md` does not. One that stays inside is
-    `skill.link-broken`, on the link's line, when `targets` has it missing and it is not in `linked_in`; when
-    `linked_in` is `None`, no link is.
-
-    The two rules exclude one another, so each link gives at most one violation, in the order of the links. The
-    message states the problem alone and shows the destination percent-decoded, as the author wrote it, and
-    each violation carries a help note on how to fix it.
-
-    Args:
-        links: Every link and image of the resource, in document order.
-        targets: What the snapshot holds at each path inside the skill a link names, keyed by the path
-            `link_path_in_skill` reads from the link; every such path of `links` is a key.
-        linked_in: Every path inside the skill a `metadata` subkey of the skill's `SKILL.md` links a file in at,
-            or `None` when that `metadata` is unknown, and then `skill.link-broken` is not judged.
-    """
-    violations: list[Violation] = []
-    for link in links:
-        if _is_escaping(link):
             violations.append(_escape_violation(link))
         elif _is_broken(link, targets, linked_in):
             violations.append(_broken_violation(link))

@@ -1,6 +1,6 @@
 ---
 name: "cli-check-skills"
-description: "lorecraft check skills: validating the frontmatter of each agent skill's SKILL.md against the Agent Skills specification, the name-matches-directory rule, duplicate keys, the 500-line budget on a SKILL.md, absolute and dangling fragment links in the body, links that leave the skill or name nothing in it from any of its Markdown files and the skill-root resolution they follow, the files a skill links in through `metadata`, how a skill is named on the command line, and the rule identifiers it reports. Load when a skill finding needs explaining, when running the skill check on its own, or when a skill is not checked"
+description: "lorecraft check skills: validating the frontmatter of each agent skill's SKILL.md against the Agent Skills specification, the name-matches-directory rule, duplicate keys, the 500-line budget on a SKILL.md, links in any of a skill's Markdown files that are absolute, name a heading the file lacks, leave the skill or name nothing in it, and the skill-root resolution they follow, the files a skill links in through `metadata`, how a skill is named on the command line, and the rule identifiers it reports. Load when a skill finding needs explaining, when running the skill check on its own, or when a skill is not checked"
 type: "feature"
 status: "experimental"
 components: "module:lorecraft.cli.commands.check.skills,module:lorecraft.checks.skill,module:lorecraft.checks.frontmatter_duplicate,module:lorecraft.checks.skill_length,module:lorecraft.checks.skill_link,module:lorecraft.checks.skill_metadata,module:lorecraft.checks.run,module:lorecraft.project.schemas.skill,module:lorecraft.project.schemas.skill_frontmatter,module:lorecraft.project.schemas.frontmatter_problem,module:lorecraft.project.skill,module:lorecraft.project.syntax.lines"
@@ -12,9 +12,9 @@ components: "module:lorecraft.cli.commands.check.skills,module:lorecraft.checks.
 
 `lorecraft check skills` holds each skill's `SKILL.md` to the
 [Agent Skills specification](https://agentskills.io/specification): its frontmatter, a `name` matching its
-directory, and at most 500 lines. It reports a link in a skill Markdown file that leaves the skill or names
-nothing there, absolute and dangling fragment links in the body, and a `metadata` path that repeats a file name,
-is missing or lies outside what it reads. It reads the skills the [workspace](workspace.md) lists; a bare
+directory, and at most 500 lines. It reports a link in any skill Markdown file that is absolute, names a heading
+its file lacks, leaves the skill or names nothing there, and a `metadata` path that repeats a file name, is
+missing or lies outside what it reads. It reads the skills the [workspace](workspace.md) lists; a bare
 `lorecraft check` runs it too.
 
 ## Table of Contents
@@ -78,8 +78,7 @@ ungoverned, and `ungoverned` is always empty in the JSON report.
 
 ## Limitations
 
-- Absolute and bare `#fragment` links are checked in `SKILL.md` only, and a fragment after a path, such as
-  `guide.md#usage`, is not checked against the file it names.
+- A fragment after a path, such as `guide.md#usage`, is not checked against the file it names.
 - An HTML heading (`<h2>`) has no anchor.
 - Only the `metadata` subkeys `references`, `scripts` and `assets` are read.
 - A skill entry or `SKILL.md` that is a symlink is read where it leads; one that dangles or leads outside the
@@ -127,8 +126,8 @@ and it suppresses no other finding; any other finding about that key is on the l
 | `skill.unknown-field` | A field the specification does not define, such as `model`, or a key that is not a string, such as `123` |
 | `skill.frontmatter` | The specification rejects the frontmatter as a whole |
 | `skill.lines-budget` | The `SKILL.md` holds more than 500 lines, frontmatter included, each ended by a newline as finding lines are numbered, where a final newline adds no line; the message gives the count and the budget, and a help note says how to fix it. A resource has no budget |
-| `skill.link-absolute` | A link or image in the body has a destination that starts with `/`; the message shows the link decoded, and a help note says how to fix it |
-| `skill.link-fragment` | A link whose destination is only a `#fragment` names no heading of the `SKILL.md`, at any depth, by GitHub's anchors, regardless of case; the message shows the link decoded, and a bare `#` is not reported |
+| `skill.link-absolute` | A link or image in the `SKILL.md` or a resource has a destination that starts with `/`; the message shows the link decoded, and a help note says how to fix it |
+| `skill.link-fragment` | A link in the `SKILL.md` or a resource whose destination is only a `#fragment` names no heading of the file holding it, at any depth, by GitHub's anchors, regardless of case; the message shows the link decoded, and a bare `#` is not reported |
 | `skill.link-escapes` | A relative link or image in the `SKILL.md` or a resource, its path percent-decoded and normalised lexically, climbs above the skill root, whatever directory the skill is in; no symlink is followed, the fragment and the query are ignored, the message shows the link decoded, and a help note says how to fix it |
 | `skill.link-broken` | A relative link or image in the `SKILL.md` or a resource stays inside the skill, yet its path, read from the skill root as an agent reaches it, leads to no file or directory in the snapshot, through any symlink, and is no linked-in file; the fragment and the query are ignored, the message shows the link decoded, and a help note says how to fix it. A linked-in file that is missing is `skill.metadata-missing-file`'s alone. Not judged at all when the `SKILL.md` frontmatter is missing, unparseable or not a mapping, or the `SKILL.md` is not UTF-8: which files `metadata` links in is then unknown |
 | `skill.metadata-duplicate-name` | A path under a `metadata` subkey has the file name of an earlier one, so both link in as one path; the message names both |

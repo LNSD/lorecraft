@@ -8,12 +8,12 @@ given, and reads only the governed ones. Every check reports in the same shape, 
 every run the same way.
 
 The skill check runs over skills instead: the refs it is handed are the model's `SkillRef`s, the parts it reads are
-the frontmatter, the line count, the links and the heading anchors of each `SKILL.md`, and the links of each of the
-skill's resources, and the Agent Skills specification governs every one of them, so a skill is never ungoverned. The
-files a skill links in through `metadata` are checked too, against what the snapshot holds at each path listed, and
-so is each path inside the skill a link names, against what the snapshot holds there. It reports in a shape of its
-own, a `SkillCheckRun` of `SkillReport`s, each locating a violation in the file it was found in: the `SKILL.md`, or
-a resource.
+the frontmatter and the line count of each `SKILL.md`, and the links and the heading anchors of the `SKILL.md` and
+of each of the skill's resources, and the Agent Skills specification governs every one of them, so a skill is never
+ungoverned. The files a skill links in through `metadata` are checked too, against what the snapshot holds at each
+path listed, and so is each path inside the skill a link names, against what the snapshot holds there. It reports
+in a shape of its own, a `SkillCheckRun` of `SkillReport`s, each locating a violation in the file it was found in:
+the `SKILL.md`, or a resource.
 """
 
 from dataclasses import dataclass
@@ -41,7 +41,7 @@ from .frontmatter import validate_frontmatter
 from .reporting import Finding, Violation
 from .skill import SkillCheckResult, validate_skill
 from .skill_length import validate_skill_length
-from .skill_link import LinkTargetState, link_path_in_skill, validate_skill_links, validate_skill_resource_links
+from .skill_link import LinkTargetState, link_path_in_skill, validate_skill_links
 from .skill_metadata import (
     ListedFile,
     ListedFiles,
@@ -478,6 +478,9 @@ def _skill_resource_reports(
 ) -> tuple[SkillResourceReport, ...]:
     """One report per resource of a skill, in the order the database lists them.
 
+    A resource's links are held to the same rules as the `SKILL.md`'s, and a fragment-only link in it names one of
+    the resource's own headings, read from its own parse tree.
+
     Args:
         database: Where the skill's resources are listed, each one's parse tree is read from, and each path a
             link names is looked up.
@@ -499,8 +502,11 @@ def _skill_resource_reports(
             case SkillResourceDecodeError():
                 reports.append(SkillResourceReport(resource, violations=(_undecodable_skill('resource'),)))
             case ParsedDocument():
-                result = validate_skill_resource_links(
-                    links=parsed.links, targets=_link_targets(database, ref, parsed.links), linked_in=linked_in
+                result = validate_skill_links(
+                    links=parsed.links,
+                    anchors=parsed.anchors,
+                    targets=_link_targets(database, ref, parsed.links),
+                    linked_in=linked_in,
                 )
                 reports.append(SkillResourceReport(resource, violations=result.violations))
             case _:
