@@ -24,7 +24,13 @@ from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
 
-from .root_expansion import RealPath, find_linked_scan_root, find_real_path, find_real_scan_root
+from .root_expansion import (
+    CanonicalDirectory,
+    CanonicalFile,
+    find_canonical_path,
+    find_linked_scan_root,
+    find_real_scan_root,
+)
 from .scan_root import ScanRoot
 from .snapshot import Link
 from .view import EntryKind, RootExit
@@ -74,14 +80,16 @@ class ScopeIndex:
             absolute target, one climbing above the root, a `..` out of a directory the snapshot does not show
             real, or a chain longer than `MAX_LINKS`.
         """
-        directory = find_real_path(path.parent, self._recorded, follow_links=True)
-        match directory:
-            case RealPath():
-                entry = directory.path / path.name
+        walked = find_canonical_path(path.parent, self._recorded, follow_links=True)
+        match walked:
+            case CanonicalDirectory(path=directory):
+                entry = directory / path.name
+            case CanonicalFile():
+                raise AssertionError('unreachable: the recorded lookup never answers FILE')
             case RootExit() | None:
                 return False
             case _:
-                assert_never(directory)
+                assert_never(walked)
         for scan_root in self._real_roots:
             if scan_root.is_covering(entry):
                 return True
@@ -124,6 +132,9 @@ class _RecordedLinks:
 
     def find_kind(self, path: RootRelativePath) -> EntryKind:
         """SYMLINK where a link is recorded at `path`, DIRECTORY anywhere else; see `EntryLookup.find_kind`.
+
+        Never FILE: `ScopeIndex.is_in_scope` and `_real_scan_roots` raise on a walk that ends at a file, relying on
+        this.
 
         Args:
             path: The root-relative entry the walk reached.
@@ -175,10 +186,12 @@ def _real_scan_roots(scope: tuple[ScanRoot, ...], recorded: _RecordedLinks) -> t
     # Where each recorded link leads, walked once rather than once for every root that lists it.
     linked_directories: dict[RootRelativePath, RootRelativePath] = {}
     for link in recorded.paths():
-        leads_to = find_real_path(link, recorded, follow_links=True)
+        leads_to = find_canonical_path(link, recorded, follow_links=True)
         match leads_to:
-            case RealPath():
-                linked_directories[link] = leads_to.path
+            case CanonicalDirectory(path=directory):
+                linked_directories[link] = directory
+            case CanonicalFile():
+                raise AssertionError('unreachable: the recorded lookup never answers FILE')
             case RootExit() | None:
                 pass  # the scan follows no link that leads nowhere or out of the root
             case _:

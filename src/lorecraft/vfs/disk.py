@@ -13,7 +13,13 @@ from typing import assert_never
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
 
-from .root_expansion import RealPath, find_linked_scan_root, find_real_path, find_real_scan_root
+from .root_expansion import (
+    CanonicalDirectory,
+    CanonicalFile,
+    find_canonical_path,
+    find_linked_scan_root,
+    find_real_scan_root,
+)
 from .scan_root import ScanRoot
 from .snapshot import FileBytes, Link, Listing, Snapshot
 from .view import (
@@ -195,11 +201,11 @@ class DiskFileSystem(FileSystem):
         Raises:
             EntryInspectError: If an entry on the way cannot be inspected, or a link's target cannot be read.
         """
-        leads_to = find_real_path(path, _ViewDiskEntries(self._root), follow_links=True)
+        leads_to = find_canonical_path(path, _ViewDiskEntries(self._root), follow_links=True)
         match leads_to:
             case RootExit():
                 return leads_to
-            case RealPath() | None:
+            case CanonicalDirectory() | CanonicalFile() | None:
                 return None
             case _:
                 assert_never(leads_to)
@@ -208,7 +214,7 @@ class DiskFileSystem(FileSystem):
 class _ViewDiskEntries:
     """What the disk view's walk sees: each entry by `lstat`, each link by `readlink`, recorded nowhere.
 
-    The `EntryLookup` `DiskFileSystem.find_root_exit` hands to `find_real_path`. It reads as the scan's
+    The `EntryLookup` `DiskFileSystem.find_root_exit` hands to `find_canonical_path`. It reads as the scan's
     `_DiskEntries` does, and fails as a view operation does, with `EntryInspectError`.
     """
 
@@ -544,7 +550,7 @@ def _record_chain(path: RootRelativePath, on_disk: _DiskEntries) -> None:
         SnapshotEntryInspectError: If a component of the chain exists but cannot be inspected.
         SnapshotLinkReadError: If a link of the chain exists but its target cannot be read.
     """
-    find_real_path(path, on_disk, follow_links=True)
+    find_canonical_path(path, on_disk, follow_links=True)
 
 
 def _follow_listed_link(
@@ -574,17 +580,17 @@ def _follow_listed_link(
         SnapshotLinkReadError: If a link of the chain exists but its target cannot be read.
         SnapshotFileReadError: If the file the chain leads to exists but cannot be read.
     """
-    leads_to = find_real_path(link, on_disk, follow_links=True)
+    leads_to = find_canonical_path(link, on_disk, follow_links=True)
     match leads_to:
-        case RealPath(path=directory, kind=EntryKind.DIRECTORY):
+        case CanonicalDirectory(path=directory):
             linked_root = find_linked_scan_root(listed_root, link, directory)
             if linked_root is not None:
                 pending.append(linked_root)
-        case RealPath(path=file, kind=EntryKind.FILE):
+        case CanonicalFile(path=file):
             data = _find_file_bytes(root, file)
             if data is not None:  # None when it vanished after the walk; the link then stays recorded alone
                 files[file] = data
-        case RealPath() | RootExit() | None:
+        case RootExit() | None:
             pass  # nothing under the root to read there
         case _:
             assert_never(leads_to)

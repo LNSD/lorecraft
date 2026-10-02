@@ -6,7 +6,7 @@ resolves a path through the same links. All three go through the rules here, so 
 query says it lists and what the view reaches cannot drift apart:
 
 - `find_real_scan_root`: where the scan of a root starts, walked through the links on the way when it follows them.
-- `find_real_path`: where a path leads, which links are followed, and where a chain leaves the root.
+- `find_canonical_path`: where a path leads, which links are followed, and where a chain leaves the root.
 - `find_linked_scan_root`: the root a followed link adds, and the depth the link uses up, none when the root has no
   limit.
 
@@ -74,20 +74,34 @@ class EntryLookup(Protocol):
 
 
 @dataclass(frozen=True, slots=True)
-class RealPath:
-    """Where a walk from the root ended.
+class CanonicalDirectory:
+    """A walk from the root that ended at a directory, the root itself included.
+
+    A canonical path is the one a name leads to once every symlink is followed, as an IDE's virtual file system
+    names it; the other functions here still call it the real path.
 
     Attributes:
-        path: The real path, root-relative, with no symlink on the way to it or at it.
-        kind: DIRECTORY or FILE; a walk ends nowhere else.
+        path: The directory's canonical path, root-relative: with no symlink on the way to it or at it.
     """
 
     path: RootRelativePath
-    kind: EntryKind
 
 
-def find_real_path(path: RootRelativePath, entries: EntryLookup, *, follow_links: bool) -> RealPath | RootExit | None:
-    """The real directory or regular file `path` leads to, where it leaves the root, or `None` where it stops.
+@dataclass(frozen=True, slots=True)
+class CanonicalFile:
+    """A walk from the root that ended at a regular file, as the path's last component.
+
+    Attributes:
+        path: The file's canonical path, root-relative: with no symlink on the way to it or at it.
+    """
+
+    path: RootRelativePath
+
+
+def find_canonical_path(
+    path: RootRelativePath, entries: EntryLookup, *, follow_links: bool
+) -> CanonicalDirectory | CanonicalFile | RootExit | None:
+    """The canonical directory or regular file `path` leads to, where it leaves the root, or `None` where it stops.
 
     Walks the components from the root, one real directory to the next, so every step leaves the walk at a real,
     root-relative path, as the kernel resolves one. A `..` takes it to the parent of the real directory it is in.
@@ -102,8 +116,9 @@ def find_real_path(path: RootRelativePath, entries: EntryLookup, *, follow_links
         follow_links: Whether a symlink is spliced in and followed; when false the walk ends at the first one.
 
     Returns:
-        The real path and its kind; a `RootExit` when a followed link's target is absolute or a `..` climbs above
-        the root; or `None` where the walk stops under the root, each for the reason given:
+        A `CanonicalDirectory` or `CanonicalFile` where the walk ends; a `RootExit` when a followed link's target
+        is absolute or a `..` climbs above the root; or `None` where the walk stops under the root, each for the
+        reason given:
 
         - A component is missing, or is neither a directory, a regular file nor a symlink: nothing is there to
           step into or end at.
@@ -141,7 +156,7 @@ def find_real_path(path: RootRelativePath, entries: EntryLookup, *, follow_links
             case EntryKind.FILE:
                 if remaining:
                     return None  # a file is no directory to step into
-                return RealPath(candidate, EntryKind.FILE)
+                return CanonicalFile(candidate)
             case EntryKind.OTHER | None:
                 return None  # nothing is there, or nothing the scan reads
             case EntryKind.SYMLINK:
@@ -157,7 +172,7 @@ def find_real_path(path: RootRelativePath, entries: EntryLookup, *, follow_links
                 remaining = list(target.parts) + remaining
             case _:
                 assert_never(kind)
-    return RealPath(resolved, EntryKind.DIRECTORY)
+    return CanonicalDirectory(resolved)
 
 
 def find_real_scan_root(scan_root: ScanRoot, entries: EntryLookup) -> ScanRoot | None:
@@ -174,17 +189,17 @@ def find_real_scan_root(scan_root: ScanRoot, entries: EntryLookup) -> ScanRoot |
 
     Returns:
         The root at its real directory, with the declared depth and link policy, or `None` when the walk
-        leads to no directory or leaves the root (see `find_real_path`).
+        leads to no directory or leaves the root (see `find_canonical_path`).
 
     Raises:
         Exception: Whatever `entries` raises: the disk lookup's `SnapshotEntryInspectError` and
             `SnapshotLinkReadError`; the snapshot lookups raise nothing.
     """
-    leads_to = find_real_path(scan_root.directory, entries, follow_links=scan_root.follow_links)
+    leads_to = find_canonical_path(scan_root.directory, entries, follow_links=scan_root.follow_links)
     match leads_to:
-        case RealPath(path=directory, kind=EntryKind.DIRECTORY):
+        case CanonicalDirectory(path=directory):
             return ScanRoot(directory, scan_root.depth, follow_links=scan_root.follow_links)
-        case RealPath() | RootExit() | None:
+        case CanonicalFile() | RootExit() | None:
             return None
         case _:
             assert_never(leads_to)
@@ -201,7 +216,7 @@ def find_linked_scan_root(scan_root: ScanRoot, link: RootRelativePath, directory
     Args:
         scan_root: A root the scan lists from, at its real directory.
         link: The root-relative symlink, wherever it sits.
-        directory: The real directory the link leads to, by `find_real_path` with links followed.
+        directory: The real directory the link leads to, by `find_canonical_path` with links followed.
 
     Returns:
         A root at `directory` that follows links, or `None` when `scan_root` does not follow links, does not
