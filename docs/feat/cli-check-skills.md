@@ -52,10 +52,12 @@ missing, or outside what it reads, and a symlink leaving the repository. It read
 | `--format <text\|json>` | `text` | The output format, as [cli-check](cli-check.md#output) describes |
 
 A path names a skill through a link or not: a skill kept in `skills/review/` and linked from
-`.agents/skills/review` is named by either, and a directory two entries link to selects both. A `SKILL.md` that
-is itself a link is named by the file it leads to as well. Under the repository root the path is
-resolved in the [snapshot](workspace.md#one-snapshot), not on disk, so it names what the run reads; `..` is
-taken by its spelling. Above the root a link is followed on disk, so the root may be reached through one. A path that leads to no skill the workspace lists refuses the run.
+`.agents/skills/review` is named by either. A path naming an entry of a skills directory, directly or through a
+linked one such as `.claude/skills`, selects that entry alone, even when it is a link to another entry; naming
+the directory entries lead to selects each of them. A `SKILL.md` that is itself a link is named by the file it
+leads to as well. Under the repository root the path is resolved in the [snapshot](workspace.md#one-snapshot),
+not on disk, so it names what the run reads; `..` is taken by its spelling. Above the root a link is followed on
+disk, so the root may be reached through one. A path that leads to no skill the workspace lists refuses the run.
 
 ## Usage
 

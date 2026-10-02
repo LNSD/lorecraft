@@ -266,6 +266,18 @@ class WorkspaceModel:
                 return location
         raise ValueError(f'skill {ref.directory} is not a skill of this model')
 
+    def find_skill(self, directory: RootRelativePath) -> SkillRef | None:
+        """The ref whose `directory` equals this root-relative path, or None.
+
+        Args:
+            directory: Skill directory to look up, `<real skills directory>/<entry>`, compared whole and
+                lexically: an entry that is a link is found by its own name, never by the directory it leads to.
+        """
+        for location in self.skill_locations:
+            if location.ref.directory == directory:
+                return location.ref
+        return None
+
     def locate_skills(self, path: RootRelativePath) -> tuple[SkillRef, ...]:
         """The skills whose files are at this real path: the directory they lead to, or their ``SKILL.md``.
 
