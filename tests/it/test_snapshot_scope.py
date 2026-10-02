@@ -261,7 +261,7 @@ class TestDatabaseSkillResources:
         database = Database(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
 
         #: When
-        resources = database.skill_resources(REVIEW)
+        resources = database.skill_resources(REVIEW).resources
 
         #: Then
         assert resources == (
@@ -286,7 +286,7 @@ class TestDatabaseSkillResources:
         audit = SkillRef(RootRelativePath.parse('.agents/skills/audit'))
 
         #: When
-        resources = database.skill_resources(audit)
+        resources = database.skill_resources(audit).resources
 
         #: Then
         assert resources == (

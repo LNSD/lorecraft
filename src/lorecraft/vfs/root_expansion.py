@@ -6,7 +6,8 @@ resolves a path through the same links. All three go through the rules here, so 
 query says it lists and what the view reaches cannot drift apart:
 
 - `find_real_scan_root`: where the scan of a root starts, walked through the links on the way when it follows them.
-- `find_real_path`: where a path leads, which links are followed, and which `..` steps are refused.
+- `find_real_path`: where a path leads, which links are followed, which `..` steps are refused, and where a chain
+  leaves the root.
 - `find_linked_scan_root`: the root a followed link adds, and the depth the link uses up, none when the root has no
   limit.
 
@@ -21,7 +22,7 @@ from typing import Final, Protocol, assert_never
 from lorecraft.core.path import ROOT, RootRelativePath
 
 from .scan_root import ScanRoot
-from .view import EntryKind
+from .view import EntryKind, RootExit
 
 MAX_LINKS: Final[int] = 40
 """Links followed before a chain counts as a loop; Linux's MAXSYMLINKS, past which the disk reports ELOOP.
@@ -70,8 +71,8 @@ class RealPath:
     kind: EntryKind
 
 
-def find_real_path(path: RootRelativePath, entries: EntryLookup, *, follow_links: bool) -> RealPath | None:
-    """The real directory or regular file `path` leads to, or `None` where the scan does not go.
+def find_real_path(path: RootRelativePath, entries: EntryLookup, *, follow_links: bool) -> RealPath | RootExit | None:
+    """The real directory or regular file `path` leads to, where it leaves the root, or `None` where it stops.
 
     Walks the components from the root, one real directory to the next. Without `follow_links` the walk ends
     at the first symlink, which leaves the path unread. With it a symlink splices its target into the
@@ -90,10 +91,11 @@ def find_real_path(path: RootRelativePath, entries: EntryLookup, *, follow_links
         follow_links: Whether a symlink is spliced in and followed; when false the walk ends at the first one.
 
     Returns:
-        The real path and its kind, or `None` when no directory or regular file is there: a component is
-        missing, a component on the way is no directory, the last one is neither a directory, a regular file
-        nor a symlink, a symlink is not followed or is gone, its target is absolute or climbs above the root, a
-        `..` climbs out of a directory the walk stepped into, or the chain is longer than `MAX_LINKS`.
+        The real path and its kind; a `RootExit` when a followed link's target is absolute or a `..` climbs above
+        the root; or `None` when no directory or regular file is there: a component is missing, a component on
+        the way is no directory, the last one is neither a directory, a regular file nor a symlink, a symlink is
+        not followed or is gone, a `..` climbs out of a directory the walk stepped into, or the chain is longer
+        than `MAX_LINKS`.
 
     Raises:
         Exception: Whatever `entries` raises: the disk lookup's `SnapshotEntryInspectError` and
@@ -102,11 +104,16 @@ def find_real_path(path: RootRelativePath, entries: EntryLookup, *, follow_links
     resolved = ROOT
     remaining = list(path.parts)
     links_followed = 0
+    last_link: RootExit | None = None  # the link followed last, as the exit it would be
     stepped_into_directory = False  # since the last link, or since the start
     while remaining:
         part = remaining.pop(0)
         if part == '..':
-            if resolved == ROOT or stepped_into_directory:
+            if resolved == ROOT:
+                if last_link is None:
+                    raise AssertionError('a root-relative path holds no `..`, so this one came from a link target')
+                return last_link
+            if stepped_into_directory:
                 return None
             resolved = resolved.parent
             continue
@@ -127,8 +134,11 @@ def find_real_path(path: RootRelativePath, entries: EntryLookup, *, follow_links
                 if target is None:
                     return None  # gone since `kind` answered, so nothing is there to follow
                 links_followed += 1
-                if not follow_links or target.is_absolute() or links_followed > MAX_LINKS:
+                if not follow_links or links_followed > MAX_LINKS:
                     return None
+                last_link = RootExit(candidate, target)
+                if target.is_absolute():
+                    return last_link
                 remaining = list(target.parts) + remaining
                 stepped_into_directory = False
             case _:
@@ -150,16 +160,20 @@ def find_real_scan_root(scan_root: ScanRoot, entries: EntryLookup) -> ScanRoot |
 
     Returns:
         The root at its real directory, with the declared depth and link policy, or `None` when the walk
-        leads to no directory (see `find_real_path`).
+        leads to no directory or leaves the root (see `find_real_path`).
 
     Raises:
         Exception: Whatever `entries` raises: the disk lookup's `SnapshotEntryInspectError` and
             `SnapshotLinkReadError`; the snapshot lookups raise nothing.
     """
     leads_to = find_real_path(scan_root.directory, entries, follow_links=scan_root.follow_links)
-    if leads_to is None or leads_to.kind is not EntryKind.DIRECTORY:
-        return None
-    return ScanRoot(leads_to.path, scan_root.depth, follow_links=scan_root.follow_links)
+    match leads_to:
+        case RealPath(path=directory, kind=EntryKind.DIRECTORY):
+            return ScanRoot(directory, scan_root.depth, follow_links=scan_root.follow_links)
+        case RealPath() | RootExit() | None:
+            return None
+        case _:
+            assert_never(leads_to)
 
 
 def find_linked_scan_root(scan_root: ScanRoot, link: RootRelativePath, directory: RootRelativePath) -> ScanRoot | None:

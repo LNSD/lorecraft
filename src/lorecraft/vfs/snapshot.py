@@ -15,7 +15,7 @@ from lorecraft.core.path import ROOT, RootRelativePath
 
 from .root_expansion import RealPath, find_real_path
 from .scan_root import ScanRoot
-from .view import DirEntry, EntryKind, FileSystem, UnrecordedFileError, decode_text
+from .view import DirEntry, EntryKind, FileSystem, RootExit, UnrecordedFileError, decode_text
 
 
 @dataclass(frozen=True, slots=True)
@@ -251,15 +251,13 @@ class VirtualFileSystem(FileSystem):
             the scan refuses too (see `find_real_path`).
         """
         leads_to = self._find_real_path(path)
-        if leads_to is None:
-            return None
-        match leads_to.kind:
-            case EntryKind.DIRECTORY:
-                return leads_to.path
-            case EntryKind.FILE | EntryKind.SYMLINK | EntryKind.OTHER:
+        match leads_to:
+            case RealPath(path=directory, kind=EntryKind.DIRECTORY):
+                return directory
+            case RealPath() | RootExit() | None:
                 return None
             case _:
-                assert_never(leads_to.kind)
+                assert_never(leads_to)
 
     def find_real_file(self, path: RootRelativePath) -> RootRelativePath | None:
         """Follow the recorded links in `path` and return the recorded file it leads to; see `FileSystem`.
@@ -273,19 +271,33 @@ class VirtualFileSystem(FileSystem):
             leads to.
         """
         leads_to = self._find_real_path(path)
-        if leads_to is None:
-            return None
-        match leads_to.kind:
-            case EntryKind.FILE:
-                if leads_to.path not in self._files:
+        match leads_to:
+            case RealPath(path=file, kind=EntryKind.FILE):
+                if file not in self._files:
                     return None
-                return leads_to.path
-            case EntryKind.DIRECTORY | EntryKind.SYMLINK | EntryKind.OTHER:
+                return file
+            case RealPath() | RootExit() | None:
                 return None
             case _:
-                assert_never(leads_to.kind)
+                assert_never(leads_to)
 
-    def _find_real_path(self, path: RootRelativePath) -> RealPath | None:
+    def find_root_exit(self, path: RootRelativePath) -> RootExit | None:
+        """Where the recorded links in `path` lead out of the root; see `FileSystem.find_root_exit`.
+
+        Args:
+            path: The root-relative path to walk; only links the snapshot recorded are followed, and nothing
+                outside the root is read, since the snapshot holds nothing there.
+        """
+        leads_to = self._find_real_path(path)
+        match leads_to:
+            case RootExit():
+                return leads_to
+            case RealPath() | None:
+                return None
+            case _:
+                assert_never(leads_to)
+
+    def _find_real_path(self, path: RootRelativePath) -> RealPath | RootExit | None:
         """Walk `path` through the recorded links to the real directory or file it leads to.
 
         The walk is `find_real_path`, the one the scan took over the disk, here over what the snapshot
@@ -296,8 +308,8 @@ class VirtualFileSystem(FileSystem):
             path: The root-relative path to walk, spelled as given; links in it are followed.
 
         Returns:
-            The real path and its kind, or `None` when the snapshot holds nothing there; `find_real_dir` lists
-            the cases.
+            The real path and its kind, where the chain leaves the root, or `None` when the snapshot holds
+            nothing there; `find_real_dir` lists the cases.
         """
         return find_real_path(path, self._entries, follow_links=True)
 

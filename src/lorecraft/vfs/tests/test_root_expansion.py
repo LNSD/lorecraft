@@ -14,7 +14,7 @@ from lorecraft.core.path import RootRelativePath
 
 from ..root_expansion import MAX_LINKS, RealPath, find_linked_scan_root, find_real_path, find_real_scan_root
 from ..scan_root import ScanRoot
-from ..view import EntryKind
+from ..view import EntryKind, RootExit
 
 
 def _path(raw: str) -> RootRelativePath:
@@ -161,7 +161,7 @@ class TestFindRealPath:
         #: Then
         assert leads_to is None, 'a link gone before its target was read leads nowhere'
 
-    def test_find_real_path_with_an_absolute_target_returns_none(self) -> None:
+    def test_find_real_path_with_an_absolute_target_returns_the_link_as_the_exit(self) -> None:
         #: Given
         tree = _FakeTree(links={'docs': '/srv/docs'})
         path = _path('docs')
@@ -169,9 +169,9 @@ class TestFindRealPath:
         leads_to = find_real_path(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to is None, 'an absolute target is outside the root'
+        assert leads_to == RootExit(_path('docs'), PurePosixPath('/srv/docs')), 'an absolute target is outside the root'
 
-    def test_find_real_path_with_a_target_climbing_above_the_root_returns_none(self) -> None:
+    def test_find_real_path_with_a_target_climbing_above_the_root_returns_the_link_as_the_exit(self) -> None:
         #: Given
         tree = _FakeTree(links={'docs': '../docs'})
         path = _path('docs')
@@ -179,7 +179,41 @@ class TestFindRealPath:
         leads_to = find_real_path(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to is None, 'a target above the root is outside it'
+        assert leads_to == RootExit(_path('docs'), PurePosixPath('../docs')), 'a target above the root is outside it'
+
+    def test_find_real_path_with_a_link_deeper_down_climbing_above_the_root_returns_it_as_the_exit(self) -> None:
+        #: Given
+        tree = _FakeTree(directories=('a',), links={'a/l': '../../outside'})
+        path = _path('a/l')
+        #: When
+        leads_to = find_real_path(path, tree, follow_links=True)
+
+        #: Then
+        assert leads_to == RootExit(_path('a/l'), PurePosixPath('../../outside')), (
+            'climbing out of the link directory to the root and once more leaves the root'
+        )
+
+    def test_find_real_path_with_a_chain_leaving_the_root_returns_the_last_link_as_the_exit(self) -> None:
+        #: Given
+        tree = _FakeTree(directories=('a',), links={'a/l': '../hop/x', 'hop': '/srv/team'})
+        path = _path('a/l')
+        #: When
+        leads_to = find_real_path(path, tree, follow_links=True)
+
+        #: Then
+        assert leads_to == RootExit(_path('hop'), PurePosixPath('/srv/team')), (
+            'the exit is the link the chain leaves through, not the one it started at'
+        )
+
+    def test_find_real_path_not_following_links_with_an_absolute_target_returns_none(self) -> None:
+        #: Given
+        tree = _FakeTree(links={'docs': '/srv/docs'})
+        path = _path('docs')
+        #: When
+        leads_to = find_real_path(path, tree, follow_links=False)
+
+        #: Then
+        assert leads_to is None, 'a walk that follows no link never learns where one leads'
 
     def test_find_real_path_with_a_target_climbing_out_of_the_link_directory_returns_where_it_leads(
         self,

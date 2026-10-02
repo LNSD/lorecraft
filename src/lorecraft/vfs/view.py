@@ -3,9 +3,10 @@
 Every path crossing this boundary is a ``RootRelativePath`` such as ``docs/code/logging.md``: never absolute,
 never holding a ``..`` component, so no argument can name a file outside the root. The type carries that
 proof, so no implementation checks it again. Nothing above the boundary sees a ``Path``, a handle, a stat
-result or an mtime. ``find_real_dir`` and ``find_real_file`` are the two operations that report where a symlink
-chain leads, as a root-relative directory or file; ``list_dir`` and ``read_text`` reach through a link on the
-way to the path they are given, or at it, and never report or classify a link's target. ``find_entry_kind`` reaches
+result or an mtime. Three operations report where a symlink chain goes: ``find_real_dir`` and ``find_real_file``
+where it leads, as a root-relative directory or file, and ``find_root_exit`` where it leaves the root.
+``list_dir`` and ``read_text`` reach through a link on the way to the path they are given, or at it, and never
+report or classify a link's target. ``find_entry_kind`` reaches
 through a link on the way and reports one at the path as a link, as a listing of its parent would. Every
 implementation of the view is this package's own: ``DiskFileSystem`` reads the disk under the workspace
 root, and ``VirtualFileSystem`` answers from a ``Snapshot``.
@@ -15,6 +16,7 @@ import errno
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import PurePosixPath
 
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
@@ -40,6 +42,25 @@ class DirEntry:
 
     name: str
     kind: EntryKind
+
+
+@dataclass(frozen=True, slots=True)
+class RootExit:
+    """Where a walk through a path's symlinks left the root: the link that took it out, and that link's target.
+
+    A walk leaves the root through a link whose target is absolute, which a view spells only for a target outside
+    the root, or through a `..` that climbs above the root. Only a link target can hold either, since a root-relative
+    path holds no `..`, so the link the walk followed last is the one that took it out. Nothing past it is walked,
+    so nothing outside the root is read.
+
+    Attributes:
+        link: The symlink, at its real path, the walk followed last before it left the root.
+        target: That link's target, unresolved: absolute, or relative to the link's directory and climbing with
+            `..`. Where it climbs above the root, the `..` that does so may come from an earlier link of the chain.
+    """
+
+    link: RootRelativePath
+    target: PurePosixPath
 
 
 class OsRefusal(Enum):
@@ -293,7 +314,8 @@ class FileSystem(ABC):
     def find_real_dir(self, path: RootRelativePath) -> RootRelativePath | None:
         """Follow every symlink in `path` and return the real directory it leads to, root-relative.
 
-        One of the two operations that say where a symlink leads, with `find_real_file`: `list_dir` and
+        One of the three operations that say where a symlink chain goes, with `find_real_file` and
+        `find_root_exit`, which reports where a chain this one refuses leaves the root: `list_dir` and
         `read_text` follow a link without naming the real path. A regular directory resolves to itself,
         and the root resolves to `.`.
 
@@ -331,4 +353,25 @@ class FileSystem(ABC):
         Raises:
             FileResolveError: If the operating system refuses the lookup, such as a permission error on a
                 component, and the chain does not lead outside the root.
+        """
+
+    @abstractmethod
+    def find_root_exit(self, path: RootRelativePath) -> RootExit | None:
+        """Where the symlink chain in `path` leaves the root, or `None` when it stays under it or leads nowhere.
+
+        The walk is the one the scan takes (`root_expansion.find_real_path`), so the scan, the scope query and
+        both views agree on which chains leave the root. It stops at the link that leaves, so nothing outside the
+        root is read: a chain leaves when a link on it has an absolute target outside the root, or a `..` on it
+        climbs above the root. A chain that dangles, loops or ends on a `..` the scan refuses stays under the root.
+
+        Args:
+            path: The root-relative path to walk; every symlink in it is followed until the chain leaves.
+
+        Returns:
+            The link the walk followed last before it left, with that link's target, or `None` when the chain
+            does not leave the root.
+
+        Raises:
+            EntryInspectError: If the operating system refuses to inspect an entry on the way or read a link's
+                target, on disk.
         """

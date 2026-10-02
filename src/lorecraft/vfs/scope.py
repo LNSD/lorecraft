@@ -18,13 +18,14 @@ of paths.
 """
 
 from pathlib import PurePosixPath
+from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
 
-from .root_expansion import find_linked_scan_root, find_real_path, find_real_scan_root
+from .root_expansion import RealPath, find_linked_scan_root, find_real_path, find_real_scan_root
 from .scan_root import ScanRoot
 from .snapshot import Link
-from .view import EntryKind
+from .view import EntryKind, RootExit
 
 
 class ScopeIndex:
@@ -66,9 +67,13 @@ class ScopeIndex:
             the scan refuses too, or a chain longer than `MAX_LINKS`.
         """
         directory = find_real_path(path.parent, self._recorded, follow_links=True)
-        if directory is None:
-            return False
-        entry = directory.path / path.name
+        match directory:
+            case RealPath():
+                entry = directory.path / path.name
+            case RootExit() | None:
+                return False
+            case _:
+                assert_never(directory)
         for scan_root in self._real_roots:
             if scan_root.is_covering(entry):
                 return True
@@ -143,8 +148,13 @@ def _real_scan_roots(scope: tuple[ScanRoot, ...], recorded: _RecordedLinks) -> t
     linked_directories: dict[RootRelativePath, RootRelativePath] = {}
     for link in recorded.paths():
         leads_to = find_real_path(link, recorded, follow_links=True)
-        if leads_to is not None:
-            linked_directories[link] = leads_to.path
+        match leads_to:
+            case RealPath():
+                linked_directories[link] = leads_to.path
+            case RootExit() | None:
+                pass  # the scan follows no link that leads nowhere or out of the root
+            case _:
+                assert_never(leads_to)
 
     pending = list(real_roots)
     while pending:

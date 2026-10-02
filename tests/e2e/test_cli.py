@@ -9,8 +9,9 @@ snapshot file under `__snapshots__/`. So is what `check` and `inspect` print for
 whose frontmatter writes a key twice, and what `check skills` prints for a skill linking to an absolute path, for
 one linking to a heading it does not have, for one whose `SKILL.md` and a resource link outside the skill, for one
 whose `SKILL.md` and a resource link a file the skill does not hold, for one whose resource links to an absolute
-path and to a heading it does not have, and for one whose `metadata` repeats a file name, lists a path outside
-what the command reads, or lists a file the repository does not have.
+path and to a heading it does not have, for one whose `metadata` repeats a file name, lists a path outside
+what the command reads, or lists a file the repository does not have, and for one holding a symlink that leads
+outside the repository.
 """
 
 from pathlib import Path
@@ -314,6 +315,31 @@ def long_skill_root(tmp_path: Path) -> Path:
         '---\nname: review\ndescription: Review a change\n---\n' + 'Body.\n' * 497, encoding='utf-8'
     )
     return tmp_path
+
+
+@pytest.fixture(scope='function')
+def outside_link_root(tmp_path: Path) -> Path:
+    """A root holding one clean skill whose `references` directory links out of the repository, climbing above it.
+
+    The root is `tmp_path/repository`, and `references -> ../../../../shared/refs` leads to `tmp_path/shared/refs`,
+    a relative target so the printed note is the same on every machine. The symlink-outside finding is the only one
+    the check prints.
+
+    Args:
+        tmp_path: Directory the repository and the directory outside it are written into.
+
+    Returns:
+        The repository root.
+    """
+    (tmp_path / 'shared' / 'refs').mkdir(parents=True)
+    (tmp_path / 'shared' / 'refs' / 'guide.md').write_text('# Guide\n', encoding='utf-8')
+    root = tmp_path / 'repository'
+    (root / '.agents' / 'skills' / 'review').mkdir(parents=True)
+    (root / '.agents' / 'skills' / 'review' / 'SKILL.md').write_text(
+        '---\nname: review\ndescription: Review a change\n---\n', encoding='utf-8'
+    )
+    (root / '.agents' / 'skills' / 'review' / 'references').symlink_to('../../../../shared/refs')
+    return root
 
 
 def _write_review_skill(root: Path, metadata: str) -> None:
@@ -620,6 +646,20 @@ class TestCheckSkillsSnapshots:
         #: Then
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the lines-budget finding and its help note match the reviewed snapshot'
+
+    def test_check_skills_with_a_directory_linked_outside_the_repository_prints_the_symlink_outside_finding(
+        self, snapshot: SnapshotAssertion, outside_link_root: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('check', 'skills', '--root', str(outside_link_root))
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, 'the symlink-outside finding and its note match the reviewed snapshot'
 
     def test_check_skills_with_a_repeated_metadata_file_name_prints_the_duplicate_name_finding(
         self, snapshot: SnapshotAssertion, duplicate_name_root: Path
