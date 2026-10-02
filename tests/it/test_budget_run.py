@@ -10,9 +10,17 @@ from typing import Final
 
 import pytest
 
-from lorecraft.checks import CheckRun, Database, GovernedDocumentReport, UngovernedDocumentReport, run_budget
+from lorecraft.checks import (
+    CheckRun,
+    Database,
+    Finding,
+    GovernedDocumentReport,
+    UngovernedDocumentReport,
+    run_budget,
+)
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.layout import SNAPSHOT_SCOPE
+from lorecraft.project.syntax import LineNumber
 from lorecraft.vfs import take_snapshot
 
 # A rule document: at most 40 tokens for the whole file, and a Checklist, so the structure check has a rule too.
@@ -135,6 +143,45 @@ class TestRunBudget:
         assert ungoverned == [RootRelativePath.parse('docs/feat/overview.md')], (
             'the feat structure spec sets no `tokens`, so its one document is ungoverned for the budget'
         )
+
+    def test_run_budget_with_a_namespace_budget_and_none_in_the_corpus_holds_the_document_to_the_namespace_one(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        # corpus `code` sets no budget of its own; its `python` layer sets one the document exceeds
+        _write(tmp_path, 'docs/__meta__/code.md', b'# Code\n')
+        _write(tmp_path, 'docs/__meta__/code.structure.json', FEAT_STRUCTURE_SPEC.encode())
+        _write(tmp_path, 'docs/__meta__/code-python.md', b'# Code Python\n')
+        _write(tmp_path, 'docs/__meta__/code-python.structure.json', PYTHON_STRUCTURE_SPEC.encode())
+        document = dedent(
+            """\
+            # Typing
+
+            ## Rule
+
+            text
+
+            ## Checklist
+
+            - [ ] item
+            """
+        )
+        _write(tmp_path, 'docs/code/python-typing.md', document.encode())
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_document(database)
+
+        #: Then
+        assert run.findings() == (
+            Finding(
+                path=RootRelativePath.parse('docs/code/python-typing.md'),
+                line=LineNumber(1),
+                rule='budget.tokens',
+                message='17 tokens; the budget is 12 (per code-python.structure.json)',
+                spec=RootRelativePath.parse('docs/__meta__/code-python.structure.json'),
+            ),
+        ), 'the namespace budget applies once the corpus file exists, though the corpus file sets none'
 
     def test_run_budget_with_an_ungoverned_document_first_still_checks_the_governed_ones_after_it(
         self, tmp_path: Path

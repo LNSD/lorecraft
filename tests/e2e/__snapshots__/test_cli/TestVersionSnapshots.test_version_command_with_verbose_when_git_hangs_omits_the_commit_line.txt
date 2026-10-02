@@ -1,0 +1,4 @@
+lorecraft <version>
+Python:   <python>
+Platform: <platform>
+Install:  <install>
