@@ -6,12 +6,13 @@ well as the installed version and environment. Every version output, and `inspec
 `check structure`, `check budget` and `check skills` over a checked-in workspace fixture, is compared to a reviewed
 snapshot file under `__snapshots__/`. So is what `check` and `inspect` print for a root whose `docs/` or
 `docs/__meta__/` is a symlink into that fixture, what `check frontmatter` and `check skills` print for a root
-whose frontmatter writes a key twice, and what `check skills` prints for a skill linking to an absolute path, for
-one linking to a heading it does not have, for one whose `SKILL.md` and a resource link outside the skill, for one
-whose `SKILL.md` and a resource link a file the skill does not hold, for one whose resource links to an absolute
-path and to a heading it does not have, for one whose `metadata` repeats a file name, lists a path outside
-what the command reads, or lists a file the repository does not have, and for one holding a symlink that leads
-outside the repository.
+whose frontmatter writes a key twice, what `check skills` prints for the fixture's skills named one at a time (an
+entry another entry links to, a linked entry, and the real directory a linked entry leads to), and what it prints
+for a skill linking to an absolute path, for one linking to a heading it does not have, for one whose `SKILL.md`
+and a resource link outside the skill, for one whose `SKILL.md` and a resource link a file the skill does not hold,
+for one whose resource links to an absolute path and to a heading it does not have, for one whose `metadata`
+repeats a file name, lists a path outside what the command reads, or lists a file the repository does not have,
+and for one holding a symlink that leads outside the repository.
 """
 
 from pathlib import Path
@@ -519,7 +520,7 @@ class TestCheckBudgetSnapshots:
 class TestCheckSkillsSnapshots:
     # Every finding prints root-relative, so the output is the same in every checkout and nothing is redacted.
     # The fixture's `beta` skill is a link to `alpha` and is named `alpha`, not the `beta` an agent lists it by:
-    # each run reports that finding, with a note naming where the link leads, and exits 1.
+    # each run that checks `beta` reports that finding, with a note naming where the link leads, and exits 1.
 
     def test_check_skills_without_a_root_in_the_workspace_fixture_prints_the_findings(
         self, snapshot: SnapshotAssertion
@@ -548,6 +549,51 @@ class TestCheckSkillsSnapshots:
         #: Then
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the JSON report matches the reviewed snapshot'
+
+    def test_check_skills_with_the_entry_another_entry_links_to_checks_that_skill_alone(
+        self, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('check', 'skills', '.agents/skills/alpha')
+
+        #: When
+        result = run_cli(*arguments, cwd=WORKSPACE_FIXTURE)
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert result.stdout == expected, 'alpha is clean, and beta, which links to it, is not checked'
+        assert result.stderr == 'checked 1 skill(s), 0 finding(s)\n', 'the entry named is the one skill checked'
+
+    def test_check_skills_with_a_linked_entry_checks_that_skill_alone(self, snapshot: SnapshotAssertion) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('check', 'skills', '.agents/skills/beta')
+
+        #: When
+        result = run_cli(*arguments, cwd=WORKSPACE_FIXTURE)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, 'the name-matches-directory finding of beta alone matches the snapshot'
+        assert result.stderr == 'checked 1 skill(s), 1 finding(s)\n', (
+            'the entry named is the one skill checked, not alpha, the directory it links to'
+        )
+
+    def test_check_skills_with_the_real_directory_of_a_linked_skill_checks_the_entry_leading_there(
+        self, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('check', 'skills', 'skills/gamma')
+
+        #: When
+        result = run_cli(*arguments, cwd=WORKSPACE_FIXTURE)
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert result.stdout == expected, 'gamma, reached through the directory its entry links to, is clean'
+        assert result.stderr == 'checked 1 skill(s), 0 finding(s)\n', 'the one entry leading there is checked'
 
     def test_check_skills_with_a_key_written_twice_prints_the_duplicate_key_finding(
         self, snapshot: SnapshotAssertion, duplicate_key_root: Path
