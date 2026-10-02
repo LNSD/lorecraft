@@ -7,6 +7,7 @@ value, never an exception, because a broken block is a fact about the document t
 failure of the parse.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Final
 
@@ -46,20 +47,22 @@ class FrontmatterKey:
 class Frontmatter:
     """A frontmatter block that decoded to a YAML mapping.
 
-    Frozen for equality only: ``data`` is a dict, so an instance is not hashable and must not be put in a set
-    or used as a key. The parse tree is shared by every check that reads the document, so no check mutates
-    ``data``.
+    Frozen for equality only: `data` holds a dict, so an instance is not hashable and must not be put in a set
+    or used as a key.
 
     Attributes:
-        data: The decoded mapping, exactly as ``yaml.safe_load`` returns it.
+        data: The decoded mapping, exactly as `yaml.safe_load` returns it. A `Mapping`, not a `dict`, so no check
+            can write to it: the parse tree is shared by every check that reads the document. Only the top level is
+            read-only; a nested mapping or list is still the plain value `yaml.safe_load` built, and nothing stops
+            a write to it.
         keys: Every top-level key the mapping writes as a plain string, in document order, with its line. A key
-            written more than once appears once per occurrence, although ``data`` holds only one value for it. A
-            plain ``=`` key is listed too: YAML tags it as a value key, and it decodes to the string ``'='``. A
-            key that reaches ``data`` only through a ``<<`` merge is not listed, so a finding about it lands on
-            line 1, and neither is the ``<<`` key itself, which YAML tags as a merge rather than a string.
+            written more than once appears once per occurrence, although `data` holds only one value for it. A
+            plain `=` key is listed too: YAML tags it as a value key, and it decodes to the string `'='`. A key
+            that reaches `data` only through a `<<` merge is not listed, so a finding about it lands on line 1,
+            and neither is the `<<` key itself, which YAML tags as a merge rather than a string.
     """
 
-    data: dict[object, object]
+    data: Mapping[object, object]
     keys: tuple[FrontmatterKey, ...]
 
     def find_key_line(self, name: str) -> LineNumber | None:
