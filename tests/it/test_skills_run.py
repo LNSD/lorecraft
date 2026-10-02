@@ -1266,10 +1266,8 @@ class TestRunSkillsLineBudget:
         ], 'the SKILL.md findings follow the check order, frontmatter then the budget then links, not the line order'
 
 
-_RENAMING_LINK_NOTES: Final[tuple[Note, ...]] = (
-    Note(NoteKind.NOTE, "the skill is read through the link 'bar', which leads to 'foo'"),
-)
-"""The notes of a `skill.name-matches-directory` finding on the link `.agents/skills/bar -> ../../skills/foo`."""
+_RENAMING_LINK_NOTES: Final[tuple[Note, ...]] = (Note(NoteKind.NOTE, "'bar' is a link to 'skills/foo'"),)
+"""The notes of a `skill.name-matches-directory` finding on the link `bar -> skills/foo`."""
 
 
 def _write_renaming_link(root: Path, name: str) -> None:
@@ -1286,24 +1284,22 @@ def _write_renaming_link(root: Path, name: str) -> None:
 
 @pytest.mark.it
 class TestRunSkillsNameMatchesDirectory:
-    def test_run_skills_with_a_skill_linked_under_another_name_and_named_after_its_directory_reports_nothing(
-        self, tmp_path: Path
-    ) -> None:
+    def test_run_skills_with_a_renaming_link_and_the_listed_name_reports_nothing(self, tmp_path: Path) -> None:
         #: Given
-        _write_renaming_link(tmp_path, name='foo')
+        _write_renaming_link(tmp_path, name='bar')
         database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
 
         #: When
         run = _run_every_skill(database)
 
         #: Then
-        assert run.findings() == (), 'the link is transparent: a name matching the directory it leads to is clean'
+        assert run.findings() == (), 'the name is held to the entry an agent lists the skill by'
 
-    def test_run_skills_with_a_project_skill_misnamed_and_linked_under_that_name_reports_its_real_directory(
+    def test_run_skills_with_a_renaming_link_and_the_name_it_leads_to_reports_the_listed_name(
         self, tmp_path: Path
     ) -> None:
         #: Given
-        _write_renaming_link(tmp_path, name='bar')
+        _write_renaming_link(tmp_path, name='foo')
         database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
 
         #: When
@@ -1315,16 +1311,16 @@ class TestRunSkillsNameMatchesDirectory:
                 path=RootRelativePath.parse('.agents/skills/bar/SKILL.md'),
                 line=LineNumber(2),
                 rule='skill.name-matches-directory',
-                message="`name` is 'bar'; expected 'foo', the name of the skill directory",
+                message="`name` is 'foo'; expected 'bar', the name of the skill directory",
                 notes=_RENAMING_LINK_NOTES,
             ),
-        ), 'a name matching the link alone is held to the directory the link leads to, and reported at the link'
+        ), 'where the link leads plays no part: a name matching it alone is held to the listed name'
 
     def test_run_skills_with_a_renaming_link_through_a_linked_skills_directory_reports_it_once(
         self, tmp_path: Path
     ) -> None:
         #: Given
-        _write_renaming_link(tmp_path, name='bar')
+        _write_renaming_link(tmp_path, name='foo')
         (tmp_path / '.claude').mkdir()
         (tmp_path / '.claude' / 'skills').symlink_to('../.agents/skills')
         database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
@@ -1338,16 +1334,16 @@ class TestRunSkillsNameMatchesDirectory:
                 path=RootRelativePath.parse('.agents/skills/bar/SKILL.md'),
                 line=LineNumber(2),
                 rule='skill.name-matches-directory',
-                message="`name` is 'bar'; expected 'foo', the name of the skill directory",
+                message="`name` is 'foo'; expected 'bar', the name of the skill directory",
                 notes=_RENAMING_LINK_NOTES,
             ),
-        ), 'a skill two agents reach, one through a linked skills directory, is one skill, reported once'
+        ), 'a skill two agents reach, one through a linked skills directory, is one skill, held to its listed name'
 
-    def test_run_skills_with_a_renaming_link_inside_a_linked_skills_directory_reports_it_under_the_real_one(
+    def test_run_skills_with_a_renaming_link_inside_a_linked_skills_directory_reports_the_listed_name(
         self, tmp_path: Path
     ) -> None:
         #: Given
-        _write(tmp_path, 'skills/foo/SKILL.md', b'---\nname: bar\ndescription: Review a change\n---\n')
+        _write(tmp_path, 'skills/foo/SKILL.md', b'---\nname: foo\ndescription: Review a change\n---\n')
         (tmp_path / 'agent-skills').mkdir()
         (tmp_path / 'agent-skills' / 'bar').symlink_to('../skills/foo')
         (tmp_path / '.agents').mkdir()
@@ -1365,25 +1361,12 @@ class TestRunSkillsNameMatchesDirectory:
                 path=RootRelativePath.parse('agent-skills/bar/SKILL.md'),
                 line=LineNumber(2),
                 rule='skill.name-matches-directory',
-                message="`name` is 'bar'; expected 'foo', the name of the skill directory",
+                message="`name` is 'foo'; expected 'bar', the name of the skill directory",
                 notes=_RENAMING_LINK_NOTES,
             ),
-        ), 'the name is held to the directory the entry leads to, and reported at the ref, under the real skills one'
+        ), 'through a linked skills directory and a linked entry, the name is held to the entry listed'
 
-    def test_run_skills_with_a_skill_linked_under_its_own_name_reports_nothing(self, tmp_path: Path) -> None:
-        #: Given
-        _write(tmp_path, 'skills/foo/SKILL.md', b'---\nname: foo\ndescription: Review a change\n---\n')
-        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
-        (tmp_path / '.agents' / 'skills' / 'foo').symlink_to('../../skills/foo')
-        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
-
-        #: When
-        run = _run_every_skill(database)
-
-        #: Then
-        assert run.findings() == (), 'a skill linked under its own name, and named after its directory, is clean'
-
-    def test_run_skills_with_a_linked_skill_md_holds_the_name_to_the_skill_directory(self, tmp_path: Path) -> None:
+    def test_run_skills_with_a_linked_skill_md_holds_the_name_to_the_listed_directory(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'shared/text/SKILL.md', b'---\nname: review\ndescription: Review a change\n---\n')
         (tmp_path / '.agents' / 'skills' / 'review').mkdir(parents=True)
@@ -1394,11 +1377,47 @@ class TestRunSkillsNameMatchesDirectory:
         run = _run_every_skill(database)
 
         #: Then
-        assert run.findings() == (), 'the skill directory names the skill, not the directory its SKILL.md leads to'
+        assert run.findings() == (), 'the listed directory names the skill, not the directory its SKILL.md leads to'
 
-    def test_run_skills_with_a_misnamed_regular_skill_reports_the_skill_directory_without_notes(
+    def test_run_skills_with_an_entry_leading_to_the_root_holds_the_name_to_the_listed_entry(
         self, tmp_path: Path
     ) -> None:
+        #: Given
+        _write(tmp_path, 'SKILL.md', b'---\nname: x\ndescription: Review a change\n---\n')
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'x').symlink_to('../..')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (), 'an entry leading to the root is compared with its listed name, like any other'
+
+    def test_run_skills_with_a_misnamed_entry_leading_to_the_root_reports_the_listed_entry_with_a_root_note(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'SKILL.md', b'---\nname: review\ndescription: Review a change\n---\n')
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'x').symlink_to('../..')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (
+            Finding(
+                path=RootRelativePath.parse('.agents/skills/x/SKILL.md'),
+                line=LineNumber(2),
+                rule='skill.name-matches-directory',
+                message="`name` is 'review'; expected 'x', the name of the skill directory",
+                notes=(Note(NoteKind.NOTE, "'x' is a link to the repository root"),),
+            ),
+        ), 'an entry leading to the root is held to its listed name, and the note names the root as such'
+
+    def test_run_skills_with_a_misnamed_regular_skill_reports_the_skill_directory(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, '.agents/skills/review/SKILL.md', b'---\nname: audit\ndescription: Review a change\n---\n')
         database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
@@ -1414,4 +1433,4 @@ class TestRunSkillsNameMatchesDirectory:
                 rule='skill.name-matches-directory',
                 message="`name` is 'audit'; expected 'review', the name of the skill directory",
             ),
-        ), 'a regular directory is read through no link, so the finding carries no note'
+        ), 'a name that differs from the skill directory is the one finding'

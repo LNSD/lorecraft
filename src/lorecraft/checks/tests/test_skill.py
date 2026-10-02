@@ -1,11 +1,12 @@
 """Skill validation over a ``SKILL.md``'s frontmatter node.
 
-``validate_skill`` is pure, so every case here is a text literal parsed in memory and two directory names, held to
-the one Agent Skills specification; no ``SKILL.md`` is read.
+``validate_skill`` is pure, so every case here is a text literal parsed in memory, a directory name and where it
+leads when it is a link, held to the one Agent Skills specification; no ``SKILL.md`` is read.
 """
 
 import pytest
 
+from lorecraft.core.path import ROOT, RootRelativePath
 from lorecraft.project.schemas import SKILL_FRONTMATTER_SCHEMA
 from lorecraft.project.syntax import LineNumber, parse_frontmatter
 
@@ -21,7 +22,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
         )
 
         #: Then
@@ -43,7 +44,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
         )
 
         #: Then
@@ -55,7 +56,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
         )
 
         #: Then
@@ -71,7 +72,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
         )
 
         #: Then
@@ -85,7 +86,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
         )
 
         #: Then
@@ -105,7 +106,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
         )
 
         #: Then
@@ -121,7 +122,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
         )
 
         #: Then
@@ -136,10 +137,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA,
-            frontmatter=frontmatter,
-            directory_name='Code--Review',
-            entry_name='Code--Review',
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='Code--Review', link_target=None
         )
 
         #: Then
@@ -153,7 +151,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='audit', entry_name='audit'
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='audit', link_target=None
         )
 
         #: Then
@@ -165,27 +163,16 @@ class TestValidateSkill:
             ),
         ), 'a valid name that differs from the directory is the one violation'
 
-    def test_validate_skill_with_a_renaming_link_and_the_real_directory_name_returns_no_violations(self) -> None:
+    def test_validate_skill_with_a_misnamed_link_to_a_renamed_directory_reports_it_with_a_note(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('---\nname: foo\ndescription: Review a change\n---\n')
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='foo', entry_name='bar'
-        )
-
-        #: Then
-        assert result.violations == (), 'the link is transparent: a name matching the real directory is clean'
-
-    def test_validate_skill_with_a_renaming_link_and_the_link_name_reports_the_real_directory_with_a_note(
-        self,
-    ) -> None:
-        #: Given
-        frontmatter = parse_frontmatter('---\nname: bar\ndescription: Review a change\n---\n')
-
-        #: When
-        result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='foo', entry_name='bar'
+            SKILL_FRONTMATTER_SCHEMA,
+            frontmatter=frontmatter,
+            directory_name='bar',
+            link_target=RootRelativePath.parse('skills/foo'),
         )
 
         #: Then
@@ -193,20 +180,38 @@ class TestValidateSkill:
             Violation(
                 line=LineNumber(2),
                 rule='skill.name-matches-directory',
-                message="`name` is 'bar'; expected 'foo', the name of the skill directory",
-                notes=(Note(NoteKind.NOTE, "the skill is read through the link 'bar', which leads to 'foo'"),),
+                message="`name` is 'foo'; expected 'bar', the name of the skill directory",
+                notes=(Note(NoteKind.NOTE, "'bar' is a link to 'skills/foo'"),),
             ),
-        ), 'a name matching the link alone is held to the real directory, and the note names the link'
+        ), 'the name is held to the listed directory, and the note names where the link leads'
 
-    def test_validate_skill_with_a_renaming_link_and_neither_name_reports_the_real_directory_with_a_note(
-        self,
-    ) -> None:
+    def test_validate_skill_with_a_misnamed_link_to_the_root_reports_it_with_a_root_note(self) -> None:
+        #: Given
+        frontmatter = parse_frontmatter('---\nname: review\ndescription: Review a change\n---\n')
+
+        #: When
+        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='x', link_target=ROOT)
+
+        #: Then
+        assert result.violations == (
+            Violation(
+                line=LineNumber(2),
+                rule='skill.name-matches-directory',
+                message="`name` is 'review'; expected 'x', the name of the skill directory",
+                notes=(Note(NoteKind.NOTE, "'x' is a link to the repository root"),),
+            ),
+        ), 'a link to the root is named as the repository root, never by its empty name'
+
+    def test_validate_skill_with_a_misnamed_link_keeping_its_name_reports_it_without_a_note(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('---\nname: review\ndescription: Review a change\n---\n')
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='foo', entry_name='bar'
+            SKILL_FRONTMATTER_SCHEMA,
+            frontmatter=frontmatter,
+            directory_name='audit',
+            link_target=RootRelativePath.parse('skills/audit'),
         )
 
         #: Then
@@ -214,10 +219,24 @@ class TestValidateSkill:
             Violation(
                 line=LineNumber(2),
                 rule='skill.name-matches-directory',
-                message="`name` is 'review'; expected 'foo', the name of the skill directory",
-                notes=(Note(NoteKind.NOTE, "the skill is read through the link 'bar', which leads to 'foo'"),),
+                message="`name` is 'review'; expected 'audit', the name of the skill directory",
             ),
-        ), 'a name matching neither is held to the real directory alone, and the note names the link'
+        ), 'a link that keeps the listed name explains nothing, so the finding carries no note'
+
+    def test_validate_skill_with_a_link_named_as_listed_returns_no_violations(self) -> None:
+        #: Given
+        frontmatter = parse_frontmatter('---\nname: bar\ndescription: Review a change\n---\n')
+
+        #: When
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA,
+            frontmatter=frontmatter,
+            directory_name='bar',
+            link_target=RootRelativePath.parse('skills/foo'),
+        )
+
+        #: Then
+        assert result.violations == (), 'where the link leads plays no part: the listed name passes'
 
     def test_validate_skill_with_a_field_outside_the_specification_reports_it_unknown(self) -> None:
         #: Given
@@ -225,7 +244,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
         )
 
         #: Then
@@ -243,7 +262,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
         )
 
         #: Then
@@ -263,7 +282,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
         )
 
         #: Then
@@ -281,7 +300,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
         )
 
         #: Then
@@ -295,7 +314,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='audit', entry_name='audit'
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='audit', link_target=None
         )
 
         #: Then
@@ -310,7 +329,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
         )
 
         #: Then
@@ -330,7 +349,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
         )
 
         #: Then
@@ -350,7 +369,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
         )
 
         #: Then
@@ -373,7 +392,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
         )
 
         #: Then
@@ -396,7 +415,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
         )
 
         #: Then
@@ -414,7 +433,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
         )
 
         #: Then
@@ -433,7 +452,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
         )
 
         #: Then
@@ -451,7 +470,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
         )
 
         #: Then
@@ -476,7 +495,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
         )
 
         #: Then
@@ -490,7 +509,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
         )
 
         #: Then
@@ -515,7 +534,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
         )
 
         #: Then
@@ -538,7 +557,7 @@ class TestValidateSkill:
 
         #: When
         result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
         )
 
         #: Then
