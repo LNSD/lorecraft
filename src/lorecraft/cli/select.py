@@ -1,17 +1,20 @@
 """Map an explicit document or skill argument from the command line onto the workspace model.
 
 An argument is only spelled on disk: the disk is asked only where it leads above the root, the part under the
-root is taken as spelled, and every link in that part is followed through the snapshot, so it names what the
-model saw even when the tree changed since. An explicit path is a boundary, so it is rejected with the most
-specific reason it fails, where discovery would simply have ignored the file.
+root is taken as spelled, and its links are followed through the snapshot, so it names what the model saw even
+when the tree changed since. A skill argument naming an entry of a skills directory keeps that entry's own link
+unfollowed, so it names the skill an agent lists there and not every entry linked to the same directory. An
+explicit path is a boundary, so it is rejected with the most specific reason it fails, where discovery would
+simply have ignored the file.
 """
 
 import os
 from pathlib import Path, PurePosixPath
 
+from lorecraft.agents import SKILL_ENTRY_FILENAME
 from lorecraft.checks import Database
 from lorecraft.core.error import Error
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import ROOT, RootRelativePath
 from lorecraft.project.corpus import CorpusName, EmptyCorpusNameError, InvalidCorpusNameCharacterError
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR
@@ -257,11 +260,17 @@ class UnlistedSkillPathError(Error):
 def select_skills_at(database: Database, root: Path, working_directory: Path, argument: Path) -> tuple[SkillRef, ...]:
     """Map one CLI argument onto the model's skills, resolving it through the snapshot rather than the disk.
 
-    The argument names a skill by its directory or by its ``SKILL.md``, through a link or not: a skill kept in
-    ``skills/review/`` and linked from ``.agents/skills/review`` is named by either path. The part of the
-    argument under the root is taken by its spelling alone, then every link in it is followed through the
-    snapshot, and every skill the model lists at the real path it leads to is returned, so a directory two
-    entries link to selects both.
+    The argument names a skill by its directory or by its `SKILL.md`, through a link or not: a skill kept in
+    `skills/review/` and linked from `.agents/skills/review` is named by either path. The part of the
+    argument under the root is taken by its spelling alone, then read in two ways, in order.
+
+    First as an entry of a skills directory, as an agent lists it: the links above the entry are followed through
+    the snapshot, the entry itself is kept by its name, and the skill the model lists there is returned alone. So
+    `.agents/skills/beta` selects `beta` even when it links to `alpha`, and `.claude/skills/beta`, through
+    a linked skills directory, selects it too.
+
+    Otherwise as a real path: every link in it is followed through the snapshot, and every skill the model lists
+    at the real path it leads to is returned, so naming the directory two entries link to selects both.
 
     Args:
         database: The snapshot the argument is resolved in, and the model it must name a skill of.
@@ -283,6 +292,9 @@ def select_skills_at(database: Database, root: Path, working_directory: Path, ar
     spelled = _find_spelling_under_root(root, named)
     if spelled is None:
         raise UnlistedSkillPathError(argument)
+    listed = _find_listed_skill(database, spelled)
+    if listed is not None:
+        return (listed,)
     real_path = database.find_real_path(spelled)
     if real_path is None:
         raise UnlistedSkillPathError(argument)
@@ -290,6 +302,29 @@ def select_skills_at(database: Database, root: Path, working_directory: Path, ar
     if not refs:
         raise UnlistedSkillPathError(argument)
     return refs
+
+
+def _find_listed_skill(database: Database, spelled: RootRelativePath) -> SkillRef | None:
+    """The skill listed at the entry `spelled` names, by the entry's directory or its `SKILL.md`, or `None`.
+
+    The entry's parent is followed through the snapshot, so a linked skills directory such as `.claude/skills`
+    leads to the real one the model lists its skills under. The entry itself is kept as spelled: following it
+    would lead to the directory its files live in, which every entry linked there shares.
+
+    Args:
+        database: The snapshot the entry's parent is resolved in, and the model it must name a skill of.
+        spelled: The argument, root-relative and taken by its spelling alone.
+    """
+    entry = spelled
+    if spelled.name == SKILL_ENTRY_FILENAME:
+        entry = spelled.parent
+    # The root is no entry: it has no name, and no skill is listed at it.
+    if entry == ROOT:
+        return None
+    real_parent = database.find_real_path(entry.parent)
+    if real_parent is None:
+        return None
+    return database.model().find_skill(real_parent / entry.name)
 
 
 def _find_spelling_under_root(root: Path, named: Path) -> RootRelativePath | None:
