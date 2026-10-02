@@ -21,6 +21,7 @@ from lorecraft.project.document.ref import DocumentRef
 from lorecraft.project.layout import DOCS_DIR
 from lorecraft.project.schemas.name import SchemaName
 from lorecraft.project.schemas.structure import FrontmatterSchema, StructureAspect
+from lorecraft.project.skill.outside import OutsideSymlink
 from lorecraft.project.skill.ref import SkillLocation, SkillRef
 from lorecraft.project.skill.skills_dir import SkillsDir
 
@@ -205,11 +206,15 @@ class WorkspaceModel:
             agents read one. A skill belongs to no corpus, so no spec governs it and ``documents()`` does not
             list it. The locations, not the refs, record where each link leads, so two models differ when a
             link is retargeted even though every ref is the same.
+        outside_symlinks: Every skills directory an agent declares, entry in a real skills directory, and
+            ``SKILL.md`` of such an entry, whose symlink chain leaves the repository, sorted by path. None of them
+            is a skills directory or a skill of the model; a symlink inside a skill is in its resource listing.
     """
 
     corpora: tuple[Corpus, ...]
     skills_dirs: tuple[SkillsDir, ...]
     skill_locations: tuple[SkillLocation, ...]
+    outside_symlinks: tuple[OutsideSymlink, ...]
 
     def find_corpus(self, name: CorpusName) -> Corpus | None:
         """The corpus with this name, or None when the model has none.

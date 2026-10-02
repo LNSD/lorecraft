@@ -6,7 +6,7 @@ skill cases lay out the project skills directories the same way. The repositorie
 ``DiskFileSystem`` over ``tmp_path``, and every path in the model is root-relative to it.
 """
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from textwrap import dedent
 from typing import Final
 
@@ -24,11 +24,11 @@ from lorecraft.project.schemas import (
     StructureSpecDecodeError,
 )
 from lorecraft.project.schemas import Repository as SchemaRepository
+from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillsDir
 from lorecraft.project.skill import Repository as SkillRepository
-from lorecraft.project.skill import SkillLocation, SkillRef, SkillsDir
 from lorecraft.project.workspace.loader import load_model, load_workspace
 from lorecraft.project.workspace.model import WorkspaceModel
-from lorecraft.vfs import DiskFileSystem, VirtualFileSystem, take_snapshot
+from lorecraft.vfs import DiskFileSystem, RootExit, VirtualFileSystem, take_snapshot
 
 CLAUDE: Final[AgentName] = AgentName('claude-code')
 CODEX: Final[AgentName] = AgentName('codex')
@@ -704,13 +704,74 @@ class TestLoadWorkspaceEdgeCases:
 
         #: Then
         assert not missing_docs.exists(), 'the case turns on docs/ being absent'
-        assert model == WorkspaceModel(corpora=(), skills_dirs=(), skill_locations=()), (
+        assert model == WorkspaceModel(corpora=(), skills_dirs=(), skill_locations=(), outside_symlinks=()), (
             'a root without docs/ is an empty workspace'
         )
 
 
+def _outside(path: str, target: Path) -> OutsideSymlink:
+    """The record of a symlink at `path` that links straight out of the repository to `target`.
+
+    Args:
+        path: The root-relative symlink, which is also the link its chain leaves through.
+        target: Its absolute target outside the root.
+    """
+    symlink = RootRelativePath.parse(path)
+    return OutsideSymlink(symlink, RootExit(symlink, PurePosixPath(target)))
+
+
 @pytest.mark.it
 class TestLoadWorkspaceSkills:
+    def test_load_workspace_with_a_skills_directory_an_entry_and_a_skill_file_leading_outside_records_each(
+        self,
+        tmp_path: Path,
+        tmp_path_factory: pytest.TempPathFactory,
+        schemas: SchemaRepository,
+        documents: DocumentRepository,
+        skills: SkillRepository,
+    ) -> None:
+        #: Given
+        outside = tmp_path_factory.mktemp('outside')
+        _write(outside, 'x/SKILL.md')
+        _write(outside, 'x.md')
+        (tmp_path / '.claude').mkdir()
+        (tmp_path / '.claude' / 'skills').symlink_to(outside)
+        (tmp_path / '.agents' / 'skills' / 'review').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').symlink_to(outside / 'x.md')
+        (tmp_path / '.agents' / 'skills' / 'x').symlink_to(outside / 'x')
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert model.outside_symlinks == (
+            _outside('.agents/skills/review/SKILL.md', outside / 'x.md'),
+            _outside('.agents/skills/x', outside / 'x'),
+            _outside('.claude/skills', outside),
+        ), 'each symlink of the layout leading outside is recorded where an agent reaches it, sorted by path'
+
+    def test_load_workspace_with_an_entry_and_a_skill_file_leading_outside_lists_no_skill(
+        self,
+        tmp_path: Path,
+        tmp_path_factory: pytest.TempPathFactory,
+        schemas: SchemaRepository,
+        documents: DocumentRepository,
+        skills: SkillRepository,
+    ) -> None:
+        #: Given
+        outside = tmp_path_factory.mktemp('outside')
+        _write(outside, 'x/SKILL.md')
+        _write(outside, 'x.md')
+        (tmp_path / '.agents' / 'skills' / 'review').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').symlink_to(outside / 'x.md')
+        (tmp_path / '.agents' / 'skills' / 'x').symlink_to(outside / 'x')
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert model.skill_locations == (), 'neither leads to a skill inside the repository'
+
     def test_load_workspace_with_skills_in_the_universal_directory_lists_them_by_directory(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:

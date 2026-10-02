@@ -4,8 +4,10 @@ A skill is a document of a special type. It lives outside `docs/`, in a director
 project skills directories the modelled agents read; its file is always named `SKILL.md`, so the directory
 carries its name; and its form is the Agent Skills specification's, not a corpus specification's. Beside its
 `SKILL.md` a skill may carry resources, other Markdown files at any depth, each with an identity and a location.
+A symlink the layout reaches whose chain leaves the repository is recorded too, as an `OutsideSymlink`.
 """
 
+from .outside import OutsideSymlink
 from .ref import SkillLocation, SkillRef, SkillResourceLocation, SkillResourceRef
 from .repo import (
     Repository,
@@ -17,10 +19,12 @@ from .repo import (
     SkillReadError,
     SkillResource,
     SkillResourceDecodeError,
+    SkillResourceListing,
     SkillResourceReadError,
     SkillResourcesListError,
     SkillResourcesSymlinkResolveError,
     SkillsDirListError,
+    SkillsListing,
 )
 from .skills_dir import SkillsDir
 
@@ -30,6 +34,9 @@ __all__ = [
     'SkillResourceRef',
     'SkillResourceLocation',
     'SkillsDir',
+    'OutsideSymlink',
+    'SkillsListing',
+    'SkillResourceListing',
     'Skill',
     'SkillResource',
     'Repository',

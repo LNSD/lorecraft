@@ -8,8 +8,10 @@ sorts the parsed files into corpus stems and namespace stems, keeps the corpora 
 included, before any document is read.
 
 The skills come from the agents: the loader asks each agent in ``lorecraft.agents`` which project skills
-directories it reads, keeps the ones the repository has, and lists the skills in each real directory once. An
-entry that does not fit the layout is left out of the model; nothing it leaves out fails the run.
+directories it reads, keeps the ones the repository has, and lists the skills in each real directory once. A
+skills directory, a skill entry or a `SKILL.md` whose symlink chain leaves the repository is recorded in the model
+as an outside symlink, for a check to report. Any other entry that does not fit the layout is left out of the
+model; nothing it leaves out fails the run.
 
 Nothing here logs and nothing here catches broadly: a repository or schema error names its path already, so
 it propagates unchanged to the command that loads the model, which reports it.
@@ -42,6 +44,7 @@ from lorecraft.project.schemas.spec_file import (
     parse_spec_file,
 )
 from lorecraft.project.schemas.structure import StructureAspect
+from lorecraft.project.skill.outside import OutsideSymlink
 from lorecraft.project.skill.ref import SkillLocation
 from lorecraft.project.skill.repo import Repository as SkillRepository
 from lorecraft.project.skill.skills_dir import SkillsDir
@@ -93,6 +96,8 @@ def load_workspace(schemas: SchemaRepository, documents: DocumentRepository, ski
         ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
         UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
         DirResolveError: If a skills directory cannot be resolved.
+        EntryInspectError: If an entry on the way to a skills directory cannot be inspected, or a link's target
+            read, while looking for where it leaves the repository.
         SkillsDirListError: If a skills directory cannot be listed.
         SkillEntryResolveError: If a symlinked skill entry cannot be resolved.
         SkillDirListError: If a skill directory cannot be listed.
@@ -119,9 +124,15 @@ def load_workspace(schemas: SchemaRepository, documents: DocumentRepository, ski
         refs = _list_document_refs(documents, corpus_name)
         corpora.append(_load_corpus(schemas, corpus_name, files, refs))
 
-    skills_dirs = _load_skills_dirs(skills)
-    skill_locations = _list_skill_locations(skills, skills_dirs)
-    return WorkspaceModel(corpora=tuple(corpora), skills_dirs=skills_dirs, skill_locations=skill_locations)
+    skills_dirs, outside_skills_dirs = _load_skills_dirs(skills)
+    skill_locations, outside_entries = _list_skill_locations(skills, skills_dirs)
+    outside_symlinks = sorted(outside_skills_dirs + outside_entries, key=lambda outside: outside.path)
+    return WorkspaceModel(
+        corpora=tuple(corpora),
+        skills_dirs=skills_dirs,
+        skill_locations=skill_locations,
+        outside_symlinks=tuple(outside_symlinks),
+    )
 
 
 def load_model(fs: FileSystem) -> WorkspaceModel:
@@ -151,6 +162,8 @@ def load_model(fs: FileSystem) -> WorkspaceModel:
         ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
         UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
         DirResolveError: If a skills directory cannot be resolved.
+        EntryInspectError: If an entry on the way to a skills directory cannot be inspected, or a link's target
+            read, while looking for where it leaves the repository.
         SkillsDirListError: If a skills directory cannot be listed.
         SkillEntryResolveError: If a symlinked skill entry cannot be resolved.
         SkillDirListError: If a skill directory cannot be listed.
@@ -288,39 +301,59 @@ def _list_document_refs(documents: DocumentRepository, corpus_name: CorpusName) 
     return refs
 
 
-def _load_skills_dirs(skills: SkillRepository) -> tuple[SkillsDir, ...]:
+def _load_skills_dirs(skills: SkillRepository) -> tuple[tuple[SkillsDir, ...], tuple[OutsideSymlink, ...]]:
     """One record per agent and project skills directory it reads, for the directories the repository has.
 
-    Sorted by agent then path, so the model does not depend on the order the agents are registered in.
+    The records are sorted by agent then path, so the model does not depend on the order the agents are registered
+    in. A declared directory whose symlink chain leaves the repository is no directory the repository has; it is
+    returned apart, once however many agents declare it, sorted by path.
 
     Args:
         skills: Repository each declared skills directory is resolved through.
 
+    Returns:
+        A pair: the skills directories the repository has, one per agent and directory; then each declared
+        directory whose chain leaves the repository, as an outside symlink.
+
     Raises:
         DirResolveError: If a skills directory cannot be resolved.
+        EntryInspectError: If an entry on the way to a skills directory cannot be inspected, or a link's target
+            read, while looking for where it leaves the repository.
     """
     skills_dirs: list[SkillsDir] = []
+    outside: dict[RootRelativePath, OutsideSymlink] = {}
     for agent in iter_agents():
         for declared in agent.project_skills_dirs:
             path = RootRelativePath(declared)
             resolves_to = skills.find_skills_dir(path)
             if resolves_to is None:
-                # The repository has no such directory, so the agent reads no skills from it.
+                # The repository has no such directory, so the agent reads no skills from it; recorded when the
+                # agent would read one outside the repository instead.
+                leads_outside = skills.find_skills_dir_exit(path)
+                if leads_outside is not None:
+                    outside[path] = leads_outside
                 continue
             skills_dirs.append(SkillsDir(agent=agent.name, path=path, resolves_to=resolves_to))
     skills_dirs.sort(key=lambda skills_dir: (str(skills_dir.agent), skills_dir.path))
-    return tuple(skills_dirs)
+    return tuple(skills_dirs), tuple(outside[path] for path in sorted(outside))
 
 
-def _list_skill_locations(skills: SkillRepository, skills_dirs: tuple[SkillsDir, ...]) -> tuple[SkillLocation, ...]:
+def _list_skill_locations(
+    skills: SkillRepository, skills_dirs: tuple[SkillsDir, ...]
+) -> tuple[tuple[SkillLocation, ...], tuple[OutsideSymlink, ...]]:
     """The location of every skill in the real directories behind `skills_dirs`, each once, sorted by directory.
 
     Two agents reading one real directory add no second skill: the directory is listed once. The locations are
-    sorted as a whole, since one skills directory may sit inside another.
+    sorted as a whole, since one skills directory may sit inside another. Returned beside them, sorted by path, is
+    every entry and every entry's `SKILL.md` in those directories whose symlink chain leaves the repository.
 
     Args:
         skills: Repository each real directory is listed through.
         skills_dirs: Skills directories the agents read; only the real directory each leads to is listed.
+
+    Returns:
+        A pair: the location of every skill; then every entry and entry's `SKILL.md` whose chain leaves the
+        repository, as an outside symlink.
 
     Raises:
         SkillsDirListError: If a skills directory cannot be listed.
@@ -333,6 +366,9 @@ def _list_skill_locations(skills: SkillRepository, skills_dirs: tuple[SkillsDir,
         real_directories.add(skills_dir.resolves_to)
 
     locations: list[SkillLocation] = []
+    outside_symlinks: list[OutsideSymlink] = []
     for real_directory in real_directories:
-        locations.extend(skills.list_skills(real_directory))
-    return tuple(sorted(locations))
+        listing = skills.list_skills(real_directory)
+        locations.extend(listing.skills)
+        outside_symlinks.extend(listing.outside_symlinks)
+    return tuple(sorted(locations)), tuple(sorted(outside_symlinks, key=lambda outside: outside.path))

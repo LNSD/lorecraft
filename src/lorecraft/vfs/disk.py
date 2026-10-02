@@ -8,11 +8,12 @@ import errno
 import os
 import stat
 from pathlib import Path, PurePosixPath
+from typing import assert_never
 
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
 
-from .root_expansion import find_linked_scan_root, find_real_path, find_real_scan_root
+from .root_expansion import RealPath, find_linked_scan_root, find_real_path, find_real_scan_root
 from .scan_root import ScanRoot
 from .snapshot import FileBytes, Link, Listing, Snapshot
 from .view import (
@@ -25,6 +26,7 @@ from .view import (
     FileResolveError,
     FileSystem,
     OsRefusal,
+    RootExit,
     decode_text,
 )
 
@@ -46,8 +48,9 @@ class DiskFileSystem(FileSystem):
     """The view that reads the disk under one workspace root.
 
     ``list_dir``, ``read_text`` and ``find_entry_kind`` follow a symlink wherever the operating system does, outside
-    the root included; only ``find_real_dir`` and ``find_real_file`` refuse a chain that leaves the root. A
-    snapshot never reads outside the root, so there the two views differ.
+    the root included; only ``find_real_dir`` and ``find_real_file`` refuse a chain that leaves the root, and
+    ``find_root_exit`` reports where it leaves. A snapshot never reads outside the root, so there the two views
+    differ.
     """
 
     def __init__(self, root: Path) -> None:
@@ -178,6 +181,72 @@ class DiskFileSystem(FileSystem):
         except ValueError:  # a target outside the root has no root-relative spelling
             return None
         return RootRelativePath.parse(relative.as_posix())
+
+    def find_root_exit(self, path: RootRelativePath) -> RootExit | None:
+        """Where the chain in `path` leaves the root on disk; see `FileSystem.find_root_exit`.
+
+        The walk is the scan's, over each entry's `lstat` and each link's `readlink`, so it agrees with the
+        virtual view and reads nothing outside the root. It differs from `find_real_dir`, which asks the
+        operating system: a chain that leaves the root and climbs back into it is followed there, and leaves here.
+
+        Args:
+            path: The root-relative path to walk; every link in it is followed until the chain leaves the root.
+
+        Raises:
+            EntryInspectError: If an entry on the way cannot be inspected, or a link's target cannot be read.
+        """
+        leads_to = find_real_path(path, _ViewDiskEntries(self._root), follow_links=True)
+        match leads_to:
+            case RootExit():
+                return leads_to
+            case RealPath() | None:
+                return None
+            case _:
+                assert_never(leads_to)
+
+
+class _ViewDiskEntries:
+    """What the disk view's walk sees: each entry by `lstat`, each link by `readlink`, recorded nowhere.
+
+    The `EntryLookup` `DiskFileSystem.find_root_exit` hands to `find_real_path`. It reads as the scan's
+    `_DiskEntries` does, and fails as a view operation does, with `EntryInspectError`.
+    """
+
+    def __init__(self, root: Path) -> None:
+        """Read under `root`; performs no I/O.
+
+        Args:
+            root: The workspace root on disk, in its real form.
+        """
+        self._root = root
+
+    def find_kind(self, path: RootRelativePath) -> EntryKind | None:
+        """What `path` itself is on disk; see `EntryLookup.find_kind`.
+
+        Args:
+            path: The root-relative entry to inspect, every link on the way to it already followed.
+
+        Raises:
+            EntryInspectError: If the path exists but cannot be inspected.
+        """
+        try:
+            return _find_lstat_kind(self._root, path)
+        except SnapshotEntryInspectError as exc:
+            raise EntryInspectError(path, exc.refusal, source=exc.source) from exc
+
+    def find_link_target(self, path: RootRelativePath) -> PurePosixPath | None:
+        """Read the target of the symlink at `path`; `None` when it vanished.
+
+        Args:
+            path: The root-relative symlink whose target is read.
+
+        Raises:
+            EntryInspectError: If the symlink exists but its target cannot be read.
+        """
+        try:
+            return _find_symlink_target(self._root, path)
+        except SnapshotLinkReadError as exc:
+            raise EntryInspectError(path, exc.refusal, source=exc.source) from exc
 
 
 class SnapshotDirListError(Error):
@@ -450,16 +519,19 @@ def _follow_listed_link(
         SnapshotFileReadError: If the file the chain leads to exists but cannot be read.
     """
     leads_to = find_real_path(link, on_disk, follow_links=True)
-    if leads_to is None:
-        return
-    if leads_to.kind is EntryKind.DIRECTORY:
-        linked_root = find_linked_scan_root(listed_root, link, leads_to.path)
-        if linked_root is not None:
-            pending.append(linked_root)
-    if leads_to.kind is EntryKind.FILE:
-        data = _find_file_bytes(root, leads_to.path)
-        if data is not None:  # None when it vanished after the walk; the link then stays recorded alone
-            files[leads_to.path] = data
+    match leads_to:
+        case RealPath(path=directory, kind=EntryKind.DIRECTORY):
+            linked_root = find_linked_scan_root(listed_root, link, directory)
+            if linked_root is not None:
+                pending.append(linked_root)
+        case RealPath(path=file, kind=EntryKind.FILE):
+            data = _find_file_bytes(root, file)
+            if data is not None:  # None when it vanished after the walk; the link then stays recorded alone
+                files[file] = data
+        case RealPath() | RootExit() | None:
+            pass  # nothing under the root to read there
+        case _:
+            assert_never(leads_to)
 
 
 def _find_lstat_kind(root: Path, path: RootRelativePath) -> EntryKind | None:

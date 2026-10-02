@@ -23,6 +23,7 @@ from .run import (
     SkillCheckRun,
     SkillReport,
     SkillResourceReport,
+    SymlinkReport,
     run_budget,
     run_frontmatter,
     run_skills,
@@ -53,6 +54,7 @@ __all__ = [
     'validate_skill',
     'SkillReport',
     'SkillResourceReport',
+    'SymlinkReport',
     'SkillCheckRun',
     'run_skills',
 ]
