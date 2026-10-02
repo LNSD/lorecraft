@@ -53,7 +53,7 @@ missing, or outside what it reads, and a symlink leaving the repository. It read
 | `--format <text\|json>` | `text` | The output format, as [cli-check](cli-check.md#output) describes |
 
 A path names a skill directory, a directory of skills or a `SKILL.md`, through a link or not. A skills directory
-an agent reads, such as `.claude/skills`, selects every skill listed there, reported under the canonical directory,
+an agent reads, such as `.claude/skills`, selects every skill listed there, reported under the resolved directory,
 possibly none; an entry of one selects that entry alone, even when it links to another. Any other directory is one
 skill when a `SKILL.md` is at its root, and otherwise holds each directory directly in it that has one. Its skills
 are named as the path spells them: `skills/review` is checked as `skills/review`, not as the entry linking there.
@@ -149,7 +149,7 @@ and it suppresses no other finding; any other finding about that key is on the l
 | `skill.metadata-duplicate-name` | A path under a `metadata` subkey has the file name of an earlier one, so both link in as one path; the message names both |
 | `skill.metadata-missing-file` | A listed path in scope, as the [workspace declares it](workspace.md#one-snapshot), leads to no regular file in the snapshot: nothing is there, not even its directory, a directory is, or a link dangles, leaves the repository or reaches a file lorecraft does not read |
 | `skill.metadata-outside-scope` | A listed path is in a directory the command does not read, or is absolute or climbs with `..` |
-| `skill.symlink-outside` | A skills directory an agent declares, a path given, an entry in either, its `SKILL.md` or the one at the root of a directory given, or a file or directory inside a skill is a symlink whose chain leaves the repository: a link targets a path outside it, or a `..` climbs above the root. Judged from the link targets the snapshot recorded; nothing outside the root is read. On line 1 at the symlink, named where an agent reaches it, with a note naming the link the chain leaves through and its target, and a help note says how to fix it. One not inside a skill is no skill: it is reported first, by path, whichever skills are selected, and counts no skill; one inside a skill comes after that skill's resources. A chain is judged by the canonical path each step reaches, as the operating system resolves it, so `tmp/../../..` leaves as surely as `../..`. A link that dangles or loops inside the repository is not reported |
+| `skill.symlink-outside` | A skills directory an agent declares, a path given, an entry in either, its `SKILL.md` or the one at the root of a directory given, or a file or directory inside a skill is a symlink whose chain leaves the repository: a link targets a path outside it, or a `..` climbs above the root. Judged from the link targets the snapshot recorded; nothing outside the root is read. On line 1 at the symlink, named where an agent reaches it, with a note naming the link the chain leaves through and its target, and a help note says how to fix it. One not inside a skill is no skill: it is reported first, by path, whichever skills are selected, and counts no skill; one inside a skill comes after that skill's resources. A chain is judged by the resolved path each step reaches, as the operating system resolves it, so `tmp/../../..` leaves as surely as `../..`. A link that dangles or loops inside the repository is not reported |
 
 ## References
 

@@ -38,7 +38,7 @@ def render_text(root: Path, model: WorkspaceModel) -> str:
     """Draw the model as a tree headed by the root, one section per part of the model.
 
     A document is followed by the names of the specs that govern it, broad to narrow. An agent's skills
-    directory is followed by the canonical directory it leads to when it is a link, and a skill by the agents
+    directory is followed by the resolved directory it leads to when it is a link, and a skill by the agents
     that read it.
 
     Args:
@@ -138,7 +138,7 @@ def _corpus_line(corpus: Corpus) -> _Line:
 def _skills_dirs_section(skills_dirs: tuple[SkillsDir, ...]) -> _Line:
     """`agent skills directories (N)`, one line per agent and directory, as the model orders them.
 
-    A directory that is a link is drawn with the canonical directory it leads to: `path -> resolves_to`.
+    A directory that is a link is drawn with the resolved directory it leads to: `path -> resolves_to`.
 
     Args:
         skills_dirs: The agent skills directories to draw.

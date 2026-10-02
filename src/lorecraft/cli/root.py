@@ -93,7 +93,7 @@ def get_root(start: Path) -> Path:
         RootNotFoundError: If no directory from ``start`` upward holds ``docs/__meta__/``.
         RootCandidateInspectError: If the operating system refuses to inspect a directory on the way up.
     """
-    # A relative start has parents that stop at `.`, so resolve first to climb the canonical directory tree.
+    # A relative start has parents that stop at `.`, so resolve first to climb the resolved directory tree.
     resolved = start.resolve()
     for candidate in (resolved, *resolved.parents):
         try:
