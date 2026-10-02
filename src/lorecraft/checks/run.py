@@ -363,10 +363,10 @@ def run_skills(database: Database, refs: tuple[SkillRef, ...]) -> SkillCheckRun:
     """
     reports: list[SkillReport] = []
     for ref in refs:
-        # A link is transparent to the name check: `name` is held to the real directory, and the entry's own name
-        # only words a note.
-        directory_name = _real_directory_name(database, ref)
-        entry_name = ref.directory.name
+        # `name` is held to the directory an agent lists, never to where a link leads: an agent opens
+        # `<entry>/SKILL.md` and lets the OS follow any symlink. Where it leads only words a note.
+        directory_name = ref.directory.name
+        link_target = _link_target(database, ref)
         frontmatter = _skill_frontmatter(database, ref)
         violations: tuple[Violation, ...]
         # `None` while the `metadata` cannot be read: unknown, not empty.
@@ -381,7 +381,7 @@ def run_skills(database: Database, refs: tuple[SkillRef, ...]) -> SkillCheckRun:
                     SKILL_FRONTMATTER_SCHEMA,
                     frontmatter=frontmatter,
                     directory_name=directory_name,
-                    entry_name=entry_name,
+                    link_target=link_target,
                 )
                 length_result = _skill_length(database, ref)
                 link_result = _skill_links(database, ref, linked_in=linked_in)
@@ -401,7 +401,7 @@ def run_skills(database: Database, refs: tuple[SkillRef, ...]) -> SkillCheckRun:
                     SKILL_FRONTMATTER_SCHEMA,
                     frontmatter=frontmatter,
                     directory_name=directory_name,
-                    entry_name=entry_name,
+                    link_target=link_target,
                 )
                 length_result = _skill_length(database, ref)
                 link_result = _skill_links(database, ref, linked_in=linked_in)
@@ -413,17 +413,19 @@ def run_skills(database: Database, refs: tuple[SkillRef, ...]) -> SkillCheckRun:
     return SkillCheckRun(reports=tuple(reports))
 
 
-def _real_directory_name(database: Database, ref: SkillRef) -> str:
-    """The name of the real directory a skill's entry leads to, as the snapshot the model was loaded from saw it.
+def _link_target(database: Database, ref: SkillRef) -> RootRelativePath | None:
+    """The real directory a skill's listed directory leads to when it is a link, or `None` when it is not.
 
-    Read from the location the model records, never from the disk: the entry's own name for a regular directory,
-    and the name of the directory the skill's files live in when the entry is a link. Raises nothing.
+    Read from the location the model records, never from the disk. Raises nothing.
 
     Args:
         database: Where the model is read from.
         ref: The skill, one the database's model lists.
     """
-    return database.model().skill_location(ref).resolves_to.name
+    resolves_to = database.model().skill_location(ref).resolves_to
+    if resolves_to == ref.directory:
+        return None
+    return resolves_to
 
 
 def _skill_length(database: Database, ref: SkillRef) -> SkillCheckResult:

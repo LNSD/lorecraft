@@ -316,25 +316,6 @@ def long_skill_root(tmp_path: Path) -> Path:
     return tmp_path
 
 
-@pytest.fixture(scope='function')
-def renamed_skill_root(tmp_path: Path) -> Path:
-    """A root holding the skill `skills/foo/`, named `bar` and linked into the skills directory as `bar`.
-
-    The `name` matches the link, not the directory the skill's files live in, which is the one the name is held
-    to: the name-matches-directory finding, with its note naming the link, is the only one the check prints.
-
-    Args:
-        tmp_path: Directory the skill is written into, as the repository root.
-    """
-    (tmp_path / 'skills' / 'foo').mkdir(parents=True)
-    (tmp_path / 'skills' / 'foo' / 'SKILL.md').write_text(
-        '---\nname: bar\ndescription: Review a change\n---\n', encoding='utf-8'
-    )
-    (tmp_path / '.agents' / 'skills').mkdir(parents=True)
-    (tmp_path / '.agents' / 'skills' / 'bar').symlink_to('../../skills/foo')
-    return tmp_path
-
-
 def _write_review_skill(root: Path, metadata: str) -> None:
     """Write the skill `.agents/skills/review/` and give it `metadata`.
 
@@ -511,10 +492,10 @@ class TestCheckBudgetSnapshots:
 @pytest.mark.e2e
 class TestCheckSkillsSnapshots:
     # Every finding prints root-relative, so the output is the same in every checkout and nothing is redacted.
-    # The fixture's `beta` skill is a link to `alpha` and is named `alpha`: the link is transparent to the name
-    # check, so every fixture skill is clean and each run over the fixture exits 0.
+    # The fixture's `beta` skill is a link to `alpha` and is named `alpha`, not the `beta` an agent lists it by:
+    # each run reports that finding, with a note naming where the link leads, and exits 1.
 
-    def test_check_skills_without_a_root_in_the_workspace_fixture_prints_no_finding(
+    def test_check_skills_without_a_root_in_the_workspace_fixture_prints_the_findings(
         self, snapshot: SnapshotAssertion
     ) -> None:
         #: Given
@@ -525,8 +506,8 @@ class TestCheckSkillsSnapshots:
         result = run_cli(*arguments, cwd=WORKSPACE_FIXTURE)
 
         #: Then
-        assert result.returncode == 0, result.stderr
-        assert result.stdout == expected, 'the clean run from the working directory matches the reviewed snapshot'
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, 'the findings found from the working directory match the reviewed snapshot'
 
     def test_check_skills_with_json_over_the_workspace_fixture_prints_the_report(
         self, snapshot: SnapshotAssertion
@@ -539,7 +520,7 @@ class TestCheckSkillsSnapshots:
         result = run_cli(*arguments)
 
         #: Then
-        assert result.returncode == 0, result.stderr
+        assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the JSON report matches the reviewed snapshot'
 
     def test_check_skills_with_a_key_written_twice_prints_the_duplicate_key_finding(
@@ -639,20 +620,6 @@ class TestCheckSkillsSnapshots:
         #: Then
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the lines-budget finding and its help note match the reviewed snapshot'
-
-    def test_check_skills_with_a_skill_named_after_its_link_prints_the_name_finding_with_its_note(
-        self, snapshot: SnapshotAssertion, renamed_skill_root: Path
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'skills', '--root', str(renamed_skill_root))
-
-        #: When
-        result = run_cli(*arguments)
-
-        #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the name-matches-directory finding and its note match the reviewed snapshot'
 
     def test_check_skills_with_a_repeated_metadata_file_name_prints_the_duplicate_name_finding(
         self, snapshot: SnapshotAssertion, duplicate_name_root: Path

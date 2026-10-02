@@ -1400,11 +1400,11 @@ class TestCheckSkillsCommand:
             'ungoverned': [],
         }, 'the skill is read through its link and reported where an agent finds it'
 
-    def test_check_skills_with_json_format_over_a_skill_named_after_its_link_reports_it_with_a_note(
+    def test_check_skills_with_json_format_over_a_skill_named_after_where_its_link_leads_reports_the_listed_name(
         self, tmp_path: Path
     ) -> None:
         #: Given
-        _write(tmp_path, 'skills/foo/SKILL.md', '---\nname: bar\ndescription: Review a change\n---\n')
+        _write(tmp_path, 'skills/foo/SKILL.md', '---\nname: foo\ndescription: Review a change\n---\n')
         (tmp_path / '.agents' / 'skills').mkdir(parents=True)
         (tmp_path / '.agents' / 'skills' / 'bar').symlink_to('../../skills/foo')
         app = build_app()
@@ -1421,15 +1421,13 @@ class TestCheckSkillsCommand:
                     'file': '.agents/skills/bar/SKILL.md',
                     'line': 2,
                     'rule': 'skill.name-matches-directory',
-                    'message': "`name` is 'bar'; expected 'foo', the name of the skill directory",
+                    'message': "`name` is 'foo'; expected 'bar', the name of the skill directory",
                     'spec': None,
-                    'notes': [
-                        {'kind': 'note', 'text': "the skill is read through the link 'bar', which leads to 'foo'"},
-                    ],
+                    'notes': [{'kind': 'note', 'text': "'bar' is a link to 'skills/foo'"}],
                 }
             ],
             'ungoverned': [],
-        }, 'a skill named after its link, not its directory, is reported where an agent finds it, with its note'
+        }, 'a skill named after where its link leads is held to the entry listed, with a note naming where it leads'
 
     def test_check_skills_with_json_format_over_a_skill_repeating_a_file_name_reports_it(self, tmp_path: Path) -> None:
         #: Given
