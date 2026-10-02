@@ -128,7 +128,8 @@ def load_documents(
 ```
 
 `typing` is still imported for what the builtins do not provide: `Any`, `NewType`, `Self`, `TYPE_CHECKING`,
-`ClassVar`, `Final`, `Callable`, `Iterator`.
+`ClassVar`, `Final`. `Callable`, `Iterator` and the other abstract base classes come from `collections.abc`,
+not `typing`.
 
 **Enforcement:** ruff `UP` (UP006, UP007, UP035, UP045) — not currently enabled; see the checklist.
 
@@ -317,8 +318,8 @@ Before committing code, verify:
       naming one of several cases; a `Literal` appears only where the value is its own meaning; and no guard
       checks for a state a union of records, a record per shape, a `NewType`, a required field, or an `Enum`
       could exclude
-- [ ] No `typing.Dict`, `List`, `Tuple`, `Set`, `Type`, `Optional`, or `Union` in the diff; builtin generics
-      and `|` are used instead
+- [ ] No `typing.Dict`, `List`, `Tuple`, `Set`, `Type`, `Optional`, `Union`, `Callable`, or `Iterator` in the
+      diff; builtin generics, `|` and `collections.abc` replace them
 - [ ] Every public function, method, and `__init__` has annotated parameters and an explicit return type,
       `-> None` included
 - [ ] Each `Any` is either an opaque third-party value, a `**kwargs` passthrough, or unvalidated input, and
@@ -343,6 +344,8 @@ Before committing code, verify:
   `TYPE_CHECKING` block
 - [python-typing-unreachable](python-typing-unreachable.md) - Related: Owns `Never`, the `match` closed by
   `assert_never` over a closed union, and the paths `ty` cannot prove dead
+- [python-typing-protocol](python-typing-protocol.md) - Related: Owns choosing between a closed union, a
+  `Protocol` and an ABC, and which `collections.abc` type annotates an operation
 - [pattern-newtype](pattern-newtype.md) - Related: Owns the static distinction for a value no runtime check
   can tell apart
 - [pattern-value-object](pattern-value-object.md) - Related: Owns the value object that validates its
