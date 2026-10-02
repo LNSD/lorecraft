@@ -1,7 +1,7 @@
 """Explicit document and skill selection against a database over a snapshot of a real tree.
 
 Documents and skills are each selected against a database over a snapshot of `tmp_path`, and every argument is
-a real path, so `select_document` and `select_skills_at` resolve it the way the command line does. A skill
+a path in that tree, so `select_document` and `select_skills_at` resolve it the way the command line does. A skill
 argument naming a directory no agent reads is selected against a database whose snapshot read it, as
 `select_skills` takes one. Each rule of the selection order has one test asserting the reason it produces, never
 the message. `select_skills` is driven with an explicit root, to pin how the skills several paths name are merged.
@@ -478,7 +478,7 @@ class TestSelectSkillsAt:
 
         #: Then
         assert selections == (SkillSelection(AUDIT, SkillScope.WHOLE_SKILL),), (
-            'the linked skills directory is followed to the real one, and the entry kept by name'
+            'the linked skills directory is followed to the canonical one, and the entry kept by name'
         )
 
     def test_select_skills_at_with_the_file_a_linked_skill_file_leads_to_selects_the_file_alone(
@@ -589,7 +589,7 @@ class TestSelectSkillsAt:
             SkillSelection(REVIEWER, SkillScope.WHOLE_SKILL),
         ), 'every entry of the skills directory, linked or not, each once, in the model order'
 
-    def test_select_skills_at_with_a_linked_skills_directory_returns_the_refs_of_the_real_one(
+    def test_select_skills_at_with_a_linked_skills_directory_returns_the_refs_of_the_canonical_one(
         self, tmp_path: Path, skills_database: Database
     ) -> None:
         #: Given
@@ -605,7 +605,7 @@ class TestSelectSkillsAt:
             SkillSelection(LINT, SkillScope.WHOLE_SKILL),
             SkillSelection(REVIEW, SkillScope.WHOLE_SKILL),
             SkillSelection(REVIEWER, SkillScope.WHOLE_SKILL),
-        ), 'the link is followed to the real skills directory, and its skills keep their refs there'
+        ), 'the link is followed to the canonical skills directory, and its skills keep their refs there'
 
     def test_select_skills_at_with_a_skills_directory_holding_no_skill_returns_empty(self, tmp_path: Path) -> None:
         #: Given
@@ -963,7 +963,7 @@ class TestSelectSkills:
         #: Then
         assert database.model().named_dirs == (), "the directory is an agent's skills directory, read the agents' way"
         assert selections == (SkillSelection(SKILLS_REVIEW, SkillScope.WHOLE_SKILL),), (
-            'every skill the agent lists there is selected, under the real skills directory'
+            'every skill the agent lists there is selected, under the canonical skills directory'
         )
 
     def test_select_skills_with_no_path_selects_every_skill_whole(

@@ -17,10 +17,10 @@ class SkillsDir:
 
     Attributes:
         agent: The agent that reads the directory.
-        path: The directory as the agent declares it, root-relative and unresolved, such as ``.claude/skills``.
-        resolves_to: The real directory ``path`` leads to, with no symlink on the way. Equal to ``path`` for a
+        path: The directory as the agent declares it, root-relative and unresolved, such as `.claude/skills`.
+        resolves_to: The canonical directory `path` leads to, with no symlink on the way. Equal to `path` for a
             regular directory; another agent's directory when this one is a link to it, such as
-            ``.claude/skills -> ../.agents/skills``.
+            `.claude/skills -> ../.agents/skills`.
     """
 
     agent: AgentName

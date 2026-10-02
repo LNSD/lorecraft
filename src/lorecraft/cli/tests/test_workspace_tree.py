@@ -78,7 +78,7 @@ def _empty_model() -> WorkspaceModel:
 
 
 def _skills_model() -> WorkspaceModel:
-    """No corpus; two agents reading one real skills directory, one of them through a link, and two skills."""
+    """No corpus; two agents reading one canonical skills directory, one of them through a link, and two skills."""
     universal = _path('.agents/skills')
     return WorkspaceModel(
         corpora=(),
@@ -165,7 +165,8 @@ class TestRenderText:
 
         #: Then
         assert text == expected, (
-            'a linked directory is drawn with where it leads, a real one alone, and a skill with the agents reading it'
+            'a linked directory is drawn with where it leads, a canonical one alone, and a skill with the agents '
+            'reading it'
         )
 
 

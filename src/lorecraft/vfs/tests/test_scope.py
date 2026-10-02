@@ -146,7 +146,7 @@ class TestScopeIndexIsInScope:
         #: Then
         assert in_scope is True, 'the skills root follows the link, so it lists skills/y'
 
-    def test_is_in_scope_at_the_real_path_a_followed_skill_link_leads_to_returns_true(self) -> None:
+    def test_is_in_scope_at_the_canonical_path_a_followed_skill_link_leads_to_returns_true(self) -> None:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/y': '../../skills/y'})
         path = _path('skills/y/absent.md')

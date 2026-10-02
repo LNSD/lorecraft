@@ -268,7 +268,7 @@ class TestSnapshotEntries:
     def test_entries_of_a_snapshot_with_a_file_in_no_listing_returns_it_as_a_file(self) -> None:
         #: Given
         # What a scan records for `.agents/skills/SKILL.md -> ../../REVIEW.md` when it follows the link: the
-        # bytes sit at the real path, in a directory the scan never listed.
+        # bytes sit at the canonical path, in a directory the scan never listed.
         snapshot = Snapshot(
             listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('SKILL.md', EntryKind.SYMLINK),)),),
             files=(FileBytes(RootRelativePath.parse('REVIEW.md'), b'---\n'),),
@@ -543,7 +543,7 @@ class TestVirtualFileSystemReadText:
         text = virtual.read_text(path)
 
         #: Then
-        assert text == '---\n', 'the link leads to REVIEW.md at the root, recorded at its real path'
+        assert text == '---\n', 'the link leads to REVIEW.md at the root, recorded at its canonical path'
 
     def test_read_text_with_a_file_behind_a_linked_directory_returns_its_text(self) -> None:
         #: Given
@@ -555,7 +555,7 @@ class TestVirtualFileSystemReadText:
 
         #: Then
         assert text == '---\nname: alpha\n---\n', (
-            '.claude/skills leads to .agents/skills, so the file reads as the one recorded at its real path'
+            '.claude/skills leads to .agents/skills, so the file reads as the one recorded at its canonical path'
         )
 
     def test_read_text_with_an_other_entry_raises_read_text_error(self) -> None:
@@ -752,144 +752,144 @@ class TestVirtualFileSystemFindEntryKind:
 
 
 @pytest.mark.unit
-class TestVirtualFileSystemFindRealDir:
-    def test_find_real_dir_with_the_root_returns_the_root(self) -> None:
+class TestVirtualFileSystemFindCanonicalDir:
+    def test_find_canonical_dir_with_the_root_returns_the_root(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('.')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('.'), 'the root resolves to itself'
 
-    def test_find_real_dir_with_a_listed_directory_returns_itself(self) -> None:
+    def test_find_canonical_dir_with_a_listed_directory_returns_itself(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('docs/code'), 'a listed directory with no link on its way is itself'
 
-    def test_find_real_dir_with_an_ancestor_of_a_listing_returns_itself(self) -> None:
+    def test_find_canonical_dir_with_an_ancestor_of_a_listing_returns_itself(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('.agents')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('.agents'), (
             '.agents holds the listed .agents/skills, so it is a directory, though never listed itself'
         )
 
-    def test_find_real_dir_with_an_empty_listing_in_no_listed_parent_returns_itself(self) -> None:
+    def test_find_canonical_dir_with_an_empty_listing_in_no_listed_parent_returns_itself(self) -> None:
         #: Given
         # an empty scope root: listed, with nothing below it and no listing of its parent to name it
         virtual = VirtualFileSystem(Snapshot(listings=(Listing(RootRelativePath.parse('skills'), ()),), files=()))
         path = RootRelativePath.parse('skills')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('skills'), 'a listed directory is a directory, even an empty one'
 
-    def test_find_real_dir_with_an_ancestor_of_a_link_returns_itself(self) -> None:
+    def test_find_canonical_dir_with_an_ancestor_of_a_link_returns_itself(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('.claude')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('.claude'), (
             '.claude holds the recorded link .claude/skills, so it is a directory, though never listed itself'
         )
 
-    def test_find_real_dir_with_an_unentered_directory_returns_itself(self) -> None:
+    def test_find_canonical_dir_with_an_unentered_directory_returns_itself(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code/sub')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('docs/code/sub'), (
             'docs/code/sub is a directory entry of a listing, so it resolves even though it was never entered'
         )
 
-    def test_find_real_dir_with_a_relative_link_from_a_subdirectory_returns_the_target(self) -> None:
+    def test_find_canonical_dir_with_a_relative_link_from_a_subdirectory_returns_the_target(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('.claude/skills')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('.agents/skills'), (
             'the target ../.agents/skills is read from the link directory .claude'
         )
 
-    def test_find_real_dir_with_a_link_inside_a_listing_returns_the_target(self) -> None:
+    def test_find_canonical_dir_with_a_link_inside_a_listing_returns_the_target(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('.agents/skills/beta')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('.agents/skills/alpha'), (
             'the listed link beta leads to its sibling alpha'
         )
 
-    def test_find_real_dir_with_a_link_behind_a_linked_parent_returns_the_real_directory(self) -> None:
+    def test_find_canonical_dir_with_a_link_behind_a_linked_parent_returns_the_canonical_directory(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('.claude/skills/beta')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('.agents/skills/alpha'), (
             'the linked parent .claude/skills is followed first, then the link beta inside it'
         )
 
-    def test_find_real_dir_with_a_link_up_to_the_root_returns_the_root(self) -> None:
+    def test_find_canonical_dir_with_a_link_up_to_the_root_returns_the_root(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code/up')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('.'), 'the link up, targeting ../.. from docs/code, leads to the root'
 
-    def test_find_real_dir_with_a_link_then_listed_components_returns_the_listed_directory(self) -> None:
+    def test_find_canonical_dir_with_a_link_then_listed_components_returns_the_listed_directory(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code/up/docs/code')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('docs/code'), (
             'after the link up leads to the root, docs/code is walked through the listings'
         )
 
-    def test_find_real_dir_with_a_chain_of_40_links_returns_the_directory_it_leads_to(self) -> None:
+    def test_find_canonical_dir_with_a_chain_of_40_links_returns_the_directory_it_leads_to(self) -> None:
         #: Given
         # link-0 leads to real and each later link to the one before it, so link-39 heads a chain of 40 links,
         # as many as the kernel follows
@@ -902,180 +902,184 @@ class TestVirtualFileSystemFindRealDir:
         path = RootRelativePath.parse('link-39')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('real'), 'a chain of 40 links is followed to its end'
 
-    def test_find_real_dir_with_a_missing_path_returns_none(self) -> None:
+    def test_find_canonical_dir_with_a_missing_path_returns_none(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/missing')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved is None, 'docs/missing was never recorded, so it leads to no directory'
 
-    def test_find_real_dir_with_a_file_returns_none(self) -> None:
+    def test_find_canonical_dir_with_a_file_returns_none(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code/a.md')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved is None, 'a file is not a directory'
 
-    def test_find_real_dir_through_a_file_returns_none(self) -> None:
+    def test_find_canonical_dir_through_a_file_returns_none(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code/a.md/skills')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved is None, 'a path through the file docs/code/a.md leads to no directory'
 
-    def test_find_real_dir_with_an_other_entry_returns_none(self) -> None:
+    def test_find_canonical_dir_with_an_other_entry_returns_none(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code/pipe')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved is None, 'the fifo pipe is not a directory'
 
-    def test_find_real_dir_with_a_link_to_a_file_returns_none(self) -> None:
+    def test_find_canonical_dir_with_a_link_to_a_file_returns_none(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code/linked.md')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved is None, 'linked.md leads to the file a.md, which is not a directory'
 
-    def test_find_real_dir_with_a_dangling_link_returns_none(self) -> None:
+    def test_find_canonical_dir_with_a_dangling_link_returns_none(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code/dangling')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved is None, 'dangling targets a path the snapshot never recorded'
 
-    def test_find_real_dir_with_a_looping_link_returns_none(self) -> None:
+    def test_find_canonical_dir_with_a_looping_link_returns_none(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code/loop')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved is None, 'a link to itself never reaches a directory'
 
-    def test_find_real_dir_with_an_absolute_link_returns_none(self) -> None:
+    def test_find_canonical_dir_with_an_absolute_link_returns_none(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code/absolute')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved is None, 'the absolute target /srv/docs is outside anything the snapshot recorded'
 
-    def test_find_real_dir_with_a_link_above_the_root_returns_none(self) -> None:
+    def test_find_canonical_dir_with_a_link_above_the_root_returns_none(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code/above')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved is None, 'the target ../../.. climbs above the root, where no directory is root-relative'
 
-    def test_find_real_dir_inside_an_unentered_directory_returns_none(self) -> None:
+    def test_find_canonical_dir_inside_an_unentered_directory_returns_none(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code/sub/deeper')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved is None, 'the scan never entered docs/code/sub, so nothing inside it is known'
 
-    def test_find_real_dir_with_a_path_out_of_scope_returns_none(self) -> None:
+    def test_find_canonical_dir_with_a_path_out_of_scope_returns_none(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('src')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved is None, 'src lies outside the scanned scope, so it leads to no directory'
 
-    def test_find_real_dir_with_a_link_climbing_out_of_a_directory_stepped_into_returns_where_it_leads(self) -> None:
+    def test_find_canonical_dir_with_a_link_climbing_out_of_a_directory_stepped_into_returns_where_it_leads(
+        self,
+    ) -> None:
         #: Given
         virtual = VirtualFileSystem(_climbing_chain_snapshot())
         path = RootRelativePath.parse('skills/l')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('a/b'), 'the `..` after a/tmp is its parent, a'
 
-    def test_find_real_dir_with_a_link_climbing_out_of_a_directory_only_climbed_returns_where_it_leads(self) -> None:
+    def test_find_canonical_dir_with_a_link_climbing_out_of_a_directory_only_climbed_returns_where_it_leads(
+        self,
+    ) -> None:
         #: Given
         virtual = VirtualFileSystem(_climbing_chain_snapshot())
         path = RootRelativePath.parse('skills/far')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('c/d'), 'the climbed directories show c/tmp is a directory'
 
-    def test_find_real_dir_with_a_link_climbing_out_of_an_unrecorded_directory_returns_none(self) -> None:
+    def test_find_canonical_dir_with_a_link_climbing_out_of_an_unrecorded_directory_returns_none(self) -> None:
         #: Given
         snapshot = replace(_climbing_chain_snapshot(), climbed_directories=())
         virtual = VirtualFileSystem(snapshot)
         path = RootRelativePath.parse('skills/far')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved is None, 'without the record nothing shows c/tmp exists, so the walk stops there'
 
-    def test_find_real_dir_with_a_link_climbing_out_of_its_own_directory_returns_the_target(self) -> None:
+    def test_find_canonical_dir_with_a_link_climbing_out_of_its_own_directory_returns_the_target(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_climbing_chain_snapshot())
         path = RootRelativePath.parse('skills/m')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('a/b'), (
             'the target ../a/b climbs only out of skills, where the link sits'
         )
 
-    def test_find_real_dir_with_a_link_whose_dotdot_climbs_out_of_where_another_link_leads_returns_its_parent(
+    def test_find_canonical_dir_with_a_link_whose_dotdot_climbs_out_of_where_another_link_leads_returns_its_parent(
         self,
     ) -> None:
         #: Given
@@ -1083,116 +1087,118 @@ class TestVirtualFileSystemFindRealDir:
         path = RootRelativePath.parse('skills/nested')
 
         #: When
-        resolved = virtual.find_real_dir(path)
+        resolved = virtual.find_canonical_dir(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('a'), 'inner/.. climbs out of a/tmp, where skills/inner leads'
 
 
 @pytest.mark.unit
-class TestVirtualFileSystemFindRealFile:
-    def test_find_real_file_with_a_file_returns_itself(self) -> None:
+class TestVirtualFileSystemFindCanonicalFile:
+    def test_find_canonical_file_with_a_file_returns_itself(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code/a.md')
 
         #: When
-        resolved = virtual.find_real_file(path)
+        resolved = virtual.find_canonical_file(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('docs/code/a.md'), 'a recorded file with no link on its way is itself'
 
-    def test_find_real_file_with_a_link_to_a_file_returns_the_file(self) -> None:
+    def test_find_canonical_file_with_a_link_to_a_file_returns_the_file(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code/linked.md')
 
         #: When
-        resolved = virtual.find_real_file(path)
+        resolved = virtual.find_canonical_file(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('docs/code/a.md'), 'linked.md leads to its sibling a.md'
 
-    def test_find_real_file_through_a_linked_parent_and_a_linked_directory_returns_the_real_file(self) -> None:
+    def test_find_canonical_file_through_a_linked_parent_and_a_linked_directory_returns_the_canonical_file(
+        self,
+    ) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('.claude/skills/beta/SKILL.md')
 
         #: When
-        resolved = virtual.find_real_file(path)
+        resolved = virtual.find_canonical_file(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('.agents/skills/alpha/SKILL.md'), (
             'the links .claude/skills and beta are followed on the way to the file'
         )
 
-    def test_find_real_file_with_a_directory_returns_none(self) -> None:
+    def test_find_canonical_file_with_a_directory_returns_none(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code')
 
         #: When
-        resolved = virtual.find_real_file(path)
+        resolved = virtual.find_canonical_file(path)
 
         #: Then
         assert resolved is None, 'a directory is not a file'
 
-    def test_find_real_file_with_an_other_entry_returns_none(self) -> None:
+    def test_find_canonical_file_with_an_other_entry_returns_none(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code/pipe')
 
         #: When
-        resolved = virtual.find_real_file(path)
+        resolved = virtual.find_canonical_file(path)
 
         #: Then
         assert resolved is None, 'the fifo pipe has no recorded bytes, so it is no regular file'
 
-    def test_find_real_file_with_a_dangling_link_returns_none(self) -> None:
+    def test_find_canonical_file_with_a_dangling_link_returns_none(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code/dangling')
 
         #: When
-        resolved = virtual.find_real_file(path)
+        resolved = virtual.find_canonical_file(path)
 
         #: Then
         assert resolved is None, 'dangling targets a path the snapshot never recorded'
 
-    def test_find_real_file_with_a_looping_link_returns_none(self) -> None:
+    def test_find_canonical_file_with_a_looping_link_returns_none(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code/loop')
 
         #: When
-        resolved = virtual.find_real_file(path)
+        resolved = virtual.find_canonical_file(path)
 
         #: Then
         assert resolved is None, 'a link to itself never reaches a file'
 
-    def test_find_real_file_with_an_absolute_link_returns_none(self) -> None:
+    def test_find_canonical_file_with_an_absolute_link_returns_none(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code/absolute')
 
         #: When
-        resolved = virtual.find_real_file(path)
+        resolved = virtual.find_canonical_file(path)
 
         #: Then
         assert resolved is None, 'the absolute target /srv/docs is outside anything the snapshot recorded'
 
-    def test_find_real_file_with_a_missing_path_returns_none(self) -> None:
+    def test_find_canonical_file_with_a_missing_path_returns_none(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code/missing.md')
 
         #: When
-        resolved = virtual.find_real_file(path)
+        resolved = virtual.find_canonical_file(path)
 
         #: Then
         assert resolved is None, 'docs/code/missing.md was never recorded, so it leads to no file'
 
-    def test_find_real_file_through_a_link_climbing_out_of_a_directory_stepped_into_returns_the_real_file(
+    def test_find_canonical_file_through_a_link_climbing_out_of_a_directory_stepped_into_returns_the_canonical_file(
         self,
     ) -> None:
         #: Given
@@ -1200,18 +1206,20 @@ class TestVirtualFileSystemFindRealFile:
         path = RootRelativePath.parse('skills/l/SKILL.md')
 
         #: When
-        resolved = virtual.find_real_file(path)
+        resolved = virtual.find_canonical_file(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('a/b/SKILL.md'), 'skills/l leads through a/tmp/.. to a/b'
 
-    def test_find_real_file_through_a_link_climbing_out_of_its_own_directory_returns_the_real_file(self) -> None:
+    def test_find_canonical_file_through_a_link_climbing_out_of_its_own_directory_returns_the_canonical_file(
+        self,
+    ) -> None:
         #: Given
         virtual = VirtualFileSystem(_climbing_chain_snapshot())
         path = RootRelativePath.parse('skills/m/SKILL.md')
 
         #: When
-        resolved = virtual.find_real_file(path)
+        resolved = virtual.find_canonical_file(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('a/b/SKILL.md'), 'the scan follows skills/m to a/b'
