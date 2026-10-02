@@ -67,7 +67,7 @@ def _outside(path: str, link: str, target: str) -> OutsideSymlink:
 
     Args:
         path: Where an agent reaches the symlink, root-relative.
-        link: The link the chain leaves the root through, at its real path.
+        link: The link the chain leaves the root through, at its canonical path.
         target: That link's target, as recorded.
     """
     return OutsideSymlink(RootRelativePath.parse(path), RootExit(RootRelativePath.parse(link), PurePosixPath(target)))
@@ -78,11 +78,11 @@ def _resource(path: str, resolves_to: str | None = None) -> SkillResourceLocatio
 
     Args:
         path: Where an agent reaches the resource, root-relative.
-        resolves_to: The real file it leads to; `path` itself when omitted.
+        resolves_to: The canonical file it leads to; `path` itself when omitted.
     """
-    real = path if resolves_to is None else resolves_to
+    canonical = path if resolves_to is None else resolves_to
     return SkillResourceLocation(
-        SkillResourceRef(REVIEW.ref, RootRelativePath.parse(path)), resolves_to=RootRelativePath.parse(real)
+        SkillResourceRef(REVIEW.ref, RootRelativePath.parse(path)), resolves_to=RootRelativePath.parse(canonical)
     )
 
 
@@ -108,7 +108,7 @@ class TestRepositoryListSkillResources:
             _resource(f'{SKILL}/guide.md'),
             _resource(f'{SKILL}/references/a.md'),
             _resource(f'{SKILL}/references/deep/b.md'),
-        ), 'every Markdown file at any depth is a resource, each at its own real path, in path order'
+        ), 'every Markdown file at any depth is a resource, each at its own canonical path, in path order'
 
     def test_list_skill_resources_with_only_the_top_level_skill_file_returns_empty(self) -> None:
         #: Given
@@ -260,7 +260,7 @@ class TestRepositoryListSkillResources:
 
         #: Then
         assert resources == (_resource(f'{SKILL}/references/a.md'),), (
-            'every directory reached without a symlink is entered first, so the resource keeps its real name'
+            'every directory reached without a symlink is entered first, so the resource keeps its canonical name'
         )
 
     def test_list_skill_resources_with_a_symlink_to_a_deeper_directory_names_the_resources_where_they_really_are(
@@ -278,7 +278,7 @@ class TestRepositoryListSkillResources:
 
         #: Then
         assert resources == (_resource(f'{SKILL}/references/deep/b.md'),), (
-            'the symlink waits until references/deep/ is entered by its real path, so the resource keeps that name'
+            'the symlink waits until references/deep/ is entered by its canonical path, so the resource keeps that name'
         )
 
     def test_list_skill_resources_with_two_directories_linking_to_each_other_enters_each_once(self) -> None:
@@ -300,7 +300,7 @@ class TestRepositoryListSkillResources:
         assert resources == (
             _resource(f'{SKILL}/q/a.md', 'shared/q/a.md'),
             _resource(f'{SKILL}/q/to-s/b.md', 'shared/s/b.md'),
-        ), 'each real directory is entered once, so the walk ends, and each resource is listed once'
+        ), 'each canonical directory is entered once, so the walk ends, and each resource is listed once'
 
     def test_list_skill_resources_with_dangling_symlinks_leaves_them_out(self) -> None:
         #: Given
@@ -393,7 +393,8 @@ class TestRepositoryListSkillResources:
         self,
     ) -> None:
         #: Given
-        # the skill's real directory is `skills/audit`, so `.agents/skills` holds only the entry the skill is named by
+        # the skill's canonical directory is `skills/audit`, so `.agents/skills` holds only the entry the skill is
+        # named by
         repository = _repository(
             {
                 'skills/audit/SKILL.md': b'',
@@ -426,13 +427,13 @@ def _skill_at(directory: str, resolves_to: str | None = None) -> SkillLocation:
 
     Args:
         directory: Where the skill is named, root-relative.
-        resolves_to: The real directory it leads to; `directory` itself when omitted.
+        resolves_to: The canonical directory it leads to; `directory` itself when omitted.
     """
-    real = directory if resolves_to is None else resolves_to
+    canonical = directory if resolves_to is None else resolves_to
     return SkillLocation(
         SkillRef(RootRelativePath.parse(directory)),
-        resolves_to=RootRelativePath.parse(real),
-        file_resolves_to=RootRelativePath.parse(f'{real}/SKILL.md'),
+        resolves_to=RootRelativePath.parse(canonical),
+        file_resolves_to=RootRelativePath.parse(f'{canonical}/SKILL.md'),
     )
 
 
@@ -554,9 +555,9 @@ class TestRepositoryFindSkillsDirExit:
 
 @pytest.mark.unit
 class TestRepositoryGetSkillResource:
-    def test_get_skill_resource_with_a_location_behind_a_symlink_reads_the_real_file(self) -> None:
+    def test_get_skill_resource_with_a_location_behind_a_symlink_reads_the_canonical_file(self) -> None:
         #: Given
-        # nothing is at the ref's own path: only the recorded real file can answer
+        # nothing is at the ref's own path: only the recorded canonical file can answer
         repository = _repository({'notes/e.md': b'# Notes\n'}, {})
         location = _resource(f'{SKILL}/notes.md', 'notes/e.md')
 

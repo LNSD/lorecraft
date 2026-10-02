@@ -104,7 +104,7 @@ def _skill_location(directory: str) -> SkillLocation:
 
 
 def _linked_skill_location(directory: str, resolves_to: str, file_resolves_to: str) -> SkillLocation:
-    """The location of a skill whose directory or `SKILL.md` is a link, with the real paths they lead to.
+    """The location of a skill whose directory or `SKILL.md` is a link, with the canonical paths they lead to.
 
     Args:
         directory: Root-relative path of the skill directory as an agent reaches it.
@@ -815,7 +815,7 @@ class TestLoadWorkspaceSkills:
             SkillsDir(agent=CODEX, path=UNIVERSAL_SKILLS_DIR, resolves_to=UNIVERSAL_SKILLS_DIR),
         ), 'only the agent whose skills directory the repository has is recorded'
 
-    def test_load_workspace_with_a_directory_linked_to_another_records_both_agents_at_one_real_directory(
+    def test_load_workspace_with_a_directory_linked_to_another_records_both_agents_at_one_canonical_directory(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
@@ -830,7 +830,7 @@ class TestLoadWorkspaceSkills:
         assert model.skills_dirs == (
             SkillsDir(agent=CLAUDE, path=CLAUDE_SKILLS_DIR, resolves_to=UNIVERSAL_SKILLS_DIR),
             SkillsDir(agent=CODEX, path=UNIVERSAL_SKILLS_DIR, resolves_to=UNIVERSAL_SKILLS_DIR),
-        ), 'each agent keeps its own record, and both name the one real directory'
+        ), 'each agent keeps its own record, and both name the one canonical directory'
 
     def test_load_workspace_with_skills_in_two_agents_directories_lists_all_of_them(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository

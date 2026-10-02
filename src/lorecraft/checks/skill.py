@@ -67,7 +67,7 @@ def validate_skill(
         directory_name: The name of the skill directory as an agent lists it in its skills directory, which the
             frontmatter `name` must equal. An agent never resolves a link itself, so where a linked directory or
             `SKILL.md` leads plays no part.
-        link_target: The real directory the listed directory leads to when it is a link, or `None` when it is
+        link_target: The canonical directory the listed directory leads to when it is a link, or `None` when it is
             not. It plays no part in the verdict: a failing `name` finding carries a note naming it when its name
             differs from `directory_name`, so a reader sees why the name they know is not the one expected.
     """
@@ -122,7 +122,7 @@ def _link_notes(directory_name: str, link_target: RootRelativePath | None) -> tu
 
     Args:
         directory_name: The name of the skill directory as an agent lists it.
-        link_target: The real directory the listed directory leads to, or `None` when it is not a link.
+        link_target: The canonical directory the listed directory leads to, or `None` when it is not a link.
     """
     if link_target is None or link_target.name == directory_name:
         return ()

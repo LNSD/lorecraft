@@ -16,7 +16,7 @@ A skill is judged as an agent lists it, so the path an argument spells is the sk
 
 - `select_skills_at` reads an argument as a listed entry first: the links above the entry are followed through the snapshot, the entry keeps its name, and that one skill is selected
 - `.agents/skills/beta`, its `SKILL.md`, and `.claude/skills/beta` check `beta` alone, even when it links to another entry
-- A path naming the real directory entries link to, such as `skills/gamma`, still selects each entry leading there
+- A path naming the canonical directory entries link to, such as `skills/gamma`, still selects each entry leading there
 - Add `WorkspaceModel.find_skill`, a lexical lookup of a listed skill by its directory
 - State the rule in `docs/feat/cli-check-skills.md`, and pin it with integration and end-to-end tests
 ```
@@ -108,7 +108,7 @@ Before:
 
 ```
 - Add `skill.link-broken` to `checks/skill_link.py`
-- Call `find_real_path` from the run for each link target
+- Call `find_canonical_path` from the run for each link target
 ```
 
 After:

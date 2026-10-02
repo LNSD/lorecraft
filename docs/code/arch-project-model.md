@@ -33,7 +33,7 @@ def is_read(state: TreeState, path: WorkspacePath) -> bool:
 # ✅ Good — answered from the declared roots, with recorded symlinks followed to learn where the path leads
 def is_read(roots: tuple[ReadRoot, ...], symlinks: tuple[SymlinkRecord, ...], path: WorkspacePath) -> bool:
     entry = _follow_symlinks(symlinks, path.parent) / path.name
-    return any(root.covers(entry) for root in _real_roots(roots, symlinks))
+    return any(root.covers(entry) for root in _canonical_roots(roots, symlinks))
 ```
 
 ## Identity Is Not Location

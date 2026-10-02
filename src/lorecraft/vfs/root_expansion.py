@@ -5,7 +5,7 @@ expands the same roots afterwards, from the links the snapshot recorded; `Virtua
 resolves a path through the same links. All three go through the rules here, so what the scan lists, what the
 query says it lists and what the view reaches cannot drift apart:
 
-- `find_real_scan_root`: where the scan of a root starts, walked through the links on the way when it follows them.
+- `find_canonical_scan_root`: where the scan of a root starts, walked through the links on the way when it follows them.
 - `find_canonical_path`: where a path leads, which links are followed, and where a chain leaves the root.
 - `find_linked_scan_root`: the root a followed link adds, and the depth the link uses up, none when the root has no
   limit.
@@ -58,7 +58,7 @@ class EntryLookup(Protocol):
         ...
 
     def may_climb_out_of(self, directory: RootRelativePath) -> bool:
-        """Whether a `..` may climb from `directory` to its parent, because `directory` is a real directory.
+        """Whether a `..` may climb from `directory` to its parent, because a directory is there.
 
         Not free of effect, as `find_link_target` is not: the scan's implementation records `directory` among the
         directories it climbed out of, as it records each link target it reads, so the snapshot knows it even
@@ -78,7 +78,7 @@ class CanonicalDirectory:
     """A walk from the root that ended at a directory, the root itself included.
 
     A canonical path is the one a name leads to once every symlink is followed, as an IDE's virtual file system
-    names it; the other functions here still call it the real path.
+    names it.
 
     Attributes:
         path: The directory's canonical path, root-relative: with no symlink on the way to it or at it.
@@ -103,11 +103,11 @@ def find_canonical_path(
 ) -> CanonicalDirectory | CanonicalFile | RootExit | None:
     """The canonical directory or regular file `path` leads to, where it leaves the root, or `None` where it stops.
 
-    Walks the components from the root, one real directory to the next, so every step leaves the walk at a real,
-    root-relative path, as the kernel resolves one. A `..` takes it to the parent of the real directory it is in.
-    Without `follow_links` the walk ends at the first symlink, which leaves the path unread. With it a symlink
-    splices its target into the components still to walk, and the walk goes on from the link's directory.
-    Whether the walk goes on is decided from that real path alone: anywhere under the root it does, and a `..`
+    Walks the components from the root, one canonical directory to the next, so every step leaves the walk at a
+    canonical, root-relative path, as the kernel resolves one. A `..` takes it to the parent of the canonical
+    directory it is in. Without `follow_links` the walk ends at the first symlink, which leaves the path unread. With
+    it a symlink splices its target into the components still to walk, and the walk goes on from the link's directory.
+    Whether the walk goes on is decided from that canonical path alone: anywhere under the root it does, and a `..`
     above the root leaves it, whatever directories the chain stepped into on the way.
 
     Args:
@@ -125,7 +125,7 @@ def find_canonical_path(
         - A regular file is not the last component: a file is no directory to step into.
         - A symlink is not followed, or is gone since its kind was read: nothing is read through it.
         - The chain follows more than `MAX_LINKS` links: it counts as a loop, as the disk reports one.
-        - `entries` will not let a `..` climb out of a directory it does not know to be real; only the scope
+        - `entries` will not let a `..` climb out of a directory it does not know to exist; only the scope
           query refuses one (see `EntryLookup.may_climb_out_of`).
 
     Raises:
@@ -175,8 +175,8 @@ def find_canonical_path(
     return CanonicalDirectory(resolved)
 
 
-def find_real_scan_root(scan_root: ScanRoot, entries: EntryLookup) -> ScanRoot | None:
-    """The root the scan of `scan_root` lists from: its directory at the real path it leads to.
+def find_canonical_scan_root(scan_root: ScanRoot, entries: EntryLookup) -> ScanRoot | None:
+    """The root the scan of `scan_root` lists from: its directory at the canonical path it leads to.
 
     A root that follows links is walked through every link on the way to its directory; one that does not
     ends at the first link and lists nothing. A snapshot has no record for a lone file, so a root that is one
@@ -188,7 +188,7 @@ def find_real_scan_root(scan_root: ScanRoot, entries: EntryLookup) -> ScanRoot |
         entries: What each component on the way is, and where each link leads.
 
     Returns:
-        The root at its real directory, with the declared depth and link policy, or `None` when the walk
+        The root at its canonical directory, with the declared depth and link policy, or `None` when the walk
         leads to no directory or leaves the root (see `find_canonical_path`).
 
     Raises:
@@ -206,7 +206,7 @@ def find_real_scan_root(scan_root: ScanRoot, entries: EntryLookup) -> ScanRoot |
 
 
 def find_linked_scan_root(scan_root: ScanRoot, link: RootRelativePath, directory: RootRelativePath) -> ScanRoot | None:
-    """The root the scan of `scan_root` adds by following `link` to the real `directory` it leads to.
+    """The root the scan of `scan_root` adds by following `link` to the canonical `directory` it leads to.
 
     A link is followed only where a root that follows links lists it. It uses up one level of depth, as a
     DIRECTORY entry does: the linked directory is listed with one level less than the directory holding the
@@ -214,9 +214,9 @@ def find_linked_scan_root(scan_root: ScanRoot, link: RootRelativePath, directory
     adds no root; the scan reads a linked file there, but lists no linked directory.
 
     Args:
-        scan_root: A root the scan lists from, at its real directory.
+        scan_root: A root the scan lists from, at its canonical directory.
         link: The root-relative symlink, wherever it sits.
-        directory: The real directory the link leads to, by `find_canonical_path` with links followed.
+        directory: The canonical directory the link leads to, by `find_canonical_path` with links followed.
 
     Returns:
         A root at `directory` that follows links, or `None` when `scan_root` does not follow links, does not

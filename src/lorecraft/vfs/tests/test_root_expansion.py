@@ -17,8 +17,8 @@ from ..root_expansion import (
     CanonicalDirectory,
     CanonicalFile,
     find_canonical_path,
+    find_canonical_scan_root,
     find_linked_scan_root,
-    find_real_scan_root,
 )
 from ..scan_root import ScanRoot
 from ..view import EntryKind, RootExit
@@ -258,7 +258,7 @@ class TestFindCanonicalPath:
 
         #: Then
         assert leads_to == CanonicalDirectory(_path('a/alpha')), (
-            'a `..` after a real directory stepped into by name is its parent'
+            'a `..` after a canonical directory stepped into by name is its parent'
         )
 
     def test_find_canonical_path_with_nested_steps_and_climbs_returns_where_it_leads(self) -> None:
@@ -273,7 +273,7 @@ class TestFindCanonicalPath:
 
         #: Then
         assert leads_to == CanonicalDirectory(_path('b/alpha')), (
-            'each `..` climbs out of the real directory the walk is in, however it got there'
+            'each `..` climbs out of the canonical directory the walk is in, however it got there'
         )
 
     def test_find_canonical_path_with_a_target_climbing_back_into_the_root_returns_the_root(self) -> None:
@@ -354,8 +354,8 @@ class TestFindCanonicalPath:
 
 
 @pytest.mark.unit
-class TestFindRealScanRoot:
-    def test_find_real_scan_root_following_links_with_a_link_on_the_way_returns_the_root_at_its_real_directory(
+class TestFindCanonicalScanRoot:
+    def test_find_canonical_scan_root_following_links_with_a_link_on_the_way_returns_the_root_where_it_leads(
         self,
     ) -> None:
         #: Given
@@ -363,69 +363,69 @@ class TestFindRealScanRoot:
         scan_root = ScanRoot(_path('.agents/skills'), depth=1, follow_links=True)
 
         #: When
-        real_root = find_real_scan_root(scan_root, tree)
+        canonical_root = find_canonical_scan_root(scan_root, tree)
 
         #: Then
-        assert real_root == ScanRoot(_path('shared/skills'), depth=1, follow_links=True), (
+        assert canonical_root == ScanRoot(_path('shared/skills'), depth=1, follow_links=True), (
             'a following root starts where its directory leads, with its declared depth and policy'
         )
 
-    def test_find_real_scan_root_with_no_depth_limit_returns_the_root_with_no_depth_limit(self) -> None:
+    def test_find_canonical_scan_root_with_no_depth_limit_returns_the_root_with_no_depth_limit(self) -> None:
         #: Given
         tree = _FakeTree(directories=('shared', 'shared/skills'), links={'.agents': 'shared'})
         scan_root = ScanRoot(_path('.agents/skills'), depth=None, follow_links=True)
 
         #: When
-        real_root = find_real_scan_root(scan_root, tree)
+        canonical_root = find_canonical_scan_root(scan_root, tree)
 
         #: Then
-        assert real_root == ScanRoot(_path('shared/skills'), depth=None, follow_links=True), (
-            'a root with no depth limit keeps it at its real directory'
+        assert canonical_root == ScanRoot(_path('shared/skills'), depth=None, follow_links=True), (
+            'a root with no depth limit keeps it at its canonical directory'
         )
 
-    def test_find_real_scan_root_not_following_links_with_a_link_on_the_way_returns_none(self) -> None:
+    def test_find_canonical_scan_root_not_following_links_with_a_link_on_the_way_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(directories=('shared', 'shared/skills'), links={'.agents': 'shared'})
         scan_root = ScanRoot(_path('.agents/skills'), depth=1)
 
         #: When
-        real_root = find_real_scan_root(scan_root, tree)
+        canonical_root = find_canonical_scan_root(scan_root, tree)
 
         #: Then
-        assert real_root is None, 'a root that does not follow links lists nothing behind one'
+        assert canonical_root is None, 'a root that does not follow links lists nothing behind one'
 
-    def test_find_real_scan_root_with_a_regular_file_returns_none(self) -> None:
+    def test_find_canonical_scan_root_with_a_regular_file_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(files=('README.md',))
         scan_root = ScanRoot(_path('README.md'), depth=0)
 
         #: When
-        real_root = find_real_scan_root(scan_root, tree)
+        canonical_root = find_canonical_scan_root(scan_root, tree)
 
         #: Then
-        assert real_root is None, 'a lone file is no directory to list from'
+        assert canonical_root is None, 'a lone file is no directory to list from'
 
-    def test_find_real_scan_root_following_links_with_a_link_to_a_file_at_the_end_returns_none(self) -> None:
+    def test_find_canonical_scan_root_following_links_with_a_link_to_a_file_at_the_end_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(directories=('shared',), files=('shared/a.md',), links={'docs': 'shared/a.md'})
         scan_root = ScanRoot(_path('docs'), depth=1, follow_links=True)
 
         #: When
-        real_root = find_real_scan_root(scan_root, tree)
+        canonical_root = find_canonical_scan_root(scan_root, tree)
 
         #: Then
-        assert real_root is None, 'a link to a lone file is no directory to list from'
+        assert canonical_root is None, 'a link to a lone file is no directory to list from'
 
-    def test_find_real_scan_root_with_a_missing_directory_returns_none(self) -> None:
+    def test_find_canonical_scan_root_with_a_missing_directory_returns_none(self) -> None:
         #: Given
         tree = _FakeTree()
         scan_root = ScanRoot(_path('docs'), depth=1)
 
         #: When
-        real_root = find_real_scan_root(scan_root, tree)
+        canonical_root = find_canonical_scan_root(scan_root, tree)
 
         #: Then
-        assert real_root is None, 'a missing root lists nothing'
+        assert canonical_root is None, 'a missing root lists nothing'
 
 
 @pytest.mark.unit

@@ -17,8 +17,8 @@ from .root_expansion import (
     CanonicalDirectory,
     CanonicalFile,
     find_canonical_path,
+    find_canonical_scan_root,
     find_linked_scan_root,
-    find_real_scan_root,
 )
 from .scan_root import ScanRoot
 from .snapshot import FileBytes, Link, Listing, Snapshot
@@ -53,20 +53,20 @@ def disk_location(root: Path, path: RootRelativePath) -> Path:
 class DiskFileSystem(FileSystem):
     """The view that reads the disk under one workspace root.
 
-    ``list_dir``, ``read_text`` and ``find_entry_kind`` follow a symlink wherever the operating system does, outside
-    the root included; only ``find_real_dir`` and ``find_real_file`` refuse a chain that leaves the root, and
-    ``find_root_exit`` reports where it leaves. A snapshot never reads outside the root, so there the two views
+    `list_dir`, `read_text` and `find_entry_kind` follow a symlink wherever the operating system does, outside
+    the root included; only `find_canonical_dir` and `find_canonical_file` refuse a chain that leaves the root, and
+    `find_root_exit` reports where it leaves. A snapshot never reads outside the root, so there the two views
     differ.
     """
 
     def __init__(self, root: Path) -> None:
-        """Remember the root, made real once: the constructor's only I/O.
+        """Remember the root, made canonical once: the constructor's only I/O.
 
-        `find_real_dir` compares real paths against this root, so it must be real itself; a caller's root,
-        such as a test's raw `tmp_path`, is resolved here rather than at every call.
+        `find_canonical_dir` compares canonical paths against this root, so it must be canonical itself; a caller's
+        root, such as a test's raw `tmp_path`, is resolved here rather than at every call.
 
         Args:
-            root: The workspace root directory; may be spelled through symlinks, and is kept in its real form.
+            root: The workspace root directory; may be spelled through symlinks, and is kept in its canonical form.
         """
         self._root = Path(os.path.realpath(root))
 
@@ -122,8 +122,8 @@ class DiskFileSystem(FileSystem):
             raise EntryInspectError(path, OsRefusal.from_error(exc), source=exc) from exc
         return _kind_of_mode(mode)
 
-    def find_real_dir(self, path: RootRelativePath) -> RootRelativePath | None:
-        """Resolve a directory's symlink chain on disk; see `FileSystem.find_real_dir`.
+    def find_canonical_dir(self, path: RootRelativePath) -> RootRelativePath | None:
+        """Resolve a directory's symlink chain on disk; see `FileSystem.find_canonical_dir`.
 
         Args:
             path: The root-relative path to resolve; every link in it is followed, in or out of the root.
@@ -133,7 +133,7 @@ class DiskFileSystem(FileSystem):
                 component, and the chain does not lead outside the root.
         """
         try:
-            real = os.path.realpath(disk_location(self._root, path), strict=True)
+            canonical = os.path.realpath(disk_location(self._root, path), strict=True)
         except (FileNotFoundError, NotADirectoryError):  # missing or through a file resolves to None, by contract
             return None
         except OSError as exc:
@@ -145,18 +145,18 @@ class DiskFileSystem(FileSystem):
             if not leads_to.is_relative_to(self._root):
                 return None
             raise DirResolveError(path, OsRefusal.from_error(exc), source=exc) from exc
-        # Asked of the path as given, not of ``real``: ``realpath`` follows a chain of any length, while the
+        # Asked of the path as given, not of ``canonical``: ``realpath`` follows a chain of any length, while the
         # operating system gives up past its own limit, and then nothing opens the directory through it.
         if not os.path.isdir(disk_location(self._root, path)):
             return None
         try:
-            relative = Path(real).relative_to(self._root)
+            relative = Path(canonical).relative_to(self._root)
         except ValueError:  # a target outside the root has no root-relative spelling
             return None
         return RootRelativePath.parse(relative.as_posix())
 
-    def find_real_file(self, path: RootRelativePath) -> RootRelativePath | None:
-        """Resolve a file's symlink chain on disk; see `FileSystem.find_real_file`.
+    def find_canonical_file(self, path: RootRelativePath) -> RootRelativePath | None:
+        """Resolve a file's symlink chain on disk; see `FileSystem.find_canonical_file`.
 
         Args:
             path: The root-relative path to resolve; every link in it is followed, in or out of the root.
@@ -166,24 +166,24 @@ class DiskFileSystem(FileSystem):
                 component, and the chain does not lead outside the root.
         """
         try:
-            real = os.path.realpath(disk_location(self._root, path), strict=True)
+            canonical = os.path.realpath(disk_location(self._root, path), strict=True)
         except (FileNotFoundError, NotADirectoryError):  # missing or through a file resolves to None, by contract
             return None
         except OSError as exc:
             if exc.errno == errno.ELOOP:  # a looping link leads nowhere, exactly like a dangling one
                 return None
-            # As in ``find_real_dir``: a target outside the root is never a file under it, so a refused search
+            # As in ``find_canonical_dir``: a target outside the root is never a file under it, so a refused search
             # there is not a failure.
             leads_to = Path(os.path.realpath(disk_location(self._root, path)))
             if not leads_to.is_relative_to(self._root):
                 return None
             raise FileResolveError(path, OsRefusal.from_error(exc), source=exc) from exc
-        # Asked of the path as given, as in ``find_real_dir``: nothing opens the file through a chain longer than
+        # Asked of the path as given, as in ``find_canonical_dir``: nothing opens the file through a chain longer than
         # the operating system follows.
         if not os.path.isfile(disk_location(self._root, path)):
             return None
         try:
-            relative = Path(real).relative_to(self._root)
+            relative = Path(canonical).relative_to(self._root)
         except ValueError:  # a target outside the root has no root-relative spelling
             return None
         return RootRelativePath.parse(relative.as_posix())
@@ -192,7 +192,7 @@ class DiskFileSystem(FileSystem):
         """Where the chain in `path` leaves the root on disk; see `FileSystem.find_root_exit`.
 
         The walk is the scan's, over each entry's `lstat` and each link's `readlink`, so it agrees with the
-        virtual view and reads nothing outside the root. It differs from `find_real_dir`, which asks the
+        virtual view and reads nothing outside the root. It differs from `find_canonical_dir`, which asks the
         operating system: a chain that leaves the root and climbs back into it is followed there, and leaves here.
 
         Args:
@@ -222,7 +222,7 @@ class _ViewDiskEntries:
         """Read under `root`; performs no I/O.
 
         Args:
-            root: The workspace root on disk, in its real form.
+            root: The workspace root on disk, in its canonical form.
         """
         self._root = root
 
@@ -258,7 +258,7 @@ class _ViewDiskEntries:
         """Always true: the walk stepped into `directory` only where `lstat` found one; see `EntryLookup`.
 
         Args:
-            directory: The real directory the walk climbs out of.
+            directory: The canonical directory the walk climbs out of.
         """
         return True
 
@@ -359,8 +359,8 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
     Every symlink met is recorded, and followed only under a scope root that asks for it
     (`ScanRoot.follow_links`). Without it a scope root with a symlink on the way to it is not listed, and a
     symlink entry is neither entered nor read through. With it the scan goes where the link leads, when that
-    is under the root: a directory is listed at its real path, with the depth left at the link, and a regular
-    file has its bytes recorded at its real path. Either way every listing and every file sits at a real path.
+    is under the root: a directory is listed at its canonical path, with the depth left at the link, and a regular
+    file has its bytes recorded at its canonical path. Either way every listing and every file sits at a canonical path.
     Every directory a `..` on the way climbs out of is recorded too, so the snapshot's walks take the same steps.
     Under a root that does not follow links, each link it records, and one on the way to the root, is still
     walked for the record alone, so the targets and climbs on its chain are recorded and nothing more is read.
@@ -397,12 +397,12 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
     # ancestor of the link: the root it adds reaches no deeper than the one that listed the directory.
     listed_as: dict[RootRelativePath, ScanRoot] = {}
     followed_as: dict[RootRelativePath, ScanRoot] = {}
-    # Each directory still to list, as a root at its real path: the depth left there, and the link policy.
+    # Each directory still to list, as a root at its canonical path: the depth left there, and the link policy.
     pending: list[ScanRoot] = []
     for scan_root in scope:
-        real_root = find_real_scan_root(scan_root, on_disk)
-        if real_root is not None:
-            pending.append(real_root)
+        canonical_root = find_canonical_scan_root(scan_root, on_disk)
+        if canonical_root is not None:
+            pending.append(canonical_root)
         if not scan_root.follow_links:
             _record_chain(scan_root.directory, on_disk)
 
@@ -462,7 +462,7 @@ def _is_listed_as_deep(listed: dict[RootRelativePath, ScanRoot], scan_root: Scan
     """Whether `listed` records a listing of `scan_root`'s directory that reached at least as deep as it asks.
 
     Args:
-        listed: The root each directory was listed as so far, keyed by its real path.
+        listed: The root each directory was listed as so far, keyed by its canonical path.
         scan_root: The root a directory is about to be listed as.
     """
     previous = listed.get(scan_root.directory)
@@ -528,7 +528,7 @@ class _DiskEntries:
         is what tells a snapshot's walks that it is a directory, where nothing the scan listed shows it.
 
         Args:
-            directory: The real directory the walk climbs out of.
+            directory: The canonical directory the walk climbs out of.
         """
         self._climbed_directories.add(directory)
         return True
@@ -569,10 +569,10 @@ def _follow_listed_link(
 
     Args:
         root: The workspace root on disk.
-        listed_root: The root the directory holding the link was just listed as, at its real path.
+        listed_root: The root the directory holding the link was just listed as, at its canonical path.
         link: The root-relative symlink just listed, already recorded.
         on_disk: The scan's view of the disk, recording each link met along the chain.
-        files: File bytes recorded so far, keyed by real path; mutated when the link leads to a regular file.
+        files: File bytes recorded so far, keyed by canonical path; mutated when the link leads to a regular file.
         pending: Directories still to list; mutated when the link leads to a directory the scan lists.
 
     Raises:
@@ -676,15 +676,15 @@ def _spell_relative_if_under_root(root: Path, link: RootRelativePath, target: Pu
     A snapshot does not record where the root sits, so the virtual view cannot follow an absolute target,
     while the disk view follows one that leads into the root. Spelled from the link's directory, the same
     chain stays inside what the snapshot recorded. The root counts under both spellings: as given, and made
-    real, since the disk view compares real paths.
+    canonical, since the disk view compares canonical paths.
 
-    The link's directory is a real path (every listing is, and a walk to a directory steps from one real
+    The link's directory is a canonical path (every listing is, and a walk to a directory steps from one canonical
     directory to the next), so one ``..`` per component of it climbs exactly to the root. The rest of the
     target is kept as written, ``..`` included, for the view to walk the way the kernel does. A relative
     target, or an absolute one outside the root, is returned unchanged.
 
     Args:
-        root: The workspace root on disk; compared both as given and made real.
+        root: The workspace root on disk; compared both as given and made canonical.
         link: The root-relative path of the symlink, whose directory the result is spelled from.
         target: The link's target as `os.readlink` returned it.
     """
