@@ -32,3 +32,12 @@ class Heading:
     # Not range-checked: only the parser builds a heading, and it counts the words, so the value is never
     # below 0.
     words: int
+
+    def __post_init__(self) -> None:
+        """Reject a heading depth outside 1 to 6.
+
+        Raises:
+            ValueError: If ``level`` is not in 1..6.
+        """
+        if not 1 <= self.level <= 6:
+            raise ValueError(f'level must be in 1..6, got {self.level}')
