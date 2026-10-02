@@ -27,11 +27,13 @@ class SkillRef:
     """A skill's identity in the workspace model; carries no content.
 
     Attributes:
-        directory: The skill's directory, ``<skills directory>/<skill name>``, root-relative. The skills
-            directory is the real one, so a skill two agents reach, one of them through a linked skills
-            directory such as ``.claude/skills``, has one ref. The last component is the entry as listed: it
-            may itself be a link to where the skill's files live, and the ref still names it here, under the
-            skills directory, which is what makes it a skill.
+        directory: The skill's directory, `<skills directory>/<skill name>`, root-relative. For an agent's
+            skill the skills directory is the real one, so a skill two agents reach, one of them through a
+            linked skills directory such as `.claude/skills`, has one ref. The last component is the entry as
+            listed: it may itself be a link to where the skill's files live, and the ref still names it here,
+            under the skills directory, which is what makes it a skill. For a skill in a directory a command
+            names, the directory is spelled as the command spelled it, links and all: `skills/review`, or
+            `skills` itself when that directory is the skill. So a skill named both ways has two refs.
     """
 
     directory: RootRelativePath
@@ -49,11 +51,12 @@ class SkillLocation:
 
     Attributes:
         ref: The skill.
-        resolves_to: The real directory ``ref.directory`` leads to, with no symlink on the way. Equal to
-            ``ref.directory`` for a regular directory; the directory the skill's files live in when the entry
-            is a link, such as ``skills/review`` for ``.agents/skills/review -> ../../skills/review``.
-        file_resolves_to: The real file the skill's ``SKILL.md`` leads to. ``resolves_to / SKILL.md`` unless
-            that ``SKILL.md`` is itself a link, and then the file the link leads to, whatever its name.
+        resolves_to: The real directory `ref.directory` leads to, with no symlink on the way. Equal to
+            `ref.directory` for a regular directory; the directory the skill's files live in when the entry,
+            or a directory on the way to it, is a link, such as `skills/review` for
+            `.agents/skills/review -> ../../skills/review`.
+        file_resolves_to: The real file the skill's `SKILL.md` leads to. `resolves_to / SKILL.md` unless
+            that `SKILL.md` is itself a link, and then the file the link leads to, whatever its name.
     """
 
     ref: SkillRef

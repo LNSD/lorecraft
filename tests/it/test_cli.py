@@ -1830,9 +1830,212 @@ class TestCheckSkillsCommand:
         assert result.exit_code == 2, result.output
         assert result.stdout == '', 'after an error nothing is printed but the error'
         assert result.stderr == (
-            f'error: {not_a_skill.parent}: not a skill the workspace lists; '
-            'name a skills directory, a skill directory, or a SKILL.md\n'
+            f'error: {not_a_skill.parent}: no skill there; '
+            'name a skill directory, a directory of skills, or a SKILL.md\n'
         ), 'the error quotes the argument as typed and says what a skill argument names'
+
+    def test_check_skills_with_json_format_and_a_directory_of_skills_no_agent_reads_reports_each_under_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'skills/review/SKILL.md', '---\nname: audit\ndescription: Review a change\n---\n')
+        _write(tmp_path, 'skills/lint/SKILL.md', '---\nname: lint\ndescription: Lint a change\n---\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(
+            app, ['check', 'skills', str(tmp_path / 'skills'), '--root', str(tmp_path), '--format', 'json']
+        )
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 2,
+            'findings': [
+                {
+                    'file': 'skills/review/SKILL.md',
+                    'line': 2,
+                    'rule': 'skill.name-matches-directory',
+                    'message': "`name` is 'audit'; expected 'review', the name of the skill directory",
+                    'spec': None,
+                    'notes': [],
+                }
+            ],
+            'ungoverned': [],
+        }, 'each skill in the directory named is checked, and reported under the path as spelled'
+
+    def test_check_skills_with_json_format_and_a_link_to_a_skill_holds_its_name_to_the_link(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'skills/review/SKILL.md', '---\nname: review\ndescription: Review a change\n---\n')
+        (tmp_path / 'reviewer').symlink_to('skills/review')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(
+            app, ['check', 'skills', str(tmp_path / 'reviewer'), '--root', str(tmp_path), '--format', 'json']
+        )
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 1,
+            'findings': [
+                {
+                    'file': 'reviewer/SKILL.md',
+                    'line': 2,
+                    'rule': 'skill.name-matches-directory',
+                    'message': "`name` is 'review'; expected 'reviewer', the name of the skill directory",
+                    'spec': None,
+                    'notes': [{'kind': 'note', 'text': "'reviewer' is a link to 'skills/review'"}],
+                }
+            ],
+            'ungoverned': [],
+        }, 'the skill is named by the path as spelled, the link, and its name is held to that'
+
+    def test_check_skills_with_json_format_and_a_link_named_leading_outside_reports_it(self, tmp_path: Path) -> None:
+        #: Given
+        root = tmp_path / 'repository'
+        root.mkdir()
+        _write(tmp_path, 'elsewhere/x/SKILL.md', '---\nname: x\ndescription: Kept outside\n---\n')
+        (root / 'elsewhere').symlink_to(tmp_path / 'elsewhere')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(
+            app, ['check', 'skills', str(root / 'elsewhere'), '--root', str(root), '--format', 'json']
+        )
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 0,
+            'findings': [
+                {
+                    'file': 'elsewhere',
+                    'line': 1,
+                    'rule': 'skill.symlink-outside',
+                    'message': 'symlink leads outside the repository',
+                    'spec': None,
+                    'notes': [
+                        {'kind': 'note', 'text': f'leaves the repository at elsewhere -> {tmp_path / "elsewhere"}'},
+                        {'kind': 'help', 'text': 'keep every file a skill loads inside the repository'},
+                    ],
+                }
+            ],
+            'ungoverned': [],
+        }, 'the path named is a symlink leading outside: reported as a finding, never followed nor refused'
+
+    def test_check_skills_with_json_format_and_a_skill_named_whose_skill_file_leads_outside_reports_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        root = tmp_path / 'repository'
+        (root / 'skills' / 'review').mkdir(parents=True)
+        _write(tmp_path, 'review.md', '---\nname: review\ndescription: Kept outside\n---\n')
+        (root / 'skills' / 'review' / 'SKILL.md').symlink_to(tmp_path / 'review.md')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(
+            app, ['check', 'skills', str(root / 'skills' / 'review'), '--root', str(root), '--format', 'json']
+        )
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 0,
+            'findings': [
+                {
+                    'file': 'skills/review/SKILL.md',
+                    'line': 1,
+                    'rule': 'skill.symlink-outside',
+                    'message': 'symlink leads outside the repository',
+                    'spec': None,
+                    'notes': [
+                        {
+                            'kind': 'note',
+                            'text': f'leaves the repository at skills/review/SKILL.md -> {tmp_path / "review.md"}',
+                        },
+                        {'kind': 'help', 'text': 'keep every file a skill loads inside the repository'},
+                    ],
+                }
+            ],
+            'ungoverned': [],
+        }, 'the SKILL.md at the root of the directory named leads outside, so it is reported and no skill is checked'
+
+    def test_check_skills_with_json_format_and_a_directory_holding_only_a_link_outside_reports_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        root = tmp_path / 'repository'
+        (root / 'onlyout').mkdir(parents=True)
+        _write(tmp_path, 'elsewhere/x/SKILL.md', '---\nname: x\ndescription: Kept outside\n---\n')
+        (root / 'onlyout' / 'x').symlink_to(tmp_path / 'elsewhere' / 'x')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills', str(root / 'onlyout'), '--root', str(root), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 0,
+            'findings': [
+                {
+                    'file': 'onlyout/x',
+                    'line': 1,
+                    'rule': 'skill.symlink-outside',
+                    'message': 'symlink leads outside the repository',
+                    'spec': None,
+                    'notes': [
+                        {
+                            'kind': 'note',
+                            'text': f'leaves the repository at onlyout/x -> {tmp_path / "elsewhere" / "x"}',
+                        },
+                        {'kind': 'help', 'text': 'keep every file a skill loads inside the repository'},
+                    ],
+                }
+            ],
+            'ungoverned': [],
+        }, "a directory holding only a link leading outside reports it, as an agent's skills directory does"
+
+    def test_check_skills_with_json_format_and_a_directory_of_skills_holding_a_link_outside_reports_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        root = tmp_path / 'repository'
+        _write(root, 'skills/review/SKILL.md', '---\nname: review\ndescription: Review a change\n---\n')
+        _write(tmp_path, 'elsewhere/x/SKILL.md', '---\nname: x\ndescription: Kept outside\n---\n')
+        (root / 'skills' / 'x').symlink_to(tmp_path / 'elsewhere' / 'x')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills', str(root / 'skills'), '--root', str(root), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 1,
+            'findings': [
+                {
+                    'file': 'skills/x',
+                    'line': 1,
+                    'rule': 'skill.symlink-outside',
+                    'message': 'symlink leads outside the repository',
+                    'spec': None,
+                    'notes': [
+                        {
+                            'kind': 'note',
+                            'text': f'leaves the repository at skills/x -> {tmp_path / "elsewhere" / "x"}',
+                        },
+                        {'kind': 'help', 'text': 'keep every file a skill loads inside the repository'},
+                    ],
+                }
+            ],
+            'ungoverned': [],
+        }, 'the entry leading outside is reported under the directory named, and only the skill inside is counted'
 
 
 @pytest.mark.it

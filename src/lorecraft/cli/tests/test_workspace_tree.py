@@ -38,7 +38,7 @@ def _code_model() -> WorkspaceModel:
             DocumentRef(code, AspectFilename.parse('python-typing')),
         ),
     )
-    return WorkspaceModel(corpora=(corpus,), skills_dirs=(), skill_locations=(), outside_symlinks=())
+    return WorkspaceModel(corpora=(corpus,), skills_dirs=(), skill_locations=(), named_dirs=(), outside_symlinks=())
 
 
 # The JSON document `render_json` encodes `_code_model` as, rooted at `/work`.
@@ -74,7 +74,7 @@ _CODE_MODEL_DOCUMENT: Final[dict[str, object]] = {
 
 
 def _empty_model() -> WorkspaceModel:
-    return WorkspaceModel(corpora=(), skills_dirs=(), skill_locations=(), outside_symlinks=())
+    return WorkspaceModel(corpora=(), skills_dirs=(), skill_locations=(), named_dirs=(), outside_symlinks=())
 
 
 def _skills_model() -> WorkspaceModel:
@@ -87,6 +87,7 @@ def _skills_model() -> WorkspaceModel:
             SkillsDir(agent=AgentName('codex'), path=universal, resolves_to=universal),
         ),
         skill_locations=(_regular_skill('.agents/skills/commit'), _regular_skill('.agents/skills/review')),
+        named_dirs=(),
         outside_symlinks=(),
     )
 

@@ -1,10 +1,14 @@
-"""The canonical repository layout Lorecraft reads. Fixed, not configurable."""
+"""The canonical repository layout Lorecraft reads, and the scope a snapshot of it reads.
+
+The layout is fixed, not configurable. The scope is too, but for the directories a command names to check the
+skills in, which join it as a skills directory does.
+"""
 
 from typing import Final
 
 from lorecraft.agents import iter_agents
 from lorecraft.core.error import Error
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import ROOT, RootRelativePath
 from lorecraft.vfs import EntryKind, FileSystem, ScanRoot
 
 DOCS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs')
@@ -46,7 +50,48 @@ directory or a file in the repository is followed, so a skill linked to where it
 of references linked in from elsewhere, is in the snapshot as it is on disk, a linked directory with no depth
 limit either. A link leading outside the repository is never followed. A link inside a skill to one of its own
 ancestors has the scan read that ancestor's whole subtree once, and ends there.
+
+A command that names directories to check the skills in has the snapshot read them too, through
+`scope_with_named_dirs`.
 """
+
+
+def scope_with_named_dirs(named_dirs: tuple[RootRelativePath, ...]) -> tuple[ScanRoot, ...]:
+    """`SNAPSHOT_SCOPE`, with each directory a command names to check the skills in read as a skills directory is.
+
+    A named directory is read with no depth limit and its links followed, like an agent's skills directory, since
+    it may be one skill or hold many, each with files at any depth. A link leading outside the repository is
+    never followed. A directory the scope already holds as such a root is not added again; one inside another
+    root, or covering `docs/`, is, and the scan lists each directory once for the deepest root that asks for it.
+    The root itself never joins: read that way, the snapshot would hold the whole repository.
+
+    Args:
+        named_dirs: The directories as the command spelled them, root-relative and unresolved; one that is no
+            directory, such as a file, reads nothing.
+    """
+    scope: list[ScanRoot] = list(SNAPSHOT_SCOPE)
+    for directory in named_dirs:
+        scan_root = ScanRoot(directory, depth=None, follow_links=True)
+        if directory != ROOT and scan_root not in scope:
+            scope.append(scan_root)
+    return tuple(scope)
+
+
+def named_dirs_of_scope(scope: tuple[ScanRoot, ...]) -> tuple[RootRelativePath, ...]:
+    """The directories a command named to check the skills in, as a scope `scope_with_named_dirs` built records them.
+
+    They are the directories of the roots beyond `SNAPSHOT_SCOPE`'s, so a snapshot carries what was named in the
+    scope it records, and the model of it lists their skills whoever reads the snapshot. A directory named that
+    the scope already read as an agent's skills directory, or the root, was never added, so it is not here either.
+
+    Args:
+        scope: The scope a snapshot was taken of, as `Snapshot.scope` records it.
+    """
+    named_dirs: list[RootRelativePath] = []
+    for scan_root in scope:
+        if scan_root not in SNAPSHOT_SCOPE:
+            named_dirs.append(scan_root.directory)
+    return tuple(named_dirs)
 
 
 class LinkedLayoutError(Error):

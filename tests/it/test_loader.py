@@ -17,14 +17,14 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.repo import Repository as DocumentRepository
-from lorecraft.project.layout import SNAPSHOT_SCOPE, SPECS_DIR
+from lorecraft.project.layout import SNAPSHOT_SCOPE, SPECS_DIR, scope_with_named_dirs
 from lorecraft.project.schemas import (
     EmptyStructureSpecError,
     InvalidFrontmatterSchemaError,
     StructureSpecDecodeError,
 )
 from lorecraft.project.schemas import Repository as SchemaRepository
-from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillsDir
+from lorecraft.project.skill import NamedDir, OutsideSymlink, SkillLocation, SkillRef, SkillsDir
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.workspace.loader import load_model, load_workspace
 from lorecraft.project.workspace.model import WorkspaceModel
@@ -704,9 +704,9 @@ class TestLoadWorkspaceEdgeCases:
 
         #: Then
         assert not missing_docs.exists(), 'the case turns on docs/ being absent'
-        assert model == WorkspaceModel(corpora=(), skills_dirs=(), skill_locations=(), outside_symlinks=()), (
-            'a root without docs/ is an empty workspace'
-        )
+        assert model == WorkspaceModel(
+            corpora=(), skills_dirs=(), skill_locations=(), named_dirs=(), outside_symlinks=()
+        ), 'a root without docs/ is an empty workspace'
 
 
 def _outside(path: str, target: Path) -> OutsideSymlink:
@@ -963,3 +963,204 @@ class TestLoadModel:
         assert model.skill_locations == (
             _linked_skill_location('.agents/skills/review', 'skills/review', 'skills/review/SKILL.md'),
         ), 'the disk view follows the link, and the ref names the entry under the skills directory'
+
+
+def _load_naming(root: Path, *named: str) -> WorkspaceModel:
+    """The model of a snapshot of `root` that reads the directories a command names, as `check skills` takes one.
+
+    Args:
+        root: The repository root the snapshot is taken of.
+        named: The directories the command names, root-relative as spelled.
+    """
+    named_dirs = tuple(RootRelativePath.parse(directory) for directory in named)
+    snapshot = take_snapshot(root, scope_with_named_dirs(named_dirs))
+    return load_model(VirtualFileSystem(snapshot), named_dirs=named_dirs)
+
+
+@pytest.mark.it
+class TestLoadModelNamedDirs:
+    def test_load_model_with_a_named_directory_of_skills_records_each_under_it(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'skills/review/SKILL.md')
+        _write(tmp_path, 'skills/lint/SKILL.md')
+        _write(tmp_path, 'skills/README.md')
+
+        #: When
+        model = _load_naming(tmp_path, 'skills')
+
+        #: Then
+        assert model.named_dirs == (
+            NamedDir(
+                RootRelativePath.parse('skills'),
+                skills=(_skill_location('skills/lint'), _skill_location('skills/review')),
+                outside_symlinks=(),
+            ),
+        ), 'no agent reads the directory, so it is read as a skills directory and recorded apart'
+
+    def test_load_model_with_a_named_skill_directory_records_it_alone(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'skills/review/SKILL.md')
+        _write(tmp_path, 'skills/review/examples/demo/SKILL.md')
+
+        #: When
+        model = _load_naming(tmp_path, 'skills/review')
+
+        #: Then
+        assert model.named_dirs == (
+            NamedDir(
+                RootRelativePath.parse('skills/review'),
+                skills=(_skill_location('skills/review'),),
+                outside_symlinks=(),
+            ),
+        ), 'a SKILL.md at its root makes the directory one skill, whatever it holds below'
+
+    def test_load_model_with_a_named_directory_leaves_the_agents_skills_as_they_were(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'skills/review/SKILL.md')
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
+
+        #: When
+        model = _load_naming(tmp_path, 'skills')
+
+        #: Then
+        assert model.skill_locations == (
+            _linked_skill_location('.agents/skills/review', 'skills/review', 'skills/review/SKILL.md'),
+        ), "the agents' skills hold no skill of the named directory, though both lead to one place"
+
+    def test_load_model_with_a_named_agent_skills_directory_records_no_named_directory(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/review/SKILL.md')
+        (tmp_path / '.claude').mkdir()
+        (tmp_path / '.claude' / 'skills').symlink_to('../.agents/skills')
+
+        #: When
+        model = _load_naming(tmp_path, '.claude/skills')
+
+        #: Then
+        assert model.named_dirs == (), "an agent's skills directory, through a link too, is the agents' to read"
+
+    def test_load_model_with_a_named_entry_of_an_agent_skills_directory_records_no_named_directory(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/review/SKILL.md')
+
+        #: When
+        model = _load_naming(tmp_path, '.agents/skills/review')
+
+        #: Then
+        assert model.named_dirs == (), "an entry of an agent's skills directory is the agents' to read"
+
+    def test_load_model_with_a_named_file_records_no_named_directory(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'shared/LINT.md')
+
+        #: When
+        model = _load_naming(tmp_path, 'shared/LINT.md')
+
+        #: Then
+        assert model.named_dirs == (), 'a file is no directory to read skills in'
+
+    def test_load_model_with_a_named_directory_holding_a_link_outside_records_it(
+        self, tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
+    ) -> None:
+        #: Given
+        outside = tmp_path_factory.mktemp('outside')
+        _write(outside, 'x/SKILL.md')
+        _write(tmp_path, 'skills/review/SKILL.md')
+        (tmp_path / 'skills' / 'x').symlink_to(outside / 'x')
+
+        #: When
+        model = _load_naming(tmp_path, 'skills')
+
+        #: Then
+        assert model.outside_symlinks == (_outside('skills/x', outside / 'x'),), (
+            'an entry of the named directory leading outside is recorded under the directory as spelled'
+        )
+
+    def test_load_model_with_two_named_directories_reaching_one_link_outside_records_it_once(
+        self, tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
+    ) -> None:
+        #: Given
+        outside = tmp_path_factory.mktemp('outside')
+        _write(outside, 'review.md')
+        (tmp_path / 'skills' / 'review').mkdir(parents=True)
+        (tmp_path / 'skills' / 'review' / 'SKILL.md').symlink_to(outside / 'review.md')
+
+        #: When
+        model = _load_naming(tmp_path, 'skills', 'skills/review')
+
+        #: Then
+        assert model.outside_symlinks == (_outside('skills/review/SKILL.md', outside / 'review.md'),), (
+            'the SKILL.md both directories reach is one symlink, recorded once'
+        )
+
+    def test_load_model_with_a_named_link_leading_outside_records_it_as_a_directory_holding_that_link(
+        self, tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
+    ) -> None:
+        #: Given
+        outside = tmp_path_factory.mktemp('outside')
+        _write(outside, 'review/SKILL.md')
+        (tmp_path / 'elsewhere').symlink_to(outside)
+
+        #: When
+        model = _load_naming(tmp_path, 'elsewhere')
+
+        #: Then
+        assert model.named_dirs == (
+            NamedDir(
+                RootRelativePath.parse('elsewhere'), skills=(), outside_symlinks=(_outside('elsewhere', outside),)
+            ),
+        ), 'a path named that leads outside is a symlink of what was named, recorded to be reported'
+
+    def test_load_model_with_a_named_skill_whose_skill_file_leads_outside_records_that_link(
+        self, tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
+    ) -> None:
+        #: Given
+        outside = tmp_path_factory.mktemp('outside')
+        _write(outside, 'review.md')
+        (tmp_path / 'skills' / 'review').mkdir(parents=True)
+        (tmp_path / 'skills' / 'review' / 'SKILL.md').symlink_to(outside / 'review.md')
+
+        #: When
+        model = _load_naming(tmp_path, 'skills/review')
+
+        #: Then
+        assert model.named_dirs == (
+            NamedDir(
+                RootRelativePath.parse('skills/review'),
+                skills=(),
+                outside_symlinks=(_outside('skills/review/SKILL.md', outside / 'review.md'),),
+            ),
+        ), 'the directory is one skill by its SKILL.md, which leads outside, so it holds that link and no skill'
+
+    def test_load_model_with_a_named_parent_of_an_agent_skills_directory_records_it_holding_nothing(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/review/SKILL.md')
+
+        #: When
+        model = _load_naming(tmp_path, '.agents')
+
+        #: Then
+        assert model.named_dirs == (NamedDir(RootRelativePath.parse('.agents'), skills=(), outside_symlinks=()),), (
+            'no SKILL.md is at the root of .agents or directly in a directory inside it'
+        )
+
+    def test_load_model_with_an_agent_skills_directory_linked_to_the_named_one_records_no_named_directory(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'skills/review/SKILL.md')
+        (tmp_path / '.agents').mkdir()
+        (tmp_path / '.agents' / 'skills').symlink_to('../skills')
+
+        #: When
+        model = _load_naming(tmp_path, 'skills')
+
+        #: Then
+        assert model.named_dirs == (), (
+            "the directory is an agent's skills directory, the link leading to it, so the agents read it"
+        )

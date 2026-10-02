@@ -1,9 +1,10 @@
 """The workspace model: an immutable snapshot of which corpora, specs, documents and skills a repository declares.
 
-The loader builds one model per run from ``docs/__meta__/``, the corpus directories and the project skills
-directories; every query here is pure. The model holds structure (corpora, document refs, skills directories,
-skill refs) and configuration (decoded specs), never document content: text stays behind the document
-repository and is read on demand through a ``DocumentRef``, and the model reads no ``SKILL.md``.
+The loader builds one model per run from `docs/__meta__/`, the corpus directories, the project skills
+directories and the directories a command names to check the skills in; every query here is pure. The model holds
+structure (corpora, document refs, skills directories, named directories, skill refs) and configuration (decoded
+specs), never document content: text stays behind the document repository and is read on demand through a
+`DocumentRef`, and the model reads no `SKILL.md`.
 
 Governance is the one computation the model owns. A document is governed by its corpus spec first, then by
 every namespace spec whose namespace matches its filename, broad to narrow. A namespace spec narrows a
@@ -21,6 +22,7 @@ from lorecraft.project.document.ref import DocumentRef
 from lorecraft.project.layout import DOCS_DIR
 from lorecraft.project.schemas.name import SchemaName
 from lorecraft.project.schemas.structure import FrontmatterSchema, StructureAspect
+from lorecraft.project.skill.named_dir import NamedDir
 from lorecraft.project.skill.outside import OutsideSymlink
 from lorecraft.project.skill.ref import SkillLocation, SkillRef
 from lorecraft.project.skill.skills_dir import SkillsDir
@@ -206,14 +208,20 @@ class WorkspaceModel:
             agents read one. A skill belongs to no corpus, so no spec governs it and ``documents()`` does not
             list it. The locations, not the refs, record where each link leads, so two models differ when a
             link is retargeted even though every ref is the same.
-        outside_symlinks: Every skills directory an agent declares, entry in a real skills directory, and
-            ``SKILL.md`` of such an entry, whose symlink chain leaves the repository, sorted by path. None of them
-            is a skills directory or a skill of the model; a symlink inside a skill is in its resource listing.
+        named_dirs: Every directory a command names to check the skills in, other than an agent's skills
+            directory or an entry in one, which `skills_dirs` and `skill_locations` already read, sorted by path.
+            Each holds the locations of its own skills, so `skills()` does not list them and `find_skill` does not
+            find them; `skill_location` does. Empty in a run that names none.
+        outside_symlinks: Every skills directory an agent declares, entry in a real skills directory or a named
+            directory, and `SKILL.md` of such an entry or of a named directory, whose symlink chain leaves the
+            repository, sorted by path, each once. None of them is a skills directory or a skill of the model; a
+            symlink inside a skill is in its resource listing.
     """
 
     corpora: tuple[Corpus, ...]
     skills_dirs: tuple[SkillsDir, ...]
     skill_locations: tuple[SkillLocation, ...]
+    named_dirs: tuple[NamedDir, ...]
     outside_symlinks: tuple[OutsideSymlink, ...]
 
     def find_corpus(self, name: CorpusName) -> Corpus | None:
@@ -246,7 +254,7 @@ class WorkspaceModel:
         return None
 
     def skills(self) -> tuple[SkillRef, ...]:
-        """Every skill's ref, in directory order."""
+        """Every ref of a skill in the agents' skills directories, in directory order; no named directory's."""
         refs: list[SkillRef] = []
         for location in self.skill_locations:
             refs.append(location.ref)
@@ -256,7 +264,7 @@ class WorkspaceModel:
         """Where the files of a skill this model lists live.
 
         Args:
-            ref: Skill to look up; it must be one of this model's.
+            ref: Skill to look up; it must be one of this model's, in an agent's skills directory or a named one.
 
         Raises:
             ValueError: If the model lists no skill with this ref (refs from the model never trigger it).
@@ -264,10 +272,16 @@ class WorkspaceModel:
         for location in self.skill_locations:
             if location.ref == ref:
                 return location
+        for named_dir in self.named_dirs:
+            for location in named_dir.skills:
+                if location.ref == ref:
+                    return location
         raise ValueError(f'skill {ref.directory} is not a skill of this model')
 
     def find_skill(self, directory: RootRelativePath) -> SkillRef | None:
         """The ref whose `directory` equals this root-relative path, or None.
+
+        Only the agents' skills are looked up, never a named directory's: `find_named_dir` finds those.
 
         Args:
             directory: Skill directory to look up, `<real skills directory>/<entry>`, compared whole and
@@ -305,20 +319,36 @@ class WorkspaceModel:
                 refs.append(location.ref)
         return tuple(refs)
 
-    def locate_skills(self, path: RootRelativePath) -> tuple[SkillRef, ...]:
-        """The skills whose files are at this real path: the directory they lead to, or their ``SKILL.md``.
+    def find_named_dir(self, path: RootRelativePath) -> NamedDir | None:
+        """The directory a command named as `path`, or `None` when it named none there.
+
+        Args:
+            path: The directory as the command spelled it, root-relative, compared whole and lexically.
+        """
+        for named_dir in self.named_dirs:
+            if named_dir.path == path:
+                return named_dir
+        return None
+
+    def locate_skill_files(self, path: RootRelativePath) -> tuple[SkillRef, ...]:
+        """The skills whose `SKILL.md` leads to this real file, in an agent's skills directory or a named one.
 
         Args:
             path: A real path, root-relative, with no symlink on the way to it.
 
         Returns:
-            Every such skill, in the model's order, or ``()`` when none is there. Two entries that lead to one
-            directory are both returned.
+            Every such skill, each once, the agents' first, then the named directories' in their order, or `()`
+            when none is there. Two skills whose `SKILL.md` links lead to one file are both returned.
         """
         refs: list[SkillRef] = []
         for location in self.skill_locations:
-            if path == location.resolves_to or path == location.file_resolves_to:
+            if location.file_resolves_to == path:
                 refs.append(location.ref)
+        for named_dir in self.named_dirs:
+            for location in named_dir.skills:
+                # Two named directories may hold one skill, such as `skills` and `skills/review`.
+                if location.file_resolves_to == path and location.ref not in refs:
+                    refs.append(location.ref)
         return tuple(refs)
 
     def skill_agents(self, ref: SkillRef) -> tuple[AgentName, ...]:

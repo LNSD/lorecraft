@@ -5,9 +5,11 @@ check can see, and never changed once built. Above it sit two kinds of cached da
 use and kept for as long as the database lives (pattern-memoization):
 
 - `model()`: the workspace model, like the IDE's project model. It reads the structure of the snapshot, the
-  specifications, the corpus directories, the skills directories and the listing of each skill's directory,
-  nothing deeper inside a skill, and no document's contents. Among that structure it records each skills
-  directory, skill entry and `SKILL.md` whose symlink chain leaves the repository.
+  specifications, the corpus directories, the skills directories, the directories a command named to check the
+  skills in, as the snapshot's scope records them, and the listing of each skill's directory, nothing deeper inside
+  a skill, and no document's contents.
+  Among that structure it records each skills directory, skill entry and `SKILL.md` whose symlink chain leaves the
+  repository.
 - `frontmatter(ref)`: one document's frontmatter node, like a stub: the part of a file the IDE reads without
   building its full syntax tree. It reads that document's bytes and nothing else.
 - `parse(ref)`: one document's parse tree, like a PSI file or a per-file index entry. It reads that
@@ -60,18 +62,20 @@ to, or on the way to it, since the loader resolves that link to find the skill. 
 or to its `SKILL.md` that changed its target, and so does a changed specification. So does a link that changed its
 target on the chain of a skills directory an agent declares, of an entry in a skills directory, or of an entry's
 `SKILL.md`, a chain leaving the repository included, since the model records the link each such chain leaves
-through and its target. So does a directory added or deleted that a `..` on such a chain climbs out of: deleting `tmp`
-leaves `x -> tmp/../alpha` leading nowhere, and the change set shows `tmp` go, since `Snapshot.entries` reports each
-climbed directory and the next scan, stopping at the missing `tmp`, no longer records it. Any other change leaves the
-model valid, an entry added or deleted anywhere else inside a
-skill included: the model lists nothing below a skill's directory, and reads nothing there but the way to its
-`SKILL.md`. The scope index carries over unless the two
-snapshots' scopes, links or climbed directories differ, compared as recorded rather than through the change set,
-which holds no scope. A change of scope invalidates nothing else: what the new scope adds or drops reaches the model
-and each skill's resources as entries in the change set. That rule holds only while the frontmatter, the parse, the
-token count and the line count each read their own document, skill or resource, the model and each skill's resource
-listing read no document, and the scope index reads only the scope, the links and the climbed directories, so keep
-them that way: data drawn from several documents belongs in a new cache with its own rule.
+through and its target. So does a directory added or deleted that a `..` on such a chain climbs out of: deleting
+`tmp` leaves `x -> tmp/../alpha` leading nowhere, and the change set shows `tmp` go, since `Snapshot.entries` reports
+each climbed directory and the next scan, stopping at the missing `tmp`, no longer records it. The directories a
+command named are read from the snapshot's scope, so a scope that adds or drops one invalidates the model too, and
+each counts as a skills directory for every rule above, a `SKILL.md` at its root as an entry's. Any other change
+leaves the model valid, an entry added or deleted anywhere else inside a skill included: the model lists nothing below
+a skill's directory, and reads nothing there but the way to its `SKILL.md`. The scope index carries over unless the
+two snapshots' scopes, links or climbed directories differ, compared as recorded rather than through the change set,
+which holds no scope. A change of scope invalidates nothing else but the model, when it adds or drops a named
+directory: what the new scope adds or drops reaches the model and each skill's resources as entries in the change
+set. That rule holds only while the frontmatter, the parse, the token count and the line count each read their own
+document, skill or resource, the model and each skill's resource listing read no document, and the scope index reads
+only the scope, the links and the climbed directories, so keep them that way: data drawn from several documents
+belongs in a new cache with its own rule.
 
 A change names a real path, while a ref may name a path through a link: a skill's `SKILL.md` under a linked skill
 entry changes at the path the link leads to, not at the ref's. A snapshot maps a linked path to its real one and not
@@ -87,7 +91,7 @@ locate its ref at the same real file and that file's bytes did not change.
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.document import Repository as DocumentRepository
-from lorecraft.project.layout import reject_linked_layout
+from lorecraft.project.layout import named_dirs_of_scope, reject_linked_layout
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.skill import SkillRef, SkillResourceListing, SkillResourceLocation, SkillResourceRef
 from lorecraft.project.syntax import (
@@ -136,6 +140,20 @@ class Database:
     def model(self) -> WorkspaceModel:
         """The workspace model the snapshot declares, loaded on the first call.
 
+        The directories a command named to check the skills in are read from the scope the snapshot records, the
+        roots beyond `SNAPSHOT_SCOPE`'s, so the model is a function of the snapshot alone.
+
+        Carry-over: kept for the next revision unless one of these changed, as the module docstring details:
+
+        - An entry added or deleted under `docs/`, or a changed specification.
+        - An entry added or deleted in a skills directory or a named directory, in a skill's directory, or at or
+          on the way to the real path a skill's linked `SKILL.md` leads to.
+        - A link that changed its target on the way to a skill or its `SKILL.md`, or on the chain of a skills
+          directory an agent declares, a named directory, an entry of either, or such an entry's `SKILL.md`, a
+          chain leaving the repository included; and a directory added or deleted that a `..` on such a chain
+          climbs out of.
+        - The scope, where a named directory was added or dropped.
+
         A load that fails is not cached, so each call raises the same error again.
 
         Raises:
@@ -150,12 +168,12 @@ class Database:
             InvalidWordCapError: If an outline word cap is below 1.
             RepeatedOutlineSectionError: If an outline names a section twice.
             ForbiddenOutlineSectionError: If a specification forbids a section its outline names.
-            AdjacentAnyRunsError: If an outline places two ``any`` runs side by side.
+            AdjacentAnyRunsError: If an outline places two `any` runs side by side.
             InvalidFrontmatterSchemaError: If a frontmatter schema is rejected by the meta-schema.
-            FrontmatterSchemaIdError: If a schema in a frontmatter schema carries ``$id``.
+            FrontmatterSchemaIdError: If a schema in a frontmatter schema carries `$id`.
             ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
             UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
-            DirResolveError: If a skills directory cannot be resolved.
+            DirResolveError: If a skills directory or a named directory cannot be resolved.
             EntryInspectError: If an entry on the way to a skills directory cannot be inspected, or a link's
                 target read, while looking for where it leaves the repository.
             SkillsDirListError: If a skills directory cannot be listed.
@@ -164,7 +182,7 @@ class Database:
             SkillFileResolveError: If a symlinked SKILL.md cannot be resolved.
         """
         if self._model is None:
-            self._model = load_model(self._fs)
+            self._model = load_model(self._fs, named_dirs=named_dirs_of_scope(self._snapshot.scope))
         return self._model
 
     def reject_linked_layout(self) -> None:
