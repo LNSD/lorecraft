@@ -1,0 +1,11 @@
+                                                                                
+ Usage: lorecraft version [OPTIONS]                                             
+                                                                                
+ Show the installed version.                                                    
+                                                                                
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --verbose  -v        Include the commit, the interpreter, the platform and   │
+│                      the install path.                                       │
+│ --help               Show this message and exit.                             │
+╰──────────────────────────────────────────────────────────────────────────────╯
+

@@ -56,8 +56,9 @@ def check_all(
     many checks read it. Exit 0 when clean, 1 when any check finds something, and 2 for invalid input or
     specifications; after an error nothing is printed but the error.
 
+    \f
     Raises:
-        typer.BadParameter: If ``--root`` or ``--format`` is given before a named check, which takes its own.
+        typer.BadParameter: If `--root` or `--format` is given before a named check, which takes its own.
         typer.Exit: With the documented status code for findings or invalid input.
     """
     if context.invoked_subcommand is not None:

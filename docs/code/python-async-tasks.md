@@ -2,7 +2,7 @@
 name: "python-async-tasks"
 description: "anyio task groups own their child tasks, collect their results, and propagate their failures; cancel scopes set deadlines; cancellation is re-raised and cleanup is shielded. Load when starting tasks, using create_task_group, start_soon, fail_after, move_on_after or CancelScope, or catching a cancellation exception"
 type: "core"
-scope: "global"
+scope: "pkg:pypi/anyio"
 ---
 
 # Structured Concurrency (`anyio`)
