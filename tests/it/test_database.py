@@ -53,13 +53,14 @@ def _skill_snapshot(skill: bytes) -> Snapshot:
     return Snapshot.from_files({RootRelativePath.parse('.agents/skills/review/SKILL.md'): skill})
 
 
-def _refused_chain_snapshot() -> Snapshot:
-    """What `take_snapshot` records for a link chain the scan refuses, whose target another root lists anyway.
+def _climbing_chain_snapshot() -> Snapshot:
+    """What `take_snapshot` records for link chains whose `..` climbs out of a directory stepped into by name.
 
-    The tree is `refused_chain_tree` of the filesystem tier, scanned with `skills` one level deep through its
-    links and `a` one level deep. `skills/l` names `../a/tmp/../b`, whose `..` climbs out of `a/tmp`, a
-    directory stepped into by name since the link, so the scan does not follow it; `skills/m` names `../a/b`
-    and is followed. The root `a` lists `a/b` either way.
+    The tree is `climbing_chain_tree` of the filesystem tier, scanned with `skills` one level deep through its
+    links and `a` one level deep. `skills/l` names `../a/tmp/../b` and leads to `a/b`; `skills/m` names `../a/b`;
+    `skills/far` names `../c/tmp/../d` and leads to `c/d`; `skills/n` names `../a/missing/../b` and leads
+    nowhere; `skills/out` names `../a/tmp/../../..` and climbs above the root. Every directory a followed chain
+    climbs out of is recorded.
     """
     return Snapshot(
         listings=(
@@ -68,14 +69,34 @@ def _refused_chain_snapshot() -> Snapshot:
             ),
             Listing(RootRelativePath.parse('a/b'), (DirEntry('SKILL.md', EntryKind.FILE),)),
             Listing(RootRelativePath.parse('a/tmp'), ()),
+            Listing(RootRelativePath.parse('c/d'), (DirEntry('SKILL.md', EntryKind.FILE),)),
             Listing(
-                RootRelativePath.parse('skills'), (DirEntry('l', EntryKind.SYMLINK), DirEntry('m', EntryKind.SYMLINK))
+                RootRelativePath.parse('skills'),
+                (
+                    DirEntry('far', EntryKind.SYMLINK),
+                    DirEntry('l', EntryKind.SYMLINK),
+                    DirEntry('m', EntryKind.SYMLINK),
+                    DirEntry('n', EntryKind.SYMLINK),
+                    DirEntry('out', EntryKind.SYMLINK),
+                ),
             ),
         ),
-        files=(FileBytes(RootRelativePath.parse('a/b/SKILL.md'), b'---\nname: b\n---\n'),),
+        files=(
+            FileBytes(RootRelativePath.parse('a/b/SKILL.md'), b'---\nname: b\n---\n'),
+            FileBytes(RootRelativePath.parse('c/d/SKILL.md'), b'---\nname: d\n---\n'),
+        ),
         links=(
+            Link(RootRelativePath.parse('skills/far'), PurePosixPath('../c/tmp/../d')),
             Link(RootRelativePath.parse('skills/l'), PurePosixPath('../a/tmp/../b')),
             Link(RootRelativePath.parse('skills/m'), PurePosixPath('../a/b')),
+            Link(RootRelativePath.parse('skills/n'), PurePosixPath('../a/missing/../b')),
+            Link(RootRelativePath.parse('skills/out'), PurePosixPath('../a/tmp/../../..')),
+        ),
+        climbed_directories=(
+            RootRelativePath.parse('a'),
+            RootRelativePath.parse('a/tmp'),
+            RootRelativePath.parse('c/tmp'),
+            RootRelativePath.parse('skills'),
         ),
         scope=(
             ScanRoot(RootRelativePath.parse('skills'), depth=1, follow_links=True),
@@ -188,35 +209,57 @@ class TestDatabase:
         #: Then
         assert in_scope is True, 'every question after the first is answered from the same expanded scan roots'
 
-    def test_find_real_path_through_a_refused_link_chain_returns_none(self) -> None:
+    def test_find_real_path_through_a_link_climbing_out_of_a_directory_stepped_into_returns_the_real_file(
+        self,
+    ) -> None:
         #: Given
-        database = Database(_refused_chain_snapshot())
+        database = Database(_climbing_chain_snapshot())
         path = RootRelativePath.parse('skills/l/SKILL.md')
 
         #: When
         resolved = database.find_real_path(path)
 
         #: Then
-        assert resolved is None, (
-            'the scan refuses ../a/tmp/../b, so skills/l/SKILL.md leads nowhere, though a/b/SKILL.md is recorded'
-        )
+        assert resolved == RootRelativePath.parse('a/b/SKILL.md'), 'the `..` after a/tmp is a, so skills/l is a/b'
 
-    def test_find_real_file_through_a_refused_link_chain_returns_none(self) -> None:
+    def test_find_real_file_through_a_link_climbing_out_of_an_unlisted_directory_returns_the_real_file(self) -> None:
         #: Given
-        database = Database(_refused_chain_snapshot())
-        path = RootRelativePath.parse('skills/l/SKILL.md')
+        database = Database(_climbing_chain_snapshot())
+        path = RootRelativePath.parse('skills/far/SKILL.md')
 
         #: When
         resolved = database.find_real_file(path)
 
         #: Then
-        assert resolved is None, (
-            'the scan refuses ../a/tmp/../b, so skills/l/SKILL.md leads to no file, though a/b/SKILL.md is recorded'
+        assert resolved == RootRelativePath.parse('c/d/SKILL.md'), (
+            'no listing shows c/tmp, but the recorded climb out of it does'
         )
+
+    def test_find_real_file_through_a_link_climbing_out_of_a_missing_directory_returns_none(self) -> None:
+        #: Given
+        database = Database(_climbing_chain_snapshot())
+        path = RootRelativePath.parse('skills/n/SKILL.md')
+
+        #: When
+        resolved = database.find_real_file(path)
+
+        #: Then
+        assert resolved is None, 'a/missing does not exist, so skills/n leads to no file, though a/b/SKILL.md does'
+
+    def test_is_in_scope_through_a_link_climbing_out_of_a_missing_directory_returns_false(self) -> None:
+        #: Given
+        database = Database(_climbing_chain_snapshot())
+        path = RootRelativePath.parse('skills/n/SKILL.md')
+
+        #: When
+        in_scope = database.is_in_scope(path)
+
+        #: Then
+        assert in_scope is False, 'the scan never climbed out of a/missing, so the scope query does not either'
 
     def test_find_real_file_through_a_followed_link_returns_the_real_file(self) -> None:
         #: Given
-        database = Database(_refused_chain_snapshot())
+        database = Database(_climbing_chain_snapshot())
         path = RootRelativePath.parse('skills/m/SKILL.md')
 
         #: When

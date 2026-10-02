@@ -28,7 +28,7 @@ class Change:
 
     Attributes:
         path: The root-relative path of anything ``Snapshot.entries`` reports: a listed entry, a listed
-            directory, a file a followed link leads to, or a symlink met along a chain.
+            directory, a file a followed link leads to, a symlink met along a chain, or a directory climbed out of.
         kind: DELETED also when the entry at ``path`` changed kind; see ``diff``.
     """
 

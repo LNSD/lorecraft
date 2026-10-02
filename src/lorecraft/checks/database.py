@@ -29,7 +29,7 @@ use and kept for as long as the database lives (pattern-memoization):
   bytes and nothing else.
 - The `ScopeIndex` behind `is_in_scope(path)`: the scope the snapshot records it was taken of, expanded once
   through the links it recorded, like the IDE's index of a project's content roots. It reads the snapshot's
-  scope and links and nothing else, and no caller reaches it but `is_in_scope`.
+  scope, links and climbed directories and nothing else, and no caller reaches it but `is_in_scope`.
 
 Three questions are asked of the snapshot's records directly and their answers are never cached, since an answer
 for one path is cheap:
@@ -60,15 +60,18 @@ to, or on the way to it, since the loader resolves that link to find the skill. 
 or to its `SKILL.md` that changed its target, and so does a changed specification. So does a link that changed its
 target on the chain of a skills directory an agent declares, of an entry in a skills directory, or of an entry's
 `SKILL.md`, a chain leaving the repository included, since the model records the link each such chain leaves
-through and its target. Any other change leaves the model valid, an entry added or deleted anywhere else inside a
+through and its target. So does a directory added or deleted that a `..` on such a chain climbs out of: deleting `tmp`
+leaves `x -> tmp/../alpha` leading nowhere, and the change set shows `tmp` go, since `Snapshot.entries` reports each
+climbed directory and the next scan, stopping at the missing `tmp`, no longer records it. Any other change leaves the
+model valid, an entry added or deleted anywhere else inside a
 skill included: the model lists nothing below a skill's directory, and reads nothing there but the way to its
 `SKILL.md`. The scope index carries over unless the two
-snapshots' scopes or their links differ, compared as recorded rather than through the change set, which holds no
-scope. A change of scope invalidates nothing else: what the new scope adds or drops reaches the model and each
-skill's resources as entries in the change set. That rule holds only while the frontmatter, the parse, the token
-count and the line count each read their own document, skill or resource, the model and each skill's resource
-listing read no document, and the scope index reads only the scope and the links, so keep them that way: data drawn
-from several documents belongs in a new cache with its own rule.
+snapshots' scopes, links or climbed directories differ, compared as recorded rather than through the change set,
+which holds no scope. A change of scope invalidates nothing else: what the new scope adds or drops reaches the model
+and each skill's resources as entries in the change set. That rule holds only while the frontmatter, the parse, the
+token count and the line count each read their own document, skill or resource, the model and each skill's resource
+listing read no document, and the scope index reads only the scope, the links and the climbed directories, so keep
+them that way: data drawn from several documents belongs in a new cache with its own rule.
 
 A change names a real path, while a ref may name a path through a link: a skill's `SKILL.md` under a linked skill
 entry changes at the path the link leads to, not at the ref's. A snapshot maps a linked path to its real one and not
@@ -211,8 +214,9 @@ class Database:
         Like the IDE's question whether a file is in the project's content, answered from the roots the snapshot
         records it was taken of rather than from what the virtual file system holds: a path in a directory the
         scope covers is in it even where the directory does not exist, and then whatever the path names is
-        missing. Only the links the snapshot recorded are read besides, to tell where `path` leads. A snapshot
-        that scanned nothing, such as one built by `Snapshot.from_files`, has no path in scope.
+        missing. Only the links and climbed directories the snapshot recorded are read besides, to tell where
+        `path` leads. A snapshot that scanned nothing, such as one built by `Snapshot.from_files`, has no path in
+        scope.
 
         The answer is not cached, but what it is computed from is: the scope expanded through the recorded
         links, a `ScopeIndex` built on the first call and asked on every later one.
@@ -221,7 +225,9 @@ class Database:
             path: The entry to ask about, relative to the snapshot root; it need not exist.
         """
         if self._scope_index is None:
-            self._scope_index = ScopeIndex(self._snapshot.scope, self._snapshot.links)
+            self._scope_index = ScopeIndex(
+                self._snapshot.scope, self._snapshot.links, self._snapshot.climbed_directories
+            )
         return self._scope_index.is_in_scope(path)
 
     def frontmatter(self, ref: DocumentRef) -> FrontmatterNode:

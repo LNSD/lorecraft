@@ -24,7 +24,7 @@ and the package never knows why those directories matter or what the files in th
 - The snapshot, its parts, and the code that builds one, from the disk or by hand.
 - The view contract, and each view that answers it, from the disk or from a snapshot.
 - Following a chain of symlinks to where it leads, and refusing the ones that leave the root.
-- The shape of a scan root, and questions answered from a scope plus the symlinks a snapshot recorded.
+- The shape of a scan root, and questions answered from a scope plus the symlink chains a snapshot recorded.
 - The difference between two snapshots.
 
 ## Belongs Elsewhere

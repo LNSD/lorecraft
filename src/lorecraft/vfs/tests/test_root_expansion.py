@@ -37,6 +37,7 @@ class _FakeTree:
         others: tuple[str, ...] = (),
         links: Mapping[str, str] | None = None,
         gone_links: tuple[str, ...] = (),
+        unclimbable: tuple[str, ...] = (),
     ) -> None:
         """Name each entry of the tree by its kind.
 
@@ -46,6 +47,7 @@ class _FakeTree:
             others: Every entry that is neither a directory, a regular file nor a symlink.
             links: Each symlink's path, mapped to its target as `os.readlink` would return it.
             gone_links: Each symlink that vanishes between its inspection and the read of its target.
+            unclimbable: Each directory a `..` may not climb out of, as the scope query refuses a guessed one.
         """
         self._kinds: dict[RootRelativePath, EntryKind] = {}
         for raw in directories:
@@ -61,6 +63,9 @@ class _FakeTree:
             for raw, target in links.items():
                 self._kinds[_path(raw)] = EntryKind.SYMLINK
                 self._targets[_path(raw)] = PurePosixPath(target)
+        self._unclimbable: set[RootRelativePath] = set()
+        for raw in unclimbable:
+            self._unclimbable.add(_path(raw))
 
     def find_kind(self, path: RootRelativePath) -> EntryKind | None:
         """The kind the test named `path` with; `None` when it named none.
@@ -77,6 +82,14 @@ class _FakeTree:
             path: The root-relative link, one `kind` answered SYMLINK for.
         """
         return self._targets.get(path)
+
+    def may_climb_out_of(self, directory: RootRelativePath) -> bool:
+        """Whether the test left `directory` climbable; every directory is unless named unclimbable.
+
+        Args:
+            directory: The directory the walk climbs out of.
+        """
+        return directory not in self._unclimbable
 
 
 @pytest.mark.unit
@@ -227,15 +240,100 @@ class TestFindRealPath:
         #: Then
         assert leads_to == RealPath(_path('b'), EntryKind.DIRECTORY), 'the directory a link sits in is known'
 
-    def test_find_real_path_with_a_target_climbing_out_of_a_directory_stepped_into_returns_none(self) -> None:
+    def test_find_real_path_with_a_target_climbing_out_of_a_directory_stepped_into_returns_where_it_leads(
+        self,
+    ) -> None:
         #: Given
-        tree = _FakeTree(directories=('a', 'a/tmp', 'a/b'), links={'a/l': 'tmp/../b'})
-        path = _path('a/l')
+        tree = _FakeTree(directories=('a', 'a/tmp', 'a/alpha'), links={'a/x': 'tmp/../alpha'})
+        path = _path('a/x')
         #: When
         leads_to = find_real_path(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to is None, 'a `..` out of a directory stepped into by name is a chain the view cannot walk'
+        assert leads_to == RealPath(_path('a/alpha'), EntryKind.DIRECTORY), (
+            'a `..` after a real directory stepped into by name is its parent'
+        )
+
+    def test_find_real_path_with_nested_steps_and_climbs_returns_where_it_leads(self) -> None:
+        #: Given
+        tree = _FakeTree(
+            directories=('a', 'a/tmp', 'a/tmp/sub', 'b', 'b/alpha'),
+            links={'a/x': 'tmp/sub/../../../b/alpha'},
+        )
+        path = _path('a/x')
+        #: When
+        leads_to = find_real_path(path, tree, follow_links=True)
+
+        #: Then
+        assert leads_to == RealPath(_path('b/alpha'), EntryKind.DIRECTORY), (
+            'each `..` climbs out of the real directory the walk is in, however it got there'
+        )
+
+    def test_find_real_path_with_a_target_climbing_back_into_the_root_returns_the_root(self) -> None:
+        #: Given
+        tree = _FakeTree(directories=('a', 'a/tmp'), links={'a/x': 'tmp/../..'})
+        path = _path('a/x')
+        #: When
+        leads_to = find_real_path(path, tree, follow_links=True)
+
+        #: Then
+        assert leads_to == RealPath(_path('.'), EntryKind.DIRECTORY), 'the root is a directory a chain may end at'
+
+    def test_find_real_path_with_a_target_climbing_above_the_root_through_a_stepped_into_directory_returns_the_exit(
+        self,
+    ) -> None:
+        #: Given
+        tree = _FakeTree(directories=('a', 'a/tmp'), links={'a/x': 'tmp/../../..'})
+        path = _path('a/x')
+        #: When
+        leads_to = find_real_path(path, tree, follow_links=True)
+
+        #: Then
+        assert leads_to == RootExit(_path('a/x'), PurePosixPath('tmp/../../..')), (
+            'past the root is outside it, whatever directories the chain stepped into on the way'
+        )
+
+    def test_find_real_path_with_a_climb_through_a_link_climbs_out_of_the_directory_it_leads_to(self) -> None:
+        #: Given
+        tree = _FakeTree(directories=('a', 'b', 'b/c'), links={'a/x': 'y/..', 'a/y': '../b/c'})
+        path = _path('a/x')
+        #: When
+        leads_to = find_real_path(path, tree, follow_links=True)
+
+        #: Then
+        assert leads_to == RealPath(_path('b'), EntryKind.DIRECTORY), (
+            'a `..` after a link is the parent of where the link leads, as the kernel resolves it'
+        )
+
+    def test_find_real_path_with_a_climb_through_a_file_returns_none(self) -> None:
+        #: Given
+        tree = _FakeTree(directories=('a', 'a/alpha'), files=('a/f',), links={'a/x': 'f/../alpha'})
+        path = _path('a/x')
+        #: When
+        leads_to = find_real_path(path, tree, follow_links=True)
+
+        #: Then
+        assert leads_to is None, 'a file is no directory to climb out of'
+
+    def test_find_real_path_with_a_climb_through_a_missing_directory_returns_none(self) -> None:
+        #: Given
+        tree = _FakeTree(directories=('a', 'a/alpha'), links={'a/x': 'missing/../alpha'})
+        path = _path('a/x')
+        #: When
+        leads_to = find_real_path(path, tree, follow_links=True)
+
+        #: Then
+        assert leads_to is None, 'a missing directory is nothing to climb out of'
+
+    def test_find_real_path_with_a_climb_the_lookup_refuses_returns_none(self) -> None:
+        #: Given
+        tree = _FakeTree(directories=('a', 'a/tmp', 'a/alpha'), links={'a/x': 'tmp/../alpha'}, unclimbable=('a/tmp',))
+        path = _path('a/x')
+        #: When
+        leads_to = find_real_path(path, tree, follow_links=True)
+
+        #: Then
+        assert leads_to is None, 'a `..` the lookup does not vouch for ends the walk'
 
     def test_find_real_path_with_a_looping_link_returns_none(self) -> None:
         #: Given
