@@ -71,7 +71,7 @@ class NamespaceSpec:
         Args:
             filename: Document filename stem whose governance is asked; matched by hyphen-delimited prefix.
         """
-        return self.name.namespace.is_prefix_of(str(filename))
+        return self.name.namespace.is_prefix_of(filename)
 
 
 type Spec = CorpusSpec | NamespaceSpec

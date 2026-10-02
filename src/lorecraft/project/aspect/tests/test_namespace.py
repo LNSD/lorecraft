@@ -1,9 +1,10 @@
-"""Aspect namespace parsing."""
+"""Aspect namespace parsing and prefix matching."""
 
 import pytest
 
 from lorecraft.core.error import Error
 
+from ..filename import AspectFilename
 from ..namespace import AspectNamespace, EmptyAspectNamespaceError, InvalidAspectNamespaceCharacterError
 
 
@@ -105,3 +106,36 @@ class TestAspectNamespace:
         assert exc_info.value.position == 1, f'the trailing hyphen is the invalid one, got {exc_info.value.position}'
         assert exc_info.value.character == '-', f'the hyphen is reported, got {exc_info.value.character!r}'
         assert repr(invalid_namespace) in str(exc_info.value), 'the message names the rejected namespace'
+
+    def test_is_prefix_of_with_the_namespace_itself_returns_true(self) -> None:
+        #: Given
+        namespace = AspectNamespace.parse('python')
+        filename = AspectFilename.parse('python')
+
+        #: When
+        is_prefix = namespace.is_prefix_of(filename)
+
+        #: Then
+        assert is_prefix, 'a filename equal to the namespace is governed by it'
+
+    def test_is_prefix_of_with_a_hyphen_continuation_returns_true(self) -> None:
+        #: Given
+        namespace = AspectNamespace.parse('python')
+        filename = AspectFilename.parse('python-errors')
+
+        #: When
+        is_prefix = namespace.is_prefix_of(filename)
+
+        #: Then
+        assert is_prefix, 'a filename continuing the namespace after a hyphen is governed by it'
+
+    def test_is_prefix_of_with_a_name_merely_starting_with_the_namespace_returns_false(self) -> None:
+        #: Given
+        namespace = AspectNamespace.parse('python')
+        filename = AspectFilename.parse('pythonic')
+
+        #: When
+        is_prefix = namespace.is_prefix_of(filename)
+
+        #: Then
+        assert not is_prefix, 'a filename sharing the letters but not the hyphen is outside the namespace'
