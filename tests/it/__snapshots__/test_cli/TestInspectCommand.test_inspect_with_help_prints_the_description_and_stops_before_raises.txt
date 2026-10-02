@@ -8,13 +8,16 @@
  is printed is one moment of                                                    
  the tree even while files change under it.                                     
                                                                                 
+ Exit 0 when the model is printed, and 2 when the scan or the load fails or for 
+ invalid input.                                                                 
+                                                                                
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │   root      <directory>  Workspace root to inspect. Defaults to the current  │
 │                          directory.                                          │
 │                          [default: .]                                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json          Print the model as JSON instead of drawing it.               │
-│ --help          Show this message and exit.                                  │
+│ --format        <text|json>  Output format: text or json. Defaults to text.  │
+│ --help                       Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 

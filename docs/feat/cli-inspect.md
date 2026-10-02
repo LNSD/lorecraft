@@ -41,7 +41,8 @@ it. It answers why a document is or is not checked, and which agents see a skill
 | Argument or option | Default | Description |
 |--------------------|---------|-------------|
 | `ROOT`             | `.`     | The workspace root to inspect; it must be an existing directory |
-| `--json`           | off     | Print the model as JSON instead of drawing it |
+| `--format`         | `text`  | Output format: `text` draws the tree, `json` prints the model as one JSON object |
+| `--json`           | off     | Deprecated alias of `--format json`, hidden from `--help`; giving it with `--format` is a usage error |
 
 `ROOT` is taken as given: unlike `lorecraft check`, `inspect` does not search the parents for `docs/__meta__/`.
 
@@ -52,7 +53,7 @@ it. It answers why a document is or is not checked, and which agents see a skill
 lorecraft inspect
 
 # The model of another root, as JSON
-lorecraft inspect ../other-repo --json
+lorecraft inspect ../other-repo --format json
 ```
 
 ### Output
@@ -70,7 +71,7 @@ in brackets. An excerpt, from a repository with two feature documents and two sk
         └── cli-check.md [feat, feat-cli]
 ```
 
-With `--json`, stdout is one object. It holds `root`, and `corpora`, each with `name`, `directory`, `specs`
+With `--format json`, stdout is one object. It holds `root`, and `corpora`, each with `name`, `directory`, `specs`
 (each a `stem`, which is the specification name, and its `files`), and `documents` as `path` and `governed_by`.
 `governed_by` lists the files of each governing specification, broad to narrow, so a reader opens a document's
 specifications without mapping a name to its files. `root` is absolute, and every other path is root-relative.
@@ -111,8 +112,7 @@ skills, and both exit `0`.
 | Code | Meaning |
 |------|---------|
 | `0`  | The model was printed |
-| `1`  | The model could not be loaded: an entry that cannot be read, under `docs/` or a skills directory, a `docs/` or `docs/__meta__/` that is a [symlink](workspace.md#one-snapshot), or a specification file that cannot be decoded or states no usable rules. The error goes to stderr, prefixed `error:` and followed by its causes ([cli](cli.md)) |
-| `2`  | A usage error, including a `ROOT` that is not an existing directory |
+| `2`  | The command could not run: the model could not be loaded (an entry that cannot be read, under `docs/` or a skills directory, a `docs/` or `docs/__meta__/` that is a [symlink](workspace.md#one-snapshot), or a specification file that cannot be decoded or states no usable rules), or a usage error, including a `ROOT` that is not an existing directory, or both `--format` and `--json`. A load error goes to stderr, prefixed `error:` and followed by its causes ([cli](cli.md)) |
 
 ```text
 error: invalid structure schema docs/__meta__/feat.structure.json: Invalid JSON: key must be a string at line 2 column 3
@@ -139,4 +139,5 @@ error: invalid structure schema docs/__meta__/feat.structure.json: Invalid JSON:
 
 - `src/lorecraft/cli/commands/inspect.py` - Declares the command, loads the model
 - `src/lorecraft/cli/workspace_tree.py` - Draws the tree and renders the JSON
+- `src/lorecraft/cli/output.py` - The output formats and the exit statuses every command shares
 - `src/lorecraft/project/workspace/` - The workspace model and its loader

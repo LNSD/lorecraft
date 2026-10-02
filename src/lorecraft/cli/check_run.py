@@ -1,7 +1,7 @@
 """The steps every `check` command shares.
 
-They are the checks it can run, selecting the documents or the skills of one snapshot, printing what the checks
-found, and the exit status it ends with.
+They are the checks it can run, selecting the documents or the skills of one snapshot, and printing what the
+checks found.
 
 A check command is the composition root of its check: it calls `select_documents`, hands what comes back to
 its run, and hands the run to `print_run`. Everything a check reads comes from the one snapshot
@@ -16,7 +16,6 @@ module joins it by registering, the way it joins the group by declaring its comm
 import json
 from collections.abc import Callable
 from dataclasses import dataclass
-from enum import Enum, IntEnum
 from pathlib import Path
 from typing import assert_never
 
@@ -38,31 +37,9 @@ from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE, scope_with_named_dirs
 from lorecraft.vfs import OsRefusal, take_snapshot
 
+from .output import OutputFormat
 from .root import get_root, resolve_root
 from .select import named_skill_dirs, select_document, select_skills_at, select_whole
-
-
-class OutputFormat(Enum):
-    """How a check run is printed; the value is what `--format` accepts."""
-
-    TEXT = 'text'
-    """A line per finding and per ungoverned document on stdout, and a summary line on stderr."""
-    JSON = 'json'
-    """One JSON report on stdout."""
-
-
-class CheckExit(IntEnum):
-    """The exit status of a `check` command, as `docs/feat/cli-check.md` documents it.
-
-    A clean run returns without raising, so no member stands for it. The status belongs to the `check` group alone:
-    another command may give the same number another meaning.
-    """
-
-    FINDINGS = 1
-    """At least one check reported a finding."""
-    FAILURE = 2
-    """The run could not start or could not finish: only the error is printed."""
-
 
 type CheckRunner = Callable[[Database, tuple[DocumentRef, ...]], CheckRun]
 """A check's run: it checks the documents it is handed, read through one database, and reports in one shape."""

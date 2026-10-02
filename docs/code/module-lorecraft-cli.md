@@ -26,6 +26,7 @@ process: the arguments, the working directory, standard output and the exit code
 - Mapping a path argument onto a document or a skill of the model, and refusing one that does not map.
 - Registering commands and checks so a new one is a new module.
 - Rendering findings and the model as text or JSON, and choosing the exit code.
+- The output formats and the exit statuses every command shares, in `output.py`.
 - Writing out a failure chain, and the version.
 
 ## Belongs Elsewhere
@@ -46,6 +47,8 @@ process: the arguments, the working directory, standard output and the exit code
 - The root is the only `Path` a command keeps. Everything handed below it is root-relative.
 - A command handler composes: it holds no rule a check or a derivation should hold.
 - Rendering is a pure function of the values a run returns.
+- A command that can print JSON takes `--format`, typed `OutputFormat`; a command that does not succeed
+  exits with an `ExitStatus`, `FINDINGS` when it ran and found something and `FAILURE` when it could not run.
 - Every failure that escapes the packages below is written out here, as a chain.
 
 ## Examples
@@ -93,6 +96,7 @@ Before committing code, verify:
 - [ ] Nothing below the root is handed down as a `Path`
 - [ ] A new rule lives in a check, not in a command handler
 - [ ] A new output format renders values a run returned, and reads nothing itself
+- [ ] A command's `--format` is typed `OutputFormat`, and its exit codes are `ExitStatus` members from `output.py`
 
 ## References
 

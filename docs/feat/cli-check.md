@@ -173,7 +173,8 @@ stating the rule, or `null` for a rule the check holds itself. `notes` lists the
 ## Code References
 
 - `src/lorecraft/cli/commands/check/__init__.py` - The group and the bare run
-- `src/lorecraft/cli/check_run.py` - Check registration, selection and both output formats
+- `src/lorecraft/cli/check_run.py` - Check registration, selection, and printing a run in either output format
+- `src/lorecraft/cli/output.py` - The output formats and the exit statuses every command shares
 - `src/lorecraft/cli/root.py` - Root discovery
 - `src/lorecraft/cli/select.py` - The rules a path argument is refused by
 - `src/lorecraft/checks/run.py` - A check's run over the selected documents, or skills

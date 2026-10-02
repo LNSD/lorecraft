@@ -16,8 +16,9 @@ from typing import Annotated, Final
 import typer
 
 from lorecraft.checks import run_frontmatter
-from lorecraft.cli.check_run import CheckExit, DocumentCheck, OutputFormat, print_run, register_check, select_documents
+from lorecraft.cli.check_run import DocumentCheck, print_run, register_check, select_documents
 from lorecraft.cli.failure import report_failure
+from lorecraft.cli.output import ExitStatus, OutputFormat
 from lorecraft.core.error import Error
 
 from . import app
@@ -67,11 +68,11 @@ def frontmatter(
         run = FRONTMATTER_CHECK.run(database, refs)
     except Error as exc:
         report_failure(exc)
-        raise typer.Exit(code=CheckExit.FAILURE) from exc
+        raise typer.Exit(code=ExitStatus.FAILURE) from exc
 
     print_run(run, output_format, FRONTMATTER_CHECK.ungoverned)
     if run.findings():
-        raise typer.Exit(code=CheckExit.FINDINGS)
+        raise typer.Exit(code=ExitStatus.FINDINGS)
 
 
 # The alias is the same function registered under a second name. Typer's decorator returns the function unchanged, so

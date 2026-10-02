@@ -108,7 +108,7 @@ specification for both.
 specification must use only the dialect's keys and state usable rules, and its `frontmatter` key must satisfy
 the JSON Schema Draft 2020-12 meta-schema, state `"type": "object"` at its root, and carry no `$id` at any
 depth. A leftover `<name>.header.json` is not read: its schema belongs in that key now. A file that fails stops
-the run with an error naming it: `inspect` exits `1`, `lorecraft check` exits `2`. That error is the finding; [spec-structure](references/spec-structure.md) says what is refused for any file, and
+the run with an error naming it: `inspect` and `lorecraft check` both exit `2`. That error is the finding; [spec-structure](references/spec-structure.md) says what is refused for any file, and
 [spec-structure-outline](references/spec-structure-outline.md),
 [spec-structure-budget](references/spec-structure-budget.md) and
 [spec-structure-frontmatter](references/spec-structure-frontmatter.md) what is refused for their keys.
