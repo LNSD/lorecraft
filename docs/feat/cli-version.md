@@ -3,7 +3,7 @@ name: "cli-version"
 description: "lorecraft version: the one-line installed version, and with --verbose the commit, interpreter, platform and install path a bug report needs. Load when reporting a bug, or checking which lorecraft build is installed"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft.cli.commands.version,module:lorecraft.cli.version"
+components: "module:lorecraft.cli"
 ---
 
 # `lorecraft version`

@@ -3,7 +3,7 @@ name: "spec-structure-budget"
 description: "The length keys of a structure specification: the words cap on an outline entry and what counts as a prose word, the whole-file tokens budget in o200k_base tokens, and how a namespace file tightens either. Load when setting or changing a word cap or a token budget, or asking why a section or a document is reported over its limit"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft.project.schemas.structure,module:lorecraft.project.schemas.structure_file,module:lorecraft.checks.structure,module:lorecraft.checks.budget,spec:feat,spec:code"
+components: "module:lorecraft.project,module:lorecraft.checks,spec:feat,spec:code"
 ---
 
 # Word Caps and Token Budget
@@ -27,8 +27,8 @@ whole file, which is what loading the document costs an agent. `lorecraft check 
 ## Key Concepts
 
 - **Word cap**: The most prose words a section may hold, its H3 subsections included.
-- **Prose word**: Whitespace-delimited text outside fenced code blocks and table rows, so an example or a
-  reference table costs no words.
+- **Prose word**: Whitespace-delimited text outside code blocks, fenced or indented, table rows and headings, so
+  an example, a reference table or a heading costs no words.
 - **Token budget**: The most `o200k_base` tokens the whole file may hold, frontmatter, code and tables
   included. The count is the same whichever agent reads the document.
 

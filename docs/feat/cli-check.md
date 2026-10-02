@@ -3,7 +3,7 @@ name: "cli-check"
 description: "The lorecraft check command group and a bare lorecraft check: repository root discovery, document selection, the text and JSON output every check prints, and the 0/1/2 exit status. Load when running the documentation or skill checks, wiring them into CI or a pre-commit hook, or parsing their output"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft.cli.commands.check,module:lorecraft.cli.check_run,module:lorecraft.cli.root,module:lorecraft.cli.select,module:lorecraft.checks.run,module:lorecraft.checks.reporting"
+components: "module:lorecraft.cli,module:lorecraft.checks"
 ---
 
 # `lorecraft check`
@@ -28,8 +28,9 @@ their findings together. Every check shares the root discovery, output formats a
 
 ## Key Concepts
 
-- **Check**: One subcommand of the group, validating one part of a document against the
-  `<stem>.structure.json` structure specifications its path selects.
+- **Check**: One subcommand of the group. A document check validates one part of a document against the
+  `<stem>.structure.json` structure specifications its path selects; the skill check holds each skill to the
+  Agent Skills specification.
 - **Finding**: One broken rule, located: a root-relative path, a line, a rule identifier and a message, and optionally
   notes that help fix it.
 - **Governed**: A document is governed by a check when its corpus specification has a structure file and at
@@ -56,13 +57,14 @@ reads documents, however it was found.
 
 A bare `lorecraft check` checks every document of the [workspace](workspace.md#documents), and every skill. A
 named document check does the same when given no paths. Given paths, it checks exactly those, and refuses the run when one is not such a
-document — outside `docs/`, inside `docs/__meta__/`, not Markdown, in a directory no specification names, or in
-a subdirectory of a corpus. Paths are relative to the working directory, not to the root.
+document: a path outside `docs/` or inside `docs/__meta__/`, a file directly in `docs/`, a directory, a file that
+is not Markdown, one in a directory whose name is no corpus name or that no specification names, one in a
+subdirectory of a corpus, one the workspace does not list as a document, or a path the snapshot holds nothing at.
+Paths are relative to the working directory, not to the root.
 
 Under the root a path is resolved in the [snapshot](workspace.md#one-snapshot), not on disk, so it names what
-the run reads: a link the snapshot recorded is followed to its target, a link it never read is judged by its
-spelling, and a path it holds no file at refuses the run. Above the root a link is followed on disk, so the root
-may be reached through one.
+the run reads: a link the snapshot recorded is followed to its target, and a link it never read is judged by its
+spelling. Above the root a link is followed on disk, so the root may be reached through one.
 
 ### One Run, One Snapshot
 
@@ -78,8 +80,8 @@ document.
 | `--format <text\|json>` | `text` | The output format, as [Output](#output) describes |
 
 Both options belong to the command that runs: `lorecraft check --root . frontmatter` is a usage error, and
-`lorecraft check frontmatter --root .` is what is meant. Each check also takes the documents to check as paths,
-which its own document tables.
+`lorecraft check frontmatter --root .` is what is meant. Each check also takes paths to what it checks,
+documents or skills, which its own document's Configuration table describes.
 
 ## Usage
 
@@ -104,6 +106,17 @@ stderr. A document no specification governs for the check is listed as `<path>:1
 docs/feat/spec-demo.md:3: [feat.description] 'A demo' does not match 'Load when' (per docs/__meta__/feat.structure.json)
 docs/feat/spec-demo.md:15: [structure.empty] section `Key Concepts` is empty; omit it rather than leaving it empty (per feat.md)
 docs/feat/spec-demo.md:15: [structure.outline] expected section `Table of Contents`, found `Key Concepts` (per feat.md)
+  = help: Links to the sections below it, one numbered entry per section, starting at Key Concepts.
+  = note: for example:
+          ## Table of Contents
+
+          1. [Key Concepts](#key-concepts)
+          2. [Configuration](#configuration)
+          3. [Usage](#usage)
+          4. [Limitations](#limitations)
+          5. [Findings](#findings)
+          6. [References](#references)
+          7. [Code References](#code-references)
 checked 1 file(s) and 16 skill(s) with 4 check(s), 3 finding(s)
 ```
 
@@ -142,7 +155,7 @@ stating the rule, or `null` for a rule the check holds itself. `notes` lists the
 |------|---------|
 | `0`  | No check reported a finding; ungoverned documents do not count |
 | `1`  | At least one finding |
-| `2`  | The run could not start: no root, a symlinked `docs/` or `docs/__meta__/`, a rejected path, an unreadable file, a malformed specification, or a usage error. Only the error is printed, on stderr, prefixed `error:` and followed by its causes ([cli](cli.md)) |
+| `2`  | The run could not start: no root, a symlinked `docs/` or `docs/__meta__/`, a rejected path, an unreadable file, a malformed specification, or a usage error. Only the error is printed, on stderr: a usage error after the usage, and any other prefixed `error:` and followed by its causes, as [cli](cli.md) describes |
 
 ## Limitations
 
