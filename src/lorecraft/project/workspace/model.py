@@ -26,6 +26,7 @@ from lorecraft.project.skill.named_dir import NamedDir
 from lorecraft.project.skill.outside import OutsideSymlink
 from lorecraft.project.skill.ref import SkillLocation, SkillRef
 from lorecraft.project.skill.skills_dir import SkillsDir
+from lorecraft.vfs import ResolvedPath
 
 
 @dataclass(frozen=True, slots=True)
@@ -205,9 +206,9 @@ class WorkspaceModel:
     Attributes:
         corpora: Every corpus, sorted by name.
         skills_dirs: Every project skills directory an agent reads that the repository has, one record per
-            agent and directory, sorted by agent then path. Two agents reading one canonical directory are two
+            agent and directory, sorted by agent then path. Two agents reading one resolved directory are two
             records with the same ``resolves_to``.
-        skill_locations: The location of every skill directly inside the canonical directories those resolve to,
+        skill_locations: The location of every skill directly inside the directories those resolve to,
             each once, sorted by directory; ``skills()`` lists the refs alone, and ``skill_agents`` says which
             agents read one. A skill belongs to no corpus, so no spec governs it and ``documents()`` does not
             list it. The locations, not the refs, record where each link leads, so two models differ when a
@@ -216,7 +217,7 @@ class WorkspaceModel:
             directory or an entry in one, which `skills_dirs` and `skill_locations` already read, sorted by path.
             Each holds the locations of its own skills, so `skills()` does not list them and `find_skill` does not
             find them; `skill_location` does. Empty in a run that names none.
-        outside_symlinks: Every skills directory an agent declares, entry in a canonical skills directory or a named
+        outside_symlinks: Every skills directory an agent declares, entry in a resolved skills directory or a named
             directory, and `SKILL.md` of such an entry or of a named directory, whose symlink chain leaves the
             repository, sorted by path, each once. None of them is a skills directory or a skill of the model; a
             symlink inside a skill is in its resource listing.
@@ -288,7 +289,7 @@ class WorkspaceModel:
         Only the agents' skills are looked up, never a named directory's: `find_named_dir` finds those.
 
         Args:
-            directory: Skill directory to look up, `<canonical skills directory>/<entry>`, compared whole and
+            directory: Skill directory to look up, `<resolved skills directory>/<entry>`, compared whole and
                 lexically: an entry that is a link is found by its own name, never by the directory it leads to.
         """
         for location in self.skill_locations:
@@ -296,30 +297,30 @@ class WorkspaceModel:
                 return location.ref
         return None
 
-    def has_skills_dir(self, canonical_path: RootRelativePath) -> bool:
-        """True when a skills directory the model lists leads to this canonical path.
+    def has_skills_dir(self, resolved_path: ResolvedPath) -> bool:
+        """True when a skills directory the model lists leads to this resolved path.
 
         Args:
-            canonical_path: A canonical directory, root-relative, with no symlink on the way to it, compared whole and
+            resolved_path: A resolved directory, root-relative, with no symlink on the way to it, compared whole and
                 lexically against each skills directory's `resolves_to`.
         """
         for skills_dir in self.skills_dirs:
-            if skills_dir.resolves_to == canonical_path:
+            if skills_dir.resolves_to == resolved_path:
                 return True
         return False
 
-    def skills_in(self, canonical_path: RootRelativePath) -> tuple[SkillRef, ...]:
-        """The skills listed directly inside this canonical directory.
+    def skills_in(self, resolved_path: ResolvedPath) -> tuple[SkillRef, ...]:
+        """The skills listed directly inside this resolved directory.
 
         Args:
-            canonical_path: A canonical directory, root-relative, matched against each skill directory's parent.
+            resolved_path: A resolved directory, root-relative, matched against each skill directory's parent.
 
         Returns:
             Every such skill, in the model's order, or `()` when the directory holds none.
         """
         refs: list[SkillRef] = []
         for location in self.skill_locations:
-            if location.ref.directory.parent == canonical_path:
+            if location.ref.directory.parent == resolved_path:
                 refs.append(location.ref)
         return tuple(refs)
 
@@ -346,11 +347,11 @@ class WorkspaceModel:
                 return True
         return False
 
-    def locate_skill_files(self, path: RootRelativePath) -> tuple[SkillRef, ...]:
-        """The skills whose `SKILL.md` leads to this canonical file, in an agent's skills directory or a named one.
+    def locate_skill_files(self, path: ResolvedPath) -> tuple[SkillRef, ...]:
+        """The skills whose `SKILL.md` leads to this resolved file, in an agent's skills directory or a named one.
 
         Args:
-            path: A canonical path, root-relative, with no symlink on the way to it.
+            path: A resolved path, root-relative, with no symlink on the way to it.
 
         Returns:
             Every such skill, each once, the agents' first, then the named directories' in their order, or `()`
@@ -371,7 +372,7 @@ class WorkspaceModel:
         """The agents that read a skill: those with a skills directory that leads to the one holding it.
 
         Args:
-            ref: Skill whose directory's parent is matched against each skills directory's canonical directory.
+            ref: Skill whose directory's parent is matched against each skills directory's resolved directory.
 
         Returns:
             The agents in name order, each once, or ``()`` when no skills directory leads there.

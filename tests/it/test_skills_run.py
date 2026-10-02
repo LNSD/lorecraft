@@ -1369,7 +1369,7 @@ class TestRunSkillsNameMatchesDirectory:
         run = _run_every_skill(database)
 
         #: Then
-        # The model names a skill under the canonical skills directory, so `agent-skills/bar` is its ref, and every
+        # The model names a skill under the resolved skills directory, so `agent-skills/bar` is its ref, and every
         # finding about it is reported there, this one among them.
         assert run.findings() == (
             Finding(

@@ -13,9 +13,9 @@ from typing import Self, assert_never
 
 from lorecraft.core.path import ROOT, RootRelativePath
 
-from .root_expansion import CanonicalDirectory, CanonicalFile, find_canonical_path
+from .root_expansion import ResolvedDirectory, ResolvedFile, find_destination
 from .scan_root import ScanRoot
-from .view import DirEntry, EntryKind, FileSystem, RootExit, UnrecordedFileError, decode_text
+from .view import DirEntry, EntryKind, FileSystem, ResolvedPath, RootExit, UnrecordedFileError, decode_text
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,7 +74,7 @@ class Snapshot:
     snapshot alone. A link is always recorded, and followed only under a scan root that asks for it: where the
     scan did not follow one that leads outside the scope, what the disk view reads through it is not here.
 
-    Every listing, file, link and climbed directory sits at a canonical path, with no symlink on the way to it. So
+    Every listing, file, link and climbed directory sits at a resolved path, with no symlink on the way to it. So
     when the virtual view follows a chain, it treats as a directory every listing, every climbed directory, and
     every ancestor of a listing, a file, a link or a climbed directory.
 
@@ -170,7 +170,7 @@ class VirtualFileSystem(FileSystem):
 
     Anything the snapshot did not record answers like a missing path on disk: an empty listing, a
     ``UnrecordedFileError``, or no directory. A path is walked through the recorded links by
-    `find_canonical_path`, the walk the scan itself took, so the view reaches nothing through a link chain the
+    `find_destination`, the walk the scan itself took, so the view reaches nothing through a link chain the
     scan did not follow.
     """
 
@@ -193,7 +193,7 @@ class VirtualFileSystem(FileSystem):
     def list_dir(self, path: RootRelativePath) -> tuple[DirEntry, ...]:
         """The recorded listing of the directory `path` leads to; see `FileSystem.list_dir`.
 
-        A recorded link on the way, or at it, is followed, as `find_canonical_dir` follows it, so a linked directory
+        A recorded link on the way, or at it, is followed, as `find_dir` follows it, so a linked directory
         lists as the directory it leads to when the scan listed that one.
 
         Args:
@@ -203,7 +203,7 @@ class VirtualFileSystem(FileSystem):
             The entries in name order, or `()` for a missing, non-directory, unentered or out-of-scope
             path, and for a link the snapshot cannot follow to a listed directory.
         """
-        directory = self.find_canonical_dir(path)
+        directory = self.find_dir(path)
         if directory is None:
             return ()
         return self._listings.get(directory, ())
@@ -211,7 +211,7 @@ class VirtualFileSystem(FileSystem):
     def read_text(self, path: RootRelativePath) -> str:
         """Decode the recorded bytes of the file `path` leads to; see `FileSystem.read_text`.
 
-        A recorded link on the way to the file, or at it, is followed, as `find_canonical_file` follows it. A link
+        A recorded link on the way to the file, or at it, is followed, as `find_file` follows it. A link
         the scan did not follow to its file has no bytes here and reads as a missing file, as an OTHER entry
         does.
 
@@ -222,15 +222,15 @@ class VirtualFileSystem(FileSystem):
             TextDecodeError: If the bytes are not UTF-8.
             UnrecordedFileError: If `path` leads to no regular file in the snapshot.
         """
-        canonical_path = self.find_canonical_file(path)
-        if canonical_path is None:
+        resolved_path = self.find_file(path)
+        if resolved_path is None:
             raise UnrecordedFileError(path)
-        return decode_text(path, self._files[canonical_path])
+        return decode_text(path, self._files[resolved_path])
 
     def find_entry_kind(self, path: RootRelativePath) -> EntryKind | None:
         """What the recorded entry at `path` itself is; see `FileSystem.find_entry_kind`.
 
-        A recorded link on the way to `path` is followed, as `find_canonical_dir` follows it; a recorded link at
+        A recorded link on the way to `path` is followed, as `find_dir` follows it; a recorded link at
         `path` is SYMLINK.
 
         Args:
@@ -244,50 +244,52 @@ class VirtualFileSystem(FileSystem):
         """
         if path == ROOT:
             return EntryKind.DIRECTORY
-        parent = self.find_canonical_dir(path.parent)
+        parent = self.find_dir(path.parent)
         if parent is None:
             return None
         return self._entries.find_kind(parent / path.name)
 
-    def find_canonical_dir(self, path: RootRelativePath) -> RootRelativePath | None:
-        """Follow the recorded links in `path` and return the canonical directory it leads to; see `FileSystem`.
+    def find_dir(self, path: RootRelativePath) -> ResolvedPath | None:
+        """Follow the recorded links in `path` and return the resolved directory it leads to; see `FileSystem`.
 
         Args:
             path: The root-relative path to resolve; only links the snapshot recorded are followed.
 
         Returns:
-            The canonical directory, root-relative, or `None` where the disk answers `None` (missing, a
+            The resolved directory, root-relative, or `None` where the disk answers `None` (missing, a
             dangling or looping link, a file on the way or at the end) and also wherever the chain leaves
             what the snapshot recorded: above the root, an absolute target (one outside the root, since
             `take_snapshot` spells every target under it relative), or a directory outside the scope.
         """
-        leads_to = self._find_canonical_path(path)
+        leads_to = self._find_destination(path)
         match leads_to:
-            case CanonicalDirectory(path=directory):
-                return directory
-            case CanonicalFile() | RootExit() | None:
+            case ResolvedDirectory(path=directory):
+                # Resolved: the walk ends at a path it reached through no symlink.
+                return ResolvedPath(directory)
+            case ResolvedFile() | RootExit() | None:
                 return None
             case _:
                 assert_never(leads_to)
 
-    def find_canonical_file(self, path: RootRelativePath) -> RootRelativePath | None:
+    def find_file(self, path: RootRelativePath) -> ResolvedPath | None:
         """Follow the recorded links in `path` and return the recorded file it leads to; see `FileSystem`.
 
         Args:
             path: The root-relative path to resolve; only links the snapshot recorded are followed.
 
         Returns:
-            The canonical file, root-relative, or `None` where `find_canonical_dir` lists, and also for a directory and
+            The resolved file, root-relative, or `None` where `find_dir` lists, and also for a directory and
             for a file whose bytes the snapshot did not record, such as one a link the scan did not follow
             leads to.
         """
-        leads_to = self._find_canonical_path(path)
+        leads_to = self._find_destination(path)
         match leads_to:
-            case CanonicalFile(path=file):
+            case ResolvedFile(path=file):
                 if file not in self._files:
                     return None
-                return file
-            case CanonicalDirectory() | RootExit() | None:
+                # Resolved: the walk ends at a path it reached through no symlink.
+                return ResolvedPath(file)
+            case ResolvedDirectory() | RootExit() | None:
                 return None
             case _:
                 assert_never(leads_to)
@@ -299,19 +301,19 @@ class VirtualFileSystem(FileSystem):
             path: The root-relative path to walk; only links the snapshot recorded are followed, and nothing
                 outside the root is read, since the snapshot holds nothing there.
         """
-        leads_to = self._find_canonical_path(path)
+        leads_to = self._find_destination(path)
         match leads_to:
             case RootExit():
                 return leads_to
-            case CanonicalDirectory() | CanonicalFile() | None:
+            case ResolvedDirectory() | ResolvedFile() | None:
                 return None
             case _:
                 assert_never(leads_to)
 
-    def _find_canonical_path(self, path: RootRelativePath) -> CanonicalDirectory | CanonicalFile | RootExit | None:
-        """Walk `path` through the recorded links to the canonical directory or file it leads to.
+    def _find_destination(self, path: RootRelativePath) -> ResolvedDirectory | ResolvedFile | RootExit | None:
+        """Walk `path` through the recorded links to the resolved directory or file it leads to.
 
-        The walk is `find_canonical_path`, the one the scan took over the disk, here over what the snapshot
+        The walk is `find_destination`, the one the scan took over the disk, here over what the snapshot
         recorded (`_SnapshotEntries`): every component must be a directory the snapshot knows of or, as the
         last one, a file, a recorded link splices its target in, and a `..` climbs to the parent.
 
@@ -319,16 +321,16 @@ class VirtualFileSystem(FileSystem):
             path: The root-relative path to walk, spelled as given; links in it are followed.
 
         Returns:
-            The canonical directory or file, where the chain leaves the root, or `None` when the snapshot holds
-            nothing there; `find_canonical_dir` lists the cases.
+            The resolved directory or file, where the chain leaves the root, or `None` when the snapshot holds
+            nothing there; `find_dir` lists the cases.
         """
-        return find_canonical_path(path, self._entries, follow_links=True)
+        return find_destination(path, self._entries, follow_links=True)
 
 
 class _SnapshotEntries:
     """What a walk of the virtual view sees: every entry a snapshot recorded, and nothing else.
 
-    The `EntryLookup` the view hands to `find_canonical_path`. It differs from the scope query's recorded links
+    The `EntryLookup` the view hands to `find_destination`. It differs from the scope query's recorded links
     in one way: a path the snapshot recorded nothing at is nothing, never assumed a directory, since the view
     answers what is there and not only where a path would lead.
     """
@@ -350,9 +352,9 @@ class _SnapshotEntries:
         # twice keeps the kind `kind` documents. Only a self-inconsistent snapshot records a path twice with two
         # kinds; one taken by `take_snapshot` never does.
         self._kinds: dict[RootRelativePath, EntryKind] = {ROOT: EntryKind.DIRECTORY}
-        # A listing sits at a canonical path, so it and every ancestor of it are directories, and so is a climbed
-        # directory. A recorded file's ancestors are too, since it also sits at a canonical path, and so are a
-        # recorded link's, since the scan meets a link only in a canonical directory.
+        # A listing sits at a resolved path, so it and every ancestor of it are directories, and so is a climbed
+        # directory. A recorded file's ancestors are too, since it also sits at a resolved path, and so are a
+        # recorded link's, since the scan meets a link only in a resolved directory.
         for listing in snapshot.listings:
             self._kinds[listing.path] = EntryKind.DIRECTORY
             for ancestor in listing.path.parents:
@@ -408,6 +410,6 @@ class _SnapshotEntries:
         """Always true: the walk stepped into `directory` only where the snapshot records one; see `EntryLookup`.
 
         Args:
-            directory: The canonical directory the walk climbs out of.
+            directory: The resolved directory the walk climbs out of.
         """
         return True

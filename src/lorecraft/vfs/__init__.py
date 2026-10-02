@@ -1,9 +1,11 @@
 """The filesystem boundary Lorecraft reads through: the views, the disk scan, the snapshot, scope and change set.
 
 Every argument and answer is spelled as a `RootRelativePath`, the path type in `lorecraft.core.path`,
-which this package speaks and does not re-export. What a scan reads is the scope its caller passes, a tuple
-of `ScanRoot` the snapshot records, and a `ScopeIndex` built once from it answers from that declaration whether
-a scan of it reads a path; which directories matter is the project model's business, not this package's.
+which this package speaks and does not re-export. A path the views resolve, with every symlink followed, is
+a `ResolvedPath`, this package's own static distinction over it. What a scan reads is the scope its caller
+passes, a tuple of `ScanRoot` the snapshot records, and a `ScopeIndex` built once from it answers from that
+declaration whether a scan of it reads a path; which directories matter is the project model's business, not
+this package's.
 """
 
 from .changes import Change, ChangeKind, ChangeSet, diff
@@ -29,6 +31,7 @@ from .view import (
     FileResolveError,
     FileSystem,
     OsRefusal,
+    ResolvedPath,
     RootExit,
     TextDecodeError,
     UnrecordedFileError,
@@ -36,6 +39,7 @@ from .view import (
 
 __all__ = [
     'FileSystem',
+    'ResolvedPath',
     'DiskFileSystem',
     'disk_location',
     'VirtualFileSystem',

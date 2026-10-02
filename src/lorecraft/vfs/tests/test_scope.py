@@ -146,7 +146,7 @@ class TestScopeIndexIsInScope:
         #: Then
         assert in_scope is True, 'the skills root follows the link, so it lists skills/y'
 
-    def test_is_in_scope_at_the_canonical_path_a_followed_skill_link_leads_to_returns_true(self) -> None:
+    def test_is_in_scope_at_the_resolved_path_a_followed_skill_link_leads_to_returns_true(self) -> None:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/y': '../../skills/y'})
         path = _path('skills/y/absent.md')
@@ -381,7 +381,7 @@ class TestScopeIndexIsInScope:
         in_scope = index.is_in_scope(path)
 
         #: Then
-        assert in_scope is True, 'the followed link adds a root at skills/y, its canonical path'
+        assert in_scope is True, 'the followed link adds a root at skills/y, its resolved path'
 
     def test_is_in_scope_under_a_link_climbing_out_of_a_directory_the_scan_never_climbed_returns_false(
         self,

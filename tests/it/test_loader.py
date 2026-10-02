@@ -29,7 +29,7 @@ from lorecraft.project.skill import NamedDir, OutsideSymlink, SkillLocation, Ski
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.workspace.loader import load_model, load_workspace
 from lorecraft.project.workspace.model import WorkspaceModel
-from lorecraft.vfs import DiskFileSystem, RootExit, VirtualFileSystem, take_snapshot
+from lorecraft.vfs import DiskFileSystem, ResolvedPath, RootExit, VirtualFileSystem, take_snapshot
 
 CLAUDE: Final[AgentName] = AgentName('claude-code')
 CODEX: Final[AgentName] = AgentName('codex')
@@ -101,11 +101,14 @@ def _skill_location(directory: str) -> SkillLocation:
         directory: Root-relative path of the skill directory; it and its `SKILL.md` resolve to themselves.
     """
     path = RootRelativePath.parse(directory)
-    return SkillLocation(SkillRef(path), resolves_to=path, file_resolves_to=path / 'SKILL.md')
+    # No link on the way, so the directory and its `SKILL.md` are their own resolved paths.
+    return SkillLocation(
+        SkillRef(path), resolves_to=ResolvedPath(path), file_resolves_to=ResolvedPath(path / 'SKILL.md')
+    )
 
 
 def _linked_skill_location(directory: str, resolves_to: str, file_resolves_to: str) -> SkillLocation:
-    """The location of a skill whose directory or `SKILL.md` is a link, with the canonical paths they lead to.
+    """The location of a skill whose directory or `SKILL.md` is a link, with the resolved paths they lead to.
 
     Args:
         directory: Root-relative path of the skill directory as an agent reaches it.
@@ -114,8 +117,8 @@ def _linked_skill_location(directory: str, resolves_to: str, file_resolves_to: s
     """
     return SkillLocation(
         SkillRef(RootRelativePath.parse(directory)),
-        resolves_to=RootRelativePath.parse(resolves_to),
-        file_resolves_to=RootRelativePath.parse(file_resolves_to),
+        resolves_to=ResolvedPath(RootRelativePath.parse(resolves_to)),
+        file_resolves_to=ResolvedPath(RootRelativePath.parse(file_resolves_to)),
     )
 
 
@@ -815,10 +818,10 @@ class TestLoadWorkspaceSkills:
 
         #: Then
         assert model.skills_dirs == (
-            SkillsDir(agent=CODEX, path=UNIVERSAL_SKILLS_DIR, resolves_to=UNIVERSAL_SKILLS_DIR),
+            SkillsDir(agent=CODEX, path=UNIVERSAL_SKILLS_DIR, resolves_to=ResolvedPath(UNIVERSAL_SKILLS_DIR)),
         ), 'only the agent whose skills directory the repository has is recorded'
 
-    def test_load_workspace_with_a_directory_linked_to_another_records_both_agents_at_one_canonical_directory(
+    def test_load_workspace_with_a_directory_linked_to_another_records_both_agents_at_one_resolved_directory(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
@@ -831,9 +834,9 @@ class TestLoadWorkspaceSkills:
 
         #: Then
         assert model.skills_dirs == (
-            SkillsDir(agent=CLAUDE, path=CLAUDE_SKILLS_DIR, resolves_to=UNIVERSAL_SKILLS_DIR),
-            SkillsDir(agent=CODEX, path=UNIVERSAL_SKILLS_DIR, resolves_to=UNIVERSAL_SKILLS_DIR),
-        ), 'each agent keeps its own record, and both name the one canonical directory'
+            SkillsDir(agent=CLAUDE, path=CLAUDE_SKILLS_DIR, resolves_to=ResolvedPath(UNIVERSAL_SKILLS_DIR)),
+            SkillsDir(agent=CODEX, path=UNIVERSAL_SKILLS_DIR, resolves_to=ResolvedPath(UNIVERSAL_SKILLS_DIR)),
+        ), 'each agent keeps its own record, and both name the one resolved directory'
 
     def test_load_workspace_with_skills_in_two_agents_directories_lists_all_of_them(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository

@@ -639,56 +639,54 @@ class TestDiskFileSystemFindEntryKind:
 
 
 @pytest.mark.it
-class TestDiskFileSystemFindCanonicalDir:
-    def test_find_canonical_dir_with_a_regular_directory_returns_itself(self, tmp_path: Path) -> None:
+class TestDiskFileSystemFindDir:
+    def test_find_dir_with_a_regular_directory_returns_itself(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / '.agents' / 'skills').mkdir(parents=True)
         filesystem = DiskFileSystem(tmp_path)
         skills = RootRelativePath.parse('.agents/skills')
 
         #: When
-        resolved = filesystem.find_canonical_dir(skills)
+        resolved = filesystem.find_dir(skills)
 
         #: Then
         assert resolved == skills, 'a directory with no link in its path resolves to itself'
 
-    def test_find_canonical_dir_with_the_root_returns_dot(self, tmp_path: Path) -> None:
+    def test_find_dir_with_the_root_returns_dot(self, tmp_path: Path) -> None:
         #: Given
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.find_canonical_dir(RootRelativePath.parse('.'))
+        resolved = filesystem.find_dir(RootRelativePath.parse('.'))
 
         #: Then
         assert resolved == RootRelativePath.parse('.'), 'the root resolves to the empty root-relative path'
 
-    def test_find_canonical_dir_with_a_link_to_a_directory_returns_the_target(self, tmp_path: Path) -> None:
+    def test_find_dir_with_a_link_to_a_directory_returns_the_target(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'target').mkdir()
         (tmp_path / 'link').symlink_to(tmp_path / 'target')
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.find_canonical_dir(RootRelativePath.parse('link'))
+        resolved = filesystem.find_dir(RootRelativePath.parse('link'))
 
         #: Then
         assert resolved == RootRelativePath.parse('target'), 'a link to a directory resolves to the directory it names'
 
-    def test_find_canonical_dir_through_a_linked_parent_returns_the_canonical_directory(self, tmp_path: Path) -> None:
+    def test_find_dir_through_a_linked_parent_returns_the_resolved_directory(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / '.agents' / 'skills').mkdir(parents=True)
         (tmp_path / '.claude').symlink_to('.agents')
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.find_canonical_dir(RootRelativePath.parse('.claude/skills'))
+        resolved = filesystem.find_dir(RootRelativePath.parse('.claude/skills'))
 
         #: Then
         assert resolved == RootRelativePath.parse('.agents/skills'), 'a link on a parent component is followed too'
 
-    def test_find_canonical_dir_with_a_relative_link_from_a_subdirectory_returns_the_target(
-        self, tmp_path: Path
-    ) -> None:
+    def test_find_dir_with_a_relative_link_from_a_subdirectory_returns_the_target(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / '.agents' / 'skills').mkdir(parents=True)
         (tmp_path / '.claude').mkdir()
@@ -696,80 +694,80 @@ class TestDiskFileSystemFindCanonicalDir:
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.find_canonical_dir(RootRelativePath.parse('.claude/skills'))
+        resolved = filesystem.find_dir(RootRelativePath.parse('.claude/skills'))
 
         #: Then
         assert resolved == RootRelativePath.parse('.agents/skills'), 'a relative target is read from the link directory'
 
-    def test_find_canonical_dir_with_a_dangling_link_returns_none(self, tmp_path: Path) -> None:
+    def test_find_dir_with_a_dangling_link_returns_none(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'link').symlink_to('missing')
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.find_canonical_dir(RootRelativePath.parse('link'))
+        resolved = filesystem.find_dir(RootRelativePath.parse('link'))
 
         #: Then
         assert resolved is None, 'a link to nothing leads to no directory'
 
-    def test_find_canonical_dir_with_a_link_loop_returns_none(self, tmp_path: Path) -> None:
+    def test_find_dir_with_a_link_loop_returns_none(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'first').symlink_to('second')
         (tmp_path / 'second').symlink_to('first')
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.find_canonical_dir(RootRelativePath.parse('first'))
+        resolved = filesystem.find_dir(RootRelativePath.parse('first'))
 
         #: Then
         assert resolved is None, 'a looping link leads nowhere, like a dangling one'
 
-    def test_find_canonical_dir_with_a_chain_longer_than_the_system_follows_returns_none(
+    def test_find_dir_with_a_chain_longer_than_the_system_follows_returns_none(
         self, tmp_path: Path, chain_of_41_links: str
     ) -> None:
         #: Given
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.find_canonical_dir(RootRelativePath.parse(chain_of_41_links))
+        resolved = filesystem.find_dir(RootRelativePath.parse(chain_of_41_links))
 
         #: Then
         assert resolved is None, 'nothing opens a directory through a chain the operating system gives up on'
 
-    def test_find_canonical_dir_with_a_link_to_a_file_returns_none(self, tmp_path: Path) -> None:
+    def test_find_dir_with_a_link_to_a_file_returns_none(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'notes.md').write_text('', encoding='utf-8')
         (tmp_path / 'link').symlink_to('notes.md')
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.find_canonical_dir(RootRelativePath.parse('link'))
+        resolved = filesystem.find_dir(RootRelativePath.parse('link'))
 
         #: Then
         assert resolved is None, 'a link whose target is a file is not a directory'
 
-    def test_find_canonical_dir_with_a_missing_path_returns_none(self, tmp_path: Path) -> None:
+    def test_find_dir_with_a_missing_path_returns_none(self, tmp_path: Path) -> None:
         #: Given
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.find_canonical_dir(RootRelativePath.parse('.agents/skills'))
+        resolved = filesystem.find_dir(RootRelativePath.parse('.agents/skills'))
 
         #: Then
         assert resolved is None, 'a missing path resolves to nothing rather than failing'
 
-    def test_find_canonical_dir_through_a_file_component_returns_none(self, tmp_path: Path) -> None:
+    def test_find_dir_through_a_file_component_returns_none(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'notes.md').write_text('', encoding='utf-8')
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.find_canonical_dir(RootRelativePath.parse('notes.md/skills'))
+        resolved = filesystem.find_dir(RootRelativePath.parse('notes.md/skills'))
 
         #: Then
         assert resolved is None, 'a path through a file resolves to nothing rather than failing'
 
-    def test_find_canonical_dir_with_a_link_outside_the_root_returns_none(
+    def test_find_dir_with_a_link_outside_the_root_returns_none(
         self, tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
     ) -> None:
         #: Given
@@ -778,13 +776,13 @@ class TestDiskFileSystemFindCanonicalDir:
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.find_canonical_dir(RootRelativePath.parse('link'))
+        resolved = filesystem.find_dir(RootRelativePath.parse('link'))
 
         #: Then
         assert resolved is None, 'a directory outside the root has no root-relative spelling'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
-    def test_find_canonical_dir_under_an_unreadable_directory_raises_resolve_dir_error(
+    def test_find_dir_under_an_unreadable_directory_raises_resolve_dir_error(
         self, tmp_path: Path, unreadable_dir: Path
     ) -> None:
         #: Given
@@ -793,7 +791,7 @@ class TestDiskFileSystemFindCanonicalDir:
 
         #: When
         with pytest.raises(DirResolveError) as exc_info:
-            filesystem.find_canonical_dir(inside_locked)
+            filesystem.find_dir(inside_locked)
 
         #: Then
         assert exc_info.value.path == inside_locked, 'the error names the root-relative path'
@@ -801,7 +799,7 @@ class TestDiskFileSystemFindCanonicalDir:
         assert isinstance(exc_info.value.source, PermissionError), 'the error keeps the operating system failure'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
-    def test_find_canonical_dir_with_a_link_into_an_unreadable_directory_outside_the_root_returns_none(
+    def test_find_dir_with_a_link_into_an_unreadable_directory_outside_the_root_returns_none(
         self, tmp_path: Path, unreadable_outside_dir: Path
     ) -> None:
         #: Given
@@ -809,26 +807,26 @@ class TestDiskFileSystemFindCanonicalDir:
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.find_canonical_dir(RootRelativePath.parse('link'))
+        resolved = filesystem.find_dir(RootRelativePath.parse('link'))
 
         #: Then
         assert resolved is None, 'a chain leading outside the root never fails, even where the lookup is refused'
 
 
 @pytest.mark.it
-class TestDiskFileSystemFindCanonicalFile:
-    def test_find_canonical_file_with_a_regular_file_returns_itself(self, tmp_path: Path) -> None:
+class TestDiskFileSystemFindFile:
+    def test_find_file_with_a_regular_file_returns_itself(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'notes.md').write_text('', encoding='utf-8')
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.find_canonical_file(RootRelativePath.parse('notes.md'))
+        resolved = filesystem.find_file(RootRelativePath.parse('notes.md'))
 
         #: Then
         assert resolved == RootRelativePath.parse('notes.md'), 'a file with no link in its path resolves to itself'
 
-    def test_find_canonical_file_with_a_link_to_a_file_returns_the_target(self, tmp_path: Path) -> None:
+    def test_find_file_with_a_link_to_a_file_returns_the_target(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'shared').mkdir()
         (tmp_path / 'shared' / 'REVIEW.md').write_text('', encoding='utf-8')
@@ -837,14 +835,14 @@ class TestDiskFileSystemFindCanonicalFile:
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.find_canonical_file(RootRelativePath.parse('review/SKILL.md'))
+        resolved = filesystem.find_file(RootRelativePath.parse('review/SKILL.md'))
 
         #: Then
         assert resolved == RootRelativePath.parse('shared/REVIEW.md'), (
             'a link to a file resolves to the file it names, whatever that file is called'
         )
 
-    def test_find_canonical_file_through_a_linked_parent_returns_the_canonical_file(self, tmp_path: Path) -> None:
+    def test_find_file_through_a_linked_parent_returns_the_resolved_file(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / '.agents' / 'skills' / 'review').mkdir(parents=True)
         (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').write_text('', encoding='utf-8')
@@ -852,58 +850,58 @@ class TestDiskFileSystemFindCanonicalFile:
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.find_canonical_file(RootRelativePath.parse('.claude/skills/review/SKILL.md'))
+        resolved = filesystem.find_file(RootRelativePath.parse('.claude/skills/review/SKILL.md'))
 
         #: Then
         assert resolved == RootRelativePath.parse('.agents/skills/review/SKILL.md'), (
             'a link on a parent component is followed too'
         )
 
-    def test_find_canonical_file_with_a_directory_returns_none(self, tmp_path: Path) -> None:
+    def test_find_file_with_a_directory_returns_none(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'docs').mkdir()
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.find_canonical_file(RootRelativePath.parse('docs'))
+        resolved = filesystem.find_file(RootRelativePath.parse('docs'))
 
         #: Then
         assert resolved is None, 'a directory is not a file'
 
-    def test_find_canonical_file_with_a_dangling_link_returns_none(self, tmp_path: Path) -> None:
+    def test_find_file_with_a_dangling_link_returns_none(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'link').symlink_to('missing.md')
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.find_canonical_file(RootRelativePath.parse('link'))
+        resolved = filesystem.find_file(RootRelativePath.parse('link'))
 
         #: Then
         assert resolved is None, 'a link to nothing leads to no file'
 
-    def test_find_canonical_file_with_a_link_loop_returns_none(self, tmp_path: Path) -> None:
+    def test_find_file_with_a_link_loop_returns_none(self, tmp_path: Path) -> None:
         #: Given
         (tmp_path / 'first').symlink_to('second')
         (tmp_path / 'second').symlink_to('first')
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.find_canonical_file(RootRelativePath.parse('first'))
+        resolved = filesystem.find_file(RootRelativePath.parse('first'))
 
         #: Then
         assert resolved is None, 'a looping link leads nowhere, like a dangling one'
 
-    def test_find_canonical_file_with_a_missing_path_returns_none(self, tmp_path: Path) -> None:
+    def test_find_file_with_a_missing_path_returns_none(self, tmp_path: Path) -> None:
         #: Given
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.find_canonical_file(RootRelativePath.parse('missing.md'))
+        resolved = filesystem.find_file(RootRelativePath.parse('missing.md'))
 
         #: Then
         assert resolved is None, 'a missing path resolves to nothing rather than failing'
 
-    def test_find_canonical_file_with_a_link_outside_the_root_returns_none(
+    def test_find_file_with_a_link_outside_the_root_returns_none(
         self, tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
     ) -> None:
         #: Given
@@ -913,13 +911,13 @@ class TestDiskFileSystemFindCanonicalFile:
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.find_canonical_file(RootRelativePath.parse('link'))
+        resolved = filesystem.find_file(RootRelativePath.parse('link'))
 
         #: Then
         assert resolved is None, 'a file outside the root has no root-relative spelling'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
-    def test_find_canonical_file_under_an_unreadable_directory_raises_resolve_file_error(
+    def test_find_file_under_an_unreadable_directory_raises_resolve_file_error(
         self, tmp_path: Path, unreadable_dir: Path
     ) -> None:
         #: Given
@@ -928,7 +926,7 @@ class TestDiskFileSystemFindCanonicalFile:
 
         #: When
         with pytest.raises(FileResolveError) as exc_info:
-            filesystem.find_canonical_file(inside_locked)
+            filesystem.find_file(inside_locked)
 
         #: Then
         assert exc_info.value.path == inside_locked, 'the error names the root-relative path'
@@ -937,7 +935,7 @@ class TestDiskFileSystemFindCanonicalFile:
         assert str(inside_locked) in str(exc_info.value), 'the message names the path that could not be resolved'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
-    def test_find_canonical_file_with_a_link_into_an_unreadable_directory_outside_the_root_returns_none(
+    def test_find_file_with_a_link_into_an_unreadable_directory_outside_the_root_returns_none(
         self, tmp_path: Path, unreadable_outside_dir: Path
     ) -> None:
         #: Given
@@ -945,7 +943,7 @@ class TestDiskFileSystemFindCanonicalFile:
         filesystem = DiskFileSystem(tmp_path)
 
         #: When
-        resolved = filesystem.find_canonical_file(RootRelativePath.parse('link'))
+        resolved = filesystem.find_file(RootRelativePath.parse('link'))
 
         #: Then
         assert resolved is None, 'a chain leading outside the root never fails, even where the lookup is refused'
@@ -1163,7 +1161,7 @@ class TestTakeSnapshot:
             links=(Link(RootRelativePath.parse('.claude/skills'), PurePosixPath('../skills')),),
             climbed_directories=(RootRelativePath.parse('.claude'),),
             scope=scope,
-        ), 'the directory the scope root leads to is listed at its canonical path, down to the depth'
+        ), 'the directory the scope root leads to is listed at its resolved path, down to the depth'
 
     def test_take_snapshot_following_a_linked_entry_lists_the_directory_it_leads_to(self, tmp_path: Path) -> None:
         #: Given
@@ -1189,7 +1187,7 @@ class TestTakeSnapshot:
                 RootRelativePath.parse('.agents/skills'),
             ),
             scope=scope,
-        ), 'the entry stays a symlink, and the directory it leads to is listed at its canonical path'
+        ), 'the entry stays a symlink, and the directory it leads to is listed at its resolved path'
 
     def test_take_snapshot_following_a_linked_entry_beyond_the_depth_records_it_without_entering_it(
         self, tmp_path: Path
@@ -1279,7 +1277,7 @@ class TestTakeSnapshot:
             scope=scope,
         ), 'a link that leads back to itself ends the walk instead of the scan never returning'
 
-    def test_take_snapshot_following_a_link_to_a_file_records_its_bytes_at_the_canonical_path(
+    def test_take_snapshot_following_a_link_to_a_file_records_its_bytes_at_the_resolved_path(
         self, tmp_path: Path
     ) -> None:
         #: Given
@@ -1301,7 +1299,7 @@ class TestTakeSnapshot:
                 RootRelativePath.parse('.agents/skills'),
             ),
             scope=scope,
-        ), 'the entry stays a symlink, and the file it leads to is read at its canonical path, whatever the depth'
+        ), 'the entry stays a symlink, and the file it leads to is read at its resolved path, whatever the depth'
 
     def test_take_snapshot_following_a_link_to_a_file_outside_the_root_records_it_without_reading_through_it(
         self, tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
@@ -2265,204 +2263,192 @@ class TestVirtualFileSystemMatchesDisk:
         #: Then
         assert virtual_answer == disk_answer, 'a linked scope root the scan does not follow is a link on both'
 
-    # find_canonical_file: a skill file, one reached through a linked skill entry, and a directory.
+    # find_file: a skill file, one reached through a linked skill entry, and a directory.
 
-    def test_find_canonical_file_over_a_snapshot_with_a_skill_file_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_file_over_a_snapshot_with_a_skill_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = '.agents/skills/alpha/SKILL.md'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_file, virtual.find_canonical_file, path)
+        disk_answer, virtual_answer = _answers(disk.find_file, virtual.find_file, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the file SKILL.md resolves to itself on both'
 
-    def test_find_canonical_file_over_a_snapshot_through_a_skill_link_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_file_over_a_snapshot_through_a_skill_link_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = '.agents/skills/beta/SKILL.md'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_file, virtual.find_canonical_file, path)
+        disk_answer, virtual_answer = _answers(disk.find_file, virtual.find_file, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the SKILL.md behind the link beta is the one in alpha on both'
 
-    def test_find_canonical_file_over_a_snapshot_with_a_skill_directory_agrees_with_disk(
-        self, parity_tree: Path
-    ) -> None:
+    def test_find_file_over_a_snapshot_with_a_skill_directory_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = '.agents/skills/alpha'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_file, virtual.find_canonical_file, path)
+        disk_answer, virtual_answer = _answers(disk.find_file, virtual.find_file, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the directory alpha is no file on either'
 
-    # find_canonical_dir: every entry and listing, plus the chains that run through the recorded links. Three listings
+    # find_dir: every entry and listing, plus the chains that run through the recorded links. Three listings
     # are also directory entries, so their paths are checked twice, once as each.
 
-    def test_find_canonical_dir_over_a_snapshot_with_the_skill_directory_entry_agrees_with_disk(
-        self, parity_tree: Path
-    ) -> None:
+    def test_find_dir_over_a_snapshot_with_the_skill_directory_entry_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = '.agents/skills/alpha'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the directory entry .agents/skills/alpha resolves to itself on both'
 
-    def test_find_canonical_dir_over_a_snapshot_with_a_skill_file_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_dir_over_a_snapshot_with_a_skill_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = '.agents/skills/alpha/SKILL.md'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the file SKILL.md leads to no directory on either'
 
-    def test_find_canonical_dir_over_a_snapshot_with_a_skill_link_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_dir_over_a_snapshot_with_a_skill_link_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = '.agents/skills/beta'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the link beta leads to .agents/skills/alpha on both'
 
-    def test_find_canonical_dir_over_a_snapshot_with_the_linked_scope_root_agrees_with_disk(
-        self, parity_tree: Path
-    ) -> None:
+    def test_find_dir_over_a_snapshot_with_the_linked_scope_root_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = '.claude/skills'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the linked scope root .claude/skills leads to .agents/skills on both'
 
-    def test_find_canonical_dir_over_a_snapshot_with_the_meta_directory_entry_agrees_with_disk(
-        self, parity_tree: Path
-    ) -> None:
+    def test_find_dir_over_a_snapshot_with_the_meta_directory_entry_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/__meta__'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the directory entry docs/__meta__ resolves to itself on both'
 
-    def test_find_canonical_dir_over_a_snapshot_with_a_meta_file_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_dir_over_a_snapshot_with_a_meta_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/__meta__/code.md'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the file docs/__meta__/code.md leads to no directory on either'
 
-    def test_find_canonical_dir_over_a_snapshot_with_an_absolute_link_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_dir_over_a_snapshot_with_an_absolute_link_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/absolute'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the absolute link docs/absolute leads to docs/code on both'
 
-    def test_find_canonical_dir_over_a_snapshot_with_the_code_directory_entry_agrees_with_disk(
-        self, parity_tree: Path
-    ) -> None:
+    def test_find_dir_over_a_snapshot_with_the_code_directory_entry_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/code'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the directory entry docs/code resolves to itself on both'
 
-    def test_find_canonical_dir_over_a_snapshot_with_a_code_file_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_dir_over_a_snapshot_with_a_code_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/code/a.md'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the file docs/code/a.md leads to no directory on either'
 
-    def test_find_canonical_dir_over_a_snapshot_with_a_link_to_a_file_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_dir_over_a_snapshot_with_a_link_to_a_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/code/linked.md'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'linked.md leads to the file a.md, so to no directory on either'
 
-    def test_find_canonical_dir_over_a_snapshot_with_a_fifo_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_dir_over_a_snapshot_with_a_fifo_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/code/pipe'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the fifo docs/code/pipe leads to no directory on either'
 
-    def test_find_canonical_dir_over_a_snapshot_with_an_unentered_directory_agrees_with_disk(
-        self, parity_tree: Path
-    ) -> None:
+    def test_find_dir_over_a_snapshot_with_an_unentered_directory_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/code/sub'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the unentered docs/code/sub resolves to itself on both'
 
-    def test_find_canonical_dir_over_a_snapshot_with_a_relative_link_to_a_directory_agrees_with_disk(
+    def test_find_dir_over_a_snapshot_with_a_relative_link_to_a_directory_agrees_with_disk(
         self, parity_tree: Path
     ) -> None:
         #: Given
@@ -2471,164 +2457,156 @@ class TestVirtualFileSystemMatchesDisk:
         path = 'docs/code-link'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the link docs/code-link leads to docs/code on both'
 
-    def test_find_canonical_dir_over_a_snapshot_with_a_dangling_link_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_dir_over_a_snapshot_with_a_dangling_link_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/dangling'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the dangling link docs/dangling leads to no directory on either'
 
-    def test_find_canonical_dir_over_a_snapshot_with_a_docs_file_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_dir_over_a_snapshot_with_a_docs_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/glossary.md'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the file docs/glossary.md leads to no directory on either'
 
-    def test_find_canonical_dir_over_a_snapshot_with_a_non_utf8_file_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_dir_over_a_snapshot_with_a_non_utf8_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/latin.md'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the file docs/latin.md leads to no directory on either'
 
-    def test_find_canonical_dir_over_a_snapshot_with_a_looping_link_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_dir_over_a_snapshot_with_a_looping_link_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/loop'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the looping link docs/loop leads to no directory on either'
 
-    def test_find_canonical_dir_over_a_snapshot_with_a_link_up_to_the_root_agrees_with_disk(
-        self, parity_tree: Path
-    ) -> None:
+    def test_find_dir_over_a_snapshot_with_a_link_up_to_the_root_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/up'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the link docs/up leads to the root on both'
 
-    def test_find_canonical_dir_over_a_snapshot_with_the_skills_listing_agrees_with_disk(
-        self, parity_tree: Path
-    ) -> None:
+    def test_find_dir_over_a_snapshot_with_the_skills_listing_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = '.agents/skills'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the listed .agents/skills resolves to itself on both'
 
-    def test_find_canonical_dir_over_a_snapshot_with_the_skill_listing_agrees_with_disk(
-        self, parity_tree: Path
-    ) -> None:
+    def test_find_dir_over_a_snapshot_with_the_skill_listing_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = '.agents/skills/alpha'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the listed .agents/skills/alpha resolves to itself on both'
 
-    def test_find_canonical_dir_over_a_snapshot_with_the_claude_listing_agrees_with_disk(
-        self, parity_tree: Path
-    ) -> None:
+    def test_find_dir_over_a_snapshot_with_the_claude_listing_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = '.claude'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the listed .claude resolves to itself on both'
 
-    def test_find_canonical_dir_over_a_snapshot_with_the_docs_listing_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_dir_over_a_snapshot_with_the_docs_listing_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the listed docs resolves to itself on both'
 
-    def test_find_canonical_dir_over_a_snapshot_with_the_meta_listing_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_dir_over_a_snapshot_with_the_meta_listing_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/__meta__'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the listed docs/__meta__ resolves to itself on both'
 
-    def test_find_canonical_dir_over_a_snapshot_with_the_code_listing_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_dir_over_a_snapshot_with_the_code_listing_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/code'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the listed docs/code resolves to itself on both'
 
-    def test_find_canonical_dir_over_a_snapshot_with_the_root_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_dir_over_a_snapshot_with_the_root_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = '.'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the root resolves to itself on both'
 
-    def test_find_canonical_dir_over_a_snapshot_with_a_directory_behind_the_linked_scope_root_agrees_with_disk(
+    def test_find_dir_over_a_snapshot_with_a_directory_behind_the_linked_scope_root_agrees_with_disk(
         self, parity_tree: Path
     ) -> None:
         #: Given
@@ -2637,12 +2615,12 @@ class TestVirtualFileSystemMatchesDisk:
         path = '.claude/skills/alpha'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, '.claude/skills/alpha leads to .agents/skills/alpha on both'
 
-    def test_find_canonical_dir_over_a_snapshot_with_a_link_behind_the_linked_scope_root_agrees_with_disk(
+    def test_find_dir_over_a_snapshot_with_a_link_behind_the_linked_scope_root_agrees_with_disk(
         self, parity_tree: Path
     ) -> None:
         #: Given
@@ -2651,12 +2629,12 @@ class TestVirtualFileSystemMatchesDisk:
         path = '.claude/skills/beta'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, '.claude/skills/beta follows two links to .agents/skills/alpha on both'
 
-    def test_find_canonical_dir_over_a_snapshot_with_a_directory_behind_an_absolute_link_agrees_with_disk(
+    def test_find_dir_over_a_snapshot_with_a_directory_behind_an_absolute_link_agrees_with_disk(
         self, parity_tree: Path
     ) -> None:
         #: Given
@@ -2665,12 +2643,12 @@ class TestVirtualFileSystemMatchesDisk:
         path = 'docs/absolute/sub'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'docs/absolute/sub leads to docs/code/sub on both'
 
-    def test_find_canonical_dir_over_a_snapshot_with_a_directory_behind_a_relative_link_agrees_with_disk(
+    def test_find_dir_over_a_snapshot_with_a_directory_behind_a_relative_link_agrees_with_disk(
         self, parity_tree: Path
     ) -> None:
         #: Given
@@ -2679,12 +2657,12 @@ class TestVirtualFileSystemMatchesDisk:
         path = 'docs/code-link/sub'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'docs/code-link/sub leads to docs/code/sub on both'
 
-    def test_find_canonical_dir_over_a_snapshot_with_listed_components_after_a_link_up_agrees_with_disk(
+    def test_find_dir_over_a_snapshot_with_listed_components_after_a_link_up_agrees_with_disk(
         self, parity_tree: Path
     ) -> None:
         #: Given
@@ -2693,24 +2671,24 @@ class TestVirtualFileSystemMatchesDisk:
         path = 'docs/up/docs/code'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'docs/up/docs/code climbs to the root, then leads to docs/code on both'
 
-    def test_find_canonical_dir_over_a_snapshot_with_a_missing_path_agrees_with_disk(self, parity_tree: Path) -> None:
+    def test_find_dir_over_a_snapshot_with_a_missing_path_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
         path = 'docs/missing'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the missing docs/missing leads to no directory on either'
 
-    def test_find_canonical_dir_over_a_snapshot_with_an_absolute_link_under_an_aliased_root_agrees_with_disk(
+    def test_find_dir_over_a_snapshot_with_an_absolute_link_under_an_aliased_root_agrees_with_disk(
         self, aliased_root_with_an_absolute_link: Path
     ) -> None:
         #: Given
@@ -2718,7 +2696,7 @@ class TestVirtualFileSystemMatchesDisk:
         virtual = VirtualFileSystem(take_snapshot(aliased_root_with_an_absolute_link, SNAPSHOT_SCOPE))
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, 'docs/absolute')
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, 'docs/absolute')
 
         #: Then
         assert virtual_answer == disk_answer, 'the absolute link leads to the same directory over the snapshot'
@@ -2736,7 +2714,7 @@ class TestVirtualFileSystemMatchesDisk:
         #: Then
         assert virtual_answer == disk_answer, 'the parent listing shows .claude/skills over the snapshot too'
 
-    def test_find_canonical_dir_over_a_snapshot_with_an_unresolved_claude_skills_agrees_with_disk(
+    def test_find_dir_over_a_snapshot_with_an_unresolved_claude_skills_agrees_with_disk(
         self, unresolved_claude_skills_tree: Path
     ) -> None:
         #: Given
@@ -2744,7 +2722,7 @@ class TestVirtualFileSystemMatchesDisk:
         virtual = VirtualFileSystem(take_snapshot(unresolved_claude_skills_tree, SNAPSHOT_SCOPE))
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, '.claude/skills')
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, '.claude/skills')
 
         #: Then
         assert virtual_answer == disk_answer, '.claude/skills leads to no directory over the snapshot either'
@@ -2752,7 +2730,7 @@ class TestVirtualFileSystemMatchesDisk:
 
 @pytest.mark.it
 class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
-    def test_find_canonical_dir_over_a_following_snapshot_with_a_skill_linked_out_of_the_scope_agrees_with_disk(
+    def test_find_dir_over_a_following_snapshot_with_a_skill_linked_out_of_the_scope_agrees_with_disk(
         self, linked_skills_tree: Path
     ) -> None:
         #: Given
@@ -2761,12 +2739,12 @@ class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
         path = '.agents/skills/review'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'the linked skill leads to skills/review over the snapshot too'
 
-    def test_find_canonical_dir_over_a_following_snapshot_with_a_skill_behind_two_links_agrees_with_disk(
+    def test_find_dir_over_a_following_snapshot_with_a_skill_behind_two_links_agrees_with_disk(
         self, linked_skills_tree: Path
     ) -> None:
         #: Given
@@ -2775,7 +2753,7 @@ class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
         path = '.claude/skills/review'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, (
@@ -2827,7 +2805,7 @@ class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
         #: Then
         assert virtual_answer == disk_answer, 'a SKILL.md that is itself a link reads as the file it leads to on both'
 
-    def test_find_canonical_dir_over_a_following_snapshot_with_a_chain_longer_than_the_system_follows_agrees_with_disk(
+    def test_find_dir_over_a_following_snapshot_with_a_chain_longer_than_the_system_follows_agrees_with_disk(
         self, tmp_path: Path, chain_of_41_links: str
     ) -> None:
         #: Given
@@ -2836,12 +2814,12 @@ class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
         virtual = VirtualFileSystem(take_snapshot(tmp_path, scope))
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, chain_of_41_links)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, chain_of_41_links)
 
         #: Then
         assert virtual_answer == disk_answer, 'a chain of 41 links leads to no directory on either view'
 
-    def test_find_canonical_dir_over_a_following_snapshot_with_a_chain_as_long_as_the_system_follows_reaches_its_end(
+    def test_find_dir_over_a_following_snapshot_with_a_chain_as_long_as_the_system_follows_reaches_its_end(
         self, tmp_path: Path, chain_of_40_links: str
     ) -> None:
         #: Given
@@ -2851,7 +2829,7 @@ class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
         real = RootRelativePath.parse('real')
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, chain_of_40_links)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, chain_of_40_links)
 
         #: Then
         assert (disk_answer, virtual_answer) == (real, real), 'a chain of 40 links still leads to real on both views'
@@ -3012,7 +2990,7 @@ class TestVirtualFileSystemMatchesDiskThroughClimbingLinks:
         #: Then
         assert virtual_answer == disk_answer, 'the climbed directories show c/tmp, so both views read c/d/SKILL.md'
 
-    def test_find_canonical_file_through_a_climb_out_of_an_unlisted_directory_agrees_with_disk(
+    def test_find_file_through_a_climb_out_of_an_unlisted_directory_agrees_with_disk(
         self, climbing_chain_tree: Path
     ) -> None:
         #: Given
@@ -3021,12 +2999,12 @@ class TestVirtualFileSystemMatchesDiskThroughClimbingLinks:
         path = 'skills/far/SKILL.md'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_file, virtual.find_canonical_file, path)
+        disk_answer, virtual_answer = _answers(disk.find_file, virtual.find_file, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'both views resolve skills/far/SKILL.md to c/d/SKILL.md'
 
-    def test_find_canonical_dir_through_a_climb_out_of_a_missing_directory_agrees_with_disk(
+    def test_find_dir_through_a_climb_out_of_a_missing_directory_agrees_with_disk(
         self, climbing_chain_tree: Path
     ) -> None:
         #: Given
@@ -3035,7 +3013,7 @@ class TestVirtualFileSystemMatchesDiskThroughClimbingLinks:
         path = 'skills/n'
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_canonical_dir, virtual.find_canonical_dir, path)
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
 
         #: Then
         assert virtual_answer == disk_answer, 'a/missing does not exist, so neither view climbs out of it'
@@ -3144,7 +3122,7 @@ class TestPlainRootWalksItsLinksForTheRecord:
         snapshot = take_snapshot(plain_climbing_tree, PLAIN_DOCS_SCOPE)
         path = RootRelativePath.parse('docs/linked/a.md')
         virtual = VirtualFileSystem(snapshot)
-        reached = virtual.find_canonical_file(path)
+        reached = virtual.find_file(path)
 
         #: When
         declared = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories).is_in_scope(path)
@@ -3165,11 +3143,11 @@ def _is_listed(snapshot: Snapshot, directory: RootRelativePath) -> bool:
         snapshot: The scan whose listings are looked in.
         directory: The root-relative directory to look up, spelled through any link.
     """
-    canonical_directory = VirtualFileSystem(snapshot).find_canonical_dir(directory)
+    resolved_directory = VirtualFileSystem(snapshot).find_dir(directory)
     listed: set[RootRelativePath] = set()
     for listing in snapshot.listings:
         listed.add(listing.path)
-    return canonical_directory in listed
+    return resolved_directory in listed
 
 
 @pytest.mark.it
@@ -3267,7 +3245,7 @@ class TestIsInScopeMatchesSnapshot:
         #: Then
         assert (declared, listed) == (True, True), 'the skills root follows .agents/skills/y to skills/y and lists it'
 
-    def test_is_in_scope_at_the_canonical_path_of_a_followed_skill_link_agrees_with_the_snapshot(
+    def test_is_in_scope_at_the_resolved_path_of_a_followed_skill_link_agrees_with_the_snapshot(
         self, scope_parity_tree: Path
     ) -> None:
         #: Given
@@ -3344,13 +3322,11 @@ class TestIsInScopeMatchesSnapshot:
 
 
 @pytest.mark.it
-class TestFindCanonicalFileMatchesScan:
-    # Whatever `find_canonical_file` reaches through a link must be something the scan followed the link to: the view
+class TestFindFileMatchesScan:
+    # Whatever `find_file` reaches through a link must be something the scan followed the link to: the view
     # reaches an existing file exactly where the scope query, which retraces the scan, says the scan lists it.
 
-    def test_find_canonical_file_through_a_followed_skill_link_agrees_with_the_scope(
-        self, scope_parity_tree: Path
-    ) -> None:
+    def test_find_file_through_a_followed_skill_link_agrees_with_the_scope(self, scope_parity_tree: Path) -> None:
         #: Given
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         path = RootRelativePath.parse('.agents/skills/y/SKILL.md')
@@ -3358,16 +3334,14 @@ class TestFindCanonicalFileMatchesScan:
         virtual = VirtualFileSystem(snapshot)
 
         #: When
-        reached = virtual.find_canonical_file(path)
+        reached = virtual.find_file(path)
 
         #: Then
         assert (reached is not None, declared) == (True, True), (
             'the skills root follows .agents/skills/y to skills/y and reads its SKILL.md'
         )
 
-    def test_find_canonical_file_through_a_linked_skills_directory_agrees_with_the_scope(
-        self, scope_parity_tree: Path
-    ) -> None:
+    def test_find_file_through_a_linked_skills_directory_agrees_with_the_scope(self, scope_parity_tree: Path) -> None:
         #: Given
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         path = RootRelativePath.parse('.claude/skills/x/SKILL.md')
@@ -3375,14 +3349,14 @@ class TestFindCanonicalFileMatchesScan:
         virtual = VirtualFileSystem(snapshot)
 
         #: When
-        reached = virtual.find_canonical_file(path)
+        reached = virtual.find_file(path)
 
         #: Then
         assert (reached is not None, declared) == (True, True), (
             '.claude/skills leads to .agents/skills, whose skill x is listed'
         )
 
-    def test_find_canonical_file_through_an_unfollowed_docs_link_to_a_sibling_agrees_with_the_scope(
+    def test_find_file_through_an_unfollowed_docs_link_to_a_sibling_agrees_with_the_scope(
         self, scope_parity_tree: Path
     ) -> None:
         #: Given
@@ -3392,16 +3366,14 @@ class TestFindCanonicalFileMatchesScan:
         virtual = VirtualFileSystem(snapshot)
 
         #: When
-        reached = virtual.find_canonical_file(path)
+        reached = virtual.find_file(path)
 
         #: Then
         assert (reached is not None, declared) == (True, True), (
             'the link is not followed, but docs/feat, where it leads, is listed anyway'
         )
 
-    def test_find_canonical_file_through_an_unfollowed_docs_link_out_agrees_with_the_scope(
-        self, scope_parity_tree: Path
-    ) -> None:
+    def test_find_file_through_an_unfollowed_docs_link_out_agrees_with_the_scope(self, scope_parity_tree: Path) -> None:
         #: Given
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         path = RootRelativePath.parse('docs/linked/a.md')
@@ -3409,16 +3381,14 @@ class TestFindCanonicalFileMatchesScan:
         virtual = VirtualFileSystem(snapshot)
 
         #: When
-        reached = virtual.find_canonical_file(path)
+        reached = virtual.find_file(path)
 
         #: Then
         assert (reached is not None, declared) == (False, False), (
             'docs/ does not follow its link to elsewhere/, which no root covers'
         )
 
-    def test_find_canonical_file_through_a_link_inside_a_skill_agrees_with_the_scope(
-        self, scope_parity_tree: Path
-    ) -> None:
+    def test_find_file_through_a_link_inside_a_skill_agrees_with_the_scope(self, scope_parity_tree: Path) -> None:
         #: Given
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         path = RootRelativePath.parse('.agents/skills/x/lib/a.md')
@@ -3426,14 +3396,14 @@ class TestFindCanonicalFileMatchesScan:
         virtual = VirtualFileSystem(snapshot)
 
         #: When
-        reached = virtual.find_canonical_file(path)
+        reached = virtual.find_file(path)
 
         #: Then
         assert (reached is not None, declared) == (True, True), (
             'a link inside a skill is followed, so lib/a.md is read through .agents/skills/x/lib'
         )
 
-    def test_find_canonical_file_through_a_link_climbing_out_of_its_own_directory_agrees_with_the_scope(
+    def test_find_file_through_a_link_climbing_out_of_its_own_directory_agrees_with_the_scope(
         self, climbing_chain_tree: Path
     ) -> None:
         #: Given
@@ -3443,14 +3413,14 @@ class TestFindCanonicalFileMatchesScan:
         virtual = VirtualFileSystem(snapshot)
 
         #: When
-        reached = virtual.find_canonical_file(path)
+        reached = virtual.find_file(path)
 
         #: Then
         assert (reached is not None, declared) == (True, True), (
             'the target ../a/b climbs only out of skills/, where the link sits, so the scan follows it'
         )
 
-    def test_find_canonical_file_through_a_chain_climbing_out_of_a_directory_stepped_into_agrees_with_the_scope(
+    def test_find_file_through_a_chain_climbing_out_of_a_directory_stepped_into_agrees_with_the_scope(
         self, climbing_chain_tree: Path
     ) -> None:
         #: Given
@@ -3460,14 +3430,14 @@ class TestFindCanonicalFileMatchesScan:
         virtual = VirtualFileSystem(snapshot)
 
         #: When
-        reached = virtual.find_canonical_file(path)
+        reached = virtual.find_file(path)
 
         #: Then
         assert (reached, declared) == (RootRelativePath.parse('a/b/SKILL.md'), True), (
             'the `..` after a/tmp is a, so skills/l leads to a/b and its SKILL.md is read through it'
         )
 
-    def test_find_canonical_file_through_a_chain_climbing_out_of_an_unlisted_directory_agrees_with_the_scope(
+    def test_find_file_through_a_chain_climbing_out_of_an_unlisted_directory_agrees_with_the_scope(
         self, climbing_chain_tree: Path
     ) -> None:
         #: Given
@@ -3477,14 +3447,14 @@ class TestFindCanonicalFileMatchesScan:
         virtual = VirtualFileSystem(snapshot)
 
         #: When
-        reached = virtual.find_canonical_file(path)
+        reached = virtual.find_file(path)
 
         #: Then
         assert (reached, declared) == (RootRelativePath.parse('c/d/SKILL.md'), True), (
             'no root lists c/tmp, but the scan records climbing out of it, so both walks reach c/d'
         )
 
-    def test_find_canonical_file_through_a_chain_climbing_out_of_a_missing_directory_agrees_with_the_scope(
+    def test_find_file_through_a_chain_climbing_out_of_a_missing_directory_agrees_with_the_scope(
         self, climbing_chain_tree: Path
     ) -> None:
         #: Given
@@ -3495,7 +3465,7 @@ class TestFindCanonicalFileMatchesScan:
         target_listed = _is_listed(snapshot, RootRelativePath.parse('a/b'))
 
         #: When
-        reached = virtual.find_canonical_file(path)
+        reached = virtual.find_file(path)
 
         #: Then
         assert (reached, declared, target_listed) == (None, False, True), (
