@@ -270,7 +270,8 @@ def findings_per_document(self, report: Report) -> dict[str, int]:
 Every function that can raise documents each exception type a caller can reach, and the condition that
 produces it. That includes exceptions raised directly and exceptions raised by a callee and allowed to
 propagate as part of this function's contract. An error union is not an exception type: the section lists
-each of its variants, since a variant is what a caller names in an `except`.
+each of its variants, since a variant is what a caller names in an `except`. Whether a built-in belongs there
+at all is owned by [error-boundaries](error-boundaries.md).
 
 This is the strongest rule in the document, because Python gives a caller **no other way to find out**: no
 checked exceptions, no `Result` in the return type. A caller who does not know that loading a specification
@@ -405,6 +406,7 @@ Before committing code, verify:
 - [python-naming](python-naming.md) - Related: Owns the names an `Args:` line builds on
 - [python-modules](python-modules.md) - Related: Owns module boundaries; this document owns the `"""` block at the top of one
 - [error-types](error-types.md) - Related: Owns the error types a `Raises:` section names
+- [error-boundaries](error-boundaries.md) - Related: Owns whether a built-in belongs in `Raises:`
 - [python-dataclasses](python-dataclasses.md) - Related: Owns the record whose fields an `Attributes:` section documents
 - [pattern-value-object](pattern-value-object.md) - Related: The replacement for a parameter that needs a paragraph
 - [test-organization](test-organization.md) - Related: Where a contract that must be guaranteed is actually guaranteed

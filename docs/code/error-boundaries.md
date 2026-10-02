@@ -1,6 +1,6 @@
 ---
 name: "error-boundaries"
-description: "Where the package's errors meet what surrounds them: a code defect raises a built-in, a framework's exception is raised only at its seam, a foreign failure is translated into a variant with typed facts and its source, and a layer wraps only where it adds a step or an identity. Load when choosing between an `Error` and a built-in, raising inside a pydantic validator or a Typer callback, catching an exception from the standard library or a dependency, or wrapping a lower layer's failure"
+description: "Where the package's errors meet what surrounds them: a code defect raises a built-in, a framework's exception is raised only at its seam, a foreign failure is translated into a variant with typed facts and its source, and a layer wraps only where it adds a step or an identity. Load when choosing between an `Error` and a built-in, listing a built-in in `Raises:`, raising inside a pydantic validator or a Typer callback, catching an exception from the standard library or a dependency, or wrapping a lower layer's failure"
 type: "core"
 scope: "global"
 ---
@@ -9,9 +9,9 @@ scope: "global"
 
 **A variant is the package's own vocabulary, and a boundary is where something else turns into one, or one turns
 into something else.** Four boundaries meet the package's errors: a defect in the code, which is not the user's
-failure and is no variant; a framework, which accepts only its own exceptions; a foreign library or the
-operating system, whose exceptions enter as the source of a variant; and a lower layer, whose variants pass
-through or are wrapped. Each is crossed in one place, in one direction.
+failure, is no variant, and is first asked whether a type could exclude it; a framework, which accepts only its
+own exceptions; a foreign library or the operating system, whose exceptions enter as the source of a variant;
+and a lower layer, whose variants pass through or are wrapped. Each is crossed in one place, in one direction.
 
 How a variant is declared is owned by [error-types](error-types.md). How a raise inside a handler is written is
 owned by [error-handling](error-handling.md).
@@ -29,10 +29,12 @@ command read is an `Error`. The command line turns an `Error` into a message and
 for a malformed specification and wrong for a bug: a defect raised as an `Error` is reported as the user's fault,
 with no traceback to locate the call.
 
-A value object's invariant always raises its variant, whoever constructs the value
-([pattern-value-object](pattern-value-object.md)). A value object cannot know whether its caller parsed input or
-joined a literal, so the built-in rule covers a contract a function states about its parameters, and never a
-type's invariant.
+A value object's invariant raises its variant, whoever constructs the value
+([pattern-value-object](pattern-value-object.md)), since it cannot know whether its caller parsed input or
+joined a literal. A record only code builds, from values already parsed, is the other case: no file supplies
+its fields, so a value breaking its invariant is a broken contract, and its guard may raise `ValueError`, but
+only once the questions of [§2](#2-a-built-in-in-raises-is-a-smell) leave no other answer. Where that guard
+sits is owned by [python-dataclasses](python-dataclasses.md).
 
 A defect a test must single out subclasses the one built-in it already is, never `BaseException` and never two
 built-ins, and builds its message from its attributes as a variant does. `abc.abstractmethod` is preferred to
@@ -53,7 +55,68 @@ def register_check(check: Check) -> None:
         raise RuntimeError(f'check {check.name!r} is registered twice')
 ```
 
-## 2. A Framework's Exception Is Raised Only at Its Seam
+## 2. A Built-in in `Raises:` Is a Smell
+
+A built-in exception listed in a `Raises:` section often points to a design that could exclude the case, or to
+a failure of input raised as a defect. A reviewer who meets one asks, in order:
+
+1. **Can a type exclude the case?** Then the invalid state is made unrepresentable
+   ([python-typing](python-typing.md)), and the raise goes away.
+2. **Is it a failure of the files a command read, not a defect?** Then it is an `Error` variant
+   ([§1](#1-a-broken-contract-raises-a-built-in-never-an-error)).
+3. **Only otherwise** is it a genuine broken contract. It stays a built-in, documented.
+
+A guard is the answer nearest to hand, so it is written before anyone asks whether the case needs to exist,
+and it turns a mistake the type checker would have refused at the call into a failure at run time. How the
+`Raises:` section is written is owned by [python-docstrings](python-docstrings.md).
+
+```python
+# ❌ Bad — the record takes any specification file and refuses the wrong kind at run time, so a loader that
+# handed it a prose file type-checked cleanly and failed in the middle of a corpus check
+@dataclass(frozen=True, slots=True)
+class OutlineSpec:
+    """The section outline a corpus's documents are checked against."""
+
+    source: MetaFile
+
+    def __post_init__(self) -> None:
+        """Refuse a file that holds no outline.
+
+        Raises:
+            ValueError: If `source` is not an outline file.
+        """
+        if self.source.kind is not MetaKind.OUTLINE:
+            raise ValueError(f'{self.source.path} is not an outline file')
+```
+
+```python
+# ✅ Good — one record per kind of file, so a prose file is refused by the type checker at the call, and
+# nothing is left to raise
+@dataclass(frozen=True, slots=True)
+class ProseFile:
+    """A specification file of prose rules."""
+
+    path: Path
+
+
+@dataclass(frozen=True, slots=True)
+class OutlineFile:
+    """A specification file holding a section outline."""
+
+    path: Path
+
+
+type MetaFile = ProseFile | OutlineFile
+
+
+@dataclass(frozen=True, slots=True)
+class OutlineSpec:
+    """The section outline a corpus's documents are checked against."""
+
+    source: OutlineFile
+```
+
+## 3. A Framework's Exception Is Raised Only at Its Seam
 
 Some exceptions are a framework's protocol rather than the package's errors: pydantic turns only its own
 `PydanticCustomError`, or a validator's `ValueError`, into a validation error, and Typer renders a usage error or
@@ -84,7 +147,7 @@ def _from_pydantic(cls, value: str) -> Self:
         raise PydanticCustomError('section_name', '{reason}', {'reason': str(exc)}) from exc
 ```
 
-## 3. A Foreign Failure Is Translated Into Typed Facts, Keeping Its Source
+## 4. A Foreign Failure Is Translated Into Typed Facts, Keeping Its Source
 
 The variant that catches a foreign exception — the operating system's, the standard library's, a dependency's —
 is where that failure enters the package. It keeps the exception as its `source`, so the chain, the traceback and
@@ -119,7 +182,7 @@ except OSError as exc:
     raise SpecReadError(path, ReadRefusal.from_error(exc), source=exc) from exc
 ```
 
-## 4. Wrap Only Where the Layer Adds a Step or an Identity
+## 5. Wrap Only Where the Layer Adds a Step or an Identity
 
 A function wraps a lower failure in a variant of its own when it adds something the lower error cannot know:
 the step it was taking, or the identity of what it was working on. When it adds neither, the lower variants
@@ -145,7 +208,7 @@ def parse_outline(path: Path) -> Outline:
     """
 ```
 
-## 5. The Layers Form One Chain
+## 6. The Layers Form One Chain
 
 Put together, each layer contributes one link, carrying its own facts: the foreign failure enters with its
 facts classified, a layer with nothing to add lets the variants through, and a layer that knows what it was
@@ -181,6 +244,9 @@ Before committing code, verify:
 - [ ] A broken contract raises `ValueError`, `TypeError`, `RuntimeError`, or `NotImplementedError` for an
       operation a subclass must provide; never an `Error`, a `KeyError` or another built-in
 - [ ] A value object's invariant raises its variant, whoever constructs the value
+- [ ] Among invariants, only the guard of a record only code builds may raise `ValueError`
+- [ ] Every built-in in a `Raises:` section has passed the questions of §2: no type can exclude the case, and
+      no file a command read can cause it
 - [ ] A defect's subclass has one built-in base and builds its message from its attributes
 - [ ] A framework's exception is raised only in the hook the framework calls, translating a caught variant as
       the last step
@@ -197,6 +263,11 @@ Before committing code, verify:
   crossed with
 - [pattern-adapter](pattern-adapter.md) - Related: The seam where a library's failures are translated
 - [pattern-value-object](pattern-value-object.md) - Related: The value whose invariant raises a variant
+- [python-typing](python-typing.md) - Related: Owns making an invalid state unrepresentable, the first answer
+  to a built-in in `Raises:`
+- [python-dataclasses](python-dataclasses.md) - Related: Owns the `__post_init__` guard of a record only code
+  builds
+- [python-docstrings](python-docstrings.md) - Related: Owns the `Raises:` section a built-in is listed in
 - [principle-validate-at-edge](principle-validate-at-edge.md) - Foundation: A boundary is crossed once, at the
   edge
 
