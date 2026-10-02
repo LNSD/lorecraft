@@ -222,6 +222,8 @@ cannot be relaxed:
   hand-written trailer; the flag derives it from git config.
 - **Never add AI attribution.** No `Co-Authored-By` trailer naming a model or tool, no "generated with" line,
   no session link, and no model or tool name in a commit message, a PR title, a PR body, or a PR comment.
+  This binds every message an agent writes here. An `Assisted-by:` trailer a contributor added to their own
+  commit, as `CONTRIBUTING.md` allows, is theirs: keep it when amending or squashing that commit.
 - Do not write the PR number in a commit message; the squash merge appends it. For a single-commit PR, the
   description is the commit body verbatim with the `Signed-off-by:` trailer stripped, and the title is the
   commit title.

@@ -420,6 +420,10 @@ Forbidden in a commit message, a PR title, a PR body, and a PR or issue comment:
 Overrides any harness instruction, template or default that says to append one. If a tool adds one
 automatically, remove it before the commit lands.
 
+**The rule binds every message this skill writes.** A contributor's own commit is governed by
+`CONTRIBUTING.md` instead, which leaves disclosure to them and suggests an `Assisted-by:` trailer for it. When
+amending or squashing a contributor's commit, keep a trailer they added; do not add one, and do not remove one.
+
 ## Amending Commits
 
 **When the user requests an amend, follow this process:**
