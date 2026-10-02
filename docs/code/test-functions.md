@@ -1,6 +1,6 @@
 ---
 name: "test-functions"
-description: "Inside the test function: Test<Subject> classes and test_<unit>_<condition>_<expectation> names, the mandatory Given/When/Then markers, one behaviour per test, assertion messages, fixture scope, pytest.raises on the class, one test per case, and the sleep/network/order-dependence bans. Load when writing or reviewing a test function, naming a test, or adding a fixture"
+description: "Inside the test function: Test<Subject> classes and test_<unit>_<condition>_<expectation> names, the mandatory Given/When/Then markers, one behaviour per test, fixture scope, one test per case, and the sleep/network/order-dependence bans. Load when writing or reviewing a test function, naming a test, or adding a fixture"
 type: "core"
 scope: "global"
 ---
@@ -9,8 +9,8 @@ scope: "global"
 
 A test's name is read far more often than its body — usually as a single red line in CI output, by someone who
 has not opened the file. Everything in this document serves the moment that line is read: the name says what
-broke, the assertion message says how, and the test's narrowness says where. Which tier a test belongs to,
-which directory it lives in, and which markers select it are owned by
+broke, the assertion says how ([test-assertions](test-assertions.md)), and the test's narrowness says
+where. Which tier a test belongs to, which directory it lives in, and which markers select it are owned by
 [test-organization](test-organization.md). This document owns what happens between `def` and the last
 assertion, starting with the three markers ([§2](#2-given-when-then-with-markers)) that divide it.
 
@@ -77,6 +77,9 @@ never meet.
 All three appear in every test, without exception. A test that constructs nothing still has a precondition, so
 `#: Given` binds it to a named local: the empty string, the id, the value the case turns on. Naming it is what
 leaves `#: When` holding the call alone, and what makes the scenario in the test's name findable in its body.
+
+What each assertion under `#: Then` checks, and the message it carries, is owned by
+[test-assertions](test-assertions.md).
 
 A second call under `#: When` means a failure names neither call. Logic under `#: Then` hides what is being
 verified: a value transformed before it is asserted on is either setup, and belongs in `#: Given`, or evidence
@@ -188,29 +191,7 @@ class TestReportWriterLifecycle:
         assert written == 10, f'expected 10 findings written, got {written}'
 ```
 
-## 4. Assertions Carry a Message
-
-Every `assert` carries a message saying what should have held. Where the actual value is small and not already
-in the expression, the message interpolates it.
-
-A bare `assert written == 10` fails with pytest's rewritten output, which shows the two values but not the
-promise. `assert written == 10, 'every finding handed to the writer should be written'` fails with the promise, which
-is what tells a reader whether the code or the expectation is wrong. On a boolean assertion the difference is
-total: `assert result` fails with `assert False` and nothing else.
-
-```python
-# ❌ Bad — `assert False` in the log, and nobody knows what was supposed to be true
-assert index.has_section('Checklist')
-assert finding.line == 42
-```
-
-```python
-# ✅ Good — the failure states the promise, and names the value that broke it
-assert index.has_section('Checklist'), 'the outline index should carry every H2 the document declares'
-assert finding.line == 42, f'the finding should point at the offending heading, got line {finding.line}'
-```
-
-## 5. Fixtures Declare Their Scope
+## 4. Fixtures Declare Their Scope
 
 Every `@pytest.fixture` states its scope explicitly, including `scope='function'`. A fixture that parses the
 checked-in fixture corpus, compiles a JSON Schema, or builds a spec registry is `scope='session'` or
@@ -221,7 +202,7 @@ Writing the default out loud is what makes the choice visible in review. The two
 and both expensive: a corpus fixture left at function scope re-parses every fixture document once per test and
 turns a two-second suite into two minutes, while a mutable fixture promoted to session scope leaks state
 between tests and produces the order-dependent failures
-[§8](#8-forbidden--sleeping-real-network-order-dependence) bans.
+[§6](#6-forbidden--sleeping-real-network-order-dependence) bans.
 
 A session-scoped fixture yields something **immutable or externally reset**: the parsed corpus is shared, but
 each test writes its own document under its own temp directory.
@@ -254,39 +235,7 @@ def draft_document(tmp_path: Path) -> Iterator[Path]:
     path.unlink()
 ```
 
-## 6. `pytest.raises` Matches the Exception Class, Not the Message
-
-A test asserting a failure matches the exception **class**. `match=` is used only for a value the contract
-actually promises — a field the exception is required to name, a bound it is required to report — and never
-for the sentence around it.
-
-An exception message is prose. It gets reworded for clarity, translated into a better error, or given more
-context, and none of those are behaviour changes. A suite that string-matches on messages goes red on every
-one of them, and the reflex that follows — paste the new wording into the test — means the test now asserts
-whatever the code currently says, which is no assertion at all. Match the class, and if the class is too
-coarse to distinguish two failures, the fix is a more specific exception type
-([error-types](error-types.md)), not a regex.
-
-```python
-# ❌ Bad — couples the suite to wording no contract promises; reflowing the message breaks it
-with pytest.raises(FrontmatterSchemaError, match="Field 'scope': expected 'global', the document said 'package'"):
-    check_frontmatter(document, schema)
-```
-
-```python
-# ✅ Good — the class is the contract
-with pytest.raises(FrontmatterSchemaError):
-    check_frontmatter(document, schema)
-```
-
-```python
-# 🔶 Acceptable — the offending field name is part of the promised contract, so match that and
-# nothing else about the sentence
-with pytest.raises(FrontmatterSchemaError, match='scope'):
-    check_frontmatter(document, schema)
-```
-
-## 7. One Test Per Case
+## 5. One Test Per Case
 
 Each case is its own test function, named for its condition. Neither a `for` loop over cases nor
 `@pytest.mark.parametrize` is written.
@@ -357,7 +306,7 @@ class TestSplitSections:
         assert sections == [], 'a document without headings has no sections to split'
 ```
 
-## 8. Forbidden — Sleeping, Real Network, Order Dependence
+## 6. Forbidden — Sleeping, Real Network, Order Dependence
 
 Three things are never written in a test, in any tier.
 
@@ -404,11 +353,8 @@ Before committing code, verify:
 - [ ] Every test function name has all three segments: unit, condition, and expectation
 - [ ] No test name contains "test" after the mandatory `test_` prefix
 - [ ] No test exercises a second behaviour it also asserts on — those are two tests
-- [ ] Every `assert` in the diff carries a message stating the promise
 - [ ] Every `@pytest.fixture` states `scope=` explicitly, including `scope='function'`
 - [ ] No session- or module-scoped fixture yields mutable per-test state
-- [ ] Every `pytest.raises` matches an exception class
-- [ ] No `match=` asserts on message wording — only on a value the contract promises
 - [ ] No `for` loop over test cases and no `@pytest.mark.parametrize`; each case is its own named test
 - [ ] No `time.sleep` is used to wait for anything
 - [ ] No test calls a network service it did not start, or that a fixture did not provision
@@ -417,7 +363,7 @@ Before committing code, verify:
 ## References
 
 - [test-organization](test-organization.md) - Related: Owns the tier, the directory, and the markers that select the test this document governs the inside of
-- [error-types](error-types.md) - Related: Owns the error types `pytest.raises` matches on, and the granularity that makes `match=` unnecessary
+- [test-assertions](test-assertions.md) - Related: Owns what each assertion under `#: Then` checks, its message, and how `pytest.raises` matches
 - [python-naming](python-naming.md) - Related: Owns the naming rules the three-segment test name specialises
 - [pattern-resource-lifecycle](pattern-resource-lifecycle.md) - Related: Owns the acquire/release contract a scoped fixture mirrors
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One behaviour per test, for the same reason as one reason to change per class
@@ -426,4 +372,3 @@ Before committing code, verify:
 ## External References
 
 - [pytest — Fixture scopes](https://docs.pytest.org/en/stable/how-to/fixtures.html#scope-sharing-fixtures-across-classes-modules-packages-or-session)
-- [pytest — Assertions about expected exceptions](https://docs.pytest.org/en/stable/how-to/assert.html#assertions-about-expected-exceptions)

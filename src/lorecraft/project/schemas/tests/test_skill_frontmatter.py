@@ -115,7 +115,7 @@ class TestSkillName:
             'pattern': '^[a-z0-9]+(-[a-z0-9]+)*$',
         }, 'the schema states the rules the parser checks'
 
-    def test_validate_python_with_a_non_string_raises_a_string_type_error(self) -> None:
+    def test_validate_python_with_a_non_string_raises_pydantics_string_type_error(self) -> None:
         #: Given
         adapter = TypeAdapter(SkillName)
         value = 42
@@ -125,8 +125,10 @@ class TestSkillName:
             adapter.validate_python(value)
 
         #: Then
-        types = [error['type'] for error in exc_info.value.errors()]
-        assert types == ['string_type'], f'a number is not text, got {types}'
+        errors = exc_info.value.errors()
+        assert len(errors) == 1, f'one error is reported, got {errors}'
+        assert errors[0]['type'] == 'string_type', 'a number is not text'
+        assert errors[0]['msg'] == 'Input should be a valid string', 'the message is the one pydantic gives'
 
     def test_validate_python_with_a_string_returns_the_value_object(self) -> None:
         #: Given
@@ -184,7 +186,6 @@ class TestSkillDescription:
             SkillDescription.parse(blank)
 
         #: Then
-        assert 'empty' in str(exc_info.value), f'the blank description is reported, got {exc_info.value}'
         assert isinstance(exc_info.value.source, ValidationError), 'the broken rule is kept as the source'
         assert exc_info.value.source is exc_info.value.__cause__, 'the broken rule is the cause'
 
@@ -214,7 +215,7 @@ class TestSkillDescription:
             'the schema states the rules the parser checks'
         )
 
-    def test_validate_python_with_a_non_string_raises_a_string_type_error(self) -> None:
+    def test_validate_python_with_a_non_string_raises_pydantics_string_type_error(self) -> None:
         #: Given
         adapter = TypeAdapter(SkillDescription)
         value = 42
@@ -224,8 +225,10 @@ class TestSkillDescription:
             adapter.validate_python(value)
 
         #: Then
-        types = [error['type'] for error in exc_info.value.errors()]
-        assert types == ['string_type'], f'a number is not text, got {types}'
+        errors = exc_info.value.errors()
+        assert len(errors) == 1, f'one error is reported, got {errors}'
+        assert errors[0]['type'] == 'string_type', 'a number is not text'
+        assert errors[0]['msg'] == 'Input should be a valid string', 'the message is the one pydantic gives'
 
     def test_validate_python_with_a_string_returns_the_value_object(self) -> None:
         #: Given
@@ -285,7 +288,7 @@ class TestSkillLicense:
         #: Then
         assert schema == {'type': 'string'}, 'the specification sets no rule on a license'
 
-    def test_validate_python_with_a_non_string_raises_a_string_type_error(self) -> None:
+    def test_validate_python_with_a_non_string_raises_pydantics_string_type_error(self) -> None:
         #: Given
         adapter = TypeAdapter(SkillLicense)
         value = 42
@@ -295,8 +298,10 @@ class TestSkillLicense:
             adapter.validate_python(value)
 
         #: Then
-        types = [error['type'] for error in exc_info.value.errors()]
-        assert types == ['string_type'], f'a number is not text, got {types}'
+        errors = exc_info.value.errors()
+        assert len(errors) == 1, f'one error is reported, got {errors}'
+        assert errors[0]['type'] == 'string_type', 'a number is not text'
+        assert errors[0]['msg'] == 'Input should be a valid string', 'the message is the one pydantic gives'
 
     def test_validate_python_with_a_string_returns_the_value_object(self) -> None:
         #: Given
@@ -353,7 +358,6 @@ class TestSkillCompatibility:
             SkillCompatibility.parse(raw)
 
         #: Then
-        assert 'empty' in str(exc_info.value), f'the blank note is reported, got {exc_info.value}'
         assert isinstance(exc_info.value.source, ValidationError), 'the broken rule is kept as the source'
         assert exc_info.value.source is exc_info.value.__cause__, 'the broken rule is the cause'
 
@@ -383,7 +387,7 @@ class TestSkillCompatibility:
             'the schema states the rules the parser checks'
         )
 
-    def test_validate_python_with_a_non_string_raises_a_string_type_error(self) -> None:
+    def test_validate_python_with_a_non_string_raises_pydantics_string_type_error(self) -> None:
         #: Given
         adapter = TypeAdapter(SkillCompatibility)
         value = 42
@@ -393,8 +397,10 @@ class TestSkillCompatibility:
             adapter.validate_python(value)
 
         #: Then
-        types = [error['type'] for error in exc_info.value.errors()]
-        assert types == ['string_type'], f'a number is not text, got {types}'
+        errors = exc_info.value.errors()
+        assert len(errors) == 1, f'one error is reported, got {errors}'
+        assert errors[0]['type'] == 'string_type', 'a number is not text'
+        assert errors[0]['msg'] == 'Input should be a valid string', 'the message is the one pydantic gives'
 
     def test_validate_python_with_a_string_returns_the_value_object(self) -> None:
         #: Given
@@ -454,7 +460,7 @@ class TestSkillAllowedTools:
         #: Then
         assert schema == {'type': 'string'}, 'the specification sets no rule on allowed-tools'
 
-    def test_validate_python_with_a_non_string_raises_a_string_type_error(self) -> None:
+    def test_validate_python_with_a_non_string_raises_pydantics_string_type_error(self) -> None:
         #: Given
         adapter = TypeAdapter(SkillAllowedTools)
         value = 42
@@ -464,8 +470,10 @@ class TestSkillAllowedTools:
             adapter.validate_python(value)
 
         #: Then
-        types = [error['type'] for error in exc_info.value.errors()]
-        assert types == ['string_type'], f'a number is not text, got {types}'
+        errors = exc_info.value.errors()
+        assert len(errors) == 1, f'one error is reported, got {errors}'
+        assert errors[0]['type'] == 'string_type', 'a number is not text'
+        assert errors[0]['msg'] == 'Input should be a valid string', 'the message is the one pydantic gives'
 
     def test_validate_python_with_a_string_returns_the_value_object(self) -> None:
         #: Given

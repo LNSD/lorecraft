@@ -124,9 +124,12 @@ class TestValidateStructure:
         result = validate_structure(aspects, headings=document.headings)
 
         #: Then
-        assert [(violation.line, violation.rule, violation.message) for violation in result.violations] == [
-            (LineNumber(1), 'structure.title', 'expected 1 H1 title, found 2 (per code.md)')
-        ], 'one title is expected and two are found'
+        assert len(result.violations) == 1, f'one title is expected and two are found, got {result.violations}'
+        assert result.violations[0].line == LineNumber(1), 'the title rule is reported on the first line'
+        assert result.violations[0].rule == 'structure.title', 'a second H1 breaks the title rule'
+        assert result.violations[0].message == 'expected 1 H1 title, found 2 (per code.md)', (
+            'the message counts the titles found'
+        )
 
     def test_validate_structure_with_a_section_before_the_title_reports_the_title_rule(self) -> None:
         #: Given
@@ -138,9 +141,14 @@ class TestValidateStructure:
         result = validate_structure(aspects, headings=document.headings)
 
         #: Then
-        assert [(violation.line, violation.rule, violation.message) for violation in result.violations] == [
-            (LineNumber(1), 'structure.title', 'the H1 title comes before any section (per code.md)')
-        ], 'the title must open the document when the rule says it comes first'
+        assert len(result.violations) == 1, (
+            f'the title must open the document when the rule says it comes first, got {result.violations}'
+        )
+        assert result.violations[0].line == LineNumber(1), 'the misplaced title is reported on the first line'
+        assert result.violations[0].rule == 'structure.title', 'a section ahead of the H1 breaks the title rule'
+        assert result.violations[0].message == 'the H1 title comes before any section (per code.md)', (
+            'the message says the title belongs before any section'
+        )
 
     def test_validate_structure_with_an_empty_section_reports_it_on_its_line(self) -> None:
         #: Given
@@ -152,13 +160,17 @@ class TestValidateStructure:
         result = validate_structure(aspects, headings=document.headings)
 
         #: Then
-        assert [(violation.line, violation.rule, violation.message) for violation in result.violations] == [
-            (
-                LineNumber(5),
-                'structure.empty',
-                'section `Empty` is empty; omit it rather than leaving it empty (per code.md)',
-            )
-        ], 'the empty section is reported on the line of its heading'
+        assert len(result.violations) == 1, (
+            f'the empty section is reported on the line of its heading, got {result.violations}'
+        )
+        assert result.violations[0].line == LineNumber(5), (
+            'the empty section is on the line of its heading, after the title and a section'
+        )
+        assert result.violations[0].rule == 'structure.empty', 'a section without content breaks the empty rule'
+        assert (
+            result.violations[0].message
+            == 'section `Empty` is empty; omit it rather than leaving it empty (per code.md)'
+        ), 'the message names the empty section and says to omit it'
 
     def test_validate_structure_with_a_forbidden_section_reports_it_on_its_line(self) -> None:
         #: Given
@@ -170,9 +182,18 @@ class TestValidateStructure:
         result = validate_structure(aspects, headings=document.headings)
 
         #: Then
-        assert [(violation.line, violation.rule, violation.message) for violation in result.violations] == [
-            (LineNumber(5), 'structure.forbidden', 'section `Changelog` is forbidden here (per code.md)')
-        ], 'a forbidden section is reported where it is written'
+        assert len(result.violations) == 1, (
+            f'a forbidden section is reported where it is written, got {result.violations}'
+        )
+        assert result.violations[0].line == LineNumber(5), (
+            'the forbidden section is reported on the line of its heading'
+        )
+        assert result.violations[0].rule == 'structure.forbidden', (
+            'a section the corpus forbids breaks the forbidden rule'
+        )
+        assert result.violations[0].message == 'section `Changelog` is forbidden here (per code.md)', (
+            'the message names the forbidden section'
+        )
 
     def test_validate_structure_without_a_required_section_reports_it_missing(self) -> None:
         #: Given
@@ -207,9 +228,19 @@ class TestValidateStructure:
         result = validate_structure(aspects, headings=document.headings)
 
         #: Then
-        assert [(violation.line, violation.rule, violation.message) for violation in result.violations] == [
-            (LineNumber(5), 'structure.outline', 'expected section `Usage`, found `Rule` (per code.md)')
-        ], 'the divergence is reported on the section that sits where the required one belongs'
+        assert len(result.violations) == 1, (
+            'the divergence is reported on the section that sits where the required one belongs, '
+            f'got {result.violations}'
+        )
+        assert result.violations[0].line == LineNumber(5), (
+            'the divergence is on the line of the section that took the place of the required one'
+        )
+        assert result.violations[0].rule == 'structure.outline', (
+            'a section out of place against the outline breaks the outline rule'
+        )
+        assert result.violations[0].message == 'expected section `Usage`, found `Rule` (per code.md)', (
+            'the message names the section expected and the one found'
+        )
 
     def test_validate_structure_with_an_optional_section_left_out_matches_the_entries_after_it(self) -> None:
         #: Given
@@ -241,9 +272,14 @@ class TestValidateStructure:
         result = validate_structure(aspects, headings=document.headings)
 
         #: Then
-        assert [(violation.line, violation.rule, violation.message) for violation in result.violations] == [
-            (LineNumber(5), 'structure.outline', 'expected section `Checklist`, found `References` (per code.md)')
-        ], 'only the first divergence is reported, never the cascade after it'
+        assert len(result.violations) == 1, (
+            f'only the first divergence is reported, never the cascade after it, got {result.violations}'
+        )
+        assert result.violations[0].line == LineNumber(5), 'the first divergence is on the line of the swapped section'
+        assert result.violations[0].rule == 'structure.outline', 'swapped sections break the outline rule'
+        assert result.violations[0].message == 'expected section `Checklist`, found `References` (per code.md)', (
+            'the message names the section expected and the one found in its place'
+        )
 
     def test_validate_structure_with_a_named_section_after_the_outline_ends_reports_it_out_of_order(
         self,
@@ -257,9 +293,15 @@ class TestValidateStructure:
         result = validate_structure(aspects, headings=document.headings)
 
         #: Then
-        assert [(violation.line, violation.message) for violation in result.violations] == [
-            (LineNumber(9), 'section `Checklist` is out of order (per code.md)')
-        ], 'a named section left over once the outline ends was written out of turn'
+        assert len(result.violations) == 1, (
+            f'a named section left over once the outline ends was written out of turn, got {result.violations}'
+        )
+        assert result.violations[0].line == LineNumber(9), (
+            'the repeated section is reported on the line of its second heading'
+        )
+        assert result.violations[0].message == 'section `Checklist` is out of order (per code.md)', (
+            'the message names the section written out of order'
+        )
 
     def test_validate_structure_with_an_unnamed_section_after_the_outline_ends_reports_it_unexpected(
         self,
@@ -273,9 +315,15 @@ class TestValidateStructure:
         result = validate_structure(aspects, headings=document.headings)
 
         #: Then
-        assert [(violation.line, violation.message) for violation in result.violations] == [
-            (LineNumber(5), 'unexpected section `Appendix`; the outline ends before it (per code.md)')
-        ], 'an unnamed section past the last entry is written past the end of the document'
+        assert len(result.violations) == 1, (
+            f'an unnamed section past the last entry is written past the end of the document, got {result.violations}'
+        )
+        assert result.violations[0].line == LineNumber(5), (
+            'the unexpected section is reported on the line of its heading'
+        )
+        assert result.violations[0].message == (
+            'unexpected section `Appendix`; the outline ends before it (per code.md)'
+        ), 'the message names the unexpected section and says the outline has ended'
 
     def test_validate_structure_with_a_subsection_ignores_it_in_the_outline(self) -> None:
         #: Given
@@ -338,13 +386,18 @@ class TestValidateStructure:
         result = validate_structure(aspects, headings=document.headings)
 
         #: Then
-        assert [(violation.line, violation.rule, violation.message) for violation in result.violations] == [
-            (
-                LineNumber(5),
-                'structure.words.section',
-                'section `Checklist` is 3 prose words; the cap is 2 (per code.md)',
-            )
-        ], 'a named section takes the cap of the entry naming it'
+        assert len(result.violations) == 1, (
+            f'a named section takes the cap of the entry naming it, got {result.violations}'
+        )
+        assert result.violations[0].line == LineNumber(5), (
+            'the section over its cap is reported on the line of its heading'
+        )
+        assert result.violations[0].rule == 'structure.words.section', (
+            'a section over its word cap breaks the section words rule'
+        )
+        assert result.violations[0].message == 'section `Checklist` is 3 prose words; the cap is 2 (per code.md)', (
+            'the message gives the words counted and the cap of the entry'
+        )
 
     def test_validate_structure_with_an_unnamed_section_over_the_any_cap_reports_it(self) -> None:
         #: Given
@@ -357,9 +410,15 @@ class TestValidateStructure:
         result = validate_structure(aspects, headings=document.headings)
 
         #: Then
-        assert [(violation.line, violation.message) for violation in result.violations] == [
-            (LineNumber(1), 'section `Rule` is 3 prose words; the cap is 2 (per code.md)')
-        ], 'a section the outline does not name takes the cap of the `any` run it falls in'
+        assert len(result.violations) == 1, (
+            f'a section the outline does not name takes the cap of the `any` run it falls in, got {result.violations}'
+        )
+        assert result.violations[0].line == LineNumber(1), (
+            'the unnamed section over the cap is reported on the line of its heading'
+        )
+        assert result.violations[0].message == 'section `Rule` is 3 prose words; the cap is 2 (per code.md)', (
+            'the message gives the words counted and the cap of the `any` run'
+        )
 
     def test_validate_structure_with_an_uncapped_named_entry_does_not_apply_the_any_cap(self) -> None:
         #: Given
@@ -402,9 +461,13 @@ class TestValidateStructure:
         result = validate_structure(aspects, headings=document.headings)
 
         #: Then
-        assert [(violation.line, violation.message) for violation in result.violations] == [
-            (LineNumber(1), 'section `Rule` is 4 prose words; the cap is 3 (per code.md)')
-        ], 'an H3 is part of the section above it, so its words count against that section'
+        assert len(result.violations) == 1, (
+            f'an H3 is part of the section above it, so its words count against that section, got {result.violations}'
+        )
+        assert result.violations[0].line == LineNumber(1), 'the overflow is reported on the H2 section, not on its H3'
+        assert result.violations[0].message == 'section `Rule` is 4 prose words; the cap is 3 (per code.md)', (
+            'the message counts the words of the H3 into its section'
+        )
 
     def test_validate_structure_with_two_layers_applies_each_layer_its_own_caps(self) -> None:
         #: Given
@@ -470,15 +533,17 @@ class TestValidateStructureOutlineNotes:
         result = validate_structure(aspects, headings=document.headings)
 
         #: Then
-        assert [(violation.message, violation.notes) for violation in result.violations] == [
-            (
-                'expected section `Usage`, found `Rule` (per code.md)',
-                (
-                    Note(NoteKind.HELP, USAGE_DESCRIPTION),
-                    Note(NoteKind.NOTE, f'for example:\n## Usage\n\n{BUDGET_USAGE}'),
-                ),
-            )
-        ], 'a section found where the described one belongs carries the same notes as a missing one'
+        assert len(result.violations) == 1, (
+            'a section found where the described one belongs carries the same notes as a missing one, '
+            f'got {result.violations}'
+        )
+        assert result.violations[0].message == 'expected section `Usage`, found `Rule` (per code.md)', (
+            'the message names the section expected and the one found'
+        )
+        assert result.violations[0].notes == (
+            Note(NoteKind.HELP, USAGE_DESCRIPTION),
+            Note(NoteKind.NOTE, f'for example:\n## Usage\n\n{BUDGET_USAGE}'),
+        ), 'the notes give the description as help and the example as a note, as for a missing section'
 
     def test_validate_structure_without_a_section_stating_only_a_description_reports_only_help(self) -> None:
         #: Given
