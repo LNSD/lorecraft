@@ -56,7 +56,7 @@ from lorecraft.project.skill.repo import Repository as SkillRepository
 from lorecraft.project.skill.skills_dir import SkillsDir
 from lorecraft.vfs import FileSystem
 
-from .model import Corpus, Spec, WorkspaceModel, namespace_order_key
+from .model import Corpus, CorpusSpec, NamespaceSpec, WorkspaceModel, namespace_order_key
 
 
 @dataclass(slots=True)
@@ -256,30 +256,53 @@ def _load_corpus(
         ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
         UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
     """
-    spec = _load_spec(schemas, CorpusSpecName(corpus_name), files.spec)
+    corpus_spec_name = CorpusSpecName(corpus_name)
+    corpus_spec = CorpusSpec(
+        name=corpus_spec_name,
+        files=_sorted_paths(files.spec),
+        structure=_load_structure(schemas, corpus_spec_name, files.spec),
+    )
 
     # Broad to narrow: every namespace matching one filename is a prefix of that filename, so segment count
     # is broadness and two matches never tie; the value tiebreak only orders non-matching siblings.
-    namespace_specs: list[Spec] = []
+    namespace_specs: list[NamespaceSpec] = []
     for namespace in sorted(files.namespaces, key=namespace_order_key):
-        name = NamespaceSpecName(corpus_name, namespace)
-        namespace_specs.append(_load_spec(schemas, name, files.namespaces[namespace]))
+        namespace_spec_name = NamespaceSpecName(corpus_name, namespace)
+        namespace_files = files.namespaces[namespace]
+        namespace_spec = NamespaceSpec(
+            name=namespace_spec_name,
+            files=_sorted_paths(namespace_files),
+            structure=_load_structure(schemas, namespace_spec_name, namespace_files),
+        )
+        namespace_specs.append(namespace_spec)
 
     return Corpus(
         name=corpus_name,
-        spec=spec,
+        corpus_spec=corpus_spec,
         namespace_specs=tuple(namespace_specs),
         documents=tuple(sorted(refs, key=lambda ref: str(ref.filename))),
     )
 
 
-def _load_spec(schemas: SchemaRepository, name: SpecName, spec_files: list[SpecFile]) -> Spec:
-    """Build one spec from the files at its name, decoding its structure JSON into a structure specification.
+def _sorted_paths(spec_files: list[SpecFile]) -> tuple[RootRelativePath, ...]:
+    """The root-relative paths of the files at one specification name, sorted.
+
+    Args:
+        spec_files: Files at one specification name, prose and JSON, in listing order.
+    """
+    return tuple(sorted((spec_file.path for spec_file in spec_files), key=str))
+
+
+def _load_structure(schemas: SchemaRepository, name: SpecName, spec_files: list[SpecFile]) -> StructureSpec | None:
+    """Decode the structure JSON among the files at one specification name into a structure specification.
 
     Args:
         schemas: Repository the structure specification is read from.
-        name: Specification name the spec sits at: the corpus alone, or the corpus and a namespace.
-        spec_files: Files at that name; one with no structure file gives a spec with no structure specification.
+        name: Specification name the files sit at: the corpus alone, or the corpus and a namespace.
+        spec_files: Files at that name, prose and JSON, in listing order; only the structure file among them is decoded.
+
+    Returns:
+        The structure specification, or None when no file at the name is a structure file.
 
     Raises:
         StructureSchemaReadError: If the structure specification cannot be read.
@@ -303,8 +326,7 @@ def _load_spec(schemas: SchemaRepository, name: SpecName, spec_files: list[SpecF
             # Building the structure specification is the check: StructureSpec.parse rejects text that is not JSON in
             # the structure dialect, rules that are not usable, and a malformed frontmatter schema.
             structure = StructureSpec.parse(spec_file.path, schemas.get_structure_schema(name))
-    paths = tuple(sorted((spec_file.path for spec_file in spec_files), key=str))
-    return Spec(name=name, files=paths, structure=structure)
+    return structure
 
 
 def _list_document_refs(documents: DocumentRepository, corpus_name: CorpusName) -> list[DocumentRef]:
