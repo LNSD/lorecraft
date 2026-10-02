@@ -853,7 +853,7 @@ class TestRunSkillsResources:
             ),
         ), 'each resource is a file of its own, checked whatever bytes the SKILL.md holds'
 
-    def test_run_skills_with_absolute_fragment_and_url_links_in_a_resource_reports_nothing(
+    def test_run_skills_with_absolute_fragment_and_url_links_in_a_resource_reports_all_but_the_url(
         self, tmp_path: Path
     ) -> None:
         #: Given
@@ -861,7 +861,7 @@ class TestRunSkillsResources:
         _write(
             tmp_path,
             '.agents/skills/review/references/a.md',
-            b'# A\n\n[a](/x.md) [b](#nothing) [c](https://example.com)\n',
+            b'# A\n\n[a](/x.md) [b](#nothing) [c](https://example.com) [d](#a)\n',
         )
         database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
 
@@ -869,9 +869,87 @@ class TestRunSkillsResources:
         run = _run_every_skill(database)
 
         #: Then
-        assert run.findings() == (), (
-            'in a resource only an escaping link is reported: absolute and fragment links are checked in SKILL.md'
+        assert run.findings() == (
+            Finding(
+                path=RootRelativePath.parse('.agents/skills/review/references/a.md'),
+                line=LineNumber(3),
+                rule='skill.link-absolute',
+                message='`/x.md` is absolute',
+                notes=(Note(NoteKind.HELP, 'link relative to the skill root'),),
+            ),
+            Finding(
+                path=RootRelativePath.parse('.agents/skills/review/references/a.md'),
+                line=LineNumber(3),
+                rule='skill.link-fragment',
+                message='`#nothing` names a heading this file does not have',
+            ),
+        ), (
+            'a resource is held to the absolute and fragment rules as the SKILL.md is, a URL names no path, and a '
+            'fragment naming its own heading is not reported'
         )
+
+    def test_run_skills_with_absolute_and_dangling_fragment_links_in_a_nested_resource_reports_them_there(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'skills/review/SKILL.md', _REVIEW_FRONTMATTER + b'# Review\n\n## Usage\n')
+        _write(
+            tmp_path,
+            'skills/review/references/deep/guide.md',
+            b'# Guide\n\nSee [the guide](#guide), [the usage](#usage) and ![the flow](/assets/flow.png).\n',
+        )
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (
+            Finding(
+                path=RootRelativePath.parse('.agents/skills/review/references/deep/guide.md'),
+                line=LineNumber(3),
+                rule='skill.link-fragment',
+                message='`#usage` names a heading this file does not have',
+            ),
+            Finding(
+                path=RootRelativePath.parse('.agents/skills/review/references/deep/guide.md'),
+                line=LineNumber(3),
+                rule='skill.link-absolute',
+                message='`/assets/flow.png` is absolute',
+                notes=(Note(NoteKind.HELP, 'link relative to the skill root'),),
+            ),
+        ), (
+            "a fragment names the resource's own headings, not the SKILL.md's, and each finding names the resource "
+            'where the agent reads it, under the skills directory'
+        )
+
+    def test_run_skills_with_an_absolute_link_in_a_resource_reached_through_two_links_reports_it_once(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'skills/review/SKILL.md', _REVIEW_FRONTMATTER)
+        _write(tmp_path, 'skills/review/references/guide.md', b'# Guide\n\nRead [the docs](/docs/guide.md).\n')
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
+        (tmp_path / '.claude').mkdir()
+        (tmp_path / '.claude' / 'skills').symlink_to('../.agents/skills')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert run.findings() == (
+            Finding(
+                path=RootRelativePath.parse('.agents/skills/review/references/guide.md'),
+                line=LineNumber(3),
+                rule='skill.link-absolute',
+                message='`/docs/guide.md` is absolute',
+                notes=(Note(NoteKind.HELP, 'link relative to the skill root'),),
+            ),
+        ), 'a skill reached through the skills-directory link and its own entry link is one skill, reported once'
 
     def test_run_skills_with_a_link_to_a_file_metadata_links_in_reports_nothing(self, tmp_path: Path) -> None:
         #: Given

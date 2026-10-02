@@ -8,8 +8,9 @@ snapshot file under `__snapshots__/`. So is what `check` and `inspect` print for
 `docs/__meta__/` is a symlink into that fixture, what `check frontmatter` and `check skills` print for a root
 whose frontmatter writes a key twice, and what `check skills` prints for a skill linking to an absolute path, for
 one linking to a heading it does not have, for one whose `SKILL.md` and a resource link outside the skill, for one
-whose `SKILL.md` and a resource link a file the skill does not hold, and for one whose `metadata` repeats a file
-name, lists a path outside what the command reads, or lists a file the repository does not have.
+whose `SKILL.md` and a resource link a file the skill does not hold, for one whose resource links to an absolute
+path and to a heading it does not have, and for one whose `metadata` repeats a file name, lists a path outside
+what the command reads, or lists a file the repository does not have.
 """
 
 from pathlib import Path
@@ -274,6 +275,28 @@ def broken_link_root(tmp_path: Path) -> Path:
         '# Guide\n\nSee [the steps](references/steps.md), not [the steps](steps.md).\n', encoding='utf-8'
     )
     (tmp_path / '.agents' / 'skills' / 'review' / 'references' / 'steps.md').write_text('# Steps\n', encoding='utf-8')
+    return tmp_path
+
+
+@pytest.fixture(scope='function')
+def resource_absolute_and_fragment_link_root(tmp_path: Path) -> Path:
+    """A root holding one skill whose resource links to a file from the filesystem root and to a missing heading.
+
+    The resource links `#usage`, a heading of the `SKILL.md` but not of the resource, and `#guide`, its own. Apart
+    from the two links the skill is clean, so the link-absolute and link-fragment findings, both in the resource,
+    are the only ones the check prints.
+
+    Args:
+        tmp_path: Directory the skill is written into, as the repository root.
+    """
+    (tmp_path / '.agents' / 'skills' / 'review' / 'references').mkdir(parents=True)
+    (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').write_text(
+        '---\nname: review\ndescription: Review a change\n---\n# Review\n\n## Usage\n', encoding='utf-8'
+    )
+    (tmp_path / '.agents' / 'skills' / 'review' / 'references' / 'guide.md').write_text(
+        '# Guide\n\nRead [the docs](/docs/guide.md).\n\nSee [the usage](#usage), not [the guide](#guide).\n',
+        encoding='utf-8',
+    )
     return tmp_path
 
 
@@ -569,6 +592,20 @@ class TestCheckSkillsSnapshots:
         #: Then
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the link-broken findings, one in the resource, match the reviewed snapshot'
+
+    def test_check_skills_with_absolute_and_fragment_links_in_a_resource_prints_both_findings_there(
+        self, snapshot: SnapshotAssertion, resource_absolute_and_fragment_link_root: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('check', 'skills', '--root', str(resource_absolute_and_fragment_link_root))
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, 'both link findings, in the resource, match the reviewed snapshot'
 
     def test_check_skills_with_a_skill_md_over_500_lines_prints_the_lines_budget_finding(
         self, snapshot: SnapshotAssertion, long_skill_root: Path
