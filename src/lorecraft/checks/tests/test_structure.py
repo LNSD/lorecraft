@@ -1,7 +1,7 @@
 """Structure validation over a document's headings, with each section's prose words, and a missing section's notes.
 
-``validate_structure`` is pure, so every case here is a text literal parsed in memory and an in-memory
-structure aspect; no document and no specification file is read.
+`validate_structure` is pure, so every case here is a text literal parsed in memory and an in-memory
+structure specification; no document and no specification file is read.
 """
 
 from typing import Final
@@ -9,7 +9,7 @@ from typing import Final
 import pytest
 
 from lorecraft.project.layout import SPECS_DIR
-from lorecraft.project.schemas import AnySections, OutlineEntry, SectionEntry, StructureAspect, TitleRule
+from lorecraft.project.schemas import AnySections, OutlineEntry, SectionEntry, StructureSpec, TitleRule
 from lorecraft.project.syntax import LineNumber, parse_document
 
 from ..reporting import Note, NoteKind
@@ -60,24 +60,24 @@ BUDGET_USAGE: Final[str] = (
 )
 
 
-def _aspect(
+def _structure_spec(
     *,
     title: TitleRule | None = None,
     forbid_empty_sections: bool = False,
     outline: tuple[OutlineEntry, ...] = (),
     forbidden: tuple[str, ...] = (),
     stem: str = 'code',
-) -> StructureAspect:
-    """A structure aspect at `docs/__meta__/<stem>.structure.json`, quoting `<stem>.md` as its authority.
+) -> StructureSpec:
+    """A structure specification at `docs/__meta__/<stem>.structure.json`, quoting `<stem>.md` as its authority.
 
     Args:
         title: The H1 title rule; `None` states none.
         forbid_empty_sections: Whether a heading with an empty section is a violation.
         outline: The sections the document must follow, in order; empty states no outline.
         forbidden: Section names the document may not have.
-        stem: File stem of the specification the aspect is written in.
+        stem: File stem of the specification file.
     """
-    return StructureAspect(
+    return StructureSpec(
         path=SPECS_DIR / f'{stem}.structure.json',
         title=title,
         forbid_empty_sections=forbid_empty_sections,
@@ -94,22 +94,24 @@ class TestValidateStructure:
         #: Given
         text = '# Guide\n\n## Rule\n\ntext\n\n## Checklist\n\n- [ ] item\n'
         document = parse_document(text)
-        aspects = (_aspect(title=TitleRule(count=1, first=True), forbid_empty_sections=True, outline=RULE_OUTLINE),)
+        structure_specs = (
+            _structure_spec(title=TitleRule(count=1, first=True), forbid_empty_sections=True, outline=RULE_OUTLINE),
+        )
 
         #: When
-        result = validate_structure(aspects, headings=document.headings)
+        result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
         assert result.violations == (), 'a document with its title, content and outline in order is clean'
 
-    def test_validate_structure_with_empty_aspects_returns_no_findings(self) -> None:
+    def test_validate_structure_with_empty_structure_specs_returns_no_findings(self) -> None:
         #: Given
         text = '## Empty\n'
         document = parse_document(text)
-        aspects: tuple[StructureAspect, ...] = ()
+        structure_specs: tuple[StructureSpec, ...] = ()
 
         #: When
-        result = validate_structure(aspects, headings=document.headings)
+        result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
         assert result.violations == (), 'an ungoverned document is never checked, whatever its structure'
@@ -118,10 +120,10 @@ class TestValidateStructure:
         #: Given
         text = '# Guide\n\ntext\n\n# Again\n\ntext\n'
         document = parse_document(text)
-        aspects = (_aspect(title=TitleRule(count=1, first=True)),)
+        structure_specs = (_structure_spec(title=TitleRule(count=1, first=True)),)
 
         #: When
-        result = validate_structure(aspects, headings=document.headings)
+        result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
         assert len(result.violations) == 1, f'one title is expected and two are found, got {result.violations}'
@@ -135,10 +137,10 @@ class TestValidateStructure:
         #: Given
         text = '## Rule\n\ntext\n\n# Guide\n\ntext\n'
         document = parse_document(text)
-        aspects = (_aspect(title=TitleRule(count=1, first=True)),)
+        structure_specs = (_structure_spec(title=TitleRule(count=1, first=True)),)
 
         #: When
-        result = validate_structure(aspects, headings=document.headings)
+        result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
         assert len(result.violations) == 1, (
@@ -154,10 +156,10 @@ class TestValidateStructure:
         #: Given
         text = '# Guide\n\ntext\n\n## Empty\n## Full\n\ntext\n'
         document = parse_document(text)
-        aspects = (_aspect(forbid_empty_sections=True),)
+        structure_specs = (_structure_spec(forbid_empty_sections=True),)
 
         #: When
-        result = validate_structure(aspects, headings=document.headings)
+        result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
         assert len(result.violations) == 1, (
@@ -176,10 +178,10 @@ class TestValidateStructure:
         #: Given
         text = '## Rule\n\ntext\n\n## Changelog\n\ntext\n'
         document = parse_document(text)
-        aspects = (_aspect(forbidden=('Changelog',)),)
+        structure_specs = (_structure_spec(forbidden=('Changelog',)),)
 
         #: When
-        result = validate_structure(aspects, headings=document.headings)
+        result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
         assert len(result.violations) == 1, (
@@ -199,10 +201,10 @@ class TestValidateStructure:
         #: Given
         text = '## Rule\n\ntext\n'
         document = parse_document(text)
-        aspects = (_aspect(outline=RULE_OUTLINE),)
+        structure_specs = (_structure_spec(outline=RULE_OUTLINE),)
 
         #: When
-        result = validate_structure(aspects, headings=document.headings)
+        result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
         assert [violation.message for violation in result.violations] == [
@@ -215,8 +217,8 @@ class TestValidateStructure:
         #: Given
         text = '## Summary\n\ntext\n\n## Rule\n\ntext\n'
         document = parse_document(text)
-        aspects = (
-            _aspect(
+        structure_specs = (
+            _structure_spec(
                 outline=(
                     SectionEntry(name='Summary'),
                     SectionEntry(name='Usage'),
@@ -225,7 +227,7 @@ class TestValidateStructure:
         )
 
         #: When
-        result = validate_structure(aspects, headings=document.headings)
+        result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
         assert len(result.violations) == 1, (
@@ -246,8 +248,8 @@ class TestValidateStructure:
         #: Given
         text = '## Summary\n\ntext\n\n## Checklist\n\ntext\n'
         document = parse_document(text)
-        aspects = (
-            _aspect(
+        structure_specs = (
+            _structure_spec(
                 outline=(
                     SectionEntry(name='Summary'),
                     SectionEntry(name='Usage', optional=True),
@@ -257,7 +259,7 @@ class TestValidateStructure:
         )
 
         #: When
-        result = validate_structure(aspects, headings=document.headings)
+        result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
         assert result.violations == (), 'an absent optional section is skipped, and the next entry still matches'
@@ -266,10 +268,10 @@ class TestValidateStructure:
         #: Given
         text = '## Rule\n\ntext\n\n## References\n\ntext\n\n## Checklist\n\ntext\n'
         document = parse_document(text)
-        aspects = (_aspect(outline=RULE_OUTLINE),)
+        structure_specs = (_structure_spec(outline=RULE_OUTLINE),)
 
         #: When
-        result = validate_structure(aspects, headings=document.headings)
+        result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
         assert len(result.violations) == 1, (
@@ -287,10 +289,10 @@ class TestValidateStructure:
         #: Given
         text = '## Checklist\n\ntext\n\n## References\n\ntext\n\n## Checklist\n\ntext\n'
         document = parse_document(text)
-        aspects = (_aspect(outline=RULE_OUTLINE),)
+        structure_specs = (_structure_spec(outline=RULE_OUTLINE),)
 
         #: When
-        result = validate_structure(aspects, headings=document.headings)
+        result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
         assert len(result.violations) == 1, (
@@ -309,10 +311,10 @@ class TestValidateStructure:
         #: Given
         text = '## Checklist\n\ntext\n\n## Appendix\n\ntext\n'
         document = parse_document(text)
-        aspects = (_aspect(outline=RULE_OUTLINE),)
+        structure_specs = (_structure_spec(outline=RULE_OUTLINE),)
 
         #: When
-        result = validate_structure(aspects, headings=document.headings)
+        result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
         assert len(result.violations) == 1, (
@@ -329,10 +331,10 @@ class TestValidateStructure:
         #: Given
         text = '## Rule\n\n### Detail\n\ntext\n\n## Checklist\n\ntext\n'
         document = parse_document(text)
-        aspects = (_aspect(outline=RULE_OUTLINE),)
+        structure_specs = (_structure_spec(outline=RULE_OUTLINE),)
 
         #: When
-        result = validate_structure(aspects, headings=document.headings)
+        result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
         assert result.violations == (), 'only H2 headings are sections; an H3 is part of the section above it'
@@ -341,8 +343,8 @@ class TestValidateStructure:
         #: Given
         text = '## Rule\n\ntext\n\n## Checklist\n\ntext\n'
         document = parse_document(text)
-        corpus = _aspect(outline=RULE_OUTLINE)
-        namespace = _aspect(
+        corpus = _structure_spec(outline=RULE_OUTLINE)
+        namespace = _structure_spec(
             outline=(
                 AnySections(),
                 SectionEntry(name='References'),
@@ -363,10 +365,10 @@ class TestValidateStructure:
         #: Given
         text = '## Changelog\n\ntext\n\n## Empty\n'
         document = parse_document(text)
-        aspects = (_aspect(forbid_empty_sections=True, forbidden=('Changelog',), outline=RULE_OUTLINE),)
+        structure_specs = (_structure_spec(forbid_empty_sections=True, forbidden=('Changelog',), outline=RULE_OUTLINE),)
 
         #: When
-        result = validate_structure(aspects, headings=document.headings)
+        result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
         assert [(violation.line.value, violation.rule) for violation in result.violations] == [
@@ -380,10 +382,10 @@ class TestValidateStructure:
         text = '## Rule\n\ntext\n\n## Checklist\n\none two three\n'
         document = parse_document(text)
         outline = (AnySections(), SectionEntry(name='Checklist', words=2))
-        aspects = (_aspect(outline=outline),)
+        structure_specs = (_structure_spec(outline=outline),)
 
         #: When
-        result = validate_structure(aspects, headings=document.headings)
+        result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
         assert len(result.violations) == 1, (
@@ -404,10 +406,10 @@ class TestValidateStructure:
         text = '## Rule\n\none two three\n\n## Checklist\n\ntext\n'
         document = parse_document(text)
         outline = (AnySections(words=2), SectionEntry(name='Checklist'))
-        aspects = (_aspect(outline=outline),)
+        structure_specs = (_structure_spec(outline=outline),)
 
         #: When
-        result = validate_structure(aspects, headings=document.headings)
+        result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
         assert len(result.violations) == 1, (
@@ -425,10 +427,10 @@ class TestValidateStructure:
         text = '## Rule\n\none\n\n## Checklist\n\none two three\n'
         document = parse_document(text)
         outline = (AnySections(words=1), SectionEntry(name='Checklist'))
-        aspects = (_aspect(outline=outline),)
+        structure_specs = (_structure_spec(outline=outline),)
 
         #: When
-        result = validate_structure(aspects, headings=document.headings)
+        result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
         assert result.violations == (), 'a named entry without a cap leaves its section uncapped'
@@ -442,10 +444,10 @@ class TestValidateStructure:
             SectionEntry(name='Middle'),
             AnySections(words=5),
         )
-        aspects = (_aspect(outline=outline),)
+        structure_specs = (_structure_spec(outline=outline),)
 
         #: When
-        result = validate_structure(aspects, headings=document.headings)
+        result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
         assert result.violations == (), 'a section after `Middle` falls in the second run, capped at 5, not 1'
@@ -455,10 +457,10 @@ class TestValidateStructure:
         text = '## Rule\n\none two\n\n### Detail\n\nthree four\n\n## Checklist\n\ntext\n'
         document = parse_document(text)
         outline = (AnySections(words=3), SectionEntry(name='Checklist'))
-        aspects = (_aspect(outline=outline),)
+        structure_specs = (_structure_spec(outline=outline),)
 
         #: When
-        result = validate_structure(aspects, headings=document.headings)
+        result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
         assert len(result.violations) == 1, (
@@ -473,8 +475,8 @@ class TestValidateStructure:
         #: Given
         text = '## Rule\n\none two three\n\n## Checklist\n\ntext\n'
         document = parse_document(text)
-        corpus = _aspect(outline=(AnySections(words=5), SectionEntry(name='Checklist')))
-        namespace = _aspect(outline=(AnySections(words=2),), stem='code-python')
+        corpus = _structure_spec(outline=(AnySections(words=5), SectionEntry(name='Checklist')))
+        namespace = _structure_spec(outline=(AnySections(words=2),), stem='code-python')
 
         #: When
         result = validate_structure((corpus, namespace), headings=document.headings)
@@ -492,10 +494,10 @@ class TestValidateStructureOutlineNotes:
         text = '## Rule\n\ntext\n'
         document = parse_document(text)
         checklist = SectionEntry(name='Checklist', description=CHECKLIST_DESCRIPTION, examples=(LOGGING_CHECKLIST,))
-        aspects = (_aspect(outline=(AnySections(), checklist)),)
+        structure_specs = (_structure_spec(outline=(AnySections(), checklist)),)
 
         #: When
-        result = validate_structure(aspects, headings=document.headings)
+        result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
         assert [violation.notes for violation in result.violations] == [
@@ -510,10 +512,10 @@ class TestValidateStructureOutlineNotes:
         text = '## Rule\n\ntext\n'
         document = parse_document(text)
         checklist = SectionEntry(name='Checklist', examples=(LOGGING_CHECKLIST, DOCSTRINGS_CHECKLIST))
-        aspects = (_aspect(outline=(AnySections(), checklist)),)
+        structure_specs = (_structure_spec(outline=(AnySections(), checklist)),)
 
         #: When
-        result = validate_structure(aspects, headings=document.headings)
+        result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
         assert [violation.notes for violation in result.violations] == [
@@ -527,10 +529,10 @@ class TestValidateStructureOutlineNotes:
         text = '## Summary\n\ntext\n\n## Rule\n\ntext\n'
         document = parse_document(text)
         usage = SectionEntry(name='Usage', description=USAGE_DESCRIPTION, examples=(BUDGET_USAGE,))
-        aspects = (_aspect(outline=(SectionEntry(name='Summary'), usage)),)
+        structure_specs = (_structure_spec(outline=(SectionEntry(name='Summary'), usage)),)
 
         #: When
-        result = validate_structure(aspects, headings=document.headings)
+        result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
         assert len(result.violations) == 1, (
@@ -550,10 +552,10 @@ class TestValidateStructureOutlineNotes:
         text = '## Rule\n\ntext\n'
         document = parse_document(text)
         checklist = SectionEntry(name='Checklist', description=CHECKLIST_DESCRIPTION)
-        aspects = (_aspect(outline=(AnySections(), checklist)),)
+        structure_specs = (_structure_spec(outline=(AnySections(), checklist)),)
 
         #: When
-        result = validate_structure(aspects, headings=document.headings)
+        result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
         assert [violation.notes for violation in result.violations] == [
@@ -565,10 +567,10 @@ class TestValidateStructureOutlineNotes:
         text = '## Rule\n\ntext\n'
         document = parse_document(text)
         checklist = SectionEntry(name='Checklist', examples=(LOGGING_CHECKLIST,))
-        aspects = (_aspect(outline=(AnySections(), checklist)),)
+        structure_specs = (_structure_spec(outline=(AnySections(), checklist)),)
 
         #: When
-        result = validate_structure(aspects, headings=document.headings)
+        result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
         assert [violation.notes for violation in result.violations] == [
@@ -579,10 +581,10 @@ class TestValidateStructureOutlineNotes:
         #: Given
         text = '## Rule\n\ntext\n'
         document = parse_document(text)
-        aspects = (_aspect(outline=RULE_OUTLINE),)
+        structure_specs = (_structure_spec(outline=RULE_OUTLINE),)
 
         #: When
-        result = validate_structure(aspects, headings=document.headings)
+        result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
         assert [violation.notes for violation in result.violations] == [()], (

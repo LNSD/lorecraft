@@ -42,6 +42,10 @@ A document in `docs/__meta__/` that defines the metadata, structure, and content
 
 An additional specification selected by a document's filename, when a namespace equals the name or is a hyphen-delimited prefix of it: `code-python.md` for `python-*` code rule documents, `feat-cli.md` for `cli-*` feature documents. It adds to the corpus specification and cannot relax it.
 
+### Aspect
+
+The part of a name after its corpus: in `docs/code/python-fn.md`, or the stem `code-python-fn`, the corpus is `code` and the aspect is `python-fn`. An aspect splits into a namespace and a [facet](#facet): `python-fn` is the namespace `python` plus the facet `fn`. The middle of a specification filename, `structure` in `code.structure.json`, is not an aspect: what that file is comes from its [file type](#file-type).
+
 ### Facet
 
 What a document's name adds to a namespace that matches it: name = namespace + facet. The name `python-typing` is the namespace `python` plus the facet `typing`. A facet is relative to the namespace chosen: `python-typing-unreachable` has the facet `typing-unreachable` under `python`, and would have `unreachable` under a `python-typing` namespace. It is empty when the namespace is the whole name.
@@ -58,11 +62,15 @@ A feature document's maturity label: `development`, `unstable`, `experimental`, 
 
 ### Machine-checkable companion
 
-A JSON file beside a format specification that represents one aspect of its rules for a checker: the structure aspect (`.structure.json`), holding the section structure with its word caps, the token budget and the frontmatter schema.
+A JSON file beside a format specification that holds the rules a checker can decide: the structure specification, `<stem>.structure.json`, holding the section structure with its word caps, the token budget and the frontmatter schema.
+
+### File type
+
+What a file in `docs/__meta__/` is, claimed by a file name pattern: `*.md` claims a specification's prose and `*.structure.json` its structure specification. A file's extension is only what follows its last dot, so `code.structure.json` is a JSON file the structure file type claims; a file no pattern claims is not a specification file.
 
 ### Check
 
-A `lorecraft check` subcommand that validates one aspect of documentation against a machine-checkable companion. Document checks cover frontmatter, structure with its word caps, and the token budget.
+A `lorecraft check` subcommand that validates one kind of rule, read from a machine-checkable companion, over the documentation. Document checks cover frontmatter, structure with its word caps, and the token budget.
 
 ### Violation
 

@@ -29,7 +29,7 @@ their findings together. Every check shares the root discovery, output formats a
 ## Key Concepts
 
 - **Check**: One subcommand of the group, validating one part of a document against the
-  `<stem>.<aspect>.json` specification files its path selects.
+  `<stem>.structure.json` structure specifications its path selects.
 - **Finding**: One broken rule, located: a root-relative path, a line, a rule identifier and a message, and optionally
   notes that help fix it.
 - **Governed**: A document is governed by a check when its corpus specification has a structure file and at

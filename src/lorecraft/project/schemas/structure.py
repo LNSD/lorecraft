@@ -1,10 +1,10 @@
-r"""The structure aspect: a structure specification file's decoded JSON, and the rules it is decoded into.
+r"""The structure specification: its file's decoded JSON, and the rules it is decoded into.
 
 The repository reads a `<stem>.structure.json` file's text, a `StructureSchema`, which proves nothing about
-it. `StructureAspect.parse` is the check, in two steps at the edge. It deserializes the text straight into the
+it. `StructureSpec.parse` is the check, in two steps at the edge. It deserializes the text straight into the
 strict, frozen `StructureFile` model, so JSON that is malformed or not the dialect's shape is refused before
-any rule is read. Then it maps the model to typed rules, and building the aspect refuses a set of rules that
-checks nothing or contradicts itself, which no shape can state. So every `StructureAspect` that exists states
+any rule is read. Then it maps the model to typed rules, and building the specification refuses a set of rules that
+checks nothing or contradicts itself, which no shape can state. So every `StructureSpec` that exists states
 usable rules, however it was built.
 
 A document's outline is a sequence whose length varies, and JSON Schema cannot state an order over one, so a
@@ -34,7 +34,7 @@ The file does not name the prose it is the machine-checkable half of: that is `<
 finding quotes it.
 
 - `$schema` points editors at `docs/schemas/structure.spec.json`, the JSON Schema `just gen` renders from
-  `structure_file`; it is not kept. That schema states the shape only: the rules `StructureAspect` refuses
+  `structure_file`; it is not kept. That schema states the shape only: the rules `StructureSpec` refuses
   below it cannot state.
 - `description` is read by people only, and is not kept.
 - `title` states how many H1 titles a document carries, and whether one opens it ahead of every section.
@@ -89,9 +89,10 @@ from .spec_file import (
     InvalidSpecStemError,
     NotASpecFileError,
     NotASpecStemError,
-    UnknownSpecAspectError,
+    SpecFileType,
+    UnknownSpecFileTypeError,
     parse_spec_file,
-    prose_filename,
+    spec_filename,
 )
 from .structure_file import (
     JSON_SCHEMA_DIALECT,
@@ -102,7 +103,7 @@ from .structure_file import (
 )
 
 # The text of a structure specification file as read, not yet known to be JSON, the dialect's shape or usable
-# rules. A NewType only keeps it apart from other text; `StructureAspect.parse` is what proves it.
+# rules. A NewType only keeps it apart from other text; `StructureSpec.parse` is what proves it.
 StructureSchema = NewType('StructureSchema', str)
 
 
@@ -136,14 +137,16 @@ class StructureSpecFilenameError(Error):
     """
 
     path: RootRelativePath
-    source: NotASpecFileError | UnknownSpecAspectError | NotASpecStemError | DottedSpecStemError | InvalidSpecStemError
+    source: (
+        NotASpecFileError | UnknownSpecFileTypeError | NotASpecStemError | DottedSpecStemError | InvalidSpecStemError
+    )
 
     def __init__(
         self,
         path: RootRelativePath,
         *,
         source: NotASpecFileError
-        | UnknownSpecAspectError
+        | UnknownSpecFileTypeError
         | NotASpecStemError
         | DottedSpecStemError
         | InvalidSpecStemError,
@@ -349,7 +352,7 @@ class TitleRule:
     """How many H1 titles a document carries, and whether one opens it.
 
     Attributes:
-        count: The number of H1 titles; at least 1, which ``StructureAspect`` checks.
+        count: The number of H1 titles; at least 1, which `StructureSpec` checks.
         first: True when an H1 title must come before any other heading.
     """
 
@@ -365,7 +368,7 @@ class SectionEntry:
         name: The section's heading text.
         optional: True when a document may leave the section out; False, the default, when it must carry it.
         words: The most prose words the section may hold, its H3 subsections included, or None, the default, for
-            no cap; at least 1, which `StructureAspect` checks.
+            no cap; at least 1, which `StructureSpec` checks.
         description: What the section holds, reported as help when a document lacks the section, or None, the
             default, for no help.
         examples: Markdown samples of the section's body, each without its heading, or empty, the default, for
@@ -375,7 +378,7 @@ class SectionEntry:
 
     name: str
     optional: bool = False
-    # Checked by the enclosing `StructureAspect` rather than here, so a bad cap is refused as an
+    # Checked by the enclosing `StructureSpec` rather than here, so a bad cap is refused as an
     # `InvalidWordCapError` naming the specification file, which this record does not know.
     words: int | None = None
     description: str | None = None
@@ -391,10 +394,10 @@ class AnySections:
     Attributes:
         words: The most prose words each section in the run may hold, its H3 subsections included, or None, the
             default, for no cap. It caps every section alone, not the run's total; at least 1, which
-            ``StructureAspect`` checks.
+            `StructureSpec` checks.
     """
 
-    # Checked by the enclosing `StructureAspect` rather than here, so a bad cap is refused as an
+    # Checked by the enclosing `StructureSpec` rather than here, so a bad cap is refused as an
     # `InvalidWordCapError` naming the specification file, which this record does not know.
     words: int | None = None
 
@@ -426,17 +429,17 @@ class FrontmatterSchema:
     schema: Mapping[str, object]
 
     def __post_init__(self) -> None:
-        """Refuse a schema this aspect cannot hold a document's frontmatter to.
+        """Refuse a schema a structure specification cannot hold a document's frontmatter to.
 
         That is a schema that is not a well-formed Draft 2020-12 schema, that leaves it for another resource or
         dialect anywhere inside it, or that does not describe an object.
 
         Raises:
             InvalidFrontmatterSchemaError: If the schema is rejected by the Draft 2020-12 meta-schema.
-            FrontmatterSchemaIdError: If any schema in it carries ``$id``.
+            FrontmatterSchemaIdError: If any schema in it carries `$id`.
             ForeignFrontmatterDialectError: If any schema in it names a dialect other than Draft 2020-12 in
-                ``$schema``.
-            UntypedFrontmatterSchemaError: If its root does not say ``"type": "object"``.
+                `$schema`.
+            UntypedFrontmatterSchemaError: If its root does not say `"type": "object"`.
         """
         try:
             Draft202012Validator.check_schema(self.schema)
@@ -582,17 +585,17 @@ def _schemas_within(schema: Mapping[str, object]) -> Iterator[Mapping[str, objec
 
 
 @dataclass(frozen=True, slots=True)
-class StructureAspect:
+class StructureSpec:
     """One structure specification's rules, proved usable.
 
-    Construction checks the rules, so an instance is proof of them: no code holding a ``StructureAspect``
+    Construction checks the rules, so an instance is proof of them: no code holding a `StructureSpec`
     checks them again.
 
-    Not hashable when it states a frontmatter schema, since ``FrontmatterSchema`` holds a dict.
+    Not hashable when it states a frontmatter schema, since `FrontmatterSchema` holds a dict.
 
     Attributes:
-        path: Root-relative path of the JSON file, ``<stem>.structure.json``; the prose it is the
-            machine-checkable half of is ``<stem>.md`` beside it, which ``authority`` names.
+        path: Root-relative path of the JSON file, `<stem>.structure.json`; the prose it is the
+            machine-checkable half of is `<stem>.md` beside it, which `authority` names.
         title: The title rule, or None when the specification states none.
         forbid_empty_sections: True when every section must hold content.
         outline: The section order, matched against a document's sections left to right; may be empty.
@@ -601,8 +604,8 @@ class StructureAspect:
             included, or None for no budget; at least 1.
         frontmatter: The JSON Schema a document's frontmatter must satisfy, or None when the specification states
             none.
-        authority: The filename of the prose this file is the machine-checkable half of, such as ``code.md``,
-            derived from ``path`` at construction. Every finding quotes it, so a reader is sent to the rule rather
+        authority: The filename of the prose this file is the machine-checkable half of, such as `code.md`,
+            derived from `path` at construction. Every finding quotes it, so a reader is sent to the rule rather
             than to the JSON.
     """
 
@@ -624,23 +627,23 @@ class StructureAspect:
         A rule is not usable when it checks nothing, when no count, cap or budget satisfies it, or when it
         contradicts itself.
 
-        A frontmatter schema is checked when it is built, before the aspect is.
+        A frontmatter schema is checked when it is built, before the structure specification is.
 
         Raises:
             StructureSpecFilenameError: If the path is not a specification filename.
-            EmptyStructureSpecError: If the aspect states no rule.
+            EmptyStructureSpecError: If the specification states no rule.
             InvalidTitleCountError: If its title count is below 1.
             InvalidTokenBudgetError: If its token budget is below 1.
             InvalidWordCapError: If a word cap in its outline is below 1.
             RepeatedOutlineSectionError: If its outline names a section twice.
             ForbiddenOutlineSectionError: If it forbids a section its own outline names.
-            AdjacentAnyRunsError: If its outline places two ``any`` runs side by side.
+            AdjacentAnyRunsError: If its outline places two `any` runs side by side.
         """
         try:
             spec_file = parse_spec_file(self.path)
         except (
             NotASpecFileError,
-            UnknownSpecAspectError,
+            UnknownSpecFileTypeError,
             NotASpecStemError,
             DottedSpecStemError,
             InvalidSpecStemError,
@@ -648,7 +651,7 @@ class StructureAspect:
             raise StructureSpecFilenameError(self.path, source=exc) from exc
         # `authority` is derived from `path` rather than passed in, so the two cannot disagree. A frozen dataclass
         # refuses plain assignment, and `object.__setattr__` is the one way to set a field during construction.
-        object.__setattr__(self, 'authority', prose_filename(spec_file.name))
+        object.__setattr__(self, 'authority', spec_filename(spec_file.name, SpecFileType.PROSE))
 
         states_no_rule = (
             self.title is None

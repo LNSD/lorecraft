@@ -37,7 +37,7 @@ document. What lorecraft finds in that layout is the workspace model, which ever
 ```text
 <root>/
 └── docs/
-    ├── __meta__/            specifications: <corpus>.md, <corpus>-<namespace>.md, their .json aspects
+    ├── __meta__/            specifications: <corpus>.md, <corpus>-<namespace>.md, their .structure.json files
     ├── feat/                a corpus, governed by docs/__meta__/feat.*
     │   ├── cli.md           a document
     │   └── cli-check.md     a document

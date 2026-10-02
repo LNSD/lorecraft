@@ -1,13 +1,13 @@
 """Build the workspace model from the specification directory, the corpus directories and the skills directories.
 
-Discovery is spec-first: a directory under ``docs/`` is a corpus only when ``docs/__meta__/`` holds a file at
-its stem. The loader lists the specification directory, parses each filename once with ``parse_spec_file``,
+Discovery is spec-first: a directory under `docs/` is a corpus only when `docs/__meta__/` holds a file at
+its stem. The loader lists the specification directory, parses each filename once with `parse_spec_file`,
 sorts the parsed files into corpus stems and namespace stems, keeps the corpora whose
-``docs/<corpus>/`` is a regular directory, lists the Markdown files directly inside each, and builds a
-``StructureAspect`` from every structure specification, which proves each one usable, its frontmatter schema
+`docs/<corpus>/` is a regular directory, lists the Markdown files directly inside each, and builds a
+`StructureSpec` from every structure specification, which proves each one usable, its frontmatter schema
 included, before any document is read.
 
-The skills come from the agents: the loader asks each agent in ``lorecraft.agents`` which project skills
+The skills come from the agents: the loader asks each agent in `lorecraft.agents` which project skills
 directories it reads, keeps the ones the repository has, and lists the skills in each canonical directory once. A
 skills directory, a skill entry or a `SKILL.md` whose symlink chain leaves the repository is recorded in the model
 as an outside symlink, for a check to report. Any other entry that does not fit the layout is left out of the
@@ -42,12 +42,12 @@ from lorecraft.project.schemas.spec_file import (
     InvalidSpecStemError,
     NotASpecFileError,
     NotASpecStemError,
-    SpecAspect,
     SpecFile,
-    UnknownSpecAspectError,
+    SpecFileType,
+    UnknownSpecFileTypeError,
     parse_spec_file,
 )
-from lorecraft.project.schemas.structure import StructureAspect
+from lorecraft.project.schemas.structure import StructureSpec
 from lorecraft.project.skill.named_dir import NamedDir
 from lorecraft.project.skill.outside import OutsideSymlink
 from lorecraft.project.skill.ref import SkillLocation
@@ -81,7 +81,7 @@ def load_workspace(
     """Build the workspace model of the snapshot.
 
     Parse the spec filenames, keep corpus stems whose docs/<corpus>/ is a directory, list the Markdown files
-    directly inside each, build a structure aspect from every spec that has one, find the agents' skills
+    directly inside each, build a structure specification from every spec that has one, find the agents' skills
     directories and the skills in them, and the skills in each directory a command names.
 
     Args:
@@ -210,7 +210,7 @@ def _group_spec_files(spec_paths: list[RootRelativePath]) -> dict[CorpusName, _C
             spec_file = parse_spec_file(path)
         except (
             NotASpecFileError,
-            UnknownSpecAspectError,
+            UnknownSpecFileTypeError,
             NotASpecStemError,
             DottedSpecStemError,
             InvalidSpecStemError,
@@ -269,12 +269,12 @@ def _load_corpus(
 
 
 def _load_spec(schemas: SchemaRepository, name: SchemaName, spec_files: list[SpecFile]) -> Spec:
-    """Build one spec from the files at its stem, decoding its structure JSON into an aspect.
+    """Build one spec from the files at its stem, decoding its structure JSON into a structure specification.
 
     Args:
         schemas: Repository the structure specification is read from.
         name: Stem the spec sits at: the corpus alone, or the corpus and a namespace.
-        spec_files: Files at that stem; one with no structure file gives a spec with no structure aspect.
+        spec_files: Files at that stem; one with no structure file gives a spec with no structure specification.
 
     Raises:
         StructureSchemaReadError: If the structure specification cannot be read.
@@ -292,12 +292,12 @@ def _load_spec(schemas: SchemaRepository, name: SchemaName, spec_files: list[Spe
         ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
         UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
     """
-    structure: StructureAspect | None = None
+    structure: StructureSpec | None = None
     for spec_file in spec_files:
-        if spec_file.aspect is SpecAspect.STRUCTURE:
-            # Building the aspect is the check: StructureAspect.parse rejects text that is not JSON in the structure
-            # dialect, rules that are not usable, and a malformed frontmatter schema.
-            structure = StructureAspect.parse(spec_file.path, schemas.get_structure_schema(name))
+        if spec_file.type is SpecFileType.STRUCTURE:
+            # Building the structure specification is the check: StructureSpec.parse rejects text that is not JSON in
+            # the structure dialect, rules that are not usable, and a malformed frontmatter schema.
+            structure = StructureSpec.parse(spec_file.path, schemas.get_structure_schema(name))
     paths = tuple(sorted((spec_file.path for spec_file in spec_files), key=str))
     return Spec(name=name, files=paths, structure=structure)
 

@@ -1,6 +1,6 @@
 """Run a check over documents, or over skills, of one database.
 
-A run asks the database for everything it reads: the model decides which aspects govern each document, and
+A run asks the database for everything it reads: the model decides which specifications govern each document, and
 the part of the document the check reads is what the pure check validates — the frontmatter for the frontmatter
 check, the parse tree's headings for the structure check, the whole file's token count for the budget check.
 Selecting which documents to check is the caller's business: a run checks the refs it is handed, in the order
@@ -26,7 +26,7 @@ from typing import Literal, assert_never
 
 from lorecraft.core.path import RootRelativePath, RootRelativePathError
 from lorecraft.project.document import DocumentDecodeError, DocumentRef
-from lorecraft.project.schemas import SKILL_FRONTMATTER_SCHEMA, StructureAspect
+from lorecraft.project.schemas import SKILL_FRONTMATTER_SCHEMA, StructureSpec
 from lorecraft.project.skill import (
     OutsideSymlink,
     SkillDecodeError,
@@ -66,7 +66,7 @@ from .structure import validate_structure
 
 @dataclass(frozen=True, slots=True)
 class GovernedDocumentReport:
-    """The outcome of checking one selected document that a specification governs for the check's aspect.
+    """The outcome of checking one selected document that a specification governs with rules the check applies.
 
     Attributes:
         ref: The document the report is about; its path is the report path.
@@ -83,7 +83,7 @@ class GovernedDocumentReport:
 
 @dataclass(frozen=True, slots=True)
 class UngovernedDocumentReport:
-    """The outcome of selecting a document no specification governs for the check's aspect.
+    """The outcome of selecting a document no specification governs with rules the check applies.
 
     The document was never parsed, so there is nothing it could violate.
 
@@ -344,8 +344,8 @@ def run_structure(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun
     """
     reports: list[DocumentReport] = []
     for ref in refs:
-        aspects = database.model().governance(ref).structure_specs()
-        if not aspects:
+        structure_specs = database.model().governance(ref).structure_specs()
+        if not structure_specs:
             reports.append(UngovernedDocumentReport(ref))
             continue
         document = _parse(database, ref)
@@ -353,7 +353,7 @@ def run_structure(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun
             case DocumentDecodeError():
                 reports.append(GovernedDocumentReport(ref, violations=(_undecodable('structure'),)))
             case ParsedDocument():
-                result = validate_structure(aspects, headings=document.headings)
+                result = validate_structure(structure_specs, headings=document.headings)
                 reports.append(GovernedDocumentReport(ref, violations=result.violations))
             case _:
                 assert_never(document)
@@ -407,8 +407,8 @@ def run_budget(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
     """
     reports: list[DocumentReport] = []
     for ref in refs:
-        aspects = _budgeted(database.model().governance(ref).structure_specs())
-        if not aspects:
+        structure_specs = _budgeted(database.model().governance(ref).structure_specs())
+        if not structure_specs:
             reports.append(UngovernedDocumentReport(ref))
             continue
         token_count = _tokens(database, ref)
@@ -416,7 +416,7 @@ def run_budget(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
             case DocumentDecodeError():
                 reports.append(GovernedDocumentReport(ref, violations=(_undecodable('budget'),)))
             case int():
-                result = validate_budget(aspects, token_count=token_count)
+                result = validate_budget(structure_specs, token_count=token_count)
                 reports.append(GovernedDocumentReport(ref, violations=result.violations))
             case _:
                 assert_never(token_count)
@@ -702,16 +702,16 @@ def _listed_file_state(database: Database, written: str) -> ListedFileState:
     return ListedFileState.OUTSIDE_SCOPE
 
 
-def _budgeted(aspects: tuple[StructureAspect, ...]) -> tuple[StructureAspect, ...]:
-    """The structure aspects that set a `tokens` budget, in the order given.
+def _budgeted(structure_specs: tuple[StructureSpec, ...]) -> tuple[StructureSpec, ...]:
+    """The structure specifications that set a `tokens` budget, in the order given.
 
     Args:
-        aspects: The structure aspects governing a document; those without a `tokens` budget are dropped.
+        structure_specs: The structure specifications governing a document; those without a `tokens` budget are dropped.
     """
-    budgeted: list[StructureAspect] = []
-    for aspect in aspects:
-        if aspect.tokens is not None:
-            budgeted.append(aspect)
+    budgeted: list[StructureSpec] = []
+    for structure_spec in structure_specs:
+        if structure_spec.tokens is not None:
+            budgeted.append(structure_spec)
     return tuple(budgeted)
 
 

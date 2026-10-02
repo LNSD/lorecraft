@@ -1,4 +1,4 @@
-"""Document and skill checks: each validates one aspect of the documents, or the skills, a workspace model lists.
+"""Document and skill checks: each validates one kind of rule over the documents, or skills, a workspace model lists.
 
 A check is pure over the one part of a document it reads: the frontmatter check over the frontmatter node, the
 structure check over the headings, the budget check over the token count. The `Database` caches the model, the

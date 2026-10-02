@@ -1,6 +1,6 @@
-"""The structure aspect.
+"""The structure specification.
 
-``parse`` deserializes a file's text into the dialect's shape, and construction refuses rules that are not usable.
+`parse` deserializes a file's text into the dialect's shape, and construction refuses rules that are not usable.
 """
 
 import json
@@ -33,8 +33,8 @@ from ..structure import (
     InvalidWordCapError,
     RepeatedOutlineSectionError,
     SectionEntry,
-    StructureAspect,
     StructureSchema,
+    StructureSpec,
     StructureSpecDecodeError,
     StructureSpecFilenameError,
     TitleRule,
@@ -68,7 +68,7 @@ DOCSTRINGS_CHECKLIST: Final[str] = (
 
 
 @pytest.mark.unit
-class TestStructureAspectParse:
+class TestStructureSpecParse:
     def test_parse_with_every_field_returns_the_rules_it_states(self) -> None:
         #: Given
         schema = StructureSchema(
@@ -92,10 +92,10 @@ class TestStructureAspectParse:
         )
 
         #: When
-        aspect = StructureAspect.parse(SPEC_PATH, schema)
+        structure_spec = StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
-        assert aspect == StructureAspect(
+        assert structure_spec == StructureSpec(
             path=SPEC_PATH,
             title=TitleRule(count=1, first=True),
             forbid_empty_sections=True,
@@ -126,27 +126,27 @@ class TestStructureAspectParse:
         )
 
         #: When
-        aspect = StructureAspect.parse(SPEC_PATH, schema)
+        structure_spec = StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
-        assert aspect.outline == (
+        assert structure_spec.outline == (
             SectionEntry(
                 name='Checklist',
                 description=CHECKLIST_DESCRIPTION,
                 examples=(LOGGING_CHECKLIST, DOCSTRINGS_CHECKLIST),
             ),
-        ), f'a section entry keeps its description and every example, in order, got {aspect.outline!r}'
+        ), f'a section entry keeps its description and every example, in order, got {structure_spec.outline!r}'
 
     def test_parse_with_a_section_without_description_or_examples_states_neither(self) -> None:
         #: Given
         schema = StructureSchema('{"outline": [{"section": "Checklist"}]}')
 
         #: When
-        aspect = StructureAspect.parse(SPEC_PATH, schema)
+        structure_spec = StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
-        assert aspect.outline == (SectionEntry(name='Checklist', description=None, examples=()),), (
-            f'both keys are optional, and absent they state nothing, got {aspect.outline!r}'
+        assert structure_spec.outline == (SectionEntry(name='Checklist', description=None, examples=()),), (
+            f'both keys are optional, and absent they state nothing, got {structure_spec.outline!r}'
         )
 
     def test_parse_with_an_empty_section_description_raises_structure_spec_decode_error(self) -> None:
@@ -155,7 +155,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'an empty description would print empty help, so it is refused'
@@ -166,7 +166,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'no examples are written by leaving the key out, so `[]` is refused'
@@ -179,7 +179,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'an empty example would print a heading alone, so it is refused'
@@ -192,7 +192,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a description is one string of text, not a list of lines'
@@ -203,7 +203,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'examples are a list, so one bare string is refused'
@@ -214,7 +214,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the file is read strictly, so a number is not an example'
@@ -226,7 +226,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'only a named section takes a description'
@@ -238,20 +238,20 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'only a named section takes examples'
 
-    def test_parse_with_only_a_frontmatter_schema_returns_an_aspect_with_that_schema(self) -> None:
+    def test_parse_with_only_a_frontmatter_schema_returns_a_structure_spec_with_that_schema(self) -> None:
         #: Given
         schema = StructureSchema('{"frontmatter": {"type": "object"}}')
 
         #: When
-        aspect = StructureAspect.parse(SPEC_PATH, schema)
+        structure_spec = StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
-        assert aspect.frontmatter == FrontmatterSchema(path=SPEC_PATH, schema={'type': 'object'}), (
+        assert structure_spec.frontmatter == FrontmatterSchema(path=SPEC_PATH, schema={'type': 'object'}), (
             'a frontmatter schema is a rule, so a file stating only it is usable'
         )
 
@@ -261,7 +261,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(InvalidFrontmatterSchemaError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the error names the structure specification the schema is in'
@@ -275,7 +275,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(UntypedFrontmatterSchemaError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the object type is stated, not implied'
@@ -286,7 +286,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a boolean schema is refused by the shape'
@@ -297,7 +297,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, (
@@ -313,7 +313,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(FrontmatterSchemaIdError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the editor lets an $id through, the load refuses it naming the file'
@@ -328,7 +328,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(ForeignFrontmatterDialectError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the editor lets a foreign $schema through, the load refuses it'
@@ -336,15 +336,15 @@ class TestStructureAspectParse:
             f'the error carries the dialect the schema names, got {exc_info.value.dialect!r}'
         )
 
-    def test_parse_with_only_a_token_budget_returns_an_aspect_with_that_budget(self) -> None:
+    def test_parse_with_only_a_token_budget_returns_a_structure_spec_with_that_budget(self) -> None:
         #: Given
         schema = StructureSchema('{"tokens": 4000}')
 
         #: When
-        aspect = StructureAspect.parse(SPEC_PATH, schema)
+        structure_spec = StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
-        assert aspect.tokens == 4000, 'a token budget is a rule, so a file stating only it is usable'
+        assert structure_spec.tokens == 4000, 'a token budget is a rule, so a file stating only it is usable'
 
     def test_parse_with_a_token_budget_of_zero_raises_structure_spec_decode_error(self) -> None:
         #: Given
@@ -352,7 +352,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'no document satisfies a budget of 0 tokens'
@@ -364,7 +364,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a top-level `words` is not a field, so it is refused, not ignored'
@@ -375,7 +375,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'no section satisfies a cap of 0 words'
@@ -386,7 +386,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'no section in a run satisfies a cap of 0 words'
@@ -397,7 +397,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the file is read strictly, so a string is not a word cap'
@@ -408,7 +408,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a token budget is a whole number of tokens'
@@ -419,7 +419,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a JSON boolean is not a word cap, though Python treats it as one'
@@ -438,10 +438,10 @@ class TestStructureAspectParse:
         )
 
         #: When
-        aspect = StructureAspect.parse(SPEC_PATH, schema)
+        structure_spec = StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
-        assert aspect == StructureAspect(
+        assert structure_spec == StructureSpec(
             path=SPEC_PATH,
             title=None,
             forbid_empty_sections=False,
@@ -466,7 +466,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the error names the rejected file'
@@ -483,7 +483,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'text that is not JSON is refused at the edge, naming the file'
@@ -503,7 +503,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'no document satisfies a count of 0'
@@ -522,7 +522,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the file is read strictly, so no value is coerced into another type'
@@ -542,7 +542,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the error names the rejected file'
@@ -553,7 +553,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the prose is named by the filename, so `spec` is not a field'
@@ -574,7 +574,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, '"forbidden" is the only value `empty_sections` takes'
@@ -593,7 +593,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a JSON boolean is not a count, though Python treats it as one'
@@ -608,7 +608,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert len(exc_info.value.problems) == 2, f'each wrong field is its own problem, got {exc_info.value.problems}'
@@ -636,7 +636,7 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'an outline entry is a section or an `any` run, nothing else'
@@ -655,21 +655,21 @@ class TestStructureAspectParse:
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureAspect.parse(SPEC_PATH, schema)
+            StructureSpec.parse(SPEC_PATH, schema)
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, '`forbidden` holds section names only'
 
 
 @pytest.mark.unit
-class TestStructureAspectConstruction:
+class TestStructureSpecConstruction:
     def test_construction_without_any_rule_raises_empty_structure_spec_error(self) -> None:
         #: Given
         path = SPEC_PATH
 
         #: When
         with pytest.raises(EmptyStructureSpecError) as exc_info:
-            StructureAspect(
+            StructureSpec(
                 path=path,
                 title=None,
                 forbid_empty_sections=False,
@@ -688,7 +688,7 @@ class TestStructureAspectConstruction:
 
         #: When
         with pytest.raises(InvalidTitleCountError) as exc_info:
-            StructureAspect(
+            StructureSpec(
                 path=SPEC_PATH,
                 title=title,
                 forbid_empty_sections=False,
@@ -712,7 +712,7 @@ class TestStructureAspectConstruction:
 
         #: When
         with pytest.raises(RepeatedOutlineSectionError) as exc_info:
-            StructureAspect(
+            StructureSpec(
                 path=SPEC_PATH,
                 title=None,
                 forbid_empty_sections=False,
@@ -735,7 +735,7 @@ class TestStructureAspectConstruction:
 
         #: When
         with pytest.raises(ForbiddenOutlineSectionError) as exc_info:
-            StructureAspect(
+            StructureSpec(
                 path=SPEC_PATH,
                 title=None,
                 forbid_empty_sections=False,
@@ -762,7 +762,7 @@ class TestStructureAspectConstruction:
 
         #: When
         with pytest.raises(AdjacentAnyRunsError) as exc_info:
-            StructureAspect(
+            StructureSpec(
                 path=SPEC_PATH,
                 title=None,
                 forbid_empty_sections=False,
@@ -782,7 +782,7 @@ class TestStructureAspectConstruction:
 
         #: When
         with pytest.raises(InvalidTokenBudgetError) as exc_info:
-            StructureAspect(
+            StructureSpec(
                 path=SPEC_PATH,
                 title=None,
                 forbid_empty_sections=False,
@@ -802,7 +802,7 @@ class TestStructureAspectConstruction:
         tokens = 1
 
         #: When
-        aspect = StructureAspect(
+        structure_spec = StructureSpec(
             path=SPEC_PATH,
             title=None,
             forbid_empty_sections=False,
@@ -813,7 +813,9 @@ class TestStructureAspectConstruction:
         )
 
         #: Then
-        assert aspect.tokens == 1, f'1 token is the smallest budget a document can meet, got {aspect.tokens}'
+        assert structure_spec.tokens == 1, (
+            f'1 token is the smallest budget a document can meet, got {structure_spec.tokens}'
+        )
 
     def test_construction_with_a_section_word_cap_of_zero_raises_invalid_word_cap_error(self) -> None:
         #: Given
@@ -821,7 +823,7 @@ class TestStructureAspectConstruction:
 
         #: When
         with pytest.raises(InvalidWordCapError) as exc_info:
-            StructureAspect(
+            StructureSpec(
                 path=SPEC_PATH,
                 title=None,
                 forbid_empty_sections=False,
@@ -845,7 +847,7 @@ class TestStructureAspectConstruction:
 
         #: When
         with pytest.raises(InvalidWordCapError) as exc_info:
-            StructureAspect(
+            StructureSpec(
                 path=SPEC_PATH,
                 title=None,
                 forbid_empty_sections=False,
@@ -865,13 +867,13 @@ class TestStructureAspectConstruction:
 
 
 @pytest.mark.unit
-class TestStructureAspectAuthority:
+class TestStructureSpecAuthority:
     def test_construction_at_a_namespace_path_derives_the_prose_at_its_stem(self) -> None:
         #: Given
         path = RootRelativePath.parse('docs/__meta__/code-python.structure.json')
 
         #: When
-        aspect = StructureAspect(
+        structure_spec = StructureSpec(
             path=path,
             title=None,
             forbid_empty_sections=False,
@@ -882,7 +884,7 @@ class TestStructureAspectAuthority:
         )
 
         #: Then
-        assert aspect.authority == 'code-python.md', 'the prose is the `.md` file at the same stem'
+        assert structure_spec.authority == 'code-python.md', 'the prose is the `.md` file at the same stem'
 
     def test_construction_at_a_path_that_is_not_a_spec_filename_raises_structure_spec_filename_error(self) -> None:
         #: Given
@@ -890,7 +892,7 @@ class TestStructureAspectAuthority:
 
         #: When
         with pytest.raises(StructureSpecFilenameError) as exc_info:
-            StructureAspect(
+            StructureSpec(
                 path=path,
                 title=None,
                 forbid_empty_sections=False,
@@ -901,7 +903,9 @@ class TestStructureAspectAuthority:
             )
 
         #: Then
-        assert exc_info.value.path == path, 'an aspect whose path names no prose has no authority to quote'
+        assert exc_info.value.path == path, (
+            'a structure specification whose path names no prose has no authority to quote'
+        )
         assert exc_info.value.source is exc_info.value.__cause__, 'why the filename is refused is kept as the cause'
         assert str(path) in str(exc_info.value), f'the message names the file, got {exc_info.value}'
 
