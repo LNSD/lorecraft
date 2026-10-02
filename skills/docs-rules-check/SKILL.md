@@ -45,8 +45,9 @@ lorecraft inspect
 Each document is followed by the stems governing it, broad to narrow; stem `<stem>` is the prose at
 `docs/__meta__/<stem>.md`. [cli-inspect](references/cli-inspect.md) describes the output. Read every
 specification listed for a document **before** the document, so its checklist is in hand while reading. A
-document with no stem stating what a check reads is ungoverned for that check: report it as unvalidated rather than borrowing
-another corpus's rules.
+document can be governed by one check and not another; [check](references/cli-check.md#key-concepts) says
+what governs it for each. Report a document a check does not govern as unvalidated for that check, rather than
+borrowing another corpus's rules.
 
 ## 3. Run the checks
 
@@ -121,8 +122,10 @@ owns the rules.
   hyphen: `code-python` governs `python-typing.md`, not `pythonic.md`.
 - A namespace stem matches at least one document. One that matches none still loads and governs nothing,
   usually after a rename.
-- Every rule a corpus means to check has its key in the file at the corpus stem. A namespace file alone,
-  or a namespace `frontmatter` key without a corpus one, leaves it unchecked.
+- For each check the corpus means to run, the documents meant are governed, as
+  [check](references/cli-check.md#key-concepts) defines it. A namespace file never governs alone: its rules
+  apply only once the corpus stem has a structure file, and its `frontmatter` only once that file states the
+  key.
 
 **Agreement.** Nothing detects drift between a specification's prose and its JSON, so read both:
 

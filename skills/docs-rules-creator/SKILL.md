@@ -40,16 +40,19 @@ What a file is comes from its **file type**, which a file name **pattern** claim
 `*.structure.json` the structure specification. A file's extension is only what follows its last dot, and a
 `<stem>.<token>.json` that no pattern claims is not a specification file: it is left out, not read.
 
-A **stem** is `<corpus>` or `<corpus>-<namespace>`. The corpus names a directory `docs/<corpus>/` in lowercase
-letters, digits and underscores, never a hyphen. The namespace names a group of documents in it: `code-python`
-governs `docs/code/python.md` and `docs/code/python-*.md`. Nothing registers a file; its name is the whole
-binding. A directory under `docs/` becomes a corpus the moment a file at its stem exists.
+A **stem** is `<corpus>` or `<corpus>-<namespace>`. The corpus names a directory `docs/<corpus>/` and never
+holds a hyphen, so the first hyphen ends it; [spec](references/spec.md#filenames) and
+[workspace](references/workspace.md#corpora) give the characters each part may hold. The namespace names a
+group of documents in it: `code-python` governs `docs/code/python.md` and `docs/code/python-*.md`. Nothing
+registers a file; its name is the whole binding. A directory under `docs/` becomes a corpus the moment a file
+at its stem exists.
 
 **Layers only add.** A document answers to its corpus stem, then to every namespace stem matching its name,
 broad to narrow, each applied on its own. So a namespace file states only what it adds, and cannot relax what
-the corpus file says. A namespace file never governs alone: without the corpus file, every rule is unchecked
-for the whole corpus, and without the `frontmatter` key in it, frontmatter is. A namespace `tokens` or outline
-still applies once the corpus file exists.
+the corpus file says. A namespace file never governs alone: without a structure file at the corpus stem, every
+rule is unchecked for the whole corpus, and without the `frontmatter` key in it, frontmatter is. A namespace
+`tokens` or outline still applies once that file exists. [spec](references/spec.md#base-and-extension) has the
+rule.
 
 **A base never names its extensions.** `code.md` does not mention `code-python.md` or its JSON, in its
 references, its description, or inline; the extension names its base. Adding or removing a namespace then never
