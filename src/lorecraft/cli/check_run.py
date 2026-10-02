@@ -223,10 +223,11 @@ def select_skills(root: Path | None, paths: list[Path] | None) -> tuple[Database
 
     Args:
         root: The `--root` option; `None` searches upward from the working directory.
-        paths: The skills named on the command line, each by its directory or its `SKILL.md`; `None` or
-            empty selects every skill the model lists. A path naming an entry of a skills directory selects that
-            skill alone; one naming the real directory entries lead to selects each of them. A skill two paths
-            name is selected once.
+        paths: The skills named on the command line, each by a skills directory, a skill directory, or a
+            `SKILL.md`; `None` or empty selects every skill the model lists. A path naming a skills directory
+            selects every skill listed in it, possibly none; one naming an entry of a skills directory selects
+            that skill alone; one naming the real directory entries lead to selects each of them. A skill two
+            paths name is selected once.
 
     Raises:
         WorkingDirectoryReadError: If no root is given, or a path is named, and the working directory cannot be read.
