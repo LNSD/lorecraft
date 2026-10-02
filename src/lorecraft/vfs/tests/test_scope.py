@@ -44,16 +44,20 @@ def _path(raw: str) -> RootRelativePath:
     return RootRelativePath.parse(raw)
 
 
-def _snapshot_of_links(links: Mapping[str, str]) -> Snapshot:
-    """A snapshot recording the given links and nothing else: no listing, no file.
+def _snapshot_of_links(links: Mapping[str, str], climbed_directories: tuple[str, ...] = ()) -> Snapshot:
+    """A snapshot recording the given links and climbed directories and nothing else: no listing, no file.
 
     Args:
         links: Each link's root-relative path, mapped to its target as `os.readlink` would return it.
+        climbed_directories: Each directory the scan climbed out of with a `..`, as it records them.
     """
     records: list[Link] = []
     for path in sorted(links):
         records.append(Link(_path(path), PurePosixPath(links[path])))
-    return Snapshot(listings=(), files=(), links=tuple(records))
+    climbed: list[RootRelativePath] = []
+    for raw in sorted(climbed_directories):
+        climbed.append(_path(raw))
+    return Snapshot(listings=(), files=(), links=tuple(records), climbed_directories=tuple(climbed))
 
 
 @pytest.mark.unit
@@ -62,7 +66,7 @@ class TestScopeIndexIsInScope:
         #: Given
         snapshot = _snapshot_of_links({})
         path = _path('docs/nope/a.md')
-        index = ScopeIndex(SCOPE, snapshot.links)
+        index = ScopeIndex(SCOPE, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(path)
@@ -74,7 +78,7 @@ class TestScopeIndexIsInScope:
         #: Given
         snapshot = _snapshot_of_links({})
         path = _path('docs/feat/deep/a.md')
-        index = ScopeIndex(SCOPE, snapshot.links)
+        index = ScopeIndex(SCOPE, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(path)
@@ -86,7 +90,7 @@ class TestScopeIndexIsInScope:
         #: Given
         snapshot = _snapshot_of_links({})
         path = _path('src/tool.py')
-        index = ScopeIndex(SCOPE, snapshot.links)
+        index = ScopeIndex(SCOPE, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(path)
@@ -98,7 +102,7 @@ class TestScopeIndexIsInScope:
         #: Given
         snapshot = _snapshot_of_links({})
         path = DOCS
-        index = ScopeIndex(SCOPE, snapshot.links)
+        index = ScopeIndex(SCOPE, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(path)
@@ -110,7 +114,7 @@ class TestScopeIndexIsInScope:
         #: Given
         snapshot = _snapshot_of_links({'docs/linked': '../elsewhere'})
         path = _path('docs/linked/a.md')
-        index = ScopeIndex(SCOPE, snapshot.links)
+        index = ScopeIndex(SCOPE, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(path)
@@ -122,7 +126,7 @@ class TestScopeIndexIsInScope:
         #: Given
         snapshot = _snapshot_of_links({'docs/linked': 'feat'})
         path = _path('docs/linked/a.md')
-        index = ScopeIndex(SCOPE, snapshot.links)
+        index = ScopeIndex(SCOPE, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(path)
@@ -134,7 +138,7 @@ class TestScopeIndexIsInScope:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/y': '../../skills/y'})
         path = _path('.agents/skills/y/absent.md')
-        index = ScopeIndex(SCOPE, snapshot.links)
+        index = ScopeIndex(SCOPE, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(path)
@@ -146,7 +150,7 @@ class TestScopeIndexIsInScope:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/y': '../../skills/y'})
         path = _path('skills/y/absent.md')
-        index = ScopeIndex(SCOPE, snapshot.links)
+        index = ScopeIndex(SCOPE, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(path)
@@ -158,7 +162,7 @@ class TestScopeIndexIsInScope:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/y': '../../skills/y'})
         path = _path('skills/y/sub/a.md')
-        index = ScopeIndex(SCOPE, snapshot.links)
+        index = ScopeIndex(SCOPE, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(path)
@@ -170,7 +174,7 @@ class TestScopeIndexIsInScope:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/y': '../../skills/y'})
         path = _path('skills/y/sub/a.md')
-        index = ScopeIndex(DEPTH_ONE_SCOPE, snapshot.links)
+        index = ScopeIndex(DEPTH_ONE_SCOPE, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(path)
@@ -182,7 +186,7 @@ class TestScopeIndexIsInScope:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/x/lib': '../../../lib'})
         path = _path('lib/a.md')
-        index = ScopeIndex(SCOPE, snapshot.links)
+        index = ScopeIndex(SCOPE, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(path)
@@ -194,7 +198,7 @@ class TestScopeIndexIsInScope:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/x/lib': '../../../lib'})
         path = _path('lib/a.md')
-        index = ScopeIndex(DEPTH_ONE_SCOPE, snapshot.links)
+        index = ScopeIndex(DEPTH_ONE_SCOPE, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(path)
@@ -206,7 +210,7 @@ class TestScopeIndexIsInScope:
         #: Given
         snapshot = _snapshot_of_links({})
         path = _path('.agents/skills/x/references/deep/b.md')
-        index = ScopeIndex(SCOPE, snapshot.links)
+        index = ScopeIndex(SCOPE, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(path)
@@ -218,7 +222,7 @@ class TestScopeIndexIsInScope:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/x/references/shared': '../../../../shared'})
         path = _path('.agents/skills/x/references/shared/deep/a.md')
-        index = ScopeIndex(SCOPE, snapshot.links)
+        index = ScopeIndex(SCOPE, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(path)
@@ -230,7 +234,7 @@ class TestScopeIndexIsInScope:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/x/references/up': '..'})
         path = _path('.agents/skills/x/references/up/references/a.md')
-        index = ScopeIndex(SCOPE, snapshot.links)
+        index = ScopeIndex(SCOPE, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(path)
@@ -244,7 +248,7 @@ class TestScopeIndexIsInScope:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/x/root': '../../..'})
         path = _path('src/tool.py')
-        index = ScopeIndex(SCOPE, snapshot.links)
+        index = ScopeIndex(SCOPE, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(path)
@@ -256,7 +260,7 @@ class TestScopeIndexIsInScope:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/x/to-y': '../y', '.agents/skills/y/to-x': '../x'})
         path = _path('.agents/skills/x/to-y/to-x/to-y/a.md')
-        index = ScopeIndex(SCOPE, snapshot.links)
+        index = ScopeIndex(SCOPE, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(path)
@@ -268,7 +272,7 @@ class TestScopeIndexIsInScope:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/x/self': 'self'})
         path = _path('.agents/skills/x/self/a.md')
-        index = ScopeIndex(SCOPE, snapshot.links)
+        index = ScopeIndex(SCOPE, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(path)
@@ -281,7 +285,7 @@ class TestScopeIndexIsInScope:
         scope = (ScanRoot(_path('a'), depth=2, follow_links=True),)
         snapshot = _snapshot_of_links({'a/to-b': '../b', 'b/to-c': '../c'})
         path = _path('c/x.md')
-        index = ScopeIndex(scope, snapshot.links)
+        index = ScopeIndex(scope, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(path)
@@ -294,7 +298,7 @@ class TestScopeIndexIsInScope:
         scope = (ScanRoot(_path('.claude/skills'), depth=1, follow_links=True),)
         snapshot = _snapshot_of_links({'.claude/skills': '../.agents/skills'})
         path = _path('.agents/skills/x/a.md')
-        index = ScopeIndex(scope, snapshot.links)
+        index = ScopeIndex(scope, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(path)
@@ -307,7 +311,7 @@ class TestScopeIndexIsInScope:
         scope = (ScanRoot(_path('.claude/skills'), depth=1),)
         snapshot = _snapshot_of_links({'.claude/skills': '../.agents/skills'})
         path = _path('.claude/skills/x/a.md')
-        index = ScopeIndex(scope, snapshot.links)
+        index = ScopeIndex(scope, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(path)
@@ -319,7 +323,7 @@ class TestScopeIndexIsInScope:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/y': '/srv/skills/y'})
         path = _path('.agents/skills/y/a.md')
-        index = ScopeIndex(SCOPE, snapshot.links)
+        index = ScopeIndex(SCOPE, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(path)
@@ -331,7 +335,7 @@ class TestScopeIndexIsInScope:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/y': '../../../y'})
         path = _path('.agents/skills/y/a.md')
-        index = ScopeIndex(SCOPE, snapshot.links)
+        index = ScopeIndex(SCOPE, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(path)
@@ -339,23 +343,65 @@ class TestScopeIndexIsInScope:
         #: Then
         assert in_scope is False, 'a target above the root is outside it, where the scan never goes'
 
-    def test_is_in_scope_through_a_link_climbing_out_of_a_directory_stepped_into_returns_false(self) -> None:
+    def test_is_in_scope_through_a_link_climbing_out_of_a_climbed_directory_returns_true(self) -> None:
         #: Given
-        snapshot = _snapshot_of_links({'.agents/skills/y': 'tmp/../x'})
+        snapshot = _snapshot_of_links({'.agents/skills/y': 'tmp/../x'}, climbed_directories=('.agents/skills/tmp',))
         path = _path('.agents/skills/y/a.md')
-        index = ScopeIndex(SCOPE, snapshot.links)
+        index = ScopeIndex(SCOPE, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(path)
 
         #: Then
-        assert in_scope is False, 'the scan refuses a `..` out of a directory it stepped into by name, and so does this'
+        assert in_scope is True, 'the scan climbed out of tmp, so y leads to .agents/skills/x, which the root lists'
+
+    def test_is_in_scope_through_a_link_climbing_out_of_a_directory_the_scan_never_climbed_returns_false(
+        self,
+    ) -> None:
+        #: Given
+        snapshot = _snapshot_of_links({'.agents/skills/y': 'tmp/../x'})
+        path = _path('.agents/skills/y/a.md')
+        index = ScopeIndex(SCOPE, snapshot.links, snapshot.climbed_directories)
+
+        #: When
+        in_scope = index.is_in_scope(path)
+
+        #: Then
+        assert in_scope is False, 'tmp may be missing or a file, where the scan stops, so the climb is not taken'
+
+    def test_is_in_scope_under_a_link_climbing_out_of_a_climbed_directory_returns_true(self) -> None:
+        #: Given
+        snapshot = _snapshot_of_links(
+            {'.agents/skills/y': '../../skills/tmp/../y'}, climbed_directories=('skills/tmp',)
+        )
+        path = _path('skills/y/absent.md')
+        index = ScopeIndex(SCOPE, snapshot.links, snapshot.climbed_directories)
+
+        #: When
+        in_scope = index.is_in_scope(path)
+
+        #: Then
+        assert in_scope is True, 'the followed link adds a root at skills/y, its canonical path'
+
+    def test_is_in_scope_under_a_link_climbing_out_of_a_directory_the_scan_never_climbed_returns_false(
+        self,
+    ) -> None:
+        #: Given
+        snapshot = _snapshot_of_links({'.agents/skills/y': '../../skills/tmp/../y'})
+        path = _path('skills/y/absent.md')
+        index = ScopeIndex(SCOPE, snapshot.links, snapshot.climbed_directories)
+
+        #: When
+        in_scope = index.is_in_scope(path)
+
+        #: Then
+        assert in_scope is False, 'the scan did not reach skills/y through the link, so the link adds no root there'
 
     def test_is_in_scope_through_a_looping_link_returns_false(self) -> None:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/y': 'y'})
         path = _path('.agents/skills/y/a.md')
-        index = ScopeIndex(SCOPE, snapshot.links)
+        index = ScopeIndex(SCOPE, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(path)
@@ -369,7 +415,7 @@ class TestScopeIndex:
     def test_is_in_scope_through_a_followed_skill_link_returns_true(self) -> None:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/y': '../../skills/y'})
-        index = ScopeIndex(SCOPE, snapshot.links)
+        index = ScopeIndex(SCOPE, snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(_path('skills/y/absent.md'))
@@ -380,7 +426,7 @@ class TestScopeIndex:
     def test_is_in_scope_after_a_path_outside_the_scope_was_asked_returns_true_for_a_covered_path(self) -> None:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/y': '../../skills/y'})
-        index = ScopeIndex(SCOPE, snapshot.links)
+        index = ScopeIndex(SCOPE, snapshot.links, snapshot.climbed_directories)
         index.is_in_scope(_path('src/tool.py'))
 
         #: When
@@ -392,7 +438,7 @@ class TestScopeIndex:
     def test_is_in_scope_after_a_covered_path_was_asked_returns_false_beyond_the_depth(self) -> None:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/y': '../../skills/y'})
-        index = ScopeIndex(DEPTH_ONE_SCOPE, snapshot.links)
+        index = ScopeIndex(DEPTH_ONE_SCOPE, snapshot.links, snapshot.climbed_directories)
         index.is_in_scope(_path('skills/y/absent.md'))
 
         #: When
@@ -404,7 +450,7 @@ class TestScopeIndex:
     def test_is_in_scope_with_an_empty_scope_returns_false(self) -> None:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/y': '../../skills/y'})
-        index = ScopeIndex((), snapshot.links)
+        index = ScopeIndex((), snapshot.links, snapshot.climbed_directories)
 
         #: When
         in_scope = index.is_in_scope(_path('skills/y/absent.md'))

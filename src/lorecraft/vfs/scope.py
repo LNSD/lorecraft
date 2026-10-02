@@ -9,8 +9,10 @@ the scope covers but the disk lacks is still in the scope, and everything in it 
 Links are the one thing the declaration cannot settle alone, since a link decides where a path leads. The
 answer follows the links the snapshot recorded, and only those: a scan records every link in what it lists and
 every link on the way to a scope root, so inside the scope no other link exists. Whether a link's target exists
-plays no part. How a root expands through a link is not repeated here: the scan and this query both apply the
-rules of `root_expansion.py`, the scan to what it finds on disk and this query to what the snapshot recorded.
+plays no part, with one exception. A `..` in a target climbs out of a directory only where the snapshot shows it
+real. A component taken for a directory that is not one would otherwise lead the climb somewhere real. How a root
+expands through a link is not repeated here: the scan and this query both apply the rules of
+`root_expansion.py`, the scan to what it finds on disk and this query to what the snapshot recorded.
 
 Expanding the roots through the links costs far more than asking about one path, and it depends on the scope and
 the links alone, so it is kept apart from the question: a `ScopeIndex` expands them once and answers any number
@@ -37,7 +39,12 @@ class ScopeIndex:
     shared by every caller.
     """
 
-    def __init__(self, scope: tuple[ScanRoot, ...], links: tuple[Link, ...]) -> None:
+    def __init__(
+        self,
+        scope: tuple[ScanRoot, ...],
+        links: tuple[Link, ...],
+        climbed_directories: tuple[RootRelativePath, ...],
+    ) -> None:
         """Index the recorded links and expand the scope's roots through them; reads no disk.
 
         Args:
@@ -45,8 +52,9 @@ class ScopeIndex:
                 would not describe it.
             links: Every link the snapshot recorded, `Snapshot.links`; no listing and no file of the snapshot is
                 read.
+            climbed_directories: Every directory the scan climbed out of, `Snapshot.climbed_directories`.
         """
-        self._recorded = _RecordedLinks(links)
+        self._recorded = _RecordedLinks(links, climbed_directories)
         self._real_roots = _real_scan_roots(scope, self._recorded)
 
     def is_in_scope(self, path: RootRelativePath) -> bool:
@@ -63,8 +71,8 @@ class ScopeIndex:
         Returns:
             True when the scan lists the directory the path leads into, whether or not that directory exists.
             False when it does not, and when the walk leaves what the snapshot can follow: a link with an
-            absolute target, one climbing above the root or out of a directory the walk stepped into by name, as
-            the scan refuses too, or a chain longer than `MAX_LINKS`.
+            absolute target, one climbing above the root, a `..` out of a directory the snapshot does not show
+            real, or a chain longer than `MAX_LINKS`.
         """
         directory = find_real_path(path.parent, self._recorded, follow_links=True)
         match directory:
@@ -81,22 +89,34 @@ class ScopeIndex:
 
 
 class _RecordedLinks:
-    """What the walks of the scope query see: the links a snapshot recorded, and nothing else.
+    """What the walks of the scope query see: the links and the climbed directories a snapshot recorded.
 
     The `EntryLookup` this query hands to the rules of `root_expansion.py`. A component with no link recorded
     is taken as a directory, whether or not one exists, since the question is where a path would lead, not
-    what is there.
+    what is there. A `..` is where that guess would matter: out of a component that is missing or a file, the
+    scan stops, while a climb would lead back to a real directory. So a `..` climbs only out of a directory the
+    snapshot shows real: one the scan climbed out of, or one a climbed directory or a recorded link sits under.
+    Every chain the scan walked climbed only out of directories it recorded, so this refuses only a climb the scan
+    never made.
     """
 
-    def __init__(self, links: tuple[Link, ...]) -> None:
-        """Index the recorded links by path.
+    def __init__(self, links: tuple[Link, ...], climbed_directories: tuple[RootRelativePath, ...]) -> None:
+        """Index the recorded links by path, and the directories known to be real.
 
         Args:
             links: Every link the snapshot recorded, `Snapshot.links`.
+            climbed_directories: Every directory the scan climbed out of, `Snapshot.climbed_directories`.
         """
         self._targets: dict[RootRelativePath, PurePosixPath] = {}
         for link in links:
             self._targets[link.path] = link.target
+        # A climbed directory is real, and a recorded link sits in one, so each of them and its ancestors are real.
+        self._real_directories: set[RootRelativePath] = set()
+        for directory in climbed_directories:
+            self._real_directories.add(directory)
+            self._real_directories.update(directory.parents)
+        for link in links:
+            self._real_directories.update(link.path.parents)
 
     def paths(self) -> tuple[RootRelativePath, ...]:
         """Every recorded link's root-relative path."""
@@ -122,6 +142,14 @@ class _RecordedLinks:
             The target as recorded, or `None` when no target was recorded at `path`.
         """
         return self._targets.get(path)
+
+    def may_climb_out_of(self, directory: RootRelativePath) -> bool:
+        """Whether the snapshot shows `directory` real, so a `..` may climb out of it; see `EntryLookup`.
+
+        Args:
+            directory: The directory the walk is in, perhaps only taken for one.
+        """
+        return directory in self._real_directories
 
 
 def _real_scan_roots(scope: tuple[ScanRoot, ...], recorded: _RecordedLinks) -> tuple[ScanRoot, ...]:
