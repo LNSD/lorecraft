@@ -303,6 +303,9 @@ class TestStructureAspectParse:
         assert exc_info.value.path == SPEC_PATH, (
             'the editor refuses null too; no rule is written by leaving the key out'
         )
+        assert 'frontmatter' in str(exc_info.value), (
+            f'the message names the key that may not be null, got {exc_info.value}'
+        )
 
     def test_parse_with_a_frontmatter_schema_carrying_an_id_raises_frontmatter_schema_id_error(self) -> None:
         #: Given
