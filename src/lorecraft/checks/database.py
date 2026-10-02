@@ -12,11 +12,11 @@ use and kept for as long as the database lives (pattern-memoization):
   repository.
 - `frontmatter(ref)`: one document's frontmatter node, like a stub: the part of a file the IDE reads without
   building its full syntax tree. It reads that document's bytes and nothing else.
-- `parse(ref)`: one document's parse tree, like a PSI file or a per-file index entry. It reads that
+- `parse(ref)`: one document's parse tree, like the IDE's syntax tree of a file or a per-file index entry. It reads that
   document's bytes and nothing else.
 - `skill_frontmatter(ref)`: one skill's frontmatter node, the same stub for a `SKILL.md`. It reads that
   skill's bytes and nothing else.
-- `skill_parse(ref)`: one skill's parse tree, the same PSI file for a `SKILL.md`. It reads that skill's bytes
+- `skill_parse(ref)`: one skill's parse tree, the same syntax tree for a `SKILL.md`. It reads that skill's bytes
   and nothing else.
 - `skill_lines(ref)`: how many lines one skill's `SKILL.md` holds, like `tokens(ref)` for a document: counted from
   the raw text, frontmatter included, without a parse. It reads that skill's bytes and nothing else.
@@ -24,7 +24,7 @@ use and kept for as long as the database lives (pattern-memoization):
   like the IDE's listing of a content root's children, and the symlinks inside it whose chain leaves the
   repository. It reads the listings and the symlink targets reached from that skill, and where the model locates
   the skill, and no file's content.
-- `skill_resource_parse(ref)`: one resource's parse tree, the same PSI file again. It reads that resource's bytes,
+- `skill_resource_parse(ref)`: one resource's parse tree, the same syntax tree again. It reads that resource's bytes,
   and where its skill's listing locates it, and nothing else.
 - `tokens(ref)`: what one document's whole file costs an agent that loads it, like another per-file index
   entry: counted from the raw text, frontmatter and code included, without a parse. It reads that document's
