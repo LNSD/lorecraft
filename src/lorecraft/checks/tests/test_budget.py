@@ -7,7 +7,7 @@ document and no specification file is read.
 import pytest
 
 from lorecraft.project.layout import SPECS_DIR
-from lorecraft.project.schemas import StructureSpec
+from lorecraft.project.schemas import SpecFileType, StructureSpec, StructureSpecFile, parse_spec_name, spec_filename
 from lorecraft.project.syntax import LineNumber
 
 from ..budget import validate_budget
@@ -23,8 +23,9 @@ def _structure_spec(tokens: int | None, spec_name: str = 'code') -> StructureSpe
         tokens: The whole-file token budget; `None` sets no budget.
         spec_name: Specification name the file sits at, such as `code` or `code-python`.
     """
+    name = parse_spec_name(spec_name)
     return StructureSpec(
-        path=SPECS_DIR / f'{spec_name}.structure.json',
+        file=StructureSpecFile(path=SPECS_DIR / spec_filename(name, SpecFileType.STRUCTURE), name=name),
         title=None,
         forbid_empty_sections=True,
         outline=(),

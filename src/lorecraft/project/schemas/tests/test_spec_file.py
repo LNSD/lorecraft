@@ -14,8 +14,9 @@ from ..spec_file import (
     InvalidSpecStemError,
     NotASpecFileError,
     NotASpecStemError,
-    SpecFile,
+    ProseSpecFile,
     SpecFileType,
+    StructureSpecFile,
     UnknownSpecFileTypeError,
     parse_spec_file,
     spec_filename,
@@ -35,7 +36,7 @@ class TestParseSpecFile:
         spec_file = parse_spec_file(path)
 
         #: Then
-        assert spec_file == SpecFile(path=path, name=CorpusSpecName(CODE), type=SpecFileType.PROSE), (
+        assert spec_file == ProseSpecFile(path=path, name=CorpusSpecName(CODE)), (
             'code.md parses into the code corpus spec name and the prose file type'
         )
 
@@ -47,7 +48,7 @@ class TestParseSpecFile:
         spec_file = parse_spec_file(path)
 
         #: Then
-        assert spec_file == SpecFile(path=path, name=CorpusSpecName(CODE), type=SpecFileType.STRUCTURE), (
+        assert spec_file == StructureSpecFile(path=path, name=CorpusSpecName(CODE)), (
             'code.structure.json parses into the code corpus spec name and the structure file type'
         )
 
@@ -71,8 +72,8 @@ class TestParseSpecFile:
         spec_file = parse_spec_file(path)
 
         #: Then
-        assert spec_file == SpecFile(
-            path=path, name=NamespaceSpecName(CODE, AspectNamespace.parse('python-errors')), type=SpecFileType.STRUCTURE
+        assert spec_file == StructureSpecFile(
+            path=path, name=NamespaceSpecName(CODE, AspectNamespace.parse('python-errors'))
         ), 'code-python-errors.structure.json parses into the code corpus, one python-errors namespace and structure'
 
     def test_parse_spec_file_with_a_dotted_structure_stem_raises_dotted_spec_stem_error(self) -> None:
@@ -259,3 +260,25 @@ class TestSpecFilenames:
 
         #: Then
         assert filename == 'code-python.md', 'the name is followed by what *.md claims'
+
+    def test_spec_filename_with_a_parsed_prose_file_writes_the_filename_it_was_parsed_from(self) -> None:
+        #: Given
+        spec_file = parse_spec_file(META / 'code-python.md')
+
+        #: When
+        filename = spec_filename(spec_file.name, spec_file.type)
+
+        #: Then
+        assert filename == 'code-python.md', 'a prose file knows its own file type, the one whose pattern claimed it'
+
+    def test_spec_filename_with_a_parsed_structure_file_writes_the_filename_it_was_parsed_from(self) -> None:
+        #: Given
+        spec_file = parse_spec_file(META / 'code-python.structure.json')
+
+        #: When
+        filename = spec_filename(spec_file.name, spec_file.type)
+
+        #: Then
+        assert filename == 'code-python.structure.json', (
+            'a structure file knows its own file type, the one whose pattern claimed it'
+        )
