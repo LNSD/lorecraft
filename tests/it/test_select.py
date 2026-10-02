@@ -518,6 +518,59 @@ class TestSelectSkillsAt:
             'only the link above the root is followed on disk; self, added after the snapshot, leads nowhere'
         )
 
+    def test_select_skills_at_with_a_skills_directory_returns_every_skill_listed_in_it(
+        self, tmp_path: Path, skills_database: Database
+    ) -> None:
+        #: Given
+        argument = tmp_path / '.agents' / 'skills'
+
+        #: When
+        refs = select_skills_at(skills_database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert refs == (AUDIT, COMMIT, LINT, REVIEW, REVIEWER), (
+            'every entry of the skills directory, linked or not, each once, in the model order'
+        )
+
+    def test_select_skills_at_with_a_linked_skills_directory_returns_the_refs_of_the_real_one(
+        self, tmp_path: Path, skills_database: Database
+    ) -> None:
+        #: Given
+        argument = tmp_path / '.claude' / 'skills'
+
+        #: When
+        refs = select_skills_at(skills_database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert refs == (AUDIT, COMMIT, LINT, REVIEW, REVIEWER), (
+            'the link is followed to the real skills directory, and its skills keep their refs there'
+        )
+
+    def test_select_skills_at_with_a_skills_directory_holding_no_skill_returns_empty(self, tmp_path: Path) -> None:
+        #: Given
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        argument = tmp_path / '.agents' / 'skills'
+
+        #: When
+        refs = select_skills_at(database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert refs == (), 'a skills directory with no skill is a selection of none, not a refusal'
+
+    def test_select_skills_at_with_the_directory_skill_entries_link_into_raises_not_listed(
+        self, tmp_path: Path, skills_database: Database
+    ) -> None:
+        #: Given
+        argument = tmp_path / 'skills'
+
+        #: When
+        with pytest.raises(UnlistedSkillPathError) as exc_info:
+            select_skills_at(skills_database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert exc_info.value.argument == argument, 'a directory no agent reads as its skills directory names no skill'
+
     def test_select_skills_at_with_a_directory_that_is_no_skill_raises_not_listed(
         self, tmp_path: Path, skills_database: Database
     ) -> None:

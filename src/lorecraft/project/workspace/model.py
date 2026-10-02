@@ -278,6 +278,33 @@ class WorkspaceModel:
                 return location.ref
         return None
 
+    def has_skills_dir(self, real_path: RootRelativePath) -> bool:
+        """True when a skills directory the model lists leads to this real path.
+
+        Args:
+            real_path: A real directory, root-relative, with no symlink on the way to it, compared whole and
+                lexically against each skills directory's `resolves_to`.
+        """
+        for skills_dir in self.skills_dirs:
+            if skills_dir.resolves_to == real_path:
+                return True
+        return False
+
+    def skills_in(self, real_path: RootRelativePath) -> tuple[SkillRef, ...]:
+        """The skills listed directly inside this real directory.
+
+        Args:
+            real_path: A real directory, root-relative, matched against each skill directory's parent.
+
+        Returns:
+            Every such skill, in the model's order, or `()` when the directory holds none.
+        """
+        refs: list[SkillRef] = []
+        for location in self.skill_locations:
+            if location.ref.directory.parent == real_path:
+                refs.append(location.ref)
+        return tuple(refs)
+
     def locate_skills(self, path: RootRelativePath) -> tuple[SkillRef, ...]:
         """The skills whose files are at this real path: the directory they lead to, or their ``SKILL.md``.
 

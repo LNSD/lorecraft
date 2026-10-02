@@ -5,14 +5,15 @@ at all. This suite runs from the checkout, so the verbose command must report it
 well as the installed version and environment. Every version output, and `inspect`, `check`, `check frontmatter`,
 `check structure`, `check budget` and `check skills` over a checked-in workspace fixture, is compared to a reviewed
 snapshot file under `__snapshots__/`. So is what `check` and `inspect` print for a root whose `docs/` or
-`docs/__meta__/` is a symlink into that fixture, what `check frontmatter` and `check skills` print for a root
-whose frontmatter writes a key twice, what `check skills` prints for the fixture's skills named one at a time (an
-entry another entry links to, a linked entry, and the real directory a linked entry leads to), and what it prints
-for a skill linking to an absolute path, for one linking to a heading it does not have, for one whose `SKILL.md`
-and a resource link outside the skill, for one whose `SKILL.md` and a resource link a file the skill does not hold,
-for one whose resource links to an absolute path and to a heading it does not have, for one whose `metadata`
-repeats a file name, lists a path outside what the command reads, or lists a file the repository does not have,
-and for one holding a symlink that leads outside the repository.
+`docs/__meta__/` is a symlink into that fixture, what `check frontmatter` and `check skills` print for a root whose
+frontmatter writes a key twice, what `check skills` prints for the fixture's skills named one at a time (an entry
+another entry links to, a linked entry, and the real directory a linked entry leads to) and named by their skills
+directory (the real one, and the one linked to it), how it refuses a directory no agent reads as its skills
+directory, and what it prints for a skill linking to an absolute path, for one linking to a heading it does not
+have, for one whose `SKILL.md` and a resource link outside the skill, for one whose `SKILL.md` and a resource link a
+file the skill does not hold, for one whose resource links to an absolute path and to a heading it does not have,
+for one whose `metadata` repeats a file name, lists a path outside what the command reads, or lists a file the
+repository does not have, and for one holding a symlink that leads outside the repository.
 """
 
 from pathlib import Path
@@ -594,6 +595,53 @@ class TestCheckSkillsSnapshots:
         assert result.returncode == 0, result.stderr
         assert result.stdout == expected, 'gamma, reached through the directory its entry links to, is clean'
         assert result.stderr == 'checked 1 skill(s), 0 finding(s)\n', 'the one entry leading there is checked'
+
+    def test_check_skills_with_a_skills_directory_checks_every_skill_listed_in_it(
+        self, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('check', 'skills', '.agents/skills')
+
+        #: When
+        result = run_cli(*arguments, cwd=WORKSPACE_FIXTURE)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, 'the findings of every skill in the directory match the snapshot'
+        assert result.stderr == 'checked 3 skill(s), 1 finding(s)\n', 'alpha, beta and gamma are each checked once'
+
+    def test_check_skills_with_a_linked_skills_directory_reports_under_the_real_one(
+        self, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('check', 'skills', '.claude/skills')
+
+        #: When
+        result = run_cli(*arguments, cwd=WORKSPACE_FIXTURE)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, (
+            'the findings are reported under .agents/skills, as a run naming no path reports them'
+        )
+        assert result.stderr == 'checked 3 skill(s), 1 finding(s)\n', 'each skill the link leads to is checked once'
+
+    def test_check_skills_with_a_directory_no_agent_reads_prints_the_error_and_exits_two(self) -> None:
+        #: Given
+        arguments = ('check', 'skills', 'skills')
+
+        #: When
+        result = run_cli(*arguments, cwd=WORKSPACE_FIXTURE)
+
+        #: Then
+        assert result.returncode == 2, result.stderr
+        assert result.stdout == '', 'a run that could not start prints nothing on stdout'
+        assert result.stderr == (
+            'error: skills: not a skill the workspace lists; '
+            'name a skills directory, a skill directory, or a SKILL.md\n'
+        ), 'the directory skill entries link into is no skills directory, so the argument is refused'
 
     def test_check_skills_with_a_key_written_twice_prints_the_duplicate_key_finding(
         self, snapshot: SnapshotAssertion, duplicate_key_root: Path
