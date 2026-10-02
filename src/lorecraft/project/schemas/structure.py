@@ -62,7 +62,7 @@ Nothing here logs: the command that loads the model catches every `Error` that e
 
 import re
 from collections.abc import Iterator, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from itertools import pairwise
 from typing import NewType, Self, assert_never
 
@@ -84,16 +84,7 @@ from .frontmatter_problem import (
     UnknownFieldProblem,
     WrongTypeProblem,
 )
-from .spec_file import (
-    DottedSpecStemError,
-    InvalidSpecStemError,
-    NotASpecFileError,
-    NotASpecStemError,
-    SpecFileType,
-    UnknownSpecFileTypeError,
-    parse_spec_file,
-    spec_filename,
-)
+from .spec_file import SpecFileType, StructureSpecFile, spec_filename
 from .structure_file import (
     JSON_SCHEMA_DIALECT,
     StructureFile,
@@ -125,35 +116,6 @@ class StructureSpecDecodeError(Error):
         self.problems = problems
         self.source = source
         super().__init__(f'invalid structure schema {path}: {"; ".join(problems)}')
-        self.__cause__ = source
-
-
-class StructureSpecFilenameError(Error):
-    """A structure specification file does not sit at a specification filename.
-
-    Attributes:
-        path: Root-relative path of the rejected file.
-        source: Why the filename is not a specification filename.
-    """
-
-    path: RootRelativePath
-    source: (
-        NotASpecFileError | UnknownSpecFileTypeError | NotASpecStemError | DottedSpecStemError | InvalidSpecStemError
-    )
-
-    def __init__(
-        self,
-        path: RootRelativePath,
-        *,
-        source: NotASpecFileError
-        | UnknownSpecFileTypeError
-        | NotASpecStemError
-        | DottedSpecStemError
-        | InvalidSpecStemError,
-    ) -> None:
-        self.path = path
-        self.source = source
-        super().__init__(f'invalid structure schema {path}: is not at a specification filename')
         self.__cause__ = source
 
 
@@ -594,7 +556,7 @@ class StructureSpec:
     Not hashable when it states a frontmatter schema, since `FrontmatterSchema` holds a dict.
 
     Attributes:
-        path: Root-relative path of the JSON file, `<name>.structure.json`; the prose it is the
+        file: The JSON file, `<name>.structure.json`, at its parsed specification filename; the prose it is the
             machine-checkable half of is `<name>.md` beside it, which `authority` names.
         title: The title rule, or None when the specification states none.
         forbid_empty_sections: True when every section must hold content.
@@ -604,12 +566,9 @@ class StructureSpec:
             included, or None for no budget; at least 1.
         frontmatter: The JSON Schema a document's frontmatter must satisfy, or None when the specification states
             none.
-        authority: The filename of the prose this file is the machine-checkable half of, such as `code.md`,
-            derived from `path` at construction. Every finding quotes it, so a reader is sent to the rule rather
-            than to the JSON.
     """
 
-    path: RootRelativePath
+    file: StructureSpecFile
     title: TitleRule | None
     forbid_empty_sections: bool
     outline: tuple[OutlineEntry, ...]
@@ -619,10 +578,9 @@ class StructureSpec:
     # be mistaken for this budget.
     tokens: int | None
     frontmatter: FrontmatterSchema | None
-    authority: str = field(init=False)
 
     def __post_init__(self) -> None:
-        """Derive the authority from the path, then refuse rules that are not usable.
+        """Refuse rules that are not usable.
 
         A rule is not usable when it checks nothing, when no count, cap or budget satisfies it, or when it
         contradicts itself.
@@ -630,7 +588,6 @@ class StructureSpec:
         A frontmatter schema is checked when it is built, before the structure specification is.
 
         Raises:
-            StructureSpecFilenameError: If the path is not a specification filename.
             EmptyStructureSpecError: If the specification states no rule.
             InvalidTitleCountError: If its title count is below 1.
             InvalidTokenBudgetError: If its token budget is below 1.
@@ -639,20 +596,6 @@ class StructureSpec:
             ForbiddenOutlineSectionError: If it forbids a section its own outline names.
             AdjacentAnyRunsError: If its outline places two `any` runs side by side.
         """
-        try:
-            spec_file = parse_spec_file(self.path)
-        except (
-            NotASpecFileError,
-            UnknownSpecFileTypeError,
-            NotASpecStemError,
-            DottedSpecStemError,
-            InvalidSpecStemError,
-        ) as exc:
-            raise StructureSpecFilenameError(self.path, source=exc) from exc
-        # `authority` is derived from `path` rather than passed in, so the two cannot disagree. A frozen dataclass
-        # refuses plain assignment, and `object.__setattr__` is the one way to set a field during construction.
-        object.__setattr__(self, 'authority', spec_filename(spec_file.name, SpecFileType.PROSE))
-
         states_no_rule = (
             self.title is None
             and not self.forbid_empty_sections
@@ -686,6 +629,19 @@ class StructureSpec:
             if isinstance(earlier, AnySections) and isinstance(later, AnySections):
                 raise AdjacentAnyRunsError(self.path)
 
+    @property
+    def path(self) -> RootRelativePath:
+        """Root-relative path of the JSON file, `<name>.structure.json`."""
+        return self.file.path
+
+    @property
+    def authority(self) -> str:
+        """The filename of the prose this file is the machine-checkable half of, such as `code.md`.
+
+        Every finding quotes it, so a reader is sent to the rule rather than to the JSON.
+        """
+        return spec_filename(self.file.name, SpecFileType.PROSE)
+
     def section_names(self) -> list[str]:
         """The names of the outline's section entries, in outline order."""
         names: list[str] = []
@@ -700,11 +656,11 @@ class StructureSpec:
         return names
 
     @classmethod
-    def parse(cls, path: RootRelativePath, schema: StructureSchema) -> Self:
+    def parse(cls, file: StructureSpecFile, schema: StructureSchema) -> Self:
         """Deserialize a structure specification's text into its rules.
 
         Args:
-            path: Where the text was read from; every rejection names it.
+            file: The structure specification file the text was read from; every rejection names its path.
             schema: The file's text.
 
         Raises:
@@ -713,7 +669,6 @@ class StructureSpec:
             FrontmatterSchemaIdError: If a schema in its frontmatter schema carries ``$id``.
             ForeignFrontmatterDialectError: If a schema in its frontmatter schema names another dialect.
             UntypedFrontmatterSchemaError: If its frontmatter schema's root does not state an object.
-            StructureSpecFilenameError: If the path is not a specification filename.
             EmptyStructureSpecError: If it states no rule.
             InvalidTitleCountError: If its title count is below 1.
             InvalidTokenBudgetError: If its token budget is below 1.
@@ -723,12 +678,12 @@ class StructureSpec:
             AdjacentAnyRunsError: If its outline places two ``any`` runs side by side.
         """
         try:
-            file = StructureFile.model_validate_json(schema)
+            structure_file = StructureFile.model_validate_json(schema)
         except ValidationError as exc:
-            raise StructureSpecDecodeError(path, _problems(exc), source=exc) from exc
+            raise StructureSpecDecodeError(file.path, _problems(exc), source=exc) from exc
 
         outline: list[OutlineEntry] = []
-        for entry in file.outline:
+        for entry in structure_file.outline:
             match entry:
                 case StructureFileAny():
                     outline.append(AnySections(words=entry.words))
@@ -746,13 +701,13 @@ class StructureSpec:
                     assert_never(entry)
 
         return cls(
-            path=path,
-            title=_title_rule(file.title),
-            forbid_empty_sections=file.empty_sections == 'forbidden',
+            file=file,
+            title=_title_rule(structure_file.title),
+            forbid_empty_sections=structure_file.empty_sections == 'forbidden',
             outline=tuple(outline),
-            forbidden=file.forbidden,
-            tokens=file.tokens,
-            frontmatter=_frontmatter_schema(path, file.frontmatter),
+            forbidden=structure_file.forbidden,
+            tokens=structure_file.tokens,
+            frontmatter=_frontmatter_schema(file.path, structure_file.frontmatter),
         )
 
 
