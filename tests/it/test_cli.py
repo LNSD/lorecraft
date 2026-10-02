@@ -1927,6 +1927,178 @@ class TestCheckSkillsCommand:
             'ungoverned': [],
         }, 'the path named is a symlink leading outside: reported as a finding, never followed nor refused'
 
+    def test_check_skills_with_json_format_and_an_agent_entry_named_leading_outside_reports_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        root = tmp_path / 'repository'
+        _write(root, '.agents/skills/review/SKILL.md', '---\nname: review\ndescription: Review a change\n---\n')
+        _write(tmp_path, 'elsewhere/x/SKILL.md', '---\nname: x\ndescription: Kept outside\n---\n')
+        (root / '.agents' / 'skills' / 'x').symlink_to(tmp_path / 'elsewhere' / 'x')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(
+            app, ['check', 'skills', str(root / '.agents' / 'skills' / 'x'), '--root', str(root), '--format', 'json']
+        )
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 0,
+            'findings': [
+                {
+                    'file': '.agents/skills/x',
+                    'line': 1,
+                    'rule': 'skill.symlink-outside',
+                    'message': 'symlink leads outside the repository',
+                    'spec': None,
+                    'notes': [
+                        {
+                            'kind': 'note',
+                            'text': f'leaves the repository at .agents/skills/x -> {tmp_path / "elsewhere" / "x"}',
+                        },
+                        {'kind': 'help', 'text': 'keep every file a skill loads inside the repository'},
+                    ],
+                }
+            ],
+            'ungoverned': [],
+        }, "the agent's entry named leads outside: reported as a named directory is, and no other skill is checked"
+
+    def test_check_skills_with_json_format_and_the_skill_file_of_an_agent_entry_leading_outside_reports_the_entry(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        root = tmp_path / 'repository'
+        _write(root, '.agents/skills/review/SKILL.md', '---\nname: review\ndescription: Review a change\n---\n')
+        _write(tmp_path, 'elsewhere/x/SKILL.md', '---\nname: x\ndescription: Kept outside\n---\n')
+        (root / '.agents' / 'skills' / 'x').symlink_to(tmp_path / 'elsewhere' / 'x')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(
+            app,
+            [
+                'check',
+                'skills',
+                str(root / '.agents' / 'skills' / 'x' / 'SKILL.md'),
+                '--root',
+                str(root),
+                '--format',
+                'json',
+            ],
+        )
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 0,
+            'findings': [
+                {
+                    'file': '.agents/skills/x',
+                    'line': 1,
+                    'rule': 'skill.symlink-outside',
+                    'message': 'symlink leads outside the repository',
+                    'spec': None,
+                    'notes': [
+                        {
+                            'kind': 'note',
+                            'text': f'leaves the repository at .agents/skills/x -> {tmp_path / "elsewhere" / "x"}',
+                        },
+                        {'kind': 'help', 'text': 'keep every file a skill loads inside the repository'},
+                    ],
+                }
+            ],
+            'ungoverned': [],
+        }, 'the SKILL.md named sits behind an entry leading outside: the entry is reported, and no skill is checked'
+
+    def test_check_skills_with_json_format_and_an_agent_entry_named_whose_skill_file_leads_outside_reports_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        root = tmp_path / 'repository'
+        _write(root, '.agents/skills/review/SKILL.md', '---\nname: review\ndescription: Review a change\n---\n')
+        (root / '.agents' / 'skills' / 'x').mkdir()
+        _write(tmp_path, 'x.md', '---\nname: x\ndescription: Kept outside\n---\n')
+        (root / '.agents' / 'skills' / 'x' / 'SKILL.md').symlink_to(tmp_path / 'x.md')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(
+            app, ['check', 'skills', str(root / '.agents' / 'skills' / 'x'), '--root', str(root), '--format', 'json']
+        )
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 0,
+            'findings': [
+                {
+                    'file': '.agents/skills/x/SKILL.md',
+                    'line': 1,
+                    'rule': 'skill.symlink-outside',
+                    'message': 'symlink leads outside the repository',
+                    'spec': None,
+                    'notes': [
+                        {
+                            'kind': 'note',
+                            'text': f'leaves the repository at .agents/skills/x/SKILL.md -> {tmp_path / "x.md"}',
+                        },
+                        {'kind': 'help', 'text': 'keep every file a skill loads inside the repository'},
+                    ],
+                }
+            ],
+            'ungoverned': [],
+        }, "the agent's entry named has a SKILL.md leading outside: that is reported, and no skill is checked"
+
+    def test_check_skills_with_json_format_and_an_agent_skill_file_named_leading_outside_reports_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        root = tmp_path / 'repository'
+        _write(root, '.agents/skills/review/SKILL.md', '---\nname: review\ndescription: Review a change\n---\n')
+        (root / '.agents' / 'skills' / 'x').mkdir()
+        _write(tmp_path, 'x.md', '---\nname: x\ndescription: Kept outside\n---\n')
+        (root / '.agents' / 'skills' / 'x' / 'SKILL.md').symlink_to(tmp_path / 'x.md')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(
+            app,
+            [
+                'check',
+                'skills',
+                str(root / '.agents' / 'skills' / 'x' / 'SKILL.md'),
+                '--root',
+                str(root),
+                '--format',
+                'json',
+            ],
+        )
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 0,
+            'findings': [
+                {
+                    'file': '.agents/skills/x/SKILL.md',
+                    'line': 1,
+                    'rule': 'skill.symlink-outside',
+                    'message': 'symlink leads outside the repository',
+                    'spec': None,
+                    'notes': [
+                        {
+                            'kind': 'note',
+                            'text': f'leaves the repository at .agents/skills/x/SKILL.md -> {tmp_path / "x.md"}',
+                        },
+                        {'kind': 'help', 'text': 'keep every file a skill loads inside the repository'},
+                    ],
+                }
+            ],
+            'ungoverned': [],
+        }, "the SKILL.md of an agent's entry named leads outside: it is reported, and no skill is checked"
+
     def test_check_skills_with_json_format_and_a_skill_named_whose_skill_file_leads_outside_reports_it(
         self, tmp_path: Path
     ) -> None:

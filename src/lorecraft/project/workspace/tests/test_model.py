@@ -5,6 +5,7 @@ structure specification paths standing in for the files the loader would have re
 """
 
 from dataclasses import replace
+from pathlib import PurePosixPath
 from typing import Final
 
 import pytest
@@ -21,7 +22,8 @@ from lorecraft.project.schemas import (
     parse_schema_name,
     schema_name_stem,
 )
-from lorecraft.project.skill import NamedDir, SkillLocation, SkillRef, SkillsDir
+from lorecraft.project.skill import NamedDir, OutsideSymlink, SkillLocation, SkillRef, SkillsDir
+from lorecraft.vfs import RootExit
 
 from ..model import Corpus, Governance, Spec, WorkspaceModel, namespace_order_key
 
@@ -853,6 +855,34 @@ class TestWorkspaceModel:
 
         #: Then
         assert named_dir is None, 'only the directory named is found, never a skill inside it'
+
+    def test_has_outside_symlink_with_the_path_an_agent_reaches_it_at_returns_true(
+        self, skills_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        entry = RootRelativePath.parse('.agents/skills/x')
+        outside = OutsideSymlink(entry, RootExit(entry, PurePosixPath('/opt/team-skills/x')))
+        model = replace(skills_model, outside_symlinks=(outside,))
+
+        #: When
+        found = model.has_outside_symlink(entry)
+
+        #: Then
+        assert found, 'the symlink is found at the path an agent reaches it at'
+
+    def test_has_outside_symlink_with_a_path_below_a_symlink_leading_outside_returns_false(
+        self, skills_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        entry = RootRelativePath.parse('.agents/skills/x')
+        outside = OutsideSymlink(entry, RootExit(entry, PurePosixPath('/opt/team-skills/x')))
+        model = replace(skills_model, outside_symlinks=(outside,))
+
+        #: When
+        found = model.has_outside_symlink(entry / 'SKILL.md')
+
+        #: Then
+        assert not found, 'a path is compared whole: one below a symlink leading outside is not that symlink'
 
     def test_locate_skill_files_with_the_file_of_a_regular_skill_returns_every_entry_leading_there(
         self, skills_model: WorkspaceModel
