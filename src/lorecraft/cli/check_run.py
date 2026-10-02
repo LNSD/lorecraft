@@ -16,8 +16,9 @@ module joins it by registering, the way it joins the group by declaring its comm
 import json
 from collections.abc import Callable
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
-from typing import Literal, assert_never
+from typing import assert_never
 
 import typer
 
@@ -39,6 +40,16 @@ from lorecraft.vfs import OsRefusal, take_snapshot
 
 from .root import get_root, resolve_root
 from .select import named_skill_dirs, select_document, select_skills_at, select_whole
+
+
+class OutputFormat(Enum):
+    """How a check run is printed; the value is what `--format` accepts."""
+
+    TEXT = 'text'
+    """A line per finding and per ungoverned document on stdout, and a summary line on stderr."""
+    JSON = 'json'
+    """One JSON report on stdout."""
+
 
 type CheckRunner = Callable[[Database, tuple[DocumentRef, ...]], CheckRun]
 """A check's run: it checks the documents it is handed, read through one database, and reports in one shape."""
@@ -324,7 +335,7 @@ def _add_selection(selections: list[SkillSelection], selection: SkillSelection) 
     selections.append(selection)
 
 
-def print_run(run: CheckRun, output_format: Literal['text', 'json'], ungoverned: str) -> None:
+def print_run(run: CheckRun, output_format: OutputFormat, ungoverned: str) -> None:
     """Print one run, in the run's report order.
 
     The JSON report goes to stdout. As text, a line per ungoverned document and finding goes to stdout and the
@@ -332,38 +343,44 @@ def print_run(run: CheckRun, output_format: Literal['text', 'json'], ungoverned:
 
     Args:
         run: The run to print.
-        output_format: ``text`` or ``json``.
+        output_format: Whether to print the run as text or as JSON.
         ungoverned: What the text line of an ungoverned document says after its rule, such as ``no
             frontmatter schema for this corpus; frontmatter unvalidated``.
     """
-    if output_format == 'json':
-        typer.echo(json.dumps(_json_report(run)))
-        return
-    _echo_lines(run, ungoverned)
-    typer.echo(f'checked {len(run.reports)} file(s), {len(run.findings())} finding(s)', err=True)
+    match output_format:
+        case OutputFormat.TEXT:
+            _echo_lines(run, ungoverned)
+            typer.echo(f'checked {len(run.reports)} file(s), {len(run.findings())} finding(s)', err=True)
+        case OutputFormat.JSON:
+            typer.echo(json.dumps(_json_report(run)))
+        case _:
+            assert_never(output_format)
 
 
-def print_skill_run(run: SkillCheckRun, output_format: Literal['text', 'json']) -> None:
+def print_skill_run(run: SkillCheckRun, output_format: OutputFormat) -> None:
     """Print one skill run, in the run's report order.
 
     The JSON report goes to stdout. As text, a line per finding goes to stdout and the summary line to stderr.
 
     Args:
         run: The run to print.
-        output_format: ``text`` or ``json``.
+        output_format: Whether to print the run as text or as JSON.
     """
-    if output_format == 'json':
-        typer.echo(json.dumps(_json_skill_report(run)))
-        return
-    for finding in run.findings():
-        typer.echo(format_finding(finding))
-    typer.echo(f'checked {len(run.reports)} skill(s), {len(run.findings())} finding(s)', err=True)
+    match output_format:
+        case OutputFormat.TEXT:
+            for finding in run.findings():
+                typer.echo(format_finding(finding))
+            typer.echo(f'checked {len(run.reports)} skill(s), {len(run.findings())} finding(s)', err=True)
+        case OutputFormat.JSON:
+            typer.echo(json.dumps(_json_skill_report(run)))
+        case _:
+            assert_never(output_format)
 
 
 def print_runs(
     runs: tuple[tuple[DocumentCheck, CheckRun], ...],
     skill_runs: tuple[tuple[SkillCheck, SkillCheckRun], ...],
-    output_format: Literal['text', 'json'],
+    output_format: OutputFormat,
 ) -> None:
     """Print the runs of every check, check by check: the document checks, then the skill checks.
 
@@ -376,29 +393,32 @@ def print_runs(
             documents.
         skill_runs: Each skill check with its run, in the order to print them; every run covers the same
             skills.
-        output_format: ``text`` or ``json``.
+        output_format: Whether to print the runs as text or as JSON.
     """
-    if output_format == 'json':
-        report: dict[str, dict[str, object]] = {}
-        for check, run in runs:
-            report[check.name] = _json_report(run)
-        for skill_check, skill_run in skill_runs:
-            report[skill_check.name] = _json_skill_report(skill_run)
-        typer.echo(json.dumps({'checks': report}))
-        return
-
-    findings = 0
-    for check, run in runs:
-        _echo_lines(run, check.ungoverned)
-        findings += len(run.findings())
-    for _skill_check, skill_run in skill_runs:
-        for finding in skill_run.findings():
-            typer.echo(format_finding(finding))
-        findings += len(skill_run.findings())
-    files = len(runs[0][1].reports) if runs else 0
-    skills = len(skill_runs[0][1].reports) if skill_runs else 0
-    checks = len(runs) + len(skill_runs)
-    typer.echo(f'checked {files} file(s) and {skills} skill(s) with {checks} check(s), {findings} finding(s)', err=True)
+    match output_format:
+        case OutputFormat.TEXT:
+            findings = 0
+            for check, run in runs:
+                _echo_lines(run, check.ungoverned)
+                findings += len(run.findings())
+            for _skill_check, skill_run in skill_runs:
+                for finding in skill_run.findings():
+                    typer.echo(format_finding(finding))
+                findings += len(skill_run.findings())
+            files = len(runs[0][1].reports) if runs else 0
+            skills = len(skill_runs[0][1].reports) if skill_runs else 0
+            checks = len(runs) + len(skill_runs)
+            summary = f'checked {files} file(s) and {skills} skill(s) with {checks} check(s), {findings} finding(s)'
+            typer.echo(summary, err=True)
+        case OutputFormat.JSON:
+            report: dict[str, dict[str, object]] = {}
+            for check, run in runs:
+                report[check.name] = _json_report(run)
+            for skill_check, skill_run in skill_runs:
+                report[skill_check.name] = _json_skill_report(skill_run)
+            typer.echo(json.dumps({'checks': report}))
+        case _:
+            assert_never(output_format)
 
 
 def _json_report(run: CheckRun) -> dict[str, object]:

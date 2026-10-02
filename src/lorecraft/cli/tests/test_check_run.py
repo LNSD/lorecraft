@@ -19,6 +19,7 @@ from lorecraft.vfs import OsRefusal
 from ..check_run import (
     DocumentCheck,
     DuplicateCheckError,
+    OutputFormat,
     SkillCheck,
     WorkingDirectoryReadError,
     merge_selections,
@@ -232,7 +233,7 @@ class TestPrintRuns:
         runs = ()
 
         #: When
-        print_runs(runs, (), 'text')
+        print_runs(runs, (), OutputFormat.TEXT)
 
         #: Then
         captured = capsys.readouterr()
