@@ -13,7 +13,6 @@ frontmatter schema, leaves the document ungoverned for that kind whatever the na
 """
 
 from dataclasses import dataclass
-from typing import assert_never
 
 from lorecraft.agents import AgentName
 from lorecraft.core.path import RootRelativePath
@@ -21,7 +20,7 @@ from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.ref import DocumentRef
 from lorecraft.project.layout import DOCS_DIR
-from lorecraft.project.schemas.name import CorpusSpecName, NamespaceSpecName, SpecName
+from lorecraft.project.schemas.name import CorpusSpecName, NamespaceSpecName
 from lorecraft.project.schemas.structure import FrontmatterSchema, StructureSpec
 from lorecraft.project.skill.named_dir import NamedDir
 from lorecraft.project.skill.outside import OutsideSymlink
@@ -30,47 +29,52 @@ from lorecraft.project.skill.skills_dir import SkillsDir
 
 
 @dataclass(frozen=True, slots=True)
-class Spec:
-    """One specification name in docs/__meta__ and the structure specification decoded from it.
+class CorpusSpec:
+    """A corpus spec in docs/__meta__, at the `<corpus>` specification name, and its decoded structure specification.
+
+    A corpus spec governs every document in its corpus.
 
     Not hashable: a structure specification's `FrontmatterSchema` holds a dict, so instances must not be put in a
     set or used as a key.
 
     Attributes:
-        name: The specification name, parsed.
+        name: The specification name, the corpus alone.
         files: Every root-relative file at this specification name (prose and JSON), sorted; may be prose only.
         structure: The structure specification, or None when `<name>.structure.json` does not exist.
     """
 
-    name: SpecName
+    name: CorpusSpecName
     files: tuple[RootRelativePath, ...]
     structure: StructureSpec | None
 
-    @property
-    def corpus(self) -> CorpusName:
-        """The corpus this spec belongs to, named first in its specification name."""
-        return self.name.corpus
 
-    @property
-    def namespace(self) -> AspectNamespace | None:
-        """The namespace of a `<corpus>-<namespace>` specification name; None for a corpus spec's name."""
-        match self.name:
-            case CorpusSpecName():
-                return None
-            case NamespaceSpecName(namespace=namespace):
-                return namespace
-            case _:
-                assert_never(self.name)
+@dataclass(frozen=True, slots=True)
+class NamespaceSpec:
+    """A namespace spec in docs/__meta__, at a `<corpus>-<namespace>` specification name, narrowing its corpus spec.
+
+    Not hashable: a structure specification's `FrontmatterSchema` holds a dict, so instances must not be put in a
+    set or used as a key.
+
+    Attributes:
+        name: The specification name, the corpus and the namespace.
+        files: Every root-relative file at this specification name (prose and JSON), sorted; may be prose only.
+        structure: The structure specification, or None when `<name>.structure.json` does not exist.
+    """
+
+    name: NamespaceSpecName
+    files: tuple[RootRelativePath, ...]
+    structure: StructureSpec | None
 
     def is_governing(self, filename: AspectFilename) -> bool:
-        """True for a corpus spec always; for a namespace spec when the namespace matches.
+        """True when the spec's namespace matches the filename.
 
         Args:
             filename: Document filename stem whose governance is asked; matched by hyphen-delimited prefix.
         """
-        if self.namespace is None:
-            return True
-        return self.namespace.is_prefix_of(str(filename))
+        return self.name.namespace.is_prefix_of(str(filename))
+
+
+type Spec = CorpusSpec | NamespaceSpec
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,8 +88,8 @@ class Governance:
     """
 
     ref: DocumentRef
-    corpus_spec: Spec
-    namespace_specs: tuple[Spec, ...]
+    corpus_spec: CorpusSpec
+    namespace_specs: tuple[NamespaceSpec, ...]
 
     def specs(self) -> tuple[Spec, ...]:
         """Every governing spec, corpus spec first."""
@@ -141,32 +145,30 @@ class Corpus:
 
     Attributes:
         name: Directory name under docs/.
-        spec: The corpus spec; always present (discovery is spec-first), possibly prose only.
+        corpus_spec: The corpus spec; always present (discovery is spec-first), possibly prose only.
         namespace_specs: Narrowing specs, sorted broad to narrow by (segment count, value).
         documents: Refs of the Markdown files directly inside docs/<name>/, sorted by filename.
     """
 
     name: CorpusName
-    spec: Spec
-    namespace_specs: tuple[Spec, ...]
+    corpus_spec: CorpusSpec
+    namespace_specs: tuple[NamespaceSpec, ...]
     documents: tuple[DocumentRef, ...]
 
     def __post_init__(self) -> None:
         """Reject a corpus whose parts do not all belong to it.
 
         Raises:
-            ValueError: If `spec.name` is not `CorpusSpecName(name)`, a namespace spec has no namespace or
-                another corpus, `namespace_specs` is not broad-to-narrow, or a ref names another corpus.
+            ValueError: If `corpus_spec` or a namespace spec names another corpus, `namespace_specs` is not
+                broad-to-narrow, or a ref names another corpus.
         """
-        if self.spec.name != CorpusSpecName(self.name):
-            raise ValueError(f'corpus {self.name} must carry its own corpus spec, got {self.spec.name}')
+        if self.corpus_spec.name != CorpusSpecName(self.name):
+            raise ValueError(f'corpus {self.name} must carry its own corpus spec, got {self.corpus_spec.name}')
         order_keys: list[tuple[int, str]] = []
         for namespace_spec in self.namespace_specs:
-            if namespace_spec.namespace is None:
-                raise ValueError(f'corpus {self.name} lists corpus spec {namespace_spec.name} as a namespace spec')
-            if namespace_spec.corpus != self.name:
+            if namespace_spec.name.corpus != self.name:
                 raise ValueError(f'corpus {self.name} lists namespace spec {namespace_spec.name} of another corpus')
-            order_keys.append(namespace_order_key(namespace_spec.namespace))
+            order_keys.append(namespace_order_key(namespace_spec.name.namespace))
         if order_keys != sorted(order_keys):
             raise ValueError(f'corpus {self.name} namespace specs are not broad to narrow: {order_keys}')
         for ref in self.documents:
@@ -189,11 +191,11 @@ class Corpus:
         """
         if ref.corpus != self.name:
             raise ValueError(f'document {ref.path} is not in corpus {self.name}')
-        matching: list[Spec] = []
+        matching: list[NamespaceSpec] = []
         for namespace_spec in self.namespace_specs:
             if namespace_spec.is_governing(ref.filename):
                 matching.append(namespace_spec)
-        return Governance(ref, self.spec, tuple(matching))
+        return Governance(ref, self.corpus_spec, tuple(matching))
 
 
 @dataclass(frozen=True, slots=True)

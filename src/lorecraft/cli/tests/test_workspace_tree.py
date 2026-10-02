@@ -14,7 +14,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName
 from lorecraft.project.skill import SkillLocation, SkillRef, SkillsDir
-from lorecraft.project.workspace import Corpus, Spec, WorkspaceModel
+from lorecraft.project.workspace import Corpus, CorpusSpec, NamespaceSpec, WorkspaceModel
 
 
 def _path(raw: str) -> RootRelativePath:
@@ -24,15 +24,15 @@ def _path(raw: str) -> RootRelativePath:
 def _code_model() -> WorkspaceModel:
     """One corpus with a namespace spec of two files, and two documents."""
     code = CorpusName.parse('code')
-    corpus_spec = Spec(name=CorpusSpecName(code), files=(_path('docs/__meta__/code.md'),), structure=None)
-    python_spec = Spec(
+    corpus_spec = CorpusSpec(name=CorpusSpecName(code), files=(_path('docs/__meta__/code.md'),), structure=None)
+    python_spec = NamespaceSpec(
         name=NamespaceSpecName(code, AspectNamespace.parse('python')),
         files=(_path('docs/__meta__/code-python.md'), _path('docs/__meta__/code-python.structure.json')),
         structure=None,
     )
     corpus = Corpus(
         name=code,
-        spec=corpus_spec,
+        corpus_spec=corpus_spec,
         namespace_specs=(python_spec,),
         documents=(
             DocumentRef(code, AspectFilename.parse('logging')),
