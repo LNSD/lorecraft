@@ -74,20 +74,17 @@ class Governance:
 
     Attributes:
         ref: The governed document.
-        specs: The corpus spec first, then every matching namespace spec. Never empty.
+        corpus_spec: The spec of the document's corpus, which governs every document in it.
+        namespace_specs: Every namespace spec whose namespace matches the document, broad to narrow.
     """
 
     ref: DocumentRef
-    specs: tuple[Spec, ...]
+    corpus_spec: Spec
+    namespace_specs: tuple[Spec, ...]
 
-    def __post_init__(self) -> None:
-        """Reject a governance with no specs: the corpus spec is always there.
-
-        Raises:
-            ValueError: If ``specs`` is empty.
-        """
-        if not self.specs:
-            raise ValueError(f'document {self.ref.path} must be governed by at least its corpus spec')
+    def specs(self) -> tuple[Spec, ...]:
+        """Every governing spec, corpus spec first."""
+        return (self.corpus_spec, *self.namespace_specs)
 
     def structure_specs(self) -> tuple[StructureAspect, ...]:
         """Structure aspects to apply in order; ``()`` means ungoverned for the structure aspect.
@@ -95,10 +92,10 @@ class Governance:
         A corpus spec without a structure aspect leaves the document ungoverned even when a matching namespace
         spec carries one: a namespace narrows a base, it cannot supply one.
         """
-        if self.specs[0].structure is None:
+        if self.corpus_spec.structure is None:
             return ()
         aspects: list[StructureAspect] = []
-        for spec in self.specs:
+        for spec in self.specs():
             if spec.structure is not None:
                 aspects.append(spec.structure)
         return tuple(aspects)
@@ -110,7 +107,7 @@ class Governance:
         whose structure aspect states no frontmatter schema leaves the document ungoverned even when a matching
         namespace spec states one.
         """
-        corpus_structure = self.specs[0].structure
+        corpus_structure = self.corpus_spec.structure
         if corpus_structure is None or corpus_structure.frontmatter is None:
             return ()
         schemas: list[FrontmatterSchema] = []
@@ -187,11 +184,11 @@ class Corpus:
         """
         if ref.corpus != self.name:
             raise ValueError(f'document {ref.path} is not in corpus {self.name}')
-        specs: list[Spec] = [self.spec]
+        matching: list[Spec] = []
         for namespace_spec in self.namespace_specs:
             if namespace_spec.is_governing(ref.filename):
-                specs.append(namespace_spec)
-        return Governance(ref, tuple(specs))
+                matching.append(namespace_spec)
+        return Governance(ref, self.spec, tuple(matching))
 
 
 @dataclass(frozen=True, slots=True)

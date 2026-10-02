@@ -98,7 +98,7 @@ class TestGovernance:
 
         #: Then
         assert governance.ref == ref, 'the governance names the logging document it was asked about'
-        assert tuple(schema_name_stem(spec.name) for spec in governance.specs) == ('code',), (
+        assert tuple(schema_name_stem(spec.name) for spec in governance.specs()) == ('code',), (
             'the corpus spec alone governs a document when the corpus has no namespace spec'
         )
 
@@ -114,7 +114,7 @@ class TestGovernance:
 
         #: Then
         assert governance.ref == ref, 'the governance names the python-errors-reporting document it was asked about'
-        assert tuple(schema_name_stem(spec.name) for spec in governance.specs) == (
+        assert tuple(schema_name_stem(spec.name) for spec in governance.specs()) == (
             'code',
             'code-python',
             'code-python-errors',
@@ -132,7 +132,7 @@ class TestGovernance:
 
         #: Then
         assert governance.ref == ref, 'the governance names the python document it was asked about'
-        assert tuple(schema_name_stem(spec.name) for spec in governance.specs) == ('code', 'code-python'), (
+        assert tuple(schema_name_stem(spec.name) for spec in governance.specs()) == ('code', 'code-python'), (
             'a namespace equal to the whole filename governs the document after the corpus spec'
         )
 
@@ -148,7 +148,7 @@ class TestGovernance:
 
         #: Then
         assert governance.ref == ref, 'the governance names the pythonic document it was asked about'
-        assert tuple(schema_name_stem(spec.name) for spec in governance.specs) == ('code',), (
+        assert tuple(schema_name_stem(spec.name) for spec in governance.specs()) == ('code',), (
             'python is not a hyphen-delimited prefix of pythonic, so only the corpus spec governs'
         )
 
@@ -164,7 +164,7 @@ class TestGovernance:
 
         #: Then
         assert governance.ref == ref, 'the governance names the python-typing document it was asked about'
-        assert tuple(schema_name_stem(spec.name) for spec in governance.specs) == ('code', 'code-python'), (
+        assert tuple(schema_name_stem(spec.name) for spec in governance.specs()) == ('code', 'code-python'), (
             'the corpus spec still governs first even without a structure aspect, then the python namespace'
         )
 
@@ -180,7 +180,7 @@ class TestGovernance:
 
         #: Then
         assert governance.ref == ref, 'the governance names the python-typing document it was asked about'
-        assert tuple(schema_name_stem(spec.name) for spec in governance.specs) == ('code', 'code-python'), (
+        assert tuple(schema_name_stem(spec.name) for spec in governance.specs()) == ('code', 'code-python'), (
             'a prose-only namespace spec still governs the document after the corpus spec'
         )
 
@@ -406,7 +406,7 @@ class TestCorpus:
         governance = corpus.governance(ref)
 
         #: Then
-        assert governance == Governance(ref, (_spec('code'), _spec('code-python'))), (
+        assert governance == Governance(ref, _spec('code'), (_spec('code-python'),)), (
             'the governance carries the ref and the corpus spec followed by the matching namespace spec'
         )
 
@@ -488,20 +488,6 @@ class TestCorpus:
 
         #: Then
         assert foreign_ref.corpus == FEAT, 'the rejected ref belongs to another corpus'
-
-
-@pytest.mark.unit
-class TestGovernanceConstruction:
-    def test_construct_with_no_specs_raises_value_error(self) -> None:
-        #: Given
-        ref = _ref('code', 'logging')
-
-        #: When
-        with pytest.raises(ValueError, match='logging'):
-            Governance(ref, ())
-
-        #: Then
-        assert Governance(ref, (_spec('code'),)).specs != (), 'the corpus spec alone is the smallest governance'
 
 
 @pytest.mark.unit
