@@ -32,6 +32,7 @@ from lorecraft.vfs import (
     Link,
     Listing,
     OsRefusal,
+    RootExit,
     ScanRoot,
     ScopeIndex,
     Snapshot,
@@ -3207,3 +3208,169 @@ class TestFindRealFileMatchesScan:
         assert (reached is not None, declared, target_listed) == (False, False, True), (
             'the scan refuses ../a/tmp/../b, so a/b/SKILL.md is not reached through skills/l, though a/ lists a/b'
         )
+
+
+@pytest.fixture(scope='function')
+def leaving_tree(tmp_path: Path) -> Path:
+    """A repository at `tmp_path/repository` whose skills layout holds links leaving it, beside `tmp_path/elsewhere`.
+
+    Under `.agents/skills`: `alpha` is a skill, `beta -> alpha` stays inside, `dangling -> missing` dangles inside,
+    `out` links to `elsewhere` by its absolute path, `up -> ../../../elsewhere` climbs above the root, and
+    `via -> ../../hop/x` leaves through `hop`, a link at the root to `elsewhere`. `.claude/skills` links to
+    `elsewhere` by its absolute path.
+
+    Args:
+        tmp_path: Directory the repository and the directory outside it are written into.
+
+    Returns:
+        The repository root.
+    """
+    root = tmp_path / 'repository'
+    elsewhere = tmp_path / 'elsewhere'
+    (elsewhere / 'x').mkdir(parents=True)
+    (root / '.agents' / 'skills' / 'alpha').mkdir(parents=True)
+    (root / '.agents' / 'skills' / 'alpha' / 'SKILL.md').write_text('---\nname: alpha\n---\n', encoding='utf-8')
+    (root / '.agents' / 'skills' / 'beta').symlink_to('alpha')
+    (root / '.agents' / 'skills' / 'dangling').symlink_to('missing')
+    (root / '.agents' / 'skills' / 'out').symlink_to(elsewhere)
+    (root / '.agents' / 'skills' / 'up').symlink_to('../../../elsewhere')
+    (root / '.agents' / 'skills' / 'via').symlink_to('../../hop/x')
+    (root / 'hop').symlink_to(elsewhere)
+    (root / '.claude').mkdir()
+    (root / '.claude' / 'skills').symlink_to(elsewhere)
+    return root
+
+
+@pytest.mark.it
+class TestDiskFileSystemFindRootExit:
+    def test_find_root_exit_with_an_absolute_link_outside_the_root_returns_it_and_its_target(
+        self, leaving_tree: Path
+    ) -> None:
+        #: Given
+        filesystem = DiskFileSystem(leaving_tree)
+        path = RootRelativePath.parse('.agents/skills/out')
+
+        #: When
+        leaves_at = filesystem.find_root_exit(path)
+
+        #: Then
+        assert leaves_at == RootExit(path, PurePosixPath(leaving_tree.parent / 'elsewhere')), (
+            'the link leaves the root, with its target as read'
+        )
+
+    def test_find_root_exit_with_a_link_climbing_above_the_root_returns_it_and_its_target(
+        self, leaving_tree: Path
+    ) -> None:
+        #: Given
+        filesystem = DiskFileSystem(leaving_tree)
+        path = RootRelativePath.parse('.agents/skills/up')
+
+        #: When
+        leaves_at = filesystem.find_root_exit(path)
+
+        #: Then
+        assert leaves_at == RootExit(path, PurePosixPath('../../../elsewhere')), 'the third `..` climbs above the root'
+
+    def test_find_root_exit_with_a_chain_leaving_through_another_link_returns_that_link(
+        self, leaving_tree: Path
+    ) -> None:
+        #: Given
+        filesystem = DiskFileSystem(leaving_tree)
+        path = RootRelativePath.parse('.agents/skills/via')
+
+        #: When
+        leaves_at = filesystem.find_root_exit(path)
+
+        #: Then
+        assert leaves_at == RootExit(RootRelativePath.parse('hop'), PurePosixPath(leaving_tree.parent / 'elsewhere')), (
+            'the chain leaves the root at hop, not at the link it started from'
+        )
+
+    def test_find_root_exit_with_a_link_inside_the_root_returns_none(self, leaving_tree: Path) -> None:
+        #: Given
+        filesystem = DiskFileSystem(leaving_tree)
+        path = RootRelativePath.parse('.agents/skills/beta')
+
+        #: When
+        leaves_at = filesystem.find_root_exit(path)
+
+        #: Then
+        assert leaves_at is None, 'a link to a sibling directory stays under the root'
+
+    def test_find_root_exit_with_a_link_dangling_inside_the_root_returns_none(self, leaving_tree: Path) -> None:
+        #: Given
+        filesystem = DiskFileSystem(leaving_tree)
+        path = RootRelativePath.parse('.agents/skills/dangling')
+
+        #: When
+        leaves_at = filesystem.find_root_exit(path)
+
+        #: Then
+        assert leaves_at is None, 'a link dangling inside the root does not leave it'
+
+
+@pytest.mark.it
+class TestFindRootExitMatchesDisk:
+    def test_find_root_exit_over_a_snapshot_with_an_absolute_link_agrees_with_disk(self, leaving_tree: Path) -> None:
+        #: Given
+        disk = DiskFileSystem(leaving_tree)
+        virtual = VirtualFileSystem(take_snapshot(leaving_tree, FOLLOWING_SCOPE))
+        path = '.agents/skills/out'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.find_root_exit, virtual.find_root_exit, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'the snapshot records the absolute target the disk reads'
+
+    def test_find_root_exit_over_a_snapshot_with_a_climbing_link_agrees_with_disk(self, leaving_tree: Path) -> None:
+        #: Given
+        disk = DiskFileSystem(leaving_tree)
+        virtual = VirtualFileSystem(take_snapshot(leaving_tree, FOLLOWING_SCOPE))
+        path = '.agents/skills/up'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.find_root_exit, virtual.find_root_exit, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'both walks climb above the root at the same link'
+
+    def test_find_root_exit_over_a_snapshot_with_a_chain_leaving_through_another_link_agrees_with_disk(
+        self, leaving_tree: Path
+    ) -> None:
+        #: Given
+        disk = DiskFileSystem(leaving_tree)
+        virtual = VirtualFileSystem(take_snapshot(leaving_tree, FOLLOWING_SCOPE))
+        path = '.agents/skills/via'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.find_root_exit, virtual.find_root_exit, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'the scan records hop on the chain it followed, so both leave there'
+
+    def test_find_root_exit_over_a_snapshot_with_a_linked_skills_directory_agrees_with_disk(
+        self, leaving_tree: Path
+    ) -> None:
+        #: Given
+        disk = DiskFileSystem(leaving_tree)
+        virtual = VirtualFileSystem(take_snapshot(leaving_tree, FOLLOWING_SCOPE))
+        path = '.claude/skills'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.find_root_exit, virtual.find_root_exit, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'the scan records the link on the way to a scope root'
+
+    def test_find_root_exit_over_a_snapshot_with_a_dangling_link_agrees_with_disk(self, leaving_tree: Path) -> None:
+        #: Given
+        disk = DiskFileSystem(leaving_tree)
+        virtual = VirtualFileSystem(take_snapshot(leaving_tree, FOLLOWING_SCOPE))
+        path = '.agents/skills/dangling'
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.find_root_exit, virtual.find_root_exit, path)
+
+        #: Then
+        assert virtual_answer == disk_answer, 'neither view says a link dangling inside the root leaves it'

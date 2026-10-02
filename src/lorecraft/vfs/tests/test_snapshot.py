@@ -14,7 +14,7 @@ from lorecraft.core.path import RootRelativePath
 
 from ..scan_root import ScanRoot
 from ..snapshot import FileBytes, Link, Listing, Snapshot, VirtualFileSystem
-from ..view import DirEntry, EntryKind, FileSystem, TextDecodeError, UnrecordedFileError
+from ..view import DirEntry, EntryKind, FileSystem, RootExit, TextDecodeError, UnrecordedFileError
 
 ROOT: Final[RootRelativePath] = RootRelativePath.parse('.')
 
@@ -1162,3 +1162,96 @@ class TestVirtualFileSystemFindRealFile:
 
         #: Then
         assert resolved == RootRelativePath.parse('a/b/SKILL.md'), 'the scan follows skills/m to a/b'
+
+
+@pytest.mark.unit
+class TestVirtualFileSystemFindRootExit:
+    def test_find_root_exit_with_an_absolute_link_returns_it_and_its_target(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code/absolute')
+
+        #: When
+        leaves_at = virtual.find_root_exit(path)
+
+        #: Then
+        assert leaves_at == RootExit(path, PurePosixPath('/srv/docs')), 'an absolute target is outside the root'
+
+    def test_find_root_exit_with_a_link_climbing_above_the_root_returns_it_and_its_target(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code/above')
+
+        #: When
+        leaves_at = virtual.find_root_exit(path)
+
+        #: Then
+        assert leaves_at == RootExit(path, PurePosixPath('../../..')), 'the third `..` climbs above the root'
+
+    def test_find_root_exit_through_a_link_leading_out_returns_that_link(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code/absolute/guide.md')
+
+        #: When
+        leaves_at = virtual.find_root_exit(path)
+
+        #: Then
+        assert leaves_at == RootExit(RootRelativePath.parse('docs/code/absolute'), PurePosixPath('/srv/docs')), (
+            'a path past a link leading out leaves the root at that link'
+        )
+
+    def test_find_root_exit_with_a_link_leading_inside_returns_none(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code/linked.md')
+
+        #: When
+        leaves_at = virtual.find_root_exit(path)
+
+        #: Then
+        assert leaves_at is None, 'a link to a file under the root does not leave it'
+
+    def test_find_root_exit_with_a_dangling_link_returns_none(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code/dangling')
+
+        #: When
+        leaves_at = virtual.find_root_exit(path)
+
+        #: Then
+        assert leaves_at is None, 'a link dangling inside the root does not leave it'
+
+    def test_find_root_exit_with_a_looping_link_returns_none(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code/loop')
+
+        #: When
+        leaves_at = virtual.find_root_exit(path)
+
+        #: Then
+        assert leaves_at is None, 'a looping link never reaches outside the root'
+
+    def test_find_root_exit_with_a_regular_file_returns_none(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_skills_snapshot())
+        path = RootRelativePath.parse('docs/code/a.md')
+
+        #: When
+        leaves_at = virtual.find_root_exit(path)
+
+        #: Then
+        assert leaves_at is None, 'a path with no link on its way does not leave the root'
+
+    def test_find_root_exit_through_a_link_climbing_out_of_a_directory_stepped_into_returns_none(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_refused_chain_snapshot())
+        path = RootRelativePath.parse('skills/l')
+
+        #: When
+        leaves_at = virtual.find_root_exit(path)
+
+        #: Then
+        assert leaves_at is None, 'the scan refuses the chain inside the root, so it does not leave it'

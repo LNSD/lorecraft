@@ -6,7 +6,8 @@ use and kept for as long as the database lives (pattern-memoization):
 
 - `model()`: the workspace model, like the IDE's project model. It reads the structure of the snapshot, the
   specifications, the corpus directories, the skills directories and the listing of each skill's directory,
-  nothing deeper inside a skill, and no document's contents.
+  nothing deeper inside a skill, and no document's contents. Among that structure it records each skills
+  directory, skill entry and `SKILL.md` whose symlink chain leaves the repository.
 - `frontmatter(ref)`: one document's frontmatter node, like a stub: the part of a file the IDE reads without
   building its full syntax tree. It reads that document's bytes and nothing else.
 - `parse(ref)`: one document's parse tree, like a PSI file or a per-file index entry. It reads that
@@ -18,8 +19,9 @@ use and kept for as long as the database lives (pattern-memoization):
 - `skill_lines(ref)`: how many lines one skill's `SKILL.md` holds, like `tokens(ref)` for a document: counted from
   the raw text, frontmatter included, without a parse. It reads that skill's bytes and nothing else.
 - `skill_resources(ref)`: one skill's resources, the Markdown files inside it other than its top-level `SKILL.md`,
-  like the IDE's listing of a content root's children. It reads the listings and the symlink targets reached from
-  that skill, and where the model locates the skill, and no file's content.
+  like the IDE's listing of a content root's children, and the symlinks inside it whose chain leaves the
+  repository. It reads the listings and the symlink targets reached from that skill, and where the model locates
+  the skill, and no file's content.
 - `skill_resource_parse(ref)`: one resource's parse tree, the same PSI file again. It reads that resource's bytes,
   and where its skill's listing locates it, and nothing else.
 - `tokens(ref)`: what one document's whole file costs an agent that loads it, like another per-file index
@@ -55,9 +57,12 @@ the model unless one of these changes invalidates it. An entry added or deleted 
 does an entry added or deleted in a skills directory, or in a skill's directory, both where the skill's entry names
 it and where a link leads it. So does an entry added or deleted at the real path a skill's linked `SKILL.md` leads
 to, or on the way to it, since the loader resolves that link to find the skill. So does a link on the way to a skill
-or to its `SKILL.md` that changed its target, and so does a changed specification. Any other change leaves the model
-valid, an entry added or deleted anywhere else inside a skill included: the model lists nothing below a skill's
-directory, and reads nothing there but the way to its `SKILL.md`. The scope index carries over unless the two
+or to its `SKILL.md` that changed its target, and so does a changed specification. So does a link that changed its
+target on the chain of a skills directory an agent declares, of an entry in a skills directory, or of an entry's
+`SKILL.md`, a chain leaving the repository included, since the model records the link each such chain leaves
+through and its target. Any other change leaves the model valid, an entry added or deleted anywhere else inside a
+skill included: the model lists nothing below a skill's directory, and reads nothing there but the way to its
+`SKILL.md`. The scope index carries over unless the two
 snapshots' scopes or their links differ, compared as recorded rather than through the change set, which holds no
 scope. A change of scope invalidates nothing else: what the new scope adds or drops reaches the model and each
 skill's resources as entries in the change set. That rule holds only while the frontmatter, the parse, the token
@@ -81,7 +86,7 @@ from lorecraft.project.document import DocumentRef
 from lorecraft.project.document import Repository as DocumentRepository
 from lorecraft.project.layout import reject_linked_layout
 from lorecraft.project.skill import Repository as SkillRepository
-from lorecraft.project.skill import SkillRef, SkillResourceLocation, SkillResourceRef
+from lorecraft.project.skill import SkillRef, SkillResourceListing, SkillResourceLocation, SkillResourceRef
 from lorecraft.project.syntax import (
     FrontmatterNode,
     ParsedDocument,
@@ -122,7 +127,7 @@ class Database:
         self._skill_frontmatters: dict[SkillRef, FrontmatterNode] = {}
         self._skill_parses: dict[SkillRef, ParsedDocument] = {}
         self._skill_line_counts: dict[SkillRef, int] = {}
-        self._skill_resources: dict[SkillRef, tuple[SkillResourceLocation, ...]] = {}
+        self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
         self._skill_resource_parses: dict[SkillResourceRef, ParsedDocument] = {}
 
     def model(self) -> WorkspaceModel:
@@ -148,6 +153,8 @@ class Database:
             ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
             UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
             DirResolveError: If a skills directory cannot be resolved.
+            EntryInspectError: If an entry on the way to a skills directory cannot be inspected, or a link's
+                target read, while looking for where it leaves the repository.
             SkillsDirListError: If a skills directory cannot be listed.
             SkillEntryResolveError: If a symlinked skill entry cannot be resolved.
             SkillDirListError: If a skill directory cannot be listed.
@@ -346,18 +353,21 @@ class Database:
             self._skill_line_counts[ref] = count
         return count
 
-    def skill_resources(self, ref: SkillRef) -> tuple[SkillResourceLocation, ...]:
-        """The resources of one skill, listed from the snapshot on the first call for its ref.
+    def skill_resources(self, ref: SkillRef) -> SkillResourceListing:
+        """The resources of one skill and its symlinks leading outside the repository, listed on the first call.
 
-        Each is named where an agent reaches it, under the skill's directory, and located at the real file that
-        path leads to, sorted by ref; `Repository.list_skill_resources` states which files are resources and which
-        symlinks the walk follows. The skill's location is the model's, so the model is loaded first if it is not yet.
+        Each resource is named where an agent reaches it, under the skill's directory, and located at the real file
+        that path leads to, sorted by ref; `Repository.list_skill_resources` states which files are resources and
+        which symlinks the walk follows. Each symlink whose chain leaves the repository is named the same way, with
+        the link it leaves through, sorted by path. The skill's location is the model's, so the model is loaded
+        first if it is not yet.
 
-        Carry-over: the resources of one skill are kept for the next revision unless one of these changed:
+        Carry-over: the listing of one skill is kept for the next revision unless one of these changed:
 
         - An entry was added, deleted or changed kind in a directory the walk entered, or at the path a symlink it
           met leads to, or on the way there.
-        - A symlink on any of those ways changed its target.
+        - A symlink on any of those ways changed its target, one whose chain leaves the repository included: the
+          listing records the link such a chain leaves through, and its target.
         - The next model locates the skill's directory at another real directory, its `resolves_to`. Where its
           `SKILL.md` leads plays no part, so a retargeted `SKILL.md` symlink alone leaves the listing valid.
 
@@ -398,6 +408,8 @@ class Database:
             UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not
                 state an object.
             DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
+            EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot
+                be inspected, or a link's target read, while looking for where it leaves the repository.
             SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
             SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
             SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
@@ -458,6 +470,8 @@ class Database:
             UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not
                 state an object.
             DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
+            EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot
+                be inspected, or a link's target read, while looking for where it leaves the repository.
             SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
             SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
             SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
@@ -465,7 +479,7 @@ class Database:
         """
         parsed = self._skill_resource_parses.get(ref)
         if parsed is None:
-            location = _skill_resource_location(self.skill_resources(ref.skill), ref)
+            location = _skill_resource_location(self.skill_resources(ref.skill).resources, ref)
             text = self._skills.get_skill_resource(location).text
             parsed = parse_document(text)
             self._skill_resource_parses[ref] = parsed

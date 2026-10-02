@@ -186,6 +186,8 @@ def select_documents(root: Path | None, paths: list[Path] | None) -> tuple[Datab
         ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
         UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
         DirResolveError: If a skills directory cannot be resolved.
+        EntryInspectError: If an entry on the way to a skills directory cannot be inspected, or a link's target
+            read, while looking for where it leaves the repository.
         SkillsDirListError: If a skills directory cannot be listed.
         SkillEntryResolveError: If a symlinked skill entry cannot be resolved.
         SkillDirListError: If a skill directory cannot be listed.
@@ -252,6 +254,8 @@ def select_skills(root: Path | None, paths: list[Path] | None) -> tuple[Database
         ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
         UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
         DirResolveError: If a skills directory cannot be resolved.
+        EntryInspectError: If an entry on the way to a skills directory cannot be inspected, or a link's target
+            read, while looking for where it leaves the repository.
         SkillsDirListError: If a skills directory cannot be listed.
         SkillEntryResolveError: If a symlinked skill entry cannot be resolved.
         SkillDirListError: If a skill directory cannot be listed.

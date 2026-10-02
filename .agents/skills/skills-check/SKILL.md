@@ -153,6 +153,10 @@ For a skill that links files in through `metadata`, it reports linked files that
 (`skill.metadata-duplicate-name`), that are not a file in the repository (`skill.metadata-missing-file`), or that
 lie outside the scope above (`skill.metadata-outside-scope`).
 
+A symlink an agent would follow out of the repository is `skill.symlink-outside`, wherever it sits: a skills
+directory, a skill entry, a `SKILL.md`, or a file or directory inside a skill. Keep what a skill loads in the
+repository.
+
 ```bash
 uv run lorecraft check skills                           # every skill
 uv run lorecraft check skills .agents/skills/code-test  # named skills

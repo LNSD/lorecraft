@@ -74,9 +74,9 @@ so it sees one moment of the tree even while files change. It reads each agent's
 the scope, and it is declared: a directory it names is in it even when absent, so a file missing there is
 missing. Under `docs/` a symlink is recorded, not followed: a path through one is in the scope only when it leads
 where the scope reads anyway. Under a skills directory, and inside a skill, a symlink into the repository is
-followed, to a directory at any depth and to a file for its contents; one leading outside the repository is not.
-The model records where each skill's directory and `SKILL.md` lead, so a command resolves a skill path it is given
-in the snapshot and asks the model the rest.
+followed, to a directory at any depth and to a file for its contents; one leading outside the repository is not,
+and [check skills](cli-check-skills.md) reports it. The model records where each skill's directory and `SKILL.md`
+lead, so a command resolves a skill path it is given in the snapshot and asks the model the rest.
 
 `docs/` and `docs/__meta__/` themselves must be real directories. Behind a symlink the snapshot would hold no
 specification, so a command stops with an error naming the linked directory rather than read an empty model.
