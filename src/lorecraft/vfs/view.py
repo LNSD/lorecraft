@@ -359,7 +359,7 @@ class FileSystem(ABC):
     def find_root_exit(self, path: RootRelativePath) -> RootExit | None:
         """Where the symlink chain in `path` leaves the root, or `None` when it stays under it or leads nowhere.
 
-        The walk is the one the scan takes (`root_expansion.find_real_path`), so the scan, the scope query and
+        The walk is the one the scan takes (`root_expansion.find_canonical_path`), so the scan, the scope query and
         both views agree on which chains leave the root. It stops at the link that leaves, so nothing outside the
         root is read: a chain leaves when a link on it has an absolute target outside the root, or a `..` on it
         climbs above the root, whatever directories it stepped into on the way. A chain that dangles or loops
