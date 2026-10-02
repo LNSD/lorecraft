@@ -2,28 +2,33 @@
 
 `version --verbose` shells out to `git describe`, so this is the only tier that can observe the probe
 at all. This suite runs from the checkout, so the verbose command must report its Git description as
-well as the installed version and environment. Every version output, and `inspect`, `check`, `check frontmatter`,
-`check structure`, `check budget` and `check skills` over a checked-in workspace fixture, is compared to a reviewed
-snapshot file under `__snapshots__/`. So is what `check` and `inspect` print for a root whose `docs/` or
-`docs/__meta__/` is a symlink into that fixture, what `check frontmatter` and `check skills` print for a root whose
-frontmatter writes a key twice, what `check skills` prints for the fixture's skills named one at a time (an entry
-another entry links to, a linked entry, and the directory no agent reads that a linked entry leads to) and named by
-their skills directory (the canonical one, the one linked to it, and `skills/`, which no agent reads), how it refuses a
-directory holding no skill, and what it prints for a skill linking to an absolute path, for one linking to a heading
-it does not have, for one whose `SKILL.md` and a resource link outside the skill, for one whose `SKILL.md` and a
-resource link a file the skill does not hold, for one whose resource links to an absolute path and to a heading it
-does not have, for one whose `SKILL.md` and a resource link to an absolute path, named by its directory and by its
-`SKILL.md`, which checks that file alone, for one whose `metadata` repeats a file name, lists a path outside what the
-command reads, or lists a file the repository does not have, and for one holding a symlink that leads outside the
-repository.
+well as the installed version and environment; run from a copy of the package outside the checkout, or with a
+`PATH` holding no git, a git that fails or one that hangs, it must leave the commit line out. Every version
+output, and `inspect`, `check`, `check frontmatter`, `check structure`, `check budget` and `check skills` over a
+checked-in workspace fixture, is compared to a reviewed snapshot file under `__snapshots__/`. So is what `check` and
+`inspect` print for a root whose `docs/` or `docs/__meta__/` is a symlink into that fixture, what `check frontmatter`
+and `check skills` print for a root whose frontmatter writes a key twice, what `check skills` prints for the fixture's
+skills named one at a time (an entry another entry links to, a linked entry, and the directory no agent reads that a
+linked entry leads to) and named by their skills directory (the canonical one, the one linked to it, and `skills/`,
+which no agent reads), how it refuses a directory holding no skill, and what it prints for a skill linking to an
+absolute path, for one linking to a heading it does not have, for one whose `SKILL.md` and a resource link outside the
+skill, for one whose `SKILL.md` and a resource link a file the skill does not hold, for one whose resource links to an
+absolute path and to a heading it does not have, for one whose `SKILL.md` and a resource link to an absolute path,
+named by its directory and by its `SKILL.md`, which checks that file alone, for one whose `metadata` repeats a file
+name, lists a path outside what the command reads, or lists a file the repository does not have, and for one holding a
+symlink that leads outside the repository.
 """
 
+import os
+import shutil
 from pathlib import Path
+from textwrap import dedent
 from typing import Final
 
 import pytest
 from syrupy.assertion import SnapshotAssertion
 
+import lorecraft
 from lib.cli import run_alias, run_cli
 from lib.snapshot import JsonTextSnapshotExtension, TextSnapshotExtension
 from lorecraft import __version__
@@ -84,6 +89,91 @@ class TestInstalledCommandLine:
         assert result.stdout == expected.stdout, '`lc` is the same entry point as `lorecraft`'
 
 
+def _environment_searching(directory: Path) -> dict[str, str]:
+    """The test's own environment, with `PATH` holding `directory` alone, so `git` is whatever it holds.
+
+    The console script is run by its full path, and starts its interpreter by one, so neither needs `PATH`.
+
+    Args:
+        directory: The one directory a command run by name is looked up in.
+    """
+    return {**os.environ, 'PATH': str(directory)}
+
+
+def _write_git(directory: Path, script: str) -> Path:
+    """Write an executable `git` into a new `directory`, standing in for the real one, and return the directory.
+
+    Args:
+        directory: Directory created to hold the stand-in, which must not exist yet.
+        script: The shell script the stand-in runs, without its `#!/bin/sh` line.
+    """
+    directory.mkdir()
+    git = directory / 'git'
+    git.write_text(f'#!/bin/sh\n{script}', encoding='utf-8')
+    git.chmod(0o755)
+    return directory
+
+
+@pytest.fixture(scope='function')
+def installed_copy(tmp_path: Path) -> Path:
+    """A `site-packages` directory outside any checkout, holding a copy of the package where a wheel puts it.
+
+    First on `PYTHONPATH`, the copy is imported in place of the checkout's `src/lorecraft`, so the console script
+    runs from a package no checkout holds.
+
+    Args:
+        tmp_path: Directory the `site-packages` directory is created in.
+    """
+    site_packages = tmp_path / 'site-packages'
+    package = Path(lorecraft.__file__).parent
+    shutil.copytree(package, site_packages / 'lorecraft', ignore=shutil.ignore_patterns('__pycache__'))
+    return site_packages
+
+
+@pytest.fixture(scope='function')
+def directory_without_git(tmp_path: Path) -> Path:
+    """An empty directory, so a `PATH` holding it alone finds no git.
+
+    Args:
+        tmp_path: Directory the empty directory is created in.
+    """
+    directory = tmp_path / 'bin'
+    directory.mkdir()
+    return directory
+
+
+@pytest.fixture(scope='function')
+def directory_with_a_failing_git(tmp_path: Path) -> Path:
+    """A directory holding a `git` that prints an error and exits 128, as git does when it cannot describe.
+
+    Args:
+        tmp_path: Directory the directory holding the stand-in is created in.
+    """
+    script = dedent(
+        """\
+        echo 'fatal: not a git repository' >&2
+        exit 128
+        """
+    )
+    return _write_git(tmp_path / 'bin', script)
+
+
+@pytest.fixture(scope='function')
+def directory_with_a_hanging_git(tmp_path: Path) -> Path:
+    """A directory holding a `git` that runs for a minute, far past the five seconds the probe waits.
+
+    It is longer than the 30 seconds `run_cli` waits as well, so a probe that never gives up fails the test rather
+    than passing slowly.
+
+    Args:
+        tmp_path: Directory the directory holding the stand-in is created in.
+    """
+    sleep = shutil.which('sleep')
+    assert sleep is not None, 'the stand-in git hangs by running sleep, which must be installed'
+    # `exec` replaces the shell with `sleep`, so the kill that ends the probe ends the process holding its pipes.
+    return _write_git(tmp_path / 'bin', f'exec {sleep} 60\n')
+
+
 @pytest.mark.e2e
 class TestVersionSnapshots:
     # The version, the commit and the environment differ per build and per machine, so each test redacts them
@@ -139,6 +229,68 @@ class TestVersionSnapshots:
         assert result.returncode == 0, result.stderr
         assert _redact(result.stdout) == expected, (
             'run from the checkout, the block carries the commit line as well as the environment'
+        )
+
+    def test_version_command_with_verbose_outside_a_checkout_omits_the_commit_line(
+        self, snapshot: SnapshotAssertion, installed_copy: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('version', '--verbose')
+        environment = {**os.environ, 'PYTHONPATH': str(installed_copy)}
+
+        #: When
+        result = run_cli(*arguments, env=environment)
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert _redact(result.stdout) == expected, 'a package no checkout holds has no commit to report'
+
+    def test_version_command_with_verbose_without_git_omits_the_commit_line(
+        self, snapshot: SnapshotAssertion, directory_without_git: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('version', '--verbose')
+        environment = _environment_searching(directory_without_git)
+
+        #: When
+        result = run_cli(*arguments, env=environment)
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert _redact(result.stdout) == expected, 'with no git to run, the checkout cannot be described'
+
+    def test_version_command_with_verbose_when_git_fails_omits_the_commit_line(
+        self, snapshot: SnapshotAssertion, directory_with_a_failing_git: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('version', '--verbose')
+        environment = _environment_searching(directory_with_a_failing_git)
+
+        #: When
+        result = run_cli(*arguments, env=environment)
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert _redact(result.stdout) == expected, 'a git that fails describes nothing, and the version still prints'
+
+    def test_version_command_with_verbose_when_git_hangs_omits_the_commit_line(
+        self, snapshot: SnapshotAssertion, directory_with_a_hanging_git: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('version', '--verbose')
+        environment = _environment_searching(directory_with_a_hanging_git)
+
+        #: When
+        result = run_cli(*arguments, env=environment)
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert _redact(result.stdout) == expected, (
+            'the probe gives up on a git that hangs, and the version still prints'
         )
 
 

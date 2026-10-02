@@ -585,6 +585,18 @@ class TestParseDocumentAnchors:
             'an underlined heading gives an anchor as an ATX heading does'
         )
 
+    def test_parse_document_with_an_html_heading_returns_no_anchor_for_it(self) -> None:
+        #: Given
+        text = '<h2>Usage</h2>\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.anchors == frozenset(), (
+            'an HTML block heading is raw HTML, not a Markdown heading, so it gives no anchor'
+        )
+
     def test_parse_document_with_a_heading_line_in_a_code_block_returns_no_anchor_for_it(self) -> None:
         #: Given
         text = '# Guide\n\n```markdown\n# Example\n```\n'
