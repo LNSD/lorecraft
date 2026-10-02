@@ -1,6 +1,6 @@
 """Skill validation over a ``SKILL.md``'s frontmatter node.
 
-``validate_skill`` is pure, so every case here is a text literal parsed in memory and a directory name, held to
+``validate_skill`` is pure, so every case here is a text literal parsed in memory and two directory names, held to
 the one Agent Skills specification; no ``SKILL.md`` is read.
 """
 
@@ -9,7 +9,7 @@ import pytest
 from lorecraft.project.schemas import SKILL_FRONTMATTER_SCHEMA
 from lorecraft.project.syntax import LineNumber, parse_frontmatter
 
-from ..reporting import Violation
+from ..reporting import Note, NoteKind, Violation
 from ..skill import validate_skill
 
 
@@ -20,7 +20,9 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\nname: review\ndescription: Review a change. Use before a PR\n---\n')
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+        )
 
         #: Then
         assert result.violations == (), 'a skill with the two required fields, named for its directory, is clean'
@@ -40,7 +42,9 @@ class TestValidateSkill:
         )
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+        )
 
         #: Then
         assert result.violations == (), 'all six fields of the specification are accepted'
@@ -50,7 +54,9 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('# Review\n')
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+        )
 
         #: Then
         assert result.violations == (
@@ -64,7 +70,9 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\nname: [review\n---\n')
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+        )
 
         #: Then
         assert [violation.rule for violation in result.violations] == ['skill.frontmatter-unparseable'], (
@@ -76,7 +84,9 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\nname: review\ndescription: !!bool maybe\n---\n')
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+        )
 
         #: Then
         assert result.violations == (
@@ -94,7 +104,9 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\n- review\n---\n')
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+        )
 
         #: Then
         assert result.violations == (
@@ -108,7 +120,9 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\nlicense: MIT\n---\n')
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+        )
 
         #: Then
         assert result.violations == (
@@ -121,7 +135,12 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\ndescription: Review a change\nname: Code--Review\n---\n')
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='Code--Review')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA,
+            frontmatter=frontmatter,
+            directory_name='Code--Review',
+            entry_name='Code--Review',
+        )
 
         #: Then
         assert [(violation.line, violation.rule) for violation in result.violations] == [
@@ -133,7 +152,9 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\nname: review\ndescription: Review a change\n---\n')
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='audit')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='audit', entry_name='audit'
+        )
 
         #: Then
         assert result.violations == (
@@ -144,12 +165,68 @@ class TestValidateSkill:
             ),
         ), 'a valid name that differs from the directory is the one violation'
 
+    def test_validate_skill_with_a_renaming_link_and_the_real_directory_name_returns_no_violations(self) -> None:
+        #: Given
+        frontmatter = parse_frontmatter('---\nname: foo\ndescription: Review a change\n---\n')
+
+        #: When
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='foo', entry_name='bar'
+        )
+
+        #: Then
+        assert result.violations == (), 'the link is transparent: a name matching the real directory is clean'
+
+    def test_validate_skill_with_a_renaming_link_and_the_link_name_reports_the_real_directory_with_a_note(
+        self,
+    ) -> None:
+        #: Given
+        frontmatter = parse_frontmatter('---\nname: bar\ndescription: Review a change\n---\n')
+
+        #: When
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='foo', entry_name='bar'
+        )
+
+        #: Then
+        assert result.violations == (
+            Violation(
+                line=LineNumber(2),
+                rule='skill.name-matches-directory',
+                message="`name` is 'bar'; expected 'foo', the name of the skill directory",
+                notes=(Note(NoteKind.NOTE, "the skill is read through the link 'bar', which leads to 'foo'"),),
+            ),
+        ), 'a name matching the link alone is held to the real directory, and the note names the link'
+
+    def test_validate_skill_with_a_renaming_link_and_neither_name_reports_the_real_directory_with_a_note(
+        self,
+    ) -> None:
+        #: Given
+        frontmatter = parse_frontmatter('---\nname: review\ndescription: Review a change\n---\n')
+
+        #: When
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='foo', entry_name='bar'
+        )
+
+        #: Then
+        assert result.violations == (
+            Violation(
+                line=LineNumber(2),
+                rule='skill.name-matches-directory',
+                message="`name` is 'review'; expected 'foo', the name of the skill directory",
+                notes=(Note(NoteKind.NOTE, "the skill is read through the link 'bar', which leads to 'foo'"),),
+            ),
+        ), 'a name matching neither is held to the real directory alone, and the note names the link'
+
     def test_validate_skill_with_a_field_outside_the_specification_reports_it_unknown(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('---\nname: review\ndescription: Review a change\nmodel: opus\n---\n')
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+        )
 
         #: Then
         assert result.violations == (
@@ -165,7 +242,9 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\nname: review\ndescription: Review a change\n123: opus\n---\n')
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+        )
 
         #: Then
         assert result.violations == (
@@ -183,7 +262,9 @@ class TestValidateSkill:
         )
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+        )
 
         #: Then
         assert result.violations == (
@@ -199,7 +280,9 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\nname: 3\ndescription: Review a change\n---\n')
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+        )
 
         #: Then
         assert [violation.rule for violation in result.violations] == ['skill.name'], (
@@ -211,7 +294,9 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\nmodel: opus\nname: review\ndescription: Review a change\n---\n')
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='audit')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='audit', entry_name='audit'
+        )
 
         #: Then
         assert [violation.rule for violation in result.violations] == [
@@ -224,7 +309,9 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\nname: review\ndescription: Review a change\nname: review\n---\n')
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+        )
 
         #: Then
         assert result.violations == (
@@ -242,7 +329,9 @@ class TestValidateSkill:
         )
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+        )
 
         #: Then
         assert result.violations == (
@@ -260,7 +349,9 @@ class TestValidateSkill:
         )
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+        )
 
         #: Then
         assert result.violations == (
@@ -281,7 +372,9 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\nname: review\ndescription: Review a change\nname: audit\n---\n')
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+        )
 
         #: Then
         assert result.violations == (
@@ -302,7 +395,9 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\nname: audit\ndescription: Review a change\nname: review\n---\n')
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+        )
 
         #: Then
         assert result.violations == (
@@ -318,7 +413,9 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\nname: review\ndescription: fine\ndescription: ""\n---\n')
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+        )
 
         #: Then
         assert result.violations == (
@@ -335,7 +432,9 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\nname: review\ndescription: ""\ndescription: fine\n---\n')
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+        )
 
         #: Then
         assert result.violations == (
@@ -351,7 +450,9 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\nname: review\ndescription: Review a change\nmodel: a\nmodel: b\n---\n')
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+        )
 
         #: Then
         assert result.violations == (
@@ -374,7 +475,9 @@ class TestValidateSkill:
         )
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+        )
 
         #: Then
         assert result.violations == (), 'a key a merge supplies is not written twice, and the written name wins'
@@ -386,7 +489,9 @@ class TestValidateSkill:
         )
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+        )
 
         #: Then
         assert result.violations == (
@@ -409,7 +514,9 @@ class TestValidateSkill:
         )
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+        )
 
         #: Then
         assert result.violations == (
@@ -430,7 +537,9 @@ class TestValidateSkill:
         frontmatter = parse_frontmatter('---\nname: review\n<<: {description: ""}\n---\n')
 
         #: When
-        result = validate_skill(SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review')
+        result = validate_skill(
+            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', entry_name='review'
+        )
 
         #: Then
         assert result.violations == (

@@ -363,6 +363,10 @@ def run_skills(database: Database, refs: tuple[SkillRef, ...]) -> SkillCheckRun:
     """
     reports: list[SkillReport] = []
     for ref in refs:
+        # A link is transparent to the name check: `name` is held to the real directory, and the entry's own name
+        # only words a note.
+        directory_name = _real_directory_name(database, ref)
+        entry_name = ref.directory.name
         frontmatter = _skill_frontmatter(database, ref)
         violations: tuple[Violation, ...]
         # `None` while the `metadata` cannot be read: unknown, not empty.
@@ -374,7 +378,10 @@ def run_skills(database: Database, refs: tuple[SkillRef, ...]) -> SkillCheckRun:
             case Frontmatter():
                 linked_in = linked_in_paths(frontmatter)
                 frontmatter_result = validate_skill(
-                    SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name=ref.directory.name
+                    SKILL_FRONTMATTER_SCHEMA,
+                    frontmatter=frontmatter,
+                    directory_name=directory_name,
+                    entry_name=entry_name,
                 )
                 length_result = _skill_length(database, ref)
                 link_result = _skill_links(database, ref, linked_in=linked_in)
@@ -391,7 +398,10 @@ def run_skills(database: Database, refs: tuple[SkillRef, ...]) -> SkillCheckRun:
                 # No mapping, so no `metadata` to read; the frontmatter check reports the frontmatter itself.
                 linked_in = None
                 frontmatter_result = validate_skill(
-                    SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name=ref.directory.name
+                    SKILL_FRONTMATTER_SCHEMA,
+                    frontmatter=frontmatter,
+                    directory_name=directory_name,
+                    entry_name=entry_name,
                 )
                 length_result = _skill_length(database, ref)
                 link_result = _skill_links(database, ref, linked_in=linked_in)
@@ -401,6 +411,19 @@ def run_skills(database: Database, refs: tuple[SkillRef, ...]) -> SkillCheckRun:
         resources = _skill_resource_reports(database, ref, linked_in=linked_in)
         reports.append(SkillReport(ref, violations=violations, resources=resources))
     return SkillCheckRun(reports=tuple(reports))
+
+
+def _real_directory_name(database: Database, ref: SkillRef) -> str:
+    """The name of the real directory a skill's entry leads to, as the snapshot the model was loaded from saw it.
+
+    Read from the location the model records, never from the disk: the entry's own name for a regular directory,
+    and the name of the directory the skill's files live in when the entry is a link. Raises nothing.
+
+    Args:
+        database: Where the model is read from.
+        ref: The skill, one the database's model lists.
+    """
+    return database.model().skill_location(ref).resolves_to.name
 
 
 def _skill_length(database: Database, ref: SkillRef) -> SkillCheckResult:
