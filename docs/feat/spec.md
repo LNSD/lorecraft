@@ -1,6 +1,6 @@
 ---
 name: "spec"
-description: "The specification files under docs/__meta__/: the <stem>.md and <stem>.<aspect>.json filename grammar, how a stem makes a directory under docs/ a corpus, how corpus and namespace stems layer onto a document, and what an absent or malformed file means. Load when adding a corpus or a namespace specification, or asking why a document is governed, ungoverned or not checked at all"
+description: "The specification files under docs/__meta__/: the file types the *.md and *.structure.json patterns claim and the stem left before the pattern, how a stem makes a directory under docs/ a corpus, how corpus and namespace stems layer onto a document, and what an absent or malformed file means. Load when adding a corpus or a namespace specification, or asking why a document is governed, ungoverned or not checked at all"
 type: "meta"
 status: "experimental"
 components: "module:lorecraft.project.schemas.spec_file,module:lorecraft.project.schemas.name,module:lorecraft.project.workspace"
@@ -26,10 +26,11 @@ path says which files govern it. Every command that reads a repository loads the
 
 - **Corpus**: A directory under `docs/` whose documents specifications govern, as
   [workspace](workspace.md) lays out.
-- **Stem**: A specification filename with its extensions dropped: `<corpus>` or `<corpus>-<namespace>`.
-- **Aspect**: One part of a specification a check can decide, held as `<stem>.<aspect>.json`. Only
-  `structure` exists: it carries the section rules, the word caps, the token budget and the frontmatter
-  schema, each read by its own check.
+- **File type**: What a specification file is, claimed by a file name pattern: `*.md` claims the prose and
+  `*.structure.json` the structure specification. A file's extension is only what follows its last dot.
+- **Stem**: A specification filename with its pattern's suffix stripped: `<corpus>` or `<corpus>-<namespace>`.
+- **Structure specification**: `<stem>.structure.json`, the part of a specification a check can decide: the
+  section rules, the word caps, the token budget and the frontmatter schema, each read by its own check.
 - **Prose**: `<stem>.md`, the specification written for a reader. It is the authority; the JSON beside it is
   the same rules in a form a check applies.
 - **Base**: The document an extension adds to: `cli-check.md` is the base of `cli-check-frontmatter.md`, and the
@@ -40,14 +41,15 @@ path says which files govern it. Every command that reads a repository loads the
 
 ### Filenames
 
-A file in `docs/__meta__/` is a specification file when its name is `<stem>.md` or `<stem>.<aspect>.json`. The
-stem opens with a corpus name, lowercase letters, digits and underscores, and a corpus name holds no hyphen, so
-the corpus ends at the first hyphen: a corpus of several words is spelled with underscores, so `docs/cli_specs/`
-is governed by `cli_specs.md` and narrowed by `cli_specs-<namespace>.md`. What follows is the namespace:
-lowercase letters and digits in hyphen-separated words. A stem holds no dot. A file whose name does not
-parse, such as `README.md` or an unknown aspect, is left out, and so is a namespace stem whose corpus has no
-file at its own stem, or no directory under `docs/`. A `<stem>.header.json` from before the frontmatter schema
-moved into the structure specification is an unknown aspect like any other, so it is left out and not read.
+A file in `docs/__meta__/` is a specification file when a file type's pattern claims its name: `<stem>.md` or
+`<stem>.structure.json`. The stem opens with a corpus name, lowercase letters, digits and underscores, and a
+corpus name holds no hyphen, so the corpus ends at the first hyphen: a corpus of several words is spelled with
+underscores, so `docs/cli_specs/` is governed by `cli_specs.md` and narrowed by `cli_specs-<namespace>.md`. What
+follows is the namespace: lowercase letters and digits in hyphen-separated words. A stem holds no dot. A file
+whose name does not parse, such as `README.md` or a `<stem>.<token>.json` that no pattern claims, is left out,
+and so is a namespace stem whose corpus has no file at its own stem, or no directory under `docs/`. A
+`<stem>.header.json` from before the frontmatter schema moved into the structure specification is claimed by no
+pattern, like any other unknown JSON file, so it is left out and not read.
 
 ### Loading
 
@@ -57,9 +59,10 @@ an error naming the file.
 
 ## Limitations
 
-- Only one aspect exists; a second needs a new check and a new dialect in the package.
-- A rule stated in prose that no aspect file holds is not checked: the prose and the JSON can drift, and
-  nothing detects it.
+- The structure specification is the only machine-checkable file type; a second needs a new pattern, a new
+  check and a new dialect in the package.
+- A rule stated in prose that no structure specification holds is not checked: the prose and the JSON can drift,
+  and nothing detects it.
 
 ## Base and Extension
 
@@ -89,7 +92,7 @@ keys it reads, is ungoverned for that check and reported as such; frontmatter ne
 
 An extension names its base; a base never names its extensions, neither in its references nor inline.
 `feat-cli.md` links to `feat.md` and `cli-check-frontmatter.md` to `cli-check.md`; neither base links back. For a
-specification this covers its aspect files too: a base's `description` names no extension, and `feat.md` does
+specification this covers its JSON files too: a base's `description` names no extension, and `feat.md` does
 not point at any `feat-cli.*.json`. A base is written without knowing what extends it, so adding, renaming or
 removing an extension never edits the base, and the base carries no list of extensions to go stale.
 

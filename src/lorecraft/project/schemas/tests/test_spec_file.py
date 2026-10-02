@@ -1,4 +1,4 @@
-"""The specification filename grammar: parsing a filename into its stem and aspect, and writing it back."""
+"""The specification filename grammar: parsing a filename into its stem and file type, and writing it back."""
 
 from typing import Final
 
@@ -14,11 +14,11 @@ from ..spec_file import (
     InvalidSpecStemError,
     NotASpecFileError,
     NotASpecStemError,
-    SpecAspect,
     SpecFile,
-    UnknownSpecAspectError,
+    SpecFileType,
+    UnknownSpecFileTypeError,
     parse_spec_file,
-    schema_filename,
+    spec_filename,
 )
 
 META: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__')
@@ -27,7 +27,7 @@ CODE: Final[CorpusName] = CorpusName.parse('code')
 
 @pytest.mark.unit
 class TestParseSpecFile:
-    def test_parse_spec_file_with_a_corpus_prose_file_returns_a_spec_file_without_aspect(self) -> None:
+    def test_parse_spec_file_with_a_corpus_prose_file_returns_a_prose_spec_file(self) -> None:
         #: Given
         path = META / 'code.md'
 
@@ -35,8 +35,8 @@ class TestParseSpecFile:
         spec_file = parse_spec_file(path)
 
         #: Then
-        assert spec_file == SpecFile(path=path, name=(CODE,), aspect=None), (
-            'code.md parses into the code corpus stem with no aspect'
+        assert spec_file == SpecFile(path=path, name=(CODE,), type=SpecFileType.PROSE), (
+            'code.md parses into the code corpus stem and the prose file type'
         )
 
     def test_parse_spec_file_with_a_corpus_structure_file_returns_a_structure_spec_file(self) -> None:
@@ -47,21 +47,21 @@ class TestParseSpecFile:
         spec_file = parse_spec_file(path)
 
         #: Then
-        assert spec_file == SpecFile(path=path, name=(CODE,), aspect=SpecAspect.STRUCTURE), (
-            'code.structure.json parses into the code corpus stem and the structure aspect'
+        assert spec_file == SpecFile(path=path, name=(CODE,), type=SpecFileType.STRUCTURE), (
+            'code.structure.json parses into the code corpus stem and the structure file type'
         )
 
-    def test_parse_spec_file_with_a_header_file_raises_unknown_spec_aspect_error(self) -> None:
+    def test_parse_spec_file_with_a_header_file_raises_unknown_spec_file_type_error(self) -> None:
         #: Given
-        # the frontmatter schema moved into the structure specification, so header is no longer an aspect
+        # the frontmatter schema moved into the structure specification, so no file type claims *.header.json
         path = META / 'code.header.json'
 
         #: When
-        with pytest.raises(UnknownSpecAspectError) as exc_info:
+        with pytest.raises(UnknownSpecFileTypeError) as exc_info:
             parse_spec_file(path)
 
         #: Then
-        assert exc_info.value.token == 'header', 'header is not one of the aspect tokens'
+        assert exc_info.value.token == 'header', 'no file type claims *.header.json'
 
     def test_parse_spec_file_with_a_nested_namespace_structure_file_returns_a_structure_spec_file(self) -> None:
         #: Given
@@ -72,7 +72,7 @@ class TestParseSpecFile:
 
         #: Then
         assert spec_file == SpecFile(
-            path=path, name=(CODE, AspectNamespace.parse('python-errors')), aspect=SpecAspect.STRUCTURE
+            path=path, name=(CODE, AspectNamespace.parse('python-errors')), type=SpecFileType.STRUCTURE
         ), 'code-python-errors.structure.json parses into the code corpus, one python-errors namespace and structure'
 
     def test_parse_spec_file_with_a_dotted_structure_stem_raises_dotted_spec_stem_error(self) -> None:
@@ -111,7 +111,7 @@ class TestParseSpecFile:
         assert exc_info.value.path == path, 'a .txt file is not a specification file; the error names notes.txt'
         assert str(path) in str(exc_info.value), f'the message names the rejected file, got {exc_info.value}'
 
-    def test_parse_spec_file_with_json_without_an_aspect_token_raises_not_a_spec_file_error(self) -> None:
+    def test_parse_spec_file_with_json_without_a_token_raises_not_a_spec_file_error(self) -> None:
         #: Given
         path = META / 'notes.json'
 
@@ -121,7 +121,7 @@ class TestParseSpecFile:
 
         #: Then
         assert exc_info.value.path == path, (
-            'a .json file without an aspect token is not a specification file; the error names notes.json'
+            'a .json file without a token before .json is not a specification file; the error names notes.json'
         )
 
     def test_parse_spec_file_with_json_without_a_stem_raises_not_a_spec_file_error(self) -> None:
@@ -137,7 +137,7 @@ class TestParseSpecFile:
             'a bare .structure.json has no stem, so it is not a specification file; the error names it'
         )
 
-    def test_parse_spec_file_with_json_with_an_empty_aspect_token_raises_not_a_spec_file_error(self) -> None:
+    def test_parse_spec_file_with_json_with_an_empty_token_raises_not_a_spec_file_error(self) -> None:
         #: Given
         path = META / 'code..json'
 
@@ -147,7 +147,7 @@ class TestParseSpecFile:
 
         #: Then
         assert exc_info.value.path == path, (
-            'code..json has an empty aspect token, so it is not a specification file; the error names it'
+            'code..json has an empty token before .json, so it is not a specification file; the error names it'
         )
 
     def test_parse_spec_file_with_prose_without_a_stem_raises_not_a_spec_file_error(self) -> None:
@@ -163,29 +163,29 @@ class TestParseSpecFile:
             'a bare .md has no stem, so it is not a specification file; the error names .md'
         )
 
-    def test_parse_spec_file_with_an_unknown_aspect_token_raises_unknown_spec_aspect_error(self) -> None:
+    def test_parse_spec_file_with_an_unknown_token_raises_unknown_spec_file_type_error(self) -> None:
         #: Given
         path = META / 'code.headers.json'
 
         #: When
-        with pytest.raises(UnknownSpecAspectError) as exc_info:
+        with pytest.raises(UnknownSpecFileTypeError) as exc_info:
             parse_spec_file(path)
 
         #: Then
-        assert exc_info.value.path == path, 'headers is not one of the aspect tokens; the error names code.headers.json'
+        assert exc_info.value.path == path, 'no file type claims *.headers.json; the error names code.headers.json'
         assert str(path) in str(exc_info.value), f'the message names the rejected file, got {exc_info.value}'
 
-    def test_parse_spec_file_with_a_budget_file_raises_unknown_spec_aspect_error(self) -> None:
+    def test_parse_spec_file_with_a_budget_file_raises_unknown_spec_file_type_error(self) -> None:
         #: Given
-        # word caps are part of the structure dialect, so budget is no longer an aspect of its own
+        # word caps are part of the structure dialect, so no file type claims *.budget.json
         path = META / 'code.budget.json'
 
         #: When
-        with pytest.raises(UnknownSpecAspectError) as exc_info:
+        with pytest.raises(UnknownSpecFileTypeError) as exc_info:
             parse_spec_file(path)
 
         #: Then
-        assert exc_info.value.token == 'budget', 'budget is not one of the aspect tokens'
+        assert exc_info.value.token == 'budget', 'no file type claims *.budget.json'
 
     def test_parse_spec_file_with_prose_at_a_non_stem_raises_not_a_spec_stem_error(self) -> None:
         #: Given
@@ -214,7 +214,7 @@ class TestParseSpecFile:
 
         #: Then
         assert exc_info.value.path == path, (
-            'an aspect file must be named after a valid stem; the error names README.structure.json'
+            'a structure specification file must be named after a valid stem; the error names README.structure.json'
         )
         assert isinstance(exc_info.value.source, InvalidCorpusNameCharacterError), (
             f'README is not a corpus name for its uppercase letters, got {type(exc_info.value.source).__name__}'
@@ -240,12 +240,22 @@ class TestParseSpecFile:
 
 @pytest.mark.unit
 class TestSpecFilenames:
-    def test_schema_filename_with_a_namespace_stem_writes_what_parse_reads(self) -> None:
+    def test_spec_filename_with_a_namespace_stem_writes_what_parse_reads(self) -> None:
         #: Given
         name: SchemaName = (CODE, AspectNamespace.parse('python'))
 
         #: When
-        filename = schema_filename(name, SpecAspect.STRUCTURE)
+        filename = spec_filename(name, SpecFileType.STRUCTURE)
 
         #: Then
-        assert filename == 'code-python.structure.json', 'the stem is followed by the aspect token and .json'
+        assert filename == 'code-python.structure.json', 'the stem is followed by what *.structure.json claims'
+
+    def test_spec_filename_with_the_prose_type_writes_the_markdown_file_at_the_stem(self) -> None:
+        #: Given
+        name: SchemaName = (CODE, AspectNamespace.parse('python'))
+
+        #: When
+        filename = spec_filename(name, SpecFileType.PROSE)
+
+        #: Then
+        assert filename == 'code-python.md', 'the stem is followed by what *.md claims'

@@ -8,8 +8,8 @@ specs), never document content: text stays behind the document repository and is
 
 Governance is the one computation the model owns. A document is governed by its corpus spec first, then by
 every namespace spec whose namespace matches its filename, broad to narrow. A namespace spec narrows a
-base; it never supplies one, so a corpus spec without an aspect leaves the document ungoverned for that
-aspect whatever the namespace specs carry.
+base; it never supplies one, so a corpus spec that states no rule of one kind, a structure specification or a
+frontmatter schema, leaves the document ungoverned for that kind whatever the namespace specs carry.
 """
 
 from dataclasses import dataclass
@@ -21,7 +21,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.ref import DocumentRef
 from lorecraft.project.layout import DOCS_DIR
 from lorecraft.project.schemas.name import SchemaName
-from lorecraft.project.schemas.structure import FrontmatterSchema, StructureAspect
+from lorecraft.project.schemas.structure import FrontmatterSchema, StructureSpec
 from lorecraft.project.skill.named_dir import NamedDir
 from lorecraft.project.skill.outside import OutsideSymlink
 from lorecraft.project.skill.ref import SkillLocation, SkillRef
@@ -30,20 +30,20 @@ from lorecraft.project.skill.skills_dir import SkillsDir
 
 @dataclass(frozen=True, slots=True)
 class Spec:
-    """One specification stem in docs/__meta__ and the aspects decoded from it.
+    """One specification stem in docs/__meta__ and the structure specification decoded from it.
 
-    Not hashable: a structure aspect's ``FrontmatterSchema`` holds a dict, so instances must not be put in a set or
-    used as a key.
+    Not hashable: a structure specification's `FrontmatterSchema` holds a dict, so instances must not be put in a
+    set or used as a key.
 
     Attributes:
         name: The stem, parsed.
         files: Every root-relative file at this stem (prose and JSON), sorted; may be prose only.
-        structure: The structure aspect, or None when ``<stem>.structure.json`` does not exist.
+        structure: The structure specification, or None when `<stem>.structure.json` does not exist.
     """
 
     name: SchemaName
     files: tuple[RootRelativePath, ...]
-    structure: StructureAspect | None
+    structure: StructureSpec | None
 
     @property
     def corpus(self) -> CorpusName:
@@ -86,34 +86,34 @@ class Governance:
         """Every governing spec, corpus spec first."""
         return (self.corpus_spec, *self.namespace_specs)
 
-    def structure_specs(self) -> tuple[StructureAspect, ...]:
-        """Structure aspects to apply in order; ``()`` means ungoverned for the structure aspect.
+    def structure_specs(self) -> tuple[StructureSpec, ...]:
+        """Structure specifications to apply in order; `()` means ungoverned for structure.
 
-        A corpus spec without a structure aspect leaves the document ungoverned even when a matching namespace
-        spec carries one: a namespace narrows a base, it cannot supply one.
+        A corpus spec without a structure specification leaves the document ungoverned even when a matching
+        namespace spec carries one: a namespace narrows a base, it cannot supply one.
         """
         if self.corpus_spec.structure is None:
             return ()
-        aspects: list[StructureAspect] = []
+        structure_specs: list[StructureSpec] = []
         for spec in self.specs():
             if spec.structure is not None:
-                aspects.append(spec.structure)
-        return tuple(aspects)
+                structure_specs.append(spec.structure)
+        return tuple(structure_specs)
 
     def frontmatter_schemas(self) -> tuple[FrontmatterSchema, ...]:
-        """Frontmatter schemas to apply in order; ``()`` means ungoverned for frontmatter.
+        """Frontmatter schemas to apply in order; `()` means ungoverned for frontmatter.
 
-        Each comes from the ``frontmatter`` key of a structure aspect. As with ``structure_specs``, a corpus spec
-        whose structure aspect states no frontmatter schema leaves the document ungoverned even when a matching
-        namespace spec states one.
+        Each comes from the `frontmatter` key of a structure specification. As with `structure_specs`, a corpus
+        spec whose structure specification states no frontmatter schema leaves the document ungoverned even when a
+        matching namespace spec states one.
         """
         corpus_structure = self.corpus_spec.structure
         if corpus_structure is None or corpus_structure.frontmatter is None:
             return ()
         schemas: list[FrontmatterSchema] = []
-        for aspect in self.structure_specs():
-            if aspect.frontmatter is not None:
-                schemas.append(aspect.frontmatter)
+        for structure_spec in self.structure_specs():
+            if structure_spec.frontmatter is not None:
+                schemas.append(structure_spec.frontmatter)
         return tuple(schemas)
 
 

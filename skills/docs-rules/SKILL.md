@@ -34,14 +34,14 @@ lorecraft inspect --json   # the same model; each document's governed_by lists i
 ```
 
 In the tree, each document is followed by the stems governing it, broad to narrow: `pattern-state.md [code,
-code-pattern]` answers to `docs/__meta__/code.md`, then `docs/__meta__/code-pattern.md`. The `.json` file at
-the same stem is the machine-checkable half the checks run: `<stem>.structure.json`, for the frontmatter
-under its `frontmatter` key, the sections, the word caps and the token budget. [cli-inspect](references/cli-inspect.md)
-describes the output. The tree ends with the agent skills and the agents that read them, which writing a
-document does not need.
+code-pattern]` answers to `docs/__meta__/code.md`, then `docs/__meta__/code-pattern.md`. The file at the
+same stem that the pattern `*.structure.json` claims, the structure specification, is the machine-checkable half
+the checks run: the frontmatter under its `frontmatter` key, the sections, the word caps and the token budget.
+[cli-inspect](references/cli-inspect.md) describes the output. The tree ends with the agent skills and the agents
+that read them, which writing a document does not need.
 
 A document not yet written is not listed: create the file, empty if need be, and run it again. A file that
-exists but is not listed is outside every corpus, and a corpus with no specification for an aspect is
+exists but is not listed is outside every corpus, and a corpus with no specification for a check is
 ungoverned for it. Say so rather than inventing rules or borrowing another corpus's.
 
 ## 2. Choose the corpus

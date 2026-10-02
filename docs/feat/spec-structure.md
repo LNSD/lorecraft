@@ -93,7 +93,7 @@ shape only; a rule that no shape can state is checked on load.
 
 ## References
 
-- [spec](spec.md) - Base: stems, aspects and how layers apply
+- [spec](spec.md) - Base: stems, file types and how layers apply
 - [cli-check](cli-check.md) - Related: the checks that read a structure specification
 
 ## Code References

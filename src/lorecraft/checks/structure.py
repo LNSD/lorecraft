@@ -1,21 +1,21 @@
 """Check one document's section structure against the structure specifications that govern it.
 
-The check is pure: it takes the already validated structure aspects that govern a document and the document's
-headings, and returns violations. It reads those and nothing else, so it is handed them rather than the whole parse
-tree, and not even the document's path: the run that called it attaches that. It covers the mechanical half of a
-specification's section rules: the H1 title, empty sections, forbidden sections, the order of the sections the
-outline names, and the word cap on each section. Whether a section
-says what it should is a judgment call, and stays with review. A section the outline expects but the document
-lacks is reported with the notes its entry states: help with its description, and a note with its first example.
+The check is pure: it takes the already validated structure specifications that govern a document and the
+document's headings, and returns violations. It reads those and nothing else, so it is handed them rather than the
+whole parse tree, and not even the document's path: the run that called it attaches that. It covers the mechanical
+half of a specification's section rules: the H1 title, empty sections, forbidden sections, the order of the sections
+the outline names, and the word cap on each section. Whether a section says what it should is a judgment call, and
+stays with review. A section the outline expects but the document lacks is reported with the notes its entry
+states: help with its description, and a note with its first example.
 
-Each aspect is applied on its own. A namespace specification states only what it adds to the corpus one, so
-a document governed by both must pass both, and neither can relax the other.
+Each structure specification is applied on its own. A namespace specification states only what it adds to the
+corpus one, so a document governed by both must pass both, and neither can relax the other.
 """
 
 from dataclasses import dataclass
 from typing import Final, assert_never
 
-from lorecraft.project.schemas import AnySections, OutlineEntry, SectionEntry, StructureAspect
+from lorecraft.project.schemas import AnySections, OutlineEntry, SectionEntry, StructureSpec
 from lorecraft.project.syntax import Heading, LineNumber
 
 from .reporting import Note, NoteKind, Violation
@@ -38,33 +38,36 @@ class StructureCheckResult:
     violations: tuple[Violation, ...]
 
 
-def validate_structure(aspects: tuple[StructureAspect, ...], *, headings: tuple[Heading, ...]) -> StructureCheckResult:
-    """Check one document's headings against the structure aspects that govern it.
+def validate_structure(
+    structure_specs: tuple[StructureSpec, ...], *, headings: tuple[Heading, ...]
+) -> StructureCheckResult:
+    """Check one document's headings against the structure specifications that govern it.
 
-    Every violation's message ends by quoting the aspect's ``authority``, so a reader is sent to the prose rule.
+    Every violation's message ends by quoting the structure specification's `authority`, so a reader is sent to the
+    prose rule.
 
     Args:
-        aspects: Applied each on its own. Empty means the document is ungoverned, which yields no violations.
+        structure_specs: Applied each on its own. Empty means the document is ungoverned, which yields no violations.
         headings: The document's top-level headings, in document order, as its parse tree holds them.
     """
     sections = tuple(heading for heading in headings if heading.level == _SECTION_LEVEL)
     violations: list[Violation] = []
-    for aspect in aspects:
-        aspect_violations = [
-            *_check_title(aspect, headings),
-            *_check_empty(aspect, headings),
-            *_check_forbidden(aspect, sections),
-            *_check_outline(aspect, sections),
-            *_check_section_words(aspect, sections),
+    for structure_spec in structure_specs:
+        spec_violations = [
+            *_check_title(structure_spec, headings),
+            *_check_empty(structure_spec, headings),
+            *_check_forbidden(structure_spec, sections),
+            *_check_outline(structure_spec, sections),
+            *_check_section_words(structure_spec, sections),
         ]
-        for violation in aspect_violations:
-            message = f'{violation.message} (per {aspect.authority})'
+        for violation in spec_violations:
+            message = f'{violation.message} (per {structure_spec.authority})'
             violations.append(
                 Violation(
                     line=violation.line,
                     rule=violation.rule,
                     message=message,
-                    spec=aspect.path,
+                    spec=structure_spec.path,
                     notes=violation.notes,
                 )
             )
@@ -72,34 +75,37 @@ def validate_structure(aspects: tuple[StructureAspect, ...], *, headings: tuple[
     return StructureCheckResult(violations=tuple(violations))
 
 
-def _check_title(aspect: StructureAspect, headings: tuple[Heading, ...]) -> list[Violation]:
-    """Check the number of H1 titles, and that one opens the document when the aspect requires it.
+def _check_title(structure_spec: StructureSpec, headings: tuple[Heading, ...]) -> list[Violation]:
+    """Check the number of H1 titles, and that one opens the document when the structure specification requires it.
 
     Args:
-        aspect: The structure aspect whose `title` rule applies; one without a `title` yields no violation.
+        structure_spec: The structure specification whose `title` rule applies; one without a `title` yields no
+            violation.
         headings: Every heading of the document, in document order, of any level.
     """
-    if aspect.title is None:
+    if structure_spec.title is None:
         return []
     violations: list[Violation] = []
     titles = [heading for heading in headings if heading.level == 1]
-    if len(titles) != aspect.title.count:
+    if len(titles) != structure_spec.title.count:
         violations.append(
-            Violation(_FIRST_LINE, 'structure.title', f'expected {aspect.title.count} H1 title, found {len(titles)}')
+            Violation(
+                _FIRST_LINE, 'structure.title', f'expected {structure_spec.title.count} H1 title, found {len(titles)}'
+            )
         )
-    if aspect.title.first and not (headings and headings[0].level == 1):
+    if structure_spec.title.first and not (headings and headings[0].level == 1):
         violations.append(Violation(_FIRST_LINE, 'structure.title', 'the H1 title comes before any section'))
     return violations
 
 
-def _check_empty(aspect: StructureAspect, headings: tuple[Heading, ...]) -> list[Violation]:
-    """Report every heading whose section holds nothing, when the aspect forbids empty sections.
+def _check_empty(structure_spec: StructureSpec, headings: tuple[Heading, ...]) -> list[Violation]:
+    """Report every heading whose section holds nothing, when the structure specification forbids empty sections.
 
     Args:
-        aspect: The structure aspect; with `forbid_empty_sections` off nothing is reported.
+        structure_spec: The structure specification; with `forbid_empty_sections` off nothing is reported.
         headings: Every heading of the document, of any level; the title and subsections included.
     """
-    if not aspect.forbid_empty_sections:
+    if not structure_spec.forbid_empty_sections:
         return []
     violations: list[Violation] = []
     for heading in headings:
@@ -114,15 +120,15 @@ def _check_empty(aspect: StructureAspect, headings: tuple[Heading, ...]) -> list
     return violations
 
 
-def _check_forbidden(aspect: StructureAspect, sections: tuple[Heading, ...]) -> list[Violation]:
-    """Report the first occurrence of every section the aspect forbids.
+def _check_forbidden(structure_spec: StructureSpec, sections: tuple[Heading, ...]) -> list[Violation]:
+    """Report the first occurrence of every section the structure specification forbids.
 
     Args:
-        aspect: The structure aspect whose `forbidden` names are looked for.
+        structure_spec: The structure specification whose `forbidden` names are looked for.
         sections: The document's H2 headings, in document order.
     """
     violations: list[Violation] = []
-    for name in aspect.forbidden:
+    for name in structure_spec.forbidden:
         for section in sections:
             if section.text == name:
                 violations.append(Violation(section.line, 'structure.forbidden', f'section `{name}` is forbidden here'))
@@ -130,23 +136,23 @@ def _check_forbidden(aspect: StructureAspect, sections: tuple[Heading, ...]) -> 
     return violations
 
 
-def _check_outline(aspect: StructureAspect, sections: tuple[Heading, ...]) -> list[Violation]:
+def _check_outline(structure_spec: StructureSpec, sections: tuple[Heading, ...]) -> list[Violation]:
     """Match the outline against the document's sections, left to right.
 
     One violation at most: past the first divergence every later entry is measured against sections it was
     never meant to match, and what that cascade reports says nothing.
 
     Args:
-        aspect: The structure aspect whose `outline` is matched; an empty outline yields no violation.
+        structure_spec: The structure specification whose `outline` is matched; an empty outline yields no violation.
         sections: The document's H2 headings, in document order.
     """
-    if not aspect.outline:
+    if not structure_spec.outline:
         return []
 
-    named = set(aspect.section_names())
+    named = set(structure_spec.section_names())
     at = 0  # the first section not yet accounted for
 
-    for entry in aspect.outline:
+    for entry in structure_spec.outline:
         match entry:
             case AnySections():
                 # The run stops at a section the outline names: that section belongs to the entry naming it,
@@ -208,7 +214,7 @@ def _missing_section_notes(entry: SectionEntry) -> tuple[Note, ...]:
     return tuple(notes)
 
 
-def _check_section_words(aspect: StructureAspect, sections: tuple[Heading, ...]) -> list[Violation]:
+def _check_section_words(structure_spec: StructureSpec, sections: tuple[Heading, ...]) -> list[Violation]:
     """Report every section holding more prose words than its outline entry allows, its subsections included.
 
     A section the outline names takes the cap of the entry naming it, which may be none. Any other section takes
@@ -216,18 +222,18 @@ def _check_section_words(aspect: StructureAspect, sections: tuple[Heading, ...])
     before it. In a document that follows the outline, that is the run which matches it.
 
     Args:
-        aspect: The structure aspect whose `outline` entries carry the word caps.
+        structure_spec: The structure specification whose `outline` entries carry the word caps.
         sections: The document's H2 headings, in document order, each with its prose word count.
     """
     violations: list[Violation] = []
     last_named_at = -1  # the outline index of the last named section passed; -1 before any
     for section in sections:
-        entry_at = _find_entry_index(aspect.outline, section.text)
+        entry_at = _find_entry_index(structure_spec.outline, section.text)
         if entry_at is None:
-            cap = _find_run_cap(aspect.outline, last_named_at)
+            cap = _find_run_cap(structure_spec.outline, last_named_at)
         else:
             last_named_at = entry_at
-            cap = aspect.outline[entry_at].words
+            cap = structure_spec.outline[entry_at].words
         if cap is not None and section.words > cap:
             violations.append(
                 Violation(

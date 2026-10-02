@@ -17,7 +17,7 @@ from lorecraft.project.document.ref import DocumentRef
 from lorecraft.project.layout import SPECS_DIR
 from lorecraft.project.schemas import (
     FrontmatterSchema,
-    StructureAspect,
+    StructureSpec,
     parse_schema_name,
     schema_name_stem,
 )
@@ -41,13 +41,13 @@ def _spec(stem: str, *, frontmatter: bool = True, structure: bool = False) -> Sp
         structure: Whether the structure file forbids empty sections.
     """
     files = [SPECS_DIR / f'{stem}.md']
-    structure_aspect: StructureAspect | None = None
+    structure_spec: StructureSpec | None = None
     if frontmatter or structure:
         path = SPECS_DIR / f'{stem}.structure.json'
         frontmatter_schema: FrontmatterSchema | None = None
         if frontmatter:
             frontmatter_schema = FrontmatterSchema(path=path, schema={'type': 'object'})
-        structure_aspect = StructureAspect(
+        structure_spec = StructureSpec(
             path=path,
             title=None,
             forbid_empty_sections=structure,
@@ -60,7 +60,7 @@ def _spec(stem: str, *, frontmatter: bool = True, structure: bool = False) -> Sp
     return Spec(
         name=parse_schema_name(stem),
         files=tuple(sorted(files, key=str)),
-        structure=structure_aspect,
+        structure=structure_spec,
     )
 
 
@@ -165,7 +165,7 @@ class TestGovernance:
         #: Then
         assert governance.ref == ref, 'the governance names the python-typing document it was asked about'
         assert tuple(schema_name_stem(spec.name) for spec in governance.specs()) == ('code', 'code-python'), (
-            'the corpus spec still governs first even without a structure aspect, then the python namespace'
+            'the corpus spec still governs first even without a structure specification, then the python namespace'
         )
 
     def test_governance_with_a_prose_only_namespace_includes_the_prose_only_namespace(self) -> None:
@@ -259,7 +259,7 @@ class TestGovernance:
 
         #: Then
         assert schemas == (), (
-            'a namespace never governs alone: no frontmatter schema applies without a corpus structure aspect'
+            'a namespace never governs alone: no frontmatter schema applies without a corpus structure specification'
         )
 
     def test_frontmatter_schemas_with_a_corpus_structure_without_a_schema_returns_no_schemas(self) -> None:
@@ -300,13 +300,13 @@ class TestGovernance:
         governance = model.governance(_ref('code', filename))
 
         #: When
-        aspects = governance.structure_specs()
+        structure_specs = governance.structure_specs()
 
         #: Then
-        assert tuple(aspect.path for aspect in aspects) == (
+        assert tuple(structure_spec.path for structure_spec in structure_specs) == (
             SPECS_DIR / 'code.structure.json',
             SPECS_DIR / 'code-python.structure.json',
-        ), 'the structure aspects follow the corpus and python specs, broad to narrow'
+        ), 'the structure specifications follow the corpus and python specs, broad to narrow'
 
     def test_structure_specs_with_a_corpus_spec_without_a_structure_returns_no_structures(self) -> None:
         #: Given
@@ -316,11 +316,11 @@ class TestGovernance:
         governance = model.governance(_ref('code', filename))
 
         #: When
-        aspects = governance.structure_specs()
+        structure_specs = governance.structure_specs()
 
         #: Then
-        assert aspects == (), (
-            'a namespace never governs alone: no structure applies when the corpus spec has no structure aspect'
+        assert structure_specs == (), (
+            'a namespace never governs alone: no structure applies when the corpus spec has no structure specification'
         )
 
     def test_structure_specs_with_a_namespace_without_a_structure_returns_the_corpus_structure(self) -> None:
@@ -331,12 +331,12 @@ class TestGovernance:
         governance = model.governance(_ref('code', filename))
 
         #: When
-        aspects = governance.structure_specs()
+        structure_specs = governance.structure_specs()
 
         #: Then
-        assert tuple(aspect.path for aspect in aspects) == (SPECS_DIR / 'code.structure.json',), (
-            'a namespace spec without a structure file adds nothing, so only the corpus structure applies'
-        )
+        assert tuple(structure_spec.path for structure_spec in structure_specs) == (
+            SPECS_DIR / 'code.structure.json',
+        ), 'a namespace spec without a structure file adds nothing, so only the corpus structure applies'
 
     def test_structure_specs_with_a_corpus_structure_stating_only_frontmatter_returns_both_structures(self) -> None:
         #: Given
@@ -347,10 +347,10 @@ class TestGovernance:
         governance = model.governance(_ref('code', filename))
 
         #: When
-        aspects = governance.structure_specs()
+        structure_specs = governance.structure_specs()
 
         #: Then
-        assert tuple(aspect.path for aspect in aspects) == (
+        assert tuple(structure_spec.path for structure_spec in structure_specs) == (
             SPECS_DIR / 'code.structure.json',
             SPECS_DIR / 'code-python.structure.json',
         ), 'a structure file is a base whatever rule it states, as a tokens-only file is, so the namespace applies'

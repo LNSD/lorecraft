@@ -1,11 +1,11 @@
 """Read specification files from one directory through the filesystem boundary.
 
 Every path the repository takes or returns is root-relative: the specification directory is joined to the
-workspace root only inside ``FileSystem``. The repository reads; the text it returns is typed as
+workspace root only inside `FileSystem`. The repository reads; the text it returns is typed as
 read and nothing more. Whether a structure specification states usable rules, its frontmatter schema included, is
-proved by ``StructureAspect.parse``; which documents a specification governs is decided above the repository.
+proved by `StructureSpec.parse`; which documents a specification governs is decided above the repository.
 
-Nothing here logs: the command that loads the model catches every ``Error`` that escapes it and reports it,
+Nothing here logs: the command that loads the model catches every `Error` that escapes it and reports it,
 so every handler below re-raises without logging.
 """
 
@@ -14,7 +14,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.vfs import EntryKind, FileReadError, FileSystem, UnrecordedFileError
 
 from .name import SchemaName, schema_name_stem
-from .spec_file import SpecAspect, schema_filename
+from .spec_file import SpecFileType, spec_filename
 from .structure import StructureSchema
 
 
@@ -65,7 +65,7 @@ class Repository:
     def get_structure_schema(self, name: SchemaName) -> StructureSchema:
         """Read one structure schema's text, undecoded.
 
-        `StructureAspect.parse` deserializes and validates it in one step, so the JSON is read once, by the
+        `StructureSpec.parse` deserializes and validates it in one step, so the JSON is read once, by the
         model that states its shape.
 
         Args:
@@ -74,7 +74,7 @@ class Repository:
         Raises:
             StructureSchemaReadError: If the file cannot be read.
         """
-        path = self._specs_dir / schema_filename(name, SpecAspect.STRUCTURE)
+        path = self._specs_dir / spec_filename(name, SpecFileType.STRUCTURE)
         try:
             return StructureSchema(self._fs.read_text(path))
         except (FileReadError, UnrecordedFileError) as exc:

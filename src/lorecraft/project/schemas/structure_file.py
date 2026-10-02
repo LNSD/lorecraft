@@ -1,18 +1,18 @@
 """The shape of a structure specification file, as it is written: the one declaration of its fields.
 
-These models describe the JSON a ``<stem>.structure.json`` file holds, field for field, where ``StructureAspect``
-holds the rules decoded from it. They are the edge: ``StructureAspect.parse`` deserializes a file's text straight
-into ``StructureFile`` and nothing else reads the JSON, so a file that gets past them has this shape exactly. And
-``just gen`` renders them into ``docs/schemas/structure.spec.json``, the JSON Schema an editor validates the file
+These models describe the JSON a `<stem>.structure.json` file holds, field for field, where `StructureSpec`
+holds the rules decoded from it. They are the edge: `StructureSpec.parse` deserializes a file's text straight
+into `StructureFile` and nothing else reads the JSON, so a file that gets past them has this shape exactly. And
+`just gen` renders them into `docs/schemas/structure.spec.json`, the JSON Schema an editor validates the file
 against while it is written, so the editor and the check hold a file to the same declaration.
 
-Every model is strict, frozen and closed. Strict, so a JSON value is never coerced into another type: ``true`` is
-not a count and ``"yes"`` is not a boolean. Frozen, so a parsed file cannot change after it was validated. Closed
-(``extra='forbid'``), so a misspelt field is an error rather than a rule silently ignored.
+Every model is strict, frozen and closed. Strict, so a JSON value is never coerced into another type: `true` is
+not a count and `"yes"` is not a boolean. Frozen, so a parsed file cannot change after it was validated. Closed
+(`extra='forbid'`), so a misspelt field is an error rather than a rule silently ignored.
 
-What the schema shows an editor is declared here too: each field's docstring is its description, ``Field`` adds
+What the schema shows an editor is declared here too: each field's docstring is its description, `Field` adds
 its examples and bounds, and each model's config names it and gives a whole example. Only the shape is stated
-here; what a shape cannot state, such as an outline naming a section twice, is refused by ``StructureAspect``.
+here; what a shape cannot state, such as an outline naming a section twice, is refused by `StructureSpec`.
 """
 
 from typing import Annotated, Final, Literal
@@ -25,11 +25,11 @@ JSON_SCHEMA_DIALECT: Final[str] = 'https://json-schema.org/draft/2020-12/schema'
 
 # Runs once per process, before mutmut swaps a mutant in, so no test can ever see a mutant of it.
 def _frontmatter_json_schema() -> dict[str, JsonValue]:  # pragma: no mutate block
-    """What an editor holds the ``frontmatter`` key to.
+    """What an editor holds the `frontmatter` key to.
 
-    That is any schema the Draft 2020-12 meta-schema accepts that also states ``"type": "object"`` at its root.
-    ``StructureAspect`` refuses the same schemas when it loads the file, and
-    a few more no schema here can state, such as one carrying ``$id``. A ``null`` is refused here and at load alike.
+    That is any schema the Draft 2020-12 meta-schema accepts that also states `"type": "object"` at its root.
+    `StructureSpec` refuses the same schemas when it loads the file, and
+    a few more no schema here can state, such as one carrying `$id`. A `null` is refused here and at load alike.
     A fresh dict each call, so no caller can change the source of the generated schema.
     """
     return {

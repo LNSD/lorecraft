@@ -15,12 +15,12 @@ by [python-docstrings](python-docstrings.md).
 ## 1. Make Ambiguous Options Keyword-Only
 
 Put `*` before optional parameters whose meaning is unclear at a positional call site. A call such as
-`load_schema(corpus, aspect, kind)` asks the reader to recall an argument order; named options show which
+`load_schema(corpus, namespace, kind)` asks the reader to recall an argument order; named options show which
 selection was made. Keep an argument positional when its role is already clear and positional use is natural.
 
 ```python
 # ❌ Bad — the third argument's meaning is invisible at the call site
-def load_schema(corpus: str, aspect: str | None = None, kind: str | None = None) -> str:
+def load_schema(corpus: str, namespace: str | None = None, kind: str | None = None) -> str:
     ...
 
 
@@ -29,7 +29,7 @@ schema = load_schema('code', None, 'structure')
 
 ```python
 # ✅ Good — the option names travel with the call
-def load_schema(corpus: str, aspect: str | None = None, *, kind: str | None = None) -> str:
+def load_schema(corpus: str, namespace: str | None = None, *, kind: str | None = None) -> str:
     ...
 
 

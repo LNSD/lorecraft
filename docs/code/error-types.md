@@ -285,7 +285,7 @@ Every name ends in `Error`, and its form says what kind of thing it names:
 | Names | Form | Examples |
 |---|---|---|
 | A step that could not be done | `<Subject><Step>Error` | `SpecReadError`, `DirListError`, `OutlineLoadError` |
-| A rule the input breaks | `<Condition><Subject>Error` | `EmptyCorpusNameError`, `UnknownSpecAspectError` |
+| A rule the input breaks | `<Condition><Subject>Error` | `EmptyCorpusNameError`, `UnknownSpecFileTypeError` |
 | A named union | `<Operation>Error`, the function's name in `PascalCase` | `FetchSpecError` for `fetch_spec` |
 
 A name that begins with a verb is always a union, so it never appears in an `except`. A method's union puts the

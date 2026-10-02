@@ -1,28 +1,29 @@
 """Budget validation over a document's whole-file token count.
 
-``validate_budget`` is pure, so every case here is a token count and an in-memory structure aspect; no document
-and no specification file is read.
+`validate_budget` is pure, so every case here is a token count and an in-memory structure specification; no
+document and no specification file is read.
 """
 
 import pytest
 
 from lorecraft.project.layout import SPECS_DIR
-from lorecraft.project.schemas import StructureAspect
+from lorecraft.project.schemas import StructureSpec
 from lorecraft.project.syntax import LineNumber
 
 from ..budget import validate_budget
 
 
-def _aspect(tokens: int | None, stem: str = 'code') -> StructureAspect:
-    """A structure aspect at `docs/__meta__/<stem>.structure.json` with the given budget.
+def _structure_spec(tokens: int | None, stem: str = 'code') -> StructureSpec:
+    """A structure specification at `docs/__meta__/<stem>.structure.json` with the given budget.
 
-    It forbids empty sections as well, so an aspect without a budget still states a rule and can be built.
+    It forbids empty sections as well, so a structure specification without a budget still states a rule and can be
+    built.
 
     Args:
-        tokens: The aspect's whole-file token budget; `None` sets no budget.
-        stem: File stem of the specification the aspect is written in.
+        tokens: The whole-file token budget; `None` sets no budget.
+        stem: File stem of the specification file.
     """
-    return StructureAspect(
+    return StructureSpec(
         path=SPECS_DIR / f'{stem}.structure.json',
         title=None,
         forbid_empty_sections=True,
@@ -37,10 +38,10 @@ def _aspect(tokens: int | None, stem: str = 'code') -> StructureAspect:
 class TestValidateBudget:
     def test_validate_budget_with_a_file_over_the_budget_reports_it_on_line_1(self) -> None:
         #: Given
-        aspects = (_aspect(tokens=6),)
+        structure_specs = (_structure_spec(tokens=6),)
 
         #: When
-        result = validate_budget(aspects, token_count=7)
+        result = validate_budget(structure_specs, token_count=7)
 
         #: Then
         assert len(result.violations) == 1, f'a file over the token budget is reported once, got {result.violations}'
@@ -54,38 +55,40 @@ class TestValidateBudget:
 
     def test_validate_budget_with_a_file_at_the_budget_returns_no_violations(self) -> None:
         #: Given
-        aspects = (_aspect(tokens=7),)
+        structure_specs = (_structure_spec(tokens=7),)
 
         #: When
-        result = validate_budget(aspects, token_count=7)
+        result = validate_budget(structure_specs, token_count=7)
 
         #: Then
         assert result.violations == (), 'the budget is the most tokens allowed, so a file at the budget is clean'
 
-    def test_validate_budget_with_an_aspect_without_a_budget_returns_no_violations(self) -> None:
+    def test_validate_budget_with_a_structure_spec_without_a_budget_returns_no_violations(self) -> None:
         #: Given
-        aspects = (_aspect(tokens=None),)
+        structure_specs = (_structure_spec(tokens=None),)
 
         #: When
-        result = validate_budget(aspects, token_count=100_000)
+        result = validate_budget(structure_specs, token_count=100_000)
 
         #: Then
-        assert result.violations == (), 'an aspect that sets no budget limits nothing, however large the file'
+        assert result.violations == (), (
+            'a structure specification that sets no budget limits nothing, however large the file'
+        )
 
-    def test_validate_budget_with_empty_aspects_returns_no_violations(self) -> None:
+    def test_validate_budget_with_empty_structure_specs_returns_no_violations(self) -> None:
         #: Given
-        aspects: tuple[StructureAspect, ...] = ()
+        structure_specs: tuple[StructureSpec, ...] = ()
 
         #: When
-        result = validate_budget(aspects, token_count=100_000)
+        result = validate_budget(structure_specs, token_count=100_000)
 
         #: Then
         assert result.violations == (), 'an ungoverned document is never checked, whatever its size'
 
     def test_validate_budget_with_two_layers_applies_each_and_names_its_own_file(self) -> None:
         #: Given
-        corpus = _aspect(tokens=100)
-        namespace = _aspect(tokens=11, stem='code-python')
+        corpus = _structure_spec(tokens=100)
+        namespace = _structure_spec(tokens=11, stem='code-python')
 
         #: When
         result = validate_budget((corpus, namespace), token_count=12)
