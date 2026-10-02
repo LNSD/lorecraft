@@ -19,8 +19,7 @@ from lorecraft.project.layout import SPECS_DIR
 from lorecraft.project.schemas import (
     FrontmatterSchema,
     StructureSpec,
-    parse_schema_name,
-    schema_name_stem,
+    parse_spec_name,
 )
 from lorecraft.project.skill import NamedDir, OutsideSymlink, SkillLocation, SkillRef, SkillsDir
 from lorecraft.vfs import RootExit
@@ -31,21 +30,21 @@ CODE: Final[CorpusName] = CorpusName.parse('code')
 FEAT: Final[CorpusName] = CorpusName.parse('feat')
 
 
-def _spec(stem: str, *, frontmatter: bool = True, structure: bool = False) -> Spec:
-    """A spec at `docs/__meta__/<stem>.md`, with `<stem>.structure.json` beside it when either flag is set.
+def _spec(name: str, *, frontmatter: bool = True, structure: bool = False) -> Spec:
+    """A spec at `docs/__meta__/<name>.md`, with `<name>.structure.json` beside it when either flag is set.
 
     Its `frontmatter` key states a schema when `frontmatter` is set, and it forbids empty sections when
     `structure` is.
 
     Args:
-        stem: Specification stem, such as `code` or `code-python`; parsed into the spec's name.
+        name: Specification name, such as `code` or `code-python`; parsed into the spec's name.
         frontmatter: Whether the structure file states a frontmatter schema.
         structure: Whether the structure file forbids empty sections.
     """
-    files = [SPECS_DIR / f'{stem}.md']
+    files = [SPECS_DIR / f'{name}.md']
     structure_spec: StructureSpec | None = None
     if frontmatter or structure:
-        path = SPECS_DIR / f'{stem}.structure.json'
+        path = SPECS_DIR / f'{name}.structure.json'
         frontmatter_schema: FrontmatterSchema | None = None
         if frontmatter:
             frontmatter_schema = FrontmatterSchema(path=path, schema={'type': 'object'})
@@ -60,7 +59,7 @@ def _spec(stem: str, *, frontmatter: bool = True, structure: bool = False) -> Sp
         )
         files.append(path)
     return Spec(
-        name=parse_schema_name(stem),
+        name=parse_spec_name(name),
         files=tuple(sorted(files, key=str)),
         structure=structure_spec,
     )
@@ -100,7 +99,7 @@ class TestGovernance:
 
         #: Then
         assert governance.ref == ref, 'the governance names the logging document it was asked about'
-        assert tuple(schema_name_stem(spec.name) for spec in governance.specs()) == ('code',), (
+        assert tuple(str(spec.name) for spec in governance.specs()) == ('code',), (
             'the corpus spec alone governs a document when the corpus has no namespace spec'
         )
 
@@ -116,7 +115,7 @@ class TestGovernance:
 
         #: Then
         assert governance.ref == ref, 'the governance names the python-errors-reporting document it was asked about'
-        assert tuple(schema_name_stem(spec.name) for spec in governance.specs()) == (
+        assert tuple(str(spec.name) for spec in governance.specs()) == (
             'code',
             'code-python',
             'code-python-errors',
@@ -134,7 +133,7 @@ class TestGovernance:
 
         #: Then
         assert governance.ref == ref, 'the governance names the python document it was asked about'
-        assert tuple(schema_name_stem(spec.name) for spec in governance.specs()) == ('code', 'code-python'), (
+        assert tuple(str(spec.name) for spec in governance.specs()) == ('code', 'code-python'), (
             'a namespace equal to the whole filename governs the document after the corpus spec'
         )
 
@@ -150,7 +149,7 @@ class TestGovernance:
 
         #: Then
         assert governance.ref == ref, 'the governance names the pythonic document it was asked about'
-        assert tuple(schema_name_stem(spec.name) for spec in governance.specs()) == ('code',), (
+        assert tuple(str(spec.name) for spec in governance.specs()) == ('code',), (
             'python is not a hyphen-delimited prefix of pythonic, so only the corpus spec governs'
         )
 
@@ -166,7 +165,7 @@ class TestGovernance:
 
         #: Then
         assert governance.ref == ref, 'the governance names the python-typing document it was asked about'
-        assert tuple(schema_name_stem(spec.name) for spec in governance.specs()) == ('code', 'code-python'), (
+        assert tuple(str(spec.name) for spec in governance.specs()) == ('code', 'code-python'), (
             'the corpus spec still governs first even without a structure specification, then the python namespace'
         )
 
@@ -182,7 +181,7 @@ class TestGovernance:
 
         #: Then
         assert governance.ref == ref, 'the governance names the python-typing document it was asked about'
-        assert tuple(schema_name_stem(spec.name) for spec in governance.specs()) == ('code', 'code-python'), (
+        assert tuple(str(spec.name) for spec in governance.specs()) == ('code', 'code-python'), (
             'a prose-only namespace spec still governs the document after the corpus spec'
         )
 
@@ -412,16 +411,16 @@ class TestCorpus:
             'the governance carries the ref and the corpus spec followed by the matching namespace spec'
         )
 
-    def test_construct_with_a_namespace_stem_as_the_corpus_spec_raises_value_error(self) -> None:
+    def test_construct_with_a_namespace_spec_as_the_corpus_spec_raises_value_error(self) -> None:
         #: Given
-        namespace_stem = _spec('code-python')
+        namespace_spec = _spec('code-python')
 
         #: When
         with pytest.raises(ValueError, match='code'):
-            Corpus(name=CODE, spec=namespace_stem, namespace_specs=(), documents=())
+            Corpus(name=CODE, spec=namespace_spec, namespace_specs=(), documents=())
 
         #: Then
-        assert namespace_stem.namespace is not None, 'the rejected spec is a namespace stem, not a corpus stem'
+        assert namespace_spec.namespace is not None, 'the rejected spec is a namespace spec, not a corpus spec'
 
     def test_construct_with_the_corpus_spec_of_another_corpus_raises_value_error(self) -> None:
         #: Given
@@ -434,16 +433,16 @@ class TestCorpus:
         #: Then
         assert feat_spec.corpus == FEAT, 'the rejected spec belongs to another corpus'
 
-    def test_construct_with_a_corpus_stem_among_namespace_specs_raises_value_error(self) -> None:
+    def test_construct_with_a_corpus_spec_among_namespace_specs_raises_value_error(self) -> None:
         #: Given
-        corpus_stem = _spec('code')
+        corpus_spec = _spec('code')
 
         #: When
         with pytest.raises(ValueError, match='code'):
-            Corpus(name=CODE, spec=corpus_stem, namespace_specs=(corpus_stem,), documents=())
+            Corpus(name=CODE, spec=corpus_spec, namespace_specs=(corpus_spec,), documents=())
 
         #: Then
-        assert corpus_stem.namespace is None, 'the rejected namespace spec has no namespace'
+        assert corpus_spec.namespace is None, 'the rejected namespace spec has no namespace'
 
     def test_construct_with_a_namespace_spec_of_another_corpus_raises_value_error(self) -> None:
         #: Given
@@ -494,16 +493,16 @@ class TestCorpus:
 
 @pytest.mark.unit
 class TestSpec:
-    def test_is_governing_with_a_corpus_stem_returns_true_for_any_filename(self) -> None:
+    def test_is_governing_with_a_corpus_spec_returns_true_for_any_filename(self) -> None:
         #: Given
-        corpus_stem = _spec('code')
+        corpus_spec = _spec('code')
         filename = AspectFilename.parse('logging')
 
         #: When
-        governs = corpus_stem.is_governing(filename)
+        governs = corpus_spec.is_governing(filename)
 
         #: Then
-        assert governs, 'a corpus stem governs every document of its corpus, whatever the filename'
+        assert governs, 'a corpus spec governs every document of its corpus, whatever the filename'
 
 
 @pytest.mark.unit

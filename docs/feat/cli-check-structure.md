@@ -11,7 +11,7 @@ components: "module:lorecraft.cli,module:lorecraft.checks,module:lorecraft.proje
 ## Summary
 
 `lorecraft check structure` validates the headings of each document against every structure specification,
-`<stem>.structure.json`, that the document's path selects: the H1 title, the order of the sections, sections
+`<name>.structure.json`, that the document's path selects: the H1 title, the order of the sections, sections
 left empty or forbidden, and the prose words each section holds. It is also one of the checks a bare
 `lorecraft check` runs.
 
@@ -28,7 +28,7 @@ left empty or forbidden, and the prose words each section holds. It is also one 
 ## Key Concepts
 
 - **Section**: An H2 heading and everything under it up to the next H2, its H3 subsections included.
-- **Structure specification**: A `<stem>.structure.json` file stating the outline, as
+- **Structure specification**: A `<name>.structure.json` file stating the outline, as
   [spec-structure-outline](spec-structure-outline.md) describes, and the word caps, as
   [spec-structure-budget](spec-structure-budget.md) describes.
 - **Word cap**: The most prose words a section may hold. Prose excludes code blocks, fenced or indented, table

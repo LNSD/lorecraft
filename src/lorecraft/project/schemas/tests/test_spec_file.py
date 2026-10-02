@@ -1,4 +1,4 @@
-"""The specification filename grammar: parsing a filename into its stem and file type, and writing it back."""
+"""The specification filename grammar: parsing a filename into its specification name and file type, and back."""
 
 from typing import Final
 
@@ -8,7 +8,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectNamespace, InvalidAspectNamespaceCharacterError
 from lorecraft.project.corpus import CorpusName, InvalidCorpusNameCharacterError
 
-from ..name import SchemaName
+from ..name import CorpusSpecName, NamespaceSpecName
 from ..spec_file import (
     DottedSpecStemError,
     InvalidSpecStemError,
@@ -35,8 +35,8 @@ class TestParseSpecFile:
         spec_file = parse_spec_file(path)
 
         #: Then
-        assert spec_file == SpecFile(path=path, name=(CODE,), type=SpecFileType.PROSE), (
-            'code.md parses into the code corpus stem and the prose file type'
+        assert spec_file == SpecFile(path=path, name=CorpusSpecName(CODE), type=SpecFileType.PROSE), (
+            'code.md parses into the code corpus spec name and the prose file type'
         )
 
     def test_parse_spec_file_with_a_corpus_structure_file_returns_a_structure_spec_file(self) -> None:
@@ -47,8 +47,8 @@ class TestParseSpecFile:
         spec_file = parse_spec_file(path)
 
         #: Then
-        assert spec_file == SpecFile(path=path, name=(CODE,), type=SpecFileType.STRUCTURE), (
-            'code.structure.json parses into the code corpus stem and the structure file type'
+        assert spec_file == SpecFile(path=path, name=CorpusSpecName(CODE), type=SpecFileType.STRUCTURE), (
+            'code.structure.json parses into the code corpus spec name and the structure file type'
         )
 
     def test_parse_spec_file_with_a_header_file_raises_unknown_spec_file_type_error(self) -> None:
@@ -72,7 +72,7 @@ class TestParseSpecFile:
 
         #: Then
         assert spec_file == SpecFile(
-            path=path, name=(CODE, AspectNamespace.parse('python-errors')), type=SpecFileType.STRUCTURE
+            path=path, name=NamespaceSpecName(CODE, AspectNamespace.parse('python-errors')), type=SpecFileType.STRUCTURE
         ), 'code-python-errors.structure.json parses into the code corpus, one python-errors namespace and structure'
 
     def test_parse_spec_file_with_a_dotted_structure_stem_raises_dotted_spec_stem_error(self) -> None:
@@ -84,7 +84,7 @@ class TestParseSpecFile:
             parse_spec_file(path)
 
         #: Then
-        assert exc_info.value.path == path, 'feat.component is not a stem; the error names the file'
+        assert exc_info.value.path == path, 'feat.component is not a specification name; the error names the file'
         assert exc_info.value.stem == 'feat.component', 'the error holds the stem with the dot'
         assert 'feat.component' in str(exc_info.value), f'the message names the dotted stem, got {exc_info.value}'
 
@@ -197,7 +197,7 @@ class TestParseSpecFile:
 
         #: Then
         assert exc_info.value.path == path, (
-            'prose whose name is not a stem is not a specification; the error names README.md'
+            'prose not at a specification name is not a specification; the error names README.md'
         )
         assert isinstance(exc_info.value.source, InvalidCorpusNameCharacterError), (
             f'README is not a corpus name for its uppercase letters, got {type(exc_info.value.source).__name__}'
@@ -214,7 +214,7 @@ class TestParseSpecFile:
 
         #: Then
         assert exc_info.value.path == path, (
-            'a structure specification file must be named after a valid stem; the error names README.structure.json'
+            'a structure file must be at a valid specification name; the error names README.structure.json'
         )
         assert isinstance(exc_info.value.source, InvalidCorpusNameCharacterError), (
             f'README is not a corpus name for its uppercase letters, got {type(exc_info.value.source).__name__}'
@@ -231,7 +231,7 @@ class TestParseSpecFile:
 
         #: Then
         assert exc_info.value.path == path, (
-            'a namespace with an uppercase letter is not a valid stem; the error names code-Python.md'
+            'a namespace with an uppercase letter is not a valid specification name; the error names code-Python.md'
         )
         assert isinstance(exc_info.value.source, InvalidAspectNamespaceCharacterError), (
             f'Python is not a namespace for its uppercase letter, got {type(exc_info.value.source).__name__}'
@@ -240,22 +240,22 @@ class TestParseSpecFile:
 
 @pytest.mark.unit
 class TestSpecFilenames:
-    def test_spec_filename_with_a_namespace_stem_writes_what_parse_reads(self) -> None:
+    def test_spec_filename_with_a_namespace_spec_name_writes_what_parse_reads(self) -> None:
         #: Given
-        name: SchemaName = (CODE, AspectNamespace.parse('python'))
+        name = NamespaceSpecName(CODE, AspectNamespace.parse('python'))
 
         #: When
         filename = spec_filename(name, SpecFileType.STRUCTURE)
 
         #: Then
-        assert filename == 'code-python.structure.json', 'the stem is followed by what *.structure.json claims'
+        assert filename == 'code-python.structure.json', 'the name is followed by what *.structure.json claims'
 
-    def test_spec_filename_with_the_prose_type_writes_the_markdown_file_at_the_stem(self) -> None:
+    def test_spec_filename_with_the_prose_type_writes_the_markdown_file_at_the_name(self) -> None:
         #: Given
-        name: SchemaName = (CODE, AspectNamespace.parse('python'))
+        name = NamespaceSpecName(CODE, AspectNamespace.parse('python'))
 
         #: When
         filename = spec_filename(name, SpecFileType.PROSE)
 
         #: Then
-        assert filename == 'code-python.md', 'the stem is followed by what *.md claims'
+        assert filename == 'code-python.md', 'the name is followed by what *.md claims'

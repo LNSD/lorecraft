@@ -10,8 +10,8 @@ components: "module:lorecraft.project,module:lorecraft.checks,spec:feat,spec:cod
 
 ## Summary
 
-The `title`, `outline`, `empty_sections` and `forbidden` keys of a `<stem>.structure.json` file state how the
-documents its stem governs are laid out: how many H1 titles they hold, which H2 sections in which order, and
+The `title`, `outline`, `empty_sections` and `forbidden` keys of a `<name>.structure.json` file state how the
+documents its name governs are laid out: how many H1 titles they hold, which H2 sections in which order, and
 which sections must hold content or must not appear. An order over a sequence of any length cannot be said in
 JSON Schema, which is why the file is a dialect of its own. `lorecraft check structure` applies these keys.
 

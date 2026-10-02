@@ -15,14 +15,15 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas import (
+    CorpusSpecName,
+    NamespaceSpecName,
     Repository,
-    SchemaName,
     StructureSchemaReadError,
 )
 from lorecraft.vfs import DirListError, DiskFileSystem, FileReadError, OsRefusal
 
 CODE: Final[CorpusName] = CorpusName.parse('code')
-CODE_PYTHON: Final[SchemaName] = (CODE, AspectNamespace.parse('python'))
+CODE_PYTHON: Final[NamespaceSpecName] = NamespaceSpecName(CODE, AspectNamespace.parse('python'))
 
 
 @pytest.fixture(scope='function')
@@ -126,7 +127,7 @@ class TestRepository:
         self, repository: Repository
     ) -> None:
         #: Given
-        name: SchemaName = (CODE,)
+        name = CorpusSpecName(CODE)
 
         #: When
         with pytest.raises(StructureSchemaReadError) as exc_info:
@@ -141,4 +142,4 @@ class TestRepository:
             f'its source is the failed read, got {type(exc_info.value.source).__name__}'
         )
         assert exc_info.value.source.refusal is OsRefusal.NOT_FOUND, 'the read failed because the file is missing'
-        assert 'code' in str(exc_info.value), f'the message names the schema stem, got {exc_info.value}'
+        assert 'code' in str(exc_info.value), f'the message names the specification name, got {exc_info.value}'

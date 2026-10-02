@@ -30,29 +30,29 @@ Every command below calls `lorecraft` directly. Where it is not on `PATH`, run `
 ## 1. The files and their names
 
 ```text
-docs/__meta__/<stem>.md               the prose: the authority, written for a reader
-docs/__meta__/<stem>.structure.json   the section rules and word caps, read by lorecraft check structure;
+docs/__meta__/<name>.md               the prose: the authority, written for a reader
+docs/__meta__/<name>.structure.json   the section rules and word caps, read by lorecraft check structure;
                                       the tokens budget, read by lorecraft check budget;
                                       the frontmatter schema, read by lorecraft check frontmatter
 ```
 
 What a file is comes from its **file type**, which a file name **pattern** claims: `*.md` claims the prose and
 `*.structure.json` the structure specification. A file's extension is only what follows its last dot, and a
-`<stem>.<token>.json` that no pattern claims is not a specification file: it is left out, not read.
+`<name>.<token>.json` that no pattern claims is not a specification file: it is left out, not read.
 
-A **stem** is `<corpus>` or `<corpus>-<namespace>`. The corpus names a directory `docs/<corpus>/` and never
-holds a hyphen, so the first hyphen ends it; [spec](references/spec.md#filenames) and
-[workspace](references/workspace.md#corpora) give the characters each part may hold. The namespace names a
-group of documents in it: `code-python` governs `docs/code/python.md` and `docs/code/python-*.md`. Nothing
-registers a file; its name is the whole binding. A directory under `docs/` becomes a corpus the moment a file
-at its stem exists.
+A **specification name**, the filename with its pattern's suffix stripped, is `<corpus>` or
+`<corpus>-<namespace>`. The corpus names a directory `docs/<corpus>/` and never holds a hyphen, so the first
+hyphen ends it; [spec](references/spec.md#filenames) and [workspace](references/workspace.md#corpora) give the
+characters each part may hold. The namespace names a group of documents in it: `code-python` governs
+`docs/code/python.md` and `docs/code/python-*.md`. Nothing registers a file; its name is the whole binding. A
+directory under `docs/` becomes a corpus the moment a file at its specification name exists.
 
-**Layers only add.** A document answers to its corpus stem, then to every namespace stem matching its name,
-broad to narrow, each applied on its own. So a namespace file states only what it adds, and cannot relax what
-the corpus file says. A namespace file never governs alone: without a structure file at the corpus stem, every
-rule is unchecked for the whole corpus, and without the `frontmatter` key in it, frontmatter is. A namespace
-`tokens` or outline still applies once that file exists. [spec](references/spec.md#base-and-extension) has the
-rule.
+**Layers only add.** A document answers to its corpus specification, then to every namespace specification
+matching its name, broad to narrow, each applied on its own. So a namespace file states only what it adds, and
+cannot relax what the corpus file says. A namespace file never governs alone: without a structure file at the
+corpus specification name, every rule is unchecked for the whole corpus, and without the `frontmatter` key in it,
+frontmatter is. A namespace `tokens` or outline still applies once that file exists.
+[spec](references/spec.md#base-and-extension) has the rule.
 
 **A base never names its extensions.** `code.md` does not mention `code-python.md` or its JSON, in its
 references, its description, or inline; the extension names its base. Adding or removing a namespace then never
@@ -80,7 +80,7 @@ A namespace specification states only what it adds to its base, and links to it.
 
 ## 3. The frontmatter schema
 
-The `frontmatter` key of `<stem>.structure.json` is a JSON Schema, Draft 2020-12, for the parsed frontmatter
+The `frontmatter` key of `<name>.structure.json` is a JSON Schema, Draft 2020-12, for the parsed frontmatter
 mapping. Its root states `"type": "object"` outright, and no schema in it carries `$id`; a `$schema` inside
 it, if any, names Draft 2020-12. The corpus schema states the whole field set, with `required` and
 `"additionalProperties": false` so an undeclared field is a finding. A namespace schema leaves both out and
@@ -90,7 +90,7 @@ Copy the shapes in [spec-structure-frontmatter](references/spec-structure-frontm
 
 ## 4. The structure specification
 
-`<stem>.structure.json` states the H1 `title` rule, `empty_sections`, an `outline` of H2 sections — each
+`<name>.structure.json` states the H1 `title` rule, `empty_sections`, an `outline` of H2 sections — each
 `{"section": …}`, optionally `"optional": true`, a `description` of what it holds and a non-empty list of
 `examples` of its body, each trimmed from a real document of the corpus (the description and the first example are
 shown as notes when the section is missing), or an `{"any": true}` run — with a `words` cap on any entry,
@@ -121,8 +121,8 @@ prefix alone is not a reason. Create `<corpus>-<namespace>.md` and, when it adds
 **Change a rule.** Edit the prose, then the JSON, then run the checks and fix what the change breaks in existing
 documents in the same change, or say why they are left.
 
-**Rename a group.** Rename the stem with the documents: a stem whose namespace matches nothing still loads, and
-governs nothing.
+**Rename a group.** Rename the specification with the documents: a specification whose namespace matches nothing
+still loads, and governs nothing.
 
 ## 6. Verify
 
@@ -131,5 +131,5 @@ lorecraft inspect   # loads every specification; exit 1 names a file that cannot
 lorecraft check     # applies them to every document; exit 2 names a specification that cannot be loaded
 ```
 
-Check in the tree that each document shows the stems you meant, then run `/docs-rules-check` for the review
-pass: prose against JSON, resolution, and the documents the change breaks.
+Check in the tree that each document shows the specification names you meant, then run `/docs-rules-check` for
+the review pass: prose against JSON, resolution, and the documents the change breaks.

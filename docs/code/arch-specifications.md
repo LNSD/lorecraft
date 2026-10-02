@@ -28,6 +28,11 @@ Which specifications govern a document follows from its path alone: the corpus s
 namespace specification whose namespace matches the document's name, broad to narrow. The model computes it,
 and the run hands each check the governing structure specifications. A check never looks a specification up.
 
+Which documents a specification governs follows from its specification name, its filename with the file type's
+pattern suffix stripped: the corpus alone, such as `code`, or the corpus and a namespace, such as `code-python`.
+The name is parsed into a value of one of those two forms, and code that tells a corpus specification from a
+namespace one matches on that form rather than splitting the text again.
+
 Each governing specification is applied on its own. A namespace specification adds to its corpus one and
 cannot relax it, so a document must pass every one. A document that no specification governs with the keys a
 check reads is reported as ungoverned for that check, which is not a failure.
@@ -64,6 +69,7 @@ Before committing code, verify:
 - [ ] A specification that cannot be decoded or is unusable stops the run; it is never reported as a finding
 - [ ] No check looks up, reads or chooses a specification; it applies the governing structure specifications it is handed
 - [ ] A check applies each governing specification on its own, so a namespace specification never relaxes its corpus one
+- [ ] Code that tells a corpus specification from a namespace one matches on the parsed specification name's form, never on its length, an index or its text
 
 ## References
 

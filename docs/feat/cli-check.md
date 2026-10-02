@@ -29,7 +29,7 @@ their findings together. Every check shares the root discovery, output formats a
 ## Key Concepts
 
 - **Check**: One subcommand of the group. A document check validates one part of a document against the
-  `<stem>.structure.json` structure specifications its path selects; the skill check holds each skill to the
+  `<name>.structure.json` structure specifications its path selects; the skill check holds each skill to the
   Agent Skills specification.
 - **Finding**: One broken rule, located: a root-relative path, a line, a rule identifier and a message, and optionally
   notes that help fix it.

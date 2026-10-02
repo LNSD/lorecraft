@@ -33,8 +33,8 @@ git diff --name-only "$(git merge-base HEAD main)"...HEAD -- docs   # a whole br
 Given explicit paths, check those instead. Split what changed in two:
 
 - **Documents** — every changed Markdown file outside `docs/__meta__/`. §2 to §5 check them.
-- **Specifications** — every changed file in `docs/__meta__/`. A change to any file at a stem is a change to
-  that stem: its prose and every JSON file beside it. §6 checks them.
+- **Specifications** — every changed file in `docs/__meta__/`. A change to any file at a specification name is
+  a change to that specification: its prose and every JSON file beside it. §6 checks them.
 
 ## 2. The specifications that govern each document
 
@@ -42,9 +42,9 @@ Given explicit paths, check those instead. Split what changed in two:
 lorecraft inspect
 ```
 
-Each document is followed by the stems governing it, broad to narrow; stem `<stem>` is the prose at
-`docs/__meta__/<stem>.md`. [cli-inspect](references/cli-inspect.md) describes the output. Read every
-specification listed for a document **before** the document, so its checklist is in hand while reading. A
+Each document is followed by the names of the specifications governing it, broad to narrow; the name `<name>`
+is the prose at `docs/__meta__/<name>.md`. [cli-inspect](references/cli-inspect.md) describes the output. Read
+every specification listed for a document **before** the document, so its checklist is in hand while reading. A
 document can be governed by one check and not another; [check](references/cli-check.md#key-concepts) says
 what governs it for each. Report a document a check does not govern as unvalidated for that check, rather than
 borrowing another corpus's rules.
@@ -58,7 +58,7 @@ token budget. Do not check those by hand.
 ```bash
 lorecraft check                              # every check over every document and skill, one read of the tree
 lorecraft check frontmatter <files>          # frontmatter, the structure spec's frontmatter key
-lorecraft check structure <files>            # sections and word caps, against <stem>.structure.json
+lorecraft check structure <files>            # sections and word caps, against <name>.structure.json
 lorecraft check budget <files>               # the whole-file token budget, the structure spec's tokens key
 lorecraft check --format json                # machine-readable
 ```
@@ -101,12 +101,13 @@ list already out of sync is a finding.
 ## 6. Changed specifications
 
 Lorecraft loads and validates each JSON file on its own, but it cannot tell whether the JSON says what the
-prose says, or whether a stem governs the documents its author meant. Check each changed stem for both.
+prose says, or whether a specification name governs the documents its author meant. Check each changed
+specification for both.
 
 **Load.** `lorecraft inspect` validates every specification before any document is read. A structure
 specification must use only the dialect's keys and state usable rules, and its `frontmatter` key must satisfy
 the JSON Schema Draft 2020-12 meta-schema, state `"type": "object"` at its root, and carry no `$id` at any
-depth. A leftover `<stem>.header.json` is not read: its schema belongs in that key now. A file that fails stops
+depth. A leftover `<name>.header.json` is not read: its schema belongs in that key now. A file that fails stops
 the run with an error naming it: `inspect` exits `1`, `lorecraft check` exits `2`. That error is the finding; [spec-structure](references/spec-structure.md) says what is refused for any file, and
 [spec-structure-outline](references/spec-structure-outline.md),
 [spec-structure-budget](references/spec-structure-budget.md) and
@@ -115,17 +116,18 @@ the run with an error naming it: `inspect` exits `1`, `lorecraft check` exits `2
 **Resolution.** In the `inspect` tree, compare what is governed with what was meant. [spec](references/spec.md)
 owns the rules.
 
-- Each changed stem appears under its corpus. A file whose name does not parse — a hyphen in a corpus name,
-  a dot in a stem, a `<stem>.<token>.json` that no file type's pattern claims — is left out silently, and so is
-  a namespace stem whose corpus has no file of its own or no directory under `docs/`.
-- Each document lists the stems intended. A namespace matches a filename that equals it or continues it with a
-  hyphen: `code-python` governs `python-typing.md`, not `pythonic.md`.
-- A namespace stem matches at least one document. One that matches none still loads and governs nothing,
-  usually after a rename.
+- Each changed specification appears under its corpus. A file whose name does not parse — a hyphen in a corpus
+  name, a dot in a specification name, a `<name>.<token>.json` that no file type's pattern claims — is left out
+  silently, and so is a namespace specification whose corpus has no file of its own or no directory under
+  `docs/`.
+- Each document lists the specification names intended. A namespace matches a filename that equals it or
+  continues it with a hyphen: `code-python` governs `python-typing.md`, not `pythonic.md`.
+- A namespace specification matches at least one document. One that matches none still loads and governs
+  nothing, usually after a rename.
 - For each check the corpus means to run, the documents meant are governed, as
   [check](references/cli-check.md#key-concepts) defines it. A namespace file never governs alone: its rules
-  apply only once the corpus stem has a structure file, and its `frontmatter` only once that file states the
-  key.
+  apply only once the corpus specification has a structure file, and its `frontmatter` only once that file states
+  the key.
 
 **Agreement.** Nothing detects drift between a specification's prose and its JSON, so read both:
 
@@ -148,7 +150,7 @@ Clean:
 
 > Docs rules check clean. Applied: `docs/__meta__/code.md`, `docs/__meta__/code-python.md`.
 
-Findings, per document or stem, most severe first, one per line, with the fix:
+Findings, per document or specification, most severe first, one per line, with the fix:
 
 > `docs/code/python-typing.md:3` — **code.md, Frontmatter**: `description` has no trigger clause. Name the
 > situations the document should be read in.

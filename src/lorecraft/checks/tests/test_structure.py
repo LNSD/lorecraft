@@ -66,19 +66,19 @@ def _structure_spec(
     forbid_empty_sections: bool = False,
     outline: tuple[OutlineEntry, ...] = (),
     forbidden: tuple[str, ...] = (),
-    stem: str = 'code',
+    spec_name: str = 'code',
 ) -> StructureSpec:
-    """A structure specification at `docs/__meta__/<stem>.structure.json`, quoting `<stem>.md` as its authority.
+    """A structure specification at `docs/__meta__/<spec_name>.structure.json`, whose authority is `<spec_name>.md`.
 
     Args:
         title: The H1 title rule; `None` states none.
         forbid_empty_sections: Whether a heading with an empty section is a violation.
         outline: The sections the document must follow, in order; empty states no outline.
         forbidden: Section names the document may not have.
-        stem: File stem of the specification file.
+        spec_name: Specification name the file sits at, such as `code` or `code-python`.
     """
     return StructureSpec(
-        path=SPECS_DIR / f'{stem}.structure.json',
+        path=SPECS_DIR / f'{spec_name}.structure.json',
         title=title,
         forbid_empty_sections=forbid_empty_sections,
         outline=outline,
@@ -350,7 +350,7 @@ class TestValidateStructure:
                 SectionEntry(name='References'),
                 AnySections(),
             ),
-            stem='code-python',
+            spec_name='code-python',
         )
 
         #: When
@@ -476,7 +476,7 @@ class TestValidateStructure:
         text = '## Rule\n\none two three\n\n## Checklist\n\ntext\n'
         document = parse_document(text)
         corpus = _structure_spec(outline=(AnySections(words=5), SectionEntry(name='Checklist')))
-        namespace = _structure_spec(outline=(AnySections(words=2),), stem='code-python')
+        namespace = _structure_spec(outline=(AnySections(words=2),), spec_name='code-python')
 
         #: When
         result = validate_structure((corpus, namespace), headings=document.headings)
