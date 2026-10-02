@@ -105,6 +105,8 @@ The [`skills/`](https://github.com/lnsd/lorecraft/tree/main/skills) directory ho
   `docs-rules-check` does the same for your documents.
 - **When authoring the rules**, `docs-rules-creator` helps the agent write the specifications that
   govern your documents.
+- **When writing agent skills**, `skills-check` guides the agent through the Agent Skills specification and
+  checks your skills against it.
 
 Install the skills with Vercel's [`skills`](https://github.com/vercel-labs/skills) CLI:
 
