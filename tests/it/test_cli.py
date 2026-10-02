@@ -564,6 +564,57 @@ class TestCheckFrontmatterCommand:
         assert result.stdout == '', 'the broken document beside the named one is not checked'
         assert result.stderr == 'checked 1 file(s), 0 finding(s)\n', 'the named document is the one checked'
 
+    def test_check_frontmatter_with_one_document_named_by_three_spellings_checks_it_once(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/code/broken.md', '# No frontmatter\n')
+        (tmp_path / 'docs' / 'code' / 'alias.md').symlink_to('broken.md')
+        monkeypatch.chdir(tmp_path)
+        paths = ['docs/code/broken.md', './docs/code/broken.md', 'docs/code/alias.md']
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), *paths])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert result.stdout == 'docs/code/broken.md:1: [frontmatter.missing] no `---` delimited frontmatter block\n', (
+            'the document the three paths lead to is reported once'
+        )
+        assert result.stderr == 'checked 1 file(s), 1 finding(s)\n', 'the document named three times is checked once'
+
+    def test_check_frontmatter_with_one_document_named_twice_and_json_format_checks_it_once(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/code/broken.md', '# No frontmatter\n')
+        monkeypatch.chdir(tmp_path)
+        paths = ['docs/code/broken.md', 'docs/code/broken.md']
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), '--format', 'json', *paths])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 1,
+            'findings': [
+                {
+                    'file': 'docs/code/broken.md',
+                    'line': 1,
+                    'rule': 'frontmatter.missing',
+                    'message': 'no `---` delimited frontmatter block',
+                    'spec': None,
+                    'notes': [],
+                }
+            ],
+            'ungoverned': [],
+        }, f'the document named twice is checked and reported once, got {result.stdout!r}'
+
     def test_check_frontmatter_with_a_missing_named_document_exits_as_invalid_input(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)

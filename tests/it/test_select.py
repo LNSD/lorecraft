@@ -4,7 +4,8 @@ Documents and skills are each selected against a database over a snapshot of `tm
 a path in that tree, so `select_document` and `select_skills_at` resolve it the way the command line does. A skill
 argument naming a directory no agent reads is selected against a database whose snapshot read it, as
 `select_skills` takes one. Each rule of the selection order has one test asserting the reason it produces, never
-the message. `select_skills` is driven with an explicit root, to pin how the skills several paths name are merged.
+the message. `select_documents` and `select_skills` are driven with an explicit root, to pin how the documents and
+the skills several paths name are merged.
 """
 
 from pathlib import Path
@@ -13,7 +14,7 @@ from typing import Final
 import pytest
 
 from lorecraft.checks import Database, SkillScope, SkillSelection
-from lorecraft.cli.check_run import select_skills
+from lorecraft.cli.check_run import select_documents, select_skills
 from lorecraft.cli.select import (
     CorpuslessDocumentPathError,
     InvalidCorpusDocumentPathError,
@@ -331,6 +332,30 @@ class TestSelectDocument:
         assert ref == DocumentRef(CorpusName.parse('code'), AspectFilename.parse('logging')), (
             'the link is followed where the snapshot saw it lead'
         )
+
+
+@pytest.mark.it
+class TestSelectDocuments:
+    def test_select_documents_with_one_document_named_twice_selects_it_once_where_first_named(
+        self, tmp_path: Path, documents_database: Database
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/code/tracing.md')
+        paths = [
+            tmp_path / 'docs' / 'code' / 'tracing.md',
+            tmp_path / 'docs' / 'code' / 'alias.md',
+            tmp_path / 'docs' / 'code' / 'logging.md',
+            tmp_path / 'docs' / 'code' / 'tracing.md',
+        ]
+
+        #: When
+        _database, refs = select_documents(tmp_path, paths)
+
+        #: Then
+        assert refs == (
+            DocumentRef(CorpusName.parse('code'), AspectFilename.parse('tracing')),
+            DocumentRef(CorpusName.parse('code'), AspectFilename.parse('logging')),
+        ), 'each document once, in first-named order, the link and its target being one document'
 
 
 AUDIT: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/audit'))
