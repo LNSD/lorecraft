@@ -248,6 +248,14 @@ class _ViewDiskEntries:
         except SnapshotLinkReadError as exc:
             raise EntryInspectError(path, exc.refusal, source=exc.source) from exc
 
+    def may_climb_out_of(self, directory: RootRelativePath) -> bool:
+        """Always true: the walk stepped into `directory` only where `lstat` found one; see `EntryLookup`.
+
+        Args:
+            directory: The real directory the walk climbs out of.
+        """
+        return True
+
 
 class SnapshotDirListError(Error):
     """A directory inside the scan scope exists but cannot be listed.
@@ -347,6 +355,9 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
     symlink entry is neither entered nor read through. With it the scan goes where the link leads, when that
     is under the root: a directory is listed at its real path, with the depth left at the link, and a regular
     file has its bytes recorded at its real path. Either way every listing and every file sits at a real path.
+    Every directory a `..` on the way climbs out of is recorded too, so the snapshot's walks take the same steps.
+    Under a root that does not follow links, each link it records, and one on the way to the root, is still
+    walked for the record alone, so the targets and climbs on its chain are recorded and nothing more is read.
     Where a root starts, where a link leads and the depth it uses up are the rules of `root_expansion.py`,
     which `ScopeIndex.is_in_scope` answers from too.
 
@@ -363,8 +374,8 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
 
     Raises:
         SnapshotDirListError: If a directory in scope cannot be listed.
-        SnapshotEntryInspectError: If an entry on the way to a scope root, or along a followed link, cannot be
-            inspected.
+        SnapshotEntryInspectError: If an entry on the way to a scope root, or along the chain of a recorded link,
+            cannot be inspected.
         SnapshotFileReadError: If a file in scope, or one a followed link leads to, cannot be read for a reason
             other than having vanished.
         SnapshotLinkReadError: If a symlink's target cannot be read for a reason other than having vanished.
@@ -372,7 +383,8 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
     listings: dict[RootRelativePath, tuple[DirEntry, ...]] = {}
     files: dict[RootRelativePath, bytes] = {}
     links: dict[RootRelativePath, PurePosixPath] = {}
-    on_disk = _DiskEntries(root, links)
+    climbed_directories: set[RootRelativePath] = set()
+    on_disk = _DiskEntries(root, links, climbed_directories)
     # The root each directory was last listed as, without following links and with, so overlapping scope roots
     # list a directory again only when a later root asks for more under it: more depth, or its links followed.
     # This is also what ends the scan when a followed link leads back to a directory already listed, such as an
@@ -385,6 +397,8 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
         real_root = find_real_scan_root(scan_root, on_disk)
         if real_root is not None:
             pending.append(real_root)
+        if not scan_root.follow_links:
+            _record_chain(scan_root.directory, on_disk)
 
     while pending:
         listed_root = pending.pop()
@@ -424,6 +438,8 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
                 links[path] = target
                 if follow_links:
                     _follow_listed_link(root, listed_root, path, on_disk, files, pending)
+                else:
+                    _record_chain(path, on_disk)
             kept.append(entry)
         listings[directory] = tuple(kept)
 
@@ -431,6 +447,7 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
         listings=tuple(Listing(path, listings[path]) for path in sorted(listings)),
         files=tuple(FileBytes(path, files[path]) for path in sorted(files)),
         links=tuple(Link(path, links[path]) for path in sorted(links)),
+        climbed_directories=tuple(sorted(climbed_directories)),
         scope=scope,
     )
 
@@ -452,18 +469,26 @@ class _DiskEntries:
     """What the walks of one scan see on disk: each entry by `lstat`, each link by `readlink`.
 
     The `EntryLookup` the scan hands to the rules of `root_expansion.py`. Every link target it reads is
-    recorded in the scan's links, which is what lets `VirtualFileSystem` walk the same chain to the same place.
+    recorded in the scan's links, and every directory a `..` climbs out of in the scan's climbed directories,
+    which is what lets `VirtualFileSystem` walk the same chain to the same place and `ScopeIndex` follow it.
     """
 
-    def __init__(self, root: Path, links: dict[RootRelativePath, PurePosixPath]) -> None:
-        """Read under `root`, recording into `links`.
+    def __init__(
+        self,
+        root: Path,
+        links: dict[RootRelativePath, PurePosixPath],
+        climbed_directories: set[RootRelativePath],
+    ) -> None:
+        """Read under `root`, recording into `links` and `climbed_directories`.
 
         Args:
             root: The workspace root on disk.
             links: Every symlink the scan recorded so far, keyed by path; mutated with each link target read.
+            climbed_directories: Every directory a walk of the scan climbed out of so far; mutated with each climb.
         """
         self._root = root
         self._links = links
+        self._climbed_directories = climbed_directories
 
     def find_kind(self, path: RootRelativePath) -> EntryKind | None:
         """What `path` itself is on disk; see `EntryLookup.find_kind`.
@@ -489,6 +514,37 @@ class _DiskEntries:
         if target is not None:
             self._links[path] = target
         return target
+
+    def may_climb_out_of(self, directory: RootRelativePath) -> bool:
+        """Record `directory` in the scan's climbed directories and allow the climb; see `EntryLookup`.
+
+        The walk stepped into `directory` only where `lstat` found one, so the climb is the kernel's. The record
+        is what tells a snapshot's walks that it is a directory, where nothing the scan listed shows it.
+
+        Args:
+            directory: The real directory the walk climbs out of.
+        """
+        self._climbed_directories.add(directory)
+        return True
+
+
+def _record_chain(path: RootRelativePath, on_disk: _DiskEntries) -> None:
+    """Walk the links in `path` for the record alone, under a scope root that does not follow them.
+
+    The scan lists, reads and enters nothing through such a link, but a view still follows it, so the walk's
+    only effects are what `on_disk` records on the way: each link target, and each directory a `..` climbs out
+    of. Then every chain a view walks over the snapshot is one the scan walked. Nothing outside the root is
+    inspected, since the walk stops where a chain leaves it.
+
+    Args:
+        path: The root-relative link, or the scope root with a link on the way to it, to walk.
+        on_disk: The scan's view of the disk, recording each link and climb met along the chain.
+
+    Raises:
+        SnapshotEntryInspectError: If a component of the chain exists but cannot be inspected.
+        SnapshotLinkReadError: If a link of the chain exists but its target cannot be read.
+    """
+    find_real_path(path, on_disk, follow_links=True)
 
 
 def _follow_listed_link(

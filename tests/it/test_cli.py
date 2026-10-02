@@ -1436,6 +1436,71 @@ class TestCheckSkillsCommand:
             'ungoverned': [],
         }, 'the entry is reported where an agent lists it, and only the skill inside the repository is counted'
 
+    def test_check_skills_with_json_format_over_a_skill_entry_climbing_out_of_a_directory_it_steps_into_checks_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'shared/x/SKILL.md', '---\nname: audit\ndescription: Review a change\n---\n')
+        (tmp_path / 'shared' / 'tmp').mkdir()
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'x').symlink_to('../../shared/tmp/../x')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 1,
+            'findings': [
+                {
+                    'file': '.agents/skills/x/SKILL.md',
+                    'line': 2,
+                    'rule': 'skill.name-matches-directory',
+                    'message': "`name` is 'audit'; expected 'x', the name of the skill directory",
+                    'spec': None,
+                    'notes': [],
+                }
+            ],
+            'ungoverned': [],
+        }, 'the `..` after shared/tmp is shared, so the entry is the skill at shared/x, as an agent loads it'
+
+    def test_check_skills_with_json_format_over_a_skill_entry_climbing_above_the_root_through_a_directory_reports_it(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/review/SKILL.md', '---\nname: review\ndescription: Review a change\n---\n')
+        (tmp_path / 'shared' / 'tmp').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'refused').symlink_to('../../shared/tmp/../../..')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 1,
+            'findings': [
+                {
+                    'file': '.agents/skills/refused',
+                    'line': 1,
+                    'rule': 'skill.symlink-outside',
+                    'message': 'symlink leads outside the repository',
+                    'spec': None,
+                    'notes': [
+                        {
+                            'kind': 'note',
+                            'text': 'leaves the repository at .agents/skills/refused -> ../../shared/tmp/../../..',
+                        },
+                        {'kind': 'help', 'text': 'keep every file a skill loads inside the repository'},
+                    ],
+                }
+            ],
+            'ungoverned': [],
+        }, 'the chain steps into shared/tmp, climbs back out and then above the root, so the entry leaves'
+
     def test_check_skills_with_json_format_over_a_skill_named_after_where_its_link_leads_reports_the_listed_name(
         self, tmp_path: Path
     ) -> None:

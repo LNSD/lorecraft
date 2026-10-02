@@ -362,7 +362,8 @@ class FileSystem(ABC):
         The walk is the one the scan takes (`root_expansion.find_real_path`), so the scan, the scope query and
         both views agree on which chains leave the root. It stops at the link that leaves, so nothing outside the
         root is read: a chain leaves when a link on it has an absolute target outside the root, or a `..` on it
-        climbs above the root. A chain that dangles, loops or ends on a `..` the scan refuses stays under the root.
+        climbs above the root, whatever directories it stepped into on the way. A chain that dangles or loops
+        stays under the root.
 
         Args:
             path: The root-relative path to walk; every symlink in it is followed until the chain leaves.
