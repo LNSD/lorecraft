@@ -1,7 +1,7 @@
 ---
 name: commit
-description: Write and validate conventional commit messages that record a change's intent and its effect on the project rather than its diff. Use when the user says "commit", "git commit", "/commit", asks for help with a commit message, or requests to amend a commit. Applies a mechanical gate that rejects titles and bullets narrating the diff, enforces module- and area-based scoping, and forbids AI attribution.
-allowed-tools: Bash(git status *) Bash(git diff *) Bash(git log *) Bash(git show *) Bash(git commit *)
+description: Write and validate conventional commit messages that record a change's intent and what it changes for the people and agents using the project, rather than its diff. Use when the user says "commit", "git commit", "/commit", asks for help with a commit message, or requests to amend a commit. Researches the intent first — the conversation, the issue the work closes, the series it belongs to — then applies a mechanical gate that rejects titles and bullets narrating the code, enforces module- and area-based scoping, and forbids AI attribution.
+allowed-tools: Bash(git status *) Bash(git diff *) Bash(git log *) Bash(git show *) Bash(git commit *) Bash(gh issue view *) Bash(gh pr view *)
 ---
 
 # Git Commit Messages
@@ -13,13 +13,14 @@ Do not create a commit unless the user asks for one.
 
 ## The One Rule
 
-**The title and the body state the intent of the change and what it does to the project. Not the code
-that changed.**
+**The title and the body state the intent of the change and what it does for the people and agents
+using the project. Not the code that changed.**
 
 Everything below is machinery for that one rule. Whoever reads this message already has the diff: they
 can see every line that moved, every file added, every symbol renamed. What the diff cannot show is
-why the change exists, what is different for the project now that it has landed, and which constraint
-forced this shape instead of a simpler one. Supplying those three things is the message's entire job.
+why the change exists, what someone running the toolkit or reading the repository now experiences
+differently, and which constraint forced this shape instead of a simpler one. Supplying those three
+things is the message's entire job.
 
 A reader six months out is the one being written for. They have the diff and they lack the intent, and
 nobody is left to ask.
@@ -67,6 +68,49 @@ Mechanism is not banned. When the mechanism **is** the point, a move that breaks
 rename that removes a class of caller mistakes, a pin that makes CI reproducible, name it and then say
 what it buys. "Move X to Y" fails; "move X to Y so Z stops importing the world" passes.
 
+## Research Before Drafting
+
+**A message written from the diff alone can only narrate it.** The intent lives outside the diff, so
+gather it before writing a word. Read what exists, in this order:
+
+1. **The conversation.** What the user asked for, the problem they described, and the decisions settled
+   while the work was done. A choice between two shapes made there is body material.
+2. **The issue the work closes.** The branch, the conversation or an open PR names it;
+   `gh issue view <N>` gives the reported symptom and the acceptance criteria. The symptom, often a
+   command and its wrong output, is usually the summary's first sentence.
+3. **The series the change belongs to.** `git log main..HEAD` and the recent `main` history show the
+   rule an earlier commit settled, which this one extends or corrects. Say which.
+4. **The user-facing documents the change edits.** A feature doc under `docs/feat/` states the
+   behaviour in the project's own words; borrow them.
+
+Then answer three questions, one sentence each, before drafting:
+
+- **Before:** what did someone running the toolkit, writing a document, or an agent loading a skill
+  see? The command, what it did, why that was wrong or missing.
+- **After:** the same situation, its new outcome.
+- **Unchanged:** the neighbouring behaviour a reader might assume moved too, and why it did not.
+
+Those three sentences are the summary and the bullets; the code is how they came true. If the research
+turns up no intent, with no issue, no conversation and no series, ask the user for it rather than
+inventing one.
+
+## The User's Seat
+
+Write from the seat of whoever the change reaches: a repository author running `lorecraft check`, an
+agent following a skill, a contributor reading a rule document. Their vocabulary is the message's
+vocabulary.
+
+- **Visible names are fine; internal names are not the story.** A command, an option, a rule id such as
+  `skill.name-matches-directory`, a finding's text, a path in the user's repository, a document name: the
+  user sees these, so they make a bullet concrete. A function, a class, a module or a test file the user
+  never sees belongs in the message only when the mechanism is the point, and then with what it buys.
+- **Concrete over abstract.** A summary is right when a reader who never saw the issue could reproduce
+  the old behaviour from it. "Following the entry's own link selected every entry that shares its
+  directory" is true and opaque; "naming `.agents/skills/beta`, a link to `alpha`, checked `alpha` too"
+  is the same defect, stated so it can be checked.
+- **Do not inventory the change.** "Update the feature doc" and "add integration and end-to-end tests"
+  are in the diff. Name a document only for the promise it now makes to its reader.
+
 ## The Draft Gate
 
 Run every draft through these three checks before committing. They are mechanical: each one has an
@@ -103,17 +147,21 @@ an edit log.
 
 ### Gate 3: the object test (title and every bullet)
 
-Find the grammatical object of the main clause. Ask what kind of thing it is.
+Find the grammatical object of the main clause, and the grammatical subject too. Ask what kind of thing
+each is.
 
-**If it is a path, a filename, a symbol, a config key, a heading, a section, or a count of files, the
-line has failed**, however well it reads. The object must be a behaviour, a guarantee, a constraint, a
-defect, or something a person or an agent reading the repository now experiences differently.
+**If it is an internal path, a filename, a function, a class, a config key, a heading, a section, or a
+count of files, the line has failed**, however well it reads. The object must be a behaviour, a
+guarantee, a constraint, a defect, or something a person or an agent using the repository now
+experiences differently. A command, a rule id or a path in the user's repository passes when the line
+says what it now does for them.
 
-| Object in the draft | Verdict |
+| Object or subject in the draft | Verdict |
 |---|---|
 | `pyproject.toml`, `skill_link.py`, `parse_frontmatter`, `include`, `## Checklist` | Fail |
 | six jobs, 17 documents, three call sites | Fail |
 | what a malformed document does, what the sdist contains, what CI refuses to merge | Pass |
+| which skills `check skills .agents/skills/beta` checks | Pass |
 
 A closed list of verbs almost always drags an artifact into the object slot: *add*, *remove*, *move*,
 *rename*, *extract*, *split*, *update*, *refactor*, *rewrite*, *create*, *change*. Seeing one is not
@@ -235,9 +283,9 @@ commit touching both directories is typed by the `skills/` change.
 
 Why the change exists and what is different now. The character limit applies only to the title.
 
-State the problem, the pressure, or the decision that produced this change: what was wrong, what was
-missing, what could not be done before and can be now. The diff already says what changed; do not
-restate it here in prose.
+Lead with the *before* sentence from [the research](#research-before-drafting): what was wrong or
+missing, concretely enough to reproduce, then why it mattered and what is true now. The diff already
+says what changed; do not restate it here in prose, and do not describe the mechanism in the abstract.
 
 Write the summary as one physical line. Do not hard-wrap it or add blank lines
 inside it. The title limit does not apply to the body.
@@ -249,10 +297,13 @@ matters**.
 
 - One consequence per bullet, complete as a thought, ending in an effect rather than an edit.
 - Every bullet passes [the so-what test](#gate-2-the-so-what-test-every-bullet) and the object test.
+- Lead with what a user or an agent does and now sees: a command and its outcome, a document and what it
+  now promises, a skill and what an agent now does with it.
 - Record the constraint that forced the shape, when there was one. That is the part a future reader
   cannot reconstruct and the part most likely to be undone by accident.
-- Use backticks for `code references` where they carry meaning: function names, classes, config keys,
-  module paths, document names, marker names.
+- Use backticks for names a reader can act on: commands, options, rule ids, document names, paths in the
+  user's repository. An internal function or class only where [the mechanism is the
+  point](#the-failure-mode-the-narrated-diff).
 - Keep each bullet on one physical line. Do not hard-wrap it; GitHub will wrap
   it to fit the display.
 
@@ -267,67 +318,10 @@ is the body.
 
 ## Before and After
 
-Drawn from this repository's own subject matter. More pairs:
-[references/before-and-after.md](references/before-and-after.md).
-
-**The source distribution shipped the whole repository.**
-
-| | |
-|---|---|
-| Before | `build: add sdist include list to pyproject.toml` |
-| After | `fix(build): stop publishing the rule corpus to the package index` |
-
-The first names a key added to a config file, which the diff shows in one line. The second names what
-the project stopped doing to everyone downstream of a release.
-
-**The rule corpus arrived from an existing setup, deliberately vendored.**
-
-| | |
-|---|---|
-| Before | `docs(code): copy in 17 rule documents` |
-| After | `docs(code): adopt the rule corpus this toolkit exists to check` |
-
-Counting files is the diff's job. The second says the project now holds the corpus the unwritten
-checker is being built against, which is why copying rather than abstracting was correct.
-
-**The repository gained CI running its own document and skill checks.**
-
-| | |
-|---|---|
-| Before | `chore(ci): add ci.yml with six jobs` |
-| After | `chore(ci): gate every change on the document and skill checks` |
-
-The first describes a file. The second states the new guarantee: the checks are a gate, not a
-suggestion written in prose.
-
-**The version string stopped living in two places.**
-
-| | |
-|---|---|
-| Before | `refactor(build): move the version out of pyproject.toml into the package` |
-| After | `refactor(build): leave the manifest unable to disagree with the package` |
-
-The first is a move. The second is the invalid state the move made unrepresentable, which is the part
-worth protecting from a well-meaning future edit.
-
-**Bullets, same distinction.** From the commit that taught `lorecraft check skills` to report a broken link:
-
-Before:
-
-```
-- Add `skill.link-broken` to `checks/skill_link.py`
-- Call `find_real_path` from the run for each link target
-```
-
-After:
-
-```
-- Resolve every link through the snapshot rather than the disk, so a
-  skill's `SKILL.md` and its resources are judged against one view of
-  the repository
-- Hand the check what the snapshot holds at each target, so it stays pure
-  and is tested without a filesystem
-```
+Whole messages, titles and bullets, each before and after the gates, drawn from this repository's own
+subject matter: [references/before-and-after.md](references/before-and-after.md). Read it before drafting
+anything with a body; its first example is a message that passed a casual read and still told the reader
+nothing they could not get from the diff.
 
 ## Mechanical Changes
 
@@ -383,9 +377,6 @@ A change to modules directly in `src/lorecraft/` scopes to `lorecraft`.
 - A root `README.md`: `docs: ...` unless a more specific scope adds useful information
 - Root config with no natural scope: `chore: ...` (no scope)
 
-Full-message examples with unwrapped summaries and bullets are in
-[references/before-and-after.md](references/before-and-after.md).
-
 ## Sign-off
 
 **REQUIRED: sign off with the command, not by hand**
@@ -440,7 +431,12 @@ automatically, remove it before the commit lands.
    git log -1 --pretty=format:"%H%n%s%n%n%b"
    ```
 
-2. **Analyze compliance**, checking whether the current message:
+2. **Research the intent** as [Research Before Drafting](#research-before-drafting) describes: the
+   message being amended is a draft to check, not a source of intent.
+
+3. **Analyze compliance**, checking whether the current message:
+   - ✅ States the before, the after and the unchanged from the research, concretely
+   - ✅ Speaks from the user's seat, naming internal code only where the mechanism is the point
    - ✅ Passes all three gates: transplant, so-what, object
    - ✅ Follows `type(scope): description`
    - ✅ Has the correct scope, matching the principal module or area from the changes
@@ -451,17 +447,21 @@ automatically, remove it before the commit lands.
    - ✅ Has a `Signed-off-by:` matching the commit author
    - ✅ Is true of the actual changes
 
-3. **Report findings**: tell the user which modules or areas the commit actually modifies, whether the
+4. **Report findings**: tell the user which modules or areas the commit actually modifies, whether the
    scope and type are right, which lines narrate the diff instead of stating intent, and any format
    violations.
 
-4. **Amend if needed**:
+5. **Amend if needed**:
    ```bash
    git commit --amend -s
    ```
 
 ## Anti-patterns
 
+- Drafting from the diff before reading the conversation and the issue the work closes.
+- A summary that states the mechanism in the abstract instead of the symptom a user hit.
+- A bullet led by an internal function or class, or one that lists the documents and tests the change
+  updated.
 - A title that survives the transplant test. It is describing an edit that any project could make.
 - A bullet that cannot answer *so what?* from its own words.
 - A title or bullet whose object is a path, a filename, a symbol, a config key or a count of files.
@@ -477,7 +477,9 @@ automatically, remove it before the commit lands.
 
 ## Next Steps
 
-1. **Draft** the title and body from the intent, then run all three gates over the draft.
-2. **Report** the message to the user before committing, and name anything the gates forced you to
+1. **Research** the intent: the conversation, the issue, the series, and write the before, after and
+   unchanged sentences.
+2. **Draft** the title and body from those sentences, then run all three gates over the draft.
+3. **Report** the message to the user before committing, and name anything the gates forced you to
    rewrite.
-3. **Commit** with `git commit -s` only when the user asked for a commit.
+4. **Commit** with `git commit -s` only when the user asked for a commit.
