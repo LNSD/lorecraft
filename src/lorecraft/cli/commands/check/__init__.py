@@ -15,6 +15,7 @@ import typer
 
 from lorecraft.checks import CheckRun, SkillCheckRun
 from lorecraft.cli.check_run import (
+    CheckExit,
     DocumentCheck,
     OutputFormat,
     SkillCheck,
@@ -81,17 +82,17 @@ def check_all(
             skill_runs.append((skill_check, skill_check.run(database, skill_selections)))
     except Error as exc:
         report_failure(exc)
-        raise typer.Exit(code=2) from exc
+        raise typer.Exit(code=CheckExit.FAILURE) from exc
 
     if output_format is None:
         output_format = OutputFormat.TEXT
     print_runs(tuple(runs), tuple(skill_runs), output_format)
     for _check, run in runs:
         if run.findings():
-            raise typer.Exit(code=1)
+            raise typer.Exit(code=CheckExit.FINDINGS)
     for _skill_check, skill_run in skill_runs:
         if skill_run.findings():
-            raise typer.Exit(code=1)
+            raise typer.Exit(code=CheckExit.FINDINGS)
 
 
 # Each check lives in its own module and joins this group when imported. The group must exist before the
