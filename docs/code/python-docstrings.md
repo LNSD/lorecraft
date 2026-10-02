@@ -193,8 +193,7 @@ too, saying what this class's version gives: what a `__str__` prints, what a `__
 A function or method that carries a docstring and takes a parameter has an `Args:` section with a line for
 every parameter, `self` and `cls` aside, keyword-only, `*args` and `**kwargs` included. The reader of a
 rendered page or a hover has the docstring, not the body, and a missing line leaves them guessing. A Typer
-command or callback is the exception: Typer prints its whole docstring as `--help`, so each parameter is
-described in its `typer.Option` or `typer.Argument` `help=` instead, which is where its reader looks.
+command's parameters and its `--help` are owned by [python-typer](python-typer.md).
 
 A line says what the parameter is **to this call**: the role it plays, and where it applies, its unit, its
 bound, what its default means, whether it is mutated or kept, and what happens when it is omitted or empty.

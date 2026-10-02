@@ -51,6 +51,7 @@ def structure(
 
     Exit 0 when clean, 1 when findings exist, and 2 for invalid input or specifications.
 
+    \f
     Raises:
         typer.Exit: With the documented status code for findings or invalid input.
     """

@@ -36,9 +36,10 @@ def inspect(
     The root is scanned once and the model is loaded from that snapshot, so what is printed is one moment of
     the tree even while files change under it.
 
+    \f
     Raises:
         typer.Exit: With code 1 when the scan or the load fails: an entry in scope that cannot be read, a
-            skills directory that cannot be resolved or listed, a ``docs/`` or ``docs/__meta__/`` that is a
+            skills directory that cannot be resolved or listed, a `docs/` or `docs/__meta__/` that is a
             symlink, or a structure specification that cannot be decoded or does not state usable rules.
     """
     try:
