@@ -1,8 +1,8 @@
 """The heading nodes of a document's parse tree: the document's own top-level headings, in document order.
 
 Only headings that section the document itself are kept. One quoted in a blockquote or nested in a list item
-illustrates a document rather than sectioning this one, and a ``#`` line inside a fenced code block is code,
-not a heading; the Markdown parser decides both (see ``document``).
+illustrates a document rather than sectioning this one, and a `#` line inside a fenced code block is code,
+not a heading; the Markdown parser decides both (see `markdown`).
 """
 
 from dataclasses import dataclass
@@ -33,8 +33,8 @@ class Heading:
     text: str
     line: LineNumber
     empty: bool
-    # Not range-checked: only the parser builds a heading, and it counts the words, so the value is never
-    # below 0.
+    # Not range-checked: only `document.parse_document` builds a heading, from the words it counts, so the value
+    # is never below 0.
     words: int
 
     def __post_init__(self) -> None:
