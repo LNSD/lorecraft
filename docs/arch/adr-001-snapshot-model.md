@@ -1,11 +1,13 @@
 ---
-name: "arch-snapshot-model"
+name: "adr-001-snapshot-model"
 description: "The snapshot model every package fits into: revisions of the workspace, each a set of inputs and the database of queries over them, the six package roles, and the symlink and Markdown link vocabulary. Load when adding a package, deciding which package code belongs in, or reviewing whether a change fits the snapshot model"
-type: "arch"
-scope: "global"
+type: "adr"
+status: "accepted"
 ---
 
 # The Snapshot Model
+
+## Context
 
 Lorecraft analyses the workspace one **revision** at a time: one set of inputs and the database built from
 them. The **inputs** are what a revision is computed from: the snapshot, the disk read once into a value, and the
@@ -15,7 +17,7 @@ line reports, each a value of its own. The **database** wraps the inputs, and ev
 every command through the database alone. A check is a pure function of what the queries return. The next
 revision has new inputs and a new database, which may keep every query result the change between the two left
 valid. A change that breaks this shape can leave every finding right and still make that carry-over unsound, so a
-review holds it to the `arch-*` documents rather than to the tests.
+review holds it to the accepted ADRs in `docs/arch/` rather than to the tests.
 
 Each layer of the model has a document of its own: the snapshot, the project model, the database, and incremental
 computation across revisions. Two more cover how specifications govern documents and what a check reports.
@@ -23,7 +25,9 @@ computation across revisions. Two more cover how specifications govern documents
 Two words are kept apart throughout: a **symlink** is a link in the filesystem, which the snapshot records and the
 Input package follows, and a **Markdown link** is a link node in a document's parse tree.
 
-## Every Package Plays One Role
+## Decision
+
+### Every Package Plays One Role
 
 Each package under `src/lorecraft/` plays exactly one of six roles; one role may span several packages. The
 layers contract in `pyproject.toml` fixes which package may import which. The role says what a package may do:
@@ -40,6 +44,12 @@ layers contract in `pyproject.toml` fixes which package may import which. The ro
 A package's own `module-*` document names its role. When code would make a package play a second role, it
 belongs in the package that already plays that role.
 
+## Consequences
+
+- Whether a change fits the snapshot model is decided by review against these records, not argued case by case.
+- Code that would give a package a second role moves to the package that already plays it, so the layers contract
+  stays the whole story of what may import what.
+
 ## Checklist
 
 Before committing code, verify:
@@ -48,11 +58,11 @@ Before committing code, verify:
 
 ## References
 
-- [arch-vfs](arch-vfs.md) - Related: The snapshot, and the one boundary with the disk
-- [arch-project-model](arch-project-model.md) - Related: The declared scope, apart from the captured content
-- [arch-database](arch-database.md) - Related: Revisions, the view and the queries
-- [arch-incremental](arch-incremental.md) - Related: Results carried over between revisions and processes
-- [arch-specifications](arch-specifications.md) - Related: How specifications govern documents
-- [arch-findings](arch-findings.md) - Related: What a check reports, and how it reaches the user
-- [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One role per package is
+- [adr-002-vfs](adr-002-vfs.md) - Related: The snapshot, and the one boundary with the disk
+- [adr-003-project-model](adr-003-project-model.md) - Related: The declared scope, apart from the captured content
+- [adr-004-database](adr-004-database.md) - Related: Revisions, the view and the queries
+- [adr-005-incremental](adr-005-incremental.md) - Related: Results carried over between revisions and processes
+- [adr-006-specifications](adr-006-specifications.md) - Related: How specifications govern documents
+- [adr-007-findings](adr-007-findings.md) - Related: What a check reports, and how it reaches the user
+- [principle-single-responsibility](../code/principle-single-responsibility.md) - Foundation: One role per package is
   one reason to change per package

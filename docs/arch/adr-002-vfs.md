@@ -1,22 +1,26 @@
 ---
-name: "arch-vfs"
+name: "adr-002-vfs"
 description: "The snapshot as the one read of the disk: only the Input package lists, reads or follows a symlink under the workspace root, besides the Composition package finding the root, the snapshot is a value, and a change is the difference between two snapshots. Load when reading a file or listing a directory anywhere, handling filesystem events, or comparing two states of the workspace"
-type: "arch"
-scope: "global"
+type: "adr"
+status: "accepted"
 ---
 
 # The Snapshot
 
+## Context
+
 The snapshot is the workspace's input to a revision: the state of the tree under the scope, which everything
 above the Input package reads instead of the disk.
 
-## One Boundary with the Disk
+## Decision
+
+### One Boundary with the Disk
 
 Nothing reads a file, lists a directory or follows a symlink under the workspace root except the Input package
 taking a snapshot, and the Composition package finding where the root is. Every other read of the workspace goes
 through the snapshot, so two checks behind one report never see two states of the tree.
 
-## The Snapshot Is a Value
+### The Snapshot Is a Value
 
 A snapshot holds listings, file bytes and symlink targets, and is never patched. The next one is a new value:
 a full scan, or the previous snapshot with only the paths that events name scanned again, provided it equals
@@ -38,6 +42,13 @@ def on_events(root: Path, previous: TreeState) -> tuple[TreeState, ChangeList]:
     return current, diff_states(previous, current)
 ```
 
+## Consequences
+
+- Everything above the Input package reads one state of the tree, and only the Input package and the root's
+  discovery meet the disk's errors.
+- A process that watches the tree rescans the paths events name and compares two snapshots, so an editor's
+  write-then-rename never costs a result whose file did not change.
+
 ## Checklist
 
 Before committing code, verify:
@@ -48,7 +59,7 @@ Before committing code, verify:
 
 ## References
 
-- [arch-snapshot-model](arch-snapshot-model.md) - Related: The model and the package roles
-- [arch-database](arch-database.md) - Related: The database that wraps a snapshot
-- [principle-validate-at-edge](principle-validate-at-edge.md) - Foundation: The snapshot is the edge, so
+- [adr-001-snapshot-model](adr-001-snapshot-model.md) - Related: The model and the package roles
+- [adr-004-database](adr-004-database.md) - Related: The database that wraps a snapshot
+- [principle-validate-at-edge](../code/principle-validate-at-edge.md) - Foundation: The snapshot is the edge, so
   everything above it is trusted values

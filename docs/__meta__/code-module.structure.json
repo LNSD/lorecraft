@@ -47,7 +47,7 @@
     {
       "section": "References",
       "description": "The architecture document the Role names and each one the invariants build on, as Foundation; principle-single-responsibility as Foundation; and for a subpackage, the parent's module document as Extends.",
-      "examples": ["- [arch-snapshot-model](arch-snapshot-model.md) - Foundation: The Input role\n- [arch-vfs](arch-vfs.md) - Foundation: The one boundary with the disk, and the snapshot as a value\n- [arch-project-model](arch-project-model.md) - Foundation: The scope is declared, and symlinks decide where a\n  path leads\n- [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One reason to change\n- [principle-validate-at-edge](principle-validate-at-edge.md) - Foundation: The boundary is where paths are\n  proved root-relative"]
+      "examples": ["- [adr-001-snapshot-model](../arch/adr-001-snapshot-model.md) - Foundation: The Input role\n- [adr-002-vfs](../arch/adr-002-vfs.md) - Foundation: The one boundary with the disk, and the snapshot as a value\n- [adr-003-project-model](../arch/adr-003-project-model.md) - Foundation: The scope is declared, and symlinks decide where a\n  path leads\n- [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One reason to change\n- [principle-validate-at-edge](principle-validate-at-edge.md) - Foundation: The boundary is where paths are\n  proved root-relative"]
     },
     {
       "section": "External References",

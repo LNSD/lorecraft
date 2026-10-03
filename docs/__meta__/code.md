@@ -112,7 +112,7 @@ Nothing registers a rule document with a specification: the document's own path 
   group but not for the corpus goes there, and stays out of the corpus file rather than becoming a condition
   inside it.
 - **A namespace is a group only once a specification names it.** Documents no `code-<namespace>.md` matches,
-  `arch-*`, `error-*`, `test-*` and the unprefixed `logging` today, are governed by `code.md` alone. That is the normal case, not a
+  `error-*`, `test-*` and the unprefixed `logging` today, are governed by `code.md` alone. That is the normal case, not a
   gap to fill. Add a namespace specification when a group's members genuinely share rules the rest of the
   corpus does not.
 - **Matching is by name and nothing else.** A specification starts governing the moment its name resolves, and
@@ -169,7 +169,7 @@ narrowed by every `code-<namespace>.md` specification whose namespace matches it
 ---
 name: "rule-name-kebab-case"
 description: "Brief description. Load when [trigger conditions]"
-type: "principle|core|arch|pkg|meta"
+type: "principle|core|pkg|meta"
 scope: "global|pkg:<name>|<purl>"
 ---
 ```
@@ -180,7 +180,7 @@ scope: "global|pkg:<name>|<purl>"
 |---------------|----------|------------------------------|------------------------------------------------------------------------|
 | `name`        | YES      | `^[a-z0-9]+(-[a-z0-9]+)*$`   | Unique identifier matching filename (minus .md)                        |
 | `description` | YES      | Single line, succinct        | Discovery-optimized description (see Description Guidelines below)     |
-| `type`        | YES      | `principle`, `core`, `arch`, `pkg`, or `meta` | Rule category (see Type Definitions below)              |
+| `type`        | YES      | `principle`, `core`, `pkg`, or `meta` | Rule category (see Type Definitions below)              |
 | `scope`       | YES      | `global`, `pkg:<name>`, or a purl | Application scope: global, one package of the project, or one dependency |
 
 **All four values are double-quoted**, as the block above writes them. YAML accepts a bare `type: core`, so
@@ -193,7 +193,6 @@ of value, never a change of style.
 |--------|----------------------------------|-----------------|------------------------------------------------------|
 | `principle` | Universal software principles | Always `global` | Best practices for optimal code quality              |
 | `core` | Fundamental coding patterns      | `global`, or a dependency's purl | Applicable across entire codebase |
-| `arch` | Architectural patterns           | Always `global` | High-level organizational and structural patterns    |
 | `pkg`  | Package-specific patterns        | `pkg:<name>`    | Patterns for individual packages or modules          |
 | `meta` | Documentation about documentation| Always `global` | Format specifications and conventions                |
 
@@ -217,15 +216,6 @@ ecosystem decides the rest, as in `pkg:pypi/typer`, `pkg:cargo/serde` or `pkg:do
 always holds a `/`, which tells it from a `pkg:<name>` scope naming a package of this project. The scope
 says which dependency the rule is about, so the rule is found from the dependency, and a change that drops
 the dependency knows which rules go with it.
-
-#### `arch` - Architectural Rules
-
-High-level organizational and structural rules: how the packages fit together, the role each plays, the
-boundaries between them and what crosses them. An `arch` rule governs where code lives and what flows between
-packages, rather than how a line of code is written.
-
-An `arch` rule is `global`: it governs how the packages fit together, not one package. A rule about one
-package's place in that shape is a `pkg` rule.
 
 #### `pkg` - Package-Specific Rules
 
@@ -255,7 +245,7 @@ The two fields are not independent. A document that breaks one of these pairings
 
 | Constraint | Meaning |
 |------------|---------|
-| `type: principle` or `arch` | ⇒ `scope: "global"` |
+| `type: principle` | ⇒ `scope: "global"` |
 | `type: core` | ⇒ `scope: "global"`, or the purl of the one dependency the rule is about |
 | `type: pkg` | ⇒ `scope: "pkg:<name>"` |
 | `name: pkg-<x>` | ⇒ `type: pkg` (a `pkg-` name implies the type; a group of package-scoped documents may carry it under its own prefix) |
@@ -316,8 +306,8 @@ member that specializes another adds a further segment:
 ```
 
 The groups in use are `principle-*` (universal principles), `pattern-*` (design patterns), `python-*`
-(language conventions), `error-*` (how this project declares and handles its errors), `test-*`, `arch-*`
-(how the packages fit together), `module-*` (one package's responsibility), and unprefixed standalone documents
+(language conventions), `error-*` (how this project declares and handles its errors), `test-*`,
+`module-*` (one package's responsibility), and unprefixed standalone documents
 such as `logging`. A
 rule document that fits none of them is standalone, and a new group is created by writing its first member.
 
@@ -365,7 +355,7 @@ Rule documents may reference other rule documents to establish relationships. Cr
 | Type | Meaning | Example |
 |---|---|---|
 | `Related` | Sibling in same prefix group | test-organization <-> test-functions |
-| `Foundation` | Principle, core or arch rule a pkg/arch rule builds on | pkg-lorecraft-project-checks -> error-types |
+| `Foundation` | Principle or core rule, or an accepted ADR in `docs/arch/`, a rule builds on | pkg-lorecraft-project-checks -> error-types |
 | `Companion` | Paired doc for same package | pkg-lorecraft-project-checks <-> pkg-lorecraft-project-checks-security |
 | `Extends` | Specializes/refines another rule document | python-async-tasks -> python-async |
 
@@ -375,15 +365,13 @@ Rule documents may reference other rule documents to establish relationships. Cr
 |---|---|
 | `principle` | Other principle patterns (`Related`) |
 | `core` | Principle patterns (`Foundation`), other core patterns (`Related`, `Extends`) |
-| `arch` | Principle/core patterns (`Foundation`), other arch patterns (`Related`) |
-| `pkg` | Principle/core/arch patterns (`Foundation`), own companion (`Companion`), a pkg doc it specializes (`Extends`) |
+| `pkg` | Principle/core patterns and accepted ADRs (`Foundation`), own companion (`Companion`), a pkg doc it specializes (`Extends`) |
 | `meta` | Other meta rules only (`Extends`) |
 
 **Key principles:**
 - Principle rules are standalone and link laterally to other principle rules
 - Core rules link laterally to related or parent core rules, and may reference principle rules as foundation
-- Arch rules reference the principle/core rules they build on
-- Package rules reference the principle/core/arch rules they depend on, plus a companion or the package doc they specialize
+- Package rules reference the principle/core rules and the accepted ADRs they depend on, plus a companion or the package doc they specialize
 - Meta rules only reference the base format spec they extend
 
 ### References Section Format
@@ -401,7 +389,6 @@ Rule documents may reference other rule documents to establish relationships. Cr
 - ✅ `pkg-lorecraft-project-checks` -> `error-types` (Foundation: pkg to core)
 - ✅ `pkg-lorecraft-project-checks-frontmatter` -> `pkg-lorecraft-project-checks` (Extends: pkg to pkg)
 - ✅ `pkg-lorecraft-project-checks` <-> `pkg-lorecraft-project-checks-security` (Companion: bidirectional)
-- ✅ an `arch` doc governing `pyproject.toml` -> `python-modules` (Foundation: arch to core)
 - ✅ `test-organization` <-> `test-functions` (Related: core siblings)
 - ❌ `code` -> `python-modules` (meta rules only reference other meta rules)
 - ❌ `python-modules` -> `pkg-lorecraft-project-checks` (core cannot reference pkg rules)
@@ -417,7 +404,7 @@ form, together with the word caps and token budget of [§1](#1-core-principles).
 applies the outline and the caps, and `lorecraft check budget` the budget. A
 document that a namespace specification matches takes its section outline from the narrowest
 `code-<namespace>.md` specification that matches its name instead of the general shape below; the general
-shape governs every document no namespace specification matches, `arch-*`, `error-*`, `test-*` and `logging` today
+shape governs every document no namespace specification matches, `error-*`, `test-*` and `logging` today
 ([§1](#1-core-principles)).
 
 Every rule document should follow this general structure:
@@ -600,7 +587,7 @@ Use this template when creating new rule documents:
 ---
 name: "{{rule-name-kebab-case}}"
 description: "{{Brief summary. Load when [trigger conditions], no period}}"
-type: "{{principle|core|arch|pkg|meta}}"
+type: "{{principle|core|pkg|meta}}"
 scope: "{{global, pkg:<name>, or a dependency's purl}}"
 ---
 
@@ -664,7 +651,7 @@ Before committing a rule document:
 
 - [ ] Valid YAML frontmatter with opening and closing `---`
 - [ ] `name` is kebab-case and matches filename (minus .md)
-- [ ] `type` is one of: `principle`, `core`, `arch`, `pkg`, `meta`
+- [ ] `type` is one of: `principle`, `core`, `pkg`, `meta`
 - [ ] `scope` is valid: `global`, `pkg:<name>` (snake_case, dotted for nesting), or a dependency's purl
 - [ ] `type` and `scope` are paired as [§2](#2-frontmatter-requirements) requires
 - [ ] `description` includes "Load when" trigger clause (no ending period)

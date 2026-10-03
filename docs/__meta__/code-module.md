@@ -75,8 +75,8 @@ must justify: a shared invariant, an ordering, or a lifetime that cannot be spli
 
 #### Role (required)
 
-The one role the package plays, named in bold, from the role vocabulary that the corpus's architecture rules
-define. Follow it with what that role means for this package specifically, and nothing more about the role in
+The one role the package plays, named in bold, from the role vocabulary that the accepted architecture decision
+records in `docs/arch/` define. Follow it with what that role means for this package specifically, and nothing more about the role in
 general: the architecture document owns that, and this section links it as `Foundation`.
 
 #### Belongs Here (required)
@@ -175,7 +175,7 @@ scope: "pkg:{{import.path}}"
 
 ## References
 
-- [{{architecture-document}}]({{architecture-document}}.md) - Foundation: {{The role vocabulary}}
+- [{{adr-NNN-subject}}](../arch/{{adr-NNN-subject}}.md) - Foundation: {{The role vocabulary}}
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One reason to change
 
 ## External References {{OPTIONAL}}
