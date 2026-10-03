@@ -3,8 +3,8 @@
 A check is pure over the one part of a document it reads: the frontmatter check over the frontmatter node, the
 structure check over the headings, the budget check over the token count. The `Database` caches the model, the
 decoded text, the frontmatter, the parse trees and the token counts of one snapshot, and every check reads through
-it, so each part is computed once whichever checks read it; `run` asks the database to decode each document once,
-as a witness of its text or an `Undecodable` marker, then for the part the check reads, and hands only that to the
+it, so each part is computed once whichever checks read it; `run` asks the database to decode each file once, as a
+witness of its text or an `Undecodable` marker, then for the part the check reads, and hands only that to the
 check. The skill check reads the frontmatter of each `SKILL.md` the same way, and holds it to the Agent Skills
 specification rather than to a corpus specification; the skill length check reads its line count; the skill link
 check reads the links of its parse tree, and, for a skill selected whole, of the parse tree of each of the skill's
@@ -37,11 +37,13 @@ from .run import (
 )
 from .skill import SkillCheckResult, validate_skill
 from .structure import StructureCheckResult, validate_structure
-from .text import DocumentText, Undecodable
+from .text import DocumentText, SkillResourceText, SkillText, Undecodable
 
 __all__ = [
     'Database',
     'DocumentText',
+    'SkillText',
+    'SkillResourceText',
     'Undecodable',
     'Finding',
     'Violation',

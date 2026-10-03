@@ -1,8 +1,8 @@
 """The database over a hand-built snapshot.
 
 The model, each decoded text, each frontmatter, each parse tree, each token count and each skill's parse tree are
-computed once, and every query about a document's content is asked with the witness its decode query returned. The
-layout guard and the scope question read the same snapshot. The expanded scope behind the scope question is
+computed once, and every query about a file's content is asked with the witness its decode query returned. The layout
+guard and the scope question read the same snapshot. The expanded scope behind the scope question is
 private to the database, so that it is built once is not observed here; that every question after the first is
 answered correctly from it is.
 
@@ -16,13 +16,13 @@ from typing import Final
 
 import pytest
 
-from lorecraft.checks import Database, DocumentText, Undecodable
+from lorecraft.checks import Database, DocumentText, SkillText, Undecodable
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import LinkedLayoutError, scope_with_named_dirs
-from lorecraft.project.skill import NamedDir, SkillDecodeError, SkillLocation, SkillRef
+from lorecraft.project.skill import NamedDir, SkillLocation, SkillRef
 from lorecraft.project.syntax import Frontmatter, Heading, LineNumber, count_tokens
 from lorecraft.project.syntax import Link as MarkdownLink
 from lorecraft.vfs import DirEntry, EntryKind, FileBytes, Link, Listing, ResolvedPath, ScanRoot, Snapshot
@@ -64,6 +64,18 @@ def _document_text(database: Database, ref: DocumentRef) -> DocumentText:
     """
     source = database.text(ref)
     assert isinstance(source, DocumentText), f'{ref.path} was written as UTF-8, so it decodes'
+    return source
+
+
+def _skill_text(database: Database, ref: SkillRef) -> SkillText:
+    """The witness of a skill whose `SKILL.md` the test wrote as UTF-8, as the database decodes it.
+
+    Args:
+        database: The database the `SKILL.md` is decoded by.
+        ref: A skill whose `SKILL.md` bytes are UTF-8.
+    """
+    source = database.skill_text(ref)
+    assert isinstance(source, SkillText), f'{ref.path} was written as UTF-8, so it decodes'
     return source
 
 
@@ -408,12 +420,44 @@ class TestDatabase:
         #: Then
         assert tokens == expected, f'frontmatter and code count too, got {tokens}'
 
+    def test_skill_text_of_a_utf8_skill_returns_its_witness(self) -> None:
+        #: Given
+        database = Database(_skill_snapshot(b'---\nname: review\n---\n'))
+
+        #: When
+        source = database.skill_text(REVIEW)
+
+        #: Then
+        assert source == SkillText(REVIEW, '---\nname: review\n---\n'), 'the witness holds the ref and its text'
+
+    def test_skill_text_of_a_skill_that_is_not_utf8_returns_undecodable(self) -> None:
+        #: Given
+        database = Database(_skill_snapshot(b'---\nname: caf\xe9\n---\n'))
+
+        #: When
+        source = database.skill_text(REVIEW)
+
+        #: Then
+        assert source == Undecodable(REVIEW), 'a decode failure is an answer naming the skill, not an error'
+
+    def test_skill_text_of_a_skill_that_is_not_utf8_called_twice_returns_the_first_answer(self) -> None:
+        #: Given
+        database = Database(_skill_snapshot(b'---\nname: caf\xe9\n---\n'))
+        first = database.skill_text(REVIEW)
+
+        #: When
+        second = database.skill_text(REVIEW)
+
+        #: Then
+        assert second is first, 'an undecodable skill is cached like any answer, so it is decoded once'
+
     def test_skill_parse_of_a_skill_returns_its_links(self) -> None:
         #: Given
         database = Database(_skill_snapshot(b'---\nname: review\n---\n# Review\n\nSee [the guide](guide.md).\n'))
+        source = _skill_text(database, REVIEW)
 
         #: When
-        document = database.skill_parse(REVIEW)
+        document = database.skill_parse(source)
 
         #: Then
         assert document.links == (MarkdownLink(url='guide.md', line=LineNumber(6)),), (
@@ -423,10 +467,11 @@ class TestDatabase:
     def test_skill_parse_called_twice_returns_the_first_answer(self) -> None:
         #: Given
         database = Database(_skill_snapshot(b'---\nname: review\n---\n# Review\n'))
-        first = database.skill_parse(REVIEW)
+        source = _skill_text(database, REVIEW)
+        first = database.skill_parse(source)
 
         #: When
-        second = database.skill_parse(REVIEW)
+        second = database.skill_parse(source)
 
         #: Then
         assert second is first, 'a skill is parsed once per database, then shared by every check'
@@ -444,55 +489,36 @@ class TestDatabase:
             links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),),
         )
         database = Database(snapshot)
+        source = _skill_text(database, REVIEW)
 
         #: When
-        document = database.skill_parse(REVIEW)
+        document = database.skill_parse(source)
 
         #: Then
         assert document.links == (MarkdownLink(url='guide.md', line=LineNumber(4)),), (
             'the ref names the linked entry, and the tree is parsed from the SKILL.md the link leads to'
         )
 
-    def test_skill_parse_of_a_skill_that_is_not_utf8_raises_skill_decode_error(self) -> None:
-        #: Given
-        database = Database(_skill_snapshot(b'---\nname: caf\xe9\n---\n'))
-
-        #: When
-        with pytest.raises(SkillDecodeError) as exc_info:
-            database.skill_parse(REVIEW)
-
-        #: Then
-        assert exc_info.value.ref == REVIEW, 'the error names the skill that could not be decoded'
-
     def test_skill_lines_of_a_skill_counts_its_whole_file(self) -> None:
         #: Given
         # three lines of frontmatter and three of body, the last one ending in a newline
         database = Database(_skill_snapshot(b'---\nname: review\n---\n# Review\n\nSee [the guide](guide.md).\n'))
+        source = _skill_text(database, REVIEW)
 
         #: When
-        lines = database.skill_lines(REVIEW)
+        lines = database.skill_lines(source)
 
         #: Then
         assert lines == 6, f'the frontmatter counts too, and the final newline adds no line, got {lines}'
 
-    def test_skill_lines_of_a_skill_that_is_not_utf8_raises_skill_decode_error(self) -> None:
-        #: Given
-        database = Database(_skill_snapshot(b'---\nname: caf\xe9\n---\n'))
-
-        #: When
-        with pytest.raises(SkillDecodeError) as exc_info:
-            database.skill_lines(REVIEW)
-
-        #: Then
-        assert exc_info.value.ref == REVIEW, 'the error names the skill that could not be decoded'
-
     def test_skill_frontmatter_called_twice_returns_the_first_answer(self) -> None:
         #: Given
         database = Database(_skill_snapshot(b'---\nname: review\n---\n'))
-        first = database.skill_frontmatter(REVIEW)
+        source = _skill_text(database, REVIEW)
+        first = database.skill_frontmatter(source)
 
         #: When
-        second = database.skill_frontmatter(REVIEW)
+        second = database.skill_frontmatter(source)
 
         #: Then
         assert isinstance(first, Frontmatter), 'the skill bytes decode into a frontmatter node'
