@@ -64,6 +64,9 @@ dmypy.json
 # Ruff
 .ruff_cache/
 
+# Import Linter
+.import_linter_cache/
+
 # mutmut
 mutants/
 

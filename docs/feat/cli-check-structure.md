@@ -130,5 +130,6 @@ A document's findings are reported by line, then by rule identifier.
 - `src/lorecraft/cli/commands/check/structure.py` - Declares the command and registers the check with the group
 - `src/lorecraft/checks/structure.py` - The check of one document's headings
 - `src/lorecraft/checks/run.py` - Decides whether a document is governed, and parses it
-- `src/lorecraft/project/syntax/document.py` - Reads a document's headings and counts each section's prose words
+- `src/lorecraft/project/syntax/markdown.py` - Reads the parser's headings, code blocks and links into the package's own values
+- `src/lorecraft/project/syntax/document.py` - Derives each heading's section and counts its prose words
 - `src/lorecraft/project/schemas/structure.py` - Loads and validates a structure specification

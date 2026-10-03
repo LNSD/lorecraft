@@ -225,3 +225,12 @@ type = "forbidden"
 source_modules = ["lorecraft.checks"]
 forbidden_modules = ["jsonschema", "pydantic", "pydantic_core"]
 allow_indirect_imports = true
+
+# The Markdown parser is read in `project.syntax.markdown` alone, which hands the rest of the package its own frozen
+# values, so a parser upgrade changes that one module and no parser type reaches anything else.
+[[tool.importlinter.contracts]]
+name = "The Markdown parser is read in one module"
+type = "forbidden"
+source_modules = ["lorecraft"]
+forbidden_modules = ["wenmode"]
+ignore_imports = ["lorecraft.project.syntax.markdown -> wenmode"]
