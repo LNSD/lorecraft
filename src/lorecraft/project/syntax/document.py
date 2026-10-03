@@ -2,9 +2,9 @@
 
 A parse tree is a pure function of the text, so a document is parsed once and every check shares the result.
 The Markdown itself is read by `markdown`, which hands this module the package's own frozen values; what is
-derived from them here is Lorecraft's. The tree keeps the frontmatter, the document's top-level headings, how many
-prose words each heading's section holds, the anchor of every heading at any depth, and every link's destination
-and line. The rest of the content is not kept: no check reads it yet.
+derived from them here is Lorecraft's. The tree keeps the document's top-level headings, how many prose words each
+heading's section holds, the anchor of every heading at any depth, and every link's destination and line. The rest
+of the content is not kept: no check reads it yet.
 
 A heading's anchor is the name a fragment-only link such as `#usage` points at. `Anchor` derives it from the
 heading's text as GitHub does; what is read here is which headings take one, the text GitHub renders each from,
@@ -15,8 +15,9 @@ concise its prose is, and code and tables are free because they are the examples
 to hold. What the whole file costs an agent that loads it is a different question, answered from the raw text by
 `count_tokens` without a parse.
 
-A check that reads nothing but the frontmatter does not need the tree: `parse_frontmatter` finds and decodes
-the same block for a fraction of the cost, so it is the cheap path, and `parse_document` the full one.
+The frontmatter is not in the tree: `parse_frontmatter` finds and decodes it for a fraction of the cost of
+`parse_document`, which finds the same block only to leave it out of the Markdown. A check reads one or the other,
+or both, and each block is decoded once.
 """
 
 from dataclasses import dataclass
@@ -33,17 +34,13 @@ from .markdown import ContentBlock, HeadingBlock, parse_markdown, parse_markdown
 class ParsedDocument:
     """One document's parse tree.
 
-    Not hashable when its frontmatter holds a mapping, since `Frontmatter` holds a dict.
-
     Attributes:
-        frontmatter: The frontmatter block, or the reason there is no usable one.
         headings: The document's own top-level headings, in document order.
         anchors: The anchor of every heading anywhere in the document, nested ones included, as GitHub derives
             it; a repeated heading's numbered anchors are all here.
         links: Every link and image anywhere in the document, nested ones included, in document order.
     """
 
-    frontmatter: FrontmatterNode
     headings: tuple[Heading, ...]
     anchors: frozenset[Anchor]
     links: tuple[Link, ...]
@@ -52,16 +49,14 @@ class ParsedDocument:
 def parse_document(text: str) -> ParsedDocument:
     """Parse one document's text into its parse tree. Pure: raises nothing.
 
-    The frontmatter block is found and decoded as `parse_markdown` describes; a document with no such block has
-    `MissingFrontmatter`.
+    The frontmatter block is skipped as `parse_markdown` describes: no heading, word or link is read from it.
 
     Args:
-        text: The document's whole text, frontmatter block included; empty parses to a document with none.
+        text: The document's whole text, frontmatter block included; empty parses to a document with no heading.
     """
     tree = parse_markdown(text)
     block_words = [_prose_words(block) for block in tree.blocks]
     return ParsedDocument(
-        frontmatter=tree.frontmatter,
         headings=_headings(tree.blocks, block_words),
         anchors=_anchors(tree.heading_texts),
         links=tree.links,
@@ -71,8 +66,8 @@ def parse_document(text: str) -> ParsedDocument:
 def parse_frontmatter(text: str) -> FrontmatterNode:
     """Parse only the frontmatter block of one document's text. Pure: raises nothing.
 
-    Equal to `parse_document(text).frontmatter` for every text. The block is found as `parse_document` finds it,
-    but the rest of the text is not read as Markdown, which costs a small fraction of the full parse.
+    The block is found and decoded as `parse_markdown_frontmatter` describes, the same block `parse_document`
+    skips, but the rest of the text is not read as Markdown, which costs a small fraction of the full parse.
 
     Args:
         text: The document's whole text, frontmatter block included.
