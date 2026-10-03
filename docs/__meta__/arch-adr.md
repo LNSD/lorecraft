@@ -30,7 +30,24 @@ its number with the PRD it answers. `adr-<NNN>` is how other documents cite it.
 | `type` | `"adr"` | Always |
 | `status` | `proposed`, `accepted`, `rejected`, `superseded` or `deprecated` | `accepted` once the owner settles it; frozen once `rejected`, `superseded` or `deprecated` |
 
-A `superseded` ADR names the ADR that replaces it under References, and that ADR names it back.
+**An ADR is superseded when its replacement is accepted, not when the replacement is proposed.** Until then the old
+record stays as it is and keeps binding code, so the code is never left without a binding record of what it does.
+A proposed replacement says so in a callout right after its title, so a reader learns it before reading a word of
+the decision:
+
+```markdown
+> [!NOTE]
+> Proposed to supersede [adr-007-findings](adr-007-findings.md): its identifiers, notes, report types and order.
+> adr-007 stays binding until this record is accepted.
+```
+
+The change that accepts the replacement turns its callout into `Supersedes …`, sets the old record's `status` to
+`superseded`, and gives the old record a callout of its own and the replacement under References:
+
+```markdown
+> [!NOTE]
+> Superseded by [adr-010-diagnostics](adr-010-diagnostics.md). It binds no code.
+```
 
 **An accepted ADR binds code.** It is a rule like any in `docs/code/`: agents load it by its `description`, so the
 description ends with a trigger clause, `Load when …`, naming the work it governs, and a `## Checklist` of
@@ -86,6 +103,9 @@ status: "proposed"
 - [ ] Context, Decision and Consequences appear, in that order
 - [ ] Each decision is stated so that the result can be held to it
 - [ ] A requirement the ADR answers is cited by its identifier
-- [ ] A `superseded` ADR names its replacement, and the replacement names it back
+- [ ] A record is marked `superseded` only in the change that accepts its replacement; until then the proposed
+  replacement says it is proposed to supersede it
+- [ ] A `superseded` ADR names its replacement, and the replacement names it back, each in a callout after the
+  title and under References
 - [ ] An `accepted` ADR's description ends with a `Load when …` trigger, and it carries a checklist when it
   states something code can be checked against
