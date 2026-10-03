@@ -2,6 +2,7 @@
 #
 #   lorecraft.cli      the command line, console script `lorecraft`
 #   lorecraft.checks   the checks the command line runs
+#   lorecraft.rules    the rules the checks run, and how a rule is declared and identified
 #   lorecraft.project  the workspace model and the parse trees, on the filesystem boundary
 #   lorecraft.agents   the model of the coding agents: the aspects an agent has, and each agent's values
 #   lorecraft.vfs      the filesystem boundary: paths, views, scan, snapshot
@@ -206,12 +207,13 @@ root_package = "lorecraft"
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
-name = "The command line over the checks, the model, the agents, the filesystem and the base"
+name = "The command line over the checks, the rules, the model, the agents, the filesystem and the base"
 type = "layers"
 containers = ["lorecraft"]
 layers = [
     "cli",
     "checks",
+    "rules",
     "project",
     "agents",
     "vfs",
@@ -219,11 +221,11 @@ layers = [
 ]
 
 # Each frontmatter schema translates its validator's errors into `FrontmatterProblem` values at its own seam in
-# `project.schemas`, so a check reads one shape whichever validator is behind it and never an error record.
+# `project.schemas`, so a check or a rule reads one shape whichever validator is behind it and never an error record.
 [[tool.importlinter.contracts]]
-name = "The checks read frontmatter problems, never a validator's errors"
+name = "The checks and the rules read frontmatter problems, never a validator's errors"
 type = "forbidden"
-source_modules = ["lorecraft.checks"]
+source_modules = ["lorecraft.checks", "lorecraft.rules"]
 forbidden_modules = ["jsonschema", "pydantic", "pydantic_core"]
 allow_indirect_imports = true
 
