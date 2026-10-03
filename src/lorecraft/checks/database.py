@@ -251,8 +251,7 @@ class Database:
     def frontmatter(self, ref: DocumentRef) -> FrontmatterNode:
         """The frontmatter of one document, parsed from the snapshot on the first call for its ref.
 
-        Cached apart from `parse(ref)` and never read from it, so the answer does not depend on which of the two
-        was asked first; `parse_frontmatter` guarantees the two agree.
+        Cached apart from `parse(ref)`, which does not hold the frontmatter: the block is decoded here alone.
 
         A document that cannot be read is not cached, so each call raises the same error again.
 
@@ -333,8 +332,7 @@ class Database:
     def skill_parse(self, ref: SkillRef) -> ParsedDocument:
         """The parse tree of one skill's `SKILL.md`, parsed from the snapshot on the first call for its ref.
 
-        Cached apart from `skill_frontmatter(ref)` and never read from it, as a document's parse is from its
-        frontmatter.
+        Cached apart from `skill_frontmatter(ref)`, and holds no frontmatter, as a document's parse holds none.
 
         A skill that cannot be read is not cached, so each call raises the same error again.
 
