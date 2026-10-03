@@ -10,6 +10,7 @@ the model loader, the layout guard and the parser together.
 """
 
 from pathlib import PurePosixPath
+from textwrap import dedent
 from typing import Final
 
 import pytest
@@ -21,7 +22,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentDecodeError, DocumentRef
 from lorecraft.project.layout import LinkedLayoutError, scope_with_named_dirs
 from lorecraft.project.skill import NamedDir, SkillDecodeError, SkillLocation, SkillRef
-from lorecraft.project.syntax import Frontmatter, LineNumber, count_tokens
+from lorecraft.project.syntax import Frontmatter, Heading, LineNumber, count_tokens
 from lorecraft.project.syntax import Link as MarkdownLink
 from lorecraft.vfs import DirEntry, EntryKind, FileBytes, Link, Listing, ResolvedPath, ScanRoot, Snapshot
 
@@ -325,16 +326,25 @@ class TestDatabase:
         #: Then
         assert exc_info.value.ref == GUIDE, 'the error names the document that could not be decoded'
 
-    def test_parse_of_a_listed_document_returns_its_frontmatter(self) -> None:
+    def test_parse_of_a_listed_document_returns_its_headings(self) -> None:
         #: Given
-        database = Database(_snapshot(b'---\nname: "guide"\n---\n'))
+        text = dedent(
+            """\
+            ---
+            name: "guide"
+            ---
+            # Guide
+            """
+        )
+        database = Database(_snapshot(text.encode()))
 
         #: When
         document = database.parse(GUIDE)
 
         #: Then
-        assert isinstance(document.frontmatter, Frontmatter), 'the snapshot bytes parse into a frontmatter node'
-        assert document.frontmatter.data == {'name': 'guide'}, 'the parse tree holds the snapshot content'
+        assert document.headings == (Heading(level=1, text='Guide', line=LineNumber(4), empty=True, words=0),), (
+            'the parse tree holds the snapshot content'
+        )
 
     def test_parse_called_twice_returns_the_first_answer(self) -> None:
         #: Given
