@@ -27,7 +27,6 @@ class TestParseMarkdown:
 
         #: Then
         assert tree == MarkdownTree(
-            frontmatter=MissingFrontmatter(),
             blocks=(
                 HeadingBlock(level=1, text='Guide', line=LineNumber(1)),
                 ContentBlock(source_outside_code=('Some prose.\n',)),
@@ -144,18 +143,6 @@ class TestParseMarkdown:
             HeadingBlock(level=1, text='Guide', line=LineNumber(1)),
             HeadingBlock(level=2, text='Usage', line=LineNumber(3)),
         ), 'a CRLF line ending counts as one line break'
-
-    def test_parse_markdown_with_a_delimited_block_returns_what_parse_markdown_frontmatter_returns(self) -> None:
-        #: Given
-        text = '---\nname: guide\n---\n# Guide\n'
-
-        #: When
-        tree = parse_markdown(text)
-
-        #: Then
-        assert tree.frontmatter == parse_markdown_frontmatter(text), (
-            'the full parse finds the same block as the frontmatter-only parse, whatever rules it loads'
-        )
 
     def test_parse_markdown_with_a_delimited_block_returns_no_block_for_it(self) -> None:
         #: Given

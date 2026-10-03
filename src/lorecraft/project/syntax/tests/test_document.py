@@ -7,6 +7,8 @@ its headings give, and which links the document holds.
 behind them decides what counts as a block; these pin the rules the checks report against.
 """
 
+from textwrap import dedent
+
 import pytest
 
 from ..anchor import Anchor
@@ -19,16 +21,24 @@ from ..position import LineNumber
 
 @pytest.mark.unit
 class TestParseDocument:
-    def test_parse_document_with_a_delimited_block_returns_what_parse_frontmatter_returns(self) -> None:
+    def test_parse_document_with_an_invalid_yaml_block_skips_it_as_frontmatter(self) -> None:
         #: Given
-        text = '---\nname: guide\n---\n# Guide\n\n## Checklist\n'
+        text = dedent(
+            """\
+            ---
+            name: [unclosed
+            # Draft
+            ---
+            # Guide
+            """
+        )
 
         #: When
         document = parse_document(text)
 
         #: Then
-        assert document.frontmatter == parse_frontmatter(text), (
-            'the full parse finds the same block as the frontmatter-only parse, whatever rules it loads'
+        assert document.headings == (Heading(level=1, text='Guide', line=LineNumber(5), empty=True, words=0),), (
+            'the block is skipped whether its YAML decodes or not, so a `#` line in it is no heading'
         )
 
 
