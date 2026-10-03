@@ -17,8 +17,8 @@ absolute path and to a heading it does not have, for one whose `SKILL.md` and a 
 named by its directory and by its `SKILL.md`, which checks that file alone, for one whose `metadata` repeats a file
 name, lists a path outside what the command reads, or lists a file the repository does not have, and for one holding a
 symlink that leads outside the repository. A root written from `lib.workspace` holding one skill whose every
-field but its name is generated must pass `check skills` with no finding, since every test writing such a root sets
-only the fields its case turns on.
+field but its name is generated must pass `check skills` with no finding, and so must one whose skill lists, under
+`metadata`, a document the root holds, since every test writing such a root sets only the fields its case turns on.
 """
 
 import os
@@ -34,7 +34,7 @@ from syrupy.assertion import SnapshotAssertion
 import lorecraft
 from lib.cli import run_alias, run_cli
 from lib.snapshot import JsonTextSnapshotExtension, TextSnapshotExtension
-from lib.workspace import Skill, Workspace
+from lib.workspace import File, Link, Skill, Workspace
 from lorecraft import __version__
 
 # The labelled lines of `version --verbose` whose values differ per checkout, interpreter, machine and install.
@@ -378,87 +378,6 @@ def skill_and_resource_absolute_link_root(tmp_path: Path, faker: Faker) -> Path:
     )
     workspace = Workspace(skills=[skill])
     return workspace.write(tmp_path, faker)
-
-
-@pytest.fixture(scope='function')
-def outside_link_root(tmp_path: Path) -> Path:
-    """A root holding one clean skill whose `references` directory links out of the repository, climbing above it.
-
-    The root is `tmp_path/repository`, and `references -> ../../../../shared/refs` leads to `tmp_path/shared/refs`,
-    a relative target so the printed note is the same on every machine. The symlink-outside finding is the only one
-    the check prints.
-
-    Args:
-        tmp_path: Directory the repository and the directory outside it are written into.
-
-    Returns:
-        The repository root.
-    """
-    (tmp_path / 'shared' / 'refs').mkdir(parents=True)
-    (tmp_path / 'shared' / 'refs' / 'guide.md').write_text('# Guide\n', encoding='utf-8')
-    root = tmp_path / 'repository'
-    (root / '.agents' / 'skills' / 'review').mkdir(parents=True)
-    (root / '.agents' / 'skills' / 'review' / 'SKILL.md').write_text(
-        '---\nname: review\ndescription: Review a change\n---\n', encoding='utf-8'
-    )
-    (root / '.agents' / 'skills' / 'review' / 'references').symlink_to('../../../../shared/refs')
-    return root
-
-
-def _write_review_skill(root: Path, metadata: str) -> None:
-    """Write the skill `.agents/skills/review/` and give it `metadata`.
-
-    Apart from what `metadata` lists the skill is clean, so a metadata finding is the only one the check prints.
-
-    Args:
-        root: Repository root the skill directory is created under.
-        metadata: The lines of the `metadata` mapping, each indented and ending in a newline.
-    """
-    (root / '.agents' / 'skills' / 'review').mkdir(parents=True)
-    (root / '.agents' / 'skills' / 'review' / 'SKILL.md').write_text(
-        f'---\nname: review\ndescription: Review a change\nmetadata:\n{metadata}---\n# Review\n', encoding='utf-8'
-    )
-
-
-@pytest.fixture(scope='function')
-def duplicate_name_root(tmp_path: Path) -> Path:
-    """A root holding one skill whose `metadata` lists two documents with one file name.
-
-    Args:
-        tmp_path: Directory the documents and the skill are written into, as the repository root.
-    """
-    (tmp_path / 'docs' / 'code').mkdir(parents=True)
-    (tmp_path / 'docs' / 'code' / 'guide.md').write_text('# Guide\n', encoding='utf-8')
-    (tmp_path / 'docs' / 'feat').mkdir()
-    (tmp_path / 'docs' / 'feat' / 'guide.md').write_text('# Guide\n', encoding='utf-8')
-    _write_review_skill(tmp_path, '  references: docs/code/guide.md docs/feat/guide.md\n')
-    return tmp_path
-
-
-@pytest.fixture(scope='function')
-def outside_scope_root(tmp_path: Path) -> Path:
-    """A root holding one skill whose `metadata` lists a source file, which no check reads.
-
-    Args:
-        tmp_path: Directory the source file and the skill are written into, as the repository root.
-    """
-    (tmp_path / 'src').mkdir()
-    (tmp_path / 'src' / 'tool.py').write_text('', encoding='utf-8')
-    _write_review_skill(tmp_path, '  scripts: src/tool.py\n')
-    return tmp_path
-
-
-@pytest.fixture(scope='function')
-def missing_file_root(tmp_path: Path) -> Path:
-    """A root holding one skill whose `metadata` lists a document `docs/code/` does not hold.
-
-    Args:
-        tmp_path: Directory the document and the skill are written into, as the repository root.
-    """
-    (tmp_path / 'docs' / 'code').mkdir(parents=True)
-    (tmp_path / 'docs' / 'code' / 'guide.md').write_text('# Guide\n', encoding='utf-8')
-    _write_review_skill(tmp_path, '  references: docs/code/gone.md\n')
-    return tmp_path
 
 
 @pytest.mark.e2e
@@ -892,11 +811,18 @@ class TestCheckSkillsSnapshots:
         assert result.stdout == expected, 'the lines-budget finding and its help note match the reviewed snapshot'
 
     def test_check_skills_with_a_directory_linked_outside_the_repository_prints_the_symlink_outside_finding(
-        self, snapshot: SnapshotAssertion, outside_link_root: Path
+        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
     ) -> None:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'skills', '--root', str(outside_link_root))
+        # The root is `tmp_path/repository`, and the skill's `references` climbs out of it to `tmp_path/shared/refs`,
+        # a relative target so the printed note is the same on every machine.
+        outside = Workspace(files=[File(Path('shared/refs/guide.md'), '# Guide\n')])
+        outside.write(tmp_path, faker)
+        skill = Skill('review', links=[Link(Path('references'), '../../../../shared/refs')])
+        workspace = Workspace(skills=[skill])
+        root = workspace.write(tmp_path / 'repository', faker)
+        arguments = ('check', 'skills', '--root', str(root))
 
         #: When
         result = run_cli(*arguments)
@@ -906,11 +832,15 @@ class TestCheckSkillsSnapshots:
         assert result.stdout == expected, 'the symlink-outside finding and its note match the reviewed snapshot'
 
     def test_check_skills_with_a_repeated_metadata_file_name_prints_the_duplicate_name_finding(
-        self, snapshot: SnapshotAssertion, duplicate_name_root: Path
+        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
     ) -> None:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'skills', '--root', str(duplicate_name_root))
+        skill = Skill('review', metadata={'references': 'docs/code/guide.md docs/feat/guide.md'})
+        documents = [File(Path('docs/code/guide.md'), '# Guide\n'), File(Path('docs/feat/guide.md'), '# Guide\n')]
+        workspace = Workspace(skills=[skill], files=documents)
+        root = workspace.write(tmp_path, faker)
+        arguments = ('check', 'skills', '--root', str(root))
 
         #: When
         result = run_cli(*arguments)
@@ -920,11 +850,15 @@ class TestCheckSkillsSnapshots:
         assert result.stdout == expected, 'the metadata-duplicate-name finding matches the reviewed snapshot'
 
     def test_check_skills_with_a_metadata_path_outside_the_scope_prints_the_outside_scope_finding(
-        self, snapshot: SnapshotAssertion, outside_scope_root: Path
+        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
     ) -> None:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'skills', '--root', str(outside_scope_root))
+        # The source file exists, but no check reads `src/`.
+        skill = Skill('review', metadata={'scripts': 'src/tool.py'})
+        workspace = Workspace(skills=[skill], files=[File(Path('src/tool.py'), '')])
+        root = workspace.write(tmp_path, faker)
+        arguments = ('check', 'skills', '--root', str(root))
 
         #: When
         result = run_cli(*arguments)
@@ -934,11 +868,15 @@ class TestCheckSkillsSnapshots:
         assert result.stdout == expected, 'the metadata-outside-scope finding matches the reviewed snapshot'
 
     def test_check_skills_with_a_missing_metadata_file_prints_the_missing_file_finding(
-        self, snapshot: SnapshotAssertion, missing_file_root: Path
+        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
     ) -> None:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'skills', '--root', str(missing_file_root))
+        # `docs/code/` holds `guide.md`, not the `gone.md` the skill lists.
+        skill = Skill('review', metadata={'references': 'docs/code/gone.md'})
+        workspace = Workspace(skills=[skill], files=[File(Path('docs/code/guide.md'), '# Guide\n')])
+        root = workspace.write(tmp_path, faker)
+        arguments = ('check', 'skills', '--root', str(root))
 
         #: When
         result = run_cli(*arguments)
@@ -964,6 +902,23 @@ class TestWorkspaceDefaults:
         #: Then
         assert result.returncode == 0, result.stdout
         assert result.stdout == '', 'a skill whose every field but its name is generated has nothing to report'
+        assert result.stderr == 'checked 1 skill(s), 0 finding(s)\n', 'the one skill written is the one checked'
+
+    def test_check_skills_with_a_default_skill_listing_a_document_in_metadata_reports_no_finding(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        skill = Skill('review', metadata={'references': 'docs/code/guide.md'})
+        workspace = Workspace(skills=[skill], files=[File(Path('docs/code/guide.md'), '# Guide\n')])
+        root = workspace.write(tmp_path, faker)
+        arguments = ('check', 'skills', '--root', str(root))
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 0, result.stdout
+        assert result.stdout == '', 'a skill listing a document the root holds has nothing to report'
         assert result.stderr == 'checked 1 skill(s), 0 finding(s)\n', 'the one skill written is the one checked'
 
 
@@ -1001,27 +956,28 @@ class TestCheckAllSnapshots:
 
 
 @pytest.fixture(scope='function')
-def linked_specs_root(tmp_path: Path) -> Path:
+def linked_specs_root(tmp_path: Path, faker: Faker) -> Path:
     """A root whose `docs/__meta__` is a symlink to the workspace fixture's specifications, beside one document.
 
     Args:
         tmp_path: Directory the link and the document are created in, as the repository root.
+        faker: Passed to `write`; nothing in this workspace is generated.
     """
-    (tmp_path / 'docs' / 'code').mkdir(parents=True)
-    (tmp_path / 'docs' / 'code' / 'logging.md').write_text('# Logging\n', encoding='utf-8')
-    (tmp_path / 'docs' / '__meta__').symlink_to(WORKSPACE_FIXTURE / 'docs' / '__meta__')
-    return tmp_path
+    specifications = Link(Path('docs/__meta__'), str(WORKSPACE_FIXTURE / 'docs' / '__meta__'))
+    workspace = Workspace(files=[File(Path('docs/code/logging.md'), '# Logging\n')], links=[specifications])
+    return workspace.write(tmp_path, faker)
 
 
 @pytest.fixture(scope='function')
-def linked_docs_root(tmp_path: Path) -> Path:
+def linked_docs_root(tmp_path: Path, faker: Faker) -> Path:
     """A root whose `docs` is a symlink to the workspace fixture's `docs/`.
 
     Args:
         tmp_path: Directory the link is created in, as the repository root.
+        faker: Passed to `write`; nothing in this workspace is generated.
     """
-    (tmp_path / 'docs').symlink_to(WORKSPACE_FIXTURE / 'docs')
-    return tmp_path
+    workspace = Workspace(links=[Link(Path('docs'), str(WORKSPACE_FIXTURE / 'docs'))])
+    return workspace.write(tmp_path, faker)
 
 
 @pytest.mark.e2e
