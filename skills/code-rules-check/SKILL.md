@@ -28,7 +28,11 @@ that breaks a rule is not this changeset's finding.
 
 ```bash
 grep -m 3 -E '^(description|type|scope):' docs/code/*.md
+grep -m 4 -E '^(description|status):' docs/arch/adr-*.md   # where the repository keeps decision records
 ```
+
+An architecture decision record in `docs/arch/` whose `status` is `accepted` governs code as a rule document
+does, and its checklist is checked the same way; one in any other status is not a rule.
 
 Select by what the diff **contains**, not by what the task was about. Walk the hunks and, for each construct
 in them — a signature, an exception handler, an import, a docstring, a test, a log line — find the documents

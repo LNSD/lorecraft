@@ -79,11 +79,11 @@ Before committing code, verify:
 
 ## References
 
-- [arch-snapshot-model](arch-snapshot-model.md) - Foundation: The Derivation role
-- [arch-project-model](arch-project-model.md) - Foundation: Declared scope against captured content, identity
+- [adr-001-snapshot-model](../arch/adr-001-snapshot-model.md) - Foundation: The Derivation role
+- [adr-003-project-model](../arch/adr-003-project-model.md) - Foundation: Declared scope against captured content, identity
   against location
-- [arch-specifications](arch-specifications.md) - Foundation: Specifications decoded and proved usable at load
-- [arch-vfs](arch-vfs.md) - Foundation: Every read of the workspace goes through the snapshot
-- [arch-findings](arch-findings.md) - Foundation: A broken document is a finding, not a failure
+- [adr-006-specifications](../arch/adr-006-specifications.md) - Foundation: Specifications decoded and proved usable at load
+- [adr-002-vfs](../arch/adr-002-vfs.md) - Foundation: Every read of the workspace goes through the snapshot
+- [adr-007-findings](../arch/adr-007-findings.md) - Foundation: A broken document is a finding, not a failure
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One reason to change
 - [pattern-repository](pattern-repository.md) - Foundation: Listing and reading through a view

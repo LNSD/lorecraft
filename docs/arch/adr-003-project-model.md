@@ -1,16 +1,20 @@
 ---
-name: "arch-project-model"
+name: "adr-003-project-model"
 description: "The project model apart from the content: configuration answered from the declared layout, scan roots and agents, content answered from the snapshot, and identity kept apart from location. Load when asking whether a path is in scope, which directories are corpora or skills directories, or where a document's or skill's symlinks lead"
-type: "arch"
-scope: "global"
+type: "adr"
+status: "accepted"
 ---
 
 # The Project Model
 
+## Context
+
 The project model is what a repository declares: its corpora, specifications, documents and skills. It answers
 from the declaration and the structure of the snapshot, never from what a document says.
 
-## The Scope Is Declared, the Content Is Captured
+## Decision
+
+### The Scope Is Declared, the Content Is Captured
 
 There are two kinds of question, and each has its own source:
 
@@ -36,12 +40,18 @@ def is_read(roots: tuple[ReadRoot, ...], symlinks: tuple[SymlinkRecord, ...], pa
     return any(root.covers(entry) for root in _resolved_roots(roots, symlinks))
 ```
 
-## Identity Is Not Location
+### Identity Is Not Location
 
 A document or a skill is identified by a ref, named where it is listed. Where its symlinks lead is its location,
 recorded beside the ref in the model. A symlink retargeted to another file leaves the ref as it was and changes
 the location, so whatever is keyed by the ref reads a different file without any bytes changing. A skill resource
 is identified by a ref too, and its location is recorded in its skill's resource listing, not in the model.
+
+## Consequences
+
+- A file named in a declared directory that the disk lacks is reported missing, never silently out of scope.
+- A retargeted symlink changes a document's location and keeps its ref, so results keyed by the ref follow the file
+  it now leads to.
 
 ## Checklist
 
@@ -53,5 +63,5 @@ Before committing code, verify:
 
 ## References
 
-- [arch-snapshot-model](arch-snapshot-model.md) - Related: The model and the package roles
-- [arch-incremental](arch-incremental.md) - Related: Why location decides whether a result carries over
+- [adr-001-snapshot-model](adr-001-snapshot-model.md) - Related: The model and the package roles
+- [adr-005-incremental](adr-005-incremental.md) - Related: Why location decides whether a result carries over

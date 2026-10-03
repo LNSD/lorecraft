@@ -88,6 +88,6 @@ Before committing code, verify:
 
 ## References
 
-- [arch-snapshot-model](arch-snapshot-model.md) - Foundation: The Base role
+- [adr-001-snapshot-model](../arch/adr-001-snapshot-model.md) - Foundation: The Base role
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One reason to change
 - [pattern-value-object](pattern-value-object.md) - Foundation: A value that proves itself at construction

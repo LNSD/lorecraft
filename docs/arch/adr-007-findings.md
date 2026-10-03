@@ -1,16 +1,20 @@
 ---
-name: "arch-findings"
+name: "adr-007-findings"
 description: "What a check reports and how it reaches the user: violations as values, located into findings by the run, stable dotted rule identifiers, the specification behind each rule, findings apart from failures, and deterministic text, JSON and exit codes. Load when adding a rule or a check, changing what a check reports, or changing the text output, the JSON output or the exit codes"
-type: "arch"
-scope: "global"
+type: "adr"
+status: "accepted"
 ---
 
 # Findings
 
+## Context
+
 A finding is a rule broken at a line of a document. It travels from a check to the user as a value at every step,
 and only the command line turns it into text.
 
-## From Violation to Output
+## Decision
+
+### From Violation to Output
 
 A check returns violations: the line, the rule, the message, the specification that states the rule, or none
 for a rule the check holds itself, and any notes: help or context for fixing it, kept apart from the message. A
@@ -19,20 +23,20 @@ finding. It collects one report per document or skill, in the order it was
 given them, into one run per check. The command line renders the runs as text or JSON and chooses the exit code.
 Nothing before it prints.
 
-## A Rule Has a Stable Identifier
+### A Rule Has a Stable Identifier
 
 Every rule is reported under a dotted identifier: the namespace names who states the rule — the check, or the
 corpus whose frontmatter schema states a field — and the rest names the rule. An identifier is part of the
 output's contract, so a rule keeps it, and a new rule takes one of its own rather than sharing one.
 
-## A Finding Is Not a Failure
+### A Finding Is Not a Failure
 
 What is wrong with a document is a finding: an unreadable frontmatter block, a missing section, a broken Markdown link. It
 is a value the check returns, and the run goes on. What stops Lorecraft from judging at all is a failure: a root
 that cannot be found, a specification that cannot be decoded, a directory that cannot be listed. It is raised, and
 the command line reports it instead of any finding.
 
-## The Output Is Deterministic
+### The Output Is Deterministic
 
 The same revision always gives the same output. Reports follow the order of the selection, findings follow the
 order a check states them in, and checks run in name order. The exit code is 0 for a clean run, 1 when any check
@@ -56,6 +60,11 @@ def validate_title(block: FrontmatterBlock | MissingBlock) -> tuple[Violation, .
     return _title_violations(block)
 ```
 
+## Consequences
+
+- Checks stay pure values a test can assert on, and only the command line prints.
+- A rule's identifier is part of the output's contract, so changing one is a breaking change.
+
 ## Checklist
 
 Before committing code, verify:
@@ -69,7 +78,7 @@ Before committing code, verify:
 
 ## References
 
-- [arch-snapshot-model](arch-snapshot-model.md) - Related: The model and the package roles
-- [arch-specifications](arch-specifications.md) - Related: Where the rules a finding cites come from
-- [arch-database](arch-database.md) - Related: The revision every finding in one report comes from
-- [error-boundaries](error-boundaries.md) - Foundation: Where a failure is raised and where it is reported
+- [adr-001-snapshot-model](adr-001-snapshot-model.md) - Related: The model and the package roles
+- [adr-006-specifications](adr-006-specifications.md) - Related: Where the rules a finding cites come from
+- [adr-004-database](adr-004-database.md) - Related: The revision every finding in one report comes from
+- [error-boundaries](../code/error-boundaries.md) - Foundation: Where a failure is raised and where it is reported

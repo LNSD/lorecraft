@@ -1,16 +1,20 @@
 ---
-name: "arch-specifications"
+name: "adr-006-specifications"
 description: "How specifications govern documents: a specification is configuration the project model decodes and proves usable, governance is computed once from a document's path, each check reads only its own keys of a structure specification, and skills answer to a specification fixed in code. Load when adding a check, a specification file type or a key to a specification dialect, or deciding which specifications a check applies"
-type: "arch"
-scope: "global"
+type: "adr"
+status: "accepted"
 ---
 
 # Specifications and Governance
 
+## Context
+
 A specification states the rules a group of documents follows. Lorecraft reads it as configuration, through the
 project model, and every check applies what the model hands it.
 
-## A Specification Is Configuration
+## Decision
+
+### A Specification Is Configuration
 
 Each machine-checkable file of a specification is one JSON file beside its prose, of a file type its file name
 pattern claims, such as the structure specification that `*.structure.json` claims. It is read in a dialect
@@ -22,7 +26,7 @@ A specification that cannot be read, decoded or proved usable is a failure of th
 can say what a document breaks while the rules themselves are broken. The model loads every specification before
 any document is read.
 
-## Governance Is Computed Once, by the Model
+### Governance Is Computed Once, by the Model
 
 Which specifications govern a document follows from its path alone: the corpus specification first, then every
 namespace specification whose namespace matches the document's name, broad to narrow. The model computes it,
@@ -37,7 +41,7 @@ Each governing specification is applied on its own. A namespace specification ad
 cannot relax it, so a document must pass every one. A document that no specification governs with the keys a
 check reads is reported as ungoverned for that check, which is not a failure.
 
-## A Check Reads Its Own Keys
+### A Check Reads Its Own Keys
 
 A check reads only the keys of a structure specification it is about: the frontmatter schema, the outline and
 its word caps, the token budget. A new rule over documents is a key in a dialect and a check that reads it, with
@@ -61,6 +65,12 @@ def validate_budget(structure_specs: tuple[BudgetRules, ...], *, count: int) -> 
     return tuple(v for structure_spec in structure_specs for v in _over_budget(count, structure_spec.tokens))
 ```
 
+## Consequences
+
+- A broken specification stops the run before any document is read, instead of surfacing as findings.
+- A new rule over documents changes a dialect key, its decoding and one check together; no check finds a
+  specification on its own.
+
 ## Checklist
 
 Before committing code, verify:
@@ -73,8 +83,8 @@ Before committing code, verify:
 
 ## References
 
-- [arch-snapshot-model](arch-snapshot-model.md) - Related: The model and the package roles
-- [arch-project-model](arch-project-model.md) - Related: The project model that decodes specifications
-- [arch-findings](arch-findings.md) - Related: What a check reports, and how
-- [principle-validate-at-edge](principle-validate-at-edge.md) - Foundation: A dialect is decoded and proved at
+- [adr-001-snapshot-model](adr-001-snapshot-model.md) - Related: The model and the package roles
+- [adr-003-project-model](adr-003-project-model.md) - Related: The project model that decodes specifications
+- [adr-007-findings](adr-007-findings.md) - Related: What a check reports, and how
+- [principle-validate-at-edge](../code/principle-validate-at-edge.md) - Foundation: A dialect is decoded and proved at
   the edge

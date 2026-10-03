@@ -1,16 +1,20 @@
 ---
-name: "arch-incremental"
+name: "adr-005-incremental"
 description: "Incremental computation across revisions and processes: each query's carry-over rule, early cutoff for a result recomputed unchanged, no cache of snapshot-derived values outside the database, results persisted for warm starts, and results as persistable data. Load when adding a cache, a query or a persisted store, or making a query result carry over to the next revision"
-type: "arch"
-scope: "global"
+type: "adr"
+status: "accepted"
 ---
 
 # Incremental Computation
 
+## Context
+
 A database lives for one revision, but its results need not. The next database may keep every result the change
 left valid, and a new process may start from results an earlier one stored.
 
-## Results Carry Over Between Revisions
+## Decision
+
+### Results Carry Over Between Revisions
 
 Each query states its **carry-over rule** in its own docstring: the changes between two revisions' inputs that
 invalidate it, so the next database can keep every result the rule leaves valid. The database's module docstring
@@ -41,7 +45,7 @@ def parse(text: str) -> DocumentTree:
     return _build_tree(text)
 ```
 
-## Results Persist Across Processes
+### Results Persist Across Processes
 
 A result persisted across processes is a carry-over too: keyed by the identity, location and content hash it was
 computed from, and kept only once the database validates it against the new revision's inputs by the same
@@ -52,6 +56,12 @@ So every query result is data a store can write and a new database can reload: i
 records and read-only mappings, holding no handle, callable, compiled third-party object or reference back to the
 database. Whatever a result needs that is not data, such as a compiled validator, is rebuilt from it on use.
 
+## Consequences
+
+- Every query states its carry-over rule, so a later process can keep each result a change left valid.
+- No snapshot-derived cache lives outside the database, and every query result stays persistable data, so warm
+  starts need no redesign of the results.
+
 ## Checklist
 
 Before committing code, verify:
@@ -61,7 +71,7 @@ Before committing code, verify:
 
 ## References
 
-- [arch-snapshot-model](arch-snapshot-model.md) - Related: The model and the package roles
-- [arch-database](arch-database.md) - Related: The queries whose results carry over
-- [arch-project-model](arch-project-model.md) - Related: Identity apart from location
-- [pattern-memoization](pattern-memoization.md) - Foundation: How a query is memoized
+- [adr-001-snapshot-model](adr-001-snapshot-model.md) - Related: The model and the package roles
+- [adr-004-database](adr-004-database.md) - Related: The queries whose results carry over
+- [adr-003-project-model](adr-003-project-model.md) - Related: Identity apart from location
+- [pattern-memoization](../code/pattern-memoization.md) - Foundation: How a query is memoized

@@ -83,7 +83,7 @@ Before committing code, verify:
 
 ## References
 
-- [arch-snapshot-model](arch-snapshot-model.md) - Foundation: The Declaration role
-- [arch-project-model](arch-project-model.md) - Foundation: Why the scope is declared, never discovered
+- [adr-001-snapshot-model](../arch/adr-001-snapshot-model.md) - Foundation: The Declaration role
+- [adr-003-project-model](../arch/adr-003-project-model.md) - Foundation: Why the scope is declared, never discovered
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One reason to change
 - [pattern-registry](pattern-registry.md) - Foundation: The closed set another layer iterates

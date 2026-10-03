@@ -1,13 +1,13 @@
 {
   "$schema": "../schemas/structure.spec.json",
-  "description": "The machine-checkable half of docs/__meta__/arch-prd.md#2-frontmatter and docs/__meta__/arch-prd.md#3-sections.",
+  "description": "The machine-checkable half of docs/__meta__/arch-prd.md#2-frontmatter and docs/__meta__/arch-prd.md#3-sections. No section has a word cap and the file has no token budget.",
   "frontmatter": {
     "type": "object",
     "properties": {
       "name": {
         "type": "string",
         "pattern": "^prd-[0-9]{3}-[a-z0-9]+(?:-[a-z0-9]+)*$",
-        "description": "prd-<NNN>-<feature>: a three-digit, zero-padded number, one higher than the highest already in docs/arch/ and never reused, then the feature in a few kebab-case words. See docs/__meta__/arch-prd.md#1-naming.",
+        "description": "prd-<NNN>-<feature>: the document number docs/__meta__/arch.md allocates, one sequence shared by every document in docs/arch/, then the feature in a few kebab-case words. See docs/__meta__/arch-prd.md#1-naming.",
         "examples": ["prd-001-unchecked-documents", "prd-007-structured-checks"]
       },
       "type": { "const": "prd" },
@@ -17,23 +17,19 @@
       }
     }
   },
-  "tokens": 4000,
   "outline": [
     {
       "section": "Problem",
-      "words": 200,
       "description": "Who needs the feature, what they cannot do today, and why it matters now, in one or two paragraphs.",
       "examples": ["A repository that adopts Lorecraft writes its specifications before its documents, and until the first document\nlands, a check reports nothing at all. A writer cannot tell a corpus that passes from one that is not checked."]
     },
     {
       "section": "Goals",
-      "words": 150,
       "description": "The outcomes the feature commits to, as a bulleted list.",
       "examples": ["- A writer sees, on every run, which documents no specification governs.\n- A broken specification stops the run before any document is read."]
     },
     {
       "section": "Non-Goals",
-      "words": 150,
       "description": "What a reader might expect the feature to do and it does not, each with the reason it is out of scope.",
       "examples": ["- Repairing a broken specification: the check reports it, and the writer fixes it."]
     },
