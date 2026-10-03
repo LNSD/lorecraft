@@ -22,6 +22,14 @@ Run this first; it is the whole index:
 grep -m 3 -E '^(description|type|scope):' docs/code/*.md
 ```
 
+Where the repository also keeps architecture decision records in `docs/arch/`, an **accepted** one binds code as
+a rule document does: it states how the code is built. List them too, and treat only those whose `status` is
+`accepted` as rules:
+
+```bash
+grep -m 4 -E '^(description|status):' docs/arch/adr-*.md
+```
+
 Each `description` says what its document covers and, where the corpus specification asks for one, a trigger
 clause — `Load when …` or similar — naming the situations the document governs. Other fields, such as `type`
 or `scope`, are whatever `docs/__meta__/code.md` defines; read its frontmatter section once if their meaning is
@@ -40,7 +48,8 @@ Match the task against the trigger clauses, then:
   one, where the frontmatter says which is which.
 - **Read nothing adjacent.** If no trigger matches, say so: a gap in the rules is worth reporting.
 
-Read selections at `docs/code/<name>.md`. Do not re-read what is already in context.
+Read selections at `docs/code/<name>.md`, or `docs/arch/<name>.md` for a decision record. Do not re-read what is
+already in context.
 
 ## 3. Rules that apply to all design work
 

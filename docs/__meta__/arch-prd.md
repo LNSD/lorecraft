@@ -9,9 +9,8 @@ scope: "global"
 
 **Applies to every document in `docs/arch/` named `prd-*.md`.** The namespace also matches a bare `prd.md`, and
 no such file may exist: every PRD is about one feature, and its name says which. It is a namespace layer on the
-`arch` corpus specification, which is not written yet; until it is, this layer governs nothing. Its
-machine-checkable half is [arch-prd.structure.json](arch-prd.structure.json), applied on its own beside the corpus
-file.
+[arch](arch.md) corpus specification, and states only what it adds to it. Its machine-checkable half is
+[arch-prd.structure.json](arch-prd.structure.json), applied on its own beside the corpus file.
 
 A PRD states **what** a feature must do and **why**, and nothing about **how**. Its reader is an agent or a
 person who will build the feature without a follow-up conversation, so every requirement is explicit, numbered
@@ -22,14 +21,10 @@ goes in a decision record. What shipped goes in the feature doc. The PRD links t
 
 A PRD is named `prd-<NNN>-<feature>.md`, as in `prd-007-structured-checks.md`:
 
-- **`<NNN>`** is a three-digit, zero-padded number, one higher than the highest number already in `docs/arch/`.
-  It orders the PRDs by when they were written, so a directory listing is that order. A number is never reused,
-  not even a `dropped` PRD's.
+- **`<NNN>`** is the document number the [arch](arch.md#2-naming) corpus allocates: one sequence shared by every
+  document in `docs/arch/`, so no PRD shares its number with any other document, an ADR included.
 - **`<feature>`** names the feature in a few kebab-case words. It is for a reader scanning the directory; the
   number alone identifies the PRD, and `prd-007` is how other documents cite it.
-
-Two branches can take the same number. The one that merges second renumbers its PRD before merging, so a number
-is fixed only once it is on the main branch.
 
 ## 2. Frontmatter
 
@@ -56,10 +51,10 @@ is fixed only once it is on the main branch.
 | Open Questions | no | Every `[NEEDS CLARIFICATION]` marker, gathered |
 | References | yes | The issue it comes from, and the documents it leads to |
 
-The sections are the whole document, in this order; a PRD adds none of its own. Problem holds at most 200
-words, and Goals and Non-Goals at most 150 each: each states a few outcomes, and the requirements carry the
-detail. The other sections are lists of numbered items and are not capped. The whole file holds at most 4,000
-tokens, a feature doc's budget, since a shipped PRD is read beside the feature doc it led to.
+The sections are the whole document, in this order; a PRD adds none of its own. No section has a word cap and the
+file has no token budget, as the `arch` corpus states for every document in it: a PRD is as long as its
+requirements need. Problem, Goals and Non-Goals still state a few outcomes each, and the requirements carry the
+detail.
 
 **No implementation.** A PRD names no language, library, package, module, file format or algorithm. If a
 requirement cannot be stated without one, the requirement is a design decision.
@@ -266,7 +261,7 @@ Scenario: {{Short title}}
 ## 7. Checklist
 
 - [ ] The file is named `prd-<NNN>-<feature>.md`, `name` matches it, and `status` is one of the four values
-- [ ] The number is the next free one, and no other PRD, merged or dropped, has it
+- [ ] The number is the next free one in `docs/arch/`, and no other document, merged or dropped, has it
 - [ ] No section names a language, library, package, module, file format or algorithm
 - [ ] Every non-goal says why it is out of scope
 - [ ] Every user story has a priority, an independent test, and at least one scenario

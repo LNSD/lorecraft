@@ -101,11 +101,11 @@ Before committing code, verify:
 
 ## References
 
-- [arch-snapshot-model](arch-snapshot-model.md) - Foundation: The Analysis role
-- [arch-database](arch-database.md) - Foundation: Revisions, the view and the queries
-- [arch-incremental](arch-incremental.md) - Foundation: The carry-over rule and persisted results
-- [arch-specifications](arch-specifications.md) - Foundation: A check applies the governing structure specifications it is handed
-- [arch-findings](arch-findings.md) - Foundation: From violation to finding, and findings apart from failures
-- [arch-project-model](arch-project-model.md) - Foundation: A per-file query keyed by identity, reading a location
+- [adr-001-snapshot-model](../arch/adr-001-snapshot-model.md) - Foundation: The Analysis role
+- [adr-004-database](../arch/adr-004-database.md) - Foundation: Revisions, the view and the queries
+- [adr-005-incremental](../arch/adr-005-incremental.md) - Foundation: The carry-over rule and persisted results
+- [adr-006-specifications](../arch/adr-006-specifications.md) - Foundation: A check applies the governing structure specifications it is handed
+- [adr-007-findings](../arch/adr-007-findings.md) - Foundation: From violation to finding, and findings apart from failures
+- [adr-003-project-model](../arch/adr-003-project-model.md) - Foundation: A per-file query keyed by identity, reading a location
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One reason to change
 - [pattern-memoization](pattern-memoization.md) - Foundation: How a query is memoized

@@ -1,0 +1,42 @@
+{
+  "$schema": "../schemas/structure.spec.json",
+  "description": "The machine-checkable half of docs/__meta__/arch.md: the frontmatter every document in docs/arch/ carries, one H1 title first, no empty section, and References closing the document. It is the base layer; a namespace layer per document kind is applied on its own beside it and can only add to it. No section has a word cap and the file has no token budget.",
+  "title": { "count": 1, "first": true },
+  "empty_sections": "forbidden",
+  "frontmatter": {
+    "type": "object",
+    "required": ["name", "description", "type", "status"],
+    "additionalProperties": false,
+    "properties": {
+      "name": {
+        "type": "string",
+        "pattern": "^[a-z]+-[0-9]{3}-[a-z0-9]+(?:-[a-z0-9]+)*$",
+        "description": "<kind>-<NNN>-<slug>: the document's kind, a three-digit number from one sequence shared by every document in docs/arch/, then the subject in a few kebab-case words. See docs/__meta__/arch.md#2-naming.",
+        "examples": ["adr-001-snapshot-model", "adr-004-database"]
+      },
+      "description": {
+        "type": "string",
+        "minLength": 1,
+        "description": "One sentence: what the document decides or requires."
+      },
+      "type": {
+        "type": "string",
+        "pattern": "^[a-z]+$",
+        "description": "The document's kind, equal to the filename's prefix."
+      },
+      "status": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Where the document stands; the kind's namespace specification states the vocabulary."
+      }
+    }
+  },
+  "outline": [
+    { "any": true },
+    {
+      "section": "References",
+      "description": "The issues and documents the document comes from, builds on or leads to, each with its relation.",
+      "examples": ["- [adr-001-snapshot-model](adr-001-snapshot-model.md) - Related: The model and the package roles\n- [adr-002-vfs](adr-002-vfs.md) - Related: The snapshot the database wraps"]
+    }
+  ]
+}
