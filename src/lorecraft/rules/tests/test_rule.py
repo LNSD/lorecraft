@@ -1,4 +1,4 @@
-"""A rule's declaration: its identity values and its rule bases."""
+"""A rule's declaration: its identity values, its rule bases, and the `@rule` decorator."""
 
 import pytest
 
@@ -15,12 +15,15 @@ from ..rule import (
     Level,
     MalformedReleaseError,
     Release,
+    Rule,
     RuleCode,
     RuleGroup,
     RuleNumberOutOfRangeError,
+    declared_rules,
 )
 from .sample_input import SampleEntry, SampleLines
 from .sample_rules.groups import SAMPLE
+from .sample_rules.valid.retired import TabIndent
 from .sample_rules.valid.trailing_space import TrailingSpace
 from .sample_rules.valid.uppercase_entry import UppercaseEntry
 
@@ -365,3 +368,42 @@ class TestLayoutRule:
 
         #: Then
         assert occurrences == (UppercaseEntry(spec=None),), 'a layout rule reports the entry once, with no line'
+
+
+@pytest.mark.unit
+class TestRemovedRule:
+    def test_removed_rule_as_a_class_is_not_a_rule_subclass(self) -> None:
+        #: Given
+        removed = TabIndent
+
+        #: When
+        is_rule = issubclass(removed, Rule)
+
+        #: Then
+        assert is_rule is False, 'a removed rule can never be built as an occurrence or reported'
+
+
+@pytest.mark.unit
+class TestRuleDecorator:
+    def test_rule_on_a_rule_class_at_import_leaves_its_declaration_unchanged(self) -> None:
+        #: Given
+        # TrailingSpace was decorated with @rule as its module was imported with this one
+        declared = TrailingSpace
+
+        #: When
+        code = str(declared.CODE)
+
+        #: Then
+        assert declared.__name__ == 'TrailingSpace', 'the decorated name is bound to the class itself'
+        assert code == 'SMP002', 'the class keeps the code it declares'
+
+    def test_rule_on_a_removed_rule_at_import_records_it(self) -> None:
+        #: Given
+        # TabIndent was decorated with @rule as its module was imported with this one
+        removed = TabIndent
+
+        #: When
+        declared = declared_rules()
+
+        #: Then
+        assert removed in declared, 'a removed rule is recorded for the registry to collect'
