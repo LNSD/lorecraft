@@ -1,1 +1,1 @@
-"""Sample rule values for the unit tests."""
+"""Sample rules the unit tests declare, and the groups they belong to."""

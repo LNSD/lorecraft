@@ -1,4 +1,9 @@
-"""How a rule is declared: its identity values.
+"""How a rule is declared: its identity values and the rule class that declares it.
+
+A rule is one class. The class is the declaration and the check: its code, name, default level, the
+release it is stable since and its documentation, as class attributes and the docstring, and the `check`
+classmethod that judges its input. Each input kind has one base class deriving from `ContentRule` or
+`LayoutRule`, whose abstract `check` fixes the input's type, so a rule picks its input by picking its base.
 
 A `Release` is a value object, which cannot know whether its caller joined a literal or parsed a file, so its
 format raises an `Error` variant. A `RuleGroup`, a `RuleCode` and an `AliasCode` are records only the package's
@@ -7,12 +12,25 @@ is therefore a defect in the package, and is rejected with a `ValueError` rather
 line would report as the user's fault.
 """
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from string import ascii_uppercase, digits
-from typing import Self
+from typing import ClassVar, Self
 
 from lorecraft.core.error import Error
+from lorecraft.core.path import RootRelativePath
+from lorecraft.project.syntax import LineNumber
+
+from .location import (
+    EntryLabel,
+    EntrySubdiagnostic,
+    Here,
+    Label,
+    Primary,
+    Subdiagnostic,
+    WholeSubject,
+)
 
 
 class MalformedReleaseError(Error):
@@ -269,3 +287,95 @@ class Level(Enum):
     """An occurrence of the rule is reported as a warning."""
     DENY = 'deny'
     """An occurrence of the rule is reported as an error."""
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Rule(ABC):
+    """A rule, declared and checked by its class.
+
+    An instance of a rule is one occurrence of it, at one place, which is why its `check` returns `tuple[Self, ...]`.
+
+    A subclass declares the rule in its class attributes and its docstring, adds the data of its own condition
+    and the context its diagnostic needs as fields, and renders every part of the diagnostic from those fields.
+    It names no subject: the run that checked the subject locates it.
+
+    A rule never derives from this class directly, but from its input's base, which derives from
+    `ContentRule` or `LayoutRule` and declares the abstract `check` a rule implements.
+
+    Attributes:
+        spec: The specification file that states the rule, or None for a rule the package itself states.
+        CODE: The rule's code, such as `OUT002`.
+        NAME: The rule's kebab-case name, such as `empty-section`.
+        LEVEL: The level the rule runs at when nothing configures it.
+        SINCE: The release the rule is stable since.
+        ALIASES: The upstream linters' codes the rule answers to; none, the default, for most rules.
+    """
+
+    CODE: ClassVar[RuleCode]
+    NAME: ClassVar[str]
+    LEVEL: ClassVar[Level]
+    SINCE: ClassVar[Release]
+    ALIASES: ClassVar[tuple[AliasCode, ...]] = ()
+
+    spec: RootRelativePath | None
+
+    @abstractmethod
+    def message(self) -> str:
+        """What is wrong, rendered from the fields, the same template for every occurrence."""
+
+    @abstractmethod
+    def primary(self) -> Primary:
+        """Where the diagnostic points first."""
+
+    def labels(self) -> tuple[Label | EntryLabel, ...]:
+        """The labelled locations of this occurrence; none, so the primary location is unlabelled."""
+        return ()
+
+    def children(self) -> tuple[Subdiagnostic | EntrySubdiagnostic, ...]:
+        """The help and notes printed under the message; none."""
+        return ()
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ContentRule(Rule):
+    """A rule of a subject with lines: a document, a skill or a skill resource.
+
+    Its labels and sub-diagnostics may point at a line of the subject or elsewhere.
+
+    Attributes:
+        line: The line the occurrence is reported at.
+    """
+
+    line: LineNumber
+
+    def primary(self) -> Here:
+        """The occurrence's line."""
+        return Here(self.line)
+
+    def labels(self) -> tuple[Label, ...]:
+        """The labelled locations of this occurrence; none, so the occurrence's line is unlabelled."""
+        return ()
+
+    def children(self) -> tuple[Subdiagnostic, ...]:
+        """The help and notes printed under the message; none."""
+        return ()
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class LayoutRule(Rule):
+    """A rule of a layout entry, which has no lines, so it carries none.
+
+    Its labels and sub-diagnostics can only point at another file.
+    """
+
+    def primary(self) -> WholeSubject:
+        """The layout entry itself."""
+        return WholeSubject()
+
+    def labels(self) -> tuple[EntryLabel, ...]:
+        """The labelled locations of this occurrence; none, so the entry is unlabelled."""
+        return ()
+
+    def children(self) -> tuple[EntrySubdiagnostic, ...]:
+        """The help and notes printed under the message; none."""
+        return ()

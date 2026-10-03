@@ -33,11 +33,11 @@ not change between two runs over the same revision.
 
 1. **A diagnostic is as rich as the established compilers' and linters'**: a message, a labelled primary
    location, labelled secondary locations in any file, and help and notes that may each point somewhere. The
-   check captures the context it saw as typed data on the violation, and the violation renders every part from
+   check captures the context it saw as typed data on the occurrence, and the occurrence renders every part from
    that data.
-2. **One report per subject**, the same shape for every subject kind. A diagnostic holds its violation.
+2. **One report per subject**, the same shape for every subject kind. A diagnostic holds its occurrence.
 3. **The order is a contract**, total over one revision: path, location, severity, code, message.
-4. **Only a rule's violation is a rule diagnostic.** A file that cannot be decoded is an engine diagnostic, a
+4. **Only a rule's occurrence is a rule diagnostic.** A file that cannot be decoded is an engine diagnostic, a
    subject no specification governs is coverage, and what stops a run is a failure: none of them takes a level.
 
 ## Design
@@ -64,13 +64,13 @@ error[OUT003]: missing required section `Usage`
 ```
 
 What goes into it depends on the context of the occurrence, and only the check sees that context. So the check
-captures what is relevant as typed fields of the violation, and methods of the violation render each part of the
+captures what is relevant as typed fields of the occurrence, and methods of the occurrence render each part of the
 diagnostic from those fields:
 
 ```python
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class MissingSection(OutlineViolation):
+class MissingSection(OutlineRule):
     """..."""
 
     CODE: ClassVar[RuleCode] = RuleCode(OUTLINE, 3)
@@ -163,13 +163,13 @@ type EntrySubdiagnostic = EntryHelp | EntryNote
 ```
 
 ```python
-class Violation:
+class Rule:
     def primary(self) -> Primary: ...                                      # abstract
     def labels(self) -> tuple[Label | EntryLabel, ...]: ...
     def children(self) -> tuple[Subdiagnostic | EntrySubdiagnostic, ...]: ...
 
 
-class ContentViolation(Violation):        # the base of every input whose subject has lines
+class ContentRule(Rule):        # the base of every input whose subject has lines
     line: int
 
     def primary(self) -> Here:
@@ -182,7 +182,7 @@ class ContentViolation(Violation):        # the base of every input whose subjec
         return ()
 
 
-class LayoutViolation(Violation):         # the base of the layout input
+class LayoutRule(Rule):         # the base of the layout input
     def primary(self) -> WholeSubject:
         return WholeSubject()
 
@@ -199,21 +199,21 @@ class LayoutViolation(Violation):         # the base of the layout input
   captured, such as the heading a missing section should precede, or the first definition a duplicate key
   repeats. The base returns none of either, so a rule that needs only a message writes nothing more, and its
   primary location is unlabelled.
-- **Each subject kind gets only the locations it has, and the type checker holds it.** A layout violation has no
-  `line` field, so one cannot be built with a line, and a content violation cannot be built without one. Each
-  base narrows `labels()` and `children()` to its own types, as a method override may narrow its return type and
-  a tuple is covariant, so a layout violation cannot write `Here`. The renderer matches `primary()` on
+- **Each subject kind gets only the locations it has, and the type checker holds it.** A layout rule's occurrence
+  has no `line` field, so one cannot be built with a line, and a content rule's occurrence cannot be built without
+  one. Each base narrows `labels()` and `children()` to its own types, as a method override may narrow its return
+  type and a tuple is covariant, so a layout rule cannot write `Here`. The renderer matches `primary()` on
   `Here | WholeSubject` with `assert_never`, and never reads a line by `getattr`. The label and sub-diagnostic
   types are separate classes per subject kind, not subclasses that narrow a field, which a type checker may not
   accept. No type proves that `Here(12)` is a line the file has: that is a runtime value, and each rule's tests
   hold it.
-- **Context is data, never prose built in `check`.** A violation stores what the check saw, and the methods turn
+- **Context is data, never prose built in `check`.** An occurrence stores what the check saw, and the methods turn
   it into text. A persisted or machine-read diagnostic keeps the structured values, and the text can always be
   rendered again from them.
 - **The specification authors its own guidance.** An outline entry's description and example reach the
-  violation through the input, and `children()` presents them; the rule writes no guidance a specification
+  occurrence through the input, and `children()` presents them; the rule writes no guidance a specification
   states.
-- **A violation still names no subject.** `Here` is a line of the subject, and `WholeSubject` the subject itself;
+- **An occurrence still names no subject.** `Here` is a line of the subject, and `WholeSubject` the subject itself;
   the runner adds the path. `Elsewhere` names another file. Ranged locations, when they come, widen `Here` and
   `Elsewhere` without changing a rule's signature.
 - **The docstring's *Use instead* is the general fix**, on the rulebook page; `children()` gives the fix for
@@ -234,14 +234,14 @@ class LayoutViolation(Violation):         # the base of the layout input
 @dataclass(frozen=True, slots=True)
 class Diagnostic:
     path: RootRelativePath
-    violation: Violation
+    occurrence: Rule
     severity: Severity  # ERROR or WARNING
 
 
 type SubjectReport = CheckedSubject | UndecodableSubject
 ```
 
-- **A diagnostic holds its violation** and copies none of its fields. The code, the message, the labels, the
+- **A diagnostic holds its occurrence** and copies none of its fields. The code, the message, the labels, the
   help and notes, and the specification reach the text and the machine-readable output through it (FR-017).
 - **`Severity` is not `Level`.** A level has three values, and a diagnostic at `allow` does not exist, so a
   diagnostic carries one of two severities.
@@ -273,7 +273,7 @@ type SubjectReport = CheckedSubject | UndecodableSubject
 
 ## Alternatives Considered
 
-- **Notes as a field of the violation**, built as text in `check`, as the checks do today. Not chosen: a rule's
+- **Notes as a field of the occurrence**, built as text in `check`, as the checks do today. Not chosen: a rule's
   fixed help repeats in every instance, a stored diagnostic holds rendered prose instead of data, and nothing ties
   a rule to the guidance it gives.
 - **Emission order**, as compilers print. Not chosen: the order would depend on how rules iterate, and two runs
@@ -302,7 +302,7 @@ type SubjectReport = CheckedSubject | UndecodableSubject
 
 - [prd-008-structured-checks](prd-008-structured-checks.md) - Source: The requirements this design answers
 - [#315](https://github.com/LNSD/lorecraft/issues/315) - Source: The research and the decisions behind it
-- [adr-009-rules](adr-009-rules.md) - Foundation: The violation class that renders a diagnostic, and the glossary
-- [adr-011-rules-engine](adr-011-rules-engine.md) - Related: The run that locates violations into diagnostics
+- [adr-009-rules](adr-009-rules.md) - Foundation: The rule class that renders a diagnostic, and the glossary
+- [adr-011-rules-engine](adr-011-rules-engine.md) - Related: The run that locates occurrences into diagnostics
 - [adr-007-findings](adr-007-findings.md) - Proposed to supersede: Violations, findings and failures
 - [error-boundaries](../code/error-boundaries.md) - Foundation: Where a failure is raised and where it is reported
