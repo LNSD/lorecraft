@@ -1,16 +1,20 @@
 ---
-name: "arch-database"
+name: "adr-004-database"
 description: "The database of a revision: one report reads one revision, a revision is never updated in place, the view and the cache, and the kinds of query. Load when adding a query, reading the workspace from a check or a command, running work in parallel, or handling a new revision while work is running"
-type: "arch"
-scope: "global"
+type: "adr"
+status: "accepted"
 ---
 
 # The Database
 
+## Context
+
 The database wraps one revision's inputs and answers every question about them as a query. With its inputs it
 makes one revision.
 
-## One Report, One Revision
+## Decision
+
+### One Report, One Revision
 
 Every check whose result goes into one report reads one revision, so no report describes two states of the tree.
 A command analyses one revision, or, in a process that lives across changes, one revision per change, each new
@@ -24,7 +28,7 @@ A revision is never updated in place. When a new one arrives, work on the old on
 that is how stale work is cancelled. A database's cache is filled from one thread. Reading one revision in
 parallel needs a cache that is safe to fill concurrently, added in the change that first runs queries in parallel.
 
-## The View and the Cache
+### The View and the Cache
 
 The database is the one object above the Input package that holds the snapshot. A command builds it from the snapshot
 it took and hands it to every check of the revision. It has two layers:
@@ -33,7 +37,7 @@ it took and hands it to every check of the revision. It has two layers:
   code below the database that reads the workspace reads only the view a query hands it.
 - **The cache**: the results of its queries, keyed by what each query was asked, such as a document's ref.
 
-## Every Question Is a Query
+### Every Question Is a Query
 
 A query is a method of the database, computed on first use and memoized until the database is dropped. Its
 result is an immutable value. The queries are layered:
@@ -53,6 +57,12 @@ then stores its own result in the cache. A reader asks for the cheapest query th
 frontmatter node, not the parse tree, when it reads only the frontmatter. Readers of one query share one
 computation of it.
 
+## Consequences
+
+- No report mixes two states of the tree, and cancelling stale work is dropping a database.
+- Running queries in parallel waits for a cache that is safe to fill concurrently; until then, one thread fills a
+  database.
+
 ## Checklist
 
 Before committing code, verify:
@@ -65,7 +75,7 @@ Before committing code, verify:
 
 ## References
 
-- [arch-snapshot-model](arch-snapshot-model.md) - Related: The model and the package roles
-- [arch-vfs](arch-vfs.md) - Related: The snapshot the database wraps
-- [arch-incremental](arch-incremental.md) - Related: What a query's result carries over to the next revision
-- [pattern-memoization](pattern-memoization.md) - Foundation: How a query is memoized
+- [adr-001-snapshot-model](adr-001-snapshot-model.md) - Related: The model and the package roles
+- [adr-002-vfs](adr-002-vfs.md) - Related: The snapshot the database wraps
+- [adr-005-incremental](adr-005-incremental.md) - Related: What a query's result carries over to the next revision
+- [pattern-memoization](../code/pattern-memoization.md) - Foundation: How a query is memoized

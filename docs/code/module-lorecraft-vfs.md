@@ -76,9 +76,9 @@ Before committing code, verify:
 
 ## References
 
-- [arch-snapshot-model](arch-snapshot-model.md) - Foundation: The Input role
-- [arch-vfs](arch-vfs.md) - Foundation: The one boundary with the disk, and the snapshot as a value
-- [arch-project-model](arch-project-model.md) - Foundation: The scope is declared, and symlinks decide where a
+- [adr-001-snapshot-model](../arch/adr-001-snapshot-model.md) - Foundation: The Input role
+- [adr-002-vfs](../arch/adr-002-vfs.md) - Foundation: The one boundary with the disk, and the snapshot as a value
+- [adr-003-project-model](../arch/adr-003-project-model.md) - Foundation: The scope is declared, and symlinks decide where a
   path leads
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One reason to change
 - [principle-validate-at-edge](principle-validate-at-edge.md) - Foundation: The boundary is where paths are

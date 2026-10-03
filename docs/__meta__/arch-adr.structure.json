@@ -1,0 +1,41 @@
+{
+  "$schema": "../schemas/structure.spec.json",
+  "description": "The machine-checkable half of docs/__meta__/arch-adr.md#2-frontmatter and docs/__meta__/arch-adr.md#3-sections. Context, Decision and Consequences in that order, with any other section before, between or after them. No section has a word cap and the file has no token budget.",
+  "frontmatter": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "pattern": "^adr-[0-9]{3}-[a-z0-9]+(?:-[a-z0-9]+)*$",
+        "description": "adr-<NNN>-<subject>: the document number docs/__meta__/arch.md allocates, one sequence shared by every document in docs/arch/, then the subject in a few kebab-case words. See docs/__meta__/arch-adr.md#1-naming.",
+        "examples": ["adr-004-database"]
+      },
+      "type": { "const": "adr" },
+      "status": {
+        "enum": ["proposed", "accepted", "rejected", "superseded", "deprecated"],
+        "description": "accepted once the owner settles it; frozen once rejected, superseded or deprecated."
+      }
+    }
+  },
+  "outline": [
+    { "any": true },
+    {
+      "section": "Context",
+      "description": "The situation and the forces that call for a decision.",
+      "examples": ["The checks package already has the right foundation. A `Database` wraps one revision and memoizes every derived\nvalue as a query. A check is a pure function of the values those queries return. The engine keeps all of that."]
+    },
+    { "any": true },
+    {
+      "section": "Decision",
+      "description": "What is decided, as statements a reader can hold the result to.",
+      "examples": ["1. **One registry**, discovered by a package walk, is the only list of rules. The runner, the rulebook and the\n   tests read it."]
+    },
+    { "any": true },
+    {
+      "section": "Consequences",
+      "description": "What follows from the decision: what changes, what it costs, and what stays true.",
+      "examples": ["- **More files, each smaller.** About 45 rule modules replace today's check modules."]
+    },
+    { "any": true }
+  ]
+}
