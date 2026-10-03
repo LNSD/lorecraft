@@ -1,0 +1,85 @@
+{
+  "$schema": "../schemas/structure.spec.json",
+  "description": "The machine-checkable half of docs/__meta__/arch-prd.md#2-frontmatter and docs/__meta__/arch-prd.md#3-sections.",
+  "frontmatter": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "pattern": "^prd-[0-9]{3}-[a-z0-9]+(?:-[a-z0-9]+)*$",
+        "description": "prd-<NNN>-<feature>: a three-digit, zero-padded number, one higher than the highest already in docs/arch/ and never reused, then the feature in a few kebab-case words. See docs/__meta__/arch-prd.md#1-naming.",
+        "examples": ["prd-001-unchecked-documents", "prd-007-structured-checks"]
+      },
+      "type": { "const": "prd" },
+      "status": {
+        "enum": ["draft", "approved", "shipped", "dropped"],
+        "description": "approved once no open question is left; frozen once shipped or dropped."
+      }
+    }
+  },
+  "tokens": 4000,
+  "outline": [
+    {
+      "section": "Problem",
+      "words": 200,
+      "description": "Who needs the feature, what they cannot do today, and why it matters now, in one or two paragraphs.",
+      "examples": ["A repository that adopts Lorecraft writes its specifications before its documents, and until the first document\nlands, a check reports nothing at all. A writer cannot tell a corpus that passes from one that is not checked."]
+    },
+    {
+      "section": "Goals",
+      "words": 150,
+      "description": "The outcomes the feature commits to, as a bulleted list.",
+      "examples": ["- A writer sees, on every run, which documents no specification governs.\n- A broken specification stops the run before any document is read."]
+    },
+    {
+      "section": "Non-Goals",
+      "words": 150,
+      "description": "What a reader might expect the feature to do and it does not, each with the reason it is out of scope.",
+      "examples": ["- Repairing a broken specification: the check reports it, and the writer fixes it."]
+    },
+    {
+      "section": "User Stories",
+      "description": "Prioritised user stories, each under an H3 that gives its identifier, title and priority, each with an independent test and one or more scenarios, each a gherkin block of its own holding one Scenario: and no Feature:.",
+      "examples": ["### US-1: See what is unchecked (P1)\n\nAs a writer adopting Lorecraft, I want every ungoverned document reported, so that I know which ones no check\nreads.\n\n**Independent test:** Check a workspace with documents and no specification.\n\n```gherkin\nScenario: No corpus has a specification\n  Given a workspace with no specification\n  When the writer checks it\n  Then every document is reported as unvalidated\n```"]
+    },
+    {
+      "section": "Requirements",
+      "description": "Numbered FR- and NFR- items, one behaviour each, each in one EARS pattern; an unknown is marked [NEEDS CLARIFICATION: …] inline.",
+      "examples": ["- **FR-001:** THE SYSTEM SHALL report every finding with the path of the document it was found in.\n- **FR-002:** WHEN a user checks a workspace that holds no specification, THE SYSTEM SHALL report every document\n  as unvalidated.\n- **NFR-001:** THE SYSTEM SHALL check a workspace of 1,000 documents in under two seconds."]
+    },
+    {
+      "section": "Edge Cases",
+      "optional": true,
+      "description": "Boundary conditions and failure paths the user stories do not cover, as questions.",
+      "examples": ["- What happens when a workspace holds a specification but no document?"]
+    },
+    {
+      "section": "Key Entities",
+      "optional": true,
+      "description": "The concepts the requirements name, what each is to the user and how it relates to the others, without its representation.",
+      "examples": ["- **Document:** A file under a corpus, governed by the specifications its path selects.\n- **Specification:** The rules for a group of documents, selected by its name."]
+    },
+    {
+      "section": "Success Criteria",
+      "description": "Numbered SC- items, each a measurable outcome stated without naming the technology.",
+      "examples": ["- **SC-001:** A writer adopting Lorecraft finds every unchecked document from one run's output, with no other\n  command."]
+    },
+    {
+      "section": "Assumptions",
+      "optional": true,
+      "description": "What the requirements take for granted, as a bulleted list.",
+      "examples": ["- Every document sits directly in its corpus directory, not in a subdirectory of it."]
+    },
+    {
+      "section": "Open Questions",
+      "optional": true,
+      "description": "Every [NEEDS CLARIFICATION] marker in the document, gathered under the identifier of the requirement that carries it.",
+      "examples": ["- **FR-006:** In every output format, or in the text output only?"]
+    },
+    {
+      "section": "References",
+      "description": "The issue the PRD comes from, as Source, and the design documents, decision records and feature docs it leads to, as Leads to.",
+      "examples": ["- [#170](https://github.com/LNSD/lorecraft/issues/170) - Source: The issue the PRD comes from\n- [cli-check](../feat/cli-check.md) - Leads to: What shipped"]
+    }
+  ]
+}
