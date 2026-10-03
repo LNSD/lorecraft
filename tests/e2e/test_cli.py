@@ -16,7 +16,9 @@ skill, for one whose `SKILL.md` and a resource link a file the skill does not ho
 absolute path and to a heading it does not have, for one whose `SKILL.md` and a resource link to an absolute path,
 named by its directory and by its `SKILL.md`, which checks that file alone, for one whose `metadata` repeats a file
 name, lists a path outside what the command reads, or lists a file the repository does not have, and for one holding a
-symlink that leads outside the repository.
+symlink that leads outside the repository. A root written from `lib.workspace` holding one skill whose every
+field but its name is generated must pass `check skills` with no finding, since every test writing such a root sets
+only the fields its case turns on.
 """
 
 import os
@@ -26,11 +28,13 @@ from textwrap import dedent
 from typing import Final
 
 import pytest
+from faker import Faker
 from syrupy.assertion import SnapshotAssertion
 
 import lorecraft
 from lib.cli import run_alias, run_cli
 from lib.snapshot import JsonTextSnapshotExtension, TextSnapshotExtension
+from lib.workspace import Skill, Workspace
 from lorecraft import __version__
 
 # The labelled lines of `version --verbose` whose values differ per checkout, interpreter, machine and install.
@@ -357,141 +361,23 @@ def duplicate_key_root(tmp_path: Path) -> Path:
 
 
 @pytest.fixture(scope='function')
-def absolute_link_root(tmp_path: Path) -> Path:
-    """A root holding one skill whose `SKILL.md` links to a file from the filesystem root.
-
-    Apart from the link the skill is clean, so the link-absolute finding is the only one the check prints.
-
-    Args:
-        tmp_path: Directory the skill is written into, as the repository root.
-    """
-    (tmp_path / '.agents' / 'skills' / 'review').mkdir(parents=True)
-    (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').write_text(
-        '---\nname: review\ndescription: Review a change\n---\n# Review\n\nRead [the guide](/docs/guide.md).\n',
-        encoding='utf-8',
-    )
-    return tmp_path
-
-
-@pytest.fixture(scope='function')
-def missing_fragment_root(tmp_path: Path) -> Path:
-    """A root holding one skill whose `SKILL.md` links to a heading of its own that it does not have.
-
-    Apart from the link the skill is clean, so the link-fragment finding is the only one the check prints.
-
-    Args:
-        tmp_path: Directory the skill is written into, as the repository root.
-    """
-    (tmp_path / '.agents' / 'skills' / 'review').mkdir(parents=True)
-    (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').write_text(
-        '---\nname: review\ndescription: Review a change\n---\n# Review\n\nSee [the checklist](#checklist).\n',
-        encoding='utf-8',
-    )
-    return tmp_path
-
-
-@pytest.fixture(scope='function')
-def escaping_link_root(tmp_path: Path) -> Path:
-    """A root holding one skill whose `SKILL.md` and a resource each link outside the skill directory.
-
-    The resource links its own skill as `../SKILL.md`, which, read from the skill root, leaves the skill. Apart
-    from the two links the skill is clean, so the two link-escapes findings are the only ones the check prints.
-
-    Args:
-        tmp_path: Directory the skill is written into, as the repository root.
-    """
-    (tmp_path / '.agents' / 'skills' / 'review' / 'references').mkdir(parents=True)
-    (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').write_text(
-        '---\nname: review\ndescription: Review a change\n---\n# Review\n\nRead [the guide](../../../docs/guide.md).\n',
-        encoding='utf-8',
-    )
-    (tmp_path / '.agents' / 'skills' / 'review' / 'references' / 'steps.md').write_text(
-        '# Steps\n\nBack to [the skill](../SKILL.md).\n', encoding='utf-8'
-    )
-    return tmp_path
-
-
-@pytest.fixture(scope='function')
-def broken_link_root(tmp_path: Path) -> Path:
-    """A root holding one skill whose `SKILL.md` and a resource each link a file the skill does not hold.
-
-    The resource links `steps.md` beside it, which, read from the skill root, names nothing; its link to
-    `references/steps.md` resolves. Apart from the two broken links the skill is clean, so the two link-broken
-    findings are the only ones the check prints.
-
-    Args:
-        tmp_path: Directory the skill is written into, as the repository root.
-    """
-    (tmp_path / '.agents' / 'skills' / 'review' / 'references').mkdir(parents=True)
-    (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').write_text(
-        '---\nname: review\ndescription: Review a change\n---\n# Review\n\n'
-        'Follow [the steps](references/steps.md) and [the checklist](references/checklist.md).\n',
-        encoding='utf-8',
-    )
-    (tmp_path / '.agents' / 'skills' / 'review' / 'references' / 'guide.md').write_text(
-        '# Guide\n\nSee [the steps](references/steps.md), not [the steps](steps.md).\n', encoding='utf-8'
-    )
-    (tmp_path / '.agents' / 'skills' / 'review' / 'references' / 'steps.md').write_text('# Steps\n', encoding='utf-8')
-    return tmp_path
-
-
-@pytest.fixture(scope='function')
-def resource_absolute_and_fragment_link_root(tmp_path: Path) -> Path:
-    """A root holding one skill whose resource links to a file from the filesystem root and to a missing heading.
-
-    The resource links `#usage`, a heading of the `SKILL.md` but not of the resource, and `#guide`, its own. Apart
-    from the two links the skill is clean, so the link-absolute and link-fragment findings, both in the resource,
-    are the only ones the check prints.
-
-    Args:
-        tmp_path: Directory the skill is written into, as the repository root.
-    """
-    (tmp_path / '.agents' / 'skills' / 'review' / 'references').mkdir(parents=True)
-    (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').write_text(
-        '---\nname: review\ndescription: Review a change\n---\n# Review\n\n## Usage\n', encoding='utf-8'
-    )
-    (tmp_path / '.agents' / 'skills' / 'review' / 'references' / 'guide.md').write_text(
-        '# Guide\n\nRead [the docs](/docs/guide.md).\n\nSee [the usage](#usage), not [the guide](#guide).\n',
-        encoding='utf-8',
-    )
-    return tmp_path
-
-
-@pytest.fixture(scope='function')
-def skill_and_resource_absolute_link_root(tmp_path: Path) -> Path:
+def skill_and_resource_absolute_link_root(tmp_path: Path, faker: Faker) -> Path:
     """A root holding one skill whose `SKILL.md` and whose resource each link to a file from the filesystem root.
 
-    Apart from the two links the skill is clean, so a run over the whole skill prints two link-absolute findings,
-    one per file, and a run over its `SKILL.md` alone prints the one in the `SKILL.md`.
+    A run over the whole skill prints two link-absolute findings, one per file, and a run over its `SKILL.md` alone
+    prints the one in the `SKILL.md`.
 
     Args:
         tmp_path: Directory the skill is written into, as the repository root.
+        faker: The test's seeded generator, which fills what the skill leaves unset.
     """
-    (tmp_path / '.agents' / 'skills' / 'review' / 'references').mkdir(parents=True)
-    (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').write_text(
-        '---\nname: review\ndescription: Review a change\n---\n# Review\n\nRead [the steps](/steps.md).\n',
-        encoding='utf-8',
+    skill = Skill(
+        'review',
+        body='# Review\n\nRead [the steps](/steps.md).\n',
+        references={'guide.md': '# Guide\n\nRead [the docs](/docs/guide.md).\n'},
     )
-    (tmp_path / '.agents' / 'skills' / 'review' / 'references' / 'guide.md').write_text(
-        '# Guide\n\nRead [the docs](/docs/guide.md).\n', encoding='utf-8'
-    )
-    return tmp_path
-
-
-@pytest.fixture(scope='function')
-def long_skill_root(tmp_path: Path) -> Path:
-    """A root holding one skill whose `SKILL.md` is 501 lines, its four lines of frontmatter included.
-
-    Apart from its length the skill is clean, so the lines-budget finding is the only one the check prints.
-
-    Args:
-        tmp_path: Directory the skill is written into, as the repository root.
-    """
-    (tmp_path / '.agents' / 'skills' / 'review').mkdir(parents=True)
-    (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').write_text(
-        '---\nname: review\ndescription: Review a change\n---\n' + 'Body.\n' * 497, encoding='utf-8'
-    )
-    return tmp_path
+    workspace = Workspace(skills=[skill])
+    return workspace.write(tmp_path, faker)
 
 
 @pytest.fixture(scope='function')
@@ -849,11 +735,13 @@ class TestCheckSkillsSnapshots:
         assert result.stdout == expected, 'the duplicate-key finding matches the reviewed snapshot'
 
     def test_check_skills_with_an_absolute_link_prints_the_link_absolute_finding(
-        self, snapshot: SnapshotAssertion, absolute_link_root: Path
+        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
     ) -> None:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'skills', '--root', str(absolute_link_root))
+        workspace = Workspace(skills=[Skill('review', body='# Review\n\nRead [the guide](/docs/guide.md).\n')])
+        root = workspace.write(tmp_path, faker)
+        arguments = ('check', 'skills', '--root', str(root))
 
         #: When
         result = run_cli(*arguments)
@@ -863,11 +751,13 @@ class TestCheckSkillsSnapshots:
         assert result.stdout == expected, 'the link-absolute finding matches the reviewed snapshot'
 
     def test_check_skills_with_a_link_to_a_missing_heading_prints_the_link_fragment_finding(
-        self, snapshot: SnapshotAssertion, missing_fragment_root: Path
+        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
     ) -> None:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'skills', '--root', str(missing_fragment_root))
+        workspace = Workspace(skills=[Skill('review', body='# Review\n\nSee [the checklist](#checklist).\n')])
+        root = workspace.write(tmp_path, faker)
+        arguments = ('check', 'skills', '--root', str(root))
 
         #: When
         result = run_cli(*arguments)
@@ -877,11 +767,19 @@ class TestCheckSkillsSnapshots:
         assert result.stdout == expected, 'the link-fragment finding matches the reviewed snapshot'
 
     def test_check_skills_with_escaping_links_prints_each_link_escapes_finding_in_its_file(
-        self, snapshot: SnapshotAssertion, escaping_link_root: Path
+        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
     ) -> None:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'skills', '--root', str(escaping_link_root))
+        # The resource links its own skill as `../SKILL.md`, which, read from the skill root, leaves the skill.
+        skill = Skill(
+            'review',
+            body='# Review\n\nRead [the guide](../../../docs/guide.md).\n',
+            references={'steps.md': '# Steps\n\nBack to [the skill](../SKILL.md).\n'},
+        )
+        workspace = Workspace(skills=[skill])
+        root = workspace.write(tmp_path, faker)
+        arguments = ('check', 'skills', '--root', str(root))
 
         #: When
         result = run_cli(*arguments)
@@ -891,11 +789,23 @@ class TestCheckSkillsSnapshots:
         assert result.stdout == expected, 'the link-escapes findings, one in the resource, match the reviewed snapshot'
 
     def test_check_skills_with_broken_links_prints_each_link_broken_finding_in_its_file(
-        self, snapshot: SnapshotAssertion, broken_link_root: Path
+        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
     ) -> None:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'skills', '--root', str(broken_link_root))
+        # The resource links `steps.md` beside it, which, read from the skill root, names nothing; its link to
+        # `references/steps.md` resolves.
+        skill = Skill(
+            'review',
+            body='# Review\n\nFollow [the steps](references/steps.md) and [the checklist](references/checklist.md).\n',
+            references={
+                'guide.md': '# Guide\n\nSee [the steps](references/steps.md), not [the steps](steps.md).\n',
+                'steps.md': '# Steps\n',
+            },
+        )
+        workspace = Workspace(skills=[skill])
+        root = workspace.write(tmp_path, faker)
+        arguments = ('check', 'skills', '--root', str(root))
 
         #: When
         result = run_cli(*arguments)
@@ -905,11 +815,23 @@ class TestCheckSkillsSnapshots:
         assert result.stdout == expected, 'the link-broken findings, one in the resource, match the reviewed snapshot'
 
     def test_check_skills_with_absolute_and_fragment_links_in_a_resource_prints_both_findings_there(
-        self, snapshot: SnapshotAssertion, resource_absolute_and_fragment_link_root: Path
+        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
     ) -> None:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'skills', '--root', str(resource_absolute_and_fragment_link_root))
+        # The resource links `#usage`, a heading of the `SKILL.md` but not of the resource, and `#guide`, its own.
+        skill = Skill(
+            'review',
+            body='# Review\n\n## Usage\n',
+            references={
+                'guide.md': (
+                    '# Guide\n\nRead [the docs](/docs/guide.md).\n\nSee [the usage](#usage), not [the guide](#guide).\n'
+                ),
+            },
+        )
+        workspace = Workspace(skills=[skill])
+        root = workspace.write(tmp_path, faker)
+        arguments = ('check', 'skills', '--root', str(root))
 
         #: When
         result = run_cli(*arguments)
@@ -953,11 +875,14 @@ class TestCheckSkillsSnapshots:
         )
 
     def test_check_skills_with_a_skill_md_over_500_lines_prints_the_lines_budget_finding(
-        self, snapshot: SnapshotAssertion, long_skill_root: Path
+        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
     ) -> None:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'skills', '--root', str(long_skill_root))
+        # 497 lines below the four of the frontmatter: 501 in all, one over the budget.
+        workspace = Workspace(skills=[Skill('review', body='Body.\n' * 497)])
+        root = workspace.write(tmp_path, faker)
+        arguments = ('check', 'skills', '--root', str(root))
 
         #: When
         result = run_cli(*arguments)
@@ -1021,6 +946,25 @@ class TestCheckSkillsSnapshots:
         #: Then
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the metadata-missing-file finding matches the reviewed snapshot'
+
+
+@pytest.mark.e2e
+class TestWorkspaceDefaults:
+    # Every test that writes a workspace sets only the fields its case turns on, and relies on the rest being clean.
+
+    def test_check_skills_with_a_default_skill_reports_no_finding(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        workspace = Workspace(skills=[Skill('review')])
+        root = workspace.write(tmp_path, faker)
+        arguments = ('check', 'skills', '--root', str(root))
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 0, result.stdout
+        assert result.stdout == '', 'a skill whose every field but its name is generated has nothing to report'
+        assert result.stderr == 'checked 1 skill(s), 0 finding(s)\n', 'the one skill written is the one checked'
 
 
 @pytest.mark.e2e

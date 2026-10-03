@@ -92,6 +92,7 @@ exclude = ["tests/"]
 
 [dependency-groups]
 dev = [
+    "faker>=40.40.0",
     "import-linter>=2.15,<3",
     "mutmut>=3.8.0",
     "ruff>=0.16.0",
