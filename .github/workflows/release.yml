@@ -79,7 +79,8 @@ jobs:
           ls -la dist/
           test -f "dist/lorecraft-${version}.tar.gz"
           test -f "dist/lorecraft-${version}-py3-none-any.whl"
-          test "$(find dist/ -mindepth 1 | wc -l)" -eq 2
+          # `uv build` also writes a `dist/.gitignore` holding `*`; it is no artifact, so it is not counted.
+          test "$(find dist/ -mindepth 1 ! -name .gitignore | wc -l)" -eq 2
 
       # The workspace tests cannot see a dependency the wheel fails to declare.
       - name: Install the wheel alone
