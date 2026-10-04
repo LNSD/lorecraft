@@ -68,7 +68,7 @@ before tagging, or cut the release from a commit that is signed.
 
 ## The version has one home, and it is the git tag
 
-No file in the tree holds a release version. `pyproject.toml` declares `dynamic = ["version"]` and
+No file in the tree holds the package's release version. `pyproject.toml` declares `dynamic = ["version"]` and
 `[tool.hatch.version]` sets `source = "vcs"`, so the build runs `git describe` against the tag. Bumping the version *is* tagging:
 
 ```bash
@@ -93,6 +93,10 @@ At runtime the command line reports what it was built with, via `importlib.metad
 shows the working tree it is actually sitting on rather than the version frozen at install time.
 
 Do not add a version string anywhere. If you find one, delete it rather than syncing it.
+
+One exception: a rule's `SINCE` and a removed rule's `REMOVED_IN`, in `src/lorecraft/rules/`. Each is an
+immutable literal naming the release that first shipped the rule or removed it, not the current version, so a
+release never bumps, syncs or deletes one.
 
 ## Tag, then build
 

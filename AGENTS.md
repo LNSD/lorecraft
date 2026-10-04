@@ -238,7 +238,8 @@ cannot be relaxed:
 - **No file holds a version.** `hatch-vcs` derives it from the git tag at build time, and the command line
   alone reads it back with `importlib.metadata`;
   the `release` skill owns the release flow. Adding a version literal anywhere is a defect, not a
-  convenience.
+  convenience. The one exception is a rule's `SINCE` and a removed rule's `REMOVED_IN`: immutable literals
+  naming the release that first shipped the rule or removed it, never the current version.
 - Do not add a dependency without a stated reason; this is a small toolkit, and the standard library is
   preferred until it is genuinely insufficient.
 - Keep this guide honest: a section describing something that does not exist must say so.
