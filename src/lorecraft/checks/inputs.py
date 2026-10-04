@@ -1,8 +1,10 @@
 """How each input a rule reads is built from the database's queries, for one decoded subject.
 
-An input builder reads governance first: when no specification governs the subject for the input, it returns
-`Ungoverned` without asking for the facts the input would hold, so an ungoverned subject never pays for them. Only
-then does it ask the queries, each computed once per subject however many rules read the input.
+An input a specification governs is built governance first: when no specification governs the subject for the
+input, its builder returns `Ungoverned` without asking for the facts the input would hold, so an ungoverned subject
+never pays for them. Only then does it ask the queries, each computed once per subject however many rules read the
+input. An input the package governs, such as a skill's line count, has no governance to read, so its builder asks
+the queries straight away and never returns `Ungoverned`.
 
 A builder takes the decode query's witness, never a bare ref, so an input of a file that does not decode cannot be
 asked for. The runner builds an input only when an enabled rule reads it.
@@ -11,10 +13,10 @@ asked for. The runner builds an input only when an enabled rule reads it.
 from dataclasses import dataclass
 
 from lorecraft.core.num import UnsignedInt
-from lorecraft.rules.inputs import Budget, TokenCountInput
+from lorecraft.rules.inputs import Budget, LineCountInput, TokenCountInput
 
 from .database import Database
-from .text import DocumentText
+from .text import DocumentText, SkillText
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,6 +49,7 @@ def build_token_count_input(database: Database, source: DocumentText) -> TokenCo
             dialect's shape.
         EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
         RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
+        RepeatedForbiddenSectionError: If the model is not loaded yet and a specification forbids a section twice.
         ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
             outline names.
         AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
@@ -76,3 +79,14 @@ def build_token_count_input(database: Database, source: DocumentText) -> TokenCo
         return Ungoverned()
     # A count is never negative, so building the `UnsignedInt` cannot raise `NegativeIntError` here.
     return TokenCountInput(token_count=UnsignedInt(database.tokens(source)), budgets=tuple(budgets))
+
+
+def build_line_count_input(database: Database, source: SkillText) -> LineCountInput:
+    """A skill's whole-`SKILL.md` line count. Raises nothing.
+
+    Args:
+        database: The revision the skill is read from.
+        source: The skill's `SKILL.md` text, as `Database.skill_text` returns it.
+    """
+    # A count is never negative, so building the `UnsignedInt` cannot raise `NegativeIntError` here.
+    return LineCountInput(line_count=UnsignedInt(database.skill_lines(source)))

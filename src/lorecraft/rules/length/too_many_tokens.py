@@ -11,9 +11,10 @@ from lorecraft.rules.location import Elsewhere, Help, Note, Subdiagnostic
 
 from .__ruleset__ import GROUP_ID
 
+# A budget concerns the whole file, not one of its lines, but an occurrence under `ContentRule` carries a line, so
+# it is reported at the first line.
 _FIRST_LINE: Final[LineNumber] = LineNumber.from_int(1)
-"""Where an occurrence is reported. A budget concerns the whole file, not one of its lines, but a document's
-occurrence carries a line under `ContentRule`, so it is reported at the first line, as the budget check is."""
+"""Where an occurrence is reported: the subject's first line."""
 
 
 @rule
@@ -73,7 +74,7 @@ class TooManyTokens(TokenCountRule):
     ```
 
     Attributes:
-        spec: The structure specification that sets the exceeded budget; never None, since a specification sets
+        spec: The structure specification that sets the exceeded budget; never `None`, since a specification sets
             every budget.
         token_count: The tokens in the document's whole file.
         budget: The budget it exceeds, in tokens.
