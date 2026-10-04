@@ -128,8 +128,8 @@ def find_destination(
           query refuses one (see `EntryLookup.may_climb_out_of`).
 
     Raises:
-        Exception: Whatever `entries` raises: the disk lookup's `SnapshotEntryInspectError` and
-            `SnapshotLinkReadError`; the snapshot lookups raise nothing.
+        Exception: Whatever `entries` raises: the disk lookup's `SnapshotEntryInspectError`,
+            `SnapshotLinkReadError` and `ChangedSnapshotEntryError`; the snapshot lookups raise nothing.
     """
     resolved = ROOT
     remaining = list(path.parts)
@@ -191,8 +191,8 @@ def find_listed_scan_root(scan_root: ScanRoot, entries: EntryLookup) -> ScanRoot
         leads to no directory or leaves the root (see `find_destination`).
 
     Raises:
-        Exception: Whatever `entries` raises: the disk lookup's `SnapshotEntryInspectError` and
-            `SnapshotLinkReadError`; the snapshot lookups raise nothing.
+        Exception: Whatever `entries` raises: the disk lookup's `SnapshotEntryInspectError`,
+            `SnapshotLinkReadError` and `ChangedSnapshotEntryError`; the snapshot lookups raise nothing.
     """
     leads_to = find_destination(scan_root.directory, entries, follow_links=scan_root.follow_links)
     match leads_to:

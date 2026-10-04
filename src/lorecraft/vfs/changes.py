@@ -7,11 +7,11 @@ reported. ``diff`` is its only producer.
 
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import PurePosixPath
+from typing import assert_never
 
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import ROOT, RootRelativePath
 
-from .snapshot import Snapshot
+from .snapshot import DirectoryRecord, FileRecord, OtherRecord, Snapshot, SymlinkRecord
 
 
 class ChangeKind(Enum):
@@ -27,9 +27,9 @@ class Change:
     """One path's difference between two snapshots.
 
     Attributes:
-        path: The root-relative path of anything ``Snapshot.entries`` reports: a listed entry, a listed
-            directory, a file a followed link leads to, a symlink met along a chain, or a directory climbed out of.
-        kind: DELETED also when the entry at ``path`` changed kind; see ``diff``.
+        path: The root-relative path of any record but the root's: a listed entry, a listed directory, a file a
+            followed link leads to, a symlink met along a chain, or a directory climbed out of.
+        kind: DELETED also when the entry at `path` changed kind; see `diff`.
     """
 
     path: RootRelativePath
@@ -41,14 +41,15 @@ type ChangeSet = frozenset[Change]
 
 
 def diff(old: Snapshot, new: Snapshot) -> ChangeSet:
-    """Compare two snapshots entry by entry. Pure; empty when they are equal.
+    """Compare two snapshots record by record. Pure; empty when they are equal.
 
-    Every path `Snapshot.entries` reports for either snapshot is compared, so a directory that gains a
-    child shows the child ADDED, not the directory MODIFIED. A path only in `new` is ADDED; only in
-    `old` is DELETED; in both with a different kind is DELETED (the entry the model knew is gone, and one
-    `Change` per path keeps the stronger signal); in both with different bytes, or as a symlink with a
-    different target, is MODIFIED; anything else is no change, which is how a touch, a write-then-rename or a
-    three-event save collapses to one `Change` or none.
+    Every path either snapshot records is compared, the root aside, so a directory that gains a child shows the
+    child ADDED, not the directory MODIFIED. A path only in `new` is ADDED; only in `old` is DELETED; in both with
+    a different kind is DELETED (the entry the model knew is gone, and one `Change` per path keeps the stronger
+    signal); in both as a file with different bytes, or as a symlink with a different target, is MODIFIED; anything
+    else is no change, which is how a touch, a write-then-rename or a three-event save collapses to one `Change` or
+    none. A directory's flags are not compared: whether the scan listed it or climbed out of it says how the scan
+    reached it, not what is there.
 
     The scopes are not compared, since a change set names paths and a scope is no path: what a wider or a
     narrower scope reads shows as the entries it adds or drops. So an empty change set does not mean equal
@@ -58,45 +59,25 @@ def diff(old: Snapshot, new: Snapshot) -> ChangeSet:
         old: The earlier snapshot, the state the model last knew.
         new: The later snapshot; paths only it records are ADDED.
     """
-    old_entries = old.entries()
-    new_entries = new.entries()
-    old_bytes = _file_bytes(old)
-    new_bytes = _file_bytes(new)
-    old_targets = _link_targets(old)
-    new_targets = _link_targets(new)
-
     changes: set[Change] = set()
-    for path in old_entries.keys() | new_entries.keys():
-        old_kind = old_entries.get(path)
-        new_kind = new_entries.get(path)
-        if old_kind is None:
+    for path in old.records.keys() | new.records.keys():
+        if path == ROOT:
+            continue  # the root always exists; whether a scan listed it is a matter of scope
+        old_record = old.records.get(path)
+        new_record = new.records.get(path)
+        if old_record is None:
             changes.add(Change(path, ChangeKind.ADDED))
-        elif new_kind is None or new_kind is not old_kind:
+            continue
+        if new_record is None or new_record.kind is not old_record.kind:
             changes.add(Change(path, ChangeKind.DELETED))
-        elif old_bytes.get(path) != new_bytes.get(path) or old_targets.get(path) != new_targets.get(path):
-            changes.add(Change(path, ChangeKind.MODIFIED))
+            continue
+        # The same kind on both sides, so only what that kind records can differ.
+        match new_record:
+            case DirectoryRecord():
+                pass  # a directory's flags are not compared; see the docstring
+            case FileRecord() | SymlinkRecord() | OtherRecord():
+                if new_record != old_record:  # a file's bytes or a link's target; an other entry records nothing
+                    changes.add(Change(path, ChangeKind.MODIFIED))
+            case _:
+                assert_never(new_record)
     return frozenset(changes)
-
-
-def _file_bytes(snapshot: Snapshot) -> dict[RootRelativePath, bytes]:
-    """The snapshot's file bytes keyed by path.
-
-    Args:
-        snapshot: The snapshot whose recorded files are indexed; only `files`, not listings, are read.
-    """
-    found: dict[RootRelativePath, bytes] = {}
-    for file in snapshot.files:
-        found[file.path] = file.data
-    return found
-
-
-def _link_targets(snapshot: Snapshot) -> dict[RootRelativePath, PurePosixPath]:
-    """The snapshot's symlink targets keyed by the link's path.
-
-    Args:
-        snapshot: The snapshot whose recorded links are indexed; targets are as recorded, not resolved.
-    """
-    found: dict[RootRelativePath, PurePosixPath] = {}
-    for link in snapshot.links:
-        found[link.path] = link.target
-    return found

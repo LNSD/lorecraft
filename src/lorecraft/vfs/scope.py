@@ -32,7 +32,7 @@ from .root_expansion import (
     find_listed_scan_root,
 )
 from .scan_root import ScanRoot
-from .snapshot import Link, Snapshot
+from .snapshot import Snapshot
 from .view import EntryKind, RootExit
 
 
@@ -52,10 +52,10 @@ class ScopeIndex:
         do they describe a scan.
 
         Args:
-            snapshot: The snapshot to answer for; only its scope, its links and its climbed directories are read,
-                never a listing or a file.
+            snapshot: The snapshot to answer for; only its scope, its links' targets and its climbed directories
+                are read, never a listing or a file.
         """
-        self._recorded = _RecordedLinks(snapshot.links, snapshot.climbed_directories)
+        self._recorded = _RecordedLinks(snapshot.symlink_targets(), snapshot.climbed_directories())
         self._listed_roots = _listed_scan_roots(snapshot.scope, self._recorded)
 
     def is_in_scope(self, path: RootRelativePath) -> bool:
@@ -103,23 +103,23 @@ class _RecordedLinks:
     never made.
     """
 
-    def __init__(self, links: tuple[Link, ...], climbed_directories: tuple[RootRelativePath, ...]) -> None:
+    def __init__(
+        self, targets: dict[RootRelativePath, PurePosixPath], climbed_directories: tuple[RootRelativePath, ...]
+    ) -> None:
         """Index the recorded links by path, and the directories known to exist.
 
         Args:
-            links: Every link the snapshot recorded, `Snapshot.links`.
+            targets: Every link the snapshot recorded, with its target, `Snapshot.symlink_targets`; kept, not copied.
             climbed_directories: Every directory the scan climbed out of, `Snapshot.climbed_directories`.
         """
-        self._targets: dict[RootRelativePath, PurePosixPath] = {}
-        for link in links:
-            self._targets[link.path] = link.target
+        self._targets = targets
         # A climbed directory exists, and a recorded link sits in one, so each of them and its ancestors exist.
         self._known_directories: set[RootRelativePath] = set()
         for directory in climbed_directories:
             self._known_directories.add(directory)
             self._known_directories.update(directory.parents)
-        for link in links:
-            self._known_directories.update(link.path.parents)
+        for link in targets:
+            self._known_directories.update(link.parents)
 
     def paths(self) -> tuple[RootRelativePath, ...]:
         """Every recorded link's root-relative path."""

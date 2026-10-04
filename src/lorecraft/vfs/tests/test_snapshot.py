@@ -1,76 +1,101 @@
 """The snapshot value and the virtual view over hand-built snapshots.
 
-Nothing here touches the disk: every snapshot is built with `Snapshot.from_tree` or its constructor, so
+Nothing here touches the disk: every snapshot is built with `Snapshot.from_tree` or from its records, so
 the SYMLINK and OTHER entries a scan would record are written out by hand. The scan itself is covered in
 `tests/it/test_filesystem.py`.
 """
 
-from dataclasses import replace
+from collections.abc import Mapping
 from pathlib import PurePosixPath
+from types import MappingProxyType
 from typing import Final, cast
 
 import pytest
 
+from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, PathComponentError, RootRelativePath
 
 from ..scan_root import ScanRoot
-from ..snapshot import FileBytes, FileTree, Link, Listing, Snapshot, VirtualFileSystem
+from ..snapshot import (
+    DirectoryRecord,
+    EntryRecord,
+    FileRecord,
+    FileTree,
+    OtherRecord,
+    Snapshot,
+    SymlinkRecord,
+    VirtualFileSystem,
+)
 from ..view import DirEntry, EntryKind, FileSystem, RootExit, TextDecodeError, UnrecordedFileError
 
 ROOT: Final[RootRelativePath] = RootRelativePath.parse('.')
 
 
+def _snapshot(records: Mapping[str, EntryRecord], *, scope: tuple[ScanRoot, ...] = ()) -> Snapshot:
+    """A snapshot holding `records`, each keyed by its root-relative path as spelled, and `scope`.
+
+    Args:
+        records: Each record the snapshot holds, keyed by the path it was recorded at.
+        scope: The scan roots the snapshot records it was taken of; none by default, as for one built by hand.
+    """
+    parsed: dict[RootRelativePath, EntryRecord] = {}
+    for raw_path, record in records.items():
+        parsed[RootRelativePath.parse(raw_path)] = record
+    return Snapshot(FrozenMapping(parsed), scope=scope)
+
+
 def _skills_snapshot() -> Snapshot:
     """A scan-shaped snapshot: a resolved skills directory, a linked agent directory and links inside.
 
-    ``.claude/skills`` is a scope root that is itself a link, so it sits in no listing; ``docs/code`` has an
-    unentered ``sub`` directory, a link to a file, a dangling link, a looping link, an absolute link, a link
+    `.claude/skills` is a scope root that is itself a link, so it is no entry of any listing; `docs/code` has
+    an unentered `sub` directory, a link to a file, a dangling link, a looping link, an absolute link, a link
     climbing above the root and a fifo.
     """
-    return Snapshot(
-        listings=(
-            Listing(
-                RootRelativePath.parse('.agents/skills'),
-                (
-                    DirEntry(PathComponent.parse('alpha'), EntryKind.DIRECTORY),
-                    DirEntry(PathComponent.parse('beta'), EntryKind.SYMLINK),
-                ),
-            ),
-            Listing(
-                RootRelativePath.parse('.agents/skills/alpha'),
-                (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),),
-            ),
-            Listing(RootRelativePath.parse('docs'), (DirEntry(PathComponent.parse('code'), EntryKind.DIRECTORY),)),
-            Listing(
-                RootRelativePath.parse('docs/code'),
-                (
-                    DirEntry(PathComponent.parse('a.md'), EntryKind.FILE),
-                    DirEntry(PathComponent.parse('above'), EntryKind.SYMLINK),
-                    DirEntry(PathComponent.parse('absolute'), EntryKind.SYMLINK),
-                    DirEntry(PathComponent.parse('dangling'), EntryKind.SYMLINK),
-                    DirEntry(PathComponent.parse('linked.md'), EntryKind.SYMLINK),
-                    DirEntry(PathComponent.parse('loop'), EntryKind.SYMLINK),
-                    DirEntry(PathComponent.parse('pipe'), EntryKind.OTHER),
-                    DirEntry(PathComponent.parse('sub'), EntryKind.DIRECTORY),
-                    DirEntry(PathComponent.parse('up'), EntryKind.SYMLINK),
-                ),
-            ),
-        ),
-        files=(
-            FileBytes(RootRelativePath.parse('.agents/skills/alpha/SKILL.md'), b'---\nname: alpha\n---\n'),
-            FileBytes(RootRelativePath.parse('docs/code/a.md'), b'# A\n'),
-        ),
-        links=(
-            Link(RootRelativePath.parse('.agents/skills/beta'), PurePosixPath('alpha')),
-            Link(RootRelativePath.parse('.claude/skills'), PurePosixPath('../.agents/skills')),
-            Link(RootRelativePath.parse('docs/code/above'), PurePosixPath('../../..')),
-            Link(RootRelativePath.parse('docs/code/absolute'), PurePosixPath('/srv/docs')),
-            Link(RootRelativePath.parse('docs/code/dangling'), PurePosixPath('missing')),
-            Link(RootRelativePath.parse('docs/code/linked.md'), PurePosixPath('a.md')),
-            Link(RootRelativePath.parse('docs/code/loop'), PurePosixPath('loop')),
-            Link(RootRelativePath.parse('docs/code/up'), PurePosixPath('../..')),
-        ),
+    return _snapshot(
+        {
+            '.agents/skills': DirectoryRecord(listed=True),
+            '.agents/skills/alpha': DirectoryRecord(listed=True),
+            '.agents/skills/alpha/SKILL.md': FileRecord(b'---\nname: alpha\n---\n'),
+            '.agents/skills/beta': SymlinkRecord(PurePosixPath('alpha')),
+            '.claude/skills': SymlinkRecord(PurePosixPath('../.agents/skills')),
+            'docs': DirectoryRecord(listed=True),
+            'docs/code': DirectoryRecord(listed=True),
+            'docs/code/a.md': FileRecord(b'# A\n'),
+            'docs/code/above': SymlinkRecord(PurePosixPath('../../..')),
+            'docs/code/absolute': SymlinkRecord(PurePosixPath('/srv/docs')),
+            'docs/code/dangling': SymlinkRecord(PurePosixPath('missing')),
+            'docs/code/linked.md': SymlinkRecord(PurePosixPath('a.md')),
+            'docs/code/loop': SymlinkRecord(PurePosixPath('loop')),
+            'docs/code/pipe': OtherRecord(),
+            'docs/code/sub': DirectoryRecord(),
+            'docs/code/up': SymlinkRecord(PurePosixPath('../..')),
+        }
     )
+
+
+def _climbing_chain_records() -> dict[str, EntryRecord]:
+    """The records of `_climbing_chain_snapshot`, keyed by path as spelled, for a test to change one of."""
+    return {
+        'a': DirectoryRecord(listed=True),
+        'a/b': DirectoryRecord(listed=True),
+        'a/b/SKILL.md': FileRecord(b'---\nname: b\n---\n'),
+        'a/tmp': DirectoryRecord(listed=True, climbed=True),
+        'c/d': DirectoryRecord(listed=True),
+        'c/tmp': DirectoryRecord(climbed=True),
+        'skills': DirectoryRecord(listed=True, climbed=True),
+        'skills/far': SymlinkRecord(PurePosixPath('../c/tmp/../d')),
+        'skills/inner': SymlinkRecord(PurePosixPath('../a/tmp')),
+        'skills/l': SymlinkRecord(PurePosixPath('../a/tmp/../b')),
+        'skills/m': SymlinkRecord(PurePosixPath('../a/b')),
+        'skills/nested': SymlinkRecord(PurePosixPath('inner/..')),
+    }
+
+
+# The scope `_climbing_chain_snapshot` was taken of.
+CLIMBING_CHAIN_SCOPE: Final[tuple[ScanRoot, ...]] = (
+    ScanRoot(RootRelativePath.parse('skills'), depth=1, follow_links=True),
+    ScanRoot(RootRelativePath.parse('a'), depth=1),
+)
 
 
 def _climbing_chain_snapshot() -> Snapshot:
@@ -80,55 +105,26 @@ def _climbing_chain_snapshot() -> Snapshot:
     `../a/tmp/../b`, whose `..` climbs out of `a/tmp`, so it leads to `a/b`; `skills/m` names `../a/b`.
     `skills/inner` names `../a/tmp`; `skills/nested` names `inner/..`, whose `..` climbs out of the `a/tmp` that
     `skills/inner` leads to, so it leads to `a`. `skills/far` names `../c/tmp/../d`: the scan lists `c/d`, where
-    the link leads, and nothing in `c/tmp`, which only the climbed directories show is a directory. The root `a`
+    the link leads, and nothing in `c/tmp`, which only its climbed record shows is a directory. The root `a`
     lists `a`, `a/b` and `a/tmp`. It is what `take_snapshot` records for that tree.
     """
-    return Snapshot(
-        listings=(
-            Listing(
-                RootRelativePath.parse('a'),
-                (
-                    DirEntry(PathComponent.parse('b'), EntryKind.DIRECTORY),
-                    DirEntry(PathComponent.parse('tmp'), EntryKind.DIRECTORY),
-                ),
-            ),
-            Listing(RootRelativePath.parse('a/b'), (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),)),
-            Listing(RootRelativePath.parse('a/tmp'), ()),
-            Listing(RootRelativePath.parse('c/d'), ()),
-            Listing(
-                RootRelativePath.parse('skills'),
-                (
-                    DirEntry(PathComponent.parse('far'), EntryKind.SYMLINK),
-                    DirEntry(PathComponent.parse('inner'), EntryKind.SYMLINK),
-                    DirEntry(PathComponent.parse('l'), EntryKind.SYMLINK),
-                    DirEntry(PathComponent.parse('m'), EntryKind.SYMLINK),
-                    DirEntry(PathComponent.parse('nested'), EntryKind.SYMLINK),
-                ),
-            ),
-        ),
-        files=(FileBytes(RootRelativePath.parse('a/b/SKILL.md'), b'---\nname: b\n---\n'),),
-        links=(
-            Link(RootRelativePath.parse('skills/far'), PurePosixPath('../c/tmp/../d')),
-            Link(RootRelativePath.parse('skills/inner'), PurePosixPath('../a/tmp')),
-            Link(RootRelativePath.parse('skills/l'), PurePosixPath('../a/tmp/../b')),
-            Link(RootRelativePath.parse('skills/m'), PurePosixPath('../a/b')),
-            Link(RootRelativePath.parse('skills/nested'), PurePosixPath('inner/..')),
-        ),
-        climbed_directories=(
-            RootRelativePath.parse('a/tmp'),
-            RootRelativePath.parse('c/tmp'),
-            RootRelativePath.parse('skills'),
-        ),
-        scope=(
-            ScanRoot(RootRelativePath.parse('skills'), depth=1, follow_links=True),
-            ScanRoot(RootRelativePath.parse('a'), depth=1),
-        ),
-    )
+    return _snapshot(_climbing_chain_records(), scope=CLIMBING_CHAIN_SCOPE)
+
+
+# What a scan records for `.agents/skills/SKILL.md -> ../../REVIEW.md` when it follows the link: the bytes sit at
+# the resolved path, in a directory the scan never listed.
+FILE_BEHIND_A_LINK: Final[Mapping[str, EntryRecord]] = MappingProxyType(
+    {
+        '.agents/skills': DirectoryRecord(listed=True),
+        '.agents/skills/SKILL.md': SymlinkRecord(PurePosixPath('../../REVIEW.md')),
+        'REVIEW.md': FileRecord(b'---\n'),
+    }
+)
 
 
 @pytest.mark.unit
 class TestSnapshotFromTree:
-    def test_from_tree_with_nested_directories_derives_every_listing_and_directory_entry(self) -> None:
+    def test_from_tree_with_nested_directories_records_every_directory_listed_and_every_file(self) -> None:
         #: Given
         tree: FileTree = {'docs': {'code': {'b.md': b'b', 'a.md': b'a'}, 'glossary.md': b'g'}}
 
@@ -136,25 +132,18 @@ class TestSnapshotFromTree:
         snapshot = Snapshot.from_tree(tree)
 
         #: Then
-        assert snapshot.listings == (
-            Listing(ROOT, (DirEntry(PathComponent.parse('docs'), EntryKind.DIRECTORY),)),
-            Listing(
-                RootRelativePath.parse('docs'),
-                (
-                    DirEntry(PathComponent.parse('code'), EntryKind.DIRECTORY),
-                    DirEntry(PathComponent.parse('glossary.md'), EntryKind.FILE),
-                ),
-            ),
-            Listing(
-                RootRelativePath.parse('docs/code'),
-                (
-                    DirEntry(PathComponent.parse('a.md'), EntryKind.FILE),
-                    DirEntry(PathComponent.parse('b.md'), EntryKind.FILE),
-                ),
-            ),
-        ), 'every mapping is a listed directory, root included, entries sorted by name'
+        assert snapshot == _snapshot(
+            {
+                '.': DirectoryRecord(listed=True),
+                'docs': DirectoryRecord(listed=True),
+                'docs/code': DirectoryRecord(listed=True),
+                'docs/code/a.md': FileRecord(b'a'),
+                'docs/code/b.md': FileRecord(b'b'),
+                'docs/glossary.md': FileRecord(b'g'),
+            }
+        ), 'every mapping is a listed directory, root included, and every bytes value a file'
 
-    def test_from_tree_with_unsorted_names_records_files_sorted_by_path(self) -> None:
+    def test_from_tree_with_names_in_another_order_returns_an_equal_snapshot(self) -> None:
         #: Given
         tree: FileTree = {'docs': {'b.md': b'b', 'a.md': b'a'}}
 
@@ -162,10 +151,9 @@ class TestSnapshotFromTree:
         snapshot = Snapshot.from_tree(tree)
 
         #: Then
-        assert snapshot.files == (
-            FileBytes(RootRelativePath.parse('docs/a.md'), b'a'),
-            FileBytes(RootRelativePath.parse('docs/b.md'), b'b'),
-        ), 'file records are sorted by path whatever the mapping order'
+        assert snapshot == Snapshot.from_tree({'docs': {'a.md': b'a', 'b.md': b'b'}}), (
+            'the order the tree names its entries in is not part of the snapshot'
+        )
 
     def test_from_tree_with_an_empty_tree_lists_the_root_with_no_entries(self) -> None:
         #: Given
@@ -175,7 +163,7 @@ class TestSnapshotFromTree:
         snapshot = Snapshot.from_tree(tree)
 
         #: Then
-        assert snapshot == Snapshot(listings=(Listing(ROOT, ()),), files=(), links=()), (
+        assert snapshot == _snapshot({'.': DirectoryRecord(listed=True)}), (
             'the empty tree is the root listed with no entries, no bytes and no link'
         )
 
@@ -187,10 +175,9 @@ class TestSnapshotFromTree:
         snapshot = Snapshot.from_tree(tree)
 
         #: Then
-        assert snapshot.listings == (
-            Listing(ROOT, (DirEntry(PathComponent.parse('docs'), EntryKind.DIRECTORY),)),
-            Listing(RootRelativePath.parse('docs'), ()),
-        ), 'an empty mapping is a directory listed with no entries'
+        assert snapshot == _snapshot({'.': DirectoryRecord(listed=True), 'docs': DirectoryRecord(listed=True)}), (
+            'an empty mapping is a directory listed with no entries'
+        )
 
     def test_from_tree_with_files_records_an_empty_scope(self) -> None:
         #: Given
@@ -249,6 +236,31 @@ class TestSnapshotEquality:
         #: Then
         assert len(distinct) == 1, 'equal snapshots hash equal, so a set holds one'
 
+    def test_snapshots_of_records_taken_in_another_order_compare_equal(self) -> None:
+        #: Given
+        # `link-10` sorts before `link-2`, so numeric order is not path order
+        numeric = _snapshot({f'link-{index}': SymlinkRecord(PurePosixPath('real')) for index in range(12)})
+        by_path = _snapshot(
+            {f'link-{index}': SymlinkRecord(PurePosixPath('real')) for index in sorted(range(12), key=str)}
+        )
+
+        #: When
+        equal = numeric == by_path
+
+        #: Then
+        assert equal, 'the order the records were taken in is not part of the snapshot'
+
+    def test_snapshots_of_records_taken_in_another_order_hash_equal(self) -> None:
+        #: Given
+        first = _snapshot({'docs': DirectoryRecord(listed=True), 'docs/a.md': FileRecord(b'a')})
+        second = _snapshot({'docs/a.md': FileRecord(b'a'), 'docs': DirectoryRecord(listed=True)})
+
+        #: When
+        distinct = {first, second}
+
+        #: Then
+        assert len(distinct) == 1, "snapshots equal whatever their records' order hash equal, so a set holds one"
+
     def test_snapshots_with_different_bytes_compare_unequal(self) -> None:
         #: Given
         before = Snapshot.from_tree({'docs': {'a.md': b'a'}})
@@ -260,11 +272,22 @@ class TestSnapshotEquality:
         #: Then
         assert not equal, 'a change of bytes alone is a different snapshot'
 
+    def test_snapshots_with_different_directory_flags_compare_unequal(self) -> None:
+        #: Given
+        listed = _snapshot({'docs': DirectoryRecord(listed=True)})
+        climbed = _snapshot({'docs': DirectoryRecord(listed=True, climbed=True)})
+
+        #: When
+        equal = listed == climbed
+
+        #: Then
+        assert not equal, 'how the scan reached a directory is part of what it saw'
+
     def test_snapshots_with_different_scopes_compare_unequal(self) -> None:
         #: Given
-        listing = Listing(RootRelativePath.parse('docs'), ())
-        narrow = Snapshot(listings=(listing,), files=(), scope=(ScanRoot(RootRelativePath.parse('docs'), depth=0),))
-        wide = Snapshot(listings=(listing,), files=(), scope=(ScanRoot(RootRelativePath.parse('docs'), depth=1),))
+        records = {'docs': DirectoryRecord(listed=True)}
+        narrow = _snapshot(records, scope=(ScanRoot(RootRelativePath.parse('docs'), depth=0),))
+        wide = _snapshot(records, scope=(ScanRoot(RootRelativePath.parse('docs'), depth=1),))
 
         #: When
         equal = narrow == wide
@@ -274,102 +297,76 @@ class TestSnapshotEquality:
 
 
 @pytest.mark.unit
-class TestSnapshotEntries:
-    def test_entries_of_a_scanned_snapshot_returns_every_listed_path_directory_and_scope_root_link(self) -> None:
+class TestSnapshotSymlinkTargets:
+    def test_symlink_targets_of_a_scanned_snapshot_returns_every_link_with_its_target(self) -> None:
         #: Given
         snapshot = _skills_snapshot()
 
         #: When
-        entries = snapshot.entries()
+        targets = snapshot.symlink_targets()
 
         #: Then
-        assert entries == {
-            RootRelativePath.parse('.agents/skills'): EntryKind.DIRECTORY,
-            RootRelativePath.parse('.agents/skills/alpha'): EntryKind.DIRECTORY,
-            RootRelativePath.parse('.agents/skills/beta'): EntryKind.SYMLINK,
-            RootRelativePath.parse('.agents/skills/alpha/SKILL.md'): EntryKind.FILE,
-            RootRelativePath.parse('.claude/skills'): EntryKind.SYMLINK,
-            RootRelativePath.parse('docs'): EntryKind.DIRECTORY,
-            RootRelativePath.parse('docs/code'): EntryKind.DIRECTORY,
-            RootRelativePath.parse('docs/code/a.md'): EntryKind.FILE,
-            RootRelativePath.parse('docs/code/above'): EntryKind.SYMLINK,
-            RootRelativePath.parse('docs/code/absolute'): EntryKind.SYMLINK,
-            RootRelativePath.parse('docs/code/dangling'): EntryKind.SYMLINK,
-            RootRelativePath.parse('docs/code/linked.md'): EntryKind.SYMLINK,
-            RootRelativePath.parse('docs/code/loop'): EntryKind.SYMLINK,
-            RootRelativePath.parse('docs/code/pipe'): EntryKind.OTHER,
-            RootRelativePath.parse('docs/code/sub'): EntryKind.DIRECTORY,
-            RootRelativePath.parse('docs/code/up'): EntryKind.SYMLINK,
-        }, 'every entry of every listing, every listed directory, and the link met on the way to a scope root'
+        assert targets == {
+            RootRelativePath.parse('.agents/skills/beta'): PurePosixPath('alpha'),
+            RootRelativePath.parse('.claude/skills'): PurePosixPath('../.agents/skills'),
+            RootRelativePath.parse('docs/code/above'): PurePosixPath('../../..'),
+            RootRelativePath.parse('docs/code/absolute'): PurePosixPath('/srv/docs'),
+            RootRelativePath.parse('docs/code/dangling'): PurePosixPath('missing'),
+            RootRelativePath.parse('docs/code/linked.md'): PurePosixPath('a.md'),
+            RootRelativePath.parse('docs/code/loop'): PurePosixPath('loop'),
+            RootRelativePath.parse('docs/code/up'): PurePosixPath('../..'),
+        }, 'every symlink record, an entry of a listing or a link met on the way to a scope root, and no other'
 
-    def test_entries_of_a_snapshot_listing_the_root_leaves_the_root_out(self) -> None:
+    def test_symlink_targets_of_links_recorded_out_of_path_order_returns_them_in_path_order(self) -> None:
         #: Given
-        snapshot = Snapshot.from_tree({'a.md': b'a'})
+        snapshot = _snapshot({'z': SymlinkRecord(PurePosixPath('a')), 'a': SymlinkRecord(PurePosixPath('z'))})
 
         #: When
-        entries = snapshot.entries()
+        targets = snapshot.symlink_targets()
 
         #: Then
-        assert entries == {RootRelativePath.parse('a.md'): EntryKind.FILE}, (
-            'the root always exists, so its listing adds no entry of its own'
+        assert list(targets) == [RootRelativePath.parse('a'), RootRelativePath.parse('z')], (
+            'the links come in path order, whatever order they were recorded in'
         )
 
-    def test_entries_of_a_snapshot_with_a_file_in_no_listing_returns_it_as_a_file(self) -> None:
+    def test_symlink_targets_of_a_snapshot_built_from_a_tree_returns_empty(self) -> None:
         #: Given
-        # What a scan records for `.agents/skills/SKILL.md -> ../../REVIEW.md` when it follows the link: the
-        # bytes sit at the resolved path, in a directory the scan never listed.
-        snapshot = Snapshot(
-            listings=(
-                Listing(
-                    RootRelativePath.parse('.agents/skills'),
-                    (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.SYMLINK),),
-                ),
-            ),
-            files=(FileBytes(RootRelativePath.parse('REVIEW.md'), b'---\n'),),
-            links=(Link(RootRelativePath.parse('.agents/skills/SKILL.md'), PurePosixPath('../../REVIEW.md')),),
-        )
+        snapshot = Snapshot.from_tree({'docs': {'a.md': b'a'}})
 
         #: When
-        entries = snapshot.entries()
+        targets = snapshot.symlink_targets()
 
         #: Then
-        assert entries == {
-            RootRelativePath.parse('.agents/skills'): EntryKind.DIRECTORY,
-            RootRelativePath.parse('.agents/skills/SKILL.md'): EntryKind.SYMLINK,
-            RootRelativePath.parse('REVIEW.md'): EntryKind.FILE,
-        }, 'a file a followed link leads to is an entry, though no listing names it'
+        assert targets == {}, 'a tree holds directories and files alone'
 
-    def test_entries_of_a_snapshot_with_a_climbed_directory_in_no_listing_returns_it_as_a_directory(self) -> None:
+
+@pytest.mark.unit
+class TestSnapshotClimbedDirectories:
+    def test_climbed_directories_of_a_scanned_snapshot_returns_each_directory_climbed_out_of_in_path_order(
+        self,
+    ) -> None:
         #: Given
-        # What a scan records for `.agents/skills/x -> tmp/../../../alpha` when it follows the link: it climbs
-        # out of `.agents/skills/tmp`, `.agents/skills` and `.agents`, and lists `alpha`.
-        snapshot = Snapshot(
-            listings=(
-                Listing(
-                    RootRelativePath.parse('.agents/skills'), (DirEntry(PathComponent.parse('x'), EntryKind.SYMLINK),)
-                ),
-                Listing(RootRelativePath.parse('alpha'), ()),
-            ),
-            files=(),
-            links=(Link(RootRelativePath.parse('.agents/skills/x'), PurePosixPath('tmp/../../../alpha')),),
-            climbed_directories=(
-                RootRelativePath.parse('.agents'),
-                RootRelativePath.parse('.agents/skills'),
-                RootRelativePath.parse('.agents/skills/tmp'),
-            ),
-        )
+        snapshot = _climbing_chain_snapshot()
 
         #: When
-        entries = snapshot.entries()
+        climbed = snapshot.climbed_directories()
 
         #: Then
-        assert entries == {
-            RootRelativePath.parse('.agents'): EntryKind.DIRECTORY,
-            RootRelativePath.parse('.agents/skills'): EntryKind.DIRECTORY,
-            RootRelativePath.parse('.agents/skills/tmp'): EntryKind.DIRECTORY,
-            RootRelativePath.parse('.agents/skills/x'): EntryKind.SYMLINK,
-            RootRelativePath.parse('alpha'): EntryKind.DIRECTORY,
-        }, 'a directory a chain climbed out of is an entry, so a diff sees it go'
+        assert climbed == (
+            RootRelativePath.parse('a/tmp'),
+            RootRelativePath.parse('c/tmp'),
+            RootRelativePath.parse('skills'),
+        ), 'every directory record a `..` climbed out of, listed or not'
+
+    def test_climbed_directories_of_a_snapshot_built_from_a_tree_returns_empty(self) -> None:
+        #: Given
+        snapshot = Snapshot.from_tree({'docs': {'a.md': b'a'}})
+
+        #: When
+        climbed = snapshot.climbed_directories()
+
+        #: Then
+        assert climbed == (), 'a tree is listed, never climbed out of'
 
 
 @pytest.mark.unit
@@ -505,6 +502,31 @@ class TestVirtualFileSystemListDir:
         #: Then
         assert entry in entries, 'the fifo pipe is listed as other, neither a file nor a directory'
 
+    def test_list_dir_with_the_listed_root_returns_its_entries_without_the_root(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(Snapshot.from_tree({'a.md': b'a'}))
+
+        #: When
+        entries = virtual.list_dir(ROOT)
+
+        #: Then
+        assert entries == (DirEntry(PathComponent.parse('a.md'), EntryKind.FILE),), (
+            'the root is its own parent, yet never an entry of its own listing'
+        )
+
+    def test_list_dir_with_a_listed_directory_holding_a_climbed_directory_returns_it_once(self) -> None:
+        #: Given
+        virtual = VirtualFileSystem(_climbing_chain_snapshot())
+
+        #: When
+        entries = virtual.list_dir(RootRelativePath.parse('a'))
+
+        #: Then
+        assert entries == (
+            DirEntry(PathComponent.parse('b'), EntryKind.DIRECTORY),
+            DirEntry(PathComponent.parse('tmp'), EntryKind.DIRECTORY),
+        ), 'a/tmp is listed and climbed out of, one record, so one entry'
+
     def test_list_dir_through_a_link_climbing_out_of_a_directory_stepped_into_returns_where_it_leads(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_climbing_chain_snapshot())
@@ -586,18 +608,7 @@ class TestVirtualFileSystemReadText:
 
     def test_read_text_with_a_file_in_no_listing_behind_a_link_returns_its_text(self) -> None:
         #: Given
-        # What a scan records for `.agents/skills/SKILL.md -> ../../REVIEW.md` when it follows the link.
-        snapshot = Snapshot(
-            listings=(
-                Listing(
-                    RootRelativePath.parse('.agents/skills'),
-                    (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.SYMLINK),),
-                ),
-            ),
-            files=(FileBytes(RootRelativePath.parse('REVIEW.md'), b'---\n'),),
-            links=(Link(RootRelativePath.parse('.agents/skills/SKILL.md'), PurePosixPath('../../REVIEW.md')),),
-        )
-        virtual = VirtualFileSystem(snapshot)
+        virtual = VirtualFileSystem(_snapshot(FILE_BEHIND_A_LINK))
         path = RootRelativePath.parse('.agents/skills/SKILL.md')
 
         #: When
@@ -752,18 +763,7 @@ class TestVirtualFileSystemFindEntryKind:
 
     def test_find_entry_kind_with_a_file_in_no_listing_returns_file(self) -> None:
         #: Given
-        # What a scan records for `.agents/skills/SKILL.md -> ../../REVIEW.md` when it follows the link.
-        snapshot = Snapshot(
-            listings=(
-                Listing(
-                    RootRelativePath.parse('.agents/skills'),
-                    (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.SYMLINK),),
-                ),
-            ),
-            files=(FileBytes(RootRelativePath.parse('REVIEW.md'), b'---\n'),),
-            links=(Link(RootRelativePath.parse('.agents/skills/SKILL.md'), PurePosixPath('../../REVIEW.md')),),
-        )
-        virtual = VirtualFileSystem(snapshot)
+        virtual = VirtualFileSystem(_snapshot(FILE_BEHIND_A_LINK))
         path = RootRelativePath.parse('REVIEW.md')
 
         #: When
@@ -857,7 +857,7 @@ class TestVirtualFileSystemFindDir:
     def test_find_dir_with_an_empty_listing_in_no_listed_parent_returns_itself(self) -> None:
         #: Given
         # an empty scope root: listed, with nothing below it and no listing of its parent to name it
-        virtual = VirtualFileSystem(Snapshot(listings=(Listing(RootRelativePath.parse('skills'), ()),), files=()))
+        virtual = VirtualFileSystem(_snapshot({'skills': DirectoryRecord(listed=True)}))
         path = RootRelativePath.parse('skills')
 
         #: When
@@ -959,12 +959,11 @@ class TestVirtualFileSystemFindDir:
         #: Given
         # link-0 leads to real and each later link to the one before it, so link-39 heads a chain of 40 links,
         # as many as the kernel follows
-        chain = [Link(RootRelativePath.parse('link-0'), PurePosixPath('real'))]
-        chain += [
-            Link(RootRelativePath.parse(f'link-{index}'), PurePosixPath(f'link-{index - 1}')) for index in range(1, 40)
-        ]
-        snapshot = Snapshot(listings=(Listing(RootRelativePath.parse('real'), ()),), files=(), links=tuple(chain))
-        virtual = VirtualFileSystem(snapshot)
+        records: dict[str, EntryRecord] = {'real': DirectoryRecord(listed=True)}
+        records['link-0'] = SymlinkRecord(PurePosixPath('real'))
+        for index in range(1, 40):
+            records[f'link-{index}'] = SymlinkRecord(PurePosixPath(f'link-{index - 1}'))
+        virtual = VirtualFileSystem(_snapshot(records))
         path = RootRelativePath.parse('link-39')
 
         #: When
@@ -1122,8 +1121,9 @@ class TestVirtualFileSystemFindDir:
 
     def test_find_dir_with_a_link_climbing_out_of_an_unrecorded_directory_returns_none(self) -> None:
         #: Given
-        snapshot = replace(_climbing_chain_snapshot(), climbed_directories=())
-        virtual = VirtualFileSystem(snapshot)
+        records = _climbing_chain_records()
+        del records['c/tmp']
+        virtual = VirtualFileSystem(_snapshot(records, scope=CLIMBING_CHAIN_SCOPE))
         path = RootRelativePath.parse('skills/far')
 
         #: When

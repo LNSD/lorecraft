@@ -25,6 +25,7 @@ for. The rest of the project specializes it. It never specializes the rest of th
   the disk.
 - A value type the other packages spell their arguments and answers in, together with the rule that proves it
   valid when it is constructed.
+- A generic immutable collection a value type can hold, such as a mapping that compares and hashes by its items.
 - The error base that every failure family derives from, and the errors raised by this package's own code.
 - A small generic helper that more than one package would otherwise write again.
 

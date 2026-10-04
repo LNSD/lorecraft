@@ -11,16 +11,15 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.path import PathComponent, RootRelativePath
+from lorecraft.core.mapping import FrozenMapping
+from lorecraft.core.path import RootRelativePath
 from lorecraft.vfs import (
-    DirEntry,
-    EntryKind,
+    EntryRecord,
     FileTree,
-    Link,
-    Listing,
     ResolvedPath,
     RootExit,
     Snapshot,
+    SymlinkRecord,
     TextDecodeError,
     VirtualFileSystem,
 )
@@ -72,24 +71,10 @@ def _repository(files: Mapping[str, bytes], symlinks: Mapping[str, str]) -> Repo
         symlinks: Symlink targets keyed by root-relative path, each spelled from the symlink's own directory. The
             directory a symlink sits in must hold a file too, so the snapshot lists it.
     """
-    files_snapshot = Snapshot.from_tree(_file_tree(files))
-    entries: dict[RootRelativePath, list[DirEntry]] = {}
-    for listing in files_snapshot.listings:
-        entries[listing.path] = list(listing.entries)
-    links: list[Link] = []
+    records: dict[RootRelativePath, EntryRecord] = dict(Snapshot.from_tree(_file_tree(files)).records)
     for path, target in symlinks.items():
-        symlink = RootRelativePath.parse(path)
-        entries[symlink.parent].append(DirEntry(PathComponent.parse(symlink.name), EntryKind.SYMLINK))
-        links.append(Link(symlink, PurePosixPath(target)))
-
-    listings: list[Listing] = []
-    for directory in sorted(entries):
-        listed = sorted(entries[directory], key=lambda entry: entry.name)
-        listings.append(Listing(directory, tuple(listed)))
-    snapshot = Snapshot(
-        listings=tuple(listings), files=files_snapshot.files, links=tuple(sorted(links, key=lambda link: link.path))
-    )
-    return Repository(VirtualFileSystem(snapshot))
+        records[RootRelativePath.parse(path)] = SymlinkRecord(PurePosixPath(target))
+    return Repository(VirtualFileSystem(Snapshot(FrozenMapping(records))))
 
 
 def _outside(path: str, link: str, target: str) -> OutsideSymlink:

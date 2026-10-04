@@ -9,8 +9,9 @@ from pathlib import PurePosixPath
 import pytest
 
 from lorecraft.core.error import Error
+from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import ROOT, RootRelativePath
-from lorecraft.vfs import Link, ScanRoot, Snapshot, VirtualFileSystem
+from lorecraft.vfs import ScanRoot, Snapshot, SymlinkRecord, VirtualFileSystem
 
 from ..layout import (
     DOCS_DIR,
@@ -30,7 +31,7 @@ def _view_with_link(path: RootRelativePath, target: str) -> VirtualFileSystem:
         path: Where the symlink sits in the snapshot.
         target: Where the symlink points, spelled as the link text.
     """
-    return VirtualFileSystem(Snapshot(listings=(), files=(), links=(Link(path, PurePosixPath(target)),)))
+    return VirtualFileSystem(Snapshot(FrozenMapping({path: SymlinkRecord(PurePosixPath(target))})))
 
 
 @pytest.mark.unit
@@ -84,7 +85,7 @@ class TestRejectLinkedLayout:
 
     def test_reject_linked_layout_with_neither_directory_returns_without_raising(self) -> None:
         #: Given
-        fs = VirtualFileSystem(Snapshot(listings=(), files=()))
+        fs = VirtualFileSystem(Snapshot(FrozenMapping({})))
 
         #: When
         outcome = reject_linked_layout(fs)

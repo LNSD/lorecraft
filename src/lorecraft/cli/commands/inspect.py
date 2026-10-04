@@ -46,9 +46,10 @@ def inspect(
     \f
     Raises:
         typer.BadParameter: If both `--format` and `--json` are given.
-        typer.Exit: With code 2 when the scan or the load fails: an entry in scope that cannot be read, a
-            skills directory that cannot be resolved or listed, a `docs/` or `docs/__meta__/` that is a
-            symlink, or a structure specification that cannot be decoded or does not state usable rules.
+        typer.Exit: With code 2 when the scan or the load fails: an entry in scope that cannot be read or that
+            changes kind while read, a skills directory that cannot be resolved or listed, a `docs/` or
+            `docs/__meta__/` that is a symlink, or a structure specification that cannot be decoded or does not
+            state usable rules.
     """
     # `--json` is kept so scripts written before `--format` keep working. `--format` defaults to `None` so a
     # given one can be told from an absent one, and giving both is refused rather than one silently winning.
