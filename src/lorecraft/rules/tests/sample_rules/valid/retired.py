@@ -2,7 +2,7 @@
 
 from typing import ClassVar
 
-from lorecraft.rules.rule import Release, RemovedRule, RuleCode, RuleName, rule
+from lorecraft.rules.declaration import Release, RemovedRule, RuleCode, RuleName, rule
 
 from ..groups import SAMPLE
 

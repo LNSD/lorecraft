@@ -1,6 +1,6 @@
 ---
 name: "module-lorecraft-rules"
-description: "The lorecraft.rules package's responsibility, role, boundary and invariants: how a rule is declared and identified, the rule groups and their rules, and a rule as a pure judgment of one input. Load when adding or moving code in lorecraft.rules, declaring, naming or documenting a rule, a removed rule or a group, or deciding whether code declares a rule or runs one"
+description: "The lorecraft.rules package's responsibility, role, boundary and invariants: how a rule is declared and identified, the rule groups and their rules, and a rule as a pure judgment of one input. Load when adding or moving code in lorecraft.rules, declaring, naming or documenting a rule, a removed rule, an engine condition or a group, or deciding whether code declares a rule or runs one"
 type: "pkg"
 scope: "pkg:lorecraft.rules"
 ---
@@ -21,12 +21,17 @@ in `lorecraft.checks`, so a rule has nothing to read but the input it is handed.
 
 ## Belongs Here
 
-- A value that identifies a rule: a release, a group's prefix and title, a code, a name, an alias code, a level.
+- A value that identifies a rule: a release, a group's prefix and title, a code, a name, an alias code, a level,
+  and the severity an engine condition fixes.
 - A rule class, the base class an input kind gives it, and the places its occurrences may point at.
 - A removed rule, the decorator that registers a declaration, and the registry, with every check it makes on a
   declaration as the package loads.
-- A rule group, as a subpackage whose `__init__.py` declares its `RuleGroup` constant, an exception to
-  [python-modules](python-modules.md) §6, and each of its rules, one module per rule.
+- An engine condition: what the engine reports about a subject before any rule runs, such as a file that does
+  not decode. It is declared and rendered like a rule, under the engine's group `LC`, with a fixed severity in
+  place of a level and no `check`.
+- A rule group, as a subpackage: its `__ruleset__.py` declares the group as `GROUP_ID` and whatever else its rules
+  share, its `__init__.py` holds only the docstring, and each of its rules is one module. The `LC` group is
+  declared the same way, and the registry imports its `GROUP_ID` to hold the reservation.
 - The input value types a rule reads: frozen values of Lorecraft's own types, holding facts and the
   specifications that govern them.
 
@@ -50,8 +55,10 @@ in `lorecraft.checks`, so a rule has nothing to read but the input it is handed.
   checked the subject supplies the path.
 - The registry is package data: it reads no workspace and is not a query, and it holds this package's rules,
   never a rule its unit tests declare.
-- A code bound twice, a declaration left incomplete, or a group, code or alias code written out of form is a
-  defect in this package. It is raised when the package loads, never reported as the user's fault.
+- A code bound twice, a declaration left incomplete, a group, code or alias code written out of form, or a code
+  in a group its kind may not use is a defect in this package. It is raised when the package loads, never reported
+  as the user's fault.
+- The `LC` group holds engine conditions alone, and every engine condition is in it.
 - A release and a rule name are value objects a user's input will also build, so a malformed one raises an
   `Error` variant, whoever wrote it.
 

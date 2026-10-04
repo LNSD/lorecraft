@@ -149,7 +149,7 @@ instance is one occurrence of it.
   | `LINK` | Links inside a skill |
   | `META` | A skill's `metadata` file list |
   | `LAY` | The skill layout |
-  | `LC` | The engine's own diagnostics, and a rule no mechanism above states |
+  | `LC` | The engine's own conditions, such as an undecodable file, and no rule |
 
   A group for the Markdown body, such as its blocks or its inline links, is added with its first rule.
 - **Every code is Lorecraft's, and an upstream code is an alias code.** The engine absorbs other linters'
