@@ -16,7 +16,7 @@ from typing import Final
 import pytest
 
 from lorecraft.core.error import Error
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.vfs import (
     Change,
     ChangeKind,
@@ -348,9 +348,9 @@ class TestDiskFileSystemListDir:
 
         #: Then
         assert entries == (
-            DirEntry('a.md', EntryKind.FILE),
-            DirEntry('b.md', EntryKind.FILE),
-            DirEntry('c', EntryKind.DIRECTORY),
+            DirEntry(PathComponent.parse('a.md'), EntryKind.FILE),
+            DirEntry(PathComponent.parse('b.md'), EntryKind.FILE),
+            DirEntry(PathComponent.parse('c'), EntryKind.DIRECTORY),
         ), 'entries are listed by name with the kind of the entry itself'
 
     def test_list_dir_with_a_symlink_to_a_file_returns_symlink_kind(self, tmp_path: Path) -> None:
@@ -365,7 +365,9 @@ class TestDiskFileSystemListDir:
         entries = filesystem.list_dir(RootRelativePath.parse('.'))
 
         #: Then
-        assert DirEntry('link', EntryKind.SYMLINK) in entries, 'a symlink to a file is SYMLINK, never FILE'
+        assert DirEntry(PathComponent.parse('link'), EntryKind.SYMLINK) in entries, (
+            'a symlink to a file is SYMLINK, never FILE'
+        )
 
     def test_list_dir_with_a_symlink_to_a_directory_returns_symlink_kind(self, tmp_path: Path) -> None:
         #: Given
@@ -379,7 +381,9 @@ class TestDiskFileSystemListDir:
         entries = filesystem.list_dir(RootRelativePath.parse('.'))
 
         #: Then
-        assert DirEntry('link', EntryKind.SYMLINK) in entries, 'a symlink to a directory is SYMLINK, never DIRECTORY'
+        assert DirEntry(PathComponent.parse('link'), EntryKind.SYMLINK) in entries, (
+            'a symlink to a directory is SYMLINK, never DIRECTORY'
+        )
 
     def test_list_dir_with_a_dangling_symlink_returns_symlink_kind(self, tmp_path: Path) -> None:
         #: Given
@@ -393,7 +397,9 @@ class TestDiskFileSystemListDir:
         entries = filesystem.list_dir(RootRelativePath.parse('.'))
 
         #: Then
-        assert DirEntry('link', EntryKind.SYMLINK) in entries, 'a symlink to nothing is still listed as SYMLINK'
+        assert DirEntry(PathComponent.parse('link'), EntryKind.SYMLINK) in entries, (
+            'a symlink to nothing is still listed as SYMLINK'
+        )
 
     def test_list_dir_with_a_fifo_returns_other_kind(self, tmp_path: Path) -> None:
         #: Given
@@ -404,7 +410,9 @@ class TestDiskFileSystemListDir:
         entries = filesystem.list_dir(RootRelativePath.parse('.'))
 
         #: Then
-        assert entries == (DirEntry('pipe', EntryKind.OTHER),), 'neither a file nor a directory is OTHER'
+        assert entries == (DirEntry(PathComponent.parse('pipe'), EntryKind.OTHER),), (
+            'neither a file nor a directory is OTHER'
+        )
 
     def test_list_dir_with_a_missing_directory_returns_empty(self, tmp_path: Path) -> None:
         #: Given
@@ -965,9 +973,12 @@ class TestTakeSnapshot:
             listings=(
                 Listing(
                     RootRelativePath.parse('docs'),
-                    (DirEntry('code', EntryKind.DIRECTORY), DirEntry('glossary.md', EntryKind.FILE)),
+                    (
+                        DirEntry(PathComponent.parse('code'), EntryKind.DIRECTORY),
+                        DirEntry(PathComponent.parse('glossary.md'), EntryKind.FILE),
+                    ),
                 ),
-                Listing(RootRelativePath.parse('docs/code'), (DirEntry('a.md', EntryKind.FILE),)),
+                Listing(RootRelativePath.parse('docs/code'), (DirEntry(PathComponent.parse('a.md'), EntryKind.FILE),)),
             ),
             files=(
                 FileBytes(RootRelativePath.parse('docs/code/a.md'), b'# A\n'),
@@ -987,8 +998,10 @@ class TestTakeSnapshot:
         #: Then
         assert snapshot == Snapshot(
             listings=(
-                Listing(RootRelativePath.parse('docs'), (DirEntry('code', EntryKind.DIRECTORY),)),
-                Listing(RootRelativePath.parse('docs/code'), (DirEntry('sub', EntryKind.DIRECTORY),)),
+                Listing(RootRelativePath.parse('docs'), (DirEntry(PathComponent.parse('code'), EntryKind.DIRECTORY),)),
+                Listing(
+                    RootRelativePath.parse('docs/code'), (DirEntry(PathComponent.parse('sub'), EntryKind.DIRECTORY),)
+                ),
             ),
             files=(),
             scope=SNAPSHOT_SCOPE,
@@ -1010,7 +1023,10 @@ class TestTakeSnapshot:
             listings=(
                 Listing(
                     RootRelativePath.parse('docs'),
-                    (DirEntry('a.md', EntryKind.FILE), DirEntry('linked.md', EntryKind.SYMLINK)),
+                    (
+                        DirEntry(PathComponent.parse('a.md'), EntryKind.FILE),
+                        DirEntry(PathComponent.parse('linked.md'), EntryKind.SYMLINK),
+                    ),
                 ),
             ),
             files=(FileBytes(RootRelativePath.parse('docs/a.md'), b'# A\n'),),
@@ -1028,7 +1044,9 @@ class TestTakeSnapshot:
 
         #: Then
         assert snapshot == Snapshot(
-            listings=(Listing(RootRelativePath.parse('docs'), (DirEntry('pipe', EntryKind.OTHER),)),),
+            listings=(
+                Listing(RootRelativePath.parse('docs'), (DirEntry(PathComponent.parse('pipe'), EntryKind.OTHER),)),
+            ),
             files=(),
             scope=SNAPSHOT_SCOPE,
         ), 'a fifo is an OTHER entry, and nothing is read from it'
@@ -1060,9 +1078,17 @@ class TestTakeSnapshot:
         #: Then
         assert snapshot == Snapshot(
             listings=(
-                Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('alpha', EntryKind.DIRECTORY),)),
-                Listing(RootRelativePath.parse('.agents/skills/alpha'), (DirEntry('SKILL.md', EntryKind.FILE),)),
-                Listing(RootRelativePath.parse('.claude'), (DirEntry('skills', EntryKind.SYMLINK),)),
+                Listing(
+                    RootRelativePath.parse('.agents/skills'),
+                    (DirEntry(PathComponent.parse('alpha'), EntryKind.DIRECTORY),),
+                ),
+                Listing(
+                    RootRelativePath.parse('.agents/skills/alpha'),
+                    (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),),
+                ),
+                Listing(
+                    RootRelativePath.parse('.claude'), (DirEntry(PathComponent.parse('skills'), EntryKind.SYMLINK),)
+                ),
             ),
             files=(FileBytes(RootRelativePath.parse('.agents/skills/alpha/SKILL.md'), b'---\n'),),
             links=(Link(RootRelativePath.parse('.claude/skills'), PurePosixPath('../.agents/skills')),),
@@ -1113,9 +1139,13 @@ class TestTakeSnapshot:
         #: Then
         assert snapshot == Snapshot(
             listings=(
-                Listing(RootRelativePath.parse('docs'), (DirEntry('code', EntryKind.DIRECTORY),)),
-                Listing(RootRelativePath.parse('docs/code'), (DirEntry('sub', EntryKind.DIRECTORY),)),
-                Listing(RootRelativePath.parse('docs/code/sub'), (DirEntry('x.md', EntryKind.FILE),)),
+                Listing(RootRelativePath.parse('docs'), (DirEntry(PathComponent.parse('code'), EntryKind.DIRECTORY),)),
+                Listing(
+                    RootRelativePath.parse('docs/code'), (DirEntry(PathComponent.parse('sub'), EntryKind.DIRECTORY),)
+                ),
+                Listing(
+                    RootRelativePath.parse('docs/code/sub'), (DirEntry(PathComponent.parse('x.md'), EntryKind.FILE),)
+                ),
             ),
             files=(FileBytes(RootRelativePath.parse('docs/code/sub/x.md'), b'# X\n'),),
             scope=scope,
@@ -1154,8 +1184,13 @@ class TestTakeSnapshot:
         #: Then
         assert snapshot == Snapshot(
             listings=(
-                Listing(RootRelativePath.parse('skills'), (DirEntry('review', EntryKind.DIRECTORY),)),
-                Listing(RootRelativePath.parse('skills/review'), (DirEntry('SKILL.md', EntryKind.FILE),)),
+                Listing(
+                    RootRelativePath.parse('skills'), (DirEntry(PathComponent.parse('review'), EntryKind.DIRECTORY),)
+                ),
+                Listing(
+                    RootRelativePath.parse('skills/review'),
+                    (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),),
+                ),
             ),
             files=(FileBytes(RootRelativePath.parse('skills/review/SKILL.md'), b'---\n'),),
             links=(Link(RootRelativePath.parse('.claude/skills'), PurePosixPath('../skills')),),
@@ -1177,8 +1212,14 @@ class TestTakeSnapshot:
         #: Then
         assert snapshot == Snapshot(
             listings=(
-                Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('review', EntryKind.SYMLINK),)),
-                Listing(RootRelativePath.parse('skills/review'), (DirEntry('SKILL.md', EntryKind.FILE),)),
+                Listing(
+                    RootRelativePath.parse('.agents/skills'),
+                    (DirEntry(PathComponent.parse('review'), EntryKind.SYMLINK),),
+                ),
+                Listing(
+                    RootRelativePath.parse('skills/review'),
+                    (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),),
+                ),
             ),
             files=(FileBytes(RootRelativePath.parse('skills/review/SKILL.md'), b'---\n'),),
             links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),),
@@ -1204,7 +1245,12 @@ class TestTakeSnapshot:
 
         #: Then
         assert snapshot == Snapshot(
-            listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('review', EntryKind.SYMLINK),)),),
+            listings=(
+                Listing(
+                    RootRelativePath.parse('.agents/skills'),
+                    (DirEntry(PathComponent.parse('review'), EntryKind.SYMLINK),),
+                ),
+            ),
             files=(),
             links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),),
             climbed_directories=(
@@ -1227,7 +1273,11 @@ class TestTakeSnapshot:
 
         #: Then
         assert snapshot == Snapshot(
-            listings=(Listing(RootRelativePath.parse('skills'), (DirEntry('review', EntryKind.DIRECTORY),)),),
+            listings=(
+                Listing(
+                    RootRelativePath.parse('skills'), (DirEntry(PathComponent.parse('review'), EntryKind.DIRECTORY),)
+                ),
+            ),
             files=(),
             links=(
                 Link(RootRelativePath.parse('.claude/skills'), PurePosixPath('../current')),
@@ -1252,7 +1302,12 @@ class TestTakeSnapshot:
 
         #: Then
         assert snapshot == Snapshot(
-            listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('review', EntryKind.SYMLINK),)),),
+            listings=(
+                Listing(
+                    RootRelativePath.parse('.agents/skills'),
+                    (DirEntry(PathComponent.parse('review'), EntryKind.SYMLINK),),
+                ),
+            ),
             files=(),
             links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath(outside)),),
             scope=scope,
@@ -1271,7 +1326,12 @@ class TestTakeSnapshot:
 
         #: Then
         assert snapshot == Snapshot(
-            listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('loop', EntryKind.SYMLINK),)),),
+            listings=(
+                Listing(
+                    RootRelativePath.parse('.agents/skills'),
+                    (DirEntry(PathComponent.parse('loop'), EntryKind.SYMLINK),),
+                ),
+            ),
             files=(),
             links=(Link(RootRelativePath.parse('.agents/skills/loop'), PurePosixPath('loop')),),
             scope=scope,
@@ -1291,7 +1351,12 @@ class TestTakeSnapshot:
 
         #: Then
         assert snapshot == Snapshot(
-            listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('SKILL.md', EntryKind.SYMLINK),)),),
+            listings=(
+                Listing(
+                    RootRelativePath.parse('.agents/skills'),
+                    (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.SYMLINK),),
+                ),
+            ),
             files=(FileBytes(RootRelativePath.parse('REVIEW.md'), b'---\n'),),
             links=(Link(RootRelativePath.parse('.agents/skills/SKILL.md'), PurePosixPath('../../REVIEW.md')),),
             climbed_directories=(
@@ -1316,7 +1381,12 @@ class TestTakeSnapshot:
 
         #: Then
         assert snapshot == Snapshot(
-            listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('SKILL.md', EntryKind.SYMLINK),)),),
+            listings=(
+                Listing(
+                    RootRelativePath.parse('.agents/skills'),
+                    (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.SYMLINK),),
+                ),
+            ),
             files=(),
             links=(Link(RootRelativePath.parse('.agents/skills/SKILL.md'), PurePosixPath(outside)),),
             scope=scope,
@@ -1339,8 +1409,14 @@ class TestTakeSnapshot:
         #: Then
         assert snapshot == Snapshot(
             listings=(
-                Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('review', EntryKind.SYMLINK),)),
-                Listing(RootRelativePath.parse('skills/review'), (DirEntry('SKILL.md', EntryKind.FILE),)),
+                Listing(
+                    RootRelativePath.parse('.agents/skills'),
+                    (DirEntry(PathComponent.parse('review'), EntryKind.SYMLINK),),
+                ),
+                Listing(
+                    RootRelativePath.parse('skills/review'),
+                    (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),),
+                ),
             ),
             files=(FileBytes(RootRelativePath.parse('skills/review/SKILL.md'), b'---\n'),),
             links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/tmp/../review')),),
@@ -1369,8 +1445,8 @@ class TestTakeSnapshot:
         #: Then
         assert snapshot == Snapshot(
             listings=(
-                Listing(RootRelativePath.parse('docs'), (DirEntry('shared', EntryKind.SYMLINK),)),
-                Listing(RootRelativePath.parse('shared'), (DirEntry('a.md', EntryKind.FILE),)),
+                Listing(RootRelativePath.parse('docs'), (DirEntry(PathComponent.parse('shared'), EntryKind.SYMLINK),)),
+                Listing(RootRelativePath.parse('shared'), (DirEntry(PathComponent.parse('a.md'), EntryKind.FILE),)),
             ),
             files=(FileBytes(RootRelativePath.parse('shared/a.md'), b'# A\n'),),
             links=(Link(RootRelativePath.parse('docs/shared'), PurePosixPath('../shared')),),
@@ -1399,8 +1475,8 @@ class TestTakeSnapshot:
 
         #: Then
         assert snapshot.listings == (
-            Listing(RootRelativePath.parse('docs'), (DirEntry('a.md', EntryKind.FILE),)),
-            Listing(RootRelativePath.parse('skills'), (DirEntry('SKILL.md', EntryKind.FILE),)),
+            Listing(RootRelativePath.parse('docs'), (DirEntry(PathComponent.parse('a.md'), EntryKind.FILE),)),
+            Listing(RootRelativePath.parse('skills'), (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),)),
         ), 'skipping a root another root already covered goes on to the roots left to scan'
 
     def test_take_snapshot_with_a_plain_root_under_a_deeper_plain_one_still_lists_the_roots_before_it(
@@ -1423,8 +1499,8 @@ class TestTakeSnapshot:
 
         #: Then
         assert snapshot.listings == (
-            Listing(RootRelativePath.parse('docs'), (DirEntry('a.md', EntryKind.FILE),)),
-            Listing(RootRelativePath.parse('skills'), (DirEntry('SKILL.md', EntryKind.FILE),)),
+            Listing(RootRelativePath.parse('docs'), (DirEntry(PathComponent.parse('a.md'), EntryKind.FILE),)),
+            Listing(RootRelativePath.parse('skills'), (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),)),
         ), 'skipping a root another root already covered goes on to the roots left to scan'
 
     def test_take_snapshot_following_a_linked_entry_lists_the_directory_it_leads_to_one_level_deeper(
@@ -1443,8 +1519,14 @@ class TestTakeSnapshot:
         #: Then
         assert snapshot == Snapshot(
             listings=(
-                Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('review', EntryKind.SYMLINK),)),
-                Listing(RootRelativePath.parse('skills/review'), (DirEntry('references', EntryKind.DIRECTORY),)),
+                Listing(
+                    RootRelativePath.parse('.agents/skills'),
+                    (DirEntry(PathComponent.parse('review'), EntryKind.SYMLINK),),
+                ),
+                Listing(
+                    RootRelativePath.parse('skills/review'),
+                    (DirEntry(PathComponent.parse('references'), EntryKind.DIRECTORY),),
+                ),
             ),
             files=(),
             links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),),
@@ -1471,9 +1553,18 @@ class TestTakeSnapshot:
         #: Then
         assert snapshot == Snapshot(
             listings=(
-                Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('review', EntryKind.SYMLINK),)),
-                Listing(RootRelativePath.parse('shared/references'), (DirEntry('guide.md', EntryKind.FILE),)),
-                Listing(RootRelativePath.parse('skills/review'), (DirEntry('references', EntryKind.SYMLINK),)),
+                Listing(
+                    RootRelativePath.parse('.agents/skills'),
+                    (DirEntry(PathComponent.parse('review'), EntryKind.SYMLINK),),
+                ),
+                Listing(
+                    RootRelativePath.parse('shared/references'),
+                    (DirEntry(PathComponent.parse('guide.md'), EntryKind.FILE),),
+                ),
+                Listing(
+                    RootRelativePath.parse('skills/review'),
+                    (DirEntry(PathComponent.parse('references'), EntryKind.SYMLINK),),
+                ),
             ),
             files=(FileBytes(RootRelativePath.parse('shared/references/guide.md'), b'# Guide\n'),),
             links=(
@@ -1505,7 +1596,12 @@ class TestTakeSnapshot:
 
         #: Then
         assert snapshot == Snapshot(
-            listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('review', EntryKind.SYMLINK),)),),
+            listings=(
+                Listing(
+                    RootRelativePath.parse('.agents/skills'),
+                    (DirEntry(PathComponent.parse('review'), EntryKind.SYMLINK),),
+                ),
+            ),
             files=(),
             links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../tmp/../skills/review')),),
             climbed_directories=(RootRelativePath.parse('.agents'), RootRelativePath.parse('.agents/skills')),
@@ -1523,7 +1619,7 @@ class TestTakeSnapshot:
 
         #: Then
         assert snapshot.listings == (
-            Listing(RootRelativePath.parse('real'), (DirEntry('SKILL.md', EntryKind.FILE),)),
+            Listing(RootRelativePath.parse('real'), (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),)),
         ), 'a chain of 40 links is as long as the kernel follows, so the scan lists the directory it leads to'
 
     def test_take_snapshot_with_no_depth_limit_lists_every_directory_below_and_reads_every_file(
@@ -1542,16 +1638,25 @@ class TestTakeSnapshot:
         #: Then
         assert snapshot == Snapshot(
             listings=(
-                Listing(RootRelativePath.parse('skills'), (DirEntry('x', EntryKind.DIRECTORY),)),
+                Listing(RootRelativePath.parse('skills'), (DirEntry(PathComponent.parse('x'), EntryKind.DIRECTORY),)),
                 Listing(
                     RootRelativePath.parse('skills/x'),
-                    (DirEntry('SKILL.md', EntryKind.FILE), DirEntry('references', EntryKind.DIRECTORY)),
+                    (
+                        DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),
+                        DirEntry(PathComponent.parse('references'), EntryKind.DIRECTORY),
+                    ),
                 ),
                 Listing(
                     RootRelativePath.parse('skills/x/references'),
-                    (DirEntry('a.md', EntryKind.FILE), DirEntry('deep', EntryKind.DIRECTORY)),
+                    (
+                        DirEntry(PathComponent.parse('a.md'), EntryKind.FILE),
+                        DirEntry(PathComponent.parse('deep'), EntryKind.DIRECTORY),
+                    ),
                 ),
-                Listing(RootRelativePath.parse('skills/x/references/deep'), (DirEntry('b.md', EntryKind.FILE),)),
+                Listing(
+                    RootRelativePath.parse('skills/x/references/deep'),
+                    (DirEntry(PathComponent.parse('b.md'), EntryKind.FILE),),
+                ),
             ),
             files=(
                 FileBytes(RootRelativePath.parse('skills/x/SKILL.md'), b'---\n'),
@@ -1577,10 +1682,16 @@ class TestTakeSnapshot:
         #: Then
         assert snapshot == Snapshot(
             listings=(
-                Listing(RootRelativePath.parse('shared'), (DirEntry('deep', EntryKind.DIRECTORY),)),
-                Listing(RootRelativePath.parse('shared/deep'), (DirEntry('b.md', EntryKind.FILE),)),
-                Listing(RootRelativePath.parse('skills'), (DirEntry('x', EntryKind.DIRECTORY),)),
-                Listing(RootRelativePath.parse('skills/x'), (DirEntry('refs', EntryKind.SYMLINK),)),
+                Listing(
+                    RootRelativePath.parse('shared'), (DirEntry(PathComponent.parse('deep'), EntryKind.DIRECTORY),)
+                ),
+                Listing(
+                    RootRelativePath.parse('shared/deep'), (DirEntry(PathComponent.parse('b.md'), EntryKind.FILE),)
+                ),
+                Listing(RootRelativePath.parse('skills'), (DirEntry(PathComponent.parse('x'), EntryKind.DIRECTORY),)),
+                Listing(
+                    RootRelativePath.parse('skills/x'), (DirEntry(PathComponent.parse('refs'), EntryKind.SYMLINK),)
+                ),
             ),
             files=(FileBytes(RootRelativePath.parse('shared/deep/b.md'), b'# B\n'),),
             links=(Link(RootRelativePath.parse('skills/x/refs'), PurePosixPath('../../shared')),),
@@ -1606,10 +1717,13 @@ class TestTakeSnapshot:
         #: Then
         assert snapshot == Snapshot(
             listings=(
-                Listing(RootRelativePath.parse('skills'), (DirEntry('x', EntryKind.DIRECTORY),)),
+                Listing(RootRelativePath.parse('skills'), (DirEntry(PathComponent.parse('x'), EntryKind.DIRECTORY),)),
                 Listing(
                     RootRelativePath.parse('skills/x'),
-                    (DirEntry('SKILL.md', EntryKind.FILE), DirEntry('up', EntryKind.SYMLINK)),
+                    (
+                        DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),
+                        DirEntry(PathComponent.parse('up'), EntryKind.SYMLINK),
+                    ),
                 ),
             ),
             files=(FileBytes(RootRelativePath.parse('skills/x/SKILL.md'), b'---\n'),),
@@ -1634,8 +1748,8 @@ class TestTakeSnapshot:
         #: Then
         assert snapshot == Snapshot(
             listings=(
-                Listing(RootRelativePath.parse('a'), (DirEntry('to-b', EntryKind.SYMLINK),)),
-                Listing(RootRelativePath.parse('b'), (DirEntry('to-a', EntryKind.SYMLINK),)),
+                Listing(RootRelativePath.parse('a'), (DirEntry(PathComponent.parse('to-b'), EntryKind.SYMLINK),)),
+                Listing(RootRelativePath.parse('b'), (DirEntry(PathComponent.parse('to-a'), EntryKind.SYMLINK),)),
             ),
             files=(),
             links=(
@@ -1663,8 +1777,10 @@ class TestTakeSnapshot:
         #: Then
         assert snapshot == Snapshot(
             listings=(
-                Listing(RootRelativePath.parse('skills'), (DirEntry('x', EntryKind.DIRECTORY),)),
-                Listing(RootRelativePath.parse('skills/x'), (DirEntry('self', EntryKind.SYMLINK),)),
+                Listing(RootRelativePath.parse('skills'), (DirEntry(PathComponent.parse('x'), EntryKind.DIRECTORY),)),
+                Listing(
+                    RootRelativePath.parse('skills/x'), (DirEntry(PathComponent.parse('self'), EntryKind.SYMLINK),)
+                ),
             ),
             files=(),
             links=(Link(RootRelativePath.parse('skills/x/self'), PurePosixPath('self')),),
@@ -3076,14 +3192,14 @@ class TestPlainRootWalksItsLinksForTheRecord:
                 Listing(
                     RootRelativePath.parse('docs'),
                     (
-                        DirEntry('code', EntryKind.DIRECTORY),
-                        DirEntry('feat', EntryKind.DIRECTORY),
-                        DirEntry('linked', EntryKind.SYMLINK),
-                        DirEntry('out', EntryKind.SYMLINK),
+                        DirEntry(PathComponent.parse('code'), EntryKind.DIRECTORY),
+                        DirEntry(PathComponent.parse('feat'), EntryKind.DIRECTORY),
+                        DirEntry(PathComponent.parse('linked'), EntryKind.SYMLINK),
+                        DirEntry(PathComponent.parse('out'), EntryKind.SYMLINK),
                     ),
                 ),
                 Listing(RootRelativePath.parse('docs/code'), ()),
-                Listing(RootRelativePath.parse('docs/feat'), (DirEntry('a.md', EntryKind.FILE),)),
+                Listing(RootRelativePath.parse('docs/feat'), (DirEntry(PathComponent.parse('a.md'), EntryKind.FILE),)),
             ),
             files=(FileBytes(RootRelativePath.parse('docs/feat/a.md'), b'# A\n'),),
             links=(

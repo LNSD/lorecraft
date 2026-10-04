@@ -11,10 +11,11 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.vfs import (
     DirEntry,
     EntryKind,
+    FileTree,
     Link,
     Listing,
     ResolvedPath,
@@ -44,6 +45,25 @@ REVIEW: Final[SkillLocation] = SkillLocation(
 """A skill in a regular directory, whose `SKILL.md` is no symlink."""
 
 
+def _file_tree(files: Mapping[str, bytes]) -> FileTree:
+    """Nest file bytes keyed by root-relative path into the tree `Snapshot.from_tree` takes.
+
+    Args:
+        files: File bytes keyed by root-relative path, such as `.agents/skills/review/SKILL.md`.
+    """
+    tree: dict[str, bytes | FileTree] = {}
+    below: dict[str, dict[str, bytes]] = {}
+    for path, data in files.items():
+        name, separator, rest = path.partition('/')
+        if separator:
+            below.setdefault(name, {})[rest] = data
+        else:
+            tree[name] = data
+    for name, files_below in below.items():
+        tree[name] = _file_tree(files_below)
+    return tree
+
+
 def _repository(files: Mapping[str, bytes], symlinks: Mapping[str, str]) -> Repository:
     """A repository over a snapshot holding these files and symlinks, as a scan would record them.
 
@@ -52,14 +72,14 @@ def _repository(files: Mapping[str, bytes], symlinks: Mapping[str, str]) -> Repo
         symlinks: Symlink targets keyed by root-relative path, each spelled from the symlink's own directory. The
             directory a symlink sits in must hold a file too, so the snapshot lists it.
     """
-    files_snapshot = Snapshot.from_files({RootRelativePath.parse(path): data for path, data in files.items()})
+    files_snapshot = Snapshot.from_tree(_file_tree(files))
     entries: dict[RootRelativePath, list[DirEntry]] = {}
     for listing in files_snapshot.listings:
         entries[listing.path] = list(listing.entries)
     links: list[Link] = []
     for path, target in symlinks.items():
         symlink = RootRelativePath.parse(path)
-        entries[symlink.parent].append(DirEntry(symlink.name, EntryKind.SYMLINK))
+        entries[symlink.parent].append(DirEntry(PathComponent.parse(symlink.name), EntryKind.SYMLINK))
         links.append(Link(symlink, PurePosixPath(target)))
 
     listings: list[Listing] = []

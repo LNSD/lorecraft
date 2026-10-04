@@ -52,6 +52,9 @@ generic building block for one domain belongs in the package that owns that doma
   checks it again, whichever package it travels through.
 - A generic value stays generic. The path value holds no `Path` and never resolves a symlink: following a symlink is
   the filesystem's specialization, owned by `lorecraft.vfs`.
+- Each submodule is its own entry point, imported by its full name, such as `lorecraft.core.path`. The package's
+  `__init__.py` re-exports nothing, an exception to [python-modules](python-modules.md) §6, so a building block
+  added to one submodule never grows a surface every package shares.
 
 ## Examples
 
@@ -85,6 +88,7 @@ Before committing code, verify:
 - [ ] A new value type is immutable and validates when it is constructed
 - [ ] Nothing added specializes a building block for one domain; that specialization lives in the domain's package
 - [ ] An error declared here is the base, or is raised by `lorecraft.core`'s own code
+- [ ] Nothing is re-exported from `lorecraft.core`'s `__init__.py`; callers import the submodule that declares it
 
 ## References
 

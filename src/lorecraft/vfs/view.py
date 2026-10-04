@@ -20,7 +20,7 @@ from pathlib import PurePosixPath
 from typing import NewType
 
 from lorecraft.core.error import Error
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 
 ResolvedPath = NewType('ResolvedPath', RootRelativePath)
 """A path relative to the workspace root with every symlink on the way followed: no symlink is on the way to it
@@ -47,11 +47,12 @@ class DirEntry:
     """One entry of a listed directory.
 
     Attributes:
-        name: The entry's own filename, no directory part.
+        name: The entry's own filename, one path component, so `listing path / name` is a child of the listed
+            directory.
         kind: The entry's kind from lstat; a symlink is SYMLINK whatever it points at.
     """
 
-    name: str
+    name: PathComponent
     kind: EntryKind
 
 

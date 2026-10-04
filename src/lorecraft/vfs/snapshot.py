@@ -3,7 +3,7 @@
 A `Snapshot` holds the scope it was taken of, listings, file bytes and symlink targets, never a handle or a
 stat result, so two snapshots compare and hash structurally. `VirtualFileSystem` answers every `FileSystem`
 operation from one snapshot without touching the disk. `take_snapshot` in `disk.py` is the producer that
-reads the disk; `Snapshot.from_files` builds one by hand.
+reads the disk; `Snapshot.from_tree` builds one by hand.
 """
 
 from collections.abc import Mapping
@@ -11,11 +11,15 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Self, assert_never
 
-from lorecraft.core.path import ROOT, RootRelativePath
+from lorecraft.core.path import ROOT, PathComponent, RootRelativePath
 
 from .root_expansion import ResolvedDirectory, ResolvedFile, find_destination
 from .scan_root import ScanRoot
 from .view import DirEntry, EntryKind, FileSystem, ResolvedPath, RootExit, UnrecordedFileError, decode_text
+
+type FileTree = Mapping[str, bytes | FileTree]
+"""A directory's contents as `Snapshot.from_tree` takes them: each key one entry's name, mapped to a file's bytes
+or to the directory's own contents."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,13 +97,13 @@ class Snapshot:
         links: The target of every SYMLINK entry of every listing, and of a symlink met on the way to a
             scope root or along the chain of a recorded link, sorted by path. The scan walks every recorded
             link's chain for the record, also under a root that does not follow links. Empty when the snapshot was
-            built by `from_files`.
+            built by `from_tree`.
         climbed_directories: Every directory a `..` climbed out of on the way to a scope root or along the chain
             of a recorded link, sorted. Such a `..` may climb out of a directory the scan stepped into by name and
             listed nothing in, as `tmp/../review` does; this is how a walk over the snapshot knows `tmp` is a
-            directory. Empty when the snapshot was built by `from_files`.
+            directory. Empty when the snapshot was built by `from_tree`.
         scope: The scan roots `take_snapshot` was given, in the order given and unmerged. Empty when nothing
-            was scanned, as for a snapshot built by `from_files` or by hand, and then no path is in scope.
+            was scanned, as for a snapshot built by `from_tree` or by hand, and then no path is in scope.
     """
 
     listings: tuple[Listing, ...]
@@ -110,32 +114,25 @@ class Snapshot:
     scope: tuple[ScanRoot, ...] = ()
 
     @classmethod
-    def from_files(cls, files: Mapping[RootRelativePath, bytes]) -> Self:
-        """Build a snapshot from file bytes alone, deriving every DIRECTORY entry and listing.
+    def from_tree(cls, tree: FileTree) -> Self:
+        """Build a snapshot from a tree of directories and file bytes, deriving every listing.
 
-        Every directory on the way to a file is listed, the root `.` included. No path may sit under
-        another path of the mapping. For tests and, later, the overlay; a scan uses the constructor because
-        it also sees symlinks and other entries. Nothing was scanned, so the scope is empty and no path is in
-        it, the listed directories included.
+        Every mapping in the tree is a listed directory, the root `.` included, so `from_tree({})` lists the
+        root with no entries and an empty mapping under a name is an empty directory. For tests and, later, the
+        overlay; a scan uses the constructor because it also sees symlinks and other entries. Nothing was
+        scanned, so the scope is empty and no path is in it, the listed directories included.
 
         Args:
-            files: File bytes keyed by root-relative path; kept as given, and a directory is never a key.
-        """
-        listed: dict[RootRelativePath, set[DirEntry]] = {}
-        for path in files:
-            listed.setdefault(path.parent, set()).add(DirEntry(path.name, EntryKind.FILE))
-            # path.parents runs from the file's own directory up to the root; the root has no parent listing.
-            for directory in path.parents[:-1]:
-                listed.setdefault(directory.parent, set()).add(DirEntry(directory.name, EntryKind.DIRECTORY))
+            tree: The root's contents: each key is one entry's name, mapped to its bytes for a file or to the
+                directory's own contents for a directory. Bytes are kept as given.
 
-        listings: list[Listing] = []
-        for directory in sorted(listed):
-            entries = sorted(listed[directory], key=lambda entry: entry.name)
-            listings.append(Listing(directory, tuple(entries)))
-        file_records: list[FileBytes] = []
-        for path in sorted(files):
-            file_records.append(FileBytes(path, files[path]))
-        return cls(listings=tuple(listings), files=tuple(file_records), scope=())
+        Raises:
+            PathComponentError: If a key is empty, is `.` or `..`, or holds a `/`.
+        """
+        listings, files = _collect_tree(ROOT, tree)
+        listings.sort(key=lambda listing: listing.path)
+        files.sort(key=lambda file: file.path)
+        return cls(listings=tuple(listings), files=tuple(files), scope=())
 
     def entries(self) -> dict[RootRelativePath, EntryKind]:
         """Every path the snapshot recorded, with its kind; what a diff compares.
@@ -163,6 +160,42 @@ class Snapshot:
         for link in self.links:
             found[link.path] = EntryKind.SYMLINK
         return found
+
+
+def _collect_tree(directory: RootRelativePath, tree: FileTree) -> tuple[list[Listing], list[FileBytes]]:
+    """Return the listings and file bytes of `directory` and everything below it, for `Snapshot.from_tree`.
+
+    Args:
+        directory: The root-relative directory `tree` holds the contents of.
+        tree: The directory's contents, each key one entry's name.
+
+    Returns:
+        The listing of `directory` and of every directory below it, then the bytes of every file in or below it;
+        neither list is in any order.
+
+    Raises:
+        PathComponentError: If a key is empty, is `.` or `..`, or holds a `/`.
+    """
+    entries: list[DirEntry] = []
+    listings: list[Listing] = []
+    files: list[FileBytes] = []
+    for raw_name, node in tree.items():
+        name = PathComponent.parse(raw_name)
+        path = directory / name
+        match node:
+            case bytes():
+                entries.append(DirEntry(name, EntryKind.FILE))
+                files.append(FileBytes(path, node))
+            case Mapping():
+                entries.append(DirEntry(name, EntryKind.DIRECTORY))
+                listings_below, files_below = _collect_tree(path, node)
+                listings.extend(listings_below)
+                files.extend(files_below)
+            case _:
+                assert_never(node)
+    entries.sort(key=lambda entry: entry.name)
+    listings.append(Listing(directory, tuple(entries)))
+    return listings, files
 
 
 class VirtualFileSystem(FileSystem):

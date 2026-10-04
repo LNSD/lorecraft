@@ -11,7 +11,7 @@ from pathlib import Path, PurePosixPath
 from typing import assert_never
 
 from lorecraft.core.error import Error
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 
 from .root_expansion import (
     ResolvedDirectory,
@@ -723,7 +723,8 @@ def _find_listing(root: Path, path: RootRelativePath) -> tuple[DirEntry, ...] | 
     """
     try:
         with os.scandir(disk_location(root, path)) as scan:
-            entries = [DirEntry(entry.name, _entry_kind(entry)) for entry in scan]
+            # os.scandir never yields an empty name, `.`, `..` or a name holding `/`, so parsing never raises here.
+            entries = [DirEntry(PathComponent.parse(entry.name), _entry_kind(entry)) for entry in scan]
     except (FileNotFoundError, NotADirectoryError):  # a missing path is None, by contract
         return None
     except OSError as exc:

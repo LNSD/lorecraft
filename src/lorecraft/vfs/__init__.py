@@ -20,7 +20,7 @@ from .disk import (
 )
 from .scan_root import ScanRoot
 from .scope import ScopeIndex
-from .snapshot import FileBytes, Link, Listing, Snapshot, VirtualFileSystem
+from .snapshot import FileBytes, FileTree, Link, Listing, Snapshot, VirtualFileSystem
 from .view import (
     DirEntry,
     DirListError,
@@ -44,6 +44,7 @@ __all__: list[str] = [
     'disk_location',
     'VirtualFileSystem',
     'Snapshot',
+    'FileTree',
     'Listing',
     'FileBytes',
     'Link',

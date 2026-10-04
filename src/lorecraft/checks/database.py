@@ -259,7 +259,7 @@ class Database:
         records it was taken of rather than from what the virtual file system holds: a path in a directory the
         scope covers is in it even where the directory does not exist, and then whatever the path names is
         missing. Only the links and climbed directories the snapshot recorded are read besides, to tell where
-        `path` leads. A snapshot that scanned nothing, such as one built by `Snapshot.from_files`, has no path in
+        `path` leads. A snapshot that scanned nothing, such as one built by `Snapshot.from_tree`, has no path in
         scope.
 
         The answer is not cached, but what it is computed from is: the scope expanded through the recorded

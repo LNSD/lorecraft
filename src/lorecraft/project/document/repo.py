@@ -134,7 +134,7 @@ class Repository:
         names: list[str] = []
         for entry in entries:
             if entry.kind is EntryKind.DIRECTORY:
-                names.append(entry.name)
+                names.append(str(entry.name))
         return tuple(names)
 
     def list_documents(self, corpus: CorpusName) -> tuple[DocumentFile, ...]:
@@ -159,9 +159,10 @@ class Repository:
         for entry in entries:
             if entry.kind is not EntryKind.FILE:
                 continue
-            if not entry.name.endswith(DOCUMENT_SUFFIX):
+            filename = str(entry.name)
+            if not filename.endswith(DOCUMENT_SUFFIX):
                 continue
-            stem = entry.name.removesuffix(DOCUMENT_SUFFIX)
+            stem = filename.removesuffix(DOCUMENT_SUFFIX)
             documents.append(DocumentFile(corpus_dir / entry.name, stem))
         return tuple(documents)
 

@@ -1,4 +1,4 @@
-"""The root-relative path value: what it accepts, what it rejects, and the joins that keep it valid."""
+"""The path values: what a root-relative path and a path component accept and reject, and the joins that stay valid."""
 
 from pathlib import PurePosixPath
 
@@ -6,7 +6,7 @@ import pytest
 
 from lorecraft.core.error import Error
 
-from ..path import RootRelativePath, RootRelativePathError
+from ..path import PathComponent, PathComponentError, RootRelativePath, RootRelativePathError
 
 
 @pytest.mark.unit
@@ -187,6 +187,17 @@ class TestRootRelativePath:
         #: Then
         assert child == RootRelativePath.parse('docs/code'), 'a join appends the name as a component'
 
+    def test_join_with_a_path_component_returns_the_child(self) -> None:
+        #: Given
+        docs = RootRelativePath.parse('docs')
+        name = PathComponent.parse('code')
+
+        #: When
+        child = docs / name
+
+        #: Then
+        assert child == RootRelativePath.parse('docs/code'), 'a component joins as the one name it holds'
+
     def test_parent_of_the_root_returns_the_root(self) -> None:
         #: Given
         root = RootRelativePath.parse('.')
@@ -276,3 +287,115 @@ class TestRootRelativePath:
 
         #: Then
         assert text == 'docs/code/a.md', f'str should give the POSIX spelling, got {text!r}'
+
+
+@pytest.mark.unit
+class TestPathComponent:
+    def test_parse_with_a_filename_returns_it_unchanged(self) -> None:
+        #: Given
+        valid_name = 'SKILL.md'
+
+        #: When
+        parsed = PathComponent.parse(valid_name)
+
+        #: Then
+        assert parsed.value == 'SKILL.md', 'a filename is kept exactly as written'
+
+    def test_parse_with_a_leading_dot_name_returns_it_unchanged(self) -> None:
+        #: Given
+        valid_name = '.agents'
+
+        #: When
+        parsed = PathComponent.parse(valid_name)
+
+        #: Then
+        assert parsed.value == '.agents', 'a leading-dot name is a name, not the current directory'
+
+    def test_parse_with_an_empty_name_raises_path_component_error(self) -> None:
+        #: Given
+        invalid_name = ''
+
+        #: When
+        with pytest.raises(PathComponentError) as exc_info:
+            PathComponent.parse(invalid_name)
+
+        #: Then
+        assert exc_info.value.name == invalid_name, 'the error retains the rejected empty name'
+
+    def test_parse_with_the_current_directory_raises_path_component_error(self) -> None:
+        #: Given
+        invalid_name = '.'
+
+        #: When
+        with pytest.raises(PathComponentError) as exc_info:
+            PathComponent.parse(invalid_name)
+
+        #: Then
+        assert exc_info.value.name == invalid_name, "the error retains the rejected '.'"
+
+    def test_parse_with_the_parent_directory_raises_path_component_error(self) -> None:
+        #: Given
+        invalid_name = '..'
+
+        #: When
+        with pytest.raises(PathComponentError) as exc_info:
+            PathComponent.parse(invalid_name)
+
+        #: Then
+        assert exc_info.value.name == invalid_name, "the error retains the rejected '..'"
+        assert repr(invalid_name) in str(exc_info.value), 'the message names the rejected name'
+
+    def test_parse_with_a_name_holding_a_slash_raises_path_component_error(self) -> None:
+        #: Given
+        invalid_name = 'docs/a.md'
+
+        #: When
+        with pytest.raises(PathComponentError) as exc_info:
+            PathComponent.parse(invalid_name)
+
+        #: Then
+        assert exc_info.value.name == invalid_name, 'the error retains the rejected name with its slash'
+
+    def test_parse_with_an_empty_name_raises_an_error_of_the_package_hierarchy(self) -> None:
+        #: Given
+        invalid_name = ''
+
+        #: When
+        with pytest.raises(PathComponentError) as exc_info:
+            PathComponent.parse(invalid_name)
+
+        #: Then
+        assert isinstance(exc_info.value, Error), 'callers catching the package hierarchy catch this too'
+
+    def test_construct_with_a_name_holding_a_slash_raises_path_component_error(self) -> None:
+        #: Given
+        invalid_name = 'a/b'
+
+        #: When
+        with pytest.raises(PathComponentError) as exc_info:
+            PathComponent(invalid_name)
+
+        #: Then
+        assert exc_info.value.name == invalid_name, 'direct construction is checked like parse'
+
+    def test_sort_with_unsorted_components_orders_them_by_name(self) -> None:
+        #: Given
+        unsorted = [PathComponent.parse('b.md'), PathComponent.parse('a.md')]
+
+        #: When
+        ordered = sorted(unsorted)
+
+        #: Then
+        assert ordered == [PathComponent.parse('a.md'), PathComponent.parse('b.md')], (
+            'components sort by name, as a listing sorts its entries'
+        )
+
+    def test_str_with_a_filename_returns_the_name(self) -> None:
+        #: Given
+        name = PathComponent.parse('SKILL.md')
+
+        #: When
+        text = str(name)
+
+        #: Then
+        assert text == 'SKILL.md', f'str should give the name as written, got {text!r}'
