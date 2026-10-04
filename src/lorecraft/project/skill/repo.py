@@ -594,7 +594,7 @@ class Repository:
 
         skill_file = directory / SKILL_ENTRY_FILENAME
         for entry in entries:
-            if entry.name != SKILL_ENTRY_FILENAME:
+            if str(entry.name) != SKILL_ENTRY_FILENAME:
                 continue
             match entry.kind:
                 case EntryKind.FILE:

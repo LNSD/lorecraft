@@ -1,10 +1,73 @@
-"""The path value every Lorecraft path is: a path under the workspace root, spelled from it."""
+"""The path values: a path under the workspace root, spelled from it, and one component of such a path."""
 
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Final, Self
 
 from lorecraft.core.error import Error
+
+
+class PathComponentError(Error):
+    """A name is empty, is `.` or `..`, or holds a `/`, so it is not one component of a path.
+
+    Attributes:
+        name: The rejected name, exactly as supplied.
+    """
+
+    name: str
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        super().__init__(
+            f'{name!r} is not a path component: it must be non-empty, neither "." nor "..", and hold no "/"'
+        )
+
+
+# order=True so a collection of components sorts by name, the order a directory lists its entries in.
+@dataclass(frozen=True, slots=True, order=True)
+class PathComponent:
+    """One component of a path: a single file or directory name, such as `SKILL.md` or `.agents`.
+
+    A valid component:
+
+    - Is not empty.
+    - Is neither `.` nor `..`, which name a directory relative to another rather than an entry in it.
+    - Holds no `/`, so it names one entry and never a path below it.
+
+    Parsing never normalizes: a name is accepted exactly as supplied or rejected. Joined onto a
+    `RootRelativePath`, a component names a child of that path, never the path itself, its parent or a
+    descendant further down.
+
+    Attributes:
+        value: The validated name, exactly as supplied.
+    """
+
+    value: str
+
+    @classmethod
+    def parse(cls, raw: str) -> Self:
+        """Return a validated path component.
+
+        Args:
+            raw: One file or directory name, as listed or written.
+
+        Raises:
+            PathComponentError: If the name is empty, is `.` or `..`, or holds a `/`.
+        """
+        return cls(raw)
+
+    def __post_init__(self) -> None:
+        """Keep direct construction from bypassing the invariant.
+
+        Raises:
+            PathComponentError: If the name is empty, is `.` or `..`, or holds a `/`.
+        """
+        if self.value in ('', '.', '..') or '/' in self.value:
+            raise PathComponentError(self.value)
+
+    def __str__(self) -> str:
+        """The name exactly as supplied, such as `SKILL.md`."""
+        return self.value
 
 
 class RootRelativePathError(Error):
@@ -71,16 +134,17 @@ class RootRelativePath:
         """The path with POSIX separators, such as `docs/code/a.md`, as findings and the workspace tree print it."""
         return str(self.value)
 
-    def __truediv__(self, name: str) -> 'RootRelativePath':
+    def __truediv__(self, name: str | PathComponent) -> 'RootRelativePath':
         """This path joined with `name`, checked again: a `..` or an absolute `name` is rejected.
 
         Args:
-            name: Component, or `/`-separated components, to append below this path.
+            name: Component, or `/`-separated components, to append below this path. A `PathComponent` names
+                a child of this path, so joining one is never rejected.
 
         Raises:
             RootRelativePathError: If the joined path is absolute or holds a `..` component.
         """
-        return RootRelativePath(self.value / name)
+        return RootRelativePath(self.value / str(name))
 
     @property
     def name(self) -> str:

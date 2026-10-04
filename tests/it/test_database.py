@@ -17,7 +17,7 @@ from typing import Final
 import pytest
 
 from lorecraft.checks import Database, DocumentText, SkillText, Undecodable
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
@@ -37,11 +37,12 @@ def _snapshot(guide: bytes) -> Snapshot:
     Args:
         guide: Bytes of `docs/code/guide.md`, the one document in the snapshot.
     """
-    return Snapshot.from_files(
+    return Snapshot.from_tree(
         {
-            RootRelativePath.parse('docs/__meta__/code.md'): b'# Code\n',
-            RootRelativePath.parse('docs/__meta__/code.structure.json'): b'{"frontmatter": {"type": "object"}}',
-            RootRelativePath.parse('docs/code/guide.md'): guide,
+            'docs': {
+                '__meta__': {'code.md': b'# Code\n', 'code.structure.json': b'{"frontmatter": {"type": "object"}}'},
+                'code': {'guide.md': guide},
+            }
         }
     )
 
@@ -52,7 +53,7 @@ def _skill_snapshot(skill: bytes) -> Snapshot:
     Args:
         skill: Bytes of the skill's `SKILL.md`.
     """
-    return Snapshot.from_files({RootRelativePath.parse('.agents/skills/review/SKILL.md'): skill})
+    return Snapshot.from_tree({'.agents': {'skills': {'review': {'SKILL.md': skill}}}})
 
 
 def _document_text(database: Database, ref: DocumentRef) -> DocumentText:
@@ -91,19 +92,23 @@ def _climbing_chain_snapshot() -> Snapshot:
     return Snapshot(
         listings=(
             Listing(
-                RootRelativePath.parse('a'), (DirEntry('b', EntryKind.DIRECTORY), DirEntry('tmp', EntryKind.DIRECTORY))
+                RootRelativePath.parse('a'),
+                (
+                    DirEntry(PathComponent.parse('b'), EntryKind.DIRECTORY),
+                    DirEntry(PathComponent.parse('tmp'), EntryKind.DIRECTORY),
+                ),
             ),
-            Listing(RootRelativePath.parse('a/b'), (DirEntry('SKILL.md', EntryKind.FILE),)),
+            Listing(RootRelativePath.parse('a/b'), (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),)),
             Listing(RootRelativePath.parse('a/tmp'), ()),
-            Listing(RootRelativePath.parse('c/d'), (DirEntry('SKILL.md', EntryKind.FILE),)),
+            Listing(RootRelativePath.parse('c/d'), (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),)),
             Listing(
                 RootRelativePath.parse('skills'),
                 (
-                    DirEntry('far', EntryKind.SYMLINK),
-                    DirEntry('l', EntryKind.SYMLINK),
-                    DirEntry('m', EntryKind.SYMLINK),
-                    DirEntry('n', EntryKind.SYMLINK),
-                    DirEntry('out', EntryKind.SYMLINK),
+                    DirEntry(PathComponent.parse('far'), EntryKind.SYMLINK),
+                    DirEntry(PathComponent.parse('l'), EntryKind.SYMLINK),
+                    DirEntry(PathComponent.parse('m'), EntryKind.SYMLINK),
+                    DirEntry(PathComponent.parse('n'), EntryKind.SYMLINK),
+                    DirEntry(PathComponent.parse('out'), EntryKind.SYMLINK),
                 ),
             ),
         ),
@@ -145,7 +150,7 @@ class TestDatabase:
 
     def test_model_from_a_snapshot_whose_scope_names_a_directory_lists_its_skills(self) -> None:
         #: Given
-        files = Snapshot.from_files({RootRelativePath.parse('skills/review/SKILL.md'): b''})
+        files = Snapshot.from_tree({'skills': {'review': {'SKILL.md': b''}}})
         scope = scope_with_named_dirs((RootRelativePath.parse('skills'),))
         snapshot = Snapshot(listings=files.listings, files=files.files, scope=scope)
 
@@ -228,7 +233,7 @@ class TestDatabase:
         #: Then
         assert in_scope is False, 'the snapshot was not taken of docs/, so the layout reading it plays no part'
 
-    def test_is_in_scope_over_a_snapshot_from_files_returns_false(self) -> None:
+    def test_is_in_scope_over_a_snapshot_from_a_tree_returns_false(self) -> None:
         #: Given
         database = Database(_snapshot(b'---\nname: "guide"\n---\n'))
 
@@ -236,7 +241,9 @@ class TestDatabase:
         in_scope = database.is_in_scope(RootRelativePath.parse('docs/code/guide.md'))
 
         #: Then
-        assert in_scope is False, 'a snapshot built from files scanned nothing, so even a path it holds is not in scope'
+        assert in_scope is False, (
+            'a snapshot built from a tree scanned nothing, so even a path it holds is not in scope'
+        )
 
     def test_is_in_scope_after_a_path_outside_the_scope_was_asked_returns_true_through_a_followed_link(self) -> None:
         #: Given
@@ -480,8 +487,8 @@ class TestDatabase:
         #: Given
         # What a scan records for `.agents/skills/review -> ../../skills/review`: the link in the skills directory,
         # and the SKILL.md at the resolved path it leads to.
-        shipped = Snapshot.from_files(
-            {RootRelativePath.parse('skills/review/SKILL.md'): b'---\nname: review\n---\n[the guide](guide.md)\n'}
+        shipped = Snapshot.from_tree(
+            {'skills': {'review': {'SKILL.md': b'---\nname: review\n---\n[the guide](guide.md)\n'}}}
         )
         snapshot = Snapshot(
             listings=shipped.listings,
