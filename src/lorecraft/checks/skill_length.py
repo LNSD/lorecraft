@@ -23,7 +23,7 @@ The specification says "Keep your main `SKILL.md` under 500 lines"
 (https://agentskills.io/specification#progressive-disclosure); a file of exactly 500 lines is within it.
 """
 
-_FIRST_LINE: Final[LineNumber] = LineNumber(1)
+_FIRST_LINE: Final[LineNumber] = LineNumber.parse(1)
 """Where a budget violation is reported: it concerns the whole file, not one line of it."""
 
 

@@ -24,7 +24,7 @@ from .reporting import Note, NoteKind, Violation
 _SECTION_LEVEL: Final[int] = 2
 """The heading level of a section: H1 is the title, and anything deeper is a subsection."""
 
-_FIRST_LINE: Final[LineNumber] = LineNumber(1)
+_FIRST_LINE: Final[LineNumber] = LineNumber.parse(1)
 """Where a violation of the document as a whole is reported: a missing title, a missing section."""
 
 
@@ -72,7 +72,7 @@ def validate_structure(
                     notes=violation.notes,
                 )
             )
-    violations.sort(key=lambda violation: (violation.line.value, violation.rule))
+    violations.sort(key=lambda violation: (violation.line.number, violation.rule))
     return StructureCheckResult(violations=tuple(violations))
 
 

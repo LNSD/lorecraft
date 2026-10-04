@@ -387,7 +387,7 @@ class TestDatabase:
         document = database.parse(source)
 
         #: Then
-        assert document.headings == (Heading(level=1, text='Guide', line=LineNumber(4), empty=True, words=0),), (
+        assert document.headings == (Heading(level=1, text='Guide', line=LineNumber.parse(4), empty=True, words=0),), (
             'the parse tree holds the snapshot content'
         )
 
@@ -457,7 +457,7 @@ class TestDatabase:
         document = database.skill_parse(source)
 
         #: Then
-        assert document.links == (MarkdownLink(url='guide.md', line=LineNumber(6)),), (
+        assert document.links == (MarkdownLink(url='guide.md', line=LineNumber.parse(6)),), (
             'the SKILL.md bytes parse into a tree holding its links'
         )
 
@@ -489,7 +489,7 @@ class TestDatabase:
         document = database.skill_parse(source)
 
         #: Then
-        assert document.links == (MarkdownLink(url='guide.md', line=LineNumber(4)),), (
+        assert document.links == (MarkdownLink(url='guide.md', line=LineNumber.parse(4)),), (
             'the ref names the linked entry, and the tree is parsed from the SKILL.md the link leads to'
         )
 

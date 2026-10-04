@@ -132,7 +132,7 @@ def decode_frontmatter(block: str) -> FrontmatterNode:
         # The loader checks every character as it is built, so a control character fails here, not in the parse.
         loader = _SafeLoader(block)
     except ReaderError as exc:
-        line = LineNumber(block.count('\n', 0, exc.position) + _FIRST_BLOCK_LINE)
+        line = LineNumber.parse(block.count('\n', 0, exc.position) + _FIRST_BLOCK_LINE)
         return InvalidYamlFrontmatter(problem=exc.reason, line=line)
     try:
         node = loader.get_single_node()
@@ -265,7 +265,7 @@ def _invalid_yaml(error: yaml.MarkedYAMLError) -> InvalidYamlFrontmatter:
     if mark is None:
         return InvalidYamlFrontmatter(problem=problem, line=None)
     # The mark counts lines from 0 within the block; the block starts on document line 2.
-    return InvalidYamlFrontmatter(problem=problem, line=LineNumber(mark.line + _FIRST_BLOCK_LINE))
+    return InvalidYamlFrontmatter(problem=problem, line=LineNumber.parse(mark.line + _FIRST_BLOCK_LINE))
 
 
 def _keys(mapping: yaml.MappingNode) -> tuple[FrontmatterKey, ...]:
@@ -286,6 +286,6 @@ def _keys(mapping: yaml.MappingNode) -> tuple[FrontmatterKey, ...]:
         if not isinstance(key_node, yaml.ScalarNode) or key_node.tag not in _STRING_KEY_TAGS:
             continue
         # The mark counts lines from 0 within the block; the block starts on document line 2.
-        line = LineNumber(key_node.start_mark.line + _FIRST_BLOCK_LINE)
+        line = LineNumber.parse(key_node.start_mark.line + _FIRST_BLOCK_LINE)
         keys.append(FrontmatterKey(name=key_node.value, line=line))
     return tuple(keys)

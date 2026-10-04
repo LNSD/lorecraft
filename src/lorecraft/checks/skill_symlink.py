@@ -20,7 +20,7 @@ from lorecraft.vfs import RootExit
 from .reporting import Note, NoteKind, Violation
 from .skill import SkillCheckResult
 
-_FIRST_LINE: Final[LineNumber] = LineNumber(1)
+_FIRST_LINE: Final[LineNumber] = LineNumber.parse(1)
 """Where the violation is reported: a symlink has no lines, so the finding is about the whole entry."""
 
 

@@ -345,7 +345,7 @@ class TestDatabaseSkillResources:
         document = database.skill_resource_parse(source)
 
         #: Then
-        assert document.links == (MarkdownLink(url='../../SKILL.md', line=LineNumber(3)),), (
+        assert document.links == (MarkdownLink(url='../../SKILL.md', line=LineNumber.parse(3)),), (
             'the ref names the resource through the symlink, and the tree is parsed from shared/guides/deeper/d.md'
         )
 

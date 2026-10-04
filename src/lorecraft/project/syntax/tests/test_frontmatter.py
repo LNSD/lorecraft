@@ -41,8 +41,8 @@ class TestDecodeFrontmatter:
         #: Then
         assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
         assert node.keys == (
-            FrontmatterKey('name', LineNumber(2)),
-            FrontmatterKey('type', LineNumber(4)),
+            FrontmatterKey('name', LineNumber.parse(2)),
+            FrontmatterKey('type', LineNumber.parse(4)),
         ), 'each key carries its document line, counting the opening delimiter as line 1'
 
     def test_decode_frontmatter_with_crlf_line_endings_returns_each_key_on_its_document_line(self) -> None:
@@ -55,8 +55,8 @@ class TestDecodeFrontmatter:
         #: Then
         assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
         assert node.keys == (
-            FrontmatterKey('name', LineNumber(2)),
-            FrontmatterKey('type', LineNumber(3)),
+            FrontmatterKey('name', LineNumber.parse(2)),
+            FrontmatterKey('type', LineNumber.parse(3)),
         ), 'a CRLF line ending counts as one line break'
 
     def test_decode_frontmatter_with_quoted_keys_returns_each_key_by_its_decoded_name(self) -> None:
@@ -69,8 +69,8 @@ class TestDecodeFrontmatter:
         #: Then
         assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
         assert node.keys == (
-            FrontmatterKey('name', LineNumber(2)),
-            FrontmatterKey('type', LineNumber(3)),
+            FrontmatterKey('name', LineNumber.parse(2)),
+            FrontmatterKey('type', LineNumber.parse(3)),
         ), 'a quoted key is found by the name YAML decodes it to, whatever the quotes'
 
     def test_decode_frontmatter_with_a_non_string_key_leaves_it_out_of_the_keys(self) -> None:
@@ -82,7 +82,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
-        assert node.keys == (FrontmatterKey('name', LineNumber(3)),), 'only keys written as strings are listed'
+        assert node.keys == (FrontmatterKey('name', LineNumber.parse(3)),), 'only keys written as strings are listed'
 
     def test_decode_frontmatter_with_a_key_repeated_with_the_same_value_lists_every_occurrence(self) -> None:
         #: Given
@@ -94,9 +94,9 @@ class TestDecodeFrontmatter:
         #: Then
         assert isinstance(node, Frontmatter), f'a mapping that repeats a key is still frontmatter, got {node!r}'
         assert node.keys == (
-            FrontmatterKey('name', LineNumber(2)),
-            FrontmatterKey('type', LineNumber(3)),
-            FrontmatterKey('name', LineNumber(4)),
+            FrontmatterKey('name', LineNumber.parse(2)),
+            FrontmatterKey('type', LineNumber.parse(3)),
+            FrontmatterKey('name', LineNumber.parse(4)),
         ), 'a key written twice is listed once per occurrence, in document order'
 
     def test_decode_frontmatter_with_a_key_repeated_with_another_value_keeps_the_last_value(self) -> None:
@@ -110,9 +110,9 @@ class TestDecodeFrontmatter:
         assert node == Frontmatter(
             data={'name': 'other', 'type': 'rule'},
             keys=(
-                FrontmatterKey('name', LineNumber(2)),
-                FrontmatterKey('type', LineNumber(3)),
-                FrontmatterKey('name', LineNumber(4)),
+                FrontmatterKey('name', LineNumber.parse(2)),
+                FrontmatterKey('type', LineNumber.parse(3)),
+                FrontmatterKey('name', LineNumber.parse(4)),
             ),
         ), 'the data holds the value of the last occurrence, and the keys list every occurrence'
 
@@ -127,8 +127,8 @@ class TestDecodeFrontmatter:
         assert node == Frontmatter(
             data={'name': 'guide', '=': 1},
             keys=(
-                FrontmatterKey('name', LineNumber(2)),
-                FrontmatterKey('=', LineNumber(3)),
+                FrontmatterKey('name', LineNumber.parse(2)),
+                FrontmatterKey('=', LineNumber.parse(3)),
             ),
         ), 'a plain `=` key, which YAML tags as a value key, decodes to a string key and is listed with its line'
 
@@ -143,8 +143,8 @@ class TestDecodeFrontmatter:
         assert node == Frontmatter(
             data={'=': 'b'},
             keys=(
-                FrontmatterKey('=', LineNumber(2)),
-                FrontmatterKey('=', LineNumber(3)),
+                FrontmatterKey('=', LineNumber.parse(2)),
+                FrontmatterKey('=', LineNumber.parse(3)),
             ),
         ), 'a `=` key written twice is listed once per occurrence, like any other key'
 
@@ -159,10 +159,12 @@ class TestDecodeFrontmatter:
         assert isinstance(node, Frontmatter), f'a mapping that repeats a key is still frontmatter, got {node!r}'
         assert node.data == {'name': 'guide'}, 'the key tagged `!!value` decodes to the same string, and its value wins'
         assert node.keys == (
-            FrontmatterKey('name', LineNumber(2)),
-            FrontmatterKey('name', LineNumber(3)),
+            FrontmatterKey('name', LineNumber.parse(2)),
+            FrontmatterKey('name', LineNumber.parse(3)),
         ), 'a key tagged `!!value` is listed as the string it decodes to'
-        assert node.find_key_line('name') == LineNumber(3), 'the line of the key is the one whose value the data holds'
+        assert node.find_key_line('name') == LineNumber.parse(3), (
+            'the line of the key is the one whose value the data holds'
+        )
 
     def test_decode_frontmatter_with_a_merge_overriding_a_written_key_lists_only_the_written_keys(self) -> None:
         #: Given
@@ -175,8 +177,8 @@ class TestDecodeFrontmatter:
         assert node == Frontmatter(
             data={'name': 'review', 'license': 'MIT', 'description': 'd'},
             keys=(
-                FrontmatterKey('name', LineNumber(2)),
-                FrontmatterKey('description', LineNumber(3)),
+                FrontmatterKey('name', LineNumber.parse(2)),
+                FrontmatterKey('description', LineNumber.parse(3)),
             ),
         ), 'the keys are the ones the mapping writes, in document order; the data holds the merge as PyYAML gives it'
 
@@ -190,8 +192,8 @@ class TestDecodeFrontmatter:
         #: Then
         assert isinstance(node, Frontmatter), f'a mapping with a merge is still frontmatter, got {node!r}'
         assert node.keys == (
-            FrontmatterKey('base', LineNumber(2)),
-            FrontmatterKey('name', LineNumber(5)),
+            FrontmatterKey('base', LineNumber.parse(2)),
+            FrontmatterKey('name', LineNumber.parse(5)),
         ), 'neither the merge key nor the keys it brings in are listed, only the ones the mapping writes'
 
     def test_decode_frontmatter_with_invalid_yaml_returns_the_parsers_problem_and_line(self) -> None:
@@ -203,7 +205,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="expected ',' or ']', but got '<stream end>'", line=LineNumber(3)
+            problem="expected ',' or ']', but got '<stream end>'", line=LineNumber.parse(3)
         ), 'the parser names the problem, and the document line it stopped on follows the opening delimiter'
 
     def test_decode_frontmatter_with_a_control_character_returns_invalid_yaml_on_its_line(self) -> None:
@@ -214,7 +216,7 @@ class TestDecodeFrontmatter:
         node = decode_frontmatter(block)
 
         #: Then
-        assert node == InvalidYamlFrontmatter(problem='special characters are not allowed', line=LineNumber(2)), (
+        assert node == InvalidYamlFrontmatter(problem='special characters are not allowed', line=LineNumber.parse(2)), (
             'a character the reader refuses is a finding on its line, not a crash'
         )
 
@@ -229,7 +231,7 @@ class TestDecodeFrontmatter:
         node = decode_frontmatter(block)
 
         #: Then
-        assert node == InvalidYamlFrontmatter(problem='special characters are not allowed', line=LineNumber(3)), (
+        assert node == InvalidYamlFrontmatter(problem='special characters are not allowed', line=LineNumber.parse(3)), (
             'the line counts every line break before the refused character'
         )
 
@@ -245,7 +247,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='found an escape sequence that names no Unicode character', line=LineNumber(4)
+            problem='found an escape sequence that names no Unicode character', line=LineNumber.parse(4)
         ), 'an escape that names no character is a finding on its own line, not a crash'
 
     def test_decode_frontmatter_with_an_escape_just_beyond_unicode_returns_invalid_yaml_on_its_line(self) -> None:
@@ -258,7 +260,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='found an escape sequence that names no Unicode character', line=LineNumber(3)
+            problem='found an escape sequence that names no Unicode character', line=LineNumber.parse(3)
         ), 'an escape one above the last code point is a finding on its line, not a crash'
 
     def test_decode_frontmatter_with_a_yaml_version_too_long_to_read_returns_invalid_yaml_on_its_line(self) -> None:
@@ -272,7 +274,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='found a YAML version number too long to read', line=LineNumber(2)
+            problem='found a YAML version number too long to read', line=LineNumber.parse(2)
         ), 'a version number too long to read is a finding on the directive line, not a crash'
 
     def test_decode_frontmatter_with_flow_collections_nested_too_deeply_returns_invalid_yaml_with_no_line(
@@ -320,7 +322,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="could not construct a value for the tag 'tag:yaml.org,2002:int'", line=LineNumber(3)
+            problem="could not construct a value for the tag 'tag:yaml.org,2002:int'", line=LineNumber.parse(3)
         ), 'a value the int tag cannot construct is a finding on its line, not a crash'
 
     def test_decode_frontmatter_with_an_int_tagged_key_that_is_not_an_int_returns_invalid_yaml_on_its_line(
@@ -334,7 +336,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="could not construct a value for the tag 'tag:yaml.org,2002:int'", line=LineNumber(3)
+            problem="could not construct a value for the tag 'tag:yaml.org,2002:int'", line=LineNumber.parse(3)
         ), 'a key the int tag cannot construct is a finding on its line, not a crash'
 
     def test_decode_frontmatter_with_an_empty_int_tagged_value_returns_invalid_yaml_on_its_line(self) -> None:
@@ -346,7 +348,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="could not construct a value for the tag 'tag:yaml.org,2002:int'", line=LineNumber(3)
+            problem="could not construct a value for the tag 'tag:yaml.org,2002:int'", line=LineNumber.parse(3)
         ), 'empty text under the int tag is a finding on its line, not a crash'
 
     def test_decode_frontmatter_with_a_bool_tagged_value_that_is_not_a_bool_returns_invalid_yaml_on_its_line(
@@ -360,7 +362,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="could not construct a value for the tag 'tag:yaml.org,2002:bool'", line=LineNumber(3)
+            problem="could not construct a value for the tag 'tag:yaml.org,2002:bool'", line=LineNumber.parse(3)
         ), 'a value the bool tag cannot construct is a finding on its line, not a crash'
 
     def test_decode_frontmatter_with_a_bool_tagged_key_that_is_not_a_bool_returns_invalid_yaml_on_its_line(
@@ -374,7 +376,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="could not construct a value for the tag 'tag:yaml.org,2002:bool'", line=LineNumber(3)
+            problem="could not construct a value for the tag 'tag:yaml.org,2002:bool'", line=LineNumber.parse(3)
         ), 'a key the bool tag cannot construct is a finding on its line, not a crash'
 
     def test_decode_frontmatter_with_a_float_tagged_value_that_is_not_a_float_returns_invalid_yaml_on_its_line(
@@ -388,7 +390,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="could not construct a value for the tag 'tag:yaml.org,2002:float'", line=LineNumber(3)
+            problem="could not construct a value for the tag 'tag:yaml.org,2002:float'", line=LineNumber.parse(3)
         ), 'a value the float tag cannot construct is a finding on its line, not a crash'
 
     def test_decode_frontmatter_with_a_float_tagged_key_that_is_not_a_float_returns_invalid_yaml_on_its_line(
@@ -402,7 +404,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="could not construct a value for the tag 'tag:yaml.org,2002:float'", line=LineNumber(3)
+            problem="could not construct a value for the tag 'tag:yaml.org,2002:float'", line=LineNumber.parse(3)
         ), 'a key the float tag cannot construct is a finding on its line, not a crash'
 
     def test_decode_frontmatter_with_a_timestamp_tagged_value_that_is_not_a_date_returns_invalid_yaml_on_its_line(
@@ -416,7 +418,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="could not construct a value for the tag 'tag:yaml.org,2002:timestamp'", line=LineNumber(3)
+            problem="could not construct a value for the tag 'tag:yaml.org,2002:timestamp'", line=LineNumber.parse(3)
         ), 'a value the timestamp tag cannot construct is a finding on its line, not a crash'
 
     def test_decode_frontmatter_with_a_timestamp_tagged_key_that_is_not_a_date_returns_invalid_yaml_on_its_line(
@@ -430,7 +432,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="could not construct a value for the tag 'tag:yaml.org,2002:timestamp'", line=LineNumber(3)
+            problem="could not construct a value for the tag 'tag:yaml.org,2002:timestamp'", line=LineNumber.parse(3)
         ), 'a key the timestamp tag cannot construct is a finding on its line, not a crash'
 
     def test_decode_frontmatter_with_a_timestamp_tagged_mapping_returns_invalid_yaml_on_its_line(self) -> None:
@@ -442,7 +444,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="could not construct a value for the tag 'tag:yaml.org,2002:timestamp'", line=LineNumber(3)
+            problem="could not construct a value for the tag 'tag:yaml.org,2002:timestamp'", line=LineNumber.parse(3)
         ), 'a mapping under the timestamp tag, read through its `=` key, is a finding on its line, not a crash'
 
     def test_decode_frontmatter_with_an_untagged_date_out_of_range_returns_invalid_yaml_on_its_line(self) -> None:
@@ -454,7 +456,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="could not construct a value for the tag 'tag:yaml.org,2002:timestamp'", line=LineNumber(3)
+            problem="could not construct a value for the tag 'tag:yaml.org,2002:timestamp'", line=LineNumber.parse(3)
         ), 'a plain scalar YAML reads as a date, with no such month, is a finding on its line, not a crash'
 
     def test_decode_frontmatter_with_a_yaml_list_returns_non_mapping(self) -> None:
@@ -506,30 +508,30 @@ class TestDecodeFrontmatter:
 class TestFrontmatterFindKeyLine:
     def test_find_key_line_with_a_present_key_returns_its_line(self) -> None:
         #: Given
-        frontmatter = Frontmatter(data={'type': 'rule'}, keys=(FrontmatterKey('type', LineNumber(3)),))
+        frontmatter = Frontmatter(data={'type': 'rule'}, keys=(FrontmatterKey('type', LineNumber.parse(3)),))
 
         #: When
         line = frontmatter.find_key_line('type')
 
         #: Then
-        assert line == LineNumber(3), f'the type key is on line 3, got {line}'
+        assert line == LineNumber.parse(3), f'the type key is on line 3, got {line}'
 
     def test_find_key_line_with_a_repeated_key_returns_the_line_of_its_last_occurrence(self) -> None:
         #: Given
         frontmatter = Frontmatter(
             data={'name': 'other'},
-            keys=(FrontmatterKey('name', LineNumber(2)), FrontmatterKey('name', LineNumber(5))),
+            keys=(FrontmatterKey('name', LineNumber.parse(2)), FrontmatterKey('name', LineNumber.parse(5))),
         )
 
         #: When
         line = frontmatter.find_key_line('name')
 
         #: Then
-        assert line == LineNumber(5), f'the last occurrence is the one whose value the data holds, got {line}'
+        assert line == LineNumber.parse(5), f'the last occurrence is the one whose value the data holds, got {line}'
 
     def test_find_key_line_with_an_absent_key_returns_none(self) -> None:
         #: Given
-        frontmatter = Frontmatter(data={'type': 'rule'}, keys=(FrontmatterKey('type', LineNumber(3)),))
+        frontmatter = Frontmatter(data={'type': 'rule'}, keys=(FrontmatterKey('type', LineNumber.parse(3)),))
 
         #: When
         line = frontmatter.find_key_line('name')
