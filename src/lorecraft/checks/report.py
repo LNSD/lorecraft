@@ -13,25 +13,11 @@ This module is the rules engine's report. `reporting` beside it is the per-check
 """
 
 from dataclasses import dataclass
-from enum import Enum
 from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.rules.declaration import Rule, Severity
 from lorecraft.rules.location import Here, WholeSubject
-from lorecraft.rules.rule import Rule
-
-
-class Severity(Enum):
-    """How a diagnostic is reported; the value is the word the output spells it with.
-
-    A severity is not a `Level`: a rule at `allow` does not run, so it reports nothing, and a diagnostic carries one
-    of two severities where a level has three values.
-    """
-
-    ERROR = 'error'
-    """The diagnostic fails the run."""
-    WARNING = 'warning'
-    """The diagnostic is reported, and the run still passes."""
 
 
 @dataclass(frozen=True, slots=True)

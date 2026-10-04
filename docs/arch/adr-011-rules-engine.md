@@ -258,7 +258,7 @@ src/lorecraft/rules/
 ├── inputs.py            # the input kinds a rule reads
 ├── registry.py
 └── <group>/
-    ├── __init__.py      # the group: its prefix and title
+    ├── __ruleset__.py   # the group: its prefix and title, and what its rules share
     ├── <rule>.py        # one rule: its class, with its docstring and its check
     └── tests/
 

@@ -5,11 +5,11 @@ from typing import ClassVar, Final, Self
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
+from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.inputs import TokenCountInput, TokenCountRule
 from lorecraft.rules.location import Elsewhere, Help, Note, Subdiagnostic
-from lorecraft.rules.rule import Level, Release, RuleCode, RuleName, rule
 
-from . import LENGTH
+from .__ruleset__ import GROUP_ID
 
 _FIRST_LINE: Final[LineNumber] = LineNumber.parse(1)
 """Where an occurrence is reported. A budget concerns the whole file, not one of its lines, but a document's
@@ -79,7 +79,7 @@ class TooManyTokens(TokenCountRule):
         budget: The budget it exceeds, in tokens.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(LENGTH, 1)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 1)
     NAME: ClassVar[RuleName] = RuleName('too-many-tokens')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

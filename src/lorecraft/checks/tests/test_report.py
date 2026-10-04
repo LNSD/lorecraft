@@ -4,12 +4,13 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
+from lorecraft.rules.declaration import Severity
 from lorecraft.rules.tests.sample_rules.rendered_message.long_line import LongLine
 from lorecraft.rules.tests.sample_rules.valid.outline.empty_line import EmptyLine
 from lorecraft.rules.tests.sample_rules.valid.trailing_space import TrailingSpace
 from lorecraft.rules.tests.sample_rules.valid.uppercase_entry import UppercaseEntry
 
-from ..report import Diagnostic, Severity, diagnostic_order
+from ..report import Diagnostic, diagnostic_order
 
 
 @pytest.mark.unit
