@@ -48,7 +48,7 @@ def validate_budget(structure_specs: tuple[StructureSpec, ...], *, token_count: 
     """
     violations: list[Violation] = []
     for structure_spec in structure_specs:
-        if structure_spec.tokens is None or token_count <= structure_spec.tokens:
+        if structure_spec.tokens is None or token_count <= structure_spec.tokens.value:
             continue
         message = f'{token_count} tokens; the budget is {structure_spec.tokens} (per {structure_spec.path.name})'
         violations.append(Violation(line=_FIRST_LINE, rule='budget.tokens', message=message, spec=structure_spec.path))

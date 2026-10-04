@@ -100,9 +100,6 @@ def load_workspace(
         StructureSchemaReadError: If any structure specification cannot be read.
         StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
         EmptyStructureSpecError: If a structure specification states no rule.
-        InvalidTitleCountError: If a title count is below 1.
-        InvalidTokenBudgetError: If a token budget is below 1.
-        InvalidWordCapError: If an outline word cap is below 1.
         RepeatedOutlineSectionError: If an outline names a section twice.
         ForbiddenOutlineSectionError: If a specification forbids a section its outline names.
         AdjacentAnyRunsError: If an outline places two `any` runs side by side.
@@ -172,9 +169,6 @@ def load_model(fs: FileSystem, *, named_dirs: tuple[RootRelativePath, ...] = ())
         StructureSchemaReadError: If any structure specification cannot be read.
         StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
         EmptyStructureSpecError: If a structure specification states no rule.
-        InvalidTitleCountError: If a title count is below 1.
-        InvalidTokenBudgetError: If a token budget is below 1.
-        InvalidWordCapError: If an outline word cap is below 1.
         RepeatedOutlineSectionError: If an outline names a section twice.
         ForbiddenOutlineSectionError: If a specification forbids a section its outline names.
         AdjacentAnyRunsError: If an outline places two `any` runs side by side.
@@ -243,9 +237,6 @@ def _load_corpus(
         StructureSchemaReadError: If a structure specification cannot be read.
         StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
         EmptyStructureSpecError: If a structure specification states no rule.
-        InvalidTitleCountError: If a title count is below 1.
-        InvalidTokenBudgetError: If a token budget is below 1.
-        InvalidWordCapError: If an outline word cap is below 1.
         RepeatedOutlineSectionError: If an outline names a section twice.
         ForbiddenOutlineSectionError: If a specification forbids a section its outline names.
         AdjacentAnyRunsError: If an outline places two `any` runs side by side.
@@ -306,9 +297,6 @@ def _load_structure(schemas: SchemaRepository, name: SpecName, spec_files: list[
         StructureSchemaReadError: If the structure specification cannot be read.
         StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
         EmptyStructureSpecError: If a structure specification states no rule.
-        InvalidTitleCountError: If a title count is below 1.
-        InvalidTokenBudgetError: If a token budget is below 1.
-        InvalidWordCapError: If an outline word cap is below 1.
         RepeatedOutlineSectionError: If an outline names a section twice.
         ForbiddenOutlineSectionError: If a specification forbids a section its outline names.
         AdjacentAnyRunsError: If an outline places two `any` runs side by side.

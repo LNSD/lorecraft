@@ -247,9 +247,6 @@ def run_frontmatter(database: Database, refs: tuple[DocumentRef, ...]) -> CheckR
         StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in the
             dialect's shape.
         EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
-        InvalidTitleCountError: If the model is not loaded yet and a title count is below 1.
-        InvalidTokenBudgetError: If the model is not loaded yet and a token budget is below 1.
-        InvalidWordCapError: If the model is not loaded yet and an outline word cap is below 1.
         RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
         ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
             outline names.
@@ -308,9 +305,6 @@ def run_structure(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun
         StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in the
             dialect's shape.
         EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
-        InvalidTitleCountError: If the model is not loaded yet and a title count is below 1.
-        InvalidTokenBudgetError: If the model is not loaded yet and a token budget is below 1.
-        InvalidWordCapError: If the model is not loaded yet and an outline word cap is below 1.
         RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
         ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
             outline names.
@@ -369,9 +363,6 @@ def run_budget(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
         StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in the
             dialect's shape.
         EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
-        InvalidTitleCountError: If the model is not loaded yet and a title count is below 1.
-        InvalidTokenBudgetError: If the model is not loaded yet and a token budget is below 1.
-        InvalidWordCapError: If the model is not loaded yet and an outline word cap is below 1.
         RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
         ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
             outline names.

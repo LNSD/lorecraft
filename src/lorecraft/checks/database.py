@@ -188,9 +188,6 @@ class Database:
             StructureSchemaReadError: If any structure specification cannot be read.
             StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
             EmptyStructureSpecError: If a structure specification states no rule.
-            InvalidTitleCountError: If a title count is below 1.
-            InvalidTokenBudgetError: If a token budget is below 1.
-            InvalidWordCapError: If an outline word cap is below 1.
             RepeatedOutlineSectionError: If an outline names a section twice.
             ForbiddenOutlineSectionError: If a specification forbids a section its outline names.
             AdjacentAnyRunsError: If an outline places two `any` runs side by side.
@@ -469,9 +466,6 @@ class Database:
             StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in
                 the dialect's shape.
             EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
-            InvalidTitleCountError: If the model is not loaded yet and a title count is below 1.
-            InvalidTokenBudgetError: If the model is not loaded yet and a token budget is below 1.
-            InvalidWordCapError: If the model is not loaded yet and an outline word cap is below 1.
             RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
             ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
                 outline names.
@@ -535,9 +529,6 @@ class Database:
             StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in
                 the dialect's shape.
             EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
-            InvalidTitleCountError: If the model is not loaded yet and a title count is below 1.
-            InvalidTokenBudgetError: If the model is not loaded yet and a token budget is below 1.
-            InvalidWordCapError: If the model is not loaded yet and an outline word cap is below 1.
             RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
             ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
                 outline names.
