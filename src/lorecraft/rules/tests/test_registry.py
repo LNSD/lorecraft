@@ -3,25 +3,36 @@
 import pytest
 
 from ..registry import (
+    AbstractRuleError,
+    ConflictingRuleGroupError,
     DuplicateAliasCodeError,
     DuplicateRuleCodeError,
     DuplicateRuleNameError,
     Registry,
+    UnsetRuleAttributeError,
     package_registry,
 )
 from .sample_rules import (
+    abstract_rule,
     alias_as_code,
+    conflicting_group,
     duplicate_alias,
     duplicate_code,
     duplicate_name,
     import_failure,
+    unset_attribute,
+    unset_removed_attribute,
 )
 from .sample_rules import valid as valid_rules
+from .sample_rules.abstract_rule.unchecked import Unchecked
 from .sample_rules.alias_as_code.aliased import Lookalike, Original
+from .sample_rules.conflicting_group.retitled import Retitled, Titled
 from .sample_rules.duplicate_alias.aliased import FirstAliased, SecondAliased
 from .sample_rules.duplicate_code.first import FirstRule
 from .sample_rules.duplicate_code.second import SecondRule
 from .sample_rules.duplicate_name.shared import InService, Retired
+from .sample_rules.unset_attribute.unreleased import Unreleased
+from .sample_rules.unset_removed_attribute.unreplaced import Unreplaced
 from .sample_rules.valid.outline.empty_line import EmptyLine
 from .sample_rules.valid.retired import TabIndent
 from .sample_rules.valid.trailing_space import TrailingSpace
@@ -111,6 +122,55 @@ class TestRegistryLoad:
         assert exc_info.value.code == 'SMP001', 'the error names the alias code that is also a code'
         assert exc_info.value.first is Original, 'the rule with the code holds it'
         assert exc_info.value.second is Lookalike, 'the rule listing it as an alias code bound it again'
+
+    def test_load_with_a_rule_without_check_raises_abstract_rule_error(self) -> None:
+        #: Given
+        package = abstract_rule
+
+        #: When
+        with pytest.raises(AbstractRuleError) as exc_info:
+            Registry.load(package)
+
+        #: Then
+        assert exc_info.value.declaration is Unchecked, 'the error names the abstract rule class'
+        assert exc_info.value.missing == ('check',), 'the error names the method it does not implement'
+
+    def test_load_with_a_rule_without_since_raises_unset_rule_attribute_error(self) -> None:
+        #: Given
+        package = unset_attribute
+
+        #: When
+        with pytest.raises(UnsetRuleAttributeError) as exc_info:
+            Registry.load(package)
+
+        #: Then
+        assert exc_info.value.declaration is Unreleased, 'the error names the rule missing the attribute'
+        assert exc_info.value.attribute == 'SINCE', 'the error names the attribute it leaves unbound'
+
+    def test_load_with_a_removed_rule_without_replaced_by_raises_unset_rule_attribute_error(self) -> None:
+        #: Given
+        package = unset_removed_attribute
+
+        #: When
+        with pytest.raises(UnsetRuleAttributeError) as exc_info:
+            Registry.load(package)
+
+        #: Then
+        assert exc_info.value.declaration is Unreplaced, 'the error names the removed rule missing the attribute'
+        assert exc_info.value.attribute == 'REPLACED_BY', 'the error names the attribute it leaves unbound'
+
+    def test_load_with_one_prefix_given_two_titles_raises_conflicting_rule_group_error(self) -> None:
+        #: Given
+        package = conflicting_group
+
+        #: When
+        with pytest.raises(ConflictingRuleGroupError) as exc_info:
+            Registry.load(package)
+
+        #: Then
+        assert exc_info.value.prefix == 'SMP', 'the error names the prefix given two groups'
+        assert exc_info.value.first is Titled, 'the rule earlier in code order bound the prefix first'
+        assert exc_info.value.second is Retitled, 'the later rule gave it another title'
 
     def test_load_with_a_module_that_fails_to_import_propagates_the_failure(self) -> None:
         #: Given
