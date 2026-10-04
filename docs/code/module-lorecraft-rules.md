@@ -55,6 +55,8 @@ in `lorecraft.checks`, so a rule has nothing to read but the input it is handed.
   checked the subject supplies the path.
 - The registry is package data: it reads no workspace and is not a query, and it holds this package's rules,
   never a rule its unit tests declare.
+- The registry is built once, with `Registry.load`, where a command starts, and passed down to what reads it.
+  Nothing below that composition root imports a registry instance or memoizes one.
 - A code bound twice, a declaration left incomplete, a group, code or alias code written out of form, or a code
   in a group its kind may not use is a defect in this package. It is raised when the package loads, never reported
   as the user's fault.
