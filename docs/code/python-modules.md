@@ -23,13 +23,13 @@ alongside a package `outline/` in the same parent.
 When both exist, the package wins import resolution unconditionally. The module is unreachable — but it is
 still a file in the tree that a reader finds, a grep hits, and a reviewer edits, and its imports are still
 scanned by tooling. It is dead code wearing a live name, and the usual signal for dead code (nothing imports
-it) is absent, because `from lorecraft.project.outline import X` looks exactly like an import of it.
+it) is absent, because `from lorecraft.project.syntax.outline import X` looks exactly like an import of it.
 
 ```
-# ❌ Bad — outline.py is unreachable; `from lorecraft.project.checks.outline import OutlineReport`
+# ❌ Bad — outline.py is unreachable; `from lorecraft.project.syntax.outline import OutlineReport`
 # resolves into the package, so edits to the module change nothing and the failure
 # is a confusing ImportError naming a symbol that is plainly right there
-lorecraft/project/checks/
+lorecraft/project/syntax/
     outline.py
     outline/
         __init__.py
@@ -38,7 +38,7 @@ lorecraft/project/checks/
 
 ```
 # ✅ Good — one name, one location
-lorecraft/project/checks/
+lorecraft/project/syntax/
     outline/
         __init__.py
         parser.py
@@ -123,12 +123,12 @@ the top is worth a second look: what it needs may belong closer to it.
 ```python
 # ❌ Bad — unreadable at the use site, and it breaks without an error the day this
 # module is nested one level deeper
-from ...registry import CheckerRegistry
+from ...grammar import BlockGrammar
 ```
 
 ```python
 # ✅ Good — the same module, named from the root
-from lorecraft.project.checks.registry import CheckerRegistry
+from lorecraft.project.syntax.grammar import BlockGrammar
 ```
 
 ## 5. `__all__` Declares a Package's Surface
@@ -142,7 +142,7 @@ in the diff: deleting a public name shows up as a line removed from `__all__`, n
 longer importable.
 
 ```python
-# ❌ Bad — `from lorecraft.project.checks.outline import *` now also exports `parser`, `report`,
+# ❌ Bad — `from lorecraft.project.syntax.outline import *` now also exports `parser`, `report`,
 # `logging`, and every name those modules re-exported. A later refactor that stops
 # importing `logging` here is a breaking change nobody noticed making
 from .parser import OutlineParser, split_heading
