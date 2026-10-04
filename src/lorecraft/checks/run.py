@@ -25,7 +25,7 @@ from pathlib import PurePosixPath
 from typing import Literal, assert_never
 
 from lorecraft.core.path import RootRelativePath, RootRelativePathError
-from lorecraft.project.document import DocumentDecodeError, DocumentRef
+from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import SKILL_FRONTMATTER_SCHEMA, StructureSpec
 from lorecraft.project.skill import (
     OutsideSymlink,
@@ -62,6 +62,7 @@ from .skill_metadata import (
 )
 from .skill_symlink import validate_outside_symlink
 from .structure import validate_structure
+from .text import DocumentText, Undecodable
 
 
 @dataclass(frozen=True, slots=True)
@@ -283,17 +284,17 @@ def run_frontmatter(database: Database, refs: tuple[DocumentRef, ...]) -> CheckR
         if not schemas:
             reports.append(UngovernedDocumentReport(ref))
             continue
-        frontmatter = _frontmatter(database, ref)
-        match frontmatter:
-            case DocumentDecodeError():
+        source = database.text(ref)
+        match source:
+            case Undecodable():
                 reports.append(GovernedDocumentReport(ref, violations=(_undecodable('frontmatter'),)))
-            case Frontmatter() | MissingFrontmatter() | InvalidYamlFrontmatter() | NonMappingFrontmatter():
+            case DocumentText():
                 result = validate_frontmatter(
-                    schemas, frontmatter=frontmatter, filename=ref.filename, corpus=ref.corpus
+                    schemas, frontmatter=database.frontmatter(source), filename=ref.filename, corpus=ref.corpus
                 )
                 reports.append(GovernedDocumentReport(ref, violations=result.violations))
             case _:
-                assert_never(frontmatter)
+                assert_never(source)
     return CheckRun(reports=tuple(reports))
 
 
@@ -344,15 +345,15 @@ def run_structure(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun
         if not structure_specs:
             reports.append(UngovernedDocumentReport(ref))
             continue
-        document = _parse(database, ref)
-        match document:
-            case DocumentDecodeError():
+        source = database.text(ref)
+        match source:
+            case Undecodable():
                 reports.append(GovernedDocumentReport(ref, violations=(_undecodable('structure'),)))
-            case ParsedDocument():
-                result = validate_structure(structure_specs, headings=document.headings)
+            case DocumentText():
+                result = validate_structure(structure_specs, headings=database.parse(source).headings)
                 reports.append(GovernedDocumentReport(ref, violations=result.violations))
             case _:
-                assert_never(document)
+                assert_never(source)
     return CheckRun(reports=tuple(reports))
 
 
@@ -405,15 +406,15 @@ def run_budget(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
         if not structure_specs:
             reports.append(UngovernedDocumentReport(ref))
             continue
-        token_count = _tokens(database, ref)
-        match token_count:
-            case DocumentDecodeError():
+        source = database.text(ref)
+        match source:
+            case Undecodable():
                 reports.append(GovernedDocumentReport(ref, violations=(_undecodable('budget'),)))
-            case int():
-                result = validate_budget(structure_specs, token_count=token_count)
+            case DocumentText():
+                result = validate_budget(structure_specs, token_count=database.tokens(source))
                 reports.append(GovernedDocumentReport(ref, violations=result.violations))
             case _:
-                assert_never(token_count)
+                assert_never(source)
     return CheckRun(reports=tuple(reports))
 
 
@@ -707,69 +708,6 @@ def _budgeted(structure_specs: tuple[StructureSpec, ...]) -> tuple[StructureSpec
         if structure_spec.tokens is not None:
             budgeted.append(structure_spec)
     return tuple(budgeted)
-
-
-def _frontmatter(database: Database, ref: DocumentRef) -> FrontmatterNode | DocumentDecodeError:
-    """The document's frontmatter node, or the decode failure when its bytes are not UTF-8.
-
-    Args:
-        database: Where the frontmatter is read and cached.
-        ref: Document whose frontmatter is wanted; its bytes are decoded once, by the database.
-
-    Returns:
-        The frontmatter node, or the decode failure when the document is present but not UTF-8: such bytes are on
-        the same side of the line as invalid YAML, since the document is wrong, so the caller reports a finding
-        rather than taking the exit-2 path an unreadable file takes.
-
-    Raises:
-        DocumentReadError: If the document is missing from the snapshot; a decode failure is not raised.
-    """
-    try:
-        return database.frontmatter(ref)
-    except DocumentDecodeError as exc:
-        return exc
-
-
-def _parse(database: Database, ref: DocumentRef) -> ParsedDocument | DocumentDecodeError:
-    """The document's parse tree, or the decode failure when its bytes are not UTF-8.
-
-    Args:
-        database: Where the parse tree is read and cached.
-        ref: Document whose parse tree is wanted; parsed once, by the database.
-
-    Returns:
-        The parse tree, or the decode failure when the document is present but not UTF-8: such bytes are on the same
-        side of the line as invalid YAML, since the document is wrong, so the caller reports a finding rather than
-        taking the exit-2 path an unreadable file takes.
-
-    Raises:
-        DocumentReadError: If the document is missing from the snapshot; a decode failure is not raised.
-    """
-    try:
-        return database.parse(ref)
-    except DocumentDecodeError as exc:
-        return exc
-
-
-def _tokens(database: Database, ref: DocumentRef) -> int | DocumentDecodeError:
-    """The tokens in the document's whole file, or the decode failure when its bytes are not UTF-8.
-
-    Args:
-        database: Where the token count is computed and cached.
-        ref: Document whose whole file is counted, frontmatter and code included.
-
-    Returns:
-        The token count, or the decode failure when the document is present but not UTF-8: such bytes are on the same
-        side of the line as invalid YAML, since the document is wrong, so the caller reports a finding rather than
-        taking the exit-2 path an unreadable file takes.
-
-    Raises:
-        DocumentReadError: If the document is missing from the snapshot; a decode failure is not raised.
-    """
-    try:
-        return database.tokens(ref)
-    except DocumentDecodeError as exc:
-        return exc
 
 
 def _skill_frontmatter(database: Database, ref: SkillRef) -> FrontmatterNode | SkillDecodeError:
