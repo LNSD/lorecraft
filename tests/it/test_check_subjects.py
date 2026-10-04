@@ -74,7 +74,7 @@ class OverHalfBudget(TokenCountRule):
         return tuple(
             cls(
                 spec=budget.spec,
-                line=LineNumber.parse(1),
+                line=LineNumber.from_int(1),
                 token_count=subject.token_count.value,
                 budget=budget.tokens.value,
             )
@@ -105,7 +105,7 @@ class EmptyDocument(TokenCountRule):
         """
         if subject.token_count.value > 0:
             return ()
-        return (cls(spec=None, line=LineNumber.parse(1)),)
+        return (cls(spec=None, line=LineNumber.from_int(1)),)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -134,7 +134,7 @@ class AnyTokens(TokenCountRule):
         Args:
             subject: The document's token count, with the budgets that govern it.
         """
-        return (cls(spec=None, line=LineNumber.parse(1), token_count=subject.token_count.value),)
+        return (cls(spec=None, line=LineNumber.from_int(1), token_count=subject.token_count.value),)
 
 
 class CountingDatabase(Database):
@@ -214,7 +214,7 @@ class TestCheckSubjects:
 
         #: Then
         occurrence = TooManyTokens(
-            spec=CODE_SPEC, line=LineNumber.parse(1), token_count=count_tokens(GUIDE_TEXT), budget=5
+            spec=CODE_SPEC, line=LineNumber.from_int(1), token_count=count_tokens(GUIDE_TEXT), budget=5
         )
         assert reports == (
             CheckedSubject(GUIDE, diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),), ungoverned=()),
@@ -305,9 +305,12 @@ class TestCheckSubjects:
 
         #: Then
         over_half = OverHalfBudget(
-            spec=CODE_SPEC, line=LineNumber.parse(1), token_count=token_count_of_guide, budget=token_count_of_guide + 1
+            spec=CODE_SPEC,
+            line=LineNumber.from_int(1),
+            token_count=token_count_of_guide,
+            budget=token_count_of_guide + 1,
         )
-        any_tokens = AnyTokens(spec=None, line=LineNumber.parse(1), token_count=token_count_of_guide)
+        any_tokens = AnyTokens(spec=None, line=LineNumber.from_int(1), token_count=token_count_of_guide)
         assert reports == (
             CheckedSubject(
                 GUIDE,
@@ -328,7 +331,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), sample_table)
 
         #: Then
-        any_tokens = AnyTokens(spec=None, line=LineNumber.parse(1), token_count=0)
+        any_tokens = AnyTokens(spec=None, line=LineNumber.from_int(1), token_count=0)
         assert reports == (
             CheckedSubject(GUIDE, diagnostics=(RuleDiagnostic(GUIDE.path, any_tokens, Severity.ERROR),), ungoverned=()),
         ), 'a rule at allow is not in the table, so only the enabled rules report'

@@ -31,5 +31,5 @@ class EmptyLine(SampleLinesRule):
             subject: The lines judged.
         """
         return tuple(
-            cls(spec=None, line=LineNumber.parse(index + 1)) for index, line in enumerate(subject.lines) if not line
+            cls(spec=None, line=LineNumber.from_int(index + 1)) for index, line in enumerate(subject.lines) if not line
         )

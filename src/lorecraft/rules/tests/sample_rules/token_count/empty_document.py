@@ -33,4 +33,4 @@ class EmptyDocument(TokenCountRule):
         """
         if subject.token_count.value > 0:
             return ()
-        return (cls(spec=None, line=LineNumber.parse(1)),)
+        return (cls(spec=None, line=LineNumber.from_int(1)),)

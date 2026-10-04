@@ -14,7 +14,7 @@ class TestFormatFinding:
         #: Given
         finding = Finding(
             path=RootRelativePath.parse('docs/code/guide.md'),
-            line=LineNumber.parse(3),
+            line=LineNumber.from_int(3),
             rule='frontmatter.name-matches-filename',
             message='`name` is wrong',
         )
@@ -31,7 +31,7 @@ class TestFormatFinding:
         #: Given
         finding = Finding(
             path=RootRelativePath.parse('docs/feat/x.md'),
-            line=LineNumber.parse(1),
+            line=LineNumber.from_int(1),
             rule='structure.outline',
             message='missing required section `Key Concepts`',
             notes=(Note(NoteKind.HELP, 'The terms a reader needs before the rest of the document.'),),
@@ -50,7 +50,7 @@ class TestFormatFinding:
         #: Given
         finding = Finding(
             path=RootRelativePath.parse('docs/feat/x.md'),
-            line=LineNumber.parse(1),
+            line=LineNumber.from_int(1),
             rule='structure.outline',
             message='missing required section `Key Concepts`',
             notes=(Note(NoteKind.NOTE, 'for example:\n## Key Concepts'),),
@@ -70,7 +70,7 @@ class TestFormatFinding:
         #: Given
         finding = Finding(
             path=RootRelativePath.parse('docs/feat/x.md'),
-            line=LineNumber.parse(1),
+            line=LineNumber.from_int(1),
             rule='structure.outline',
             message='missing required section `Key Concepts`',
             notes=(Note(NoteKind.NOTE, 'first\n\nthird'),),
@@ -91,7 +91,7 @@ class TestFormatFinding:
         #: Given
         finding = Finding(
             path=RootRelativePath.parse('docs/feat/x.md'),
-            line=LineNumber.parse(1),
+            line=LineNumber.from_int(1),
             rule='structure.outline',
             message='missing required section `Key Concepts`',
             notes=(Note(NoteKind.NOTE, 'first\nsecond\n'),),
@@ -111,7 +111,7 @@ class TestFormatFinding:
         #: Given
         finding = Finding(
             path=RootRelativePath.parse('docs/feat/x.md'),
-            line=LineNumber.parse(1),
+            line=LineNumber.from_int(1),
             rule='structure.outline',
             message='missing required section `Key Concepts`',
             notes=(Note(NoteKind.NOTE, 'first\r\nsecond'),),
@@ -131,7 +131,7 @@ class TestFormatFinding:
         #: Given
         finding = Finding(
             path=RootRelativePath.parse('docs/feat/x.md'),
-            line=LineNumber.parse(1),
+            line=LineNumber.from_int(1),
             rule='structure.outline',
             message='missing required section `Key Concepts`',
             notes=(Note(NoteKind.NOTE, 'first\n   \nthird'),),
@@ -155,14 +155,16 @@ class TestFindingAt:
         #: Given
         path = RootRelativePath.parse('docs/code/guide.md')
         spec = RootRelativePath.parse('docs/__meta__/code.structure.json')
-        violation = Violation(line=LineNumber.parse(3), rule='structure.outline', message='missing section', spec=spec)
+        violation = Violation(
+            line=LineNumber.from_int(3), rule='structure.outline', message='missing section', spec=spec
+        )
 
         #: When
         finding = Finding.at(path, violation)
 
         #: Then
         assert finding == Finding(
-            path=path, line=LineNumber.parse(3), rule='structure.outline', message='missing section', spec=spec
+            path=path, line=LineNumber.from_int(3), rule='structure.outline', message='missing section', spec=spec
         ), 'a finding is the violation, spec included, located in the document at the path'
 
     def test_finding_at_a_path_with_a_violation_carrying_notes_keeps_them_in_order(self) -> None:
@@ -170,7 +172,7 @@ class TestFindingAt:
         path = RootRelativePath.parse('docs/code/guide.md')
         notes = (Note(NoteKind.HELP, 'what the section holds'), Note(NoteKind.NOTE, 'for example:\n## Checklist'))
         violation = Violation(
-            line=LineNumber.parse(1), rule='structure.outline', message='missing section', notes=notes
+            line=LineNumber.from_int(1), rule='structure.outline', message='missing section', notes=notes
         )
 
         #: When

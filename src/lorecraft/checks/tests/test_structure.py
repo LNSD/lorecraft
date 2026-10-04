@@ -144,7 +144,7 @@ class TestValidateStructure:
 
         #: Then
         assert len(result.violations) == 1, f'one title is expected and two are found, got {result.violations}'
-        assert result.violations[0].line == LineNumber.parse(1), 'the title rule is reported on the first line'
+        assert result.violations[0].line == LineNumber.from_int(1), 'the title rule is reported on the first line'
         assert result.violations[0].rule == 'structure.title', 'a second H1 breaks the title rule'
         assert result.violations[0].message == 'expected 1 H1 title, found 2 (per code.md)', (
             'the message counts the titles found'
@@ -163,7 +163,7 @@ class TestValidateStructure:
         assert len(result.violations) == 1, (
             f'the title must open the document when the rule says it comes first, got {result.violations}'
         )
-        assert result.violations[0].line == LineNumber.parse(1), 'the misplaced title is reported on the first line'
+        assert result.violations[0].line == LineNumber.from_int(1), 'the misplaced title is reported on the first line'
         assert result.violations[0].rule == 'structure.title', 'a section ahead of the H1 breaks the title rule'
         assert result.violations[0].message == 'the H1 title comes before any section (per code.md)', (
             'the message says the title belongs before any section'
@@ -182,7 +182,7 @@ class TestValidateStructure:
         assert len(result.violations) == 1, (
             f'the empty section is reported on the line of its heading, got {result.violations}'
         )
-        assert result.violations[0].line == LineNumber.parse(5), (
+        assert result.violations[0].line == LineNumber.from_int(5), (
             'the empty section is on the line of its heading, after the title and a section'
         )
         assert result.violations[0].rule == 'structure.empty', 'a section without content breaks the empty rule'
@@ -204,7 +204,7 @@ class TestValidateStructure:
         assert len(result.violations) == 1, (
             f'a forbidden section is reported where it is written, got {result.violations}'
         )
-        assert result.violations[0].line == LineNumber.parse(5), (
+        assert result.violations[0].line == LineNumber.from_int(5), (
             'the forbidden section is reported on the line of its heading'
         )
         assert result.violations[0].rule == 'structure.forbidden', (
@@ -251,7 +251,7 @@ class TestValidateStructure:
             'the divergence is reported on the section that sits where the required one belongs, '
             f'got {result.violations}'
         )
-        assert result.violations[0].line == LineNumber.parse(5), (
+        assert result.violations[0].line == LineNumber.from_int(5), (
             'the divergence is on the line of the section that took the place of the required one'
         )
         assert result.violations[0].rule == 'structure.outline', (
@@ -294,7 +294,7 @@ class TestValidateStructure:
         assert len(result.violations) == 1, (
             f'only the first divergence is reported, never the cascade after it, got {result.violations}'
         )
-        assert result.violations[0].line == LineNumber.parse(5), (
+        assert result.violations[0].line == LineNumber.from_int(5), (
             'the first divergence is on the line of the swapped section'
         )
         assert result.violations[0].rule == 'structure.outline', 'swapped sections break the outline rule'
@@ -317,7 +317,7 @@ class TestValidateStructure:
         assert len(result.violations) == 1, (
             f'a named section left over once the outline ends was written out of turn, got {result.violations}'
         )
-        assert result.violations[0].line == LineNumber.parse(9), (
+        assert result.violations[0].line == LineNumber.from_int(9), (
             'the repeated section is reported on the line of its second heading'
         )
         assert result.violations[0].message == 'section `Checklist` is out of order (per code.md)', (
@@ -339,7 +339,7 @@ class TestValidateStructure:
         assert len(result.violations) == 1, (
             f'an unnamed section past the last entry is written past the end of the document, got {result.violations}'
         )
-        assert result.violations[0].line == LineNumber.parse(5), (
+        assert result.violations[0].line == LineNumber.from_int(5), (
             'the unexpected section is reported on the line of its heading'
         )
         assert result.violations[0].message == (
@@ -412,7 +412,7 @@ class TestValidateStructure:
         assert len(result.violations) == 1, (
             f'a named section takes the cap of the entry naming it, got {result.violations}'
         )
-        assert result.violations[0].line == LineNumber.parse(5), (
+        assert result.violations[0].line == LineNumber.from_int(5), (
             'the section over its cap is reported on the line of its heading'
         )
         assert result.violations[0].rule == 'structure.words.section', (
@@ -436,7 +436,7 @@ class TestValidateStructure:
         assert len(result.violations) == 1, (
             f'a section the outline does not name takes the cap of the `any` run it falls in, got {result.violations}'
         )
-        assert result.violations[0].line == LineNumber.parse(1), (
+        assert result.violations[0].line == LineNumber.from_int(1), (
             'the unnamed section over the cap is reported on the line of its heading'
         )
         assert result.violations[0].message == 'section `Rule` is 3 prose words; the cap is 2 (per code.md)', (
@@ -487,7 +487,7 @@ class TestValidateStructure:
         assert len(result.violations) == 1, (
             f'an H3 is part of the section above it, so its words count against that section, got {result.violations}'
         )
-        assert result.violations[0].line == LineNumber.parse(1), (
+        assert result.violations[0].line == LineNumber.from_int(1), (
             'the overflow is reported on the H2 section, not on its H3'
         )
         assert result.violations[0].message == 'section `Rule` is 4 prose words; the cap is 3 (per code.md)', (

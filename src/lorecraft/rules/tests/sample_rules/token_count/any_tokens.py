@@ -37,4 +37,4 @@ class AnyTokens(TokenCountRule):
         Args:
             subject: The document's token count, with the budgets that govern it.
         """
-        return (cls(spec=None, line=LineNumber.parse(1), token_count=subject.token_count.value),)
+        return (cls(spec=None, line=LineNumber.from_int(1), token_count=subject.token_count.value),)

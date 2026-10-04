@@ -34,9 +34,9 @@ class TestTooManyTokens:
         occurrences = TooManyTokens.check(subject)
 
         #: Then
-        assert occurrences == (TooManyTokens(spec=CORPUS_SPEC, line=LineNumber.parse(1), token_count=7, budget=6),), (
-            'a document over its budget is one occurrence, on line 1, naming the specification that sets the budget'
-        )
+        assert occurrences == (
+            TooManyTokens(spec=CORPUS_SPEC, line=LineNumber.from_int(1), token_count=7, budget=6),
+        ), 'a document over its budget is one occurrence, on line 1, naming the specification that sets the budget'
 
     def test_check_with_a_document_at_the_budget_reports_nothing(self) -> None:
         #: Given
@@ -65,7 +65,7 @@ class TestTooManyTokens:
 
         #: Then
         assert occurrences == (
-            TooManyTokens(spec=NAMESPACE_SPEC, line=LineNumber.parse(1), token_count=7, budget=5),
+            TooManyTokens(spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), token_count=7, budget=5),
         ), 'a namespace budget does not replace the corpus one, so the document is held to it on its own'
 
     def test_check_with_a_document_over_both_budgets_reports_each_in_order(self) -> None:
@@ -83,13 +83,13 @@ class TestTooManyTokens:
 
         #: Then
         assert occurrences == (
-            TooManyTokens(spec=CORPUS_SPEC, line=LineNumber.parse(1), token_count=12, budget=10),
-            TooManyTokens(spec=NAMESPACE_SPEC, line=LineNumber.parse(1), token_count=12, budget=5),
+            TooManyTokens(spec=CORPUS_SPEC, line=LineNumber.from_int(1), token_count=12, budget=10),
+            TooManyTokens(spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), token_count=12, budget=5),
         ), 'a document over two budgets is one occurrence per budget, in the order the budgets are given'
 
     def test_message_with_an_occurrence_names_the_tokens_and_the_budget(self) -> None:
         #: Given
-        occurrence = TooManyTokens(spec=CORPUS_SPEC, line=LineNumber.parse(1), token_count=7, budget=6)
+        occurrence = TooManyTokens(spec=CORPUS_SPEC, line=LineNumber.from_int(1), token_count=7, budget=6)
 
         #: When
         message = occurrence.message()
@@ -99,7 +99,7 @@ class TestTooManyTokens:
 
     def test_children_with_an_occurrence_point_at_the_spec_and_say_how_many_tokens_to_cut(self) -> None:
         #: Given
-        occurrence = TooManyTokens(spec=CORPUS_SPEC, line=LineNumber.parse(1), token_count=7, budget=5)
+        occurrence = TooManyTokens(spec=CORPUS_SPEC, line=LineNumber.from_int(1), token_count=7, budget=5)
 
         #: When
         children = occurrence.children()

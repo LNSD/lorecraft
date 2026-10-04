@@ -54,20 +54,8 @@ class NonZeroUnsignedInt:
 
     value: int
 
-    @classmethod
-    def parse(cls, raw: int) -> Self:
-        """Return a validated number.
-
-        Args:
-            raw: Candidate number.
-
-        Raises:
-            NonPositiveIntError: If the number is below 1.
-        """
-        return cls(raw)
-
     def __post_init__(self) -> None:
-        """Keep direct construction from bypassing the invariant.
+        """Refuse a number below `MINIMUM`.
 
         Raises:
             NonPositiveIntError: If the number is below 1.
@@ -95,7 +83,7 @@ class NonZeroUnsignedInt:
 
     @classmethod
     def _from_pydantic(cls, value: object) -> Self:
-        """Take a `NonZeroUnsignedInt` as it is and parse an integer into one; anything else raises pydantic's error.
+        """Take a `NonZeroUnsignedInt` as it is and build one from an integer; anything else raises pydantic's error.
 
         Args:
             value: The input pydantic holds for the field: an instance, an integer, or anything else.
@@ -110,7 +98,7 @@ class NonZeroUnsignedInt:
         if isinstance(value, bool) or not isinstance(value, int):
             raise PydanticCustomError('int_type', 'Input should be a valid integer')
         try:
-            return cls.parse(value)
+            return cls(value)
         except NonPositiveIntError as exc:
             raise PydanticCustomError(_ERROR_TYPE, '{reason}', {'reason': str(exc)}) from exc
 
@@ -161,20 +149,8 @@ class UnsignedInt:
 
     value: int
 
-    @classmethod
-    def parse(cls, raw: int) -> Self:
-        """Return a validated number.
-
-        Args:
-            raw: Candidate number.
-
-        Raises:
-            NegativeIntError: If the number is below 0.
-        """
-        return cls(raw)
-
     def __post_init__(self) -> None:
-        """Keep direct construction from bypassing the invariant.
+        """Refuse a number below `MINIMUM`.
 
         Raises:
             NegativeIntError: If the number is below 0.
