@@ -4,6 +4,11 @@ import pytest
 
 from lorecraft import rules
 from lorecraft.rules.declaration import Rule, Severity
+from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
+from lorecraft.rules.frontmatter.invalid_yaml import InvalidYaml
+from lorecraft.rules.frontmatter.missing_frontmatter import MissingFrontmatter
+from lorecraft.rules.frontmatter.name_mismatch import NameMismatch
+from lorecraft.rules.frontmatter.non_mapping_frontmatter import NonMappingFrontmatter
 from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.registry import Registry
@@ -108,6 +113,22 @@ class TestRuleTableFromRegistry:
             "the package's line budget is enabled by default as an error"
         )
 
+    def test_from_registry_with_the_package_registry_enables_the_frontmatter_block_rules_in_code_order(self) -> None:
+        #: Given
+        registry = Registry.load(rules)
+
+        #: When
+        table = RuleTable.from_registry(registry)
+
+        #: Then
+        assert table.frontmatter_block_rules == (
+            EnabledRule(MissingFrontmatter, Severity.ERROR),
+            EnabledRule(InvalidYaml, Severity.ERROR),
+            EnabledRule(NonMappingFrontmatter, Severity.ERROR),
+            EnabledRule(NameMismatch, Severity.ERROR),
+            EnabledRule(DuplicateKey, Severity.ERROR),
+        ), "the package's frontmatter block rules are enabled by default as errors, in code order"
+
 
 @pytest.mark.unit
 class TestRuleTable:
@@ -143,6 +164,28 @@ class TestRuleTable:
 
         #: Then
         assert table.line_count_rules == (), 'no enabled rule reads the line count'
+
+    def test_rule_table_with_no_rules_has_an_empty_frontmatter_block_partition(self) -> None:
+        #: Given
+        severities: dict[type[Rule], Severity] = {}
+
+        #: When
+        table = RuleTable(severities)
+
+        #: Then
+        assert table.frontmatter_block_rules == (), 'no enabled rule reads the frontmatter block'
+
+    def test_rule_table_with_a_rule_over_the_frontmatter_block_partitions_it_with_its_severity(self) -> None:
+        #: Given
+        severities: dict[type[Rule], Severity] = {NameMismatch: Severity.WARNING, TooManyLines: Severity.ERROR}
+
+        #: When
+        table = RuleTable(severities)
+
+        #: Then
+        assert table.frontmatter_block_rules == (EnabledRule(NameMismatch, Severity.WARNING),), (
+            'a rule joins the partition of the input it reads, and no other'
+        )
 
     def test_rule_table_with_a_rule_over_the_line_count_leaves_it_out_of_the_token_count_partition(self) -> None:
         #: Given

@@ -81,8 +81,8 @@ per run            configuration (a query of the revision) ──▶ levels
 - **Specific over inputs.** The runner has one hand-written branch per input kind, which keeps dispatch typed:
   the headings partition holds `type[HeadingsRule]`, so `rule.check(input)` checks against `HeadingsInput`.
 - **Configuration and selection never reach a rule.** They shape the table and nothing else.
-- **Subjects arrive chosen.** The command line resolves the paths into subject refs; the runner receives those,
-  the database and the table, and nothing else.
+- **Subjects arrive chosen.** The command line resolves the paths into subjects; the runner receives a document's
+  ref or a skill's location as the model issued it, the database and the table, and nothing else.
 
 ### Inputs
 
@@ -94,7 +94,7 @@ The set is closed. Each kind is one dataclass and one rule base class whose `che
 
 | Input | Subjects | Built from | Governed by |
 |---|---|---|---|
-| Frontmatter block | document, skill | the frontmatter query | a frontmatter schema |
+| Frontmatter block | document, skill | the frontmatter query | a frontmatter schema; for a skill, the package, after the Agent Skills specification |
 | Schema problems | document, skill | the same query, and each governing schema | a frontmatter schema |
 | Headings | document | the parse query | a structure specification |
 | Outline divergence | document | the parse query, and each specification's outline | a structure specification |

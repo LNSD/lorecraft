@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from typing import Self, assert_never
 
 from lorecraft.rules.declaration import EngineCondition, Level, RemovedRule, Rule, Severity
-from lorecraft.rules.inputs import LineCountRule, TokenCountRule
+from lorecraft.rules.inputs import FrontmatterBlockRule, LineCountRule, TokenCountRule
 from lorecraft.rules.registry import Registry
 
 
@@ -53,6 +53,7 @@ class RuleTable:
 
     _token_count_rules: tuple[EnabledRule[TokenCountRule], ...]
     _line_count_rules: tuple[EnabledRule[LineCountRule], ...]
+    _frontmatter_block_rules: tuple[EnabledRule[FrontmatterBlockRule], ...]
 
     def __init__(self, severities: Mapping[type[Rule], Severity]) -> None:
         """Hold the enabled rules, and partition them by the input each reads.
@@ -66,6 +67,7 @@ class RuleTable:
         """
         token_count_rules: list[EnabledRule[TokenCountRule]] = []
         line_count_rules: list[EnabledRule[LineCountRule]] = []
+        frontmatter_block_rules: list[EnabledRule[FrontmatterBlockRule]] = []
         for rule_class in sorted(severities, key=_printed_code):
             # The rule hierarchy is open, so the chain cannot close with `assert_never`: a rule over an input with
             # no partition here is a defect, raised before any subject is checked.
@@ -73,10 +75,13 @@ class RuleTable:
                 token_count_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, LineCountRule):
                 line_count_rules.append(EnabledRule(rule_class, severities[rule_class]))
+            elif issubclass(rule_class, FrontmatterBlockRule):
+                frontmatter_block_rules.append(EnabledRule(rule_class, severities[rule_class]))
             else:
                 raise UnknownRuleInputError(rule_class)
         self._token_count_rules = tuple(token_count_rules)
         self._line_count_rules = tuple(line_count_rules)
+        self._frontmatter_block_rules = tuple(frontmatter_block_rules)
 
     @classmethod
     def from_registry(cls, registry: Registry) -> Self:
@@ -113,6 +118,11 @@ class RuleTable:
     def line_count_rules(self) -> tuple[EnabledRule[LineCountRule], ...]:
         """Each enabled rule over a skill's line count, with its severity, in code order; empty when none is."""
         return self._line_count_rules
+
+    @property
+    def frontmatter_block_rules(self) -> tuple[EnabledRule[FrontmatterBlockRule], ...]:
+        """Each enabled rule over a frontmatter block, with its severity, in code order; empty when none is."""
+        return self._frontmatter_block_rules
 
 
 def _default_severity(level: Level) -> Severity | None:
