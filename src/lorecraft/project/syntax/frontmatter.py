@@ -1,38 +1,71 @@
 """The frontmatter node of a document's parse tree: the decoded YAML mapping and where each key sits.
 
-A document's frontmatter is a ``---`` delimited block on its first lines. Finding the block is the Markdown
-parser's job (see ``document``); decoding it is this module's. Parsing has exactly four outcomes, one type each:
+A document's frontmatter is a `---` delimited block on its first lines. Finding the block is the Markdown
+parser's job (see `document`); decoding it is this module's. Parsing has exactly four outcomes, one type each:
 no block, a block that is not YAML, a block that is YAML but not a mapping, and a mapping. Every outcome is a
 value, never an exception, because a broken block is a fact about the document that a check reports, not a
 failure of the parse.
+
+The block is read as basic YAML, which decodes to exactly what JSON can hold: block and flow mappings whose keys
+are strings, block and flow sequences, and scalars. A quoted or block scalar is a string. A plain scalar is null,
+a boolean, an integer or a float when its whole text is one in YAML 1.2's core schema, such as `~`, `true`, `12` or
+`1.5`, and a string otherwise, so `yes`, `2026-10-05` and `1:30` are strings. An anchor, an alias, an explicit tag
+and a key that is not a string are refused, on their line, as a block that is not YAML: none is needed to write a
+document's metadata, an alias can make a collection hold itself, a tag builds values JSON has no counterpart for,
+and JSON names every key with a string.
 """
 
+import math
+import re
+import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Final
 
 import yaml
-from yaml.composer import ComposerError
-from yaml.constructor import ConstructorError
 from yaml.error import Mark
-from yaml.reader import ReaderError
-from yaml.scanner import ScannerError
+from yaml.events import (
+    AliasEvent,
+    MappingEndEvent,
+    MappingStartEvent,
+    ScalarEvent,
+    SequenceEndEvent,
+    SequenceStartEvent,
+    StreamEndEvent,
+)
+from yaml.parser import Parser
+from yaml.reader import Reader, ReaderError
+from yaml.scanner import Scanner, ScannerError
 
 from .position import LineNumber
 
 _FIRST_BLOCK_LINE: Final[int] = 2
 """The document line the block's first YAML line sits on: the opening delimiter is always line 1."""
 
-_STRING_TAG: Final[str] = 'tag:yaml.org,2002:str'
-"""The tag of a key that decodes to a string, once a mapping is flattened: flattening retags a ``value`` key to it."""
+_YAML_TAG_PREFIX: Final[str] = 'tag:yaml.org,2002:'
+"""The prefix the `!!` shorthand stands for: the full name of every tag YAML itself defines."""
 
-_STRING_KEY_TAGS: Final[frozenset[str]] = frozenset({_STRING_TAG, 'tag:yaml.org,2002:value'})
-"""The tags of a scalar key that decodes to a string. ``value`` is the tag YAML gives a plain ``=`` key, or one
-written with ``!!value``, and construction turns it into the string it holds, so it names a field like any other."""
+_NULL_WORDS: Final[frozenset[str]] = frozenset({'', '~', 'null', 'Null', 'NULL'})
+"""The plain scalars YAML 1.2's core schema reads as null; the empty one is a key or an item written with no value."""
 
-_MAPPING_TAG: Final[str] = 'tag:yaml.org,2002:map'
-"""The tag of a mapping node that decodes to a dict. A mapping node tagged ``!!set`` decodes to a set, whose members
-are no keys."""
+_TRUE_WORDS: Final[frozenset[str]] = frozenset({'true', 'True', 'TRUE'})
+"""The plain scalars YAML 1.2's core schema reads as true."""
+
+_FALSE_WORDS: Final[frozenset[str]] = frozenset({'false', 'False', 'FALSE'})
+"""The plain scalars YAML 1.2's core schema reads as false."""
+
+_DECIMAL_INT: Final[re.Pattern[str]] = re.compile(r'[-+]?[0-9]+')
+"""A plain scalar YAML 1.2's core schema reads as a decimal integer. A leading zero does not make it octal."""
+
+_OCTAL_INT: Final[re.Pattern[str]] = re.compile(r'0o[0-7]+')
+"""A plain scalar YAML 1.2's core schema reads as an octal integer."""
+
+_HEX_INT: Final[re.Pattern[str]] = re.compile(r'0x[0-9a-fA-F]+')
+"""A plain scalar YAML 1.2's core schema reads as a hexadecimal integer."""
+
+_FLOAT: Final[re.Pattern[str]] = re.compile(r'[-+]?(\.[0-9]+|[0-9]+(\.[0-9]*)?)([eE][-+]?[0-9]+)?')
+"""A plain scalar YAML 1.2's core schema reads as a float. It matches every decimal integer too, so the integer
+patterns are tried first. The core schema's `.inf` and `.nan` are left out: JSON has no number for either."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,9 +74,7 @@ class FrontmatterKey:
 
     Attributes:
         name: The key as YAML decoded it.
-        line: The document line the key starts on. For a key written as an alias, such as ``*k``, it is the line of
-            the anchored node the alias names: the node tree holds that node in the alias's place and keeps no
-            position of the alias itself.
+        line: The document line the key starts on.
     """
 
     name: str
@@ -61,15 +92,12 @@ class Frontmatter:
     or used as a key.
 
     Attributes:
-        data: The decoded mapping, exactly as `yaml.safe_load` returns it. A `Mapping`, not a `dict`, so no check
+        data: The decoded mapping: a `dict`, a `list`, a string, an integer, a float, a boolean or `None` at every
+            depth, which is what `json.loads` would build for the same data. A `Mapping`, not a `dict`, so no check
             can write to it: the parse tree is shared by every check that reads the document. Only the top level is
-            read-only; a nested mapping or list is still the plain value `yaml.safe_load` built, and nothing stops
-            a write to it.
-        keys: Every top-level key the mapping writes as a plain string, in document order, with its line. A key
-            written more than once appears once per occurrence, although `data` holds only one value for it. A
-            plain `=` key is listed too: YAML tags it as a value key, and it decodes to the string `'='`. A key
-            that reaches `data` only through a `<<` merge is not listed, so a finding about it lands on line 1,
-            and neither is the `<<` key itself, which YAML tags as a merge rather than a string.
+            read-only; a nested mapping or list is a plain `dict` or `list`, and nothing stops a write to it.
+        keys: Every top-level key the mapping writes, in document order, with its line. A key written more than
+            once appears once per occurrence, although `data` holds only one value for it.
     """
 
     data: Mapping[str, object]
@@ -78,13 +106,11 @@ class Frontmatter:
     def find_key_line(self, name: str) -> LineNumber | None:
         """The line the last top-level key called `name` is written on, or `None` when there is none.
 
-        The last, because a key written twice decodes to the value of its last occurrence: `yaml.safe_load`
-        replaces the earlier value with the later one, so the last line is where the value in `data` is written.
-        A key the mapping writes also wins over the same key supplied by a `<<` merge, so its line is the right
-        one even then.
+        The last, because a key written twice decodes to the value of its last occurrence, so the last line is
+        where the value in `data` is written.
 
         Args:
-            name: Key to look up, spelled as written; a key only a `<<` merge supplies is never found.
+            name: Key to look up, spelled as written.
         """
         line: LineNumber | None = None
         for key in self.keys:
@@ -100,18 +126,18 @@ class MissingFrontmatter:
 
 @dataclass(frozen=True, slots=True)
 class InvalidYamlFrontmatter:
-    """The block is there but is not valid YAML.
+    """The block is there but is not valid YAML, or uses YAML beyond the basic subset frontmatter is read as.
 
     A value, compared by value, so it holds the parser's facts rather than the parser's exception, which compares
     by identity.
 
     Attributes:
-        problem: What the YAML parser found wrong, such as ``mapping values are not allowed here``: in the parser's
-            own words, or in this module's where the parser fails with a plain Python exception instead, or where
-            the block writes a key that is not a string.
+        problem: What the YAML parser found wrong, such as `mapping values are not allowed here`: in the parser's
+            own words, or in this module's, where the parser fails with a plain Python exception or where the block
+            uses what basic YAML leaves out, a key that is not a string included.
         line: The document line the problem is on, or None when it cannot be known: when the parser does not say,
-            or when the block nests collections too deeply, where the parser stops at whatever depth the
-            interpreter's stack allows rather than at a line of the document.
+            or when the block nests collections too deeply, where reading stops at whatever depth the interpreter's
+            stack allows rather than at a line of the document.
     """
 
     problem: str
@@ -126,92 +152,71 @@ class NonMappingFrontmatter:
 type FrontmatterNode = Frontmatter | MissingFrontmatter | InvalidYamlFrontmatter | NonMappingFrontmatter
 """Every outcome of parsing a document's frontmatter."""
 
+type _Entry = tuple[FrontmatterKey, object]
+"""One pair of a mapping as it is written: the key, with its line, and the decoded value."""
+
 
 def decode_frontmatter(block: str) -> FrontmatterNode:
-    """Decode the YAML between a document's ``---`` delimiters into its node. Pure: raises nothing.
+    """Decode the YAML between a document's `---` delimiters into its node. Pure: raises nothing.
 
-    Never ``MissingFrontmatter``: whether a block exists is decided before this is called. Every block PyYAML
-    cannot read is ``InvalidYamlFrontmatter``, including the few it fails on with a plain Python exception rather
-    than its own error, such as collections nested too deeply to parse. So is a block writing a key, at any depth,
-    that does not decode to a string, such as ``1:``, ``true:``, ``null:`` or ``2026-10-04:``, on the key's line.
+    Never `MissingFrontmatter`: whether a block exists is decided before this is called. Every block PyYAML
+    cannot parse is `InvalidYamlFrontmatter`, including the few it fails on with a plain Python exception rather
+    than its own error, and so is every block that uses an anchor, an alias or a tag, writes a key, at any depth,
+    that is not a string, such as `1:`, `true:` or `null:`, nests collections too deeply to read, or holds more
+    than one document.
 
     Args:
         block: The lines between the delimiters, line endings kept; the first of them is document line 2.
     """
-    # `yaml.safe_load` composes a node tree and then constructs the value from it. The two steps run here
-    # apart, on one loader, because the node tree is what records the line each key is written on.
     try:
-        # The loader checks every character as it is built, so a control character fails here, not in the parse.
-        loader = _SafeLoader(block)
+        # The reader checks every character as it is built, so a control character fails here, not in the parse.
+        parser = _BasicYamlParser(block)
     except ReaderError as exc:
         line = LineNumber.from_int(block.count('\n', 0, exc.position) + _FIRST_BLOCK_LINE)
         return InvalidYamlFrontmatter(problem=exc.reason, line=line)
     try:
-        node = loader.get_single_node()
-        # The keys are read before the value is constructed, because construction rewrites the node: for a `<<`
-        # merge it puts the merged pairs in front of the written ones, so read afterwards, the keys would hold
-        # keys the mapping never wrote, out of document order. It also retags a `=` key from a value key to a
-        # string, which is why `_keys` accepts both tags.
-        keys: tuple[FrontmatterKey, ...] = ()
-        if isinstance(node, yaml.MappingNode):
-            keys = _keys(node)
-        data: object = None if node is None else loader.construct_document(node)
+        return _read_document(parser)
     except yaml.MarkedYAMLError as exc:
-        # `_SafeLoader` raises the plain Python exceptions PyYAML lets escape as its own errors, so this one clause
-        # sees every block that cannot be composed or constructed.
+        # PyYAML's own errors, and every refusal of what basic YAML leaves out, which this module raises as one.
         return _invalid_yaml(exc)
-    finally:
-        # Clears the parser's state stack and nothing else, so it raises nothing, even after a failed compose.
-        loader.dispose()
+    except RecursionError:
+        # The value is read with one call per level of nesting, so only a deeply nested block reaches the
+        # interpreter's limit. By the time this clause runs the stack has unwound to this frame, so there is room
+        # to go on, and the half-read parser is dropped. The line is left out, because the depth reading stops at
+        # depends on the interpreter's recursion limit and on how deep the caller's stack already was.
+        return InvalidYamlFrontmatter(problem='found collections nested too deeply to parse', line=None)
 
-    if not isinstance(node, yaml.MappingNode) or not isinstance(data, dict):
-        return NonMappingFrontmatter()
-    return Frontmatter(data=data, keys=keys)
 
+class _BasicYamlParser(Reader, Scanner, Parser):
+    r"""PyYAML's parser, which turns the block into a stream of events, raising its own error where PyYAML does not.
 
-class _SafeLoader(yaml.SafeLoader):
-    r"""PyYAML's safe loader, raising its own error for every block it cannot read, never a plain Python exception.
+    Only the reader, the scanner and the parser are used: the value is built from the events by this module, not
+    by PyYAML's composer and constructor, so no tag PyYAML resolves and no type it constructs is ever involved.
 
-    PyYAML lets a plain Python exception escape in four places, and each is raised here as the loader's error,
-    which ``decode_frontmatter`` already turns into invalid YAML:
+    PyYAML's scanner lets a plain Python exception escape in two places, and each is raised here as the scanner's
+    error, which `decode_frontmatter` turns into invalid YAML:
 
-    - The safe constructors of ``bool``, ``int``, ``float`` and ``timestamp`` convert a scalar's text with plain
-      Python: ``!!int x`` raises a ``ValueError`` and ``!!bool x`` a ``KeyError``, and an untagged scalar YAML
-      resolves to one of those tags fails the same way, such as the date ``9999-99-99``. Each is a
-      ``ConstructorError`` on the scalar's line.
-    - A double-quoted ``\U`` escape above ``U+10FFFF`` names no character, and ``chr`` raises a ``ValueError``,
-      or an ``OverflowError`` for one too large for a C ``int``. It is a ``ScannerError`` on the escape's line.
-    - A ``%YAML`` directive whose version number has more digits than Python converts to an ``int``, 4300 by
-      default, raises a ``ValueError``. It is a ``ScannerError`` on the directive's line.
-    - Collections nested a few hundred levels deep exhaust the interpreter's stack in the composer, which recurses
-      once per level, and raise a ``RecursionError``. It is a ``ComposerError`` with no line.
-
-    It also refuses what PyYAML reads without complaint: a key of a mapping that does not decode to a string. JSON
-    names every key with a string, so a frontmatter schema cannot name such a key, and ``jsonschema`` matches a
-    ``patternProperties`` pattern against a key with ``re.search``, which raises on any other.
+    - A double-quoted `\U` escape above `U+10FFFF` names no character, and `chr` raises a `ValueError`,
+      or an `OverflowError` for one too large for a C `int`. It is a `ScannerError` on the escape's line.
+    - A `%YAML` directive whose version number has more digits than Python converts to an `int`, 4300 by
+      default, raises a `ValueError`. It is a `ScannerError` on the directive's line.
     """
 
-    def get_single_node(self) -> yaml.Node | None:
-        """Compose the block's one document into its node tree, as the safe loader does, or ``None`` for no document.
+    def __init__(self, block: str) -> None:
+        """Start reading `block`, checking every character of it first.
+
+        Args:
+            block: The YAML text to parse.
 
         Raises:
-            ComposerError: The block nests collections deeper than the interpreter's stack can compose.
-            yaml.MarkedYAMLError: The block is not valid YAML, as PyYAML reports it.
+            ReaderError: The block holds a character YAML does not allow, such as a control character.
         """
-        try:
-            return super().get_single_node()
-        except RecursionError as exc:
-            # The composer recurses once per level of nesting, so only a deeply nested block reaches the
-            # interpreter's limit. Catching it is safe here: by the time this clause runs, the stack has unwound to
-            # this frame, so there is room to raise again, and the loader whose state the composer left half-built
-            # is discarded by its caller, which reads nothing more from it. The line is left out, because the
-            # depth the composer stops at depends on the interpreter's recursion limit and on how deep the caller's
-            # stack already was, not on the document.
-            problem = 'found collections nested too deeply to parse'
-            raise ComposerError(None, None, problem, None) from exc
+        Reader.__init__(self, block)
+        Scanner.__init__(self)
+        Parser.__init__(self)
 
     def scan_flow_scalar_non_spaces(self, double: bool, start_mark: Mark) -> list[str]:
-        """Scan the text of a quoted scalar up to its next space, as the safe loader does.
+        """Scan the text of a quoted scalar up to its next space, as PyYAML's scanner does.
 
         Args:
             double: True for a double-quoted scalar, whose backslash escapes are decoded; False for a single-quoted one.
@@ -232,7 +237,7 @@ class _SafeLoader(yaml.SafeLoader):
             raise ScannerError(None, None, problem, self.get_mark()) from exc
 
     def scan_yaml_directive_number(self, start_mark: Mark) -> int:
-        """Scan one number of a `%YAML` directive's version, as the safe loader does.
+        """Scan one number of a `%YAML` directive's version, as PyYAML's scanner does.
 
         Args:
             start_mark: Where the directive starts, for the scanner's own error messages.
@@ -249,94 +254,248 @@ class _SafeLoader(yaml.SafeLoader):
             problem = 'found a YAML version number too long to read'
             raise ScannerError(None, None, problem, self.get_mark()) from exc
 
-    def construct_mapping(self, node: yaml.Node, deep: bool = False) -> dict[object, object]:
-        """Construct the value of one mapping node, as the safe loader does, refusing a key that is not a string.
 
-        Args:
-            node: Node to construct a mapping from; each of its keys is checked before any of them is constructed.
-            deep: Whether to construct the node's children now rather than later, as the safe loader's flag does.
+def _read_document(parser: _BasicYamlParser) -> Frontmatter | NonMappingFrontmatter:
+    """Read the block's one document, if any, and decode it.
 
-        Raises:
-            ConstructorError: A key of a mapping that decodes to a dict does not decode to a string; marked at the
-                key, so the block is refused on the key's line.
-        """
-        # A `!!set` is constructed through here too, and its members are no keys of a mapping.
-        if isinstance(node, yaml.MappingNode) and node.tag == _MAPPING_TAG:
-            # Flattened first, so the keys checked are the ones the dict will hold: a `<<` merge brings in the pairs
-            # of the mappings it names, each key at the line it is written on, and a plain `=` key is retagged from
-            # a value key to a string. The safe loader flattens the node again, which changes nothing the second time.
-            self.flatten_mapping(node)
-            for key_node, _value_node in node.value:
-                if key_node.tag != _STRING_TAG:
-                    raise ConstructorError(None, None, _non_string_key_problem(key_node), key_node.start_mark)
-        return super().construct_mapping(node, deep=deep)
-
-    def construct_object(self, node: yaml.Node, deep: bool = False) -> object:
-        """Construct the value of one node, as the safe loader does, or raise a `ConstructorError` marked at it.
-
-        Args:
-            node: Node to construct a value from; it is the node marked when its scalar cannot be converted.
-            deep: Whether to construct the node's children now rather than later, as the safe loader's flag does.
-        """
-        # The classes caught are the ones the safe constructors raise for a scalar's text: a `ValueError` from
-        # `int`, `float` or `datetime` for text or a field out of range, a `KeyError` from the `bool` lookup, an
-        # `IndexError` from reading the sign of empty text, an `AttributeError` from a timestamp that does not
-        # match its pattern, and a `TypeError` from a timestamp written as a `=` mapping. The failing scalar's own
-        # call raises it, so the scalar is the node marked; the error then passes through every enclosing call
-        # unchanged, since a `ConstructorError` is none of these classes.
-        try:
-            return super().construct_object(node, deep=deep)
-        except (ValueError, KeyError, IndexError, AttributeError, TypeError) as exc:
-            problem = f'could not construct a value for the tag {node.tag!r}'
-            raise ConstructorError(None, None, problem, node.start_mark) from exc
-
-
-def _non_string_key_problem(key_node: yaml.Node) -> str:
-    """What a reader is told about a key that does not decode to a string, naming the key as written.
+    Every value is read to its end even when the document is not a mapping, so a refused construct or a syntax
+    error anywhere in the block is reported rather than hidden behind the document's shape.
 
     Args:
-        key_node: The key's node, before any value is constructed from it.
+        parser: The block's parser, before its first event is read.
+
+    Raises:
+        yaml.MarkedYAMLError: The block is not valid YAML, uses what basic YAML leaves out, or holds a second
+            document.
     """
-    # Only a scalar is written as one piece of text. A key written as a list or a mapping, or as nothing at all,
-    # which YAML reads as null, has none to name.
-    if isinstance(key_node, yaml.ScalarNode) and key_node.value:
-        return f'found the key {key_node.value}, which is not a string'
+    parser.get_event()  # The stream's start.
+    if parser.check_event(StreamEndEvent):
+        # An empty block, or one holding only comments, has no document at all.
+        return NonMappingFrontmatter()
+    parser.get_event()  # The document's start.
+    if isinstance(_peek_node_start(parser), MappingStartEvent):
+        entries = _read_mapping(parser)
+        node: Frontmatter | NonMappingFrontmatter = Frontmatter(data=_to_dict(entries), keys=_keys(entries))
+    else:
+        _read_value(parser)
+        node = NonMappingFrontmatter()
+    parser.get_event()  # The document's end.
+    if not parser.check_event(StreamEndEvent):
+        problem = 'found a second document, which frontmatter does not allow'
+        raise yaml.MarkedYAMLError(problem=problem, problem_mark=parser.peek_event().start_mark)
+    return node
+
+
+def _peek_node_start(parser: _BasicYamlParser) -> ScalarEvent | SequenceStartEvent | MappingStartEvent:
+    """The event the next value starts with, left unread, once it is known to use nothing basic YAML leaves out.
+
+    Args:
+        parser: The parser, whose next event starts a value.
+
+    Raises:
+        yaml.MarkedYAMLError: The value is an alias, or carries an anchor or a tag, marked where it is written.
+    """
+    event = parser.peek_event()
+    if isinstance(event, AliasEvent):
+        problem = f'found the alias *{event.anchor}, which frontmatter does not allow'
+        raise yaml.MarkedYAMLError(problem=problem, problem_mark=event.start_mark)
+    if event.anchor is not None:
+        problem = f'found the anchor &{event.anchor}, which frontmatter does not allow'
+        raise yaml.MarkedYAMLError(problem=problem, problem_mark=event.start_mark)
+    # The parser gives an event a tag only when one is written in the block, the non-specific `!` included.
+    if event.tag is not None:
+        problem = f'found the tag {_written_tag(event.tag)!r}, which frontmatter does not allow'
+        raise yaml.MarkedYAMLError(problem=problem, problem_mark=event.start_mark)
+    return event
+
+
+def _read_value(parser: _BasicYamlParser) -> object:
+    """Read one value and everything in it, and decode it to a `dict`, a `list` or a scalar.
+
+    Args:
+        parser: The parser, whose next event starts the value.
+
+    Raises:
+        yaml.MarkedYAMLError: The value is not valid YAML or uses what basic YAML leaves out.
+    """
+    event = _peek_node_start(parser)
+    if isinstance(event, MappingStartEvent):
+        return _to_dict(_read_mapping(parser))
+    if isinstance(event, SequenceStartEvent):
+        return _read_sequence(parser)
+    parser.get_event()
+    return _scalar_value(event)
+
+
+def _read_mapping(parser: _BasicYamlParser) -> list[_Entry]:
+    """Read one mapping, every pair in the order it is written, a repeated key once per occurrence.
+
+    Args:
+        parser: The parser, whose next event starts the mapping.
+
+    Raises:
+        yaml.MarkedYAMLError: A key is not a string, or the mapping is not valid YAML or uses what basic YAML
+            leaves out.
+    """
+    parser.get_event()  # The mapping's start.
+    entries: list[_Entry] = []
+    while not parser.check_event(MappingEndEvent):
+        key = _read_key(parser)
+        value = _read_value(parser)
+        entries.append((key, value))
+    parser.get_event()  # The mapping's end.
+    return entries
+
+
+def _read_sequence(parser: _BasicYamlParser) -> list[object]:
+    """Read one sequence, every item in the order it is written.
+
+    Args:
+        parser: The parser, whose next event starts the sequence.
+
+    Raises:
+        yaml.MarkedYAMLError: An item is not valid YAML or uses what basic YAML leaves out.
+    """
+    parser.get_event()  # The sequence's start.
+    items: list[object] = []
+    while not parser.check_event(SequenceEndEvent):
+        items.append(_read_value(parser))
+    parser.get_event()  # The sequence's end.
+    return items
+
+
+def _read_key(parser: _BasicYamlParser) -> FrontmatterKey:
+    """Read one key of a mapping, which must be a scalar that decodes to a string.
+
+    Args:
+        parser: The parser, whose next event starts the key.
+
+    Raises:
+        yaml.MarkedYAMLError: The key is a collection, or a scalar that decodes to something other than a string,
+            or uses what basic YAML leaves out.
+    """
+    event = _peek_node_start(parser)
+    if not isinstance(event, ScalarEvent):
+        raise yaml.MarkedYAMLError(problem='found a key that is not a string', problem_mark=event.start_mark)
+    parser.get_event()
+    name = _scalar_value(event)
+    if not isinstance(name, str):
+        raise yaml.MarkedYAMLError(problem=_non_string_key_problem(event), problem_mark=event.start_mark)
+    mark = event.start_mark
+    if mark is None:
+        # An event's mark is optional only in its constructor's signature: the parser marks every event it emits.
+        raise AssertionError('unreachable: PyYAML marks every event it parses')
+    return FrontmatterKey(name=name, line=_document_line(mark.line))
+
+
+def _scalar_value(event: ScalarEvent) -> str | int | float | bool | None:
+    """What a scalar decodes to: its text, unless it is plain and its whole text is a core schema null, bool or number.
+
+    Args:
+        event: The scalar's event, which carries no tag.
+    """
+    text: str = event.value
+    # A quoted scalar, and a literal `|` or folded `>` block, has a style; only a plain one is resolved.
+    if event.style is not None:
+        return text
+    if text in _NULL_WORDS:
+        return None
+    if text in _TRUE_WORDS:
+        return True
+    if text in _FALSE_WORDS:
+        return False
+    if _OCTAL_INT.fullmatch(text):
+        return int(text.removeprefix('0o'), 8)
+    if _HEX_INT.fullmatch(text):
+        return int(text.removeprefix('0x'), 16)
+    # `int` refuses more decimal digits than the interpreter's integer string conversion limit, 4300 by default,
+    # so a longer integer stays the text it is written as. The octal and hexadecimal conversions have no limit.
+    if _DECIMAL_INT.fullmatch(text):
+        if len(text.lstrip('+-')) > sys.get_int_max_str_digits():
+            return text
+        return int(text)
+    if _FLOAT.fullmatch(text):
+        number = float(text)
+        # An exponent past what a float holds converts to infinity, which JSON has no number for, so the scalar
+        # stays the text it is written as, like `.inf`.
+        if not math.isinf(number):
+            return number
+    return text
+
+
+def _to_dict(entries: list[_Entry]) -> dict[str, object]:
+    """The mapping the pairs decode to: a key written more than once holds the value of its last occurrence.
+
+    Args:
+        entries: The mapping's pairs, in the order they are written.
+    """
+    mapping: dict[str, object] = {}
+    for key, value in entries:
+        mapping[key.name] = value
+    return mapping
+
+
+def _keys(entries: list[_Entry]) -> tuple[FrontmatterKey, ...]:
+    """Every key of the mapping, in the order it is written, a repeated key once per occurrence.
+
+    Args:
+        entries: The mapping's pairs, in the order they are written.
+    """
+    keys: list[FrontmatterKey] = []
+    for key, _value in entries:
+        keys.append(key)
+    return tuple(keys)
+
+
+def _non_string_key_problem(key_event: ScalarEvent) -> str:
+    """What a reader is told about a scalar key that does not decode to a string, naming the key as written.
+
+    Args:
+        key_event: The key's event.
+    """
+    # A key written as nothing at all reads as null, and has no text to name.
+    if key_event.value:
+        return f'found the key {key_event.value}, which is not a string'
     return 'found a key that is not a string'
+
+
+def _document_line(block_line: int) -> LineNumber:
+    """The document line a line of the block is.
+
+    Args:
+        block_line: The line as a parser's mark counts it, from 0 at the block's first line.
+    """
+    # The block starts on document line 2, below the opening delimiter.
+    return LineNumber.from_int(block_line + _FIRST_BLOCK_LINE)
 
 
 def _invalid_yaml(error: yaml.MarkedYAMLError) -> InvalidYamlFrontmatter:
     """The parser's facts about a block that does not parse: its problem, and the line it marked.
 
     Args:
-        error: Failure PyYAML raised while composing or constructing the block; its mark may be absent.
+        error: Failure raised while reading the block; its mark may be absent.
     """
     # The parser names the problem, or, for a few errors, only the construct it was reading when it stopped.
     problem = error.problem or error.context or 'the block is not valid YAML'
     mark = error.problem_mark or error.context_mark
     if mark is None:
         return InvalidYamlFrontmatter(problem=problem, line=None)
-    # The mark counts lines from 0 within the block; the block starts on document line 2.
-    return InvalidYamlFrontmatter(problem=problem, line=LineNumber.from_int(mark.line + _FIRST_BLOCK_LINE))
+    return InvalidYamlFrontmatter(problem=problem, line=_document_line(mark.line))
 
 
-def _keys(mapping: yaml.MappingNode) -> tuple[FrontmatterKey, ...]:
-    """Every top-level key of the mapping written as a plain string, in document order, with its document line.
+def _written_tag(tag: str) -> str:
+    """The tag spelled as a block writes it: `!!str` for one YAML defines, `!team` for a local one, else `!<...>`.
 
-    Read from a node no value has been constructed from yet, which still holds every pair as it is written. A key
-    written more than once is listed once per occurrence, where the constructed mapping keeps only one value. A
-    scalar key tagged as a value key, such as a plain `=`, is listed as well, because construction has not yet
-    retagged it to the string it decodes to. A `<<` merge key is left out, since it is tagged as a merge rather
-    than a string, and so is a key the mapping spells some other way, such as a list or a number, although
-    construction then refuses the block.
+    The parser hands over a tag resolved to its full name, so `!!str` arrives as `tag:yaml.org,2002:str`, which an
+    author reading the problem would not recognise as what they wrote. Any other full name, written verbatim or
+    through a `%TAG` shorthand, is printed in the verbatim `!<...>` form, which names it exactly.
 
     Args:
-        mapping: The block's top-level mapping node, before any value is constructed from it.
+        tag: A tag the block writes, as the parser resolved it.
     """
-    keys: list[FrontmatterKey] = []
-    for key_node, _value_node in mapping.value:
-        if not isinstance(key_node, yaml.ScalarNode) or key_node.tag not in _STRING_KEY_TAGS:
-            continue
-        # The mark counts lines from 0 within the block; the block starts on document line 2.
-        line = LineNumber.from_int(key_node.start_mark.line + _FIRST_BLOCK_LINE)
-        keys.append(FrontmatterKey(name=key_node.value, line=line))
-    return tuple(keys)
+    if tag.startswith(_YAML_TAG_PREFIX):
+        return '!!' + tag.removeprefix(_YAML_TAG_PREFIX)
+    # A local tag, and the non-specific `!`, arrive as written.
+    if tag.startswith('!'):
+        return tag
+    return f'!<{tag}>'

@@ -368,7 +368,7 @@ def non_string_key_root(tmp_path: Path, faker: Faker) -> Path:
     # `jsonschema` matches a `patternProperties` pattern against every key, so a key that is not a string would
     # crash the run if the frontmatter decoded with it.
     spec = Spec('code', structure={'frontmatter': {'type': 'object', 'patternProperties': {'^x-': {}}}})
-    document = Document('code', 'guide', frontmatter=RawFrontmatter('name: guide\n2026-10-04: launch\n'))
+    document = Document('code', 'guide', frontmatter=RawFrontmatter('name: guide\n2026: launch\n'))
     workspace = Workspace(specs=[spec], documents=[document])
     return workspace.write(tmp_path, faker)
 
