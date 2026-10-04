@@ -23,9 +23,16 @@ from .position import LineNumber
 _FIRST_BLOCK_LINE: Final[int] = 2
 """The document line the block's first YAML line sits on: the opening delimiter is always line 1."""
 
-_STRING_KEY_TAGS: Final[frozenset[str]] = frozenset({'tag:yaml.org,2002:str', 'tag:yaml.org,2002:value'})
+_STRING_TAG: Final[str] = 'tag:yaml.org,2002:str'
+"""The tag of a key that decodes to a string, once a mapping is flattened: flattening retags a ``value`` key to it."""
+
+_STRING_KEY_TAGS: Final[frozenset[str]] = frozenset({_STRING_TAG, 'tag:yaml.org,2002:value'})
 """The tags of a scalar key that decodes to a string. ``value`` is the tag YAML gives a plain ``=`` key, or one
 written with ``!!value``, and construction turns it into the string it holds, so it names a field like any other."""
+
+_MAPPING_TAG: Final[str] = 'tag:yaml.org,2002:map'
+"""The tag of a mapping node that decodes to a dict. A mapping node tagged ``!!set`` decodes to a set, whose members
+are no keys."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,6 +54,9 @@ class FrontmatterKey:
 class Frontmatter:
     """A frontmatter block that decoded to a YAML mapping.
 
+    Every key in it is a string, at any depth: a block writing any other key, such as `1:` or `true:`, does not
+    decode to frontmatter at all, so no check ever meets a key a JSON Schema cannot name.
+
     Frozen for equality only: `data` holds a dict, so an instance is not hashable and must not be put in a set
     or used as a key.
 
@@ -62,7 +72,7 @@ class Frontmatter:
             and neither is the `<<` key itself, which YAML tags as a merge rather than a string.
     """
 
-    data: Mapping[object, object]
+    data: Mapping[str, object]
     keys: tuple[FrontmatterKey, ...]
 
     def find_key_line(self, name: str) -> LineNumber | None:
@@ -97,7 +107,8 @@ class InvalidYamlFrontmatter:
 
     Attributes:
         problem: What the YAML parser found wrong, such as ``mapping values are not allowed here``: in the parser's
-            own words, or in this module's where the parser fails with a plain Python exception instead.
+            own words, or in this module's where the parser fails with a plain Python exception instead, or where
+            the block writes a key that is not a string.
         line: The document line the problem is on, or None when it cannot be known: when the parser does not say,
             or when the block nests collections too deeply, where the parser stops at whatever depth the
             interpreter's stack allows rather than at a line of the document.
@@ -121,7 +132,8 @@ def decode_frontmatter(block: str) -> FrontmatterNode:
 
     Never ``MissingFrontmatter``: whether a block exists is decided before this is called. Every block PyYAML
     cannot read is ``InvalidYamlFrontmatter``, including the few it fails on with a plain Python exception rather
-    than its own error, such as collections nested too deeply to parse.
+    than its own error, such as collections nested too deeply to parse. So is a block writing a key, at any depth,
+    that does not decode to a string, such as ``1:``, ``true:``, ``null:`` or ``2026-10-04:``, on the key's line.
 
     Args:
         block: The lines between the delimiters, line endings kept; the first of them is document line 2.
@@ -173,6 +185,10 @@ class _SafeLoader(yaml.SafeLoader):
       default, raises a ``ValueError``. It is a ``ScannerError`` on the directive's line.
     - Collections nested a few hundred levels deep exhaust the interpreter's stack in the composer, which recurses
       once per level, and raise a ``RecursionError``. It is a ``ComposerError`` with no line.
+
+    It also refuses what PyYAML reads without complaint: a key of a mapping that does not decode to a string. JSON
+    names every key with a string, so a frontmatter schema cannot name such a key, and ``jsonschema`` matches a
+    ``patternProperties`` pattern against a key with ``re.search``, which raises on any other.
     """
 
     def get_single_node(self) -> yaml.Node | None:
@@ -233,6 +249,28 @@ class _SafeLoader(yaml.SafeLoader):
             problem = 'found a YAML version number too long to read'
             raise ScannerError(None, None, problem, self.get_mark()) from exc
 
+    def construct_mapping(self, node: yaml.Node, deep: bool = False) -> dict[object, object]:
+        """Construct the value of one mapping node, as the safe loader does, refusing a key that is not a string.
+
+        Args:
+            node: Node to construct a mapping from; each of its keys is checked before any of them is constructed.
+            deep: Whether to construct the node's children now rather than later, as the safe loader's flag does.
+
+        Raises:
+            ConstructorError: A key of a mapping that decodes to a dict does not decode to a string; marked at the
+                key, so the block is refused on the key's line.
+        """
+        # A `!!set` is constructed through here too, and its members are no keys of a mapping.
+        if isinstance(node, yaml.MappingNode) and node.tag == _MAPPING_TAG:
+            # Flattened first, so the keys checked are the ones the dict will hold: a `<<` merge brings in the pairs
+            # of the mappings it names, each key at the line it is written on, and a plain `=` key is retagged from
+            # a value key to a string. The safe loader flattens the node again, which changes nothing the second time.
+            self.flatten_mapping(node)
+            for key_node, _value_node in node.value:
+                if key_node.tag != _STRING_TAG:
+                    raise ConstructorError(None, None, _non_string_key_problem(key_node), key_node.start_mark)
+        return super().construct_mapping(node, deep=deep)
+
     def construct_object(self, node: yaml.Node, deep: bool = False) -> object:
         """Construct the value of one node, as the safe loader does, or raise a `ConstructorError` marked at it.
 
@@ -251,6 +289,19 @@ class _SafeLoader(yaml.SafeLoader):
         except (ValueError, KeyError, IndexError, AttributeError, TypeError) as exc:
             problem = f'could not construct a value for the tag {node.tag!r}'
             raise ConstructorError(None, None, problem, node.start_mark) from exc
+
+
+def _non_string_key_problem(key_node: yaml.Node) -> str:
+    """What a reader is told about a key that does not decode to a string, naming the key as written.
+
+    Args:
+        key_node: The key's node, before any value is constructed from it.
+    """
+    # Only a scalar is written as one piece of text. A key written as a list or a mapping, or as nothing at all,
+    # which YAML reads as null, has none to name.
+    if isinstance(key_node, yaml.ScalarNode) and key_node.value:
+        return f'found the key {key_node.value}, which is not a string'
+    return 'found a key that is not a string'
 
 
 def _invalid_yaml(error: yaml.MarkedYAMLError) -> InvalidYamlFrontmatter:
@@ -274,9 +325,9 @@ def _keys(mapping: yaml.MappingNode) -> tuple[FrontmatterKey, ...]:
     Read from a node no value has been constructed from yet, which still holds every pair as it is written. A key
     written more than once is listed once per occurrence, where the constructed mapping keeps only one value. A
     scalar key tagged as a value key, such as a plain `=`, is listed as well, because construction has not yet
-    retagged it to the string it decodes to. A key the mapping spells some other way, such as a list or a number,
-    has no name a check could ask for, so it is left out, and so is a `<<` merge key, which is tagged as a merge
-    rather than a string.
+    retagged it to the string it decodes to. A `<<` merge key is left out, since it is tagged as a merge rather
+    than a string, and so is a key the mapping spells some other way, such as a list or a number, although
+    construction then refuses the block.
 
     Args:
         mapping: The block's top-level mapping node, before any value is constructed from it.

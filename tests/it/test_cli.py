@@ -547,6 +547,28 @@ class TestCheckFrontmatterCommand:
         assert result.stdout == '', 'a clean run prints no finding lines'
         assert result.stderr == 'checked 1 file(s), 0 finding(s)\n', 'the summary goes to stderr'
 
+    def test_check_frontmatter_with_a_non_string_key_under_pattern_properties_reports_it_unparseable_and_exits_one(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(
+            tmp_path,
+            'docs/__meta__/code.structure.json',
+            '{"frontmatter": {"type": "object", "patternProperties": {"^x-": {"type": "string"}}}}',
+        )
+        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n2026-10-04: launch\n---\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path)])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert result.stdout == (
+            'docs/code/guide.md:3: [frontmatter.unparseable] frontmatter is not valid YAML: '
+            'found the key 2026-10-04, which is not a string\n'
+        ), 'a key a pattern cannot be matched against is refused as unparseable on its line, not a failure of the run'
+
     def test_check_frontmatter_without_a_root_finds_the_nearest_parent_with_docs_meta(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -894,6 +916,38 @@ class TestCheckFrontmatterCommand:
             ],
             'ungoverned': [],
         }, 'the repetition is reported on its own line, naming the line of the first occurrence'
+
+    def test_check_frontmatter_with_a_nested_non_string_key_and_json_format_reports_it_unparseable(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(
+            tmp_path,
+            'docs/__meta__/code.structure.json',
+            '{"frontmatter": {"type": "object", "patternProperties": {"^x-": {"type": "string"}}}}',
+        )
+        _write(tmp_path, 'docs/code/guide.md', '---\nname: guide\nmeta:\n  2026-10-04: launch\n---\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.stdout) == {
+            'checked': 1,
+            'findings': [
+                {
+                    'file': 'docs/code/guide.md',
+                    'line': 4,
+                    'rule': 'frontmatter.unparseable',
+                    'message': 'frontmatter is not valid YAML: found the key 2026-10-04, which is not a string',
+                    'spec': None,
+                    'notes': [],
+                }
+            ],
+            'ungoverned': [],
+        }, 'a nested key is refused on its own line, and names no specification, since no schema is applied'
 
     def test_check_frontmatter_from_a_deleted_working_directory_exits_with_a_working_directory_error(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

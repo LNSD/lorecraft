@@ -8,7 +8,6 @@ import pytest
 from ..frontmatter_problem import (
     InvalidValueProblem,
     MissingFieldProblem,
-    NonStringKeyProblem,
     NotAStringMappingProblem,
     NotAStringProblem,
     UnknownFieldProblem,
@@ -20,7 +19,7 @@ from ..skill import SKILL_FRONTMATTER_SCHEMA
 class TestSkillFrontmatterSchemaValidate:
     def test_validate_with_every_field_returns_no_problems(self) -> None:
         #: Given
-        data: dict[object, object] = {
+        data: dict[str, object] = {
             'name': 'pdf-processing',
             'description': 'Extract PDF text, fill forms, merge files. Use when handling PDFs.',
             'license': 'Apache-2.0',
@@ -37,7 +36,7 @@ class TestSkillFrontmatterSchemaValidate:
 
     def test_validate_without_the_required_fields_returns_one_missing_problem_each(self) -> None:
         #: Given
-        data: dict[object, object] = {}
+        data: dict[str, object] = {}
 
         #: When
         problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
@@ -50,7 +49,7 @@ class TestSkillFrontmatterSchemaValidate:
 
     def test_validate_with_a_field_outside_the_specification_returns_an_unknown_field_problem(self) -> None:
         #: Given
-        data: dict[object, object] = {'name': 'review', 'description': 'Review code.', 'model': 'opus'}
+        data: dict[str, object] = {'name': 'review', 'description': 'Review code.', 'model': 'opus'}
 
         #: When
         problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
@@ -63,21 +62,9 @@ class TestSkillFrontmatterSchemaValidate:
             ),
         ), 'a field the specification does not define is named'
 
-    def test_validate_with_a_key_that_is_not_a_string_returns_a_non_string_key_problem(self) -> None:
-        #: Given
-        data: dict[object, object] = {'name': 'review', 'description': 'Review code.', 123: 'x'}
-
-        #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
-
-        #: Then
-        assert problems == (
-            NonStringKeyProblem('a key that is not a string is not a field of the Agent Skills specification'),
-        ), 'a key that is not a string names no field'
-
     def test_validate_with_a_name_that_is_not_a_string_returns_a_not_a_string_problem(self) -> None:
         #: Given
-        data: dict[object, object] = {'name': None, 'description': 'Review code.'}
+        data: dict[str, object] = {'name': None, 'description': 'Review code.'}
 
         #: When
         problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
@@ -89,7 +76,7 @@ class TestSkillFrontmatterSchemaValidate:
 
     def test_validate_with_metadata_that_is_not_a_mapping_returns_a_not_a_string_mapping_problem(self) -> None:
         #: Given
-        data: dict[object, object] = {'name': 'review', 'description': 'Review code.', 'metadata': 'author'}
+        data: dict[str, object] = {'name': 'review', 'description': 'Review code.', 'metadata': 'author'}
 
         #: When
         problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
@@ -99,7 +86,7 @@ class TestSkillFrontmatterSchemaValidate:
 
     def test_validate_with_an_unquoted_metadata_number_returns_an_invalid_value_problem(self) -> None:
         #: Given
-        data: dict[object, object] = {'name': 'review', 'description': 'Review code.', 'metadata': {'version': 1.0}}
+        data: dict[str, object] = {'name': 'review', 'description': 'Review code.', 'metadata': {'version': 1.0}}
 
         #: When
         problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
@@ -109,21 +96,9 @@ class TestSkillFrontmatterSchemaValidate:
             'a value inside metadata is named by its path, and makes the metadata field invalid'
         )
 
-    def test_validate_with_a_metadata_key_that_is_not_a_string_returns_an_invalid_value_problem(self) -> None:
-        #: Given
-        data: dict[object, object] = {'name': 'review', 'description': 'Review code.', 'metadata': {1: 'one'}}
-
-        #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
-
-        #: Then
-        assert problems == (InvalidValueProblem('metadata', '`metadata` keys must be strings'),), (
-            'a key inside metadata is at fault, not a value'
-        )
-
     def test_validate_with_an_empty_name_returns_the_value_objects_own_message(self) -> None:
         #: Given
-        data: dict[object, object] = {'name': '', 'description': 'Review code.'}
+        data: dict[str, object] = {'name': '', 'description': 'Review code.'}
 
         #: When
         problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
@@ -136,7 +111,7 @@ class TestSkillFrontmatterSchemaValidate:
     def test_validate_with_a_name_over_64_characters_returns_the_value_objects_own_message(self) -> None:
         #: Given
         name = 'a' * 65
-        data: dict[object, object] = {'name': name, 'description': 'Review code.'}
+        data: dict[str, object] = {'name': name, 'description': 'Review code.'}
 
         #: When
         problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
@@ -151,7 +126,7 @@ class TestSkillFrontmatterSchemaValidate:
 
     def test_validate_with_an_uppercase_name_returns_the_value_objects_own_message(self) -> None:
         #: Given
-        data: dict[object, object] = {'name': 'PDF', 'description': 'Review code.'}
+        data: dict[str, object] = {'name': 'PDF', 'description': 'Review code.'}
 
         #: When
         problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
@@ -167,7 +142,7 @@ class TestSkillFrontmatterSchemaValidate:
 
     def test_validate_with_braces_in_a_rejected_name_returns_the_braces_unformatted(self) -> None:
         #: Given
-        data: dict[object, object] = {'name': '{reason}', 'description': 'Review code.'}
+        data: dict[str, object] = {'name': '{reason}', 'description': 'Review code.'}
 
         #: When
         problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
@@ -183,7 +158,7 @@ class TestSkillFrontmatterSchemaValidate:
 
     def test_validate_with_a_description_over_the_limit_returns_an_invalid_value_problem(self) -> None:
         #: Given
-        data: dict[object, object] = {'name': 'review', 'description': 'x' * 1025}
+        data: dict[str, object] = {'name': 'review', 'description': 'x' * 1025}
 
         #: When
         problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
@@ -198,7 +173,7 @@ class TestSkillFrontmatterSchemaValidate:
 
     def test_validate_with_a_blank_compatibility_returns_an_invalid_value_problem(self) -> None:
         #: Given
-        data: dict[object, object] = {'name': 'review', 'description': 'Review code.', 'compatibility': ' '}
+        data: dict[str, object] = {'name': 'review', 'description': 'Review code.', 'compatibility': ' '}
 
         #: When
         problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
@@ -213,7 +188,7 @@ class TestSkillFrontmatterSchemaValidate:
 
     def test_validate_with_allowed_tools_spelt_with_an_underscore_returns_an_unknown_field_problem(self) -> None:
         #: Given
-        data: dict[object, object] = {'name': 'review', 'description': 'Review code.', 'allowed_tools': 'Read'}
+        data: dict[str, object] = {'name': 'review', 'description': 'Review code.', 'allowed_tools': 'Read'}
 
         #: When
         problems = SKILL_FRONTMATTER_SCHEMA.validate(data)

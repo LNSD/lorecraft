@@ -102,7 +102,7 @@ ungoverned, and `ungoverned` is always empty in the JSON report.
 - The root is never read for skills, which would read the whole repository.
 - A `metadata` path is judged by what the run reads: naming `skills/gamma` or `skills` can judge a path into a
   sibling skill outside the scope or missing.
-- A key repeated inside a nested mapping such as `metadata`, or a non-string key, is not reported as repeated.
+- A key repeated inside a nested mapping such as `metadata` is not reported as repeated.
 - A field supplied only through a YAML merge (`<<`) has no line of its own, so a finding about it is on line 1.
 - A key written as a YAML alias (`*k`) is placed on its anchor's line, so a finding about it is there.
 - Run alone, it accepts a linked `docs/` or `docs/__meta__/`, which a check over documents refuses.
@@ -112,7 +112,7 @@ ungoverned, and `ungoverned` is always empty in the JSON report.
 A finding is reported in the file it is about, named under the skills directory or the path given: a link
 finding on the link's line, in the `SKILL.md` or the resource holding it. A frontmatter finding is at the
 `SKILL.md`, on the line of the field it concerns, on the line the YAML parser stopped at when the block does not
-parse, or on line 1 when the field is absent, the key is not a string, or the whole block is at fault. A
+parse, or on line 1 when the field is absent or the whole block is at fault. A
 missing or unparseable frontmatter is one finding, and the links are still checked; a `SKILL.md` that is not
 UTF-8 reports that alone. A `skill.lines-budget` finding is on line 1, after the frontmatter findings and before
 the link findings. A skill's `SKILL.md` findings come first, then each resource's, by path, then line.
@@ -134,12 +134,12 @@ and it suppresses no other finding; any other finding about that key is on the l
 | Rule | Reported when |
 |------|---------------|
 | `skill.frontmatter-missing` | The `SKILL.md` does not open with a `---` delimited block |
-| `skill.frontmatter-unparseable` | The block is not valid YAML, or is not a mapping |
+| `skill.frontmatter-unparseable` | The block is not valid YAML, or is not a mapping, or writes a key, at any depth, that is not a string, such as `1`, `true` or `null`, reported on the key's line; a quoted key such as `'1'` is a string |
 | `skill.undecodable` | The `SKILL.md` or a resource is not valid UTF-8; a resource reports it alone, and its links are not checked |
 | `skill.name-matches-directory` | `name` is not the name of the directory an agent lists the skill by, or the path given names it by, through any symlink: for `.agents/skills/bar -> ../../skills/foo`, `name` must be `bar`. Where a link leads plays no part in the verdict; when its name differs, a note on the finding names it, root-relative, or as the repository root |
 | `skill.duplicate-key` | A top-level key is written again; the message gives the line of the first occurrence |
 | `skill.<field>` | The specification rejects that field, or requires it and it is absent |
-| `skill.unknown-field` | A field the specification does not define, such as `model`, or a key that is not a string, such as `123` |
+| `skill.unknown-field` | A field the specification does not define, such as `model` |
 | `skill.frontmatter` | The specification rejects the frontmatter as a whole |
 | `skill.lines-budget` | The `SKILL.md` holds more than 500 lines, frontmatter included, each ended by a newline as finding lines are numbered, where a final newline adds no line; the message gives the count and the budget, and a help note says how to fix it. A resource has no budget |
 | `skill.link-absolute` | A link or image in the `SKILL.md` or a resource has a destination that starts with `/`; the message shows the link decoded, and a help note says how to fix it |

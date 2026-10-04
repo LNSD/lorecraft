@@ -40,6 +40,20 @@ DESCRIPTION_STRUCTURE_SPEC: Final[str] = dedent(
     """
 )
 
+# A frontmatter schema matching its fields by pattern, which `jsonschema` cannot match against a key that is not a
+# string, at the top level and inside each item of `tags`: such a key must never reach it.
+PATTERN_STRUCTURE_SPEC: Final[str] = dedent(
+    """
+    {
+      "frontmatter": {
+        "type": "object",
+        "patternProperties": {"^x-": {"type": "string"}},
+        "properties": {"tags": {"type": "array", "items": {"type": "object", "patternProperties": {"^t": {}}}}}
+      }
+    }
+    """
+)
+
 # A structure rule and no frontmatter schema, so a corpus governed by it is ungoverned for frontmatter.
 NO_FRONTMATTER_STRUCTURE_SPEC: Final[str] = '{"empty_sections": "forbidden"}'
 
@@ -218,6 +232,31 @@ class TestRunFrontmatter:
                 ),
             ),
         ], 'the scalar is one finding on its line, and the run goes on to check the other document'
+
+    def test_run_frontmatter_with_a_key_that_is_not_a_string_under_pattern_properties_reports_it_unparseable(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.md', b'# Code\n')
+        _write(tmp_path, 'docs/__meta__/code.structure.json', PATTERN_STRUCTURE_SPEC.encode())
+        _write(tmp_path, 'docs/code/clean.md', b'---\nname: "clean"\nx-owner: "me"\n---\n')
+        _write(tmp_path, 'docs/code/guide.md', b'---\nname: "guide"\n1: one\nx-owner: 2\ntags:\n  - true: t\n---\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_document(database)
+
+        #: Then
+        assert [report.violations for report in run.reports if isinstance(report, GovernedDocumentReport)] == [
+            (),
+            (
+                Violation(
+                    line=LineNumber.from_int(3),
+                    rule='frontmatter.unparseable',
+                    message='frontmatter is not valid YAML: found the key 1, which is not a string',
+                ),
+            ),
+        ], 'the first key that is not a string is refused on its line, the run goes on, and no schema meets it'
 
     def test_run_frontmatter_with_collections_nested_too_deeply_reports_it_and_checks_the_rest(
         self, tmp_path: Path
