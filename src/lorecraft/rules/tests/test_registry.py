@@ -2,6 +2,8 @@
 
 import pytest
 
+from lorecraft.rules.length.too_many_tokens import TooManyTokens
+
 from ..registry import (
     AbstractRuleError,
     ConflictingRuleGroupError,
@@ -242,15 +244,15 @@ class TestRegistryFind:
 
 @pytest.mark.unit
 class TestPackageRegistry:
-    def test_package_registry_with_no_rule_declared_holds_none(self) -> None:
+    def test_package_registry_with_the_package_rules_holds_them_in_code_order(self) -> None:
         #: Given
-        expected: tuple[()] = ()
+        expected = (TooManyTokens,)
 
         #: When
         loaded = package_registry()
 
         #: Then
-        assert loaded.rules == expected, '`lorecraft.rules` declares no rule yet'
+        assert loaded.rules == expected, 'the registry holds every rule `lorecraft.rules` declares, in code order'
 
     def test_package_registry_with_sample_rules_declared_holds_none_of_them(self) -> None:
         #: Given
