@@ -22,8 +22,9 @@ way: it builds the input each rule reads from the queries, and the rules are dec
 
 ## Belongs Here
 
-- A query over one revision: the project model, the scope index, a skill's resource listing, a frontmatter node,
-  a parse tree, a token count, memoized on first use.
+- A query over one revision: the project model, the scope index, a skill's resource listing, a document's
+  decoded text, a frontmatter node, a parse tree, a token count, memoized on first use.
+- The witness the decode query returns, a document's ref and its decoded text, and the undecodable marker.
 - The carry-over rule: which change to a revision's inputs invalidates which query.
 - What a persisted result is keyed by, and its validation against a new revision's inputs before the database
   keeps it.
@@ -51,6 +52,9 @@ way: it builds the input each rule reads from the queries, and the rules are dec
   several files is a query of its own, with its own rule.
 - A per-file query is keyed by an identity, a ref, and carries over only when the next model, or for a resource
   the next resource listing of its skill, locates the ref at the same resolved file and its bytes are unchanged.
+- A document's bytes become text in its decode query alone, which turns a decode failure into the undecodable
+  marker. A query about a document's content takes the witness, never a bare ref, and raises no decode error. Only
+  the database builds a witness.
 - Each query's docstring states its carry-over rule: the changes that invalidate it. It is written or updated in
   the same change that adds or alters the query; the module docstring keeps only what holds for every query.
 - A check takes the values it judges, its subject's identity values included, such as a filename, a corpus name
@@ -66,8 +70,8 @@ way: it builds the input each rule reads from the queries, and the rules are dec
 ```python
 # ❌ Bad — the check asks the database for itself: it can read any document, so nothing bounds what a
 # change to one file invalidates, and a unit test needs a whole snapshot to test a rule about one heading
-def validate_sections(db: AnalysisDb, ref: DocRef) -> tuple[Violation, ...]:
-    return _outline_violations(db.parse(ref).headings, db.model().governance(ref).structure_specs())
+def validate_sections(db: AnalysisDb, source: DocumentText) -> tuple[Violation, ...]:
+    return _outline_violations(db.parse(source).headings, db.model().governance(source.ref).structure_specs())
 ```
 
 ```python
@@ -97,6 +101,7 @@ Before committing code, verify:
 - [ ] A new memoized query reads one input, or is declared with its own carry-over rule
 - [ ] The query's docstring states its carry-over rule, updated in the same change as the query
 - [ ] A per-file query is keyed by a ref, and its carry-over compares location and bytes, not bytes alone
+- [ ] A query about a document's content takes its decode query's witness, never a bare ref
 - [ ] A new check takes values, identity values included, never the database, a view or a path it could read
       through, and performs no I/O
 - [ ] A new check returns violations that name no document

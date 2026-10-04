@@ -47,9 +47,13 @@ result is an immutable value. The queries are layered:
   declared scope and specifications, never a document's content: an edit to a document's text leaves them valid,
   and a retargeted symlink on the way to a skill does not. A resource listing reads only the listings and symlink
   targets its skill's walk reaches, so a change the walk does not reach leaves it valid.
-- **Per file**: a frontmatter node, a parse tree, a token count. Each is keyed by a document's, skill's or
-  resource's ref, and reads the one file a structure query locates for that ref: the model for a document or a
-  `SKILL.md`, its skill's resource listing for a resource.
+- **Decode**: a document's text. It is keyed by the document's ref, reads the one file the model locates for that
+  ref, and returns a witness, the ref and its decoded text, or an undecodable marker, cached like any answer. It is
+  the one place a document's bytes become text.
+- **Per file**: a frontmatter node, a parse tree, a token count, a line count. A document's takes the witness its
+  decode query returned, never a bare ref, so a fact of an undecodable document cannot be asked for, and is keyed by
+  the witness's ref. A skill's or a resource's is keyed by its ref, and reads the one file a structure query locates
+  for that ref: the model for a `SKILL.md`, its skill's resource listing for a resource.
 - **Fresh**: a question too cheap to keep, such as where a symlink leads, answered on every call and never memoized.
 
 A query reads what it needs through the view, or calls another query to reuse that query's cached result,

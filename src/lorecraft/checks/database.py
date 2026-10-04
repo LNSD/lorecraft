@@ -10,25 +10,28 @@ use and kept for as long as the database lives (pattern-memoization):
   a skill, and no document's contents.
   Among that structure it records each skills directory, skill entry and `SKILL.md` whose symlink chain leaves the
   repository.
-- `frontmatter(ref)`: one document's frontmatter node, like a stub: the part of a file the IDE reads without
-  building its full syntax tree. It reads that document's bytes and nothing else.
-- `parse(ref)`: one document's parse tree, like the IDE's syntax tree of a file or a per-file index entry. It reads that
-  document's bytes and nothing else.
+- `text(ref)`: one document's bytes decoded as UTF-8, like the IDE's document text for a file: a `DocumentText`
+  witness, or an `Undecodable` marker when the bytes are not UTF-8. It is the one place a document's bytes become
+  text, and it reads that document's bytes and nothing else.
+- `frontmatter(source)`: one document's frontmatter node, like a stub: the part of a file the IDE reads without
+  building its full syntax tree. It reads the text of the witness `text(ref)` returned and nothing else.
+- `parse(source)`: one document's parse tree, like the IDE's syntax tree of a file or a per-file index entry. It
+  reads the text of the witness and nothing else.
 - `skill_frontmatter(ref)`: one skill's frontmatter node, the same stub for a `SKILL.md`. It reads that
   skill's bytes and nothing else.
 - `skill_parse(ref)`: one skill's parse tree, the same syntax tree for a `SKILL.md`. It reads that skill's bytes
   and nothing else.
-- `skill_lines(ref)`: how many lines one skill's `SKILL.md` holds, like `tokens(ref)` for a document: counted from
-  the raw text, frontmatter included, without a parse. It reads that skill's bytes and nothing else.
+- `skill_lines(ref)`: how many lines one skill's `SKILL.md` holds, like `tokens(source)` for a document: counted
+  from the raw text, frontmatter included, without a parse. It reads that skill's bytes and nothing else.
 - `skill_resources(ref)`: one skill's resources, the Markdown files inside it other than its top-level `SKILL.md`,
   like the IDE's listing of a content root's children, and the symlinks inside it whose chain leaves the
   repository. It reads the listings and the symlink targets reached from that skill, and where the model locates
   the skill, and no file's content.
 - `skill_resource_parse(ref)`: one resource's parse tree, the same syntax tree again. It reads that resource's bytes,
   and where its skill's listing locates it, and nothing else.
-- `tokens(ref)`: what one document's whole file costs an agent that loads it, like another per-file index
-  entry: counted from the raw text, frontmatter and code included, without a parse. It reads that document's
-  bytes and nothing else.
+- `tokens(source)`: what one document's whole file costs an agent that loads it, like another per-file index
+  entry: counted from the raw text, frontmatter and code included, without a parse. It reads the text of the
+  witness `text(ref)` returned and nothing else.
 - The `ScopeIndex` behind `is_in_scope(path)`: the scope the snapshot records it was taken of, expanded once
   through the links it recorded, like the IDE's index of a project's content roots. It reads the snapshot's
   scope, links and climbed directories and nothing else, and no caller reaches it but `is_in_scope`.
@@ -44,17 +47,23 @@ for one path is cheap:
   leads, and never from which directories the snapshot holds. The index is what costs, so it is kept; the
   answer for one path is cheap, so it is not.
 
-Checks are plain functions of a database and a ref, like an inspection run over one file. Each asks for the
-cheapest query that holds what it reads, so a check that needs only the frontmatter never pays for the full
+Every query about one document's content takes the witness its decode query returned, never a bare ref, so a fact
+of a document that is not UTF-8 cannot be asked for: a reader matches the decode once and no later reader carries a
+branch for it. Each still caches by the witness's ref.
+
+Checks are pure functions of the values a run reads for them through the database, like an inspection run over one
+file: the run matches each document's decode once and hands a check only the part it judges. It asks for the cheapest
+query that holds what a check reads, so a check that needs only the frontmatter never pays for the full
 parse, and every check reading the same query shares one computation of it. Their results are not cached; a
 check runs again every time.
 
 Nothing here records what a cached value read, so no dependency is tracked. Invalidation is written by hand instead,
 the way the IDE drops per-file index entries on a file change event and resets structural caches on a project model
 change. Reserved, not implemented: `advance(snapshot) -> Database`, the next state. It would `diff` the two
-snapshots and carry over each cached value the change set leaves valid: the frontmatter, the parse and the token
-count of every document whose bytes did not change, the frontmatter, the parse and the line count of every skill
-whose bytes did not, the resources of every skill and the parse of every resource as their own docstrings state, and
+snapshots and carry over each cached value the change set leaves valid: the decoded text, the frontmatter, the parse
+and the token count of every document whose bytes did not change, the frontmatter, the parse and the line count of
+every skill whose bytes did not, the resources of every skill and the parse of every resource as their own
+docstrings state, and
 the model unless one of these changes invalidates it. An entry added or deleted under `docs/` invalidates it. So
 does an entry added or deleted in a skills directory, or in a skill's directory, both where the skill's entry names
 it and where a link leads it. So does an entry added or deleted at the resolved path a skill's linked `SKILL.md` leads
@@ -72,10 +81,11 @@ a skill's directory, and reads nothing there but the way to its `SKILL.md`. The 
 two snapshots' scopes, links or climbed directories differ, compared as recorded rather than through the change set,
 which holds no scope. A change of scope invalidates nothing else but the model, when it adds or drops a named
 directory: what the new scope adds or drops reaches the model and each skill's resources as entries in the change
-set. That rule holds only while the frontmatter, the parse, the token count and the line count each read their own
-document, skill or resource, the model and each skill's resource listing read no document, and the scope index reads
-only the scope, the links and the climbed directories, so keep them that way: data drawn from several documents
-belongs in a new cache with its own rule.
+set. That rule holds only while the decoded text reads its own document, the frontmatter, the parse and the token
+count of a document read only its decoded text, the frontmatter, the parse and the line count of a skill or a
+resource each read their own skill or resource, the model and each skill's resource listing read no document, and
+the scope index reads only the scope, the links and the climbed directories, so keep them that way: data drawn from
+several documents belongs in a new cache with its own rule.
 
 A change names a resolved path, while a ref may name a path through a link: a skill's `SKILL.md` under a linked
 skill entry changes at the path the link leads to, not at the ref's. A snapshot maps a linked path to its resolved one
@@ -89,7 +99,7 @@ and its `SkillResourceLocation` records the resolved file: its parse carries ove
 """
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.document import DocumentRef
+from lorecraft.project.document import DocumentDecodeError, DocumentRef
 from lorecraft.project.document import Repository as DocumentRepository
 from lorecraft.project.layout import named_dirs_of_scope, reject_linked_layout
 from lorecraft.project.skill import Repository as SkillRepository
@@ -105,13 +115,15 @@ from lorecraft.project.syntax import (
 from lorecraft.project.workspace import WorkspaceModel, load_model
 from lorecraft.vfs import ResolvedPath, ScopeIndex, Snapshot, VirtualFileSystem
 
+from .text import DocumentText, Undecodable
+
 
 class Database:
     """What the checks read from one snapshot, each computed once and cached for the snapshot's lifetime.
 
-    That is the workspace model, the frontmatter, the parse trees and the token counts of the documents, the
-    frontmatter, the parse trees and the line counts of the skills, the resources of each skill and their parse
-    trees, and the scope index `is_in_scope` answers from.
+    That is the workspace model, the decoded text, the frontmatter, the parse trees and the token counts of the
+    documents, the frontmatter, the parse trees and the line counts of the skills, the resources of each skill and
+    their parse trees, and the scope index `is_in_scope` answers from.
     """
 
     def __init__(self, snapshot: Snapshot) -> None:
@@ -128,6 +140,7 @@ class Database:
         self._model: WorkspaceModel | None = None
         # `None` until the first `is_in_scope()` call, as `_model` is until the first `model()` call.
         self._scope_index: ScopeIndex | None = None
+        self._texts: dict[DocumentRef, DocumentText | Undecodable] = {}
         self._frontmatters: dict[DocumentRef, FrontmatterNode] = {}
         self._parses: dict[DocumentRef, ParsedDocument] = {}
         self._token_counts: dict[DocumentRef, int] = {}
@@ -248,66 +261,84 @@ class Database:
             )
         return self._scope_index.is_in_scope(path)
 
-    def frontmatter(self, ref: DocumentRef) -> FrontmatterNode:
-        """The frontmatter of one document, parsed from the snapshot on the first call for its ref.
+    def text(self, ref: DocumentRef) -> DocumentText | Undecodable:
+        """One document's bytes decoded as UTF-8, read from the snapshot on the first call for its ref.
 
-        Cached apart from `parse(ref)`, which does not hold the frontmatter: the block is decoded here alone.
+        The one place a document's bytes become text: every other query about the document takes the witness this
+        returns. A document that is not UTF-8 is cached as `Undecodable` like any answer, so it is decoded once.
+
+        Carry-over: kept for the next revision only when the document's bytes did not change.
 
         A document that cannot be read is not cached, so each call raises the same error again.
 
         Args:
-            ref: The document to read; the cache key, so one ref is parsed once.
+            ref: The document to decode; the cache key, so one ref is decoded once.
+
+        Returns:
+            The witness, or `Undecodable` when the document is present but not UTF-8: such bytes are a finding
+            about the file, on the same side of the line as invalid YAML, not the failure to read it a missing file
+            is.
 
         Raises:
-            DocumentDecodeError: If the document's bytes are not UTF-8.
             DocumentReadError: If the snapshot holds no regular file at the document's path.
         """
-        decoded = self._frontmatters.get(ref)
+        source = self._texts.get(ref)
+        if source is None:
+            try:
+                source = DocumentText(ref, self._documents.get_document(ref).text)
+            except DocumentDecodeError:
+                source = Undecodable(ref)
+            self._texts[ref] = source
+        return source
+
+    def frontmatter(self, source: DocumentText) -> FrontmatterNode:
+        """The frontmatter of one document, parsed from its decoded text on the first call for its ref. Raises nothing.
+
+        Cached apart from `parse(source)`, which does not hold the frontmatter: the block is decoded here alone.
+
+        Carry-over: kept for the next revision whenever `text(source.ref)` is.
+
+        Args:
+            source: The document's text, as `text(ref)` returns it; its ref is the cache key, so one ref is parsed
+                once.
+        """
+        decoded = self._frontmatters.get(source.ref)
         if decoded is None:
-            text = self._documents.get_document(ref).text
-            decoded = parse_frontmatter(text)
-            self._frontmatters[ref] = decoded
+            decoded = parse_frontmatter(source.text)
+            self._frontmatters[source.ref] = decoded
         return decoded
 
-    def parse(self, ref: DocumentRef) -> ParsedDocument:
-        """The parse tree of one document, parsed from the snapshot on the first call for its ref.
+    def parse(self, source: DocumentText) -> ParsedDocument:
+        """The parse tree of one document, parsed from its decoded text on the first call for its ref. Raises nothing.
 
-        A document that cannot be read is not cached, so each call raises the same error again.
+        Carry-over: kept for the next revision whenever `text(source.ref)` is.
 
         Args:
-            ref: The document to parse; the cache key, so one ref is parsed once.
-
-        Raises:
-            DocumentDecodeError: If the document's bytes are not UTF-8.
-            DocumentReadError: If the snapshot holds no regular file at the document's path.
+            source: The document's text, as `text(ref)` returns it; its ref is the cache key, so one ref is parsed
+                once.
         """
-        parsed = self._parses.get(ref)
+        parsed = self._parses.get(source.ref)
         if parsed is None:
-            text = self._documents.get_document(ref).text
-            parsed = parse_document(text)
-            self._parses[ref] = parsed
+            parsed = parse_document(source.text)
+            self._parses[source.ref] = parsed
         return parsed
 
-    def tokens(self, ref: DocumentRef) -> int:
-        """The tokens in one document's whole file, counted from the snapshot on the first call for its ref.
+    def tokens(self, source: DocumentText) -> int:
+        """The tokens in one document's whole file, counted on the first call for its ref. Raises nothing.
 
-        Cached apart from `parse(ref)` and never read from it: the count needs the raw text, not the tree, so
+        Cached apart from `parse(source)` and never read from it: the count needs the raw text, not the tree, so
         a check that needs only one of the two never pays for the other.
 
-        A document that cannot be read is not cached, so each call raises the same error again.
+        Carry-over: kept for the next revision whenever `text(source.ref)` is.
 
         Args:
-            ref: The document whose whole file is counted; the cache key, so one ref is counted once.
-
-        Raises:
-            DocumentDecodeError: If the document's bytes are not UTF-8.
-            DocumentReadError: If the snapshot holds no regular file at the document's path.
+            source: The document's text, as `text(ref)` returns it; its ref is the cache key, so one ref is counted
+                once.
         """
-        count = self._token_counts.get(ref)
+        count = self._token_counts.get(source.ref)
         if count is None:
-            text = self._documents.get_document(ref).text
-            count = count_tokens(text)
-            self._token_counts[ref] = count
+            count = count_tokens(source.text)
+            self._token_counts[source.ref] = count
         return count
 
     def skill_frontmatter(self, ref: SkillRef) -> FrontmatterNode:
