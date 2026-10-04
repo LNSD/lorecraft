@@ -17,7 +17,7 @@ class TestHeading:
 
         #: When
         with pytest.raises(AssertionError) as exc_info:
-            Heading(level=rejected, text='Intro', line=LineNumber(1), empty=False, words=0)
+            Heading(level=rejected, text='Intro', line=LineNumber.parse(1), empty=False, words=0)
 
         #: Then
         assert str(rejected) in str(exc_info.value), 'the error names the rejected level'
@@ -29,7 +29,7 @@ class TestHeading:
 
         #: When
         with pytest.raises(AssertionError) as exc_info:
-            Heading(level=rejected, text='Deep', line=LineNumber(1), empty=False, words=0)
+            Heading(level=rejected, text='Deep', line=LineNumber.parse(1), empty=False, words=0)
 
         #: Then
         assert str(rejected) in str(exc_info.value), 'the error names the rejected level'
@@ -39,7 +39,7 @@ class TestHeading:
         accepted = 1
 
         #: When
-        heading = Heading(level=accepted, text='Title', line=LineNumber(1), empty=False, words=5)
+        heading = Heading(level=accepted, text='Title', line=LineNumber.parse(1), empty=False, words=5)
 
         #: Then
         assert heading.level == accepted, 'a title heading keeps level 1'
@@ -49,7 +49,7 @@ class TestHeading:
         accepted = 6
 
         #: When
-        heading = Heading(level=accepted, text='Section', line=LineNumber(10), empty=True, words=0)
+        heading = Heading(level=accepted, text='Section', line=LineNumber.parse(10), empty=True, words=0)
 
         #: Then
         assert heading.level == accepted, 'the deepest heading keeps level 6'

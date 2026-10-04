@@ -37,7 +37,7 @@ class TestParseDocument:
         document = parse_document(text)
 
         #: Then
-        assert document.headings == (Heading(level=1, text='Guide', line=LineNumber(5), empty=True, words=0),), (
+        assert document.headings == (Heading(level=1, text='Guide', line=LineNumber.parse(5), empty=True, words=0),), (
             'the block is skipped whether its YAML decodes or not, so a `#` line in it is no heading'
         )
 
@@ -54,7 +54,7 @@ class TestParseFrontmatter:
         #: Then
         assert frontmatter == Frontmatter(
             data={'name': 'guide', 'type': 'rule'},
-            keys=(FrontmatterKey('name', LineNumber(2)), FrontmatterKey('type', LineNumber(3))),
+            keys=(FrontmatterKey('name', LineNumber.parse(2)), FrontmatterKey('type', LineNumber.parse(3))),
         ), 'the block between the delimiters is decoded, each key on its document line'
 
     def test_parse_frontmatter_with_trailing_whitespace_on_the_delimiters_returns_its_frontmatter(self) -> None:
@@ -77,8 +77,8 @@ class TestParseFrontmatter:
         #: Then
         assert isinstance(frontmatter, Frontmatter), f'a CRLF block is found, got {frontmatter!r}'
         assert frontmatter.keys == (
-            FrontmatterKey('name', LineNumber(2)),
-            FrontmatterKey('type', LineNumber(3)),
+            FrontmatterKey('name', LineNumber.parse(2)),
+            FrontmatterKey('type', LineNumber.parse(3)),
         ), 'a CRLF line ending counts as one line break'
 
     def test_parse_frontmatter_with_invalid_yaml_returns_invalid_yaml_frontmatter(self) -> None:
@@ -145,8 +145,8 @@ class TestParseDocumentHeadings:
 
         #: Then
         assert document.headings == (
-            Heading(level=1, text='Guide', line=LineNumber(4), empty=False, words=5),
-            Heading(level=2, text='Checklist', line=LineNumber(8), empty=False, words=4),
+            Heading(level=1, text='Guide', line=LineNumber.parse(4), empty=False, words=5),
+            Heading(level=2, text='Checklist', line=LineNumber.parse(8), empty=False, words=4),
         ), 'each heading carries its level, its text, the document line it starts on and its prose words'
 
     def test_parse_document_with_inline_markup_in_a_heading_returns_its_plain_text(self) -> None:
@@ -237,7 +237,7 @@ class TestParseDocumentHeadings:
         document = parse_document(text)
 
         #: Then
-        assert [heading.line for heading in document.headings] == [LineNumber(1), LineNumber(3)], (
+        assert [heading.line for heading in document.headings] == [LineNumber.parse(1), LineNumber.parse(3)], (
             'a CRLF line ending counts as one line break'
         )
 
@@ -249,7 +249,7 @@ class TestParseDocumentHeadings:
         document = parse_document(text)
 
         #: Then
-        assert [heading.line for heading in document.headings] == [LineNumber(2)], (
+        assert [heading.line for heading in document.headings] == [LineNumber.parse(2)], (
             'the line break opening the document counts, so the heading after it is on line 2'
         )
 
@@ -377,7 +377,7 @@ class TestParseDocumentLinks:
         document = parse_document(text)
 
         #: Then
-        assert document.links == (Link(url='docs/rules.md', line=LineNumber(3)),), (
+        assert document.links == (Link(url='docs/rules.md', line=LineNumber.parse(3)),), (
             'an inline link carries its destination and the document line it is on'
         )
 
@@ -389,7 +389,7 @@ class TestParseDocumentLinks:
         document = parse_document(text)
 
         #: Then
-        assert document.links == (Link(url='rules.md', line=LineNumber(5)),), (
+        assert document.links == (Link(url='rules.md', line=LineNumber.parse(5)),), (
             'the frontmatter block is YAML, not Markdown, so link syntax inside it is not a link'
         )
 
@@ -411,7 +411,7 @@ class TestParseDocumentLinks:
         document = parse_document(text)
 
         #: Then
-        assert document.links == (Link(url='assets/flow.png', line=LineNumber(1)),), (
+        assert document.links == (Link(url='assets/flow.png', line=LineNumber.parse(1)),), (
             'an image points at a file as a link does, so its source is a link'
         )
 
@@ -423,7 +423,7 @@ class TestParseDocumentLinks:
         document = parse_document(text)
 
         #: Then
-        assert document.links == (Link(url='docs/rules.md', line=LineNumber(1)),), (
+        assert document.links == (Link(url='docs/rules.md', line=LineNumber.parse(1)),), (
             'a reference-style link is reported where it is used, with the destination its definition gives'
         )
 
@@ -435,7 +435,7 @@ class TestParseDocumentLinks:
         document = parse_document(text)
 
         #: Then
-        assert document.links == (Link(url='https://agentskills.io/specification', line=LineNumber(1)),), (
+        assert document.links == (Link(url='https://agentskills.io/specification', line=LineNumber.parse(1)),), (
             'an autolink is a link to its own text'
         )
 
@@ -468,8 +468,8 @@ class TestParseDocumentLinks:
 
         #: Then
         assert document.links == (
-            Link(url='a.md', line=LineNumber(3)),
-            Link(url='b.md', line=LineNumber(5)),
+            Link(url='a.md', line=LineNumber.parse(3)),
+            Link(url='b.md', line=LineNumber.parse(5)),
         ), 'a link in a list item or a blockquote is found, each on its own document line'
 
     def test_parse_document_with_crlf_line_endings_returns_each_link_on_its_document_line(self) -> None:
@@ -480,7 +480,7 @@ class TestParseDocumentLinks:
         document = parse_document(text)
 
         #: Then
-        assert [link.line for link in document.links] == [LineNumber(3), LineNumber(5)], (
+        assert [link.line for link in document.links] == [LineNumber.parse(3), LineNumber.parse(5)], (
             'a CRLF line ending counts as one line break'
         )
 

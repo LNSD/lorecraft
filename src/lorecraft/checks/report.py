@@ -82,7 +82,7 @@ def diagnostic_order(diagnostic: Diagnostic) -> DiagnosticOrder:
             # Line numbers start at 1, so 0 places the whole subject before every line.
             location = 0
         case Here():
-            location = primary.line.value
+            location = primary.line.number
         case _:
             assert_never(primary)
 

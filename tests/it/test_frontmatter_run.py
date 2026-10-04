@@ -156,12 +156,12 @@ class TestRunFrontmatter:
         assert [report.violations for report in run.reports if isinstance(report, GovernedDocumentReport)] == [
             (
                 Violation(
-                    line=LineNumber(4),
+                    line=LineNumber.parse(4),
                     rule='frontmatter.name-matches-filename',
                     message="`name` is 'other'; expected 'guide', the document's filename",
                 ),
                 Violation(
-                    line=LineNumber(4),
+                    line=LineNumber.parse(4),
                     rule='frontmatter.duplicate-key',
                     message="'name' is already written on line 2",
                 ),
@@ -182,7 +182,7 @@ class TestRunFrontmatter:
         assert [report.violations for report in run.reports if isinstance(report, GovernedDocumentReport)] == [
             (
                 Violation(
-                    line=LineNumber(4),
+                    line=LineNumber.parse(4),
                     rule='frontmatter.duplicate-key',
                     message="'name' is already written on line 2",
                 ),
@@ -207,7 +207,7 @@ class TestRunFrontmatter:
             (),
             (
                 Violation(
-                    line=LineNumber(3),
+                    line=LineNumber.parse(3),
                     rule='frontmatter.unparseable',
                     message=(
                         "frontmatter is not valid YAML: could not construct a value for the tag 'tag:yaml.org,2002:int'"
@@ -238,7 +238,7 @@ class TestRunFrontmatter:
             (),
             (
                 Violation(
-                    line=LineNumber(1),
+                    line=LineNumber.parse(1),
                     rule='frontmatter.unparseable',
                     message='frontmatter is not valid YAML: found collections nested too deeply to parse',
                 ),

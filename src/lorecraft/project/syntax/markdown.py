@@ -301,7 +301,7 @@ def _line(text: str, span: Position) -> LineNumber:
         text: The document's text, which the span indexes into.
         span: Where the node to locate sits, as `_position` reads it.
     """
-    return LineNumber(text.count('\n', 0, span.start) + 1)
+    return LineNumber.parse(text.count('\n', 0, span.start) + 1)
 
 
 def _position(node: Node) -> Position:
