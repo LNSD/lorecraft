@@ -95,12 +95,26 @@ A stored value with no computation is a `@property` or a plain attribute, not a 
 
 ## 4. The Name Says What Absence Does
 
-A lookup that may find nothing is named `find_<thing>` and returns `X | None`. A lookup that must succeed
-raises, and is named for the thing, under [§3](#3-no-get_-prefix-on-a-plain-accessor), or `require_<thing>`
-where a `find_` sibling exists. A tolerant twin of a raising lookup is `<name>_or_none`: a query's `one`,
-which raises unless exactly one result matches, pairs with `one_or_none`, which returns `None` when none
-does. `try_` is not used: the `| None` return already says it, and a second marker can disagree with the
-annotation.
+A lookup that may find nothing is named `find_<thing>` and returns `X | None`. A lookup whose parameter's
+type admits only keys the source has cannot fail, and is named for the thing, under
+[§3](#3-no-get_-prefix-on-a-plain-accessor). `try_` is not used: the `| None` return already says it, and a
+second marker can disagree with the annotation.
+
+**Absence is an answer, not a failure.** When absence is an outcome the caller handles — a name a user typed,
+a path, a ref from another revision — the lookup is `find_<thing>`, and the caller's `is None` branch says
+what absence means there. It never raises a built-in for absence: asking about a key that is not there breaks
+no contract.
+
+**One lookup, one condition.** A lookup never folds "not found" and "not the right kind of argument" into one
+exception. Absence returns `None`; an argument that cannot belong is excluded by the parameter's type. A
+section lookup on one outline takes a heading, which cannot name another document, not a document-qualified
+ref, which can.
+
+**A strict lookup is the exception.** Where absence would be a defect the caller cannot handle and no type can
+exclude, the strict form is `require_<thing>`, built on its `find_` sibling, and it raises a named subclass of
+the built-in [error-boundaries](error-boundaries.md#1-a-broken-contract-raises-a-built-in-never-an-error)
+assigns, never a `KeyError` from indexing. Before writing one, prefer handing the caller a value the source
+issued, so it needs no lookup.
 
 ```python
 # ❌ Bad — `find_` promises a None the caller checks for, and raises instead
@@ -109,13 +123,25 @@ def find_section(self, heading: str) -> Section:
 ```
 
 ```python
-# ✅ Good — the tolerant and the strict lookup are two names, and each keeps its word
+# ✅ Good — the tolerant and the strict lookup are two names, and each keeps its word: absence is None, and
+# the strict twin turns it into a named defect rather than letting indexing raise a KeyError
+class MissingSectionError(ValueError):
+    """An outline lacks a section its caller was entitled to expect."""
+
+    def __init__(self, heading: str) -> None:
+        self.heading = heading
+        super().__init__(f'outline has no section {heading!r}')
+
+
 def find_section(self, heading: str) -> Section | None:
     return self._sections.get(heading)
 
 
 def require_section(self, heading: str) -> Section:
-    return self._sections[heading]
+    section = self.find_section(heading)
+    if section is None:
+        raise MissingSectionError(heading)
+    return section
 ```
 
 ## 5. `iter_` Is Lazy, `list_` and Plurals Are Materialized
@@ -192,8 +218,14 @@ Before committing code, verify:
 - [ ] Every function that mutates opens with a verb and returns `None`; no mutator returns `self`, and no
       function takes an `inplace=` flag
 - [ ] No `get_` prefix on an accessor that only returns stored state; those are properties or bare attributes
-- [ ] Every `find_` returns `X | None`; every lookup without `| None` raises; tolerant twins end `_or_none`;
-      no name starts with `try_`
+- [ ] Every `find_` returns `X | None`; no name starts with `try_`
+- [ ] A lookup whose absence a caller must handle is a `find_` returning `X | None`, not a raise
+- [ ] No lookup raises one exception for two conditions; a wrong-kind argument is excluded by its parameter's
+      type
+- [ ] A strict lookup is `require_`, built on its `find_` sibling, raising a named subclass of a built-in,
+      never a `KeyError` from indexing
+- [ ] A lookup named for the thing, with no `find_` or `require_` prefix, cannot fail: its parameter's type
+      admits only keys the source has
 - [ ] Every `iter_` returns an `Iterator`; every `list_` or plural name returns a `tuple` or `list`
 - [ ] Every `ensure_` is idempotent create-if-absent; tolerant effects take a keyword such as `missing_ok=`
 - [ ] Every function that returns `None` and raises on unacceptable input is `reject_<the rejected case>`,
@@ -207,6 +239,7 @@ Before committing code, verify:
 - [python-fn-conv](python-fn-conv.md) - Related: Owns `as_`/`to_`, `from_`/`parse_`/`load_`, and `with_`
 - [python-fn-unchecked](python-fn-unchecked.md) - Related: Owns the `_unchecked` constructor and its proof
 - [python-naming](python-naming.md) - Related: Owns casing and the leading-underscore privacy boundary
+- [error-boundaries](error-boundaries.md) - Related: Owns which built-in a broken contract raises
 - [pattern-resource-lifecycle](pattern-resource-lifecycle.md) - Related: The acquire/release protocol behind
   the `connect`/`disconnect` pair
 - [principle-least-surprise](principle-least-surprise.md) - Foundation: Why a name that contradicts its cost
