@@ -9,6 +9,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import PositiveInt
 from lorecraft.core.path import RootRelativePath
 
 from ..frontmatter_problem import (
@@ -30,9 +31,6 @@ from ..structure import (
     FrontmatterSchema,
     FrontmatterSchemaIdError,
     InvalidFrontmatterSchemaError,
-    InvalidTitleCountError,
-    InvalidTokenBudgetError,
-    InvalidWordCapError,
     RepeatedOutlineSectionError,
     SectionEntry,
     StructureSchema,
@@ -101,15 +99,15 @@ class TestStructureSpecParse:
         #: Then
         assert structure_spec == StructureSpec(
             file=SPEC_FILE,
-            title=TitleRule(count=1, first=True),
+            title=TitleRule(count=PositiveInt(1), first=True),
             forbid_empty_sections=True,
             outline=(
-                AnySections(words=350),
-                SectionEntry(name='Checklist', words=250),
+                AnySections(words=PositiveInt(350)),
+                SectionEntry(name='Checklist', words=PositiveInt(250)),
                 SectionEntry(name='References', optional=True),
             ),
             forbidden=('Changelog',),
-            tokens=5000,
+            tokens=PositiveInt(5000),
             frontmatter=FrontmatterSchema(path=SPEC_PATH, schema={'type': 'object', 'required': ['name']}),
         ), 'every field is read into its typed rule, and an entry without `words` has no cap'
 
@@ -348,7 +346,9 @@ class TestStructureSpecParse:
         structure_spec = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert structure_spec.tokens == 4000, 'a token budget is a rule, so a file stating only it is usable'
+        assert structure_spec.tokens == PositiveInt(4000), (
+            'a token budget is a rule, so a file stating only it is usable'
+        )
 
     def test_parse_with_a_token_budget_of_zero_raises_structure_spec_decode_error(self) -> None:
         #: Given
@@ -360,6 +360,9 @@ class TestStructureSpecParse:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'no document satisfies a budget of 0 tokens'
+        assert exc_info.value.problems == ('tokens: must be at least 1, got 0',), (
+            f'the problem names the field and reads with the count rejection, got {exc_info.value.problems}'
+        )
 
     def test_parse_with_a_document_word_cap_raises_structure_spec_decode_error(self) -> None:
         #: Given
@@ -383,6 +386,9 @@ class TestStructureSpecParse:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'no section satisfies a cap of 0 words'
+        assert 'outline.0.StructureFileSection.words: must be at least 1, got 0' in exc_info.value.problems, (
+            f'the section shape reports the cap with the count rejection, got {exc_info.value.problems}'
+        )
 
     def test_parse_with_an_any_word_cap_of_zero_raises_structure_spec_decode_error(self) -> None:
         #: Given
@@ -511,6 +517,9 @@ class TestStructureSpecParse:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'no document satisfies a count of 0'
+        assert exc_info.value.problems == ('title.count: must be at least 1, got 0',), (
+            f'the problem names the field and reads with the count rejection, got {exc_info.value.problems}'
+        )
 
     def test_parse_with_a_string_for_a_boolean_raises_structure_spec_decode_error(self) -> None:
         #: Given
@@ -686,27 +695,6 @@ class TestStructureSpecConstruction:
         #: Then
         assert exc_info.value.path == file.path, 'a specification stating no rule would check nothing'
 
-    def test_construction_with_a_title_count_of_zero_raises_invalid_title_count_error(self) -> None:
-        #: Given
-        title = TitleRule(count=0, first=False)
-
-        #: When
-        with pytest.raises(InvalidTitleCountError) as exc_info:
-            StructureSpec(
-                file=SPEC_FILE,
-                title=title,
-                forbid_empty_sections=False,
-                outline=(),
-                forbidden=(),
-                tokens=None,
-                frontmatter=None,
-            )
-
-        #: Then
-        assert exc_info.value.path == SPEC_PATH, 'a title rule asks for at least one title'
-        assert exc_info.value.count == 0, f'the error carries the count stated, got {exc_info.value.count}'
-        assert str(SPEC_PATH) in str(exc_info.value), f'the message names the file, got {exc_info.value}'
-
     def test_construction_with_a_section_named_twice_raises_repeated_outline_section_error(self) -> None:
         #: Given
         outline = (
@@ -779,95 +767,6 @@ class TestStructureSpecConstruction:
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'two runs side by side match as one, so the outline misleads'
         assert str(SPEC_PATH) in str(exc_info.value), f'the message names the file, got {exc_info.value}'
-
-    def test_construction_with_a_token_budget_of_zero_raises_invalid_token_budget_error(self) -> None:
-        #: Given
-        tokens = 0
-
-        #: When
-        with pytest.raises(InvalidTokenBudgetError) as exc_info:
-            StructureSpec(
-                file=SPEC_FILE,
-                title=None,
-                forbid_empty_sections=False,
-                outline=(),
-                forbidden=('Changelog',),
-                tokens=tokens,
-                frontmatter=None,
-            )
-
-        #: Then
-        assert exc_info.value.path == SPEC_PATH, 'a budget of 0 tokens is one no document can meet'
-        assert exc_info.value.tokens == 0, f'the error carries the budget stated, got {exc_info.value.tokens}'
-        assert str(SPEC_PATH) in str(exc_info.value), f'the message names the file, got {exc_info.value}'
-
-    def test_construction_with_a_token_budget_of_one_keeps_it(self) -> None:
-        #: Given
-        tokens = 1
-
-        #: When
-        structure_spec = StructureSpec(
-            file=SPEC_FILE,
-            title=None,
-            forbid_empty_sections=False,
-            outline=(),
-            forbidden=(),
-            tokens=tokens,
-            frontmatter=None,
-        )
-
-        #: Then
-        assert structure_spec.tokens == 1, (
-            f'1 token is the smallest budget a document can meet, got {structure_spec.tokens}'
-        )
-
-    def test_construction_with_a_section_word_cap_of_zero_raises_invalid_word_cap_error(self) -> None:
-        #: Given
-        outline = (SectionEntry(name='Checklist', words=0),)
-
-        #: When
-        with pytest.raises(InvalidWordCapError) as exc_info:
-            StructureSpec(
-                file=SPEC_FILE,
-                title=None,
-                forbid_empty_sections=False,
-                outline=outline,
-                forbidden=(),
-                tokens=None,
-                frontmatter=None,
-            )
-
-        #: Then
-        assert exc_info.value.path == SPEC_PATH, 'a section cap of 0 words is one no section with prose can meet'
-        assert exc_info.value.entry == SectionEntry(name='Checklist', words=0), (
-            f'the error carries the entry stating the cap, got {exc_info.value.entry}'
-        )
-        assert exc_info.value.words == 0, f'the error carries the cap stated, got {exc_info.value.words}'
-        assert 'Checklist' in str(exc_info.value), f'the message names the capped section, got {exc_info.value}'
-
-    def test_construction_with_a_negative_any_word_cap_raises_invalid_word_cap_error(self) -> None:
-        #: Given
-        outline = (AnySections(words=-1),)
-
-        #: When
-        with pytest.raises(InvalidWordCapError) as exc_info:
-            StructureSpec(
-                file=SPEC_FILE,
-                title=None,
-                forbid_empty_sections=False,
-                outline=outline,
-                forbidden=(),
-                tokens=None,
-                frontmatter=None,
-            )
-
-        #: Then
-        assert exc_info.value.path == SPEC_PATH, 'a run cap below 1 word is one no section with prose can meet'
-        assert exc_info.value.entry == AnySections(words=-1), (
-            f'the error carries the entry stating the cap, got {exc_info.value.entry}'
-        )
-        assert exc_info.value.words == -1, f'the error carries the cap stated, got {exc_info.value.words}'
-        assert 'any' in str(exc_info.value), f'the message names the entry as an `any` run, got {exc_info.value}'
 
 
 @pytest.mark.unit

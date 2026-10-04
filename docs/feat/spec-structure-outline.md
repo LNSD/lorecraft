@@ -135,5 +135,6 @@ side, or when `forbidden` names a section the outline names.
 ## Code References
 
 - `src/lorecraft/project/schemas/structure_file.py` - The shape of the outline keys
+- `src/lorecraft/core/num.py` - The positive whole number the title `count` holds, which refuses a value below `1`
 - `src/lorecraft/project/schemas/structure.py` - Turns the keys into rules, and refuses an unusable outline
 - `src/lorecraft/checks/structure.py` - Applies the title, outline, empty and forbidden rules to a document

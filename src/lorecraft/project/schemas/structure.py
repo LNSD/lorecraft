@@ -73,6 +73,7 @@ from pydantic import JsonValue, ValidationError
 from referencing.jsonschema import DRAFT202012
 
 from lorecraft.core.error import Error
+from lorecraft.core.num import PositiveInt
 from lorecraft.core.path import RootRelativePath
 
 from .frontmatter_problem import (
@@ -131,63 +132,6 @@ class EmptyStructureSpecError(Error):
     def __init__(self, path: RootRelativePath) -> None:
         self.path = path
         super().__init__(f'invalid structure schema {path}: states no rule, so it would check nothing')
-
-
-class InvalidTitleCountError(Error):
-    """A structure specification's title count is below 1.
-
-    Attributes:
-        path: Root-relative path of the rejected file.
-        count: The count it states.
-    """
-
-    path: RootRelativePath
-    count: int
-
-    def __init__(self, path: RootRelativePath, count: int) -> None:
-        self.path = path
-        self.count = count
-        super().__init__(f'invalid structure schema {path}: title count must be at least 1, got {count}')
-
-
-class InvalidTokenBudgetError(Error):
-    """A structure specification's token budget is below 1.
-
-    Attributes:
-        path: Root-relative path of the rejected file.
-        tokens: The budget it states.
-    """
-
-    path: RootRelativePath
-    tokens: int
-
-    def __init__(self, path: RootRelativePath, tokens: int) -> None:
-        self.path = path
-        self.tokens = tokens
-        super().__init__(f'invalid structure schema {path}: token budget must be at least 1, got {tokens}')
-
-
-class InvalidWordCapError(Error):
-    """An outline entry's word cap is below 1.
-
-    Attributes:
-        path: Root-relative path of the rejected file.
-        entry: The outline entry that states the cap.
-        words: The cap it states.
-    """
-
-    path: RootRelativePath
-    entry: 'OutlineEntry'
-    words: int
-
-    def __init__(self, path: RootRelativePath, entry: 'OutlineEntry', words: int) -> None:
-        self.path = path
-        self.entry = entry
-        self.words = words
-        super().__init__(
-            f'invalid structure schema {path}: outline word cap must be at least 1, got {words} on '
-            f'{_describe_entry(entry)}'
-        )
 
 
 class RepeatedOutlineSectionError(Error):
@@ -314,11 +258,11 @@ class TitleRule:
     """How many H1 titles a document carries, and whether one opens it.
 
     Attributes:
-        count: The number of H1 titles; at least 1, which `StructureSpec` checks.
+        count: The number of H1 titles.
         first: True when an H1 title must come before any other heading.
     """
 
-    count: int
+    count: PositiveInt
     first: bool
 
 
@@ -330,7 +274,7 @@ class SectionEntry:
         name: The section's heading text.
         optional: True when a document may leave the section out; False, the default, when it must carry it.
         words: The most prose words the section may hold, its H3 subsections included, or None, the default, for
-            no cap; at least 1, which `StructureSpec` checks.
+            no cap.
         description: What the section holds, reported as help when a document lacks the section, or None, the
             default, for no help.
         examples: Markdown samples of the section's body, each without its heading, or empty, the default, for
@@ -340,9 +284,7 @@ class SectionEntry:
 
     name: str
     optional: bool = False
-    # Checked by the enclosing `StructureSpec` rather than here, so a bad cap is refused as an
-    # `InvalidWordCapError` naming the specification file, which this record does not know.
-    words: int | None = None
+    words: PositiveInt | None = None
     description: str | None = None
     examples: tuple[str, ...] = ()
 
@@ -355,13 +297,10 @@ class AnySections:
 
     Attributes:
         words: The most prose words each section in the run may hold, its H3 subsections included, or None, the
-            default, for no cap. It caps every section alone, not the run's total; at least 1, which
-            `StructureSpec` checks.
+            default, for no cap. It caps every section alone, not the run's total.
     """
 
-    # Checked by the enclosing `StructureSpec` rather than here, so a bad cap is refused as an
-    # `InvalidWordCapError` naming the specification file, which this record does not know.
-    words: int | None = None
+    words: PositiveInt | None = None
 
 
 type OutlineEntry = SectionEntry | AnySections
@@ -563,7 +502,7 @@ class StructureSpec:
         outline: The section order, matched against a document's sections left to right; may be empty.
         forbidden: Sections that must not appear at all.
         tokens: The token budget: the most tokens the whole file may hold, frontmatter, code and tables
-            included, or None for no budget; at least 1.
+            included, or None for no budget.
         frontmatter: The JSON Schema a document's frontmatter must satisfy, or None when the specification states
             none.
     """
@@ -573,25 +512,19 @@ class StructureSpec:
     forbid_empty_sections: bool
     outline: tuple[OutlineEntry, ...]
     forbidden: tuple[str, ...]
-    # The token budget and the outline's word caps stay plain ints rather than value objects: construction checks
-    # their one invariant, at least 1, and the budget check calls a document's count `token_count`, so it cannot
-    # be mistaken for this budget.
-    tokens: int | None
+    tokens: PositiveInt | None
     frontmatter: FrontmatterSchema | None
 
     def __post_init__(self) -> None:
         """Refuse rules that are not usable.
 
-        A rule is not usable when it checks nothing, when no count, cap or budget satisfies it, or when it
-        contradicts itself.
+        A rule is not usable when it checks nothing, or when it contradicts itself.
 
-        A frontmatter schema is checked when it is built, before the structure specification is.
+        A frontmatter schema is checked when it is built, before the structure specification is, and so is a
+        count, a cap or a budget: each is a `PositiveInt`, at least 1.
 
         Raises:
             EmptyStructureSpecError: If the specification states no rule.
-            InvalidTitleCountError: If its title count is below 1.
-            InvalidTokenBudgetError: If its token budget is below 1.
-            InvalidWordCapError: If a word cap in its outline is below 1.
             RepeatedOutlineSectionError: If its outline names a section twice.
             ForbiddenOutlineSectionError: If it forbids a section its own outline names.
             AdjacentAnyRunsError: If its outline places two `any` runs side by side.
@@ -606,13 +539,6 @@ class StructureSpec:
         )
         if states_no_rule:
             raise EmptyStructureSpecError(self.path)
-        if self.title is not None and self.title.count < 1:
-            raise InvalidTitleCountError(self.path, self.title.count)
-        if self.tokens is not None and self.tokens < 1:
-            raise InvalidTokenBudgetError(self.path, self.tokens)
-        for entry in self.outline:
-            if entry.words is not None and entry.words < 1:
-                raise InvalidWordCapError(self.path, entry, entry.words)
 
         named = self.section_names()
         repeated = sorted({name for name in named if named.count(name) > 1})
@@ -670,9 +596,6 @@ class StructureSpec:
             ForeignFrontmatterDialectError: If a schema in its frontmatter schema names another dialect.
             UntypedFrontmatterSchemaError: If its frontmatter schema's root does not state an object.
             EmptyStructureSpecError: If it states no rule.
-            InvalidTitleCountError: If its title count is below 1.
-            InvalidTokenBudgetError: If its token budget is below 1.
-            InvalidWordCapError: If a word cap in its outline is below 1.
             RepeatedOutlineSectionError: If its outline names a section twice.
             ForbiddenOutlineSectionError: If it forbids a section its own outline names.
             AdjacentAnyRunsError: If its outline places two ``any`` runs side by side.
@@ -738,21 +661,6 @@ def _frontmatter_schema(path: RootRelativePath, schema: dict[str, JsonValue] | N
     if schema is None:
         return None
     return FrontmatterSchema(path=path, schema=schema)
-
-
-def _describe_entry(entry: OutlineEntry) -> str:
-    """How an outline entry is named in a rejection: its section name, or `any` for a run.
-
-    Args:
-        entry: The outline entry being named.
-    """
-    match entry:
-        case SectionEntry():
-            return f'section {entry.name!r}'
-        case AnySections():
-            return 'an `any` run'
-        case _:
-            assert_never(entry)
 
 
 def _problems(error: ValidationError) -> tuple[str, ...]:
