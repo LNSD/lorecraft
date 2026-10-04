@@ -14,7 +14,7 @@ What the schema shows an editor is declared here too: each field's docstring is 
 its examples and bounds, and each model's config names it and gives a whole example. Only the shape is stated
 here; what a shape cannot state, such as an outline naming a section twice, is refused by `StructureSpec`.
 
-A count, the title count, a word cap or the token budget, is a `PositiveInt`, which states its own bound: it is
+A count, the title count, a word cap or the token budget, is a `NonZeroUnsignedInt`, which states its own bound: it is
 built while the file is decoded, and a number it refuses is a validation error carrying its own message.
 """
 
@@ -22,7 +22,7 @@ from typing import Annotated, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, WithJsonSchema, field_validator
 
-from lorecraft.core.num import PositiveInt
+from lorecraft.core.num import NonZeroUnsignedInt
 
 JSON_SCHEMA_DIALECT: Final[str] = 'https://json-schema.org/draft/2020-12/schema'
 """Draft 2020-12, the one dialect a frontmatter schema is written in: the only one its ``$schema`` may name."""
@@ -98,7 +98,7 @@ class StructureFileTitle(_StructureFileModel):
 
     model_config = ConfigDict(title='Title rule', json_schema_extra={'examples': [{'count': 1, 'first': True}]})
 
-    count: PositiveInt = Field(examples=[1])
+    count: NonZeroUnsignedInt = Field(examples=[1])
     """The number of H1 titles a document carries."""
     first: bool
     """True when an H1 title must come before any other heading."""
@@ -130,7 +130,7 @@ class StructureFileSection(_StructureFileModel):
     """The section's heading text, without its `#` markers or inline markup."""
     optional: bool = False
     """True when a document may leave the section out."""
-    words: PositiveInt | None = Field(default=None, examples=[250])
+    words: NonZeroUnsignedInt | None = Field(default=None, examples=[250])
     """The most words of prose the section may hold, its H3 subsections included; no cap when absent."""
     description: str | None = Field(
         default=None,
@@ -159,7 +159,7 @@ class StructureFileAny(_StructureFileModel):
 
     any: Literal[True]
     """Always true: the field that marks the entry as a run."""
-    words: PositiveInt | None = Field(default=None, examples=[350])
+    words: NonZeroUnsignedInt | None = Field(default=None, examples=[350])
     """The most words of prose each section in the run may hold, its H3 subsections included: a cap on every
     section alone, not on the run's total. No cap when absent."""
 
@@ -192,7 +192,7 @@ class StructureFile(_StructureFileModel):
     """What this file governs and why, for whoever opens it; not read by the check."""
     title: StructureFileTitle | None = None
     """How many H1 titles a document carries, and whether one opens it; no title rule when absent."""
-    tokens: PositiveInt | None = Field(default=None, examples=[5000])
+    tokens: NonZeroUnsignedInt | None = Field(default=None, examples=[5000])
     """The token budget: the most tokens the whole file may cost an agent that loads it, frontmatter, code and
     tables included; no budget when absent. Counted with OpenAI's `o200k_base` encoding, the same whichever agent
     reads the document."""
