@@ -1,5 +1,5 @@
 ---
-name: "test-e2e"
+name: "tests-e2e"
 description: "The end-to-end test framework in tests/lib/: running the installed command in a subprocess, pinning what it prints with one plain-text snapshot file per case and redacting only what differs per build or machine, and writing the repository root it runs over as a `Workspace` that holds only the literals the case turns on. Load when writing or reviewing an end-to-end test, its fixtures or its snapshots, or changing tests/lib/"
 type: "core"
 scope: "global"
@@ -10,8 +10,8 @@ scope: "global"
 An end-to-end test runs the command a user runs, over a repository a user could have, and compares what it
 prints to output a person has read. Its helpers sit in `tests/lib/`, and each one owns one of those three
 things: `lib.cli` runs the command, `lib.snapshot` stores what it printed, and `lib.workspace` writes the
-repository. This document states how a test uses them. [test-organization](test-organization.md) owns the tier
-itself, and [test-functions](test-functions.md) the shape every test takes.
+repository. This document states how a test uses them. [tests-organization](tests-organization.md) owns the tier
+itself, and [tests-functions](tests-functions.md) the shape every test takes.
 
 ## 1. Run the Installed Command
 
@@ -99,9 +99,9 @@ Before committing code, verify:
 
 ## References
 
-- [test-organization](test-organization.md) - Related: Owns the end-to-end tier, its directory and its marker
-- [test-functions](test-functions.md) - Related: Owns the Given, When and Then every end-to-end test follows, and fixture scope
-- [test-assertions](test-assertions.md) - Related: Owns the message on each assertion and the exit-status guard
+- [tests-organization](tests-organization.md) - Related: Owns the end-to-end tier, its directory and its marker
+- [tests-functions](tests-functions.md) - Related: Owns the Given, When and Then every end-to-end test follows, and fixture scope
+- [tests-assertions](tests-assertions.md) - Related: Owns the message on each assertion and the exit-status guard
 - [principle-information-hiding](principle-information-hiding.md) - Foundation: The layout is the model's to know, not each test's
 
 ## External References
