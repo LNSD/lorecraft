@@ -35,7 +35,7 @@ from syrupy.assertion import SnapshotAssertion
 import lorecraft
 from lib.cli import run_alias, run_cli
 from lib.snapshot import JsonTextSnapshotExtension, TextSnapshotExtension
-from lib.workspace import Document, File, RawFrontmatter, Skill, SkillFrontmatter, Spec, Workspace
+from lib.workspace import Document, File, Link, RawFrontmatter, Skill, SkillFrontmatter, Spec, Workspace
 from lorecraft import __version__
 
 # The labelled lines of `version --verbose` whose values differ per checkout, interpreter, machine and install.
@@ -375,31 +375,6 @@ def skill_and_resource_absolute_link_root(tmp_path: Path, faker: Faker) -> Path:
     )
     workspace = Workspace(skills=[skill])
     return workspace.write(tmp_path, faker)
-
-
-@pytest.fixture(scope='function')
-def outside_link_root(tmp_path: Path) -> Path:
-    """A root holding one clean skill whose `references` directory links out of the repository, climbing above it.
-
-    The root is `tmp_path/repository`, and `references -> ../../../../shared/refs` leads to `tmp_path/shared/refs`,
-    a relative target so the printed note is the same on every machine. The symlink-outside finding is the only one
-    the check prints.
-
-    Args:
-        tmp_path: Directory the repository and the directory outside it are written into.
-
-    Returns:
-        The repository root.
-    """
-    (tmp_path / 'shared' / 'refs').mkdir(parents=True)
-    (tmp_path / 'shared' / 'refs' / 'guide.md').write_text('# Guide\n', encoding='utf-8')
-    root = tmp_path / 'repository'
-    (root / '.agents' / 'skills' / 'review').mkdir(parents=True)
-    (root / '.agents' / 'skills' / 'review' / 'SKILL.md').write_text(
-        '---\nname: review\ndescription: Review a change\n---\n', encoding='utf-8'
-    )
-    (root / '.agents' / 'skills' / 'review' / 'references').symlink_to('../../../../shared/refs')
-    return root
 
 
 @pytest.mark.e2e
@@ -833,11 +808,17 @@ class TestCheckSkillsSnapshots:
         assert result.stdout == expected, 'the lines-budget finding and its help note match the reviewed snapshot'
 
     def test_check_skills_with_a_directory_linked_outside_the_repository_prints_the_symlink_outside_finding(
-        self, snapshot: SnapshotAssertion, outside_link_root: Path
+        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
     ) -> None:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'skills', '--root', str(outside_link_root))
+        outside = Workspace(files=[File('shared/refs/guide.md', '# Guide\n')])
+        outside.write(tmp_path, faker)
+        # The link climbs from the skill's directory out of `tmp_path/repository` to `tmp_path/shared/refs`. Its
+        # target is relative, so the note printing it is the same on every machine.
+        repository = Workspace(skills=[Skill('review', links={'references': '../../../../shared/refs'})])
+        root = repository.write(tmp_path / 'repository', faker)
+        arguments = ('check', 'skills', '--root', str(root))
 
         #: When
         result = run_cli(*arguments)
@@ -977,27 +958,30 @@ class TestCheckAllSnapshots:
 
 
 @pytest.fixture(scope='function')
-def linked_specs_root(tmp_path: Path) -> Path:
-    """A root whose `docs/__meta__` is a symlink to the workspace fixture's specifications, beside one document.
+def linked_specs_root(tmp_path: Path, faker: Faker) -> Path:
+    """A root whose `docs/__meta__` is a symlink to the workspace fixture's specifications.
 
     Args:
-        tmp_path: Directory the link and the document are created in, as the repository root.
+        tmp_path: Directory the link and the document are written into, as the repository root.
+        faker: The test's seeded generator, which fills what the document leaves unset.
     """
-    (tmp_path / 'docs' / 'code').mkdir(parents=True)
-    (tmp_path / 'docs' / 'code' / 'logging.md').write_text('# Logging\n', encoding='utf-8')
-    (tmp_path / 'docs' / '__meta__').symlink_to(WORKSPACE_FIXTURE / 'docs' / '__meta__')
-    return tmp_path
+    workspace = Workspace(
+        documents=[Document('code', 'logging')],
+        links=[Link('docs/__meta__', str(WORKSPACE_FIXTURE / 'docs' / '__meta__'))],
+    )
+    return workspace.write(tmp_path, faker)
 
 
 @pytest.fixture(scope='function')
-def linked_docs_root(tmp_path: Path) -> Path:
+def linked_docs_root(tmp_path: Path, faker: Faker) -> Path:
     """A root whose `docs` is a symlink to the workspace fixture's `docs/`.
 
     Args:
-        tmp_path: Directory the link is created in, as the repository root.
+        tmp_path: Directory the link is written into, as the repository root.
+        faker: The test's seeded generator; nothing in a link is generated.
     """
-    (tmp_path / 'docs').symlink_to(WORKSPACE_FIXTURE / 'docs')
-    return tmp_path
+    workspace = Workspace(links=[Link('docs', str(WORKSPACE_FIXTURE / 'docs'))])
+    return workspace.write(tmp_path, faker)
 
 
 @pytest.mark.e2e
