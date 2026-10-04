@@ -6,7 +6,7 @@ from .name import (
     InvalidCorpusNameCharacterError,
 )
 
-__all__ = [
+__all__: list[str] = [
     'CorpusName',
     'EmptyCorpusNameError',
     'InvalidCorpusNameCharacterError',

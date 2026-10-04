@@ -37,7 +37,7 @@ from .view import (
     UnrecordedFileError,
 )
 
-__all__ = [
+__all__: list[str] = [
     'FileSystem',
     'ResolvedPath',
     'DiskFileSystem',

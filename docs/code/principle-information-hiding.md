@@ -52,7 +52,7 @@ from .frontmatter import FrontmatterChecker
 from .outline import OutlineChecker
 from .registry import checker_for, register_checker
 
-__all__ = [
+__all__: list[str] = [
     'FrontmatterChecker',
     'OutlineChecker',
     'checker_for',

@@ -30,7 +30,7 @@ from .repo import (
 )
 from .skills_dir import SkillsDir
 
-__all__ = [
+__all__: list[str] = [
     'SkillRef',
     'SkillLocation',
     'SkillResourceRef',

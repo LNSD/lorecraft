@@ -13,6 +13,7 @@ import logging
 import platform
 import subprocess
 from pathlib import Path
+from typing import Final
 
 from .. import __version__
 
@@ -20,15 +21,15 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 # The name the CLI is invoked by, and the name under which the package is distributed. They are
 # the same string today; keeping one constant means a rename touches one line.
-_PROGRAM_NAME: str = 'lorecraft'
+_PROGRAM_NAME: Final[str] = 'lorecraft'
 
 # --tags so an annotated or lightweight tag both count, --always so a checkout with no tag still
 # reports its commit, --dirty so uncommitted work is visible rather than implied.
-_GIT_DESCRIBE: tuple[str, ...] = ('git', 'describe', '--tags', '--always', '--dirty')
+_GIT_DESCRIBE: Final[tuple[str, ...]] = ('git', 'describe', '--tags', '--always', '--dirty')
 
 # Seconds a `git describe` may take before the CLI gives up on it. A local describe is milliseconds;
 # the bound is here so a wedged git can never hang `version --verbose`.
-_GIT_TIMEOUT_SECONDS: float = 5.0
+_GIT_TIMEOUT_SECONDS: Final[float] = 5.0
 
 
 def short_version() -> str:

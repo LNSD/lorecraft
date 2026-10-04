@@ -23,7 +23,7 @@ from .link import Link
 from .position import InvalidLineNumberError, LineNumber
 from .tokens import count_tokens
 
-__all__ = [
+__all__: list[str] = [
     'ParsedDocument',
     'parse_document',
     'parse_frontmatter',
