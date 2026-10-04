@@ -439,19 +439,23 @@ class Repository:
         for entry in entries:
             directory = skills_dir / entry.name
             resolved_entry = resolved_skills_dir / entry.name
-            if entry.kind is EntryKind.DIRECTORY:
-                # The skills directory is resolved and so is this entry: nothing is left to resolve.
-                files_directory = ResolvedPath(resolved_entry)
-            elif entry.kind is EntryKind.SYMLINK:
-                files_directory = self._find_entry_dir(resolved_entry)
-                if files_directory is None:
-                    leaves_at = self._find_entry_exit(resolved_entry)
-                    if leaves_at is not None:
-                        outside_symlinks.append(OutsideSymlink(directory, leaves_at))
-            else:
-                files_directory = None
-            if files_directory is None:
-                continue
+            match entry.kind:
+                case EntryKind.DIRECTORY:
+                    # The skills directory is resolved and so is this entry: nothing is left to resolve.
+                    files_directory = ResolvedPath(resolved_entry)
+                case EntryKind.SYMLINK:
+                    files_directory = self._find_entry_dir(resolved_entry)
+                    if files_directory is None:
+                        leaves_at = self._find_entry_exit(resolved_entry)
+                        if leaves_at is not None:
+                            outside_symlinks.append(OutsideSymlink(directory, leaves_at))
+                        continue  # a symlink that leads to no directory is no skill
+                case EntryKind.FILE:
+                    continue  # a skill is a directory, so a file beside the skills is not one
+                case EntryKind.OTHER:
+                    continue  # a socket, a device or a pipe is no skill directory either
+                case _:
+                    assert_never(entry.kind)
             skill_file = self._find_skill_file(files_directory)
             match skill_file:
                 case RootRelativePath():
@@ -592,17 +596,24 @@ class Repository:
         for entry in entries:
             if entry.name != SKILL_ENTRY_FILENAME:
                 continue
-            if entry.kind is EntryKind.FILE:
-                # A regular file listed in a resolved directory: no symlink is on the way to it or at it.
-                return ResolvedPath(skill_file)
-            if entry.kind is EntryKind.SYMLINK:
-                try:
-                    resolved_file = self._fs.find_file(skill_file)
-                    if resolved_file is not None:
-                        return resolved_file
-                    return self._fs.find_root_exit(skill_file)
-                except (FileResolveError, EntryInspectError) as exc:
-                    raise SkillFileResolveError(skill_file, source=exc) from exc
+            match entry.kind:
+                case EntryKind.FILE:
+                    # A regular file listed in a resolved directory: no symlink is on the way to it or at it.
+                    return ResolvedPath(skill_file)
+                case EntryKind.SYMLINK:
+                    try:
+                        resolved_file = self._fs.find_file(skill_file)
+                        if resolved_file is not None:
+                            return resolved_file
+                        return self._fs.find_root_exit(skill_file)
+                    except (FileResolveError, EntryInspectError) as exc:
+                        raise SkillFileResolveError(skill_file, source=exc) from exc
+                case EntryKind.DIRECTORY:
+                    continue  # a directory named `SKILL.md` is no file an agent reads
+                case EntryKind.OTHER:
+                    continue  # a socket, a device or a pipe is no file an agent reads either
+                case _:
+                    assert_never(entry.kind)
         return None
 
 
@@ -696,13 +707,20 @@ class _SkillResourcesWalk:
             entry_resolved = resolved / entry.name
             # A directory or a file listed in a resolved directory is resolved too: no symlink is on the way to it
             # or at it. A symlink is not, so it waits under its own path to be followed.
-            if entry.kind is EntryKind.DIRECTORY:
-                self._directories.append(_PendingDirectory(entry_named, ResolvedPath(entry_resolved)))
-            elif entry.kind is EntryKind.SYMLINK:
-                self._symlinks.append((entry_named, entry_resolved))
-            elif entry.kind is EntryKind.FILE and self._is_resource_name(entry_named):
-                resource = SkillResourceRef(self._location.ref, entry_named)
-                self._resources.append(SkillResourceLocation(resource, ResolvedPath(entry_resolved)))
+            match entry.kind:
+                case EntryKind.DIRECTORY:
+                    self._directories.append(_PendingDirectory(entry_named, ResolvedPath(entry_resolved)))
+                case EntryKind.SYMLINK:
+                    self._symlinks.append((entry_named, entry_resolved))
+                case EntryKind.FILE:
+                    # A file not named as a document, or the skill's own `SKILL.md`, is no resource and is skipped.
+                    if self._is_resource_name(entry_named):
+                        resource = SkillResourceRef(self._location.ref, entry_named)
+                        self._resources.append(SkillResourceLocation(resource, ResolvedPath(entry_resolved)))
+                case EntryKind.OTHER:
+                    pass  # a socket, a device or a pipe is no file an agent reads
+                case _:
+                    assert_never(entry.kind)
 
     def _follow(self, named: RootRelativePath, symlink: RootRelativePath) -> None:
         """Queue the directory a symlink leads to, keep the resource it leads to, or record it leading outside.
