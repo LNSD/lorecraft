@@ -30,6 +30,7 @@ from ..rule import (
 )
 from .sample_input import SampleEntry, SampleLines
 from .sample_rules.groups import SAMPLE
+from .sample_rules.rendered_message.long_line import LongLine
 from .sample_rules.valid.retired import TabIndent
 from .sample_rules.valid.trailing_space import TrailingSpace
 from .sample_rules.valid.uppercase_entry import UppercaseEntry
@@ -477,6 +478,18 @@ class TestContentRule:
         #: Then
         assert occurrences == (TrailingSpace(spec=None, line=LineNumber(2)),), (
             'a rule reports one instance of its own class per occurrence'
+        )
+
+    def test_check_of_a_sample_rule_captures_the_value_its_message_names(self) -> None:
+        #: Given
+        subject = SampleLines(('short', 'x' * 81, 'x' * 80))
+
+        #: When
+        occurrences = LongLine.check(subject)
+
+        #: Then
+        assert occurrences == (LongLine(spec=None, line=LineNumber(2), length=81),), (
+            'only the line over 80 characters is reported, with its length captured'
         )
 
 

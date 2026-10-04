@@ -433,6 +433,19 @@ class Level(Enum):
     """An occurrence of the rule is reported as an error."""
 
 
+class Severity(Enum):
+    """How a diagnostic is reported; the value is the word the output spells it with.
+
+    A severity is not a `Level`: a rule at `allow` does not run, so it reports nothing, and a diagnostic carries one
+    of two severities where a level has three values.
+    """
+
+    ERROR = 'error'
+    """The diagnostic fails the run."""
+    WARNING = 'warning'
+    """The diagnostic is reported, and the run still passes."""
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Rule(ABC):
     """A rule, declared and checked by its class.
