@@ -11,6 +11,7 @@ from pathlib import Path, PurePosixPath
 from typing import assert_never
 
 from lorecraft.core.error import Error
+from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
 
 from .root_expansion import (
@@ -21,7 +22,7 @@ from .root_expansion import (
     find_listed_scan_root,
 )
 from .scan_root import ScanRoot
-from .snapshot import FileBytes, Link, Listing, Snapshot
+from .snapshot import DirectoryRecord, EntryRecord, FileRecord, OtherRecord, Snapshot, SymlinkRecord
 from .view import (
     DirEntry,
     DirListError,
@@ -350,6 +351,40 @@ class SnapshotLinkReadError(Error):
         self.__cause__ = source
 
 
+class ChangedSnapshotEntryError(Error):
+    """An entry changed under the scan, so the scan found one path as two kinds.
+
+    Every record sits at a resolved path, so on a still tree each ancestor of a record is a directory. The scan
+    raises this in three cases:
+
+    - It finds a path as another kind than it recorded there, such as a directory it listed the parent of that is
+      a symlink by the time a walk steps through it.
+    - It finds something below a path it recorded as no directory.
+    - It finds a path as no directory where it recorded something below.
+
+    In the last two, the side that holds the record below reports DIRECTORY. Scanning again reads the tree as it
+    then stands.
+
+    Attributes:
+        path: The root-relative path found as two kinds.
+        recorded: The kind the scan recorded at `path` first.
+        found: The kind the scan found at `path` later.
+    """
+
+    path: RootRelativePath
+    recorded: EntryKind
+    found: EntryKind
+
+    def __init__(self, path: RootRelativePath, recorded: EntryKind, found: EntryKind) -> None:
+        self.path = path
+        self.recorded = recorded
+        self.found = found
+        super().__init__(
+            f'cannot snapshot entry {path}: recorded as {recorded.value}, then found as {found.value}; '
+            f'it changed during the scan'
+        )
+
+
 def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
     """Read every listing down to each root's depth, every FILE entry's bytes and every symlink's target, once.
 
@@ -357,7 +392,9 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
     symlink that vanishes between its listing and its read (an editor's write-then-rename) is dropped from the
     listing rather than failing the scan; a directory that vanishes is left unentered. OTHER entries are
     recorded, never read; an absolute link target under the root is recorded relative to the link's directory
-    (see `Link`).
+    (see `SymlinkRecord`). Each path is recorded once: an entry the scan reaches again, as the entry of a listing
+    and again as a listed or climbed directory or a link along a chain, merges into the one record. One that
+    changed kind in between fails the scan, which is not retried.
 
     Every symlink met is recorded, and followed only under a scope root that asks for it
     (`ScanRoot.follow_links`). Without it a scope root with a symlink on the way to it is not listed, and a
@@ -388,12 +425,10 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
         SnapshotFileReadError: If a file in scope, or one a followed link leads to, cannot be read for a reason
             other than having vanished.
         SnapshotLinkReadError: If a symlink's target cannot be read for a reason other than having vanished.
+        ChangedSnapshotEntryError: If the tree changes under the scan so that it finds one path as two kinds.
     """
-    listings: dict[RootRelativePath, tuple[DirEntry, ...]] = {}
-    files: dict[RootRelativePath, bytes] = {}
-    links: dict[RootRelativePath, PurePosixPath] = {}
-    climbed_directories: set[RootRelativePath] = set()
-    on_disk = _DiskEntries(root, links, climbed_directories)
+    recorder = _SnapshotRecorder()
+    on_disk = _DiskEntries(root, recorder)
     # The root each directory was last listed as, without following links and with, so overlapping scope roots
     # list a directory again only when a later root asks for more under it: more depth, or its links followed.
     # This is also what ends the scan when a followed link leads back to a directory already listed, such as an
@@ -427,12 +462,13 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
             followed_as[directory] = listed_root
         else:
             listed_as[directory] = listed_root
+        recorder.record(directory, DirectoryRecord(listed=True))
 
-        kept: list[DirEntry] = []
         for entry in entries:
             path = directory / entry.name
             match entry.kind:
                 case EntryKind.DIRECTORY:
+                    recorder.record(path, DirectoryRecord())
                     entered_root = listed_root.find_root_below(path, levels=1)
                     if entered_root is not None:  # None when no depth is left: the entry is listed, never entered
                         pending.append(entered_root)
@@ -440,30 +476,22 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
                     data = _find_file_bytes(root, path)
                     if data is None:
                         continue  # vanished after the listing; see the docstring
-                    files[path] = data
+                    recorder.record(path, FileRecord(data))
                 case EntryKind.SYMLINK:
                     target = _find_symlink_target(root, path)
                     if target is None:
                         continue  # vanished after the listing; see the docstring
-                    links[path] = target
+                    recorder.record(path, SymlinkRecord(target))
                     if follow_links:
-                        _follow_listed_link(root, listed_root, path, on_disk, files, pending)
+                        _follow_listed_link(root, listed_root, path, on_disk, recorder, pending)
                     else:
                         _record_chain(path, on_disk)
                 case EntryKind.OTHER:
-                    pass  # recorded in the listing, never read
+                    recorder.record(path, OtherRecord())  # recorded, never read
                 case _:
                     assert_never(entry.kind)
-            kept.append(entry)
-        listings[directory] = tuple(kept)
 
-    return Snapshot(
-        listings=tuple(Listing(path, listings[path]) for path in sorted(listings)),
-        files=tuple(FileBytes(path, files[path]) for path in sorted(files)),
-        links=tuple(Link(path, links[path]) for path in sorted(links)),
-        climbed_directories=tuple(sorted(climbed_directories)),
-        scope=scope,
-    )
+    return Snapshot(recorder.to_records(), scope=scope)
 
 
 def _is_listed_as_deep(listed: dict[RootRelativePath, ScanRoot], scan_root: ScanRoot) -> bool:
@@ -479,30 +507,93 @@ def _is_listed_as_deep(listed: dict[RootRelativePath, ScanRoot], scan_root: Scan
     return previous.is_at_least_as_deep_as(scan_root)
 
 
+class _SnapshotRecorder:
+    """The records one scan has taken so far, one per path, each merged with the one before as it is taken.
+
+    The scan reaches some paths more than once: as an entry of a listing and again as a listed directory, a
+    climbed directory or a link along a chain, and again when an overlapping root lists a directory a second time.
+    Each time it records what it found there, and the record merges with what it recorded before:
+
+    - Two directory records merge into one holding every flag either set, since each says one way the scan
+      reached the directory.
+    - A file read again, or a link read again, keeps the last read; on a still tree the two reads agree.
+    - Two records of different kinds mean the tree changed under the scan, and so does a record below a path
+      recorded as no directory, since every record sits at a resolved path. Recording either raises.
+    """
+
+    def __init__(self) -> None:
+        """Start with nothing recorded."""
+        self._records: dict[RootRelativePath, EntryRecord] = {}
+        # Every ancestor of a record so far. Each is a directory, recorded or not, so no other kind is recorded there.
+        self._directories_above: set[RootRelativePath] = set()
+
+    def record(self, path: RootRelativePath, found: EntryRecord) -> None:
+        """Merge what the scan found at `path` into what it recorded there before, if anything.
+
+        Args:
+            path: The root-relative path the scan found something at, resolved.
+            found: What it found there.
+
+        Raises:
+            ChangedSnapshotEntryError: If `path` was recorded as another kind, an ancestor of `path` was recorded
+                as no directory, or `found` is no directory and something was recorded below `path`.
+        """
+        ancestors = path.parents
+        for ancestor in ancestors:
+            above = self._records.get(ancestor)
+            if above is not None and above.kind is not EntryKind.DIRECTORY:
+                raise ChangedSnapshotEntryError(ancestor, recorded=above.kind, found=EntryKind.DIRECTORY)
+        if found.kind is not EntryKind.DIRECTORY and path in self._directories_above:
+            raise ChangedSnapshotEntryError(path, recorded=EntryKind.DIRECTORY, found=found.kind)
+        recorded = self._records.get(path)
+        if recorded is None:
+            self._records[path] = found
+        else:
+            self._records[path] = _merge_records(path, recorded, found)
+        self._directories_above.update(ancestors)
+
+    def to_records(self) -> FrozenMapping[RootRelativePath, EntryRecord]:
+        """Every record taken so far, one per path, as a snapshot holds them."""
+        return FrozenMapping(self._records)
+
+
+def _merge_records(path: RootRelativePath, recorded: EntryRecord, found: EntryRecord) -> EntryRecord:
+    """The one record of `path` once the scan found `found` where it had recorded `recorded`.
+
+    Args:
+        path: The root-relative path both records are of.
+        recorded: What the scan recorded at `path` before.
+        found: What it found there now.
+
+    Raises:
+        ChangedSnapshotEntryError: If the two records are of different kinds.
+    """
+    match recorded, found:
+        case DirectoryRecord(), DirectoryRecord():
+            return DirectoryRecord(listed=recorded.listed or found.listed, climbed=recorded.climbed or found.climbed)
+        case (FileRecord(), FileRecord()) | (SymlinkRecord(), SymlinkRecord()) | (OtherRecord(), OtherRecord()):
+            return found  # read again: on a still tree the two reads agree, and the last is kept
+        case _:
+            raise ChangedSnapshotEntryError(path, recorded=recorded.kind, found=found.kind)
+
+
 class _DiskEntries:
     """What the walks of one scan see on disk: each entry by `lstat`, each link by `readlink`.
 
     The `EntryLookup` the scan hands to the rules of `root_expansion.py`. Every link target it reads is
-    recorded in the scan's links, and every directory a `..` climbs out of in the scan's climbed directories,
-    which is what lets `VirtualFileSystem` walk the same chain to the same place and `ScopeIndex` follow it.
+    recorded, and every directory a `..` climbs out of, which is what lets `VirtualFileSystem` walk the same chain
+    to the same place and `ScopeIndex` follow it.
     """
 
-    def __init__(
-        self,
-        root: Path,
-        links: dict[RootRelativePath, PurePosixPath],
-        climbed_directories: set[RootRelativePath],
-    ) -> None:
-        """Read under `root`, recording into `links` and `climbed_directories`.
+    def __init__(self, root: Path, recorder: _SnapshotRecorder) -> None:
+        """Read under `root`, recording into `recorder`.
 
         Args:
             root: The workspace root on disk.
-            links: Every symlink the scan recorded so far, keyed by path; mutated with each link target read.
-            climbed_directories: Every directory a walk of the scan climbed out of so far; mutated with each climb.
+            recorder: The scan's records so far; a record is added with each link target read and each climb.
         """
         self._root = root
-        self._links = links
-        self._climbed_directories = climbed_directories
+        self._recorder = recorder
 
     def find_kind(self, path: RootRelativePath) -> EntryKind | None:
         """What `path` itself is on disk; see `EntryLookup.find_kind`.
@@ -516,29 +607,35 @@ class _DiskEntries:
         return _find_lstat_kind(self._root, path)
 
     def find_link_target(self, path: RootRelativePath) -> PurePosixPath | None:
-        """Read the target of the symlink at `path` and record it in the scan's links; `None` when it vanished.
+        """Read the target of the symlink at `path` and record it; `None` when it vanished.
 
         Args:
             path: The root-relative symlink whose target is read.
 
         Raises:
             SnapshotLinkReadError: If the symlink exists but cannot be read.
+            ChangedSnapshotEntryError: If the scan recorded `path` as another kind, recorded something below it, or
+                recorded a path above it as no directory.
         """
         target = _find_symlink_target(self._root, path)
         if target is not None:
-            self._links[path] = target
+            self._recorder.record(path, SymlinkRecord(target))
         return target
 
     def may_climb_out_of(self, directory: RootRelativePath) -> bool:
-        """Record `directory` in the scan's climbed directories and allow the climb; see `EntryLookup`.
+        """Record `directory` as climbed out of and allow the climb; see `EntryLookup`.
 
         The walk stepped into `directory` only where `lstat` found one, so the climb is the kernel's. The record
         is what tells a snapshot's walks that it is a directory, where nothing the scan listed shows it.
 
         Args:
             directory: The resolved directory the walk climbs out of.
+
+        Raises:
+            ChangedSnapshotEntryError: If the scan recorded `directory` as another kind, or recorded a path above
+                it as no directory.
         """
-        self._climbed_directories.add(directory)
+        self._recorder.record(directory, DirectoryRecord(climbed=True))
         return True
 
 
@@ -557,6 +654,7 @@ def _record_chain(path: RootRelativePath, on_disk: _DiskEntries) -> None:
     Raises:
         SnapshotEntryInspectError: If a component of the chain exists but cannot be inspected.
         SnapshotLinkReadError: If a link of the chain exists but its target cannot be read.
+        ChangedSnapshotEntryError: If a link or climb of the chain is found as another kind than the scan recorded.
     """
     find_destination(path, on_disk, follow_links=True)
 
@@ -566,27 +664,29 @@ def _follow_listed_link(
     listed_root: ScanRoot,
     link: RootRelativePath,
     on_disk: _DiskEntries,
-    files: dict[RootRelativePath, bytes],
+    recorder: _SnapshotRecorder,
     pending: list[ScanRoot],
 ) -> None:
     """Go where one listed symlink leads, under a scope root that follows links.
 
     A directory is queued in `pending` as the root `find_linked_scan_root` adds, when the link leaves it one. A
-    regular file has its bytes read into `files`, at any depth, as a FILE entry has. A link that leads nowhere
-    under the root is left as recorded.
+    regular file has its bytes recorded, at its resolved path and any depth, as a FILE entry has. A link that
+    leads nowhere under the root is left as recorded.
 
     Args:
         root: The workspace root on disk.
         listed_root: The root the directory holding the link was just listed as, at its resolved path.
         link: The root-relative symlink just listed, already recorded.
         on_disk: The scan's view of the disk, recording each link met along the chain.
-        files: File bytes recorded so far, keyed by resolved path; mutated when the link leads to a regular file.
+        recorder: The scan's records so far; a record is added when the link leads to a regular file.
         pending: Directories still to list; mutated when the link leads to a directory the scan lists.
 
     Raises:
         SnapshotEntryInspectError: If a component of the chain exists but cannot be inspected.
         SnapshotLinkReadError: If a link of the chain exists but its target cannot be read.
         SnapshotFileReadError: If the file the chain leads to exists but cannot be read.
+        ChangedSnapshotEntryError: If a path of the chain, or the file it leads to, is found as another kind
+            than the scan recorded.
     """
     leads_to = find_destination(link, on_disk, follow_links=True)
     match leads_to:
@@ -597,7 +697,7 @@ def _follow_listed_link(
         case ResolvedFile(path=file):
             data = _find_file_bytes(root, file)
             if data is not None:  # None when it vanished after the walk; the link then stays recorded alone
-                files[file] = data
+                recorder.record(file, FileRecord(data))
         case RootExit() | None:
             pass  # nothing under the root to read there
         case _:

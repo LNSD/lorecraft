@@ -156,7 +156,7 @@ stating the rule, or `null` for a rule the check holds itself. `notes` lists the
 |------|---------|
 | `0`  | No check reported a finding; ungoverned documents do not count |
 | `1`  | At least one finding |
-| `2`  | The run could not start: no root, a symlinked `docs/` or `docs/__meta__/`, a rejected path, an unreadable file, a malformed specification, or a usage error. Only the error is printed, on stderr: a usage error after the usage, and any other prefixed `error:` and followed by its causes, as [cli](cli.md) describes |
+| `2`  | The run could not start: no root, a symlinked `docs/` or `docs/__meta__/`, a rejected path, an unreadable file, an entry that changed kind while read, a malformed specification, or a usage error. Only the error is printed, on stderr: a usage error after the usage, and any other prefixed `error:` and followed by its causes, as [cli](cli.md) describes |
 
 ## Limitations
 
