@@ -11,10 +11,9 @@ from lorecraft.cli.workspace_tree import render_json, render_text
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.document import DocumentRef
-from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName
+from lorecraft.project.schemas import CorpusSpecName
 from lorecraft.project.skill import SkillLocation, SkillRef, SkillsDir
-from lorecraft.project.workspace import Corpus, CorpusSpec, NamespaceSpec, WorkspaceModel
+from lorecraft.project.workspace import Corpus, CorpusNamespace, CorpusSpec, WorkspaceModel
 from lorecraft.vfs import ResolvedPath
 
 
@@ -26,19 +25,15 @@ def _code_model() -> WorkspaceModel:
     """One corpus with a namespace spec of two files, and two documents."""
     code = CorpusName.parse('code')
     corpus_spec = CorpusSpec(name=CorpusSpecName(code), files=(_path('docs/__meta__/code.md'),), structure=None)
-    python_spec = NamespaceSpec(
-        name=NamespaceSpecName(code, AspectNamespace.parse('python')),
+    python = CorpusNamespace(
+        namespace=AspectNamespace.parse('python'),
         files=(_path('docs/__meta__/code-python.md'), _path('docs/__meta__/code-python.structure.json')),
         structure=None,
     )
     corpus = Corpus(
-        name=code,
         corpus_spec=corpus_spec,
-        namespace_specs=(python_spec,),
-        documents=(
-            DocumentRef(code, AspectFilename.parse('logging')),
-            DocumentRef(code, AspectFilename.parse('python-typing')),
-        ),
+        namespaces=(python,),
+        filenames=(AspectFilename.parse('logging'), AspectFilename.parse('python-typing')),
     )
     return WorkspaceModel(corpora=(corpus,), skills_dirs=(), skill_locations=(), named_dirs=(), outside_symlinks=())
 
