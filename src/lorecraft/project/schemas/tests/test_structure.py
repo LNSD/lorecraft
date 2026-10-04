@@ -9,7 +9,7 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.num import PositiveInt
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 
 from ..frontmatter_problem import (
@@ -99,15 +99,15 @@ class TestStructureSpecParse:
         #: Then
         assert structure_spec == StructureSpec(
             file=SPEC_FILE,
-            title=TitleRule(count=PositiveInt(1), first=True),
+            title=TitleRule(count=NonZeroUnsignedInt(1), first=True),
             forbid_empty_sections=True,
             outline=(
-                AnySections(words=PositiveInt(350)),
-                SectionEntry(name='Checklist', words=PositiveInt(250)),
+                AnySections(words=NonZeroUnsignedInt(350)),
+                SectionEntry(name='Checklist', words=NonZeroUnsignedInt(250)),
                 SectionEntry(name='References', optional=True),
             ),
             forbidden=('Changelog',),
-            tokens=PositiveInt(5000),
+            tokens=NonZeroUnsignedInt(5000),
             frontmatter=FrontmatterSchema(path=SPEC_PATH, schema={'type': 'object', 'required': ['name']}),
         ), 'every field is read into its typed rule, and an entry without `words` has no cap'
 
@@ -346,7 +346,7 @@ class TestStructureSpecParse:
         structure_spec = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert structure_spec.tokens == PositiveInt(4000), (
+        assert structure_spec.tokens == NonZeroUnsignedInt(4000), (
             'a token budget is a rule, so a file stating only it is usable'
         )
 

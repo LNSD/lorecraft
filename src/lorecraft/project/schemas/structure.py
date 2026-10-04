@@ -73,7 +73,7 @@ from pydantic import JsonValue, ValidationError
 from referencing.jsonschema import DRAFT202012
 
 from lorecraft.core.error import Error
-from lorecraft.core.num import PositiveInt
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 
 from .frontmatter_problem import (
@@ -262,7 +262,7 @@ class TitleRule:
         first: True when an H1 title must come before any other heading.
     """
 
-    count: PositiveInt
+    count: NonZeroUnsignedInt
     first: bool
 
 
@@ -284,7 +284,7 @@ class SectionEntry:
 
     name: str
     optional: bool = False
-    words: PositiveInt | None = None
+    words: NonZeroUnsignedInt | None = None
     description: str | None = None
     examples: tuple[str, ...] = ()
 
@@ -300,7 +300,7 @@ class AnySections:
             default, for no cap. It caps every section alone, not the run's total.
     """
 
-    words: PositiveInt | None = None
+    words: NonZeroUnsignedInt | None = None
 
 
 type OutlineEntry = SectionEntry | AnySections
@@ -512,7 +512,7 @@ class StructureSpec:
     forbid_empty_sections: bool
     outline: tuple[OutlineEntry, ...]
     forbidden: tuple[str, ...]
-    tokens: PositiveInt | None
+    tokens: NonZeroUnsignedInt | None
     frontmatter: FrontmatterSchema | None
 
     def __post_init__(self) -> None:
@@ -521,7 +521,7 @@ class StructureSpec:
         A rule is not usable when it checks nothing, or when it contradicts itself.
 
         A frontmatter schema is checked when it is built, before the structure specification is, and so is a
-        count, a cap or a budget: each is a `PositiveInt`, at least 1.
+        count, a cap or a budget: each is a `NonZeroUnsignedInt`, at least 1.
 
         Raises:
             EmptyStructureSpecError: If the specification states no rule.
