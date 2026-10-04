@@ -1,10 +1,11 @@
 """Discover skills directories, the skills in them and the resources of a skill, and read a skill or a resource.
 
-Every path the repository takes or returns is root-relative: a skills directory is joined to the workspace root
-only inside `FileSystem`. The repository finds which directories are skills and which files inside a skill are
-its resources, and reads a `SKILL.md` or a resource as text; whether a skill's frontmatter has the shape the
-Agent Skills specification defines is decided above it, and so is which skills directories to look in, which the
-agents state.
+Every path the repository takes or returns is root-relative, except a resource ref's `relative_path`, spelled from
+its skill's directory, which `SkillResourceRef.path` turns back into a root-relative one: a skills directory is
+joined to the workspace root only inside `FileSystem`. The repository finds which directories are skills and which
+files inside a skill are its resources, and reads a `SKILL.md` or a resource as text; whether a skill's
+frontmatter has the shape the Agent Skills specification defines is decided above it, and so is which skills
+directories to look in, which the agents state.
 
 A skill is `<skills directory>/<skill name>/SKILL.md` and nothing else, or a directory a command names with a
 `SKILL.md` at its root. Symlinks are followed here, unlike under `docs/`: an agent's skills directory is commonly
@@ -25,8 +26,7 @@ from typing import assert_never
 
 from lorecraft.agents import SKILL_ENTRY_FILENAME
 from lorecraft.core.error import Error
-from lorecraft.core.path import RootRelativePath
-from lorecraft.project.layout import DOCUMENT_SUFFIX
+from lorecraft.core.path import ROOT, RootRelativePath
 from lorecraft.vfs import (
     DirListError,
     DirResolveError,
@@ -42,7 +42,7 @@ from lorecraft.vfs import (
 )
 
 from .outside import OutsideSymlink
-from .ref import SkillLocation, SkillRef, SkillResourceLocation, SkillResourceRef
+from .ref import SkillLocation, SkillRef, SkillRelativePath, SkillResourceLocation, SkillResourceRef
 
 
 @dataclass(frozen=True, slots=True)
@@ -622,18 +622,18 @@ class _PendingDirectory:
     """A directory the walk over a skill's resources has yet to enter.
 
     Attributes:
-        named: Where an agent reaches the directory, under the skill's ref directory.
+        named: Where an agent reaches the directory, spelled from the skill's ref directory.
         resolved: The resolved directory it is, the one listed.
     """
 
-    named: RootRelativePath
+    named: SkillRelativePath
     resolved: ResolvedPath
 
 
 class _SkillResourcesWalk:
     """One walk over the resources of a skill, the steps `Repository.list_skill_resources` carries out.
 
-    Every directory is held as a `_PendingDirectory`: the path an agent reaches it at, under the skill's ref
+    Every directory is held as a `_PendingDirectory`: the path an agent reaches it at, spelled from the skill's ref
     directory, and the resolved directory it is, which is the one listed. A file's name is joined to the first,
     and its resolved path to the second. Directories and symlinks wait in two queues, and a symlink is followed
     only once no directory is left to enter.
@@ -654,8 +654,9 @@ class _SkillResourcesWalk:
         # Each queue holds its entries in the order the walk met them. A symlink waits as (path an agent reaches
         # it at, its own path in a resolved directory); that second path is not resolved, since it is a link.
         self._directories: deque[_PendingDirectory] = deque()
-        self._symlinks: deque[tuple[RootRelativePath, RootRelativePath]] = deque()
-        self._directories.append(_PendingDirectory(location.ref.directory, location.resolves_to))
+        self._symlinks: deque[tuple[SkillRelativePath, RootRelativePath]] = deque()
+        # The walk starts at the skill's directory itself, which is `.` spelled from that directory.
+        self._directories.append(_PendingDirectory(SkillRelativePath(ROOT), location.resolves_to))
 
     def run(self) -> SkillResourceListing:
         """Walk the skill to the end, and return every resource and outside symlink found, each sorted; call once.
@@ -676,13 +677,13 @@ class _SkillResourcesWalk:
         outside_symlinks = sorted(self._outside_symlinks, key=lambda outside: outside.path)
         return SkillResourceListing(resources=tuple(sorted(self._resources)), outside_symlinks=tuple(outside_symlinks))
 
-    def _enter(self, named: RootRelativePath, resolved: ResolvedPath) -> None:
+    def _enter(self, named: SkillRelativePath, resolved: ResolvedPath) -> None:
         """List one resolved directory, unless it was entered already or holds the skill's own directory.
 
         Its resources are kept, its directories queued to be entered, and its symlinks queued to be followed.
 
         Args:
-            named: Where an agent reaches the directory, under the skill's ref directory.
+            named: Where an agent reaches the directory, spelled from the skill's ref directory.
             resolved: The resolved directory, the one listed.
 
         Raises:
@@ -714,19 +715,19 @@ class _SkillResourcesWalk:
                     self._symlinks.append((entry_named, entry_resolved))
                 case EntryKind.FILE:
                     # A file not named as a document, or the skill's own `SKILL.md`, is no resource and is skipped.
-                    if self._is_resource_name(entry_named):
-                        resource = SkillResourceRef(self._location.ref, entry_named)
+                    resource = self._location.ref.find_resource(entry_named)
+                    if resource is not None:
                         self._resources.append(SkillResourceLocation(resource, ResolvedPath(entry_resolved)))
                 case EntryKind.OTHER:
                     pass  # a socket, a device or a pipe is no file an agent reads
                 case _:
                     assert_never(entry.kind)
 
-    def _follow(self, named: RootRelativePath, symlink: RootRelativePath) -> None:
+    def _follow(self, named: SkillRelativePath, symlink: RootRelativePath) -> None:
         """Queue the directory a symlink leads to, keep the resource it leads to, or record it leading outside.
 
         Args:
-            named: Where an agent reaches the symlink, under the skill's ref directory.
+            named: Where an agent reaches the symlink, spelled from the skill's ref directory.
             symlink: The symlink at its resolved path, in a resolved directory, so it is the one symlink on the way.
 
         Raises:
@@ -746,23 +747,17 @@ class _SkillResourcesWalk:
         except EntryInspectError as exc:
             raise SkillResourcesSymlinkResolveError(self._location.ref, symlink, source=exc) from exc
         if leaves_at is not None:
-            self._outside_symlinks.append(OutsideSymlink(named, leaves_at))
+            # `OutsideSymlink` names every symlink of the skill layout root-relative, one inside a skill too.
+            self._outside_symlinks.append(OutsideSymlink(named.under(self._location.ref.directory), leaves_at))
             return
 
         # The name is checked before the lookup, so a symlink not named `.md` is never resolved as a file.
-        if not self._is_resource_name(named):
+        resource = self._location.ref.find_resource(named)
+        if resource is None:
             return
         try:
             file = self._fs.find_file(symlink)
         except FileResolveError as exc:
             raise SkillResourcesSymlinkResolveError(self._location.ref, symlink, source=exc) from exc
         if file is not None:
-            self._resources.append(SkillResourceLocation(SkillResourceRef(self._location.ref, named), file))
-
-    def _is_resource_name(self, named: RootRelativePath) -> bool:
-        """Whether a file an agent reaches at `named` is one of the skill's resources.
-
-        Args:
-            named: Where an agent reaches the file; the skill's own top-level `SKILL.md` is not one of them.
-        """
-        return named.name.endswith(DOCUMENT_SUFFIX) and named != self._location.ref.path
+            self._resources.append(SkillResourceLocation(resource, file))
