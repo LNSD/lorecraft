@@ -1,9 +1,9 @@
 """The rules engine's runner over a database opened on an in-memory snapshot.
 
 The runner decodes each document and skill, builds each input an enabled rule reads, and runs the rules of a table
-built from a registry. The package's own registry runs the token budget over documents and the line budget over
-skills; a registry of sample rules over the token count, declared in this module, runs through the same runner,
-with no edit to it.
+built from a registry. The package's own registry runs the frontmatter block rules over documents and skills, the
+token budget over documents and the line budget over skills; a registry of sample rules over the token count,
+declared in this module, runs through the same runner, with no edit to it.
 """
 
 from dataclasses import dataclass
@@ -22,14 +22,25 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.skill import SkillRef
-from lorecraft.project.syntax import LineNumber, count_tokens
+from lorecraft.project.skill import SkillLocation, SkillRef
+from lorecraft.project.syntax import (
+    FrontmatterNode,
+    InvalidYamlFrontmatter,
+    LineNumber,
+    count_tokens,
+    parse_frontmatter,
+)
 from lorecraft.rules.declaration import Level, Release, Rule, RuleCode, RuleGroup, RuleName, Severity
+from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
+from lorecraft.rules.frontmatter.invalid_yaml import InvalidYaml
+from lorecraft.rules.frontmatter.missing_frontmatter import MissingFrontmatter
+from lorecraft.rules.frontmatter.name_mismatch import DirectoryNameExpected, FilenameExpected, NameMismatch
+from lorecraft.rules.frontmatter.non_mapping_frontmatter import NonMappingFrontmatter
 from lorecraft.rules.inputs import InputKind, TokenCountInput, TokenCountRule
 from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.registry import Registry
-from lorecraft.vfs import EntryRecord, Snapshot, SymlinkRecord
+from lorecraft.vfs import EntryRecord, ResolvedPath, Snapshot, SymlinkRecord
 
 GUIDE: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('guide'))
 """A document of corpus `code`."""
@@ -45,6 +56,12 @@ GUIDE_TEXT: Final[str] = '# Guide\n\nInstall the toolkit, then run it once over 
 
 CODE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
 """The corpus structure specification."""
+
+REVIEW_FILE: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills/review/SKILL.md')
+"""Where `REVIEW` is reported: its `SKILL.md`, under the skills directory an agent lists it in."""
+
+OBJECT_SCHEMA: Final[bytes] = b'{"frontmatter": {"type": "object"}}'
+"""A corpus structure specification whose frontmatter schema accepts any mapping, and which sets no budget."""
 
 SAMPLE: Final[RuleGroup] = RuleGroup('SMP', 'Sample rules')
 """The group of the sample rules this module declares."""
@@ -147,7 +164,7 @@ class AnyTokens(TokenCountRule):
 
 
 class CountingDatabase(Database):
-    """A database that records each document whose tokens, and each skill whose lines, it is asked to count."""
+    """A database that records each document and skill whose tokens, lines or frontmatter it is asked for."""
 
     def __init__(self, snapshot: Snapshot) -> None:
         """Open the database on the snapshot, with nothing counted yet.
@@ -158,6 +175,7 @@ class CountingDatabase(Database):
         super().__init__(snapshot)
         self.counted_tokens: list[DocumentRef] = []
         self.counted_lines: list[SkillRef] = []
+        self.parsed_frontmatters: list[DocumentRef | SkillRef] = []
 
     def tokens(self, source: DocumentText) -> int:
         """Record the document, then count its tokens.
@@ -176,6 +194,24 @@ class CountingDatabase(Database):
         """
         self.counted_lines.append(source.ref)
         return super().skill_lines(source)
+
+    def frontmatter(self, source: DocumentText) -> FrontmatterNode:
+        """Record the document, then parse its frontmatter.
+
+        Args:
+            source: The decoded document whose frontmatter is parsed, recorded by its ref first.
+        """
+        self.parsed_frontmatters.append(source.ref)
+        return super().frontmatter(source)
+
+    def skill_frontmatter(self, source: SkillText) -> FrontmatterNode:
+        """Record the skill, then parse the frontmatter of its `SKILL.md`.
+
+        Args:
+            source: The decoded `SKILL.md` whose frontmatter is parsed, recorded by its skill's ref first.
+        """
+        self.parsed_frontmatters.append(source.ref)
+        return super().skill_frontmatter(source)
 
 
 def _snapshot(
@@ -207,6 +243,29 @@ def _skill_of(lines: int) -> bytes:
         lines: The lines the file holds; at least 3, for the frontmatter.
     """
     return b'---\nname: review\n---\n' + b'Run the next step.\n' * (lines - 3)
+
+
+def _location(database: Database, ref: SkillRef) -> SkillLocation:
+    """The location the database's model hands out for a skill the test wrote into a skills directory.
+
+    Args:
+        database: The database whose model lists the skill.
+        ref: A skill the snapshot holds in an agent's skills directory.
+    """
+    location = database.model().find_skill_location(ref.directory)
+    assert location is not None, f'the model lists the skill {ref.directory}'
+    return location
+
+
+def _invalid_yaml_problem(text: str) -> str:
+    """What the YAML parser finds wrong with the frontmatter of a text whose block is not YAML.
+
+    Args:
+        text: A whole document or `SKILL.md`, whose block the test wrote as invalid YAML.
+    """
+    frontmatter = parse_frontmatter(text)
+    assert isinstance(frontmatter, InvalidYamlFrontmatter), 'the test wrote a block that is not YAML'
+    return frontmatter.problem
 
 
 def _budget(tokens: int) -> bytes:
@@ -249,7 +308,11 @@ class TestCheckSubjects:
             spec=CODE_SPEC, line=LineNumber.from_int(1), token_count=count_tokens(GUIDE_TEXT), budget=5
         )
         assert reports == (
-            CheckedSubject(GUIDE, diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),), ungoverned=()),
+            CheckedSubject(
+                GUIDE,
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK,),
+            ),
         ), 'LEN001 runs at deny, so a document over its budget carries its occurrence as an error'
 
     def test_check_subjects_with_a_document_within_its_budget_reports_it_clean(self, package_table: RuleTable) -> None:
@@ -260,8 +323,8 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        assert reports == (CheckedSubject(GUIDE, diagnostics=(), ungoverned=()),), (
-            'a governed document within its budget has no diagnostic and no ungoverned input'
+        assert reports == (CheckedSubject(GUIDE, diagnostics=(), ungoverned=(InputKind.FRONTMATTER_BLOCK,)),), (
+            'a document within its budget has no diagnostic, and no frontmatter schema governs it'
         )
 
     def test_check_subjects_with_no_budget_set_reports_the_token_count_as_ungoverned(
@@ -274,9 +337,9 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        assert reports == (CheckedSubject(GUIDE, diagnostics=(), ungoverned=(InputKind.TOKEN_COUNT,)),), (
-            'no specification sets a budget, which is coverage, not a diagnostic'
-        )
+        assert reports == (
+            CheckedSubject(GUIDE, diagnostics=(), ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.TOKEN_COUNT)),
+        ), 'no specification sets a budget or a frontmatter schema, which is coverage, not a diagnostic'
 
     def test_check_subjects_with_a_document_in_no_corpus_reports_the_token_count_as_ungoverned(
         self, package_table: RuleTable
@@ -298,9 +361,9 @@ class TestCheckSubjects:
         reports = check_subjects(database, (launch,), package_table)
 
         #: Then
-        assert reports == (CheckedSubject(launch, diagnostics=(), ungoverned=(InputKind.TOKEN_COUNT,)),), (
-            'no specification governs a document in no corpus the model holds, which is coverage, not a diagnostic'
-        )
+        assert reports == (
+            CheckedSubject(launch, diagnostics=(), ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.TOKEN_COUNT)),
+        ), 'no specification governs a document in no corpus the model holds, which is coverage, not a diagnostic'
 
     def test_check_subjects_with_an_undecodable_document_reports_it_undecodable(self, package_table: RuleTable) -> None:
         #: Given
@@ -401,7 +464,7 @@ class TestCheckSubjects:
         database = Database(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=_skill_of(501)))
 
         #: When
-        reports = check_subjects(database, (REVIEW,), package_table)
+        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
         occurrence = TooManyLines(line=LineNumber.from_int(1), line_count=501)
@@ -418,13 +481,13 @@ class TestCheckSubjects:
         #: Given
         # What a scan records for `.agents/skills/review -> ../../skills/review`: the link in the skills directory,
         # and the SKILL.md at the resolved path it leads to.
-        shipped = Snapshot.from_tree({'skills': {'review': {'SKILL.md': _skill_of(501)}}})
+        shipped = Snapshot.from_tree({'.agents': {'skills': {}}, 'skills': {'review': {'SKILL.md': _skill_of(501)}}})
         records: dict[RootRelativePath, EntryRecord] = dict(shipped.records)
         records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(PurePosixPath('../../skills/review'))
         database = Database(Snapshot(FrozenMapping(records)))
 
         #: When
-        reports = check_subjects(database, (REVIEW,), package_table)
+        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
         occurrence = TooManyLines(line=LineNumber.from_int(1), line_count=501)
@@ -440,7 +503,7 @@ class TestCheckSubjects:
         database = Database(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=_skill_of(500)))
 
         #: When
-        reports = check_subjects(database, (REVIEW,), package_table)
+        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
         assert reports == (CheckedSubject(REVIEW, diagnostics=(), ungoverned=()),), (
@@ -452,7 +515,7 @@ class TestCheckSubjects:
         database = Database(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=b'---\nname: caf\xe9\n---\n'))
 
         #: When
-        reports = check_subjects(database, (REVIEW,), package_table)
+        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
         assert reports == (UndecodableSubject(REVIEW),), 'a skill whose SKILL.md is not UTF-8 is judged by no rule'
@@ -464,13 +527,13 @@ class TestCheckSubjects:
         database = Database(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode()))
 
         #: When
-        reports = check_subjects(database, (GUIDE, REVIEW, INTRO), package_table)
+        reports = check_subjects(database, (GUIDE, _location(database, REVIEW), INTRO), package_table)
 
         #: Then
         assert reports == (
-            CheckedSubject(GUIDE, diagnostics=(), ungoverned=()),
+            CheckedSubject(GUIDE, diagnostics=(), ungoverned=(InputKind.FRONTMATTER_BLOCK,)),
             CheckedSubject(REVIEW, diagnostics=(), ungoverned=()),
-            CheckedSubject(INTRO, diagnostics=(), ungoverned=()),
+            CheckedSubject(INTRO, diagnostics=(), ungoverned=(InputKind.FRONTMATTER_BLOCK,)),
         ), 'documents and skills share one run, each reported in the order given'
 
     def test_check_subjects_with_no_enabled_rule_over_the_line_count_never_counts_the_lines(self) -> None:
@@ -481,9 +544,264 @@ class TestCheckSubjects:
         table = RuleTable(severities)
 
         #: When
-        check_subjects(database, (REVIEW,), table)
+        check_subjects(database, (_location(database, REVIEW),), table)
 
         #: Then
         assert database.counted_lines == [], (
             'an input no enabled rule reads is never built, so its query is never asked'
+        )
+
+    def test_check_subjects_with_a_document_without_a_block_reports_missing_frontmatter(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        database = Database(_snapshot(OBJECT_SCHEMA, guide=GUIDE_TEXT.encode()))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), package_table)
+
+        #: Then
+        occurrence = MissingFrontmatter(spec=CODE_SPEC, line=LineNumber.from_int(1))
+        assert reports == (
+            CheckedSubject(
+                GUIDE,
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                ungoverned=(InputKind.TOKEN_COUNT,),
+            ),
+        ), 'FM001 runs at deny over a document a frontmatter schema governs, under its corpus specification'
+
+    def test_check_subjects_with_a_document_whose_block_is_not_yaml_reports_invalid_yaml(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        guide = '---\nname: [guide\n---\n# Guide\n'
+        database = Database(_snapshot(OBJECT_SCHEMA, guide=guide.encode()))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), package_table)
+
+        #: Then
+        occurrence = InvalidYaml(spec=CODE_SPEC, line=LineNumber.from_int(3), problem=_invalid_yaml_problem(guide))
+        assert reports == (
+            CheckedSubject(
+                GUIDE,
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                ungoverned=(InputKind.TOKEN_COUNT,),
+            ),
+        ), 'FM002 runs at deny, at the line the YAML parser stopped on'
+
+    def test_check_subjects_with_a_document_whose_block_is_a_list_reports_non_mapping_frontmatter(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        database = Database(_snapshot(OBJECT_SCHEMA, guide=b'---\n- guide\n---\n# Guide\n'))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), package_table)
+
+        #: Then
+        occurrence = NonMappingFrontmatter(spec=CODE_SPEC, line=LineNumber.from_int(1))
+        assert reports == (
+            CheckedSubject(
+                GUIDE,
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                ungoverned=(InputKind.TOKEN_COUNT,),
+            ),
+        ), 'FM003 runs at deny over a block that reads as YAML but is not a mapping'
+
+    def test_check_subjects_with_a_document_named_otherwise_reports_name_mismatch(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        database = Database(_snapshot(OBJECT_SCHEMA, guide=b'---\nname: setup\n---\n# Guide\n'))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), package_table)
+
+        #: Then
+        occurrence = NameMismatch(
+            spec=CODE_SPEC, line=LineNumber.from_int(2), name='setup', expectation=FilenameExpected('guide')
+        )
+        assert reports == (
+            CheckedSubject(
+                GUIDE,
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                ungoverned=(InputKind.TOKEN_COUNT,),
+            ),
+        ), 'FM004 runs at deny over a document whose `name` is not its filename'
+
+    def test_check_subjects_with_a_document_repeating_a_key_reports_duplicate_key(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        database = Database(_snapshot(OBJECT_SCHEMA, guide=b'---\nname: guide\nname: guide\n---\n# Guide\n'))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), package_table)
+
+        #: Then
+        occurrence = DuplicateKey(
+            spec=CODE_SPEC, line=LineNumber.from_int(3), key='name', first_line=LineNumber.from_int(2)
+        )
+        assert reports == (
+            CheckedSubject(
+                GUIDE,
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                ungoverned=(InputKind.TOKEN_COUNT,),
+            ),
+        ), 'FM005 runs at deny over a key written again, at the later occurrence'
+
+    def test_check_subjects_with_a_skill_without_a_block_reports_missing_frontmatter(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        database = Database(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=b'# Review\n'))
+
+        #: When
+        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+
+        #: Then
+        occurrence = MissingFrontmatter(spec=None, line=LineNumber.from_int(1))
+        assert reports == (
+            CheckedSubject(
+                REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),), ungoverned=()
+            ),
+        ), 'every skill is governed for its frontmatter, so FM001 needs no specification in the repository'
+
+    def test_check_subjects_with_a_skill_whose_block_is_not_yaml_reports_invalid_yaml(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        review = '---\nname: [review\n---\n'
+        database = Database(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review.encode()))
+
+        #: When
+        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+
+        #: Then
+        occurrence = InvalidYaml(spec=None, line=LineNumber.from_int(3), problem=_invalid_yaml_problem(review))
+        assert reports == (
+            CheckedSubject(
+                REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),), ungoverned=()
+            ),
+        ), 'FM002 runs at deny over a skill, at the line the YAML parser stopped on'
+
+    def test_check_subjects_with_a_skill_whose_block_is_a_list_reports_non_mapping_frontmatter(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        database = Database(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=b'---\n- review\n---\n'))
+
+        #: When
+        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+
+        #: Then
+        occurrence = NonMappingFrontmatter(spec=None, line=LineNumber.from_int(1))
+        assert reports == (
+            CheckedSubject(
+                REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),), ungoverned=()
+            ),
+        ), 'FM003 runs at deny over a skill whose block is not a mapping'
+
+    def test_check_subjects_with_a_skill_named_otherwise_reports_name_mismatch(self, package_table: RuleTable) -> None:
+        #: Given
+        database = Database(
+            _snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=b'---\nname: code-review\n---\n')
+        )
+
+        #: When
+        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+
+        #: Then
+        occurrence = NameMismatch(
+            spec=None,
+            line=LineNumber.from_int(2),
+            name='code-review',
+            expectation=DirectoryNameExpected(directory_name='review', link_target=None),
+        )
+        assert reports == (
+            CheckedSubject(
+                REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),), ungoverned=()
+            ),
+        ), 'FM004 runs at deny over a skill whose `name` is not its directory name'
+
+    def test_check_subjects_with_a_skill_repeating_a_key_reports_duplicate_key(self, package_table: RuleTable) -> None:
+        #: Given
+        database = Database(
+            _snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=b'---\nname: review\nname: review\n---\n')
+        )
+
+        #: When
+        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+
+        #: Then
+        occurrence = DuplicateKey(spec=None, line=LineNumber.from_int(3), key='name', first_line=LineNumber.from_int(2))
+        assert reports == (
+            CheckedSubject(
+                REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),), ungoverned=()
+            ),
+        ), 'FM005 runs at deny over a skill that writes a key again'
+
+    def test_check_subjects_with_a_linked_skill_named_for_its_target_reports_where_the_link_leads(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        # What a scan records for `.agents/skills/review -> ../../skills/code-review`, whose `name` is the target's.
+        shipped = Snapshot.from_tree(
+            {'.agents': {'skills': {}}, 'skills': {'code-review': {'SKILL.md': b'---\nname: code-review\n---\n'}}}
+        )
+        records: dict[RootRelativePath, EntryRecord] = dict(shipped.records)
+        records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(
+            PurePosixPath('../../skills/code-review')
+        )
+        database = Database(Snapshot(FrozenMapping(records)))
+
+        #: When
+        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+
+        #: Then
+        occurrence = NameMismatch(
+            spec=None,
+            line=LineNumber.from_int(2),
+            name='code-review',
+            expectation=DirectoryNameExpected(
+                directory_name='review', link_target=ResolvedPath(RootRelativePath.parse('skills/code-review'))
+            ),
+        )
+        assert reports == (
+            CheckedSubject(
+                REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),), ungoverned=()
+            ),
+        ), 'a skill is held to the name it is listed under, and its occurrence carries where the link leads'
+
+    def test_check_subjects_with_no_enabled_rule_over_the_frontmatter_block_never_parses_the_frontmatter(
+        self,
+    ) -> None:
+        #: Given
+        # a frontmatter schema governs the document, which has no block, and the skill has none either
+        database = CountingDatabase(_snapshot(OBJECT_SCHEMA, guide=GUIDE_TEXT.encode(), review=b'# Review\n'))
+        severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR, TooManyLines: Severity.ERROR}
+        table = RuleTable(severities)
+
+        #: When
+        check_subjects(database, (GUIDE, _location(database, REVIEW)), table)
+
+        #: Then
+        assert database.parsed_frontmatters == [], (
+            'an input no enabled rule reads is never built, so no frontmatter is parsed'
+        )
+
+    def test_check_subjects_with_every_package_rule_parses_each_frontmatter_once(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        # every FM rule reads the one frontmatter-block input, built once per subject
+        database = CountingDatabase(_snapshot(OBJECT_SCHEMA, guide=GUIDE_TEXT.encode()))
+
+        #: When
+        check_subjects(database, (GUIDE, _location(database, REVIEW), INTRO), package_table)
+
+        #: Then
+        assert database.parsed_frontmatters == [GUIDE, REVIEW, INTRO], (
+            'the frontmatter of each document and skill is parsed once, however many rules read it'
         )

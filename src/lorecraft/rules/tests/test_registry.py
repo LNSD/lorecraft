@@ -4,6 +4,11 @@ import pytest
 
 from lorecraft import rules
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
+from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
+from lorecraft.rules.frontmatter.invalid_yaml import InvalidYaml
+from lorecraft.rules.frontmatter.missing_frontmatter import MissingFrontmatter
+from lorecraft.rules.frontmatter.name_mismatch import NameMismatch
+from lorecraft.rules.frontmatter.non_mapping_frontmatter import NonMappingFrontmatter
 from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 
@@ -343,9 +348,16 @@ class TestPackageRegistry:
         loaded = Registry.load(package)
 
         #: Then
-        assert loaded.rules == (InvalidUtf8, TooManyTokens, TooManyLines), (
-            'the registry holds every rule and engine condition `lorecraft.rules` declares, in code order'
-        )
+        assert loaded.rules == (
+            MissingFrontmatter,
+            InvalidYaml,
+            NonMappingFrontmatter,
+            NameMismatch,
+            DuplicateKey,
+            InvalidUtf8,
+            TooManyTokens,
+            TooManyLines,
+        ), 'the registry holds every rule and engine condition `lorecraft.rules` declares, in code order'
 
     def test_find_with_the_package_rules_and_the_undecodable_condition_code_returns_it(self) -> None:
         #: Given
