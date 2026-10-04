@@ -57,6 +57,9 @@ finding quotes it.
   structure check reports the description and the first example as notes, and leaves the rest to a reader.
 - `forbidden` names sections that must not appear at all.
 
+A section name, in an outline entry or in `forbidden`, is a `SectionName`: one line of heading text with no
+whitespace at either end, since a heading's text never has any.
+
 Nothing here logs: the command that loads the model catches every `Error` that escapes it and reports it.
 """
 
@@ -85,6 +88,7 @@ from .frontmatter_problem import (
     UnknownFieldProblem,
     WrongTypeProblem,
 )
+from .section_name import SectionName
 from .spec_file import SpecFileType, StructureSpecFile, spec_filename
 from .structure_file import (
     JSON_SCHEMA_DIALECT,
@@ -151,6 +155,23 @@ class RepeatedOutlineSectionError(Error):
         super().__init__(
             f'invalid structure schema {path}: names sections more than once in the outline: {list(sections)}'
         )
+
+
+class RepeatedForbiddenSectionError(Error):
+    """A structure specification forbids one section more than once.
+
+    Attributes:
+        path: Root-relative path of the rejected file.
+        sections: The repeated section names, sorted.
+    """
+
+    path: RootRelativePath
+    sections: tuple[str, ...]
+
+    def __init__(self, path: RootRelativePath, sections: tuple[str, ...]) -> None:
+        self.path = path
+        self.sections = sections
+        super().__init__(f'invalid structure schema {path}: forbids sections more than once: {list(sections)}')
 
 
 class ForbiddenOutlineSectionError(Error):
@@ -282,7 +303,7 @@ class SectionEntry:
             the specification.
     """
 
-    name: str
+    name: SectionName
     optional: bool = False
     words: NonZeroUnsignedInt | None = None
     description: str | None = None
@@ -500,7 +521,7 @@ class StructureSpec:
         title: The title rule, or None when the specification states none.
         forbid_empty_sections: True when every section must hold content.
         outline: The section order, matched against a document's sections left to right; may be empty.
-        forbidden: Sections that must not appear at all.
+        forbidden: Sections that must not appear at all, each named once.
         tokens: The token budget: the most tokens the whole file may hold, frontmatter, code and tables
             included, or None for no budget.
         frontmatter: The JSON Schema a document's frontmatter must satisfy, or None when the specification states
@@ -511,7 +532,7 @@ class StructureSpec:
     title: TitleRule | None
     forbid_empty_sections: bool
     outline: tuple[OutlineEntry, ...]
-    forbidden: tuple[str, ...]
+    forbidden: tuple[SectionName, ...]
     tokens: NonZeroUnsignedInt | None
     frontmatter: FrontmatterSchema | None
 
@@ -521,11 +542,13 @@ class StructureSpec:
         A rule is not usable when it checks nothing, or when it contradicts itself.
 
         A frontmatter schema is checked when it is built, before the structure specification is, and so is a
-        count, a cap or a budget: each is a `NonZeroUnsignedInt`, at least 1.
+        count, a cap or a budget: each is a `NonZeroUnsignedInt`, at least 1. So is a section name: each is a
+        `SectionName`, one line with no whitespace at either end.
 
         Raises:
             EmptyStructureSpecError: If the specification states no rule.
             RepeatedOutlineSectionError: If its outline names a section twice.
+            RepeatedForbiddenSectionError: If it forbids a section twice.
             ForbiddenOutlineSectionError: If it forbids a section its own outline names.
             AdjacentAnyRunsError: If its outline places two `any` runs side by side.
         """
@@ -541,11 +564,15 @@ class StructureSpec:
             raise EmptyStructureSpecError(self.path)
 
         named = self.section_names()
-        repeated = sorted({name for name in named if named.count(name) > 1})
+        repeated = sorted({str(name) for name in named if named.count(name) > 1})
         if repeated:
             raise RepeatedOutlineSectionError(self.path, tuple(repeated))
 
-        contradicted = sorted(set(named) & set(self.forbidden))
+        repeated_forbidden = sorted({str(name) for name in self.forbidden if self.forbidden.count(name) > 1})
+        if repeated_forbidden:
+            raise RepeatedForbiddenSectionError(self.path, tuple(repeated_forbidden))
+
+        contradicted = sorted(str(name) for name in set(named) & set(self.forbidden))
         if contradicted:
             raise ForbiddenOutlineSectionError(self.path, tuple(contradicted))
 
@@ -568,9 +595,9 @@ class StructureSpec:
         """
         return spec_filename(self.file.name, SpecFileType.PROSE)
 
-    def section_names(self) -> list[str]:
+    def section_names(self) -> list[SectionName]:
         """The names of the outline's section entries, in outline order."""
-        names: list[str] = []
+        names: list[SectionName] = []
         for entry in self.outline:
             match entry:
                 case SectionEntry():
@@ -597,6 +624,7 @@ class StructureSpec:
             UntypedFrontmatterSchemaError: If its frontmatter schema's root does not state an object.
             EmptyStructureSpecError: If it states no rule.
             RepeatedOutlineSectionError: If its outline names a section twice.
+            RepeatedForbiddenSectionError: If it forbids a section twice.
             ForbiddenOutlineSectionError: If it forbids a section its own outline names.
             AdjacentAnyRunsError: If its outline places two ``any`` runs side by side.
         """

@@ -1,8 +1,8 @@
 """The specifications: their files, the schemas they state, and the repository that reads them.
 
-That is the specification filenames and names, the structure specification with the frontmatter schema and the
-counts it carries, the repository that reads them, the skill frontmatter schema, and the problems both frontmatter
-schemas report.
+That is the specification filenames and names, the structure specification with the frontmatter schema, the
+counts and the section names it carries, the repository that reads them, the skill frontmatter schema, and the
+problems both frontmatter schemas report.
 """
 
 from .frontmatter_problem import (
@@ -18,6 +18,7 @@ from .frontmatter_problem import (
 )
 from .name import CorpusSpecName, NamespaceSpecName, SpecName, parse_spec_name
 from .repo import Repository, StructureSchemaReadError
+from .section_name import EmptySectionNameError, MultilineSectionNameError, PaddedSectionNameError, SectionName
 from .skill import SKILL_FRONTMATTER_SCHEMA, SkillFrontmatterSchema
 from .skill_frontmatter import (
     EmptySkillCompatibilityError,
@@ -57,6 +58,7 @@ from .structure import (
     FrontmatterSchemaIdError,
     InvalidFrontmatterSchemaError,
     OutlineEntry,
+    RepeatedForbiddenSectionError,
     RepeatedOutlineSectionError,
     SectionEntry,
     StructureSchema,
@@ -90,10 +92,15 @@ __all__: list[str] = [
     'StructureFile',
     'OutlineEntry',
     'SectionEntry',
+    'SectionName',
+    'EmptySectionNameError',
+    'PaddedSectionNameError',
+    'MultilineSectionNameError',
     'AnySections',
     'StructureSpecDecodeError',
     'EmptyStructureSpecError',
     'RepeatedOutlineSectionError',
+    'RepeatedForbiddenSectionError',
     'ForbiddenOutlineSectionError',
     'AdjacentAnyRunsError',
     'InvalidFrontmatterSchemaError',

@@ -146,3 +146,47 @@ class TestStructureSpecSchema:
 
         #: Then
         assert errors == [], 'the editor lets a foreign $schema through and the load refuses it'
+
+    def test_structure_schema_with_a_padded_section_name_refuses_it(self, validator: Draft202012Validator) -> None:
+        #: Given
+        spec = {'outline': [{'section': ' Checklist'}]}
+
+        #: When
+        errors = list(validator.iter_errors(spec))
+
+        #: Then
+        assert errors, 'an editor refuses a section name with whitespace at either end, as the load does'
+
+    def test_structure_schema_with_an_empty_forbidden_entry_refuses_it(self, validator: Draft202012Validator) -> None:
+        #: Given
+        spec = {'forbidden': ['']}
+
+        #: When
+        errors = list(validator.iter_errors(spec))
+
+        #: Then
+        assert errors, 'an editor refuses an empty section name, as the load does'
+
+    def test_structure_schema_with_a_section_name_holding_inner_spaces_accepts_it(
+        self, validator: Draft202012Validator
+    ) -> None:
+        #: Given
+        spec = {'outline': [{'section': 'Code References'}], 'forbidden': ['Table of Contents']}
+
+        #: When
+        errors = list(validator.iter_errors(spec))
+
+        #: Then
+        assert errors == [], 'whitespace inside a name is heading text, so the editor accepts it'
+
+    def test_structure_schema_with_a_forbidden_entry_given_twice_refuses_it(
+        self, validator: Draft202012Validator
+    ) -> None:
+        #: Given
+        spec = {'forbidden': ['Changelog', 'Changelog']}
+
+        #: When
+        errors = list(validator.iter_errors(spec))
+
+        #: Then
+        assert errors, 'an editor refuses a repeated forbidden entry, which the load refuses too'
