@@ -33,7 +33,7 @@ class TestValidateSkillLength:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber(1),
+                line=LineNumber.parse(1),
                 rule='skill.lines-budget',
                 message='501 lines; the budget is 500',
                 notes=_LINES_BUDGET_HELP,
@@ -70,7 +70,7 @@ class TestValidateSkillLength:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber(1),
+                line=LineNumber.parse(1),
                 rule='skill.lines-budget',
                 message='1200 lines; the budget is 500',
                 notes=_LINES_BUDGET_HELP,

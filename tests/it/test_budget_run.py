@@ -176,7 +176,7 @@ class TestRunBudget:
         assert run.findings() == (
             Finding(
                 path=RootRelativePath.parse('docs/code/python-typing.md'),
-                line=LineNumber(1),
+                line=LineNumber.parse(1),
                 rule='budget.tokens',
                 message='17 tokens; the budget is 12 (per code-python.structure.json)',
                 spec=RootRelativePath.parse('docs/__meta__/code-python.structure.json'),

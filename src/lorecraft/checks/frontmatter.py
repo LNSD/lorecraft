@@ -31,7 +31,7 @@ from .frontmatter_duplicate import duplicate_key_violations
 from .frontmatter_problem import field_line, problem_line, problem_rule
 from .reporting import Violation
 
-_FIRST_LINE: Final[LineNumber] = LineNumber(1)
+_FIRST_LINE: Final[LineNumber] = LineNumber.parse(1)
 """Where a frontmatter that cannot be checked is reported: a missing block, or one that is not a mapping."""
 
 

@@ -210,13 +210,15 @@ body = section_lines(section.start, section.end - 1)
 class LineNumber:
     """A 1-based line number. Distinct from a section index, which is also an int."""
 
-    value: int
+    value: NonZeroUnsignedInt
 
     @classmethod
     def parse(cls, raw: int) -> 'LineNumber':
-        if raw < 1:
-            raise InvalidLineNumberError(raw)
-        return cls(raw)
+        return cls(NonZeroUnsignedInt.parse(raw))
+
+    @property
+    def number(self) -> int:
+        return self.value.value
 
     def __str__(self) -> str:
         return str(self.value)
@@ -230,14 +232,14 @@ class LineSpan:
     end: LineNumber
 
     def __post_init__(self) -> None:
-        if self.end.value < self.first.value:
+        if self.end.number < self.first.number:
             raise InvalidLineSpanError(self.first, self.end)
 
     def last(self) -> LineNumber | None:
         """Return the inclusive last line, or None when the span is empty."""
         if self.first == self.end:
             return None
-        return LineNumber(self.end.value - 1)
+        return LineNumber.parse(self.end.number - 1)
 
 
 def section_lines(span: LineSpan) -> Iterator[str]:

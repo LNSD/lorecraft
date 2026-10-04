@@ -38,7 +38,7 @@ class LongLine(SampleLinesRule):
             subject: The lines judged.
         """
         return tuple(
-            cls(spec=None, line=LineNumber(index + 1), length=len(line))
+            cls(spec=None, line=LineNumber.parse(index + 1), length=len(line))
             for index, line in enumerate(subject.lines)
             if len(line) > 80
         )
