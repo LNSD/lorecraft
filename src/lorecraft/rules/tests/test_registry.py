@@ -4,6 +4,7 @@ import pytest
 
 from lorecraft import rules
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
+from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 
 from ..declaration import RuleName
@@ -342,7 +343,7 @@ class TestPackageRegistry:
         loaded = Registry.load(package)
 
         #: Then
-        assert loaded.rules == (InvalidUtf8, TooManyTokens), (
+        assert loaded.rules == (InvalidUtf8, TooManyTokens, TooManyLines), (
             'the registry holds every rule and engine condition `lorecraft.rules` declares, in code order'
         )
 

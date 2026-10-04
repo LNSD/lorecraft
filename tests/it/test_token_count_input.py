@@ -42,7 +42,7 @@ class CountingDatabase(Database):
             snapshot: The revision the database reads.
         """
         super().__init__(snapshot)
-        self.counted: list[DocumentRef] = []
+        self.counted_tokens: list[DocumentRef] = []
 
     def tokens(self, source: DocumentText) -> int:
         """Record the document, then count its tokens.
@@ -50,7 +50,7 @@ class CountingDatabase(Database):
         Args:
             source: The decoded document whose tokens are counted, recorded by its ref first.
         """
-        self.counted.append(source.ref)
+        self.counted_tokens.append(source.ref)
         return super().tokens(source)
 
 
@@ -141,7 +141,9 @@ class TestBuildTokenCountInput:
         build_token_count_input(database, source)
 
         #: Then
-        assert database.counted == [], 'governance is read first, so an ungoverned document never pays for the count'
+        assert database.counted_tokens == [], (
+            'governance is read first, so an ungoverned document never pays for the count'
+        )
 
     def test_build_token_count_input_with_a_document_in_no_corpus_returns_ungoverned(self) -> None:
         #: Given

@@ -1,8 +1,9 @@
 """The input kinds a rule reads, each a frozen value with the rule base whose `check` takes it.
 
 An input holds the facts the database's queries returned about one subject and the specifications that govern
-them, in the package's own types. A rule picks its input by deriving from that input's base, and receives the input
-and nothing else. Building an input from the queries is the run's job, in `lorecraft.checks`, never this package's.
+them, in the package's own types; an input the package governs, such as a skill's line count, holds the facts
+alone. A rule picks its input by deriving from that input's base, and receives the input and nothing else. Building
+an input from the queries is the run's job, in `lorecraft.checks`, never this package's.
 """
 
 from abc import abstractmethod
@@ -20,6 +21,8 @@ class InputKind(Enum):
 
     TOKEN_COUNT = 'token-count'
     """A document's whole-file token count, with the budgets that govern it: `TokenCountInput`."""
+    LINE_COUNT = 'line-count'
+    """A skill's whole-`SKILL.md` line count: `LineCountInput`."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,4 +67,32 @@ class TokenCountRule(ContentRule):
 
         Args:
             subject: The token count judged, with the budgets that govern it.
+        """
+
+
+@dataclass(frozen=True, slots=True)
+class LineCountInput:
+    """A skill's whole-`SKILL.md` line count.
+
+    The package governs it, so every skill whose `SKILL.md` decodes has one. The budget it is held to is the Agent
+    Skills specification's, stated by the rule that reads it, not one a specification in the repository sets.
+
+    Attributes:
+        line_count: The lines in the skill's whole `SKILL.md`, frontmatter, code and blank lines included.
+    """
+
+    line_count: UnsignedInt
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class LineCountRule(ContentRule):
+    """The base of every rule over a skill's line count."""
+
+    @classmethod
+    @abstractmethod
+    def check(cls, subject: LineCountInput) -> tuple[Self, ...]:
+        """Every occurrence of the rule's condition in the skill's line count.
+
+        Args:
+            subject: The line count judged.
         """

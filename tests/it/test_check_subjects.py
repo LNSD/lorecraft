@@ -1,36 +1,44 @@
 """The rules engine's runner over a database opened on an in-memory snapshot.
 
-The runner decodes each document, builds each input an enabled rule reads, and runs the rules of a table built
-from a registry. The package's own registry runs the token budget; a registry of sample rules over the same input,
-declared in this module, runs through the same runner, with no edit to it.
+The runner decodes each document and skill, builds each input an enabled rule reads, and runs the rules of a table
+built from a registry. The package's own registry runs the token budget over documents and the line budget over
+skills; a registry of sample rules over the token count, declared in this module, runs through the same runner,
+with no edit to it.
 """
 
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 from typing import ClassVar, Final, Self
 
 import pytest
 
 from lorecraft import rules
-from lorecraft.checks import Database, DocumentText
+from lorecraft.checks import Database, DocumentText, SkillText
 from lorecraft.checks.report import CheckedSubject, RuleDiagnostic, UndecodableSubject
 from lorecraft.checks.runner import check_subjects
 from lorecraft.checks.table import RuleTable
+from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
+from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import LineNumber, count_tokens
 from lorecraft.rules.declaration import Level, Release, Rule, RuleCode, RuleGroup, RuleName, Severity
 from lorecraft.rules.inputs import InputKind, TokenCountInput, TokenCountRule
+from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.registry import Registry
-from lorecraft.vfs import Snapshot
+from lorecraft.vfs import EntryRecord, Snapshot, SymlinkRecord
 
 GUIDE: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('guide'))
 """A document of corpus `code`."""
 
 INTRO: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('intro'))
 """A second document of corpus `code`."""
+
+REVIEW: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/review'))
+"""A skill an agent reaches under `.agents/skills`."""
 
 GUIDE_TEXT: Final[str] = '# Guide\n\nInstall the toolkit, then run it once over the repository.\n'
 """The text of `GUIDE`."""
@@ -139,7 +147,7 @@ class AnyTokens(TokenCountRule):
 
 
 class CountingDatabase(Database):
-    """A database that records each document whose tokens it is asked to count, then counts them as usual."""
+    """A database that records each document whose tokens, and each skill whose lines, it is asked to count."""
 
     def __init__(self, snapshot: Snapshot) -> None:
         """Open the database on the snapshot, with nothing counted yet.
@@ -148,7 +156,8 @@ class CountingDatabase(Database):
             snapshot: The revision the database reads.
         """
         super().__init__(snapshot)
-        self.counted: list[DocumentRef] = []
+        self.counted_tokens: list[DocumentRef] = []
+        self.counted_lines: list[SkillRef] = []
 
     def tokens(self, source: DocumentText) -> int:
         """Record the document, then count its tokens.
@@ -156,26 +165,48 @@ class CountingDatabase(Database):
         Args:
             source: The decoded document whose tokens are counted, recorded by its ref first.
         """
-        self.counted.append(source.ref)
+        self.counted_tokens.append(source.ref)
         return super().tokens(source)
 
+    def skill_lines(self, source: SkillText) -> int:
+        """Record the skill, then count the lines of its `SKILL.md`.
 
-def _snapshot(structure_spec: bytes, *, guide: bytes, intro: bytes = b'# Intro\n') -> Snapshot:
-    """A snapshot of corpus `code`, holding the documents `GUIDE` and `INTRO`.
+        Args:
+            source: The decoded `SKILL.md` whose lines are counted, recorded by its skill's ref first.
+        """
+        self.counted_lines.append(source.ref)
+        return super().skill_lines(source)
+
+
+def _snapshot(
+    structure_spec: bytes, *, guide: bytes, intro: bytes = b'# Intro\n', review: bytes = b'---\nname: review\n---\n'
+) -> Snapshot:
+    """A snapshot of corpus `code`, holding the documents `GUIDE` and `INTRO`, and the skill `REVIEW`.
 
     Args:
         structure_spec: Bytes of the corpus structure specification.
         guide: Bytes of `GUIDE`.
         intro: Bytes of `INTRO`.
+        review: Bytes of `REVIEW`'s `SKILL.md`; by default a frontmatter of three lines and nothing else.
     """
     return Snapshot.from_tree(
         {
+            '.agents': {'skills': {'review': {'SKILL.md': review}}},
             'docs': {
                 '__meta__': {'code.md': b'# Code\n', 'code.structure.json': structure_spec},
                 'code': {'guide.md': guide, 'intro.md': intro},
-            }
+            },
         }
     )
+
+
+def _skill_of(lines: int) -> bytes:
+    """The bytes of a `SKILL.md` of exactly `lines` lines: a frontmatter of three, then one step per line.
+
+    Args:
+        lines: The lines the file holds; at least 3, for the frontmatter.
+    """
+    return b'---\nname: review\n---\n' + b'Run the next step.\n' * (lines - 3)
 
 
 def _budget(tokens: int) -> bytes:
@@ -317,7 +348,9 @@ class TestCheckSubjects:
         check_subjects(database, (GUIDE,), table)
 
         #: Then
-        assert database.counted == [], 'an input no enabled rule reads is never built, so its query is never asked'
+        assert database.counted_tokens == [], (
+            'an input no enabled rule reads is never built, so its query is never asked'
+        )
 
     def test_check_subjects_with_sample_rules_reports_each_at_its_level(self, sample_table: RuleTable) -> None:
         #: Given
@@ -360,3 +393,97 @@ class TestCheckSubjects:
         assert reports == (
             CheckedSubject(GUIDE, diagnostics=(RuleDiagnostic(GUIDE.path, any_tokens, Severity.ERROR),), ungoverned=()),
         ), 'a rule at allow is not in the table, so only the enabled rules report'
+
+    def test_check_subjects_with_a_skill_over_the_line_budget_reports_the_line_budget_as_an_error(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        database = Database(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=_skill_of(501)))
+
+        #: When
+        reports = check_subjects(database, (REVIEW,), package_table)
+
+        #: Then
+        occurrence = TooManyLines(line=LineNumber.from_int(1), line_count=501)
+        skill_file = RootRelativePath.parse('.agents/skills/review/SKILL.md')
+        assert reports == (
+            CheckedSubject(
+                REVIEW, diagnostics=(RuleDiagnostic(skill_file, occurrence, Severity.ERROR),), ungoverned=()
+            ),
+        ), 'LEN002 runs at deny, so a skill over the budget carries its occurrence as an error, at its SKILL.md'
+
+    def test_check_subjects_with_a_linked_skill_over_the_line_budget_reports_it_where_an_agent_reaches_it(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        # What a scan records for `.agents/skills/review -> ../../skills/review`: the link in the skills directory,
+        # and the SKILL.md at the resolved path it leads to.
+        shipped = Snapshot.from_tree({'skills': {'review': {'SKILL.md': _skill_of(501)}}})
+        records: dict[RootRelativePath, EntryRecord] = dict(shipped.records)
+        records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(PurePosixPath('../../skills/review'))
+        database = Database(Snapshot(FrozenMapping(records)))
+
+        #: When
+        reports = check_subjects(database, (REVIEW,), package_table)
+
+        #: Then
+        occurrence = TooManyLines(line=LineNumber.from_int(1), line_count=501)
+        skill_file = RootRelativePath.parse('.agents/skills/review/SKILL.md')
+        assert reports == (
+            CheckedSubject(
+                REVIEW, diagnostics=(RuleDiagnostic(skill_file, occurrence, Severity.ERROR),), ungoverned=()
+            ),
+        ), 'the SKILL.md is counted where the link leads, and reported under the skills directory, not under skills/'
+
+    def test_check_subjects_with_a_skill_at_the_line_budget_reports_it_clean(self, package_table: RuleTable) -> None:
+        #: Given
+        database = Database(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=_skill_of(500)))
+
+        #: When
+        reports = check_subjects(database, (REVIEW,), package_table)
+
+        #: Then
+        assert reports == (CheckedSubject(REVIEW, diagnostics=(), ungoverned=()),), (
+            'a SKILL.md of exactly 500 lines is within the budget, and the package governs its line count'
+        )
+
+    def test_check_subjects_with_an_undecodable_skill_reports_it_undecodable(self, package_table: RuleTable) -> None:
+        #: Given
+        database = Database(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=b'---\nname: caf\xe9\n---\n'))
+
+        #: When
+        reports = check_subjects(database, (REVIEW,), package_table)
+
+        #: Then
+        assert reports == (UndecodableSubject(REVIEW),), 'a skill whose SKILL.md is not UTF-8 is judged by no rule'
+
+    def test_check_subjects_with_documents_and_skills_reports_them_in_the_order_given(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        database = Database(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode()))
+
+        #: When
+        reports = check_subjects(database, (GUIDE, REVIEW, INTRO), package_table)
+
+        #: Then
+        assert reports == (
+            CheckedSubject(GUIDE, diagnostics=(), ungoverned=()),
+            CheckedSubject(REVIEW, diagnostics=(), ungoverned=()),
+            CheckedSubject(INTRO, diagnostics=(), ungoverned=()),
+        ), 'documents and skills share one run, each reported in the order given'
+
+    def test_check_subjects_with_no_enabled_rule_over_the_line_count_never_counts_the_lines(self) -> None:
+        #: Given
+        # only the token budget is enabled, and the skill is over the line budget
+        database = CountingDatabase(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=_skill_of(501)))
+        severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
+        table = RuleTable(severities)
+
+        #: When
+        check_subjects(database, (REVIEW,), table)
+
+        #: Then
+        assert database.counted_lines == [], (
+            'an input no enabled rule reads is never built, so its query is never asked'
+        )

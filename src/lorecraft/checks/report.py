@@ -11,10 +11,10 @@ The order is an output contract, total over one revision, so one revision always
 the same order: by path, then primary location, then severity, then code, then message. `DiagnosticOrder` states
 that order as the fields it compares, and `diagnostic_order` builds it as the sort key.
 
-Each subject the runner checks gets one report, and either kind of report gives its diagnostics as `diagnostics`.
-A `CheckedSubject` decoded, and holds its diagnostics, in their output order however it is built, and the inputs
-no specification governs it for. An `UndecodableSubject` did not, so no rule judged it: it holds only its ref, and
-its one diagnostic, the engine's, is built from that ref.
+Each subject the runner checks, a document or a skill, gets one report, and either kind of report gives its
+diagnostics as `diagnostics`. A `CheckedSubject` decoded, and holds its diagnostics, in their output order however
+it is built, and the inputs no specification governs it for. An `UndecodableSubject` did not, so no rule judged it:
+it holds only its ref, and its one diagnostic, the engine's, is built from that ref, at the subject's path.
 
 This module is the rules engine's report. `reporting` beside it is the per-check pipeline's, whose `Violation` and
 `Finding` the `Diagnostic` here replaces; it stays until the command line runs the rules engine.
@@ -25,6 +25,7 @@ from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.document import DocumentRef
+from lorecraft.project.skill import SkillRef
 from lorecraft.rules.declaration import EngineCondition, Rule, Severity
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.rules.inputs import InputKind
@@ -123,9 +124,13 @@ def diagnostic_order(diagnostic: Diagnostic) -> DiagnosticOrder:
     )
 
 
+# A subject the runner checks: a document, or a skill, whose report path is its `SKILL.md`.
+type SubjectRef = DocumentRef | SkillRef
+
+
 @dataclass(frozen=True, slots=True)
 class CheckedSubject:
-    """A subject that decoded, so the enabled rules judged every input a specification governs it for.
+    """A subject that decoded, so the enabled rules judged every input it is governed for.
 
     Attributes:
         diagnostics: Every occurrence the rules found in it, in the order `diagnostic_order` sorts them into,
@@ -134,7 +139,7 @@ class CheckedSubject:
             order the runner builds them; no rule over such an input judged the subject.
     """
 
-    ref: DocumentRef
+    ref: SubjectRef
     diagnostics: tuple[Diagnostic, ...]
     ungoverned: tuple[InputKind, ...]
 
@@ -147,13 +152,16 @@ class CheckedSubject:
 
 @dataclass(frozen=True, slots=True)
 class UndecodableSubject:
-    """A subject whose bytes are not UTF-8, so no rule judged it; it reports the engine's one diagnostic."""
+    """A subject whose file is not UTF-8, so no rule judged it; it reports the engine's one diagnostic.
 
-    ref: DocumentRef
+    A skill's file is its `SKILL.md`.
+    """
+
+    ref: SubjectRef
 
     @property
     def diagnostics(self) -> tuple[EngineDiagnostic]:
-        """The subject's one diagnostic: `InvalidUtf8` at its path."""
+        """The subject's one diagnostic: `InvalidUtf8` at its path, which for a skill is its `SKILL.md`."""
         return (EngineDiagnostic(self.ref.path, InvalidUtf8()),)
 
 

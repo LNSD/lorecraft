@@ -11,33 +11,37 @@ the input is built once from the queries, and a subject no specification governs
 as ungoverned rather than a diagnostic. An input no enabled rule reads is never built, so its queries are never
 asked.
 
-The subjects are documents until a rule over a skill lands; the command line does not run this yet, and the
-per-check pipelines in `run` serve it until then.
+The subjects are documents and skills, each matched to its own function, so a subject kind without one is a type
+error. A skill is its `SKILL.md`, decoded and reported at that path; its resources are not subjects yet. The command
+line does not run this yet, and the per-check pipelines in `run` serve it until then.
 """
 
 from collections.abc import Iterable
 from typing import assert_never
 
 from lorecraft.project.document import DocumentRef
+from lorecraft.project.skill import SkillRef
 from lorecraft.rules.inputs import InputKind, TokenCountInput
 
 from .database import Database
-from .inputs import Ungoverned, build_token_count_input
-from .report import CheckedSubject, Diagnostic, RuleDiagnostic, SubjectReport, UndecodableSubject
+from .inputs import Ungoverned, build_line_count_input, build_token_count_input
+from .report import CheckedSubject, Diagnostic, RuleDiagnostic, SubjectRef, SubjectReport, UndecodableSubject
 from .table import RuleTable
-from .text import DocumentText, Undecodable
+from .text import DocumentText, SkillText, Undecodable
 
 
-def check_subjects(database: Database, refs: Iterable[DocumentRef], table: RuleTable) -> tuple[SubjectReport, ...]:
-    """Run the table's rules over each document, and report each in the order given.
+def check_subjects(database: Database, refs: Iterable[SubjectRef], table: RuleTable) -> tuple[SubjectReport, ...]:
+    """Run the table's rules over each document and skill, and report each in the order given.
 
     Args:
-        database: The revision the documents are read from; its model decides which specifications govern each.
-        refs: The documents to check; one in no corpus the database's model holds is ungoverned for the token count.
+        database: The revision the subjects are read from; its model decides which specifications govern each.
+        refs: The documents and skills to check; a document in no corpus the database's model holds is ungoverned
+            for the token count.
         table: The rules the run enables, each with its severity.
 
     Raises:
         DocumentReadError: If a document is missing from the snapshot; a decode failure is a diagnostic.
+        SkillReadError: If a skill's `SKILL.md` is missing from the snapshot; a decode failure is a diagnostic.
         DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
         CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
         StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
@@ -45,6 +49,7 @@ def check_subjects(database: Database, refs: Iterable[DocumentRef], table: RuleT
             dialect's shape.
         EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
         RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
+        RepeatedForbiddenSectionError: If the model is not loaded yet and a specification forbids a section twice.
         ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
             outline names.
         AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
@@ -65,7 +70,13 @@ def check_subjects(database: Database, refs: Iterable[DocumentRef], table: RuleT
     """
     reports: list[SubjectReport] = []
     for ref in refs:
-        reports.append(_check_document(database, ref, table))
+        match ref:
+            case DocumentRef():
+                reports.append(_check_document(database, ref, table))
+            case SkillRef():
+                reports.append(_check_skill(database, ref, table))
+            case _:
+                assert_never(ref)
     return tuple(reports)
 
 
@@ -86,6 +97,7 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
             dialect's shape.
         EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
         RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
+        RepeatedForbiddenSectionError: If the model is not loaded yet and a specification forbids a section twice.
         ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
             outline names.
         AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
@@ -109,12 +121,12 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
         case Undecodable():
             return UndecodableSubject(ref)
         case DocumentText():
-            return _check_text(database, source, table)
+            return _check_document_text(database, source, table)
         case _:
             assert_never(source)
 
 
-def _check_text(database: Database, source: DocumentText, table: RuleTable) -> CheckedSubject:
+def _check_document_text(database: Database, source: DocumentText, table: RuleTable) -> CheckedSubject:
     """Build each input an enabled rule reads from a decoded document, and run those rules over it.
 
     Args:
@@ -130,6 +142,7 @@ def _check_text(database: Database, source: DocumentText, table: RuleTable) -> C
             dialect's shape.
         EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
         RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
+        RepeatedForbiddenSectionError: If the model is not loaded yet and a specification forbids a section twice.
         ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
             outline names.
         AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
@@ -165,3 +178,45 @@ def _check_text(database: Database, source: DocumentText, table: RuleTable) -> C
                 assert_never(token_count_input)
 
     return CheckedSubject(source.ref, diagnostics=tuple(diagnostics), ungoverned=tuple(ungoverned))
+
+
+def _check_skill(database: Database, ref: SkillRef, table: RuleTable) -> SubjectReport:
+    """Decode one skill's `SKILL.md`, then run the table's rules over it if it decoded.
+
+    Args:
+        database: The revision the skill is read from.
+        ref: The skill to check.
+        table: The rules the run enables.
+
+    Raises:
+        SkillReadError: If the skill's `SKILL.md` is missing from the snapshot; a decode failure is a diagnostic.
+    """
+    source = database.skill_text(ref)
+    match source:
+        case Undecodable():
+            return UndecodableSubject(ref)
+        case SkillText():
+            return _check_skill_text(database, source, table)
+        case _:
+            assert_never(source)
+
+
+def _check_skill_text(database: Database, source: SkillText, table: RuleTable) -> CheckedSubject:
+    """Build each input an enabled rule reads from a decoded `SKILL.md`, and run those rules over it. Raises nothing.
+
+    Args:
+        database: The revision the skill is read from.
+        source: The skill's `SKILL.md` text, the witness every per-file query takes.
+        table: The rules the run enables.
+    """
+    diagnostics: list[Diagnostic] = []
+
+    # The line count is never asked for when no enabled rule reads it.
+    if table.line_count_rules:
+        line_count_input = build_line_count_input(database, source)
+        for enabled in table.line_count_rules:
+            for occurrence in enabled.rule.check(line_count_input):
+                diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
+
+    # The package governs every input a skill has, so none is ever ungoverned.
+    return CheckedSubject(source.ref, diagnostics=tuple(diagnostics), ungoverned=())
