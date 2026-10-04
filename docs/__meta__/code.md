@@ -112,7 +112,7 @@ Nothing registers a rule document with a specification: the document's own path 
   group but not for the corpus goes there, and stays out of the corpus file rather than becoming a condition
   inside it.
 - **A namespace is a group only once a specification names it.** Documents no `code-<namespace>.md` matches,
-  `error-*`, `test-*` and the unprefixed `logging` today, are governed by `code.md` alone. That is the normal case, not a
+  `error-*`, `tests-*` and the unprefixed `logging` today, are governed by `code.md` alone. That is the normal case, not a
   gap to fill. Add a namespace specification when a group's members genuinely share rules the rest of the
   corpus does not.
 - **Matching is by name and nothing else.** A specification starts governing the moment its name resolves, and
@@ -306,14 +306,14 @@ member that specializes another adds a further segment:
 ```
 
 The groups in use are `principle-*` (universal principles), `pattern-*` (design patterns), `python-*`
-(language conventions), `error-*` (how this project declares and handles its errors), `test-*`,
+(language conventions), `error-*` (how this project declares and handles its errors), `tests-*`,
 `module-*` (one package's responsibility), and unprefixed standalone documents
 such as `logging`. A
 rule document that fits none of them is standalone, and a new group is created by writing its first member.
 
 ### A Prefix Names The Subject, Not The Language
 
-A doc's prefix names **what the doc is about**. That is why `logging`, `error-*` and `test-*` carry no `python-` prefix
+A doc's prefix names **what the doc is about**. That is why `logging`, `error-*` and `tests-*` carry no `python-` prefix
 and are not defects: a doc about the shape of a log line is about logging, and a doc about how tests are
 organized is about tests. Prefixing them `python-logging` and `python-test-files` would file them under a
 subject they are not about, and would claim the `python-*` group owns everything written in Python — which is
@@ -354,7 +354,7 @@ Rule documents may reference other rule documents to establish relationships. Cr
 
 | Type | Meaning | Example |
 |---|---|---|
-| `Related` | Sibling in same prefix group | test-organization <-> test-functions |
+| `Related` | Sibling in same prefix group | tests-organization <-> tests-functions |
 | `Foundation` | Principle or core rule, or an accepted ADR in `docs/arch/`, a rule builds on | pkg-lorecraft-project-checks -> error-types |
 | `Companion` | Paired doc for same package | pkg-lorecraft-project-checks <-> pkg-lorecraft-project-checks-security |
 | `Extends` | Specializes/refines another rule document | python-async-tasks -> python-async |
@@ -389,7 +389,7 @@ Rule documents may reference other rule documents to establish relationships. Cr
 - ✅ `pkg-lorecraft-project-checks` -> `error-types` (Foundation: pkg to core)
 - ✅ `pkg-lorecraft-project-checks-frontmatter` -> `pkg-lorecraft-project-checks` (Extends: pkg to pkg)
 - ✅ `pkg-lorecraft-project-checks` <-> `pkg-lorecraft-project-checks-security` (Companion: bidirectional)
-- ✅ `test-organization` <-> `test-functions` (Related: core siblings)
+- ✅ `tests-organization` <-> `tests-functions` (Related: core siblings)
 - ❌ `code` -> `python-modules` (meta rules only reference other meta rules)
 - ❌ `python-modules` -> `pkg-lorecraft-project-checks` (core cannot reference pkg rules)
 
@@ -404,7 +404,7 @@ form, together with the word caps and token budget of [§1](#1-core-principles).
 applies the outline and the caps, and `lorecraft check budget` the budget. A
 document that a namespace specification matches takes its section outline from the narrowest
 `code-<namespace>.md` specification that matches its name instead of the general shape below; the general
-shape governs every document no namespace specification matches, `error-*`, `test-*` and `logging` today
+shape governs every document no namespace specification matches, `error-*`, `tests-*` and `logging` today
 ([§1](#1-core-principles)).
 
 Every rule document should follow this general structure:

@@ -1,5 +1,5 @@
 ---
-name: "test-assertions"
+name: "tests-assertions"
 description: "What a test's Then block asserts and how: a message stating the promise on every assert, the whole returned value compared to an expected one, a projection only when the sequence is the fact, one assert per fact up to three and all/any beyond, is for identity, and pytest.raises on the class with the message checked only for the values it names. Load when writing or reviewing the assertions of a test, or an assertion message"
 type: "core"
 scope: "global"
@@ -10,7 +10,7 @@ scope: "global"
 A test fails at an assertion, and the assertion is all the reader of the CI line gets: the expression pytest
 rewrites, and the message the author wrote. This document owns that line — what each `assert` under `#: Then`
 checks and what it says when it fails. The `#: Then` block itself, and the rule that a test covers one
-behaviour, are owned by [test-functions](test-functions.md).
+behaviour, are owned by [tests-functions](tests-functions.md).
 
 ## 1. Assertions Carry a Message
 
@@ -168,7 +168,7 @@ Before committing code, verify:
 
 ## References
 
-- [test-functions](test-functions.md) - Related: Owns the `#: Then` block these assertions sit in, and the one behaviour they assert on
+- [tests-functions](tests-functions.md) - Related: Owns the `#: Then` block these assertions sit in, and the one behaviour they assert on
 - [error-types](error-types.md) - Related: Owns the error types `pytest.raises` matches on, and the granularity that makes `match=` unnecessary
 - [principle-least-surprise](principle-least-surprise.md) - Foundation: A failing test should say what it expected without being opened
 

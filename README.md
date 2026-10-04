@@ -82,7 +82,7 @@ docs/
     ├── logging.md                  # governed_by: [code]
     ├── python-modules.md           # governed_by: [code, code-python]
     ├── python-typing.md            # governed_by: [code, code-python]
-    └── test-functions.md           # governed_by: [code]
+    └── tests-functions.md          # governed_by: [code]
 ```
 
 Each specification is a pair of files that share a specification name, such as `code`: the prose,

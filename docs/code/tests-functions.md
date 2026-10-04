@@ -1,5 +1,5 @@
 ---
-name: "test-functions"
+name: "tests-functions"
 description: "Inside the test function: Test<Subject> classes and test_<unit>_<condition>_<expectation> names, the mandatory Given/When/Then markers, one behaviour per test, fixture scope, one test per case, and the sleep/network/order-dependence bans. Load when writing or reviewing a test function, naming a test, or adding a fixture"
 type: "core"
 scope: "global"
@@ -9,9 +9,9 @@ scope: "global"
 
 A test's name is read far more often than its body — usually as a single red line in CI output, by someone who
 has not opened the file. Everything in this document serves the moment that line is read: the name says what
-broke, the assertion says how ([test-assertions](test-assertions.md)), and the test's narrowness says
+broke, the assertion says how ([tests-assertions](tests-assertions.md)), and the test's narrowness says
 where. Which tier a test belongs to, which directory it lives in, and which markers select it are owned by
-[test-organization](test-organization.md). This document owns what happens between `def` and the last
+[tests-organization](tests-organization.md). This document owns what happens between `def` and the last
 assertion, starting with the three markers ([§2](#2-given-when-then-with-markers)) that divide it.
 
 ## 1. `Test<Subject>` Classes, `test_<unit>_<condition>_<expectation>` Functions
@@ -79,7 +79,7 @@ All three appear in every test, without exception. A test that constructs nothin
 leaves `#: When` holding the call alone, and what makes the scenario in the test's name findable in its body.
 
 What each assertion under `#: Then` checks, and the message it carries, is owned by
-[test-assertions](test-assertions.md).
+[tests-assertions](tests-assertions.md).
 
 A second call under `#: When` means a failure names neither call. Logic under `#: Then` hides what is being
 verified: a value transformed before it is asserted on is either setup, and belongs in `#: Given`, or evidence
@@ -362,8 +362,8 @@ Before committing code, verify:
 
 ## References
 
-- [test-organization](test-organization.md) - Related: Owns the tier, the directory, and the markers that select the test this document governs the inside of
-- [test-assertions](test-assertions.md) - Related: Owns what each assertion under `#: Then` checks, its message, and how `pytest.raises` matches
+- [tests-organization](tests-organization.md) - Related: Owns the tier, the directory, and the markers that select the test this document governs the inside of
+- [tests-assertions](tests-assertions.md) - Related: Owns what each assertion under `#: Then` checks, its message, and how `pytest.raises` matches
 - [python-naming](python-naming.md) - Related: Owns the naming rules the three-segment test name specialises
 - [pattern-resource-lifecycle](pattern-resource-lifecycle.md) - Related: Owns the acquire/release contract a scoped fixture mirrors
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One behaviour per test, for the same reason as one reason to change per class
