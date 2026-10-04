@@ -2,9 +2,10 @@
 
 import pytest
 
+from lorecraft import rules
 from lorecraft.rules.declaration import Rule, Severity
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
-from lorecraft.rules.registry import Registry, package_registry
+from lorecraft.rules.registry import Registry
 from lorecraft.rules.tests.sample_rules import token_count
 from lorecraft.rules.tests.sample_rules import valid as valid_rules
 from lorecraft.rules.tests.sample_rules.token_count.any_tokens import AnyTokens
@@ -84,7 +85,7 @@ class TestRuleTableFromRegistry:
 
     def test_from_registry_with_the_package_registry_enables_the_token_budget(self) -> None:
         #: Given
-        registry = package_registry()
+        registry = Registry.load(rules)
 
         #: When
         table = RuleTable.from_registry(registry)
