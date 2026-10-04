@@ -70,6 +70,40 @@ A guard is the answer nearest to hand, so it is written before anyone asks wheth
 and it turns a mistake the type checker would have refused at the call into a failure at run time. How the
 `Raises:` section is written is owned by [python-docstrings](python-docstrings.md).
 
+**A propagated built-in is fixed where it is raised.** A caller does not answer for a callee's built-in by
+copying it into its own `Raises:`: the questions above are asked at the raise, and a case they remove is
+removed for every caller at once. Only a built-in that has passed them at its source propagates into a
+caller's `Raises:`. A line copied before then spreads the smell one caller at a time.
+
+A precondition worded "values from X never trigger it" is the same smell in prose. It asks X to hand out a
+type that carries the guarantee, or the lookup to return `None` for the case
+([python-fn-names](python-fn-names.md#4-the-name-says-what-absence-does)).
+
+```python
+# ❌ Bad — the callee's ValueError copied up with a precondition only prose carries; a ref from an older
+# revision, whose corpus was deleted, ended the whole run on a case the caller had promised away
+def check_documents(db: AnalysisDb, refs: tuple[DocumentRef, ...]) -> CheckRun:
+    """Check each document against the specifications that govern it.
+
+    Raises:
+        ValueError: If a ref's corpus is not one the model lists (refs from the model never trigger it).
+    """
+    for ref in refs:
+        rules = db.model().rules(ref)
+        ...
+```
+
+```python
+# ✅ Good — the lookup answers absence with None at its source, so the caller says what absence means and
+# has no line to copy
+for ref in refs:
+    rules = db.model().find_rules(ref)
+    if rules is None:
+        reports.append(UngovernedReport(ref))
+        continue
+    ...
+```
+
 ```python
 # ❌ Bad — the record takes any specification file and refuses the wrong kind at run time, so a loader that
 # handed it a prose file type-checked cleanly and failed in the middle of a corpus check
@@ -245,8 +279,10 @@ Before committing code, verify:
       operation a subclass must provide; never an `Error`, a `KeyError` or another built-in
 - [ ] A value object's invariant raises its variant, whoever constructs the value
 - [ ] Among invariants, only the guard of a record only code builds may raise `ValueError`
-- [ ] Every built-in in a `Raises:` section has passed the questions of §2: no type can exclude the case, and
-      no file a command read can cause it
+- [ ] Every built-in in a `Raises:` section, direct or propagated, has passed the questions of §2 at its
+      source: no type can exclude the case, and no file a command read can cause it
+- [ ] A precondition phrased "values from X never trigger it" is carried by a type X issues, or the lookup
+      returns `None` for the case
 - [ ] A defect's subclass has one built-in base and builds its message from its attributes
 - [ ] A framework's exception is raised only in the hook the framework calls, translating a caught variant as
       the last step

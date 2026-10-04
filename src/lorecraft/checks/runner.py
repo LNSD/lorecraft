@@ -33,11 +33,10 @@ def check_subjects(database: Database, refs: Iterable[DocumentRef], table: RuleT
 
     Args:
         database: The revision the documents are read from; its model decides which specifications govern each.
-        refs: The documents to check; each must be one the database's model lists.
+        refs: The documents to check; one in no corpus the database's model holds is ungoverned for the token count.
         table: The rules the run enables, each with its severity.
 
     Raises:
-        ValueError: If a ref's corpus is not one the database's model lists (refs from the model never trigger it).
         DocumentReadError: If a document is missing from the snapshot; a decode failure is a diagnostic.
         DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
         CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
@@ -79,8 +78,6 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
         table: The rules the run enables.
 
     Raises:
-        ValueError: If the document's corpus is not one the database's model lists (refs from the model never
-            trigger it).
         DocumentReadError: If the document is missing from the snapshot; a decode failure is a diagnostic.
         DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
         CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
@@ -126,8 +123,6 @@ def _check_text(database: Database, source: DocumentText, table: RuleTable) -> C
         table: The rules the run enables.
 
     Raises:
-        ValueError: If the document's corpus is not one the database's model lists (refs from the model never
-            trigger it).
         DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
         CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
         StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.

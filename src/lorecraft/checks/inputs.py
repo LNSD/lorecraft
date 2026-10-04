@@ -36,11 +36,10 @@ def build_token_count_input(database: Database, source: DocumentText) -> TokenCo
 
     Returns:
         The input, with one budget per structure specification that governs the document and sets one, in the
-        order the specifications apply; or `Ungoverned` when none sets a budget.
+        order the specifications apply; or `Ungoverned` when none sets a budget, or when the document is in no
+        corpus the database's model holds, so no specification governs it.
 
     Raises:
-        ValueError: If the document's corpus is not one the database's model lists (refs from the model never
-            trigger it).
         DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
         CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
         StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
@@ -66,8 +65,11 @@ def build_token_count_input(database: Database, source: DocumentText) -> TokenCo
         SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
         SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
     """
+    governance = database.model().find_governance(source.ref)
+    if governance is None:
+        return Ungoverned()
     budgets: list[Budget] = []
-    for structure_spec in database.model().governance(source.ref).structure_specs():
+    for structure_spec in governance.structure_specs():
         if structure_spec.tokens is not None:
             budgets.append(Budget(tokens=structure_spec.tokens, spec=structure_spec.path))
     if not budgets:

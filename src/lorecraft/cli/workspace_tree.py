@@ -210,7 +210,7 @@ def _corpus_line(corpus: Corpus) -> _Line:
 
     document_lines: list[_Line] = []
     for ref in corpus.documents:
-        spec_names = _governing_spec_names(corpus.governance(ref).specs())
+        spec_names = _governing_spec_names(corpus.governance(ref.filename).specs())
         document_lines.append(_Line(f'{ref.path.name} [{", ".join(spec_names)}]'))
     parts.append(_Line(f'documents ({len(document_lines)})', tuple(document_lines)))
 
@@ -259,7 +259,7 @@ def _json_corpus(corpus: Corpus) -> _CorpusJson:
     documents: list[_DocumentJson] = []
     for ref in corpus.documents:
         documents.append(
-            {'path': str(ref.path), 'governed_by': _governing_files(corpus.governance(ref).specs())},
+            {'path': str(ref.path), 'governed_by': _governing_files(corpus.governance(ref.filename).specs())},
         )
     return {
         'name': str(corpus.name),

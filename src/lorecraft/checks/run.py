@@ -237,7 +237,7 @@ def run_frontmatter(database: Database, refs: tuple[DocumentRef, ...]) -> CheckR
 
     Args:
         database: The snapshot state the refs come from; its model decides which schemas govern each document.
-        refs: The documents to check; each must be one the database's model lists.
+        refs: The documents to check; one in no corpus the database's model holds is ungoverned.
 
     Raises:
         DocumentReadError: If a governed document is missing from the snapshot; a decode failure is a finding.
@@ -270,7 +270,11 @@ def run_frontmatter(database: Database, refs: tuple[DocumentRef, ...]) -> CheckR
     """
     reports: list[DocumentReport] = []
     for ref in refs:
-        schemas = database.model().governance(ref).frontmatter_schemas()
+        governance = database.model().find_governance(ref)
+        if governance is None:
+            reports.append(UngovernedDocumentReport(ref))
+            continue
+        schemas = governance.frontmatter_schemas()
         if not schemas:
             reports.append(UngovernedDocumentReport(ref))
             continue
@@ -296,7 +300,7 @@ def run_structure(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun
     Args:
         database: The snapshot state the refs come from; its model decides which specifications govern each
             document.
-        refs: The documents to check; each must be one the database's model lists.
+        refs: The documents to check; one in no corpus the database's model holds is ungoverned.
 
     Raises:
         DocumentReadError: If a governed document is missing from the snapshot; a decode failure is a finding.
@@ -329,7 +333,11 @@ def run_structure(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun
     """
     reports: list[DocumentReport] = []
     for ref in refs:
-        structure_specs = database.model().governance(ref).structure_specs()
+        governance = database.model().find_governance(ref)
+        if governance is None:
+            reports.append(UngovernedDocumentReport(ref))
+            continue
+        structure_specs = governance.structure_specs()
         if not structure_specs:
             reports.append(UngovernedDocumentReport(ref))
             continue
@@ -355,7 +363,7 @@ def run_budget(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
     Args:
         database: The snapshot state the refs come from; its model decides which specifications govern each
             document.
-        refs: The documents to check; each must be one the database's model lists.
+        refs: The documents to check; one in no corpus the database's model holds is ungoverned.
 
     Raises:
         DocumentReadError: If a governed document is missing from the snapshot; a decode failure is a finding.
@@ -388,7 +396,11 @@ def run_budget(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
     """
     reports: list[DocumentReport] = []
     for ref in refs:
-        structure_specs = _budgeted(database.model().governance(ref).structure_specs())
+        governance = database.model().find_governance(ref)
+        if governance is None:
+            reports.append(UngovernedDocumentReport(ref))
+            continue
+        structure_specs = _budgeted(governance.structure_specs())
         if not structure_specs:
             reports.append(UngovernedDocumentReport(ref))
             continue
