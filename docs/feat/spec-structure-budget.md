@@ -100,6 +100,7 @@ value below `1` is refused.
 ## Code References
 
 - `src/lorecraft/project/schemas/structure_file.py` - The shape of the `words` and `tokens` keys
-- `src/lorecraft/project/schemas/structure.py` - Turns the keys into rules, and refuses a value below `1`
+- `src/lorecraft/core/num.py` - The positive whole number each key holds, which refuses a value below `1`
+- `src/lorecraft/project/schemas/structure.py` - Turns the keys into rules
 - `src/lorecraft/checks/structure.py` - Applies the word caps to a document's sections
 - `src/lorecraft/checks/budget.py` - Applies the token budget to a document's token count

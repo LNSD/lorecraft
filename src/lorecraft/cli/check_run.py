@@ -185,9 +185,6 @@ def select_documents(root: Path | None, paths: list[Path] | None) -> tuple[Datab
         StructureSchemaReadError: If any structure specification cannot be read.
         StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
         EmptyStructureSpecError: If a structure specification states no rule.
-        InvalidTitleCountError: If a title count is below 1.
-        InvalidTokenBudgetError: If a token budget is below 1.
-        InvalidWordCapError: If an outline word cap is below 1.
         RepeatedOutlineSectionError: If an outline names a section twice.
         ForbiddenOutlineSectionError: If a specification forbids a section its outline names.
         AdjacentAnyRunsError: If an outline places two ``any`` runs side by side.
@@ -262,9 +259,6 @@ def select_skills(root: Path | None, paths: list[Path] | None) -> tuple[Database
         StructureSchemaReadError: If any structure specification cannot be read.
         StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
         EmptyStructureSpecError: If a structure specification states no rule.
-        InvalidTitleCountError: If a title count is below 1.
-        InvalidTokenBudgetError: If a token budget is below 1.
-        InvalidWordCapError: If an outline word cap is below 1.
         RepeatedOutlineSectionError: If an outline names a section twice.
         ForbiddenOutlineSectionError: If a specification forbids a section its outline names.
         AdjacentAnyRunsError: If an outline places two `any` runs side by side.

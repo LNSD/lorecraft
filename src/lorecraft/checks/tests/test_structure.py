@@ -8,6 +8,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import PositiveInt
 from lorecraft.project.layout import SPECS_DIR
 from lorecraft.project.schemas import (
     AnySections,
@@ -106,7 +107,9 @@ class TestValidateStructure:
         text = '# Guide\n\n## Rule\n\ntext\n\n## Checklist\n\n- [ ] item\n'
         document = parse_document(text)
         structure_specs = (
-            _structure_spec(title=TitleRule(count=1, first=True), forbid_empty_sections=True, outline=RULE_OUTLINE),
+            _structure_spec(
+                title=TitleRule(count=PositiveInt(1), first=True), forbid_empty_sections=True, outline=RULE_OUTLINE
+            ),
         )
 
         #: When
@@ -131,7 +134,7 @@ class TestValidateStructure:
         #: Given
         text = '# Guide\n\ntext\n\n# Again\n\ntext\n'
         document = parse_document(text)
-        structure_specs = (_structure_spec(title=TitleRule(count=1, first=True)),)
+        structure_specs = (_structure_spec(title=TitleRule(count=PositiveInt(1), first=True)),)
 
         #: When
         result = validate_structure(structure_specs, headings=document.headings)
@@ -148,7 +151,7 @@ class TestValidateStructure:
         #: Given
         text = '## Rule\n\ntext\n\n# Guide\n\ntext\n'
         document = parse_document(text)
-        structure_specs = (_structure_spec(title=TitleRule(count=1, first=True)),)
+        structure_specs = (_structure_spec(title=TitleRule(count=PositiveInt(1), first=True)),)
 
         #: When
         result = validate_structure(structure_specs, headings=document.headings)
@@ -392,7 +395,7 @@ class TestValidateStructure:
         #: Given
         text = '## Rule\n\ntext\n\n## Checklist\n\none two three\n'
         document = parse_document(text)
-        outline = (AnySections(), SectionEntry(name='Checklist', words=2))
+        outline = (AnySections(), SectionEntry(name='Checklist', words=PositiveInt(2)))
         structure_specs = (_structure_spec(outline=outline),)
 
         #: When
@@ -416,7 +419,7 @@ class TestValidateStructure:
         #: Given
         text = '## Rule\n\none two three\n\n## Checklist\n\ntext\n'
         document = parse_document(text)
-        outline = (AnySections(words=2), SectionEntry(name='Checklist'))
+        outline = (AnySections(words=PositiveInt(2)), SectionEntry(name='Checklist'))
         structure_specs = (_structure_spec(outline=outline),)
 
         #: When
@@ -437,7 +440,7 @@ class TestValidateStructure:
         #: Given
         text = '## Rule\n\none\n\n## Checklist\n\none two three\n'
         document = parse_document(text)
-        outline = (AnySections(words=1), SectionEntry(name='Checklist'))
+        outline = (AnySections(words=PositiveInt(1)), SectionEntry(name='Checklist'))
         structure_specs = (_structure_spec(outline=outline),)
 
         #: When
@@ -451,9 +454,9 @@ class TestValidateStructure:
         text = '## Intro\n\none\n\n## Middle\n\ntext\n\n## Detail\n\none two three\n'
         document = parse_document(text)
         outline = (
-            AnySections(words=1),
+            AnySections(words=PositiveInt(1)),
             SectionEntry(name='Middle'),
-            AnySections(words=5),
+            AnySections(words=PositiveInt(5)),
         )
         structure_specs = (_structure_spec(outline=outline),)
 
@@ -467,7 +470,7 @@ class TestValidateStructure:
         #: Given
         text = '## Rule\n\none two\n\n### Detail\n\nthree four\n\n## Checklist\n\ntext\n'
         document = parse_document(text)
-        outline = (AnySections(words=3), SectionEntry(name='Checklist'))
+        outline = (AnySections(words=PositiveInt(3)), SectionEntry(name='Checklist'))
         structure_specs = (_structure_spec(outline=outline),)
 
         #: When
@@ -486,8 +489,8 @@ class TestValidateStructure:
         #: Given
         text = '## Rule\n\none two three\n\n## Checklist\n\ntext\n'
         document = parse_document(text)
-        corpus = _structure_spec(outline=(AnySections(words=5), SectionEntry(name='Checklist')))
-        namespace = _structure_spec(outline=(AnySections(words=2),), spec_name='code-python')
+        corpus = _structure_spec(outline=(AnySections(words=PositiveInt(5)), SectionEntry(name='Checklist')))
+        namespace = _structure_spec(outline=(AnySections(words=PositiveInt(2)),), spec_name='code-python')
 
         #: When
         result = validate_structure((corpus, namespace), headings=document.headings)

@@ -15,6 +15,7 @@ corpus one, so a document governed by both must pass both, and neither can relax
 from dataclasses import dataclass
 from typing import Final, assert_never
 
+from lorecraft.core.num import PositiveInt
 from lorecraft.project.schemas import AnySections, OutlineEntry, SectionEntry, StructureSpec
 from lorecraft.project.syntax import Heading, LineNumber
 
@@ -87,7 +88,7 @@ def _check_title(structure_spec: StructureSpec, headings: tuple[Heading, ...]) -
         return []
     violations: list[Violation] = []
     titles = [heading for heading in headings if heading.level == 1]
-    if len(titles) != structure_spec.title.count:
+    if len(titles) != structure_spec.title.count.value:
         violations.append(
             Violation(
                 _FIRST_LINE, 'structure.title', f'expected {structure_spec.title.count} H1 title, found {len(titles)}'
@@ -234,7 +235,7 @@ def _check_section_words(structure_spec: StructureSpec, sections: tuple[Heading,
         else:
             last_named_at = entry_at
             cap = structure_spec.outline[entry_at].words
-        if cap is not None and section.words > cap:
+        if cap is not None and section.words > cap.value:
             violations.append(
                 Violation(
                     section.line,
@@ -264,7 +265,7 @@ def _find_entry_index(outline: tuple[OutlineEntry, ...], name: str) -> int | Non
     return None
 
 
-def _find_run_cap(outline: tuple[OutlineEntry, ...], after: int) -> int | None:
+def _find_run_cap(outline: tuple[OutlineEntry, ...], after: int) -> PositiveInt | None:
     """The cap of the first `any` entry past outline index `after`, or None when there is no such entry.
 
     Args:

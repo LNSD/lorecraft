@@ -1,7 +1,8 @@
 """The specifications: their files, the schemas they state, and the repository that reads them.
 
-That is the specification filenames and names, the structure specification with the frontmatter schema it carries,
-the repository that reads them, the skill frontmatter schema, and the problems both frontmatter schemas report.
+That is the specification filenames and names, the structure specification with the frontmatter schema and the
+counts it carries, the repository that reads them, the skill frontmatter schema, and the problems both frontmatter
+schemas report.
 """
 
 from .frontmatter_problem import (
@@ -55,9 +56,6 @@ from .structure import (
     FrontmatterSchema,
     FrontmatterSchemaIdError,
     InvalidFrontmatterSchemaError,
-    InvalidTitleCountError,
-    InvalidTokenBudgetError,
-    InvalidWordCapError,
     OutlineEntry,
     RepeatedOutlineSectionError,
     SectionEntry,
@@ -95,9 +93,6 @@ __all__: list[str] = [
     'AnySections',
     'StructureSpecDecodeError',
     'EmptyStructureSpecError',
-    'InvalidTitleCountError',
-    'InvalidTokenBudgetError',
-    'InvalidWordCapError',
     'RepeatedOutlineSectionError',
     'ForbiddenOutlineSectionError',
     'AdjacentAnyRunsError',
