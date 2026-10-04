@@ -33,6 +33,8 @@ way: it builds the input each rule reads from the queries, and the rules are dec
 - A check: values in, violations out.
 - A run that resolves a check's inputs and turns violations into findings.
 - Building the input a rule reads from the queries, and running the rules over a subject.
+- The rule table: the rules a run enables, each with the severity it reports at, partitioned by the input each
+  reads.
 - The value types a check reports in, and their plain-text form.
 
 ## Belongs Elsewhere

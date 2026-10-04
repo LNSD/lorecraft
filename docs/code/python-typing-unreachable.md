@@ -88,6 +88,23 @@ def words(block: Block) -> int:
             assert_never(block)
 ```
 
+A union of classes is the one exception, because a class pattern matches an instance and never a class: a value
+typed `type[A] | type[B]` has no `match` to branch with. A branch on which class it is, as with a rule's
+declaration, is an `issubclass` chain closed by `else: assert_never(value)`, which `ty` narrows the same way, and
+a comment at the chain says why it is not a `match`, so the next editor does not convert it.
+
+```python
+# ✅ Good — a class pattern cannot match a class, so the branch on a declaration's kind is an `issubclass`
+# chain, closed by `assert_never` so a third kind of declaration is a type error here
+def is_in_service(declaration: type[Rule] | type[RemovedRule]) -> bool:
+    if issubclass(declaration, Rule):
+        return True
+    elif issubclass(declaration, RemovedRule):
+        return False
+    else:
+        assert_never(declaration)
+```
+
 ## 3. A Catch-All Arm Handles Only an Open Domain
 
 A `case _:` or a final `else` that does something is a real case, and it is written only where the matched
@@ -170,7 +187,9 @@ Before committing code, verify:
 - [ ] Every function that raises on every path is annotated `-> Never`, and no placeholder `return` follows a
       call to one
 - [ ] Every branch on which member a closed union holds is a `match` closed by `case _: assert_never(...)`,
-      never an `isinstance` chain, even where the return type would already catch a missing member
+      never an `isinstance` chain, even where the return type would already catch a missing member; over a union
+      of classes, which no class pattern matches, it is an `issubclass` chain closed by
+      `else: assert_never(...)`, with a comment saying why
 - [ ] Every `case _:` or final `else` with behaviour matches a value from an open domain; over a union, an
       `Enum`, or a `Literal`, each member has an arm and the catch-all is `assert_never`
 - [ ] Every path dead for a reason `ty` cannot see ends in `raise AssertionError('unreachable: ...')` naming

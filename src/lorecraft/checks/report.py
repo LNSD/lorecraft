@@ -1,12 +1,20 @@
-"""What a run of the rules reports: a diagnostic per occurrence, its severity, and the order diagnostics print in.
+"""What a run of the rules reports: a diagnostic per occurrence, the order they print in, and a report per subject.
 
-A diagnostic locates a rule's occurrence at the path of the subject it was found in, with the severity the rule
-runs at. It holds the occurrence and copies none of its fields, so its code, message, labels, help and notes, and
-specification reach any output through the occurrence alone.
+A diagnostic locates an occurrence at the path of the subject it was found in, with the severity it is reported
+at, and it comes in one of two kinds. A `RuleDiagnostic` holds a rule's occurrence at the severity the rule table
+enables the rule at. An `EngineDiagnostic` holds an engine condition's occurrence, and reads its severity from the
+condition's class rather than holding one, so it can never carry another. Either holds its occurrence and copies
+none of its fields, so its code, message, labels, help and notes, and specification reach any output through the
+occurrence alone.
 
 The order is an output contract, total over one revision, so one revision always prints the same diagnostics in
 the same order: by path, then primary location, then severity, then code, then message. `DiagnosticOrder` states
 that order as the fields it compares, and `diagnostic_order` builds it as the sort key.
+
+Each subject the runner checks gets one report, and either kind of report gives its diagnostics as `diagnostics`.
+A `CheckedSubject` decoded, and holds its diagnostics, in their output order however it is built, and the inputs
+no specification governs it for. An `UndecodableSubject` did not, so no rule judged it: it holds only its ref, and
+its one diagnostic, the engine's, is built from that ref.
 
 This module is the rules engine's report. `reporting` beside it is the per-check pipeline's, whose `Violation` and
 `Finding` the `Diagnostic` here replaces; it stays until the command line runs the rules engine.
@@ -16,23 +24,49 @@ from dataclasses import dataclass
 from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.rules.declaration import Rule, Severity
+from lorecraft.project.document import DocumentRef
+from lorecraft.rules.declaration import EngineCondition, Rule, Severity
+from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
+from lorecraft.rules.inputs import InputKind
 from lorecraft.rules.location import Here, WholeSubject
 
 
 @dataclass(frozen=True, slots=True)
-class Diagnostic:
-    """One occurrence of a rule, located at the subject it was found in, with the severity it is reported at.
+class RuleDiagnostic:
+    """One occurrence of a rule, located at the subject it was found in, at the severity the rule runs at.
 
     Attributes:
         path: The subject the occurrence was found in.
         occurrence: The rule's occurrence, which renders the code, the message and everything around it.
-        severity: The severity the occurrence is reported at.
+        severity: The severity the rule table enables the rule at.
     """
 
     path: RootRelativePath
     occurrence: Rule
     severity: Severity
+
+
+@dataclass(frozen=True, slots=True)
+class EngineDiagnostic:
+    """One occurrence of an engine condition, located at the subject the engine found it in.
+
+    Attributes:
+        path: The subject the engine found the condition in.
+        occurrence: The condition's occurrence, which renders the code, the message and everything around it.
+    """
+
+    path: RootRelativePath
+    occurrence: EngineCondition
+
+    @property
+    def severity(self) -> Severity:
+        """The severity the condition's class fixes as its `SEVERITY`; no configuration changes it."""
+        return self.occurrence.SEVERITY
+
+
+# One occurrence located at the subject it was found in, with the severity it is reported at: a rule's, at the
+# severity the run enables the rule at, or an engine condition's, at the severity its class fixes.
+type Diagnostic = RuleDiagnostic | EngineDiagnostic
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -87,3 +121,41 @@ def diagnostic_order(diagnostic: Diagnostic) -> DiagnosticOrder:
         code=str(diagnostic.occurrence.CODE),
         message=diagnostic.occurrence.message(),
     )
+
+
+@dataclass(frozen=True, slots=True)
+class CheckedSubject:
+    """A subject that decoded, so the enabled rules judged every input a specification governs it for.
+
+    Attributes:
+        diagnostics: Every occurrence the rules found in it, in the order `diagnostic_order` sorts them into,
+            whatever order they are given in; empty when it holds to every rule.
+        ungoverned: The input kinds an enabled rule reads that no specification governs the subject for, in the
+            order the runner builds them; no rule over such an input judged the subject.
+    """
+
+    ref: DocumentRef
+    diagnostics: tuple[Diagnostic, ...]
+    ungoverned: tuple[InputKind, ...]
+
+    def __post_init__(self) -> None:
+        """Sort the diagnostics into their output order, so a report holds them in it however it is built."""
+        # The record is frozen, and `object.__setattr__` is how a frozen dataclass sets its own field while it is
+        # being constructed; nothing can set it after.
+        object.__setattr__(self, 'diagnostics', tuple(sorted(self.diagnostics, key=diagnostic_order)))
+
+
+@dataclass(frozen=True, slots=True)
+class UndecodableSubject:
+    """A subject whose bytes are not UTF-8, so no rule judged it; it reports the engine's one diagnostic."""
+
+    ref: DocumentRef
+
+    @property
+    def diagnostics(self) -> tuple[EngineDiagnostic]:
+        """The subject's one diagnostic: `InvalidUtf8` at its path."""
+        return (EngineDiagnostic(self.ref.path, InvalidUtf8()),)
+
+
+# What the runner reports for one subject: what the rules found in it, or that it did not decode.
+type SubjectReport = CheckedSubject | UndecodableSubject

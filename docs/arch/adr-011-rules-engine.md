@@ -157,7 +157,8 @@ Python's types bound what this proves, and the design states the two gaps rather
 ### The Runner
 
 The runner takes the database, the selected subjects and a rule table. The table is built once per run from the
-registry and the resolved levels: the enabled rules, partitioned by input kind, in code order.
+registry and the resolved levels: the enabled rules, partitioned by input kind, in code order. Each partition
+holds every enabled rule beside its severity, so a rule the runner holds always has one.
 
 ```python
 def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> SubjectReport:
@@ -166,18 +167,19 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
         return UndecodableSubject(ref)
     # `source` is a `DocumentText` from here on: the witness every per-file query takes
 
-    occurrences: list[Rule] = []
+    diagnostics: list[Diagnostic] = []
     ungoverned: list[InputKind] = []
 
-    if table.headings:  # the parse is never asked for when no enabled rule reads it
-        match headings_input(database, source):
+    if table.headings_rules:  # the parse is never asked for when no enabled rule reads it
+        match build_headings_input(database, source):
             case Ungoverned():
                 ungoverned.append(InputKind.HEADINGS)
             case HeadingsInput() as subject:
-                for rule in table.headings:
-                    occurrences.extend(rule.check(subject))
+                for enabled in table.headings_rules:
+                    for occurrence in enabled.rule.check(subject):
+                        diagnostics.append(RuleDiagnostic(ref.path, occurrence, enabled.severity))
     ...
-    return CheckedSubject(ref, diagnostics=table.located(ref, occurrences), ungoverned=tuple(ungoverned))
+    return CheckedSubject(ref, diagnostics=tuple(diagnostics), ungoverned=tuple(ungoverned))
 ```
 
 - **Adding a rule never touches the runner.** The rule joins its input's partition through the registry
