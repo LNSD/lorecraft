@@ -23,7 +23,14 @@ from wenmode.nodes import Heading as WenmodeHeading
 from wenmode.nodes import Link as WenmodeLink
 from wenmode.plugins import frontmatter
 
-from .frontmatter import FrontmatterNode, MissingFrontmatter, decode_frontmatter
+from .frontmatter import (
+    Frontmatter,
+    FrontmatterNode,
+    InvalidYamlFrontmatter,
+    MissingFrontmatter,
+    NonMappingFrontmatter,
+    decode_frontmatter,
+)
 from .heading import HeadingLevel
 from .link import Link
 from .position import LineNumber
@@ -163,9 +170,13 @@ def parse_markdown_frontmatter(text: str) -> FrontmatterNode:
     root = _FRONTMATTER_PARSER.parse(text)
     if root.data is None or _FRONTMATTER_KEY not in root.data:
         return MissingFrontmatter()
-    # The plugin stores whatever its loader returned, and this parser's loader is `decode_frontmatter`.
-    decoded: FrontmatterNode = root.data[_FRONTMATTER_KEY]
-    return decoded
+    decoded = root.data[_FRONTMATTER_KEY]
+    match decoded:
+        case Frontmatter() | MissingFrontmatter() | InvalidYamlFrontmatter() | NonMappingFrontmatter():
+            return decoded
+        case _:
+            # The plugin stores whatever its loader returned, and this parser's loader is `decode_frontmatter`.
+            raise AssertionError('unreachable: the plugin stores what decode_frontmatter returns')
 
 
 def _block(text: str, node: Node) -> HeadingBlock | ContentBlock:
