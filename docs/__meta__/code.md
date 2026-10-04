@@ -222,12 +222,12 @@ the dependency knows which rules go with it.
 Rules scoped to individual packages, named with a group prefix followed by the package's full import path:
 `pkg-` for the patterns code in the package follows, or the prefix of a group whose every member is scoped to
 one package. Two layers can hold a subpackage of the same name, so the path always starts at the import package: a doc
-governing `lorecraft/project/checks/` is scoped `pkg:lorecraft.project.checks`. A security companion takes the same name plus `-security`.
+governing `lorecraft/project/syntax/` is scoped `pkg:lorecraft.project.syntax`. A security companion takes the same name plus `-security`.
 
 `scope` carries the import path exactly as Python spells it — **snake_case**, dotted for nesting:
-`pkg:lorecraft.project.checks.frontmatter` for a `frontmatter` subpackage of `checks`. The **filename** cannot
-carry an underscore or a dot, so it converts both to `-`: a doc scoped `pkg:lorecraft.project.checks` is named
-`pkg-lorecraft-project-checks.md`.
+`pkg:lorecraft.cli.commands.check` for the `check` subpackage of `commands`. The **filename** cannot
+carry an underscore or a dot, so it converts both to `-`: a doc scoped `pkg:lorecraft.project.syntax` is named
+`pkg-lorecraft-project-syntax.md`, or `module-lorecraft-project-syntax.md` in the `module-` group.
 
 A document governing a family of sibling subpackages names the family, not one member.
 
@@ -355,8 +355,8 @@ Rule documents may reference other rule documents to establish relationships. Cr
 | Type | Meaning | Example |
 |---|---|---|
 | `Related` | Sibling in same prefix group | tests-organization <-> tests-functions |
-| `Foundation` | Principle or core rule, or an accepted ADR in `docs/arch/`, a rule builds on | pkg-lorecraft-project-checks -> error-types |
-| `Companion` | Paired doc for same package | pkg-lorecraft-project-checks <-> pkg-lorecraft-project-checks-security |
+| `Foundation` | Principle or core rule, or an accepted ADR in `docs/arch/`, a rule builds on | module-lorecraft-project -> pattern-repository |
+| `Companion` | Paired doc for same package | pkg-lorecraft-project-syntax <-> pkg-lorecraft-project-syntax-security |
 | `Extends` | Specializes/refines another rule document | python-async-tasks -> python-async |
 
 ### Direction Rules
@@ -380,18 +380,18 @@ Rule documents may reference other rule documents to establish relationships. Cr
 ## References
 - [error-types](error-types.md) - Extends: Error type declaration
 - [python-modules](python-modules.md) - Foundation: Module organization
-- [pkg-lorecraft-project-checks-security](pkg-lorecraft-project-checks-security.md) - Companion: Security checklist
+- [pkg-lorecraft-project-syntax-security](pkg-lorecraft-project-syntax-security.md) - Companion: Security checklist
 ```
 
 ### Examples
 
 - ✅ `python-async-tasks` -> `python-async` (Extends: core to core)
-- ✅ `pkg-lorecraft-project-checks` -> `error-types` (Foundation: pkg to core)
-- ✅ `pkg-lorecraft-project-checks-frontmatter` -> `pkg-lorecraft-project-checks` (Extends: pkg to pkg)
-- ✅ `pkg-lorecraft-project-checks` <-> `pkg-lorecraft-project-checks-security` (Companion: bidirectional)
+- ✅ `module-lorecraft-project` -> `pattern-repository` (Foundation: pkg to core)
+- ✅ `module-lorecraft-project-syntax` -> `module-lorecraft-project` (Extends: pkg to pkg)
+- ✅ `pkg-lorecraft-project-syntax` <-> `pkg-lorecraft-project-syntax-security` (Companion: bidirectional)
 - ✅ `tests-organization` <-> `tests-functions` (Related: core siblings)
 - ❌ `code` -> `python-modules` (meta rules only reference other meta rules)
-- ❌ `python-modules` -> `pkg-lorecraft-project-checks` (core cannot reference pkg rules)
+- ❌ `python-modules` -> `module-lorecraft-project` (core cannot reference pkg rules)
 
 ---
 
@@ -483,7 +483,7 @@ So:
 
 - **Never write a file path into an example**, in the `# ✅ Good —` comment or anywhere else. The
   comment says _why_ the example is good or bad, never _where_ it came from.
-- **Never assert, in prose, that a named module does the thing.** "`lorecraft/project/checks/base.py`
+- **Never assert, in prose, that a named module does the thing.** "`lorecraft/project/syntax/markdown.py`
   states X" is a citation wearing a sentence, and it rots on the next rename. State the rule.
 - **Prefer invented names.** Illustrative subjects (`parse_frontmatter`, `OutlineSpec`, `load_corpus`) are
   preferred precisely because they are obviously not an inventory of the project. A real type or function name

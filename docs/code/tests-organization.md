@@ -70,12 +70,12 @@ what lets a test module import `pytest` at the top without making pytest a runti
 
 ```
 # ❌ Bad — the test sits in a separate tree and has to name the subject from outside the package
-tests/unit/test_outline.py                         # from lorecraft.project.checks import split_sections
+tests/unit/test_outline.py                         # from lorecraft.project.syntax import split_sections
 ```
 
 ```
 # ✅ Good — the test sits beside its subject and imports it from inside the package
-src/lorecraft/project/checks/
+src/lorecraft/project/syntax/
     outline.py
     tests/
         __init__.py

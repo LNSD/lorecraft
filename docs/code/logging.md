@@ -8,8 +8,8 @@ scope: "global"
 # Logging
 
 **The logger's name is the only handle an operator has on this library.** A logger named for the module it
-lives in (`lorecraft.project.checks.frontmatter`) sits inside the package hierarchy, so a single
-`logging.getLogger('lorecraft.project').setLevel(logging.DEBUG)` reaches it and everything under it. A logger
+lives in (`lorecraft.checks.frontmatter`) sits inside the package hierarchy, so a single
+`logging.getLogger('lorecraft.checks').setLevel(logging.DEBUG)` reaches it and everything under it. A logger
 named any other way does not, and no amount of correct level choice or message wording repairs that. Every
 logger sits under `lorecraft`, so one call reaches the whole package and a call on a layer, such as
 `lorecraft.project`, reaches that layer alone. Sections 2 through 6 are downstream of section 1.
@@ -27,11 +27,11 @@ Every module that logs declares exactly one module-level logger, immediately aft
 string, not stored on an instance.
 
 `__name__` is what places the logger inside the package's own tree. A logger built from a class name is a
-**root-level** logger: `getLogger('FrontmatterChecker')` is a sibling of `lorecraft.project`, not a descendant of
-it, so `getLogger('lorecraft.project').setLevel(logging.DEBUG)` does not reach it and neither does
-`getLogger('lorecraft.project.checks')`. When the base class every checker inherits from does this, every checker's
+**root-level** logger: `getLogger('FrontmatterChecker')` is a sibling of `lorecraft`, not a descendant of
+it, so `getLogger('lorecraft').setLevel(logging.DEBUG)` does not reach it and neither does
+`getLogger('lorecraft.checks')`. When the base class every checker inherits from does this, every checker's
 logger lands outside the hierarchy at once, and the most operationally interesting part of the library becomes
-unreachable by hierarchical configuration — the operator can raise the level for `lorecraft.project` and see nothing
+unreachable by hierarchical configuration — the operator can raise the level for `lorecraft.checks` and see nothing
 change. That is a defect, not a style preference.
 
 A per-instance `self.logger` attribute is a milder problem: `getLogger` returns a process-global singleton per
@@ -40,7 +40,7 @@ goes for symmetry — one way to reach a logger, everywhere.
 
 ```python
 # ❌ Bad — the logger's name is the class, so it sits outside `lorecraft.project` entirely and no
-# `getLogger('lorecraft.project.checks').setLevel(...)` will ever reach it
+# `getLogger('lorecraft.project').setLevel(...)` will ever reach it
 class CorpusSession:
     def __init__(self, root: Path) -> None:
         self.root = root
