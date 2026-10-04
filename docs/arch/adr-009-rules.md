@@ -145,7 +145,7 @@ instance is one occurrence of it.
   |---|---|
   | `FM` | The frontmatter block and its schema |
   | `OUT` | The sections a structure specification states |
-  | `SIZE` | Every size limit: a document's token budget, a skill's line budget, a section's word cap |
+  | `LEN` | Every length limit: a document's token budget, a skill's line budget, a section's word cap |
   | `LINK` | Links inside a skill |
   | `META` | A skill's `metadata` file list |
   | `LAY` | The skill layout |
@@ -211,7 +211,7 @@ docs/rulebook/
 ├── FM001-unparseable-block.md
 ├── …
 ├── OUT003-missing-section.md
-└── SIZE001-token-budget.md
+└── LEN001-too-many-tokens.md
 ```
 
 - **`docs/rulebook/` is a flat corpus**, one page per code, removed rules included (FR-028). A page is named

@@ -1,6 +1,6 @@
 ---
 name: "module-lorecraft-rules"
-description: "The lorecraft.rules package's responsibility, role, boundary and invariants: how a rule is declared and identified, the rule groups and their rules, and a rule as a pure judgment of one input. Load when adding or moving code in lorecraft.rules, declaring a rule, a removed rule or a group, or deciding whether code declares a rule or runs one"
+description: "The lorecraft.rules package's responsibility, role, boundary and invariants: how a rule is declared and identified, the rule groups and their rules, and a rule as a pure judgment of one input. Load when adding or moving code in lorecraft.rules, declaring, naming or documenting a rule, a removed rule or a group, or deciding whether code declares a rule or runs one"
 type: "pkg"
 scope: "pkg:lorecraft.rules"
 ---
@@ -25,7 +25,8 @@ in `lorecraft.checks`, so a rule has nothing to read but the input it is handed.
 - A rule class, the base class an input kind gives it, and the places its occurrences may point at.
 - A removed rule, the decorator that registers a declaration, and the registry, with every check it makes on a
   declaration as the package loads.
-- A rule group, as a subpackage stating its prefix and title, and each of its rules, one module per rule.
+- A rule group, as a subpackage whose `__init__.py` declares its `RuleGroup` constant, an exception to
+  [python-modules](python-modules.md) §6, and each of its rules, one module per rule.
 - The input value types a rule reads: frozen values of Lorecraft's own types, holding facts and the
   specifications that govern them.
 
@@ -75,6 +76,73 @@ class EmptySection(OutlineRule):
         return tuple(cls(line=h.line) for h in subject.headings if not h.body)
 ```
 
+## Naming a Rule
+
+A rule is named for what is wrong, as the established linters name theirs, so that its name reads as a setting:
+`too-many-tokens = "warn"` says which way the rule fires, where `token-budget = "warn"` does not.
+
+- **The name states the condition the rule reports**, never the limit, the subject or the fix. A limit exceeded is
+  `too-many-<unit>`, and a required part absent is `missing-<part>`.
+- **The class is the name in PascalCase and its module the name in snake case**, with no `Rule` or `Violation`
+  suffix: `too-many-words` is `TooManyWords` in `too_many_words.py`.
+- **A group's title is a plural noun phrase**, read as the heading of its rules in a list: `Length limits`.
+
+## Writing the Diagnostic
+
+- **`message()` states the condition in lowercase, without a trailing period**, with the value found against the
+  limit in parentheses where there is one: `too many tokens (5200 > 4000)`. It names no path and no specification.
+- **`children()` points a `Note` at the specification** that states the rule, at `Elsewhere(spec)`, so two
+  occurrences from two specifications read apart.
+- **A `Help` gives the fix for this occurrence** when its fields make it concrete, such as how many tokens to cut.
+  The general fix is the docstring's.
+
+## Documenting a Rule
+
+The docstring is the rule's page in the rulebook, the one a user opens when a diagnostic prints its code. Write
+it as Ruff and Clippy write theirs, for a user who knows their documents, skills and specifications, and nothing
+of this package.
+
+- **The summary line states the condition**, about the user's subject.
+- **What it does** opens with "Checks for" and the subjects the rule reports, then names the specification key
+  that sets the limit or states the rule. It adds each case a user would not guess: what counts, what does not,
+  how several specifications combine.
+- **Why is this bad?** is one or two sentences on what the condition costs the agent that loads the subject, never
+  only that a specification forbids it.
+- **Example** is the input that breaks the rule, under invented paths, in fenced blocks in each file's language:
+  the specification excerpt, then the subject. A subject whose length is the point is cut short with a comment,
+  such as `<!-- ... 1800 more tokens -->`.
+- **Use instead** is the same subject fixed, in a fenced block, after at most one sentence naming the change. It
+  never shows raising the limit.
+- *Known problems* follows only when the rule misfires on a case a user meets, and *Deviations from upstream* only
+  on a rule with alias codes.
+- **Nothing of the implementation.** No section names a tokenizer, a parser, a query, an input, a class or a
+  field: a user acts only on what they can see or configure. The fields are documented in the `Attributes:` block
+  after the sections, for the maintainer.
+
+```python
+# ❌ Bad — the page describes the machinery: a user over the cap learns which parser counts and which input the
+# rule reads, but not whether a code block counts, and `word-cap = "warn"` does not say which way the rule fires
+class WordCap(SectionWordsRule):
+    """Compares each section's word count from the Markdown parser with its outline entry's cap.
+
+    ## What it does
+
+    Splits each `SectionWords.text` on whitespace and reports `WordCap` when the count exceeds `cap`.
+    """
+```
+
+```python
+# ✅ Good — the name states what is wrong, and the page speaks of the user's section and specification
+class TooManyWords(SectionWordsRule):
+    """A section is longer than its word cap allows.
+
+    ## What it does
+
+    Checks for sections longer than the `words` cap their outline entry sets in the structure specification.
+    Subsections count toward it; fenced code blocks and table rows do not.
+    """
+```
+
 ## Checklist
 
 Before committing code, verify:
@@ -83,9 +151,25 @@ Before committing code, verify:
 - [ ] A new rule's `check` takes the one input its base class fixes and returns occurrences that name no subject
 - [ ] A new rule is declared with `@rule` in its own module, in its group's subpackage, and listed nowhere else
 - [ ] Decoding, building an input, running the rules, applying a level and rendering stay out of the package
+- [ ] A new rule's name states the condition it reports, and its class and module spell that name
+- [ ] A new rule's `message()` is lowercase with the value found against the limit, and `children()` points a
+      `Note` at the specification that states the rule
+- [ ] A new rule's docstring opens *What it does* with "Checks for", shows the broken and the fixed input under
+      *Example* and *Use instead*, and names nothing of the implementation
 
 ## References
 
 - [adr-001-snapshot-model](../arch/adr-001-snapshot-model.md) - Foundation: The Analysis role
+- [adr-009-rules](../arch/adr-009-rules.md) - Foundation: A rule's declaration, its docstring's sections and the
+  rulebook
+- [adr-010-diagnostics](../arch/adr-010-diagnostics.md) - Foundation: The message, help and notes of a diagnostic
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One reason to change
 - [pattern-registry](pattern-registry.md) - Foundation: The one list a package walk builds
+- [python-docstrings](python-docstrings.md) - Foundation: The summary line and the `Attributes:` block of a rule's
+  docstring
+
+## External References
+
+- [Ruff — Proposing lint rules](https://docs.astral.sh/ruff/rule-proposals/)
+- [Clippy — Adding a new lint: Documentation](https://doc.rust-lang.org/nightly/clippy/development/adding_lints.html#documentation)
+- [RFC 344 — Lints](https://rust-lang.github.io/rfcs/0344-conventions-galore.html#lints)
