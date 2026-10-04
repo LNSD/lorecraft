@@ -12,6 +12,7 @@ from ..registry import (
     UnsetRuleAttributeError,
     package_registry,
 )
+from ..rule import RuleName
 from .sample_rules import (
     abstract_rule,
     alias_as_code,
@@ -93,7 +94,7 @@ class TestRegistryLoad:
             Registry.load(package)
 
         #: Then
-        assert exc_info.value.name == 'shared-name', 'the error names the name bound twice'
+        assert exc_info.value.name == RuleName('shared-name'), 'the error names the name bound twice'
         assert exc_info.value.first is InService, 'the rule earlier in code order bound the name first'
         assert exc_info.value.second is Retired, 'the removed rule bound it again'
 

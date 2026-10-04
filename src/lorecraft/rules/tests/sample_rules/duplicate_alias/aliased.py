@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.rules.rule import AliasCode, Level, Release, RuleCode, rule
+from lorecraft.rules.rule import AliasCode, Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.tests.sample_input import SampleLines, SampleLinesRule
 
 from ..groups import SAMPLE
@@ -15,7 +15,7 @@ class FirstAliased(SampleLinesRule):
     """A sample rule that never fires."""
 
     CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 1)
-    NAME: ClassVar[str] = 'first-aliased'
+    NAME: ClassVar[RuleName] = RuleName('first-aliased')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('1.0.0')
     ALIASES: ClassVar[tuple[AliasCode, ...]] = (AliasCode('markdownlint', 'MD009'),)
@@ -40,7 +40,7 @@ class SecondAliased(SampleLinesRule):
     """A sample rule that never fires."""
 
     CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 2)
-    NAME: ClassVar[str] = 'second-aliased'
+    NAME: ClassVar[RuleName] = RuleName('second-aliased')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('1.0.0')
     ALIASES: ClassVar[tuple[AliasCode, ...]] = (AliasCode('markdownlint', 'MD009'),)

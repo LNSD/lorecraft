@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Self
 
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.rule import AliasCode, Level, Release, RuleCode, rule
+from lorecraft.rules.rule import AliasCode, Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.tests.sample_input import SampleLines, SampleLinesRule
 
 from ..groups import SAMPLE
@@ -16,7 +16,7 @@ class TrailingSpace(SampleLinesRule):
     """A line ends in a space."""
 
     CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 2)
-    NAME: ClassVar[str] = 'trailing-space'
+    NAME: ClassVar[RuleName] = RuleName('trailing-space')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('1.2.0')
     ALIASES: ClassVar[tuple[AliasCode, ...]] = (AliasCode('markdownlint', 'MD009'),)

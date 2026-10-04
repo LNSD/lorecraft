@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.rules.rule import Level, Release, RuleCode, rule
+from lorecraft.rules.rule import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.tests.sample_input import SampleEntry, SampleEntryRule
 
 from ..groups import LAYOUT
@@ -15,7 +15,7 @@ class UppercaseEntry(SampleEntryRule):
     """A layout entry's name holds an uppercase letter."""
 
     CODE: ClassVar[RuleCode] = RuleCode(LAYOUT, 1)
-    NAME: ClassVar[str] = 'uppercase-entry'
+    NAME: ClassVar[RuleName] = RuleName('uppercase-entry')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('1.0.0')
 

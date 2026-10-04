@@ -2,7 +2,7 @@
 
 from typing import ClassVar
 
-from lorecraft.rules.rule import Release, RemovedRule, RuleCode, rule
+from lorecraft.rules.rule import Release, RemovedRule, RuleCode, RuleName, rule
 
 from ..groups import SAMPLE
 
@@ -12,5 +12,5 @@ class Unreplaced(RemovedRule):
     """A sample removed rule that leaves `REPLACED_BY` unbound, rather than None."""
 
     CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 1)
-    NAME: ClassVar[str] = 'unreplaced'
+    NAME: ClassVar[RuleName] = RuleName('unreplaced')
     REMOVED_IN: ClassVar[Release] = Release('1.1.0')
