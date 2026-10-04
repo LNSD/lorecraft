@@ -84,7 +84,6 @@ from .frontmatter_problem import (
     FrontmatterProblem,
     InvalidValueProblem,
     MissingFieldProblem,
-    NonStringKeyProblem,
     UnknownFieldProblem,
     WrongTypeProblem,
 )
@@ -382,7 +381,7 @@ class FrontmatterSchema:
         if self.schema.get('type') != 'object':
             raise UntypedFrontmatterSchemaError(self.path)
 
-    def validate(self, data: Mapping[object, object]) -> tuple[FrontmatterProblem, ...]:
+    def validate(self, data: Mapping[str, object]) -> tuple[FrontmatterProblem, ...]:
         """Hold one decoded frontmatter to the schema. Pure: raises nothing.
 
         The messages are `jsonschema`'s own, unlike `SkillFrontmatterSchema`'s: the schema is the
@@ -391,7 +390,7 @@ class FrontmatterSchema:
         field the schema does not allow, get a problem of their own, on that field.
 
         Args:
-            data: The decoded frontmatter mapping. Keys that are not strings are reported, not rejected.
+            data: The decoded frontmatter mapping, every key a string at any depth, as JSON names keys.
 
         Returns:
             One problem per field at fault, ordered by the field and then the message, or ``()`` when the
@@ -414,7 +413,7 @@ class FrontmatterSchema:
         return tuple(problems)
 
 
-def _frontmatter_problems(error: SchemaValidationError, data: Mapping[object, object]) -> list[FrontmatterProblem]:
+def _frontmatter_problems(error: SchemaValidationError, data: Mapping[str, object]) -> list[FrontmatterProblem]:
     """The problems one `jsonschema` error in `data` reports, each on the top-level field it concerns.
 
     Args:
@@ -444,18 +443,15 @@ def _frontmatter_problems(error: SchemaValidationError, data: Mapping[object, ob
         # `jsonschema` types `error.schema` to allow a boolean schema, but a keyword only fires inside an object one.
         problems = []
         for key in _additional_keys(_schema_object(error.schema), data):
-            # `jsonschema`'s wording for one unexpected key; a key that is not a string names no field.
+            # `jsonschema`'s wording for one unexpected key.
             message = f'Additional properties are not allowed ({key!r} was unexpected)'
-            if isinstance(key, str):
-                problems.append(UnknownFieldProblem(key, message))
-            else:
-                problems.append(NonStringKeyProblem(message))
+            problems.append(UnknownFieldProblem(key, message))
         return problems
     # A rule over the whole block, such as `minProperties`, concerns no field.
     return [BlockProblem(error.message)]
 
 
-def _additional_keys(schema: Mapping[str, object], instance: Mapping[object, object]) -> list[object]:
+def _additional_keys(schema: Mapping[str, object], instance: Mapping[str, object]) -> list[str]:
     """The keys of `instance` that neither `properties` nor `patternProperties` of `schema` names.
 
     Args:
@@ -465,11 +461,11 @@ def _additional_keys(schema: Mapping[str, object], instance: Mapping[object, obj
     # Absent, either keyword names nothing.
     properties = _schema_object(schema.get('properties', {}))
     pattern_properties = _schema_object(schema.get('patternProperties', {}))
-    keys: list[object] = []
+    keys: list[str] = []
     for key in instance:
         if key in properties:
             continue
-        if isinstance(key, str) and any(re.search(str(pattern), key) for pattern in pattern_properties):
+        if any(re.search(str(pattern), key) for pattern in pattern_properties):
             continue
         keys.append(key)
     return keys

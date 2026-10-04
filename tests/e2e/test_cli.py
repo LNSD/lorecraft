@@ -358,6 +358,22 @@ def duplicate_key_root(tmp_path: Path, faker: Faker) -> Path:
 
 
 @pytest.fixture(scope='function')
+def non_string_key_root(tmp_path: Path, faker: Faker) -> Path:
+    """A root holding one document whose frontmatter writes a key that decodes to a date, under `patternProperties`.
+
+    Args:
+        tmp_path: Directory the document and its specification are written into, as the repository root.
+        faker: The test's seeded generator, which fills what each part leaves unset.
+    """
+    # `jsonschema` matches a `patternProperties` pattern against every key, so a key that is not a string would
+    # crash the run if the frontmatter decoded with it.
+    spec = Spec('code', structure={'frontmatter': {'type': 'object', 'patternProperties': {'^x-': {}}}})
+    document = Document('code', 'guide', frontmatter=RawFrontmatter('name: guide\n2026-10-04: launch\n'))
+    workspace = Workspace(specs=[spec], documents=[document])
+    return workspace.write(tmp_path, faker)
+
+
+@pytest.fixture(scope='function')
 def skill_and_resource_absolute_link_root(tmp_path: Path, faker: Faker) -> Path:
     """A root holding one skill whose `SKILL.md` and whose resource each link to a file from the filesystem root.
 
@@ -423,6 +439,20 @@ class TestCheckFrontmatterSnapshots:
         #: Then
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the duplicate-key finding matches the reviewed snapshot'
+
+    def test_check_frontmatter_with_a_non_string_key_prints_the_unparseable_finding(
+        self, snapshot: SnapshotAssertion, non_string_key_root: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('check', 'frontmatter', '--root', str(non_string_key_root))
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, "the unparseable finding on the key's line matches the reviewed snapshot"
 
 
 @pytest.mark.e2e

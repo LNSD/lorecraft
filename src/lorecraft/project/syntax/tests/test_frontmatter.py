@@ -73,16 +73,137 @@ class TestDecodeFrontmatter:
             FrontmatterKey('type', LineNumber.from_int(3)),
         ), 'a quoted key is found by the name YAML decodes it to, whatever the quotes'
 
-    def test_decode_frontmatter_with_a_non_string_key_leaves_it_out_of_the_keys(self) -> None:
+    def test_decode_frontmatter_with_an_int_key_returns_invalid_yaml_naming_it_on_its_line(self) -> None:
         #: Given
-        block = '1: one\nname: guide\n'
+        block = 'name: guide\n1: one\n'
 
         #: When
         node = decode_frontmatter(block)
 
         #: Then
-        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
-        assert node.keys == (FrontmatterKey('name', LineNumber.from_int(3)),), 'only keys written as strings are listed'
+        assert node == InvalidYamlFrontmatter(
+            problem='found the key 1, which is not a string', line=LineNumber.from_int(3)
+        ), 'a key YAML reads as an int is refused on its line, named as written'
+
+    def test_decode_frontmatter_with_a_bool_key_returns_invalid_yaml_naming_it_on_its_line(self) -> None:
+        #: Given
+        block = 'name: guide\ntrue: yes\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found the key true, which is not a string', line=LineNumber.from_int(3)
+        ), 'a key YAML reads as a bool is refused on its line, named as written'
+
+    def test_decode_frontmatter_with_a_null_key_returns_invalid_yaml_naming_it_on_its_line(self) -> None:
+        #: Given
+        block = 'name: guide\nnull: nothing\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found the key null, which is not a string', line=LineNumber.from_int(3)
+        ), 'a key YAML reads as null is refused on its line, named as written'
+
+    def test_decode_frontmatter_with_an_empty_key_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'name: guide\n?\n: nothing\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found a key that is not a string', line=LineNumber.from_int(3)
+        ), 'a key written as nothing is null, and has no text to name'
+
+    def test_decode_frontmatter_with_a_date_key_returns_invalid_yaml_naming_it_on_its_line(self) -> None:
+        #: Given
+        block = 'name: guide\n2026-10-04: launch\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found the key 2026-10-04, which is not a string', line=LineNumber.from_int(3)
+        ), 'a key YAML reads as a date is refused on its line, named as written'
+
+    def test_decode_frontmatter_with_a_non_string_key_in_a_list_item_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'name: guide\ntags:\n  - label: a\n    2: b\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found the key 2, which is not a string', line=LineNumber.from_int(5)
+        ), 'a key nested inside a list item is refused like a top-level one, on its own line'
+
+    def test_decode_frontmatter_with_a_non_string_key_in_a_flow_mapping_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'name: guide\nmeta: {owner: me, 3.5: x}\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found the key 3.5, which is not a string', line=LineNumber.from_int(3)
+        ), 'a key of a flow mapping is refused like a block one'
+
+    def test_decode_frontmatter_with_a_non_string_key_merged_in_returns_invalid_yaml_on_the_keys_line(self) -> None:
+        #: Given
+        block = 'name: guide\n<<: {1: x}\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found the key 1, which is not a string', line=LineNumber.from_int(3)
+        ), 'a key a `<<` merge brings in is a key of the merging mapping, refused on the line it is written on'
+
+    def test_decode_frontmatter_with_a_list_written_as_a_key_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'name: guide\n[a, b]: x\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found a key that is not a string', line=LineNumber.from_int(3)
+        ), 'a key written as a list is no string, and has no one piece of text to name'
+
+    def test_decode_frontmatter_with_a_quoted_numeric_key_returns_it_as_a_string_key(self) -> None:
+        #: Given
+        block = "name: guide\n'1': one\n"
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == Frontmatter(
+            data={'name': 'guide', '1': 'one'},
+            keys=(FrontmatterKey('name', LineNumber.from_int(2)), FrontmatterKey('1', LineNumber.from_int(3))),
+        ), 'a quoted key is a string whatever its text, so it is a field like any other'
+
+    def test_decode_frontmatter_with_a_set_of_numbers_returns_its_members(self) -> None:
+        #: Given
+        block = 'name: guide\nids: !!set {1, 2}\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a set is a value, not a mapping whose keys are refused, got {node!r}'
+        assert node.data == {'name': 'guide', 'ids': {1, 2}}, 'the members of a set are no keys, so any is kept'
 
     def test_decode_frontmatter_with_a_key_repeated_with_the_same_value_lists_every_occurrence(self) -> None:
         #: Given
@@ -336,8 +457,8 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="could not construct a value for the tag 'tag:yaml.org,2002:int'", line=LineNumber.from_int(3)
-        ), 'a key the int tag cannot construct is a finding on its line, not a crash'
+            problem='found the key count, which is not a string', line=LineNumber.from_int(3)
+        ), 'a key tagged as no string is refused on its line before the int tag constructs anything'
 
     def test_decode_frontmatter_with_an_empty_int_tagged_value_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
@@ -376,8 +497,8 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="could not construct a value for the tag 'tag:yaml.org,2002:bool'", line=LineNumber.from_int(3)
-        ), 'a key the bool tag cannot construct is a finding on its line, not a crash'
+            problem='found the key draft, which is not a string', line=LineNumber.from_int(3)
+        ), 'a key tagged as no string is refused on its line before the bool tag constructs anything'
 
     def test_decode_frontmatter_with_a_float_tagged_value_that_is_not_a_float_returns_invalid_yaml_on_its_line(
         self,
@@ -404,8 +525,8 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="could not construct a value for the tag 'tag:yaml.org,2002:float'", line=LineNumber.from_int(3)
-        ), 'a key the float tag cannot construct is a finding on its line, not a crash'
+            problem='found the key weight, which is not a string', line=LineNumber.from_int(3)
+        ), 'a key tagged as no string is refused on its line before the float tag constructs anything'
 
     def test_decode_frontmatter_with_a_timestamp_tagged_value_that_is_not_a_date_returns_invalid_yaml_on_its_line(
         self,
@@ -432,8 +553,8 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="could not construct a value for the tag 'tag:yaml.org,2002:timestamp'", line=LineNumber.from_int(3)
-        ), 'a key the timestamp tag cannot construct is a finding on its line, not a crash'
+            problem='found the key created, which is not a string', line=LineNumber.from_int(3)
+        ), 'a key tagged as no string is refused on its line before the timestamp tag constructs anything'
 
     def test_decode_frontmatter_with_a_timestamp_tagged_mapping_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
