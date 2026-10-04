@@ -9,43 +9,43 @@ from ..position import LineNumber
 
 @pytest.mark.unit
 class TestLineNumber:
-    def test_parse_zero_raises_non_positive_int(self) -> None:
+    def test_from_int_zero_raises_non_positive_int(self) -> None:
         #: Given
         rejected = 0
 
         #: When
         with pytest.raises(NonPositiveIntError) as exc_info:
-            LineNumber.parse(rejected)
+            LineNumber.from_int(rejected)
 
         #: Then
         assert exc_info.value.value == rejected, 'the error carries the rejected number'
         assert str(rejected) in str(exc_info.value), 'the message names the rejected number'
 
-    def test_parse_negative_raises_non_positive_int(self) -> None:
+    def test_from_int_negative_raises_non_positive_int(self) -> None:
         #: Given
         rejected = -1
 
         #: When
         with pytest.raises(NonPositiveIntError) as exc_info:
-            LineNumber.parse(rejected)
+            LineNumber.from_int(rejected)
 
         #: Then
         assert exc_info.value.value == rejected, 'the error carries the rejected number'
         assert str(rejected) in str(exc_info.value), 'the message names the rejected number'
 
-    def test_number_of_a_parsed_line_is_the_parsed_integer(self) -> None:
+    def test_number_of_a_line_from_an_integer_is_that_integer(self) -> None:
         #: Given
-        line = LineNumber.parse(7)
+        line = LineNumber.from_int(7)
 
         #: When
         number = line.number
 
         #: Then
-        assert number == 7, f'a parsed line number reads back as the integer it was parsed from, got {number!r}'
+        assert number == 7, f'a line number reads back as the integer it was built from, got {number!r}'
 
     def test_line_number_of_the_first_line_prints_as_its_number(self) -> None:
         #: Given
-        line = LineNumber.parse(1)
+        line = LineNumber.from_int(1)
 
         #: When
         text = str(line)

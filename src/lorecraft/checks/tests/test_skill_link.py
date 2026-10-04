@@ -33,7 +33,7 @@ _ESCAPE_HELP: Final[tuple[Note, ...]] = (
 class TestValidateSkillLinks:
     def test_validate_skill_links_with_an_absolute_link_reports_it_on_its_line(self) -> None:
         #: Given
-        links = (Link(url='/docs/guide.md', line=LineNumber.parse(7)),)
+        links = (Link(url='/docs/guide.md', line=LineNumber.from_int(7)),)
 
         #: When
         result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
@@ -41,7 +41,7 @@ class TestValidateSkillLinks:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(7),
+                line=LineNumber.from_int(7),
                 rule='skill.link-absolute',
                 message='`/docs/guide.md` is absolute',
                 notes=_ABSOLUTE_HELP,
@@ -50,7 +50,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_an_encoded_absolute_link_shows_it_decoded(self) -> None:
         #: Given
-        links = (Link(url='/a%20b', line=LineNumber.parse(3)),)
+        links = (Link(url='/a%20b', line=LineNumber.from_int(3)),)
 
         #: When
         result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
@@ -58,7 +58,7 @@ class TestValidateSkillLinks:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(3),
+                line=LineNumber.from_int(3),
                 rule='skill.link-absolute',
                 message='`/a b` is absolute',
                 notes=_ABSOLUTE_HELP,
@@ -67,7 +67,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_a_relative_link_returns_no_violations(self) -> None:
         #: Given
-        links = (Link(url='references/guide.md', line=LineNumber.parse(3)),)
+        links = (Link(url='references/guide.md', line=LineNumber.from_int(3)),)
         targets = {PurePosixPath('references/guide.md'): LinkTargetState.PRESENT}
 
         #: When
@@ -78,7 +78,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_a_link_climbing_out_of_the_skill_reports_it_escaping(self) -> None:
         #: Given
-        links = (Link(url='../../docs/guide.md', line=LineNumber.parse(3)),)
+        links = (Link(url='../../docs/guide.md', line=LineNumber.from_int(3)),)
 
         #: When
         result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
@@ -86,7 +86,7 @@ class TestValidateSkillLinks:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(3),
+                line=LineNumber.from_int(3),
                 rule='skill.link-escapes',
                 message='`../../docs/guide.md` leaves the skill directory',
                 notes=_ESCAPE_HELP,
@@ -96,8 +96,8 @@ class TestValidateSkillLinks:
     def test_validate_skill_links_with_a_url_scheme_returns_no_violations(self) -> None:
         #: Given
         links = (
-            Link(url='https://agentskills.io/specification', line=LineNumber.parse(3)),
-            Link(url='mailto:team@example.com', line=LineNumber.parse(4)),
+            Link(url='https://agentskills.io/specification', line=LineNumber.from_int(3)),
+            Link(url='mailto:team@example.com', line=LineNumber.from_int(4)),
         )
 
         #: When
@@ -108,7 +108,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_a_fragment_naming_a_heading_returns_no_violations(self) -> None:
         #: Given
-        links = (Link(url='#checklist', line=LineNumber.parse(3)),)
+        links = (Link(url='#checklist', line=LineNumber.from_int(3)),)
         anchors = frozenset({Anchor('overview'), Anchor('checklist')})
 
         #: When
@@ -119,7 +119,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_a_fragment_naming_no_heading_reports_it_on_its_line(self) -> None:
         #: Given
-        links = (Link(url='#usage', line=LineNumber.parse(4)),)
+        links = (Link(url='#usage', line=LineNumber.from_int(4)),)
         anchors = frozenset({Anchor('overview'), Anchor('checklist')})
 
         #: When
@@ -128,7 +128,7 @@ class TestValidateSkillLinks:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(4),
+                line=LineNumber.from_int(4),
                 rule='skill.link-fragment',
                 message='`#usage` names a heading this file does not have',
             ),
@@ -136,7 +136,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_a_percent_encoded_fragment_matches_the_decoded_heading_anchor(self) -> None:
         #: Given
-        links = (Link(url='#stra%C3%9Fe', line=LineNumber.parse(3)),)
+        links = (Link(url='#stra%C3%9Fe', line=LineNumber.from_int(3)),)
         anchors = frozenset({Anchor('straße')})
 
         #: When
@@ -147,7 +147,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_an_uppercase_fragment_matches_the_lowercase_heading_anchor(self) -> None:
         #: Given
-        links = (Link(url='#Usage', line=LineNumber.parse(3)),)
+        links = (Link(url='#Usage', line=LineNumber.from_int(3)),)
         anchors = frozenset({Anchor('usage')})
 
         #: When
@@ -158,7 +158,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_a_dangling_non_ascii_fragment_shows_it_decoded(self) -> None:
         #: Given
-        links = (Link(url='#Stra%C3%9Fe', line=LineNumber.parse(3)),)
+        links = (Link(url='#Stra%C3%9Fe', line=LineNumber.from_int(3)),)
         anchors = frozenset({Anchor('usage')})
 
         #: When
@@ -167,7 +167,7 @@ class TestValidateSkillLinks:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(3),
+                line=LineNumber.from_int(3),
                 rule='skill.link-fragment',
                 message='`#Straße` names a heading this file does not have',
             ),
@@ -175,7 +175,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_a_fragment_no_heading_can_have_reports_it(self) -> None:
         #: Given
-        links = (Link(url='#getting%20started', line=LineNumber.parse(3)),)
+        links = (Link(url='#getting%20started', line=LineNumber.from_int(3)),)
         anchors = frozenset({Anchor('getting-started')})
 
         #: When
@@ -184,7 +184,7 @@ class TestValidateSkillLinks:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(3),
+                line=LineNumber.from_int(3),
                 rule='skill.link-fragment',
                 message='`#getting started` names a heading this file does not have',
             ),
@@ -192,7 +192,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_a_bare_hash_returns_no_violations(self) -> None:
         #: Given
-        links = (Link(url='#', line=LineNumber.parse(3)),)
+        links = (Link(url='#', line=LineNumber.from_int(3)),)
 
         #: When
         result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
@@ -202,7 +202,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_a_fragment_into_another_file_returns_no_violations(self) -> None:
         #: Given
-        links = (Link(url='references/guide.md#usage', line=LineNumber.parse(3)),)
+        links = (Link(url='references/guide.md#usage', line=LineNumber.from_int(3)),)
         targets = {PurePosixPath('references/guide.md'): LinkTargetState.PRESENT}
 
         #: When
@@ -213,7 +213,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_a_fragment_after_the_skill_md_path_returns_no_violations(self) -> None:
         #: Given
-        links = (Link(url='SKILL.md#usage', line=LineNumber.parse(4)),)
+        links = (Link(url='SKILL.md#usage', line=LineNumber.from_int(4)),)
         targets = {PurePosixPath('SKILL.md'): LinkTargetState.PRESENT}
 
         #: When
@@ -225,10 +225,10 @@ class TestValidateSkillLinks:
     def test_validate_skill_links_with_absolute_and_fragment_links_reports_each_in_the_order_given(self) -> None:
         #: Given
         links = (
-            Link(url='#usage', line=LineNumber.parse(5)),
-            Link(url='/a.md', line=LineNumber.parse(6)),
-            Link(url='#checklist', line=LineNumber.parse(7)),
-            Link(url='#setup', line=LineNumber.parse(8)),
+            Link(url='#usage', line=LineNumber.from_int(5)),
+            Link(url='/a.md', line=LineNumber.from_int(6)),
+            Link(url='#checklist', line=LineNumber.from_int(7)),
+            Link(url='#setup', line=LineNumber.from_int(8)),
         )
         anchors = frozenset({Anchor('checklist')})
 
@@ -238,18 +238,18 @@ class TestValidateSkillLinks:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(5),
+                line=LineNumber.from_int(5),
                 rule='skill.link-fragment',
                 message='`#usage` names a heading this file does not have',
             ),
             Violation(
-                line=LineNumber.parse(6),
+                line=LineNumber.from_int(6),
                 rule='skill.link-absolute',
                 message='`/a.md` is absolute',
                 notes=_ABSOLUTE_HELP,
             ),
             Violation(
-                line=LineNumber.parse(8),
+                line=LineNumber.from_int(8),
                 rule='skill.link-fragment',
                 message='`#setup` names a heading this file does not have',
             ),
@@ -258,9 +258,9 @@ class TestValidateSkillLinks:
     def test_validate_skill_links_with_several_absolute_links_reports_each_in_the_order_given(self) -> None:
         #: Given
         links = (
-            Link(url='/a.md', line=LineNumber.parse(5)),
-            Link(url='b.md', line=LineNumber.parse(6)),
-            Link(url='/c.png', line=LineNumber.parse(9)),
+            Link(url='/a.md', line=LineNumber.from_int(5)),
+            Link(url='b.md', line=LineNumber.from_int(6)),
+            Link(url='/c.png', line=LineNumber.from_int(9)),
         )
         targets = {PurePosixPath('b.md'): LinkTargetState.PRESENT}
 
@@ -270,13 +270,13 @@ class TestValidateSkillLinks:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(5),
+                line=LineNumber.from_int(5),
                 rule='skill.link-absolute',
                 message='`/a.md` is absolute',
                 notes=_ABSOLUTE_HELP,
             ),
             Violation(
-                line=LineNumber.parse(9),
+                line=LineNumber.from_int(9),
                 rule='skill.link-absolute',
                 message='`/c.png` is absolute',
                 notes=_ABSOLUTE_HELP,
@@ -285,7 +285,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_a_link_to_a_missing_file_reports_it_broken_on_its_line(self) -> None:
         #: Given
-        links = (Link(url='references/gone.md', line=LineNumber.parse(6)),)
+        links = (Link(url='references/gone.md', line=LineNumber.from_int(6)),)
         targets = {PurePosixPath('references/gone.md'): LinkTargetState.MISSING}
 
         #: When
@@ -294,7 +294,7 @@ class TestValidateSkillLinks:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(6),
+                line=LineNumber.from_int(6),
                 rule='skill.link-broken',
                 message='`references/gone.md` names nothing in the skill',
                 notes=_BROKEN_HELP,
@@ -304,7 +304,7 @@ class TestValidateSkillLinks:
     def test_validate_skill_links_with_a_link_to_a_directory_the_skill_holds_returns_no_violations(self) -> None:
         #: Given
         # the run looks a directory up as it looks up a file, so either is present
-        links = (Link(url='references/', line=LineNumber.parse(3)),)
+        links = (Link(url='references/', line=LineNumber.from_int(3)),)
         targets = {PurePosixPath('references'): LinkTargetState.PRESENT}
 
         #: When
@@ -315,7 +315,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_a_missing_file_metadata_links_in_returns_no_violations(self) -> None:
         #: Given
-        links = (Link(url='references/logging.md', line=LineNumber.parse(3)),)
+        links = (Link(url='references/logging.md', line=LineNumber.from_int(3)),)
         targets = {PurePosixPath('references/logging.md'): LinkTargetState.MISSING}
         linked_in = frozenset({PurePosixPath('references/logging.md')})
 
@@ -333,8 +333,8 @@ class TestValidateSkillLinks:
         #: Given
         # the frontmatter could not be read, so which files `metadata` links in is unknown
         links = (
-            Link(url='references/gone.md', line=LineNumber.parse(5)),
-            Link(url='../out.md', line=LineNumber.parse(6)),
+            Link(url='references/gone.md', line=LineNumber.from_int(5)),
+            Link(url='../out.md', line=LineNumber.from_int(6)),
         )
         targets = {PurePosixPath('references/gone.md'): LinkTargetState.MISSING}
         linked_in = None
@@ -344,7 +344,7 @@ class TestValidateSkillLinks:
 
         #: Then
         assert [(violation.line, violation.rule) for violation in result.violations] == [
-            (LineNumber.parse(6), 'skill.link-escapes'),
+            (LineNumber.from_int(6), 'skill.link-escapes'),
         ], 'with metadata unknown any path might be linked in, so only the rules that need no metadata report'
 
     def test_validate_skill_links_with_a_link_breaking_each_rule_reports_each_link_once_in_the_order_given(
@@ -352,11 +352,11 @@ class TestValidateSkillLinks:
     ) -> None:
         #: Given
         links = (
-            Link(url='gone.md', line=LineNumber.parse(5)),
-            Link(url='/a.md', line=LineNumber.parse(6)),
-            Link(url='#setup', line=LineNumber.parse(7)),
-            Link(url='../b.md', line=LineNumber.parse(8)),
-            Link(url='references/guide.md', line=LineNumber.parse(9)),
+            Link(url='gone.md', line=LineNumber.from_int(5)),
+            Link(url='/a.md', line=LineNumber.from_int(6)),
+            Link(url='#setup', line=LineNumber.from_int(7)),
+            Link(url='../b.md', line=LineNumber.from_int(8)),
+            Link(url='references/guide.md', line=LineNumber.from_int(9)),
         )
         targets = {
             PurePosixPath('gone.md'): LinkTargetState.MISSING,
@@ -368,16 +368,16 @@ class TestValidateSkillLinks:
 
         #: Then
         assert [(violation.line, violation.rule) for violation in result.violations] == [
-            (LineNumber.parse(5), 'skill.link-broken'),
-            (LineNumber.parse(6), 'skill.link-absolute'),
-            (LineNumber.parse(7), 'skill.link-fragment'),
-            (LineNumber.parse(8), 'skill.link-escapes'),
+            (LineNumber.from_int(5), 'skill.link-broken'),
+            (LineNumber.from_int(6), 'skill.link-absolute'),
+            (LineNumber.from_int(7), 'skill.link-fragment'),
+            (LineNumber.from_int(8), 'skill.link-escapes'),
         ], 'each link breaks one rule at most, so the violations follow the links, and the present one has none'
 
     def test_validate_skill_links_with_a_parent_link_reports_it_escaping_on_its_line(self) -> None:
         #: Given
         # written in a resource such as `references/guide.md`, meaning the `SKILL.md` beside its directory
-        links = (Link(url='../SKILL.md', line=LineNumber.parse(4)),)
+        links = (Link(url='../SKILL.md', line=LineNumber.from_int(4)),)
 
         #: When
         result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
@@ -385,7 +385,7 @@ class TestValidateSkillLinks:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(4),
+                line=LineNumber.from_int(4),
                 rule='skill.link-escapes',
                 message='`../SKILL.md` leaves the skill directory',
                 notes=_ESCAPE_HELP,
@@ -394,7 +394,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_a_link_climbing_above_the_root_reports_it_escaping(self) -> None:
         #: Given
-        links = (Link(url='../../../../../outside.md', line=LineNumber.parse(2)),)
+        links = (Link(url='../../../../../outside.md', line=LineNumber.from_int(2)),)
 
         #: When
         result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
@@ -402,7 +402,7 @@ class TestValidateSkillLinks:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(2),
+                line=LineNumber.from_int(2),
                 rule='skill.link-escapes',
                 message='`../../../../../outside.md` leaves the skill directory',
                 notes=_ESCAPE_HELP,
@@ -411,7 +411,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_a_parent_inside_the_skill_returns_no_violations(self) -> None:
         #: Given
-        links = (Link(url='references/../SKILL.md', line=LineNumber.parse(3)),)
+        links = (Link(url='references/../SKILL.md', line=LineNumber.from_int(3)),)
         targets = {PurePosixPath('SKILL.md'): LinkTargetState.PRESENT}
 
         #: When
@@ -424,7 +424,7 @@ class TestValidateSkillLinks:
         self,
     ) -> None:
         #: Given
-        links = (Link(url='../review/references/a.md', line=LineNumber.parse(3)),)
+        links = (Link(url='../review/references/a.md', line=LineNumber.from_int(3)),)
 
         #: When
         result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
@@ -432,7 +432,7 @@ class TestValidateSkillLinks:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(3),
+                line=LineNumber.from_int(3),
                 rule='skill.link-escapes',
                 message='`../review/references/a.md` leaves the skill directory',
                 notes=_ESCAPE_HELP,
@@ -443,7 +443,7 @@ class TestValidateSkillLinks:
         self,
     ) -> None:
         #: Given
-        links = (Link(url='../../skills/review/SKILL.md', line=LineNumber.parse(3)),)
+        links = (Link(url='../../skills/review/SKILL.md', line=LineNumber.from_int(3)),)
 
         #: When
         result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
@@ -451,7 +451,7 @@ class TestValidateSkillLinks:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(3),
+                line=LineNumber.from_int(3),
                 rule='skill.link-escapes',
                 message='`../../skills/review/SKILL.md` leaves the skill directory',
                 notes=_ESCAPE_HELP,
@@ -460,7 +460,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_a_dot_link_returns_no_violations(self) -> None:
         #: Given
-        links = (Link(url='./SKILL.md', line=LineNumber.parse(3)),)
+        links = (Link(url='./SKILL.md', line=LineNumber.from_int(3)),)
         targets = {PurePosixPath('SKILL.md'): LinkTargetState.PRESENT}
 
         #: When
@@ -471,7 +471,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_a_fragment_after_an_inside_path_returns_no_violations(self) -> None:
         #: Given
-        links = (Link(url='SKILL.md#/../../outside', line=LineNumber.parse(3)),)
+        links = (Link(url='SKILL.md#/../../outside', line=LineNumber.from_int(3)),)
         targets = {PurePosixPath('SKILL.md'): LinkTargetState.PRESENT}
 
         #: When
@@ -482,7 +482,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_a_query_after_an_inside_path_returns_no_violations(self) -> None:
         #: Given
-        links = (Link(url='SKILL.md?from=/../../outside', line=LineNumber.parse(3)),)
+        links = (Link(url='SKILL.md?from=/../../outside', line=LineNumber.from_int(3)),)
         targets = {PurePosixPath('SKILL.md'): LinkTargetState.PRESENT}
 
         #: When
@@ -493,7 +493,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_a_fragment_after_an_escaping_path_shows_the_whole_link(self) -> None:
         #: Given
-        links = (Link(url='../../docs/guide.md#usage', line=LineNumber.parse(5)),)
+        links = (Link(url='../../docs/guide.md#usage', line=LineNumber.from_int(5)),)
 
         #: When
         result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
@@ -501,7 +501,7 @@ class TestValidateSkillLinks:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(5),
+                line=LineNumber.from_int(5),
                 rule='skill.link-escapes',
                 message='`../../docs/guide.md#usage` leaves the skill directory',
                 notes=_ESCAPE_HELP,
@@ -511,8 +511,8 @@ class TestValidateSkillLinks:
     def test_validate_skill_links_with_a_url_scheme_holding_a_parent_returns_no_violations(self) -> None:
         #: Given
         links = (
-            Link(url='https://agentskills.io/../specification', line=LineNumber.parse(3)),
-            Link(url='mailto:team@example.com', line=LineNumber.parse(4)),
+            Link(url='https://agentskills.io/../specification', line=LineNumber.from_int(3)),
+            Link(url='mailto:team@example.com', line=LineNumber.from_int(4)),
         )
 
         #: When
@@ -523,7 +523,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_an_absolute_link_climbing_out_reports_it_absolute_not_escaping(self) -> None:
         #: Given
-        links = (Link(url='/../outside.md', line=LineNumber.parse(3)),)
+        links = (Link(url='/../outside.md', line=LineNumber.from_int(3)),)
 
         #: When
         result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
@@ -531,7 +531,7 @@ class TestValidateSkillLinks:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(3),
+                line=LineNumber.from_int(3),
                 rule='skill.link-absolute',
                 message='`/../outside.md` is absolute',
                 notes=_ABSOLUTE_HELP,
@@ -540,7 +540,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_a_fragment_only_link_of_dots_reports_it_dangling_not_escaping(self) -> None:
         #: Given
-        links = (Link(url='#..', line=LineNumber.parse(3)),)
+        links = (Link(url='#..', line=LineNumber.from_int(3)),)
 
         #: When
         result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
@@ -548,7 +548,7 @@ class TestValidateSkillLinks:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(3),
+                line=LineNumber.from_int(3),
                 rule='skill.link-fragment',
                 message='`#..` names a heading this file does not have',
             ),
@@ -556,7 +556,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_percent_encoded_dots_reports_it_decoded(self) -> None:
         #: Given
-        links = (Link(url='%2E%2E/a%20b.md', line=LineNumber.parse(3)),)
+        links = (Link(url='%2E%2E/a%20b.md', line=LineNumber.from_int(3)),)
 
         #: When
         result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
@@ -564,7 +564,7 @@ class TestValidateSkillLinks:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(3),
+                line=LineNumber.from_int(3),
                 rule='skill.link-escapes',
                 message='`../a b.md` leaves the skill directory',
                 notes=_ESCAPE_HELP,
@@ -573,7 +573,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_an_encoded_name_inside_returns_no_violations(self) -> None:
         #: Given
-        links = (Link(url='references/a%20b.md', line=LineNumber.parse(3)),)
+        links = (Link(url='references/a%20b.md', line=LineNumber.from_int(3)),)
         targets = {PurePosixPath('references/a b.md'): LinkTargetState.PRESENT}
 
         #: When
@@ -585,7 +585,7 @@ class TestValidateSkillLinks:
     def test_validate_skill_links_with_an_escaping_image_reports_it(self) -> None:
         #: Given
         # an image's source arrives as a link like any other
-        links = (Link(url='../../assets/flow.png', line=LineNumber.parse(6)),)
+        links = (Link(url='../../assets/flow.png', line=LineNumber.from_int(6)),)
 
         #: When
         result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
@@ -593,7 +593,7 @@ class TestValidateSkillLinks:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(6),
+                line=LineNumber.from_int(6),
                 rule='skill.link-escapes',
                 message='`../../assets/flow.png` leaves the skill directory',
                 notes=_ESCAPE_HELP,
@@ -605,9 +605,9 @@ class TestValidateSkillLinks:
     ) -> None:
         #: Given
         links = (
-            Link(url='../a.md', line=LineNumber.parse(2)),
-            Link(url='SKILL.md', line=LineNumber.parse(3)),
-            Link(url='../b.md', line=LineNumber.parse(7)),
+            Link(url='../a.md', line=LineNumber.from_int(2)),
+            Link(url='SKILL.md', line=LineNumber.from_int(3)),
+            Link(url='../b.md', line=LineNumber.from_int(7)),
         )
         targets = {PurePosixPath('SKILL.md'): LinkTargetState.PRESENT}
 
@@ -617,13 +617,13 @@ class TestValidateSkillLinks:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(2),
+                line=LineNumber.from_int(2),
                 rule='skill.link-escapes',
                 message='`../a.md` leaves the skill directory',
                 notes=_ESCAPE_HELP,
             ),
             Violation(
-                line=LineNumber.parse(7),
+                line=LineNumber.from_int(7),
                 rule='skill.link-escapes',
                 message='`../b.md` leaves the skill directory',
                 notes=_ESCAPE_HELP,
@@ -632,7 +632,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_a_fragment_after_a_missing_path_reports_the_whole_link(self) -> None:
         #: Given
-        links = (Link(url='references/gone.md#usage', line=LineNumber.parse(5)),)
+        links = (Link(url='references/gone.md#usage', line=LineNumber.from_int(5)),)
         targets = {PurePosixPath('references/gone.md'): LinkTargetState.MISSING}
 
         #: When
@@ -641,7 +641,7 @@ class TestValidateSkillLinks:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(5),
+                line=LineNumber.from_int(5),
                 rule='skill.link-broken',
                 message='`references/gone.md#usage` names nothing in the skill',
                 notes=_BROKEN_HELP,
@@ -650,7 +650,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_a_query_after_a_present_path_returns_no_violations(self) -> None:
         #: Given
-        links = (Link(url='SKILL.md?plain=1', line=LineNumber.parse(3)),)
+        links = (Link(url='SKILL.md?plain=1', line=LineNumber.from_int(3)),)
         targets = {PurePosixPath('SKILL.md'): LinkTargetState.PRESENT}
 
         #: When
@@ -662,7 +662,7 @@ class TestValidateSkillLinks:
     def test_validate_skill_links_with_an_escaping_link_reports_it_escaping_and_not_broken(self) -> None:
         #: Given
         # the run looks up no path above the skill root, so it has no target
-        links = (Link(url='../gone.md', line=LineNumber.parse(3)),)
+        links = (Link(url='../gone.md', line=LineNumber.from_int(3)),)
         targets: dict[PurePosixPath, LinkTargetState] = {}
 
         #: When
@@ -675,7 +675,7 @@ class TestValidateSkillLinks:
 
     def test_validate_skill_links_with_a_percent_encoded_missing_name_reports_it_decoded(self) -> None:
         #: Given
-        links = (Link(url='references/a%20b.md', line=LineNumber.parse(3)),)
+        links = (Link(url='references/a%20b.md', line=LineNumber.from_int(3)),)
         targets = {PurePosixPath('references/a b.md'): LinkTargetState.MISSING}
 
         #: When
@@ -684,7 +684,7 @@ class TestValidateSkillLinks:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(3),
+                line=LineNumber.from_int(3),
                 rule='skill.link-broken',
                 message='`references/a b.md` names nothing in the skill',
                 notes=_BROKEN_HELP,
@@ -694,7 +694,7 @@ class TestValidateSkillLinks:
     def test_validate_skill_links_with_a_missing_image_reports_it_broken(self) -> None:
         #: Given
         # an image's source arrives as a link like any other
-        links = (Link(url='assets/flow.png', line=LineNumber.parse(6)),)
+        links = (Link(url='assets/flow.png', line=LineNumber.from_int(6)),)
         targets = {PurePosixPath('assets/flow.png'): LinkTargetState.MISSING}
 
         #: When
@@ -710,10 +710,10 @@ class TestValidateSkillLinks:
     ) -> None:
         #: Given
         links = (
-            Link(url='b.md', line=LineNumber.parse(2)),
-            Link(url='SKILL.md', line=LineNumber.parse(3)),
-            Link(url='../c.md', line=LineNumber.parse(4)),
-            Link(url='a.md', line=LineNumber.parse(7)),
+            Link(url='b.md', line=LineNumber.from_int(2)),
+            Link(url='SKILL.md', line=LineNumber.from_int(3)),
+            Link(url='../c.md', line=LineNumber.from_int(4)),
+            Link(url='a.md', line=LineNumber.from_int(7)),
         )
         targets = {
             PurePosixPath('a.md'): LinkTargetState.MISSING,
@@ -726,9 +726,9 @@ class TestValidateSkillLinks:
 
         #: Then
         assert [(violation.line, violation.rule) for violation in result.violations] == [
-            (LineNumber.parse(2), 'skill.link-broken'),
-            (LineNumber.parse(4), 'skill.link-escapes'),
-            (LineNumber.parse(7), 'skill.link-broken'),
+            (LineNumber.from_int(2), 'skill.link-broken'),
+            (LineNumber.from_int(4), 'skill.link-escapes'),
+            (LineNumber.from_int(7), 'skill.link-broken'),
         ], 'the violations follow the links, whatever order their paths sort in, and the present one has none'
 
 
@@ -736,7 +736,7 @@ class TestValidateSkillLinks:
 class TestLinkPathInSkill:
     def test_link_path_in_skill_with_an_encoded_dotted_path_returns_it_decoded_and_normalised(self) -> None:
         #: Given
-        link = Link(url='references/./a%20b.md#usage', line=LineNumber.parse(3))
+        link = Link(url='references/./a%20b.md#usage', line=LineNumber.from_int(3))
 
         #: When
         path = link_path_in_skill(link)
@@ -746,7 +746,7 @@ class TestLinkPathInSkill:
 
     def test_link_path_in_skill_with_a_parent_that_stays_inside_returns_the_skill_root(self) -> None:
         #: Given
-        link = Link(url='references/..', line=LineNumber.parse(3))
+        link = Link(url='references/..', line=LineNumber.from_int(3))
 
         #: When
         path = link_path_in_skill(link)
@@ -756,7 +756,7 @@ class TestLinkPathInSkill:
 
     def test_link_path_in_skill_with_an_escaping_link_returns_none(self) -> None:
         #: Given
-        link = Link(url='references/../../outside.md', line=LineNumber.parse(3))
+        link = Link(url='references/../../outside.md', line=LineNumber.from_int(3))
 
         #: When
         path = link_path_in_skill(link)
@@ -766,7 +766,7 @@ class TestLinkPathInSkill:
 
     def test_link_path_in_skill_with_a_url_returns_none(self) -> None:
         #: Given
-        link = Link(url='https://agentskills.io/specification', line=LineNumber.parse(3))
+        link = Link(url='https://agentskills.io/specification', line=LineNumber.from_int(3))
 
         #: When
         path = link_path_in_skill(link)

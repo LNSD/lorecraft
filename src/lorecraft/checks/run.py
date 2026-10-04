@@ -716,7 +716,7 @@ def _undecodable(rule_namespace: str) -> Violation:
         rule_namespace: Prefix of the `undecodable` rule: the document's corpus.
     """
     return Violation(
-        line=LineNumber.parse(1),
+        line=LineNumber.from_int(1),
         rule=f'{rule_namespace}.undecodable',
         message='document is not valid UTF-8',
     )
@@ -732,7 +732,7 @@ def _undecodable_skill(file: Literal['SKILL.md', 'resource']) -> Violation:
         file: What the file is to the skill, as the message names it.
     """
     return Violation(
-        line=LineNumber.parse(1),
+        line=LineNumber.from_int(1),
         rule='skill.undecodable',
         message=f'{file} is not valid UTF-8',
     )

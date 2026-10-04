@@ -442,17 +442,17 @@ class TestLevel:
 class TestContentRule:
     def test_primary_of_a_content_rule_occurrence_is_its_line(self) -> None:
         #: Given
-        occurrence = TrailingSpace(spec=None, line=LineNumber.parse(4))
+        occurrence = TrailingSpace(spec=None, line=LineNumber.from_int(4))
 
         #: When
         primary = occurrence.primary()
 
         #: Then
-        assert primary == Here(LineNumber.parse(4)), 'an occurrence in a subject with lines points at its line'
+        assert primary == Here(LineNumber.from_int(4)), 'an occurrence in a subject with lines points at its line'
 
     def test_labels_of_a_content_rule_occurrence_by_default_are_empty(self) -> None:
         #: Given
-        occurrence = TrailingSpace(spec=None, line=LineNumber.parse(4))
+        occurrence = TrailingSpace(spec=None, line=LineNumber.from_int(4))
 
         #: When
         labels = occurrence.labels()
@@ -462,7 +462,7 @@ class TestContentRule:
 
     def test_children_of_a_content_rule_occurrence_by_default_are_empty(self) -> None:
         #: Given
-        occurrence = TrailingSpace(spec=None, line=LineNumber.parse(4))
+        occurrence = TrailingSpace(spec=None, line=LineNumber.from_int(4))
 
         #: When
         children = occurrence.children()
@@ -478,7 +478,7 @@ class TestContentRule:
         occurrences = TrailingSpace.check(subject)
 
         #: Then
-        assert occurrences == (TrailingSpace(spec=None, line=LineNumber.parse(2)),), (
+        assert occurrences == (TrailingSpace(spec=None, line=LineNumber.from_int(2)),), (
             'a rule reports one instance of its own class per occurrence'
         )
 
@@ -490,7 +490,7 @@ class TestContentRule:
         occurrences = LongLine.check(subject)
 
         #: Then
-        assert occurrences == (LongLine(spec=None, line=LineNumber.parse(2), length=81),), (
+        assert occurrences == (LongLine(spec=None, line=LineNumber.from_int(2), length=81),), (
             'only the line over 80 characters is reported, with its length captured'
         )
 

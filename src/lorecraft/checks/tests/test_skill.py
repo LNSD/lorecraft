@@ -86,7 +86,7 @@ class TestValidateSkill:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(1),
+                line=LineNumber.from_int(1),
                 rule='skill.frontmatter-missing',
                 message='no `---` delimited frontmatter block',
             ),
@@ -118,7 +118,7 @@ class TestValidateSkill:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(3),
+                line=LineNumber.from_int(3),
                 rule='skill.frontmatter-unparseable',
                 message=(
                     "frontmatter is not valid YAML: could not construct a value for the tag 'tag:yaml.org,2002:bool'"
@@ -138,7 +138,7 @@ class TestValidateSkill:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(1),
+                line=LineNumber.from_int(1),
                 rule='skill.frontmatter-unparseable',
                 message='frontmatter is not a YAML mapping',
             ),
@@ -155,8 +155,8 @@ class TestValidateSkill:
 
         #: Then
         assert result.violations == (
-            Violation(line=LineNumber.parse(1), rule='skill.name', message='`name` is required'),
-            Violation(line=LineNumber.parse(1), rule='skill.description', message='`description` is required'),
+            Violation(line=LineNumber.from_int(1), rule='skill.name', message='`name` is required'),
+            Violation(line=LineNumber.from_int(1), rule='skill.description', message='`description` is required'),
         ), 'each missing required field is its own violation, at line 1 since it has no line of its own'
 
     def test_validate_skill_with_a_malformed_name_reports_the_name_rule_on_the_name_line(self) -> None:
@@ -172,7 +172,7 @@ class TestValidateSkill:
         assert len(result.violations) == 1, (
             f'a name the specification rejects is reported once, got {result.violations}'
         )
-        assert result.violations[0].line == LineNumber.parse(3), 'the malformed name is reported where it is written'
+        assert result.violations[0].line == LineNumber.from_int(3), 'the malformed name is reported where it is written'
         assert result.violations[0].rule == 'skill.name', 'a name the specification rejects breaks the name rule'
 
     def test_validate_skill_with_a_name_unlike_the_directory_reports_the_directory_rule(self) -> None:
@@ -187,7 +187,7 @@ class TestValidateSkill:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(2),
+                line=LineNumber.from_int(2),
                 rule='skill.name-matches-directory',
                 message="`name` is 'review'; expected 'audit', the name of the skill directory",
             ),
@@ -208,7 +208,7 @@ class TestValidateSkill:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(2),
+                line=LineNumber.from_int(2),
                 rule='skill.name-matches-directory',
                 message="`name` is 'foo'; expected 'bar', the name of the skill directory",
                 notes=(Note(NoteKind.NOTE, "'bar' is a link to 'skills/foo'"),),
@@ -225,7 +225,7 @@ class TestValidateSkill:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(2),
+                line=LineNumber.from_int(2),
                 rule='skill.name-matches-directory',
                 message="`name` is 'review'; expected 'x', the name of the skill directory",
                 notes=(Note(NoteKind.NOTE, "'x' is a link to the repository root"),),
@@ -247,7 +247,7 @@ class TestValidateSkill:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(2),
+                line=LineNumber.from_int(2),
                 rule='skill.name-matches-directory',
                 message="`name` is 'review'; expected 'audit', the name of the skill directory",
             ),
@@ -280,7 +280,7 @@ class TestValidateSkill:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(4),
+                line=LineNumber.from_int(4),
                 rule='skill.unknown-field',
                 message='`model` is not a field of the Agent Skills specification',
             ),
@@ -298,7 +298,7 @@ class TestValidateSkill:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(1),
+                line=LineNumber.from_int(1),
                 rule='skill.unknown-field',
                 message='a key that is not a string is not a field of the Agent Skills specification',
             ),
@@ -318,7 +318,7 @@ class TestValidateSkill:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(4),
+                line=LineNumber.from_int(4),
                 rule='skill.metadata',
                 message='`metadata.version` must be a string',
             ),
@@ -365,7 +365,7 @@ class TestValidateSkill:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(4),
+                line=LineNumber.from_int(4),
                 rule='skill.duplicate-key',
                 message="'name' is already written on line 2",
             ),
@@ -385,7 +385,7 @@ class TestValidateSkill:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(4),
+                line=LineNumber.from_int(4),
                 rule='skill.duplicate-key',
                 message="'description' is already written on line 3",
             ),
@@ -405,12 +405,12 @@ class TestValidateSkill:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(3),
+                line=LineNumber.from_int(3),
                 rule='skill.duplicate-key',
                 message="'name' is already written on line 2",
             ),
             Violation(
-                line=LineNumber.parse(4),
+                line=LineNumber.from_int(4),
                 rule='skill.duplicate-key',
                 message="'name' is already written on line 2",
             ),
@@ -428,12 +428,12 @@ class TestValidateSkill:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(4),
+                line=LineNumber.from_int(4),
                 rule='skill.name-matches-directory',
                 message="`name` is 'audit'; expected 'review', the name of the skill directory",
             ),
             Violation(
-                line=LineNumber.parse(4),
+                line=LineNumber.from_int(4),
                 rule='skill.duplicate-key',
                 message="'name' is already written on line 2",
             ),
@@ -451,7 +451,7 @@ class TestValidateSkill:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(4),
+                line=LineNumber.from_int(4),
                 rule='skill.duplicate-key',
                 message="'name' is already written on line 2",
             ),
@@ -468,9 +468,11 @@ class TestValidateSkill:
 
         #: Then
         assert result.violations == (
-            Violation(line=LineNumber.parse(4), rule='skill.description', message='skill description cannot be empty'),
             Violation(
-                line=LineNumber.parse(4),
+                line=LineNumber.from_int(4), rule='skill.description', message='skill description cannot be empty'
+            ),
+            Violation(
+                line=LineNumber.from_int(4),
                 rule='skill.duplicate-key',
                 message="'description' is already written on line 3",
             ),
@@ -488,7 +490,7 @@ class TestValidateSkill:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(4),
+                line=LineNumber.from_int(4),
                 rule='skill.duplicate-key',
                 message="'description' is already written on line 3",
             ),
@@ -506,12 +508,12 @@ class TestValidateSkill:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(5),
+                line=LineNumber.from_int(5),
                 rule='skill.unknown-field',
                 message='`model` is not a field of the Agent Skills specification',
             ),
             Violation(
-                line=LineNumber.parse(5),
+                line=LineNumber.from_int(5),
                 rule='skill.duplicate-key',
                 message="'model' is already written on line 4",
             ),
@@ -545,12 +547,12 @@ class TestValidateSkill:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(1),
+                line=LineNumber.from_int(1),
                 rule='skill.frontmatter',
                 message='the frontmatter does not satisfy the Agent Skills specification',
             ),
             Violation(
-                line=LineNumber.parse(5),
+                line=LineNumber.from_int(5),
                 rule='skill.duplicate-key',
                 message="'\\ud83d' is already written on line 4",
             ),
@@ -570,12 +572,12 @@ class TestValidateSkill:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(5),
+                line=LineNumber.from_int(5),
                 rule='skill.unknown-field',
                 message='`a\nb` is not a field of the Agent Skills specification',
             ),
             Violation(
-                line=LineNumber.parse(5),
+                line=LineNumber.from_int(5),
                 rule='skill.duplicate-key',
                 message="'a\\nb' is already written on line 4",
             ),
@@ -592,5 +594,7 @@ class TestValidateSkill:
 
         #: Then
         assert result.violations == (
-            Violation(line=LineNumber.parse(1), rule='skill.description', message='skill description cannot be empty'),
+            Violation(
+                line=LineNumber.from_int(1), rule='skill.description', message='skill description cannot be empty'
+            ),
         ), 'a field written only inside a merged mapping has no top-level line, so it is reported on line 1'

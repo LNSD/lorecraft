@@ -53,7 +53,7 @@ class TestValidateBudget:
 
         #: Then
         assert len(result.violations) == 1, f'a file over the token budget is reported once, got {result.violations}'
-        assert result.violations[0].line == LineNumber.parse(1), (
+        assert result.violations[0].line == LineNumber.from_int(1), (
             'a budget violation has no line of its own, so it is on line 1'
         )
         assert result.violations[0].rule == 'budget.tokens', 'going over the budget breaks the token budget rule'
