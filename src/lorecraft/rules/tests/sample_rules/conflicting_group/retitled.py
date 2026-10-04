@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Final, Self
 
-from lorecraft.rules.rule import Level, Release, RuleCode, RuleGroup, rule
+from lorecraft.rules.rule import Level, Release, RuleCode, RuleGroup, RuleName, rule
 from lorecraft.rules.tests.sample_input import SampleLines, SampleLinesRule
 
 from ..groups import SAMPLE
@@ -18,7 +18,7 @@ class Titled(SampleLinesRule):
     """A sample rule that never fires, in the group `SAMPLE`."""
 
     CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 1)
-    NAME: ClassVar[str] = 'titled'
+    NAME: ClassVar[RuleName] = RuleName('titled')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('1.0.0')
 
@@ -42,7 +42,7 @@ class Retitled(SampleLinesRule):
     """A sample rule that never fires, in the group `RETITLED`."""
 
     CODE: ClassVar[RuleCode] = RuleCode(RETITLED, 2)
-    NAME: ClassVar[str] = 'retitled'
+    NAME: ClassVar[RuleName] = RuleName('retitled')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('1.0.0')
 

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.rules.rule import Level, RuleCode, rule
+from lorecraft.rules.rule import Level, RuleCode, RuleName, rule
 from lorecraft.rules.tests.sample_input import SampleLines, SampleLinesRule
 
 from ..groups import SAMPLE
@@ -15,7 +15,7 @@ class Unreleased(SampleLinesRule):
     """A sample rule that never fires, and leaves `SINCE` unbound."""
 
     CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 1)
-    NAME: ClassVar[str] = 'unreleased'
+    NAME: ClassVar[RuleName] = RuleName('unreleased')
     LEVEL: ClassVar[Level] = Level.DENY
 
     def message(self) -> str:

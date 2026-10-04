@@ -83,7 +83,7 @@ class EmptySection(HeadingsRule):
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(OUTLINE, 2)
-    NAME: ClassVar[str] = 'empty-section'
+    NAME: ClassVar[RuleName] = RuleName('empty-section')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
 
@@ -135,6 +135,9 @@ instance is one occurrence of it.
 - **A code is a group and a number** (FR-009). `RuleCode(OUTLINE, 2)` prints as the group's prefix followed by
   zero-padded digits. A group is declared once, with its prefix and title, in its directory's package. A code
   whose prefix disagrees with its group cannot be written.
+- **A name is a `RuleName`** (FR-009), a value object by [pattern-value-object](../code/pattern-value-object.md):
+  one string field of one or more words of lowercase ASCII letters and digits, joined by single hyphens,
+  validated on construction. A rule's name is never a bare `str`, and it can never be spelled as a code.
 - **A prefix names the mechanism that states the rule** (FR-013), never a subject kind, and its numbers run in
   sequence:
 
@@ -288,4 +291,4 @@ docs/rulebook/
 - [adr-010-diagnostics](adr-010-diagnostics.md) - Related: What a rule reports, and how it reaches the user
 - [adr-011-rules-engine](adr-011-rules-engine.md) - Related: How a run judges subjects with the rules
 - [pattern-registry](../code/pattern-registry.md) - Foundation: Registration beside the definition
-- [pattern-value-object](../code/pattern-value-object.md) - Foundation: A rule's `Release`
+- [pattern-value-object](../code/pattern-value-object.md) - Foundation: A rule's `Release` and `RuleName`
