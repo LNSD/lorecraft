@@ -1,8 +1,8 @@
 """The snapshot value and the virtual view over hand-built snapshots.
 
-Nothing here touches the disk: every snapshot is built with ``Snapshot.from_files`` or its constructor, so
+Nothing here touches the disk: every snapshot is built with `Snapshot.from_tree` or its constructor, so
 the SYMLINK and OTHER entries a scan would record are written out by hand. The scan itself is covered in
-``tests/it/test_filesystem.py``.
+`tests/it/test_filesystem.py`.
 """
 
 from dataclasses import replace
@@ -11,10 +11,10 @@ from typing import Final, cast
 
 import pytest
 
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, PathComponentError, RootRelativePath
 
 from ..scan_root import ScanRoot
-from ..snapshot import FileBytes, Link, Listing, Snapshot, VirtualFileSystem
+from ..snapshot import FileBytes, FileTree, Link, Listing, Snapshot, VirtualFileSystem
 from ..view import DirEntry, EntryKind, FileSystem, RootExit, TextDecodeError, UnrecordedFileError
 
 ROOT: Final[RootRelativePath] = RootRelativePath.parse('.')
@@ -31,22 +31,28 @@ def _skills_snapshot() -> Snapshot:
         listings=(
             Listing(
                 RootRelativePath.parse('.agents/skills'),
-                (DirEntry('alpha', EntryKind.DIRECTORY), DirEntry('beta', EntryKind.SYMLINK)),
+                (
+                    DirEntry(PathComponent.parse('alpha'), EntryKind.DIRECTORY),
+                    DirEntry(PathComponent.parse('beta'), EntryKind.SYMLINK),
+                ),
             ),
-            Listing(RootRelativePath.parse('.agents/skills/alpha'), (DirEntry('SKILL.md', EntryKind.FILE),)),
-            Listing(RootRelativePath.parse('docs'), (DirEntry('code', EntryKind.DIRECTORY),)),
+            Listing(
+                RootRelativePath.parse('.agents/skills/alpha'),
+                (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),),
+            ),
+            Listing(RootRelativePath.parse('docs'), (DirEntry(PathComponent.parse('code'), EntryKind.DIRECTORY),)),
             Listing(
                 RootRelativePath.parse('docs/code'),
                 (
-                    DirEntry('a.md', EntryKind.FILE),
-                    DirEntry('above', EntryKind.SYMLINK),
-                    DirEntry('absolute', EntryKind.SYMLINK),
-                    DirEntry('dangling', EntryKind.SYMLINK),
-                    DirEntry('linked.md', EntryKind.SYMLINK),
-                    DirEntry('loop', EntryKind.SYMLINK),
-                    DirEntry('pipe', EntryKind.OTHER),
-                    DirEntry('sub', EntryKind.DIRECTORY),
-                    DirEntry('up', EntryKind.SYMLINK),
+                    DirEntry(PathComponent.parse('a.md'), EntryKind.FILE),
+                    DirEntry(PathComponent.parse('above'), EntryKind.SYMLINK),
+                    DirEntry(PathComponent.parse('absolute'), EntryKind.SYMLINK),
+                    DirEntry(PathComponent.parse('dangling'), EntryKind.SYMLINK),
+                    DirEntry(PathComponent.parse('linked.md'), EntryKind.SYMLINK),
+                    DirEntry(PathComponent.parse('loop'), EntryKind.SYMLINK),
+                    DirEntry(PathComponent.parse('pipe'), EntryKind.OTHER),
+                    DirEntry(PathComponent.parse('sub'), EntryKind.DIRECTORY),
+                    DirEntry(PathComponent.parse('up'), EntryKind.SYMLINK),
                 ),
             ),
         ),
@@ -80,19 +86,23 @@ def _climbing_chain_snapshot() -> Snapshot:
     return Snapshot(
         listings=(
             Listing(
-                RootRelativePath.parse('a'), (DirEntry('b', EntryKind.DIRECTORY), DirEntry('tmp', EntryKind.DIRECTORY))
+                RootRelativePath.parse('a'),
+                (
+                    DirEntry(PathComponent.parse('b'), EntryKind.DIRECTORY),
+                    DirEntry(PathComponent.parse('tmp'), EntryKind.DIRECTORY),
+                ),
             ),
-            Listing(RootRelativePath.parse('a/b'), (DirEntry('SKILL.md', EntryKind.FILE),)),
+            Listing(RootRelativePath.parse('a/b'), (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),)),
             Listing(RootRelativePath.parse('a/tmp'), ()),
             Listing(RootRelativePath.parse('c/d'), ()),
             Listing(
                 RootRelativePath.parse('skills'),
                 (
-                    DirEntry('far', EntryKind.SYMLINK),
-                    DirEntry('inner', EntryKind.SYMLINK),
-                    DirEntry('l', EntryKind.SYMLINK),
-                    DirEntry('m', EntryKind.SYMLINK),
-                    DirEntry('nested', EntryKind.SYMLINK),
+                    DirEntry(PathComponent.parse('far'), EntryKind.SYMLINK),
+                    DirEntry(PathComponent.parse('inner'), EntryKind.SYMLINK),
+                    DirEntry(PathComponent.parse('l'), EntryKind.SYMLINK),
+                    DirEntry(PathComponent.parse('m'), EntryKind.SYMLINK),
+                    DirEntry(PathComponent.parse('nested'), EntryKind.SYMLINK),
                 ),
             ),
         ),
@@ -117,37 +127,39 @@ def _climbing_chain_snapshot() -> Snapshot:
 
 
 @pytest.mark.unit
-class TestSnapshotFromFiles:
-    def test_from_files_with_nested_files_derives_every_listing_and_directory_entry(self) -> None:
+class TestSnapshotFromTree:
+    def test_from_tree_with_nested_directories_derives_every_listing_and_directory_entry(self) -> None:
         #: Given
-        files = {
-            RootRelativePath.parse('docs/code/b.md'): b'b',
-            RootRelativePath.parse('docs/code/a.md'): b'a',
-            RootRelativePath.parse('docs/glossary.md'): b'g',
-        }
+        tree: FileTree = {'docs': {'code': {'b.md': b'b', 'a.md': b'a'}, 'glossary.md': b'g'}}
 
         #: When
-        snapshot = Snapshot.from_files(files)
+        snapshot = Snapshot.from_tree(tree)
 
         #: Then
         assert snapshot.listings == (
-            Listing(ROOT, (DirEntry('docs', EntryKind.DIRECTORY),)),
+            Listing(ROOT, (DirEntry(PathComponent.parse('docs'), EntryKind.DIRECTORY),)),
             Listing(
                 RootRelativePath.parse('docs'),
-                (DirEntry('code', EntryKind.DIRECTORY), DirEntry('glossary.md', EntryKind.FILE)),
+                (
+                    DirEntry(PathComponent.parse('code'), EntryKind.DIRECTORY),
+                    DirEntry(PathComponent.parse('glossary.md'), EntryKind.FILE),
+                ),
             ),
             Listing(
                 RootRelativePath.parse('docs/code'),
-                (DirEntry('a.md', EntryKind.FILE), DirEntry('b.md', EntryKind.FILE)),
+                (
+                    DirEntry(PathComponent.parse('a.md'), EntryKind.FILE),
+                    DirEntry(PathComponent.parse('b.md'), EntryKind.FILE),
+                ),
             ),
-        ), 'every directory on the way to a file is listed, root included, entries sorted by name'
+        ), 'every mapping is a listed directory, root included, entries sorted by name'
 
-    def test_from_files_with_unsorted_paths_records_files_sorted_by_path(self) -> None:
+    def test_from_tree_with_unsorted_names_records_files_sorted_by_path(self) -> None:
         #: Given
-        files = {RootRelativePath.parse('docs/b.md'): b'b', RootRelativePath.parse('docs/a.md'): b'a'}
+        tree: FileTree = {'docs': {'b.md': b'b', 'a.md': b'a'}}
 
         #: When
-        snapshot = Snapshot.from_files(files)
+        snapshot = Snapshot.from_tree(tree)
 
         #: Then
         assert snapshot.files == (
@@ -155,33 +167,70 @@ class TestSnapshotFromFiles:
             FileBytes(RootRelativePath.parse('docs/b.md'), b'b'),
         ), 'file records are sorted by path whatever the mapping order'
 
-    def test_from_files_with_no_files_returns_an_empty_snapshot(self) -> None:
+    def test_from_tree_with_an_empty_tree_lists_the_root_with_no_entries(self) -> None:
         #: Given
-        files: dict[RootRelativePath, bytes] = {}
+        tree: FileTree = {}
 
         #: When
-        snapshot = Snapshot.from_files(files)
+        snapshot = Snapshot.from_tree(tree)
 
         #: Then
-        assert snapshot == Snapshot(listings=(), files=(), links=()), 'no files is no listing, no bytes, no link'
+        assert snapshot == Snapshot(listings=(Listing(ROOT, ()),), files=(), links=()), (
+            'the empty tree is the root listed with no entries, no bytes and no link'
+        )
 
-    def test_from_files_with_files_records_an_empty_scope(self) -> None:
+    def test_from_tree_with_an_empty_directory_lists_it_with_no_entries(self) -> None:
         #: Given
-        files = {RootRelativePath.parse('docs/a.md'): b'a'}
+        tree: FileTree = {'docs': {}}
 
         #: When
-        snapshot = Snapshot.from_files(files)
+        snapshot = Snapshot.from_tree(tree)
+
+        #: Then
+        assert snapshot.listings == (
+            Listing(ROOT, (DirEntry(PathComponent.parse('docs'), EntryKind.DIRECTORY),)),
+            Listing(RootRelativePath.parse('docs'), ()),
+        ), 'an empty mapping is a directory listed with no entries'
+
+    def test_from_tree_with_files_records_an_empty_scope(self) -> None:
+        #: Given
+        tree: FileTree = {'docs': {'a.md': b'a'}}
+
+        #: When
+        snapshot = Snapshot.from_tree(tree)
 
         #: Then
         assert snapshot.scope == (), 'nothing was scanned, so no scan root is recorded, not even one for docs/'
+
+    def test_from_tree_with_a_name_holding_a_slash_raises_path_component_error(self) -> None:
+        #: Given
+        tree: FileTree = {'docs/a.md': b'a'}
+
+        #: When
+        with pytest.raises(PathComponentError) as exc_info:
+            Snapshot.from_tree(tree)
+
+        #: Then
+        assert exc_info.value.name == 'docs/a.md', 'a key names one entry, so a nested path is rejected'
+
+    def test_from_tree_with_the_parent_name_raises_path_component_error(self) -> None:
+        #: Given
+        tree: FileTree = {'docs': {'..': b'a'}}
+
+        #: When
+        with pytest.raises(PathComponentError) as exc_info:
+            Snapshot.from_tree(tree)
+
+        #: Then
+        assert exc_info.value.name == '..', "'..' names no entry of the directory, so it is rejected"
 
 
 @pytest.mark.unit
 class TestSnapshotEquality:
     def test_equal_snapshots_built_twice_compare_equal(self) -> None:
         #: Given
-        first = Snapshot.from_files({RootRelativePath.parse('docs/a.md'): b'a'})
-        second = Snapshot.from_files({RootRelativePath.parse('docs/a.md'): b'a'})
+        first = Snapshot.from_tree({'docs': {'a.md': b'a'}})
+        second = Snapshot.from_tree({'docs': {'a.md': b'a'}})
 
         #: When
         equal = first == second
@@ -191,8 +240,8 @@ class TestSnapshotEquality:
 
     def test_equal_snapshots_built_twice_hash_equal(self) -> None:
         #: Given
-        first = Snapshot.from_files({RootRelativePath.parse('docs/a.md'): b'a'})
-        second = Snapshot.from_files({RootRelativePath.parse('docs/a.md'): b'a'})
+        first = Snapshot.from_tree({'docs': {'a.md': b'a'}})
+        second = Snapshot.from_tree({'docs': {'a.md': b'a'}})
 
         #: When
         distinct = {first, second}
@@ -202,8 +251,8 @@ class TestSnapshotEquality:
 
     def test_snapshots_with_different_bytes_compare_unequal(self) -> None:
         #: Given
-        before = Snapshot.from_files({RootRelativePath.parse('docs/a.md'): b'a'})
-        after = Snapshot.from_files({RootRelativePath.parse('docs/a.md'): b'b'})
+        before = Snapshot.from_tree({'docs': {'a.md': b'a'}})
+        after = Snapshot.from_tree({'docs': {'a.md': b'b'}})
 
         #: When
         equal = before == after
@@ -255,7 +304,7 @@ class TestSnapshotEntries:
 
     def test_entries_of_a_snapshot_listing_the_root_leaves_the_root_out(self) -> None:
         #: Given
-        snapshot = Snapshot.from_files({RootRelativePath.parse('a.md'): b'a'})
+        snapshot = Snapshot.from_tree({'a.md': b'a'})
 
         #: When
         entries = snapshot.entries()
@@ -270,7 +319,12 @@ class TestSnapshotEntries:
         # What a scan records for `.agents/skills/SKILL.md -> ../../REVIEW.md` when it follows the link: the
         # bytes sit at the resolved path, in a directory the scan never listed.
         snapshot = Snapshot(
-            listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('SKILL.md', EntryKind.SYMLINK),)),),
+            listings=(
+                Listing(
+                    RootRelativePath.parse('.agents/skills'),
+                    (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.SYMLINK),),
+                ),
+            ),
             files=(FileBytes(RootRelativePath.parse('REVIEW.md'), b'---\n'),),
             links=(Link(RootRelativePath.parse('.agents/skills/SKILL.md'), PurePosixPath('../../REVIEW.md')),),
         )
@@ -291,7 +345,9 @@ class TestSnapshotEntries:
         # out of `.agents/skills/tmp`, `.agents/skills` and `.agents`, and lists `alpha`.
         snapshot = Snapshot(
             listings=(
-                Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('x', EntryKind.SYMLINK),)),
+                Listing(
+                    RootRelativePath.parse('.agents/skills'), (DirEntry(PathComponent.parse('x'), EntryKind.SYMLINK),)
+                ),
                 Listing(RootRelativePath.parse('alpha'), ()),
             ),
             files=(),
@@ -336,17 +392,15 @@ class TestFileSystem:
 class TestVirtualFileSystemListDir:
     def test_list_dir_with_a_listed_directory_returns_its_entries_sorted_by_name(self) -> None:
         #: Given
-        virtual = VirtualFileSystem(
-            Snapshot.from_files({RootRelativePath.parse('docs/b.md'): b'', RootRelativePath.parse('docs/a.md'): b''})
-        )
+        virtual = VirtualFileSystem(Snapshot.from_tree({'docs': {'b.md': b'', 'a.md': b''}}))
 
         #: When
         entries = virtual.list_dir(RootRelativePath.parse('docs'))
 
         #: Then
         assert entries == (
-            DirEntry('a.md', EntryKind.FILE),
-            DirEntry('b.md', EntryKind.FILE),
+            DirEntry(PathComponent.parse('a.md'), EntryKind.FILE),
+            DirEntry(PathComponent.parse('b.md'), EntryKind.FILE),
         ), 'the recorded listing, in name order'
 
     def test_list_dir_with_a_missing_directory_returns_empty(self) -> None:
@@ -403,8 +457,8 @@ class TestVirtualFileSystemListDir:
 
         #: Then
         assert entries == (
-            DirEntry('alpha', EntryKind.DIRECTORY),
-            DirEntry('beta', EntryKind.SYMLINK),
+            DirEntry(PathComponent.parse('alpha'), EntryKind.DIRECTORY),
+            DirEntry(PathComponent.parse('beta'), EntryKind.SYMLINK),
         ), '.claude/skills leads to .agents/skills, which the scan listed, so it lists as that directory'
 
     def test_list_dir_with_a_link_to_an_unlisted_directory_returns_empty(self) -> None:
@@ -432,7 +486,7 @@ class TestVirtualFileSystemListDir:
     def test_list_dir_with_a_symlink_entry_lists_it_as_symlink(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
-        entry = DirEntry('linked.md', EntryKind.SYMLINK)
+        entry = DirEntry(PathComponent.parse('linked.md'), EntryKind.SYMLINK)
 
         #: When
         entries = virtual.list_dir(RootRelativePath.parse('docs/code'))
@@ -443,7 +497,7 @@ class TestVirtualFileSystemListDir:
     def test_list_dir_with_an_other_entry_lists_it_as_other(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
-        entry = DirEntry('pipe', EntryKind.OTHER)
+        entry = DirEntry(PathComponent.parse('pipe'), EntryKind.OTHER)
 
         #: When
         entries = virtual.list_dir(RootRelativePath.parse('docs/code'))
@@ -460,14 +514,16 @@ class TestVirtualFileSystemListDir:
         entries = virtual.list_dir(path)
 
         #: Then
-        assert entries == (DirEntry('SKILL.md', EntryKind.FILE),), 'skills/l leads through a/tmp/.. to a/b'
+        assert entries == (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),), (
+            'skills/l leads through a/tmp/.. to a/b'
+        )
 
 
 @pytest.mark.unit
 class TestVirtualFileSystemReadText:
     def test_read_text_with_a_utf8_file_returns_its_text(self) -> None:
         #: Given
-        virtual = VirtualFileSystem(Snapshot.from_files({RootRelativePath.parse('docs/guide.md'): '# Guía\n'.encode()}))
+        virtual = VirtualFileSystem(Snapshot.from_tree({'docs': {'guide.md': '# Guía\n'.encode()}}))
 
         #: When
         text = virtual.read_text(RootRelativePath.parse('docs/guide.md'))
@@ -478,7 +534,7 @@ class TestVirtualFileSystemReadText:
     def test_read_text_with_non_utf8_bytes_raises_decode_text_error(self) -> None:
         #: Given
         latin = RootRelativePath.parse('docs/latin.md')
-        virtual = VirtualFileSystem(Snapshot.from_files({latin: b'caf\xe9\n'}))
+        virtual = VirtualFileSystem(Snapshot.from_tree({'docs': {'latin.md': b'caf\xe9\n'}}))
 
         #: When
         with pytest.raises(TextDecodeError) as exc_info:
@@ -532,7 +588,12 @@ class TestVirtualFileSystemReadText:
         #: Given
         # What a scan records for `.agents/skills/SKILL.md -> ../../REVIEW.md` when it follows the link.
         snapshot = Snapshot(
-            listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('SKILL.md', EntryKind.SYMLINK),)),),
+            listings=(
+                Listing(
+                    RootRelativePath.parse('.agents/skills'),
+                    (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.SYMLINK),),
+                ),
+            ),
             files=(FileBytes(RootRelativePath.parse('REVIEW.md'), b'---\n'),),
             links=(Link(RootRelativePath.parse('.agents/skills/SKILL.md'), PurePosixPath('../../REVIEW.md')),),
         )
@@ -693,7 +754,12 @@ class TestVirtualFileSystemFindEntryKind:
         #: Given
         # What a scan records for `.agents/skills/SKILL.md -> ../../REVIEW.md` when it follows the link.
         snapshot = Snapshot(
-            listings=(Listing(RootRelativePath.parse('.agents/skills'), (DirEntry('SKILL.md', EntryKind.SYMLINK),)),),
+            listings=(
+                Listing(
+                    RootRelativePath.parse('.agents/skills'),
+                    (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.SYMLINK),),
+                ),
+            ),
             files=(FileBytes(RootRelativePath.parse('REVIEW.md'), b'---\n'),),
             links=(Link(RootRelativePath.parse('.agents/skills/SKILL.md'), PurePosixPath('../../REVIEW.md')),),
         )
