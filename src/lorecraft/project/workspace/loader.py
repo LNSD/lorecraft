@@ -33,7 +33,6 @@ from lorecraft.project.aspect import (
     InvalidAspectNameCharacterError,
 )
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.document.ref import DocumentRef
 from lorecraft.project.document.repo import Repository as DocumentRepository
 from lorecraft.project.layout import SPECS_DIR
 from lorecraft.project.schemas.name import CorpusSpecName, NamespaceSpecName, SpecName
@@ -57,7 +56,7 @@ from lorecraft.project.skill.repo import Repository as SkillRepository
 from lorecraft.project.skill.skills_dir import SkillsDir
 from lorecraft.vfs import FileSystem, ResolvedPath
 
-from .model import Corpus, CorpusSpec, NamespaceSpec, WorkspaceModel, namespace_order_key
+from .model import Corpus, CorpusNamespace, CorpusSpec, WorkspaceModel, namespace_order_key
 
 
 @dataclass(slots=True)
@@ -133,8 +132,8 @@ def load_workspace(
         if str(corpus_name) not in corpus_directories:
             # A corpus is a regular directory under docs/; a missing or linked one has no documents to list.
             continue
-        refs = _list_document_refs(documents, corpus_name)
-        corpora.append(_load_corpus(schemas, corpus_name, files, refs))
+        filenames = _list_document_filenames(documents, corpus_name)
+        corpora.append(_load_corpus(schemas, corpus_name, files, filenames))
 
     skills_dirs, outside_skills_dirs = _load_skills_dirs(skills)
     skill_locations, outside_entries = _list_skill_locations(skills, skills_dirs)
@@ -223,7 +222,7 @@ def _group_spec_files(spec_paths: list[RootRelativePath]) -> dict[CorpusName, _C
 
 
 def _load_corpus(
-    schemas: SchemaRepository, corpus_name: CorpusName, files: _CorpusFiles, refs: list[DocumentRef]
+    schemas: SchemaRepository, corpus_name: CorpusName, files: _CorpusFiles, filenames: list[AspectFilename]
 ) -> Corpus:
     """Decode the corpus spec and its namespace specs.
 
@@ -231,7 +230,7 @@ def _load_corpus(
         schemas: Repository the structure specifications are read from.
         corpus_name: Name of the corpus being built, which every specification name of its files starts with.
         files: Specification files at the corpus spec's name and at each of its namespace specs' names.
-        refs: Documents listed in the corpus directory; sorted by filename into the corpus.
+        filenames: Stems of the documents listed in the corpus directory, which the corpus lists by filename.
 
     Raises:
         StructureSchemaReadError: If a structure specification cannot be read.
@@ -252,25 +251,20 @@ def _load_corpus(
         structure=_load_structure(schemas, corpus_spec_name, files.spec),
     )
 
-    # Broad to narrow: every namespace matching one filename is a prefix of that filename, so segment count
-    # is broadness and two matches never tie; the value tiebreak only orders non-matching siblings.
-    namespace_specs: list[NamespaceSpec] = []
+    # The corpus orders its namespace specs itself; they are decoded broad to narrow too, so that of two broken
+    # structure specifications the broader one is the failure reported.
+    namespaces: list[CorpusNamespace] = []
     for namespace in sorted(files.namespaces, key=namespace_order_key):
         namespace_spec_name = NamespaceSpecName(corpus_name, namespace)
         namespace_files = files.namespaces[namespace]
-        namespace_spec = NamespaceSpec(
-            name=namespace_spec_name,
+        corpus_namespace = CorpusNamespace(
+            namespace=namespace,
             files=_sorted_paths(namespace_files),
             structure=_load_structure(schemas, namespace_spec_name, namespace_files),
         )
-        namespace_specs.append(namespace_spec)
+        namespaces.append(corpus_namespace)
 
-    return Corpus(
-        name=corpus_name,
-        corpus_spec=corpus_spec,
-        namespace_specs=tuple(namespace_specs),
-        documents=tuple(sorted(refs, key=lambda ref: str(ref.filename))),
-    )
+    return Corpus(corpus_spec=corpus_spec, namespaces=tuple(namespaces), filenames=tuple(filenames))
 
 
 def _sorted_paths(spec_files: list[SpecFile]) -> tuple[RootRelativePath, ...]:
@@ -319,8 +313,8 @@ def _load_structure(schemas: SchemaRepository, name: SpecName, spec_files: list[
     return structure
 
 
-def _list_document_refs(documents: DocumentRepository, corpus_name: CorpusName) -> list[DocumentRef]:
-    """The refs of the validly named Markdown files the repository lists in the corpus; the rest are left out.
+def _list_document_filenames(documents: DocumentRepository, corpus_name: CorpusName) -> list[AspectFilename]:
+    """The stems of the validly named Markdown files the repository lists in the corpus; the rest are left out.
 
     Args:
         documents: Repository the corpus directory is listed from.
@@ -329,14 +323,14 @@ def _list_document_refs(documents: DocumentRepository, corpus_name: CorpusName) 
     Raises:
         CorpusListError: If the corpus directory cannot be listed.
     """
-    refs: list[DocumentRef] = []
+    filenames: list[AspectFilename] = []
     for document_file in documents.list_documents(corpus_name):
         try:
             filename = AspectFilename.parse(document_file.stem)
         except (EmptyAspectNameError, InvalidAspectNameCharacterError):
             continue
-        refs.append(DocumentRef(corpus=corpus_name, filename=filename))
-    return refs
+        filenames.append(filename)
+    return filenames
 
 
 def _load_skills_dirs(skills: SkillRepository) -> tuple[tuple[SkillsDir, ...], tuple[OutsideSymlink, ...]]:

@@ -623,6 +623,24 @@ class TestLoadWorkspaceEdgeCases:
             'every structure specification is decoded eagerly'
         )
 
+    def test_load_workspace_with_two_broken_namespace_schemas_raises_for_the_broader_one(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        # code-python-errors.structure.json sorts before code-python.structure.json by name, narrower first
+        _write_tree(tmp_path, prose=('code',), schemas=('code.structure.json',), documents=('code/logging.md',))
+        _write(tmp_path, 'docs/__meta__/code-python.structure.json', 'not json')
+        _write(tmp_path, 'docs/__meta__/code-python-errors.structure.json', 'not json')
+
+        #: When
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
+            load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert exc_info.value.path == SPECS_DIR / 'code-python.structure.json', (
+            'namespace specs are decoded broad to narrow, so the broader broken one is reported'
+        )
+
     def test_load_workspace_with_nested_namespaces_sorts_them_by_segment_count_then_value(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:

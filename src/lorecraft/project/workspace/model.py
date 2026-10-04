@@ -141,40 +141,68 @@ def namespace_order_key(namespace: AspectNamespace) -> tuple[int, str]:
 
 
 @dataclass(frozen=True, slots=True)
-class Corpus:
-    """One corpus: its spec, the namespace specs narrowing it, and its document refs.
+class CorpusNamespace:
+    """A namespace spec as its corpus holds it: the namespace, without the corpus, and the spec's files.
+
+    The `Corpus` holding the record supplies the corpus, so the record cannot name another one;
+    `Corpus.namespace_specs` builds the `NamespaceSpec` from both.
+
+    Not hashable: a structure specification's `FrontmatterSchema` holds a dict, so instances must not be put in a
+    set or used as a key.
 
     Attributes:
-        name: Directory name under docs/.
-        corpus_spec: The corpus spec; always present (discovery is spec-first), possibly prose only.
-        namespace_specs: Narrowing specs, sorted broad to narrow by (segment count, value).
-        documents: Refs of the Markdown files directly inside docs/<name>/, sorted by filename.
+        namespace: The namespace, the specification name after its corpus.
+        files: Every root-relative file at the spec's specification name (prose and JSON), sorted; may be prose only.
+        structure: The structure specification, or None when the spec has no `.structure.json` file.
     """
 
-    name: CorpusName
+    namespace: AspectNamespace
+    files: tuple[RootRelativePath, ...]
+    structure: StructureSpec | None
+
+
+@dataclass(frozen=True, slots=True)
+class Corpus:
+    """One corpus: its spec, the namespaces narrowing it, and the filenames of its documents.
+
+    The corpus is the one its spec names. Its namespace specs and its documents are built from the parts the corpus
+    does not fix, a namespace and a filename, so none of them can belong to another corpus. Either part may be passed
+    in any order: the corpus lists namespace specs broad to narrow and documents by filename.
+
+    Attributes:
+        corpus_spec: The corpus spec; always present (discovery is spec-first), possibly prose only.
+        namespaces: The namespace specs narrowing the corpus spec, each without its corpus, in any order.
+        filenames: Stems of the Markdown files directly inside docs/<name>/, in any order.
+    """
+
     corpus_spec: CorpusSpec
-    namespace_specs: tuple[NamespaceSpec, ...]
-    documents: tuple[DocumentRef, ...]
+    namespaces: tuple[CorpusNamespace, ...]
+    filenames: tuple[AspectFilename, ...]
 
-    def __post_init__(self) -> None:
-        """Reject a corpus whose parts do not all belong to it.
+    @property
+    def name(self) -> CorpusName:
+        """Directory name under docs/: the corpus the corpus spec names."""
+        return self.corpus_spec.name.corpus
 
-        Raises:
-            ValueError: If `corpus_spec` or a namespace spec names another corpus, `namespace_specs` is not
-                broad-to-narrow, or a ref names another corpus.
-        """
-        if self.corpus_spec.name != CorpusSpecName(self.name):
-            raise ValueError(f'corpus {self.name} must carry its own corpus spec, got {self.corpus_spec.name}')
-        order_keys: list[tuple[int, str]] = []
-        for namespace_spec in self.namespace_specs:
-            if namespace_spec.name.corpus != self.name:
-                raise ValueError(f'corpus {self.name} lists namespace spec {namespace_spec.name} of another corpus')
-            order_keys.append(namespace_order_key(namespace_spec.name.namespace))
-        if order_keys != sorted(order_keys):
-            raise ValueError(f'corpus {self.name} namespace specs are not broad to narrow: {order_keys}')
-        for ref in self.documents:
-            if ref.corpus != self.name:
-                raise ValueError(f'corpus {self.name} lists document {ref.path} of another corpus')
+    @property
+    def namespace_specs(self) -> tuple[NamespaceSpec, ...]:
+        """The specs narrowing the corpus spec, one per namespace, broad to narrow by (segment count, value)."""
+        broad_to_narrow = sorted(
+            self.namespaces, key=lambda corpus_namespace: namespace_order_key(corpus_namespace.namespace)
+        )
+        namespace_specs: list[NamespaceSpec] = []
+        for corpus_namespace in broad_to_narrow:
+            name = NamespaceSpecName(self.name, corpus_namespace.namespace)
+            namespace_specs.append(NamespaceSpec(name, corpus_namespace.files, corpus_namespace.structure))
+        return tuple(namespace_specs)
+
+    @property
+    def documents(self) -> tuple[DocumentRef, ...]:
+        """Refs of the Markdown files directly inside docs/<name>/, one per filename, sorted by filename."""
+        refs: list[DocumentRef] = []
+        for filename in sorted(self.filenames, key=str):
+            refs.append(DocumentRef(corpus=self.name, filename=filename))
+        return tuple(refs)
 
     @property
     def directory(self) -> RootRelativePath:
@@ -182,7 +210,7 @@ class Corpus:
         return DOCS_DIR / str(self.name)
 
     def governance(self, ref: DocumentRef) -> Governance:
-        """Corpus spec, then every namespace spec that matches, in stored order. Pure.
+        """Corpus spec, then every namespace spec that matches, broad to narrow. Pure.
 
         Args:
             ref: Document whose governing specs are wanted; it must belong to this corpus.

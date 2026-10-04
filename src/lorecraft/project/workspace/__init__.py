@@ -1,11 +1,12 @@
 """The workspace model and the loader that builds it through a filesystem view."""
 
 from .loader import load_model, load_workspace
-from .model import Corpus, CorpusSpec, Governance, NamespaceSpec, Spec, WorkspaceModel
+from .model import Corpus, CorpusNamespace, CorpusSpec, Governance, NamespaceSpec, Spec, WorkspaceModel
 
 __all__: list[str] = [
     'WorkspaceModel',
     'Corpus',
+    'CorpusNamespace',
     'Spec',
     'CorpusSpec',
     'NamespaceSpec',
