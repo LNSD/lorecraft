@@ -131,7 +131,7 @@ def _check_forbidden(structure_spec: StructureSpec, sections: tuple[Heading, ...
     violations: list[Violation] = []
     for name in structure_spec.forbidden:
         for section in sections:
-            if section.text == name:
+            if section.text == name.value:
                 violations.append(Violation(section.line, 'structure.forbidden', f'section `{name}` is forbidden here'))
                 break
     return violations
@@ -150,7 +150,7 @@ def _check_outline(structure_spec: StructureSpec, sections: tuple[Heading, ...])
     if not structure_spec.outline:
         return []
 
-    named = set(structure_spec.section_names())
+    named = {name.value for name in structure_spec.section_names()}
     at = 0  # the first section not yet accounted for
 
     for entry in structure_spec.outline:
@@ -161,7 +161,7 @@ def _check_outline(structure_spec: StructureSpec, sections: tuple[Heading, ...])
                 while at < len(sections) and sections[at].text not in named:
                     at += 1
             case SectionEntry():
-                if at < len(sections) and sections[at].text == entry.name:
+                if at < len(sections) and sections[at].text == entry.name.value:
                     at += 1
                     continue
                 if entry.optional:
@@ -256,7 +256,7 @@ def _find_entry_index(outline: tuple[OutlineEntry, ...], name: str) -> int | Non
     for index, entry in enumerate(outline):
         match entry:
             case SectionEntry():
-                if entry.name == name:
+                if entry.name.value == name:
                     return index
             case AnySections():
                 pass  # a run names no section

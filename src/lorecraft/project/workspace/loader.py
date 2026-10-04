@@ -100,6 +100,7 @@ def load_workspace(
         StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
         EmptyStructureSpecError: If a structure specification states no rule.
         RepeatedOutlineSectionError: If an outline names a section twice.
+        RepeatedForbiddenSectionError: If a specification forbids a section twice.
         ForbiddenOutlineSectionError: If a specification forbids a section its outline names.
         AdjacentAnyRunsError: If an outline places two `any` runs side by side.
         InvalidFrontmatterSchemaError: If a frontmatter schema is rejected by the meta-schema.
@@ -169,6 +170,7 @@ def load_model(fs: FileSystem, *, named_dirs: tuple[RootRelativePath, ...] = ())
         StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
         EmptyStructureSpecError: If a structure specification states no rule.
         RepeatedOutlineSectionError: If an outline names a section twice.
+        RepeatedForbiddenSectionError: If a specification forbids a section twice.
         ForbiddenOutlineSectionError: If a specification forbids a section its outline names.
         AdjacentAnyRunsError: If an outline places two `any` runs side by side.
         InvalidFrontmatterSchemaError: If a frontmatter schema is rejected by the meta-schema.
@@ -237,6 +239,7 @@ def _load_corpus(
         StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
         EmptyStructureSpecError: If a structure specification states no rule.
         RepeatedOutlineSectionError: If an outline names a section twice.
+        RepeatedForbiddenSectionError: If a specification forbids a section twice.
         ForbiddenOutlineSectionError: If a specification forbids a section its outline names.
         AdjacentAnyRunsError: If an outline places two `any` runs side by side.
         InvalidFrontmatterSchemaError: If a frontmatter schema is rejected by the meta-schema.
@@ -292,6 +295,7 @@ def _load_structure(schemas: SchemaRepository, name: SpecName, spec_files: list[
         StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
         EmptyStructureSpecError: If a structure specification states no rule.
         RepeatedOutlineSectionError: If an outline names a section twice.
+        RepeatedForbiddenSectionError: If a specification forbids a section twice.
         ForbiddenOutlineSectionError: If a specification forbids a section its outline names.
         AdjacentAnyRunsError: If an outline places two `any` runs side by side.
         InvalidFrontmatterSchemaError: If a frontmatter schema is rejected by the meta-schema.

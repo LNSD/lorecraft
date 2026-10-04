@@ -119,7 +119,9 @@ and leaves where it sits to the corpus outline by surrounding it with `any` runs
 
 Beyond what [spec-structure](spec-structure.md#refused-on-load) refuses for any file, these keys are refused
 when `title` sets a `count` below `1`, when the outline names a section twice or places two `any` runs side by
-side, or when `forbidden` names a section the outline names.
+side, or when `forbidden` names a section twice or one the outline names. A section name, in the outline or in
+`forbidden`, is refused when it is empty, has whitespace at either end, or spans two lines: no heading's text
+could match it.
 
 ## Limitations
 
@@ -136,5 +138,6 @@ side, or when `forbidden` names a section the outline names.
 
 - `src/lorecraft/project/schemas/structure_file.py` - The shape of the outline keys
 - `src/lorecraft/core/num.py` - The non-zero unsigned integer the title `count` holds, which refuses a value below `1`
+- `src/lorecraft/project/schemas/section_name.py` - The section name an outline entry and `forbidden` hold
 - `src/lorecraft/project/schemas/structure.py` - Turns the keys into rules, and refuses an unusable outline
 - `src/lorecraft/checks/structure.py` - Applies the title, outline, empty and forbidden rules to a document

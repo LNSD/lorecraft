@@ -248,6 +248,7 @@ def run_frontmatter(database: Database, refs: tuple[DocumentRef, ...]) -> CheckR
             dialect's shape.
         EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
         RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
+        RepeatedForbiddenSectionError: If the model is not loaded yet and a specification forbids a section twice.
         ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
             outline names.
         AdjacentAnyRunsError: If the model is not loaded yet and an outline places two ``any`` runs side by side.
@@ -306,6 +307,7 @@ def run_structure(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun
             dialect's shape.
         EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
         RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
+        RepeatedForbiddenSectionError: If the model is not loaded yet and a specification forbids a section twice.
         ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
             outline names.
         AdjacentAnyRunsError: If the model is not loaded yet and an outline places two ``any`` runs side by side.
@@ -364,6 +366,7 @@ def run_budget(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
             dialect's shape.
         EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
         RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
+        RepeatedForbiddenSectionError: If the model is not loaded yet and a specification forbids a section twice.
         ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
             outline names.
         AdjacentAnyRunsError: If the model is not loaded yet and an outline places two ``any`` runs side by side.

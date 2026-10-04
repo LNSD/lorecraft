@@ -70,6 +70,8 @@
             "Checklist",
             "References"
           ],
+          "minLength": 1,
+          "pattern": "^\\S(.*\\S)?$",
           "type": "string"
         },
         "optional": {
@@ -360,9 +362,12 @@
         ]
       ],
       "items": {
+        "minLength": 1,
+        "pattern": "^\\S(.*\\S)?$",
         "type": "string"
       },
-      "type": "array"
+      "type": "array",
+      "uniqueItems": true
     }
   },
   "title": "Structure specification",

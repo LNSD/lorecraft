@@ -21,6 +21,7 @@ from ..frontmatter_problem import (
     WrongTypeProblem,
 )
 from ..name import SpecName, parse_spec_name
+from ..section_name import PaddedSectionNameError, SectionName
 from ..spec_file import SpecFileType, StructureSpecFile, spec_filename
 from ..structure import (
     AdjacentAnyRunsError,
@@ -31,6 +32,7 @@ from ..structure import (
     FrontmatterSchema,
     FrontmatterSchemaIdError,
     InvalidFrontmatterSchemaError,
+    RepeatedForbiddenSectionError,
     RepeatedOutlineSectionError,
     SectionEntry,
     StructureSchema,
@@ -103,10 +105,10 @@ class TestStructureSpecParse:
             forbid_empty_sections=True,
             outline=(
                 AnySections(words=NonZeroUnsignedInt(350)),
-                SectionEntry(name='Checklist', words=NonZeroUnsignedInt(250)),
-                SectionEntry(name='References', optional=True),
+                SectionEntry(name=SectionName('Checklist'), words=NonZeroUnsignedInt(250)),
+                SectionEntry(name=SectionName('References'), optional=True),
             ),
-            forbidden=('Changelog',),
+            forbidden=(SectionName('Changelog'),),
             tokens=NonZeroUnsignedInt(5000),
             frontmatter=FrontmatterSchema(path=SPEC_PATH, schema={'type': 'object', 'required': ['name']}),
         ), 'every field is read into its typed rule, and an entry without `words` has no cap'
@@ -133,7 +135,7 @@ class TestStructureSpecParse:
         #: Then
         assert structure_spec.outline == (
             SectionEntry(
-                name='Checklist',
+                name=SectionName('Checklist'),
                 description=CHECKLIST_DESCRIPTION,
                 examples=(LOGGING_CHECKLIST, DOCSTRINGS_CHECKLIST),
             ),
@@ -147,9 +149,9 @@ class TestStructureSpecParse:
         structure_spec = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert structure_spec.outline == (SectionEntry(name='Checklist', description=None, examples=()),), (
-            f'both keys are optional, and absent they state nothing, got {structure_spec.outline!r}'
-        )
+        assert structure_spec.outline == (
+            SectionEntry(name=SectionName('Checklist'), description=None, examples=()),
+        ), f'both keys are optional, and absent they state nothing, got {structure_spec.outline!r}'
 
     def test_parse_with_an_empty_section_description_raises_structure_spec_decode_error(self) -> None:
         #: Given
@@ -456,7 +458,7 @@ class TestStructureSpecParse:
             title=None,
             forbid_empty_sections=False,
             outline=(),
-            forbidden=('Changelog',),
+            forbidden=(SectionName('Changelog'),),
             tokens=None,
             frontmatter=None,
         ), 'the `$schema` reference is for editors and changes no rule'
@@ -673,6 +675,61 @@ class TestStructureSpecParse:
         #: Then
         assert exc_info.value.path == SPEC_PATH, '`forbidden` holds section names only'
 
+    def test_parse_with_a_padded_section_name_raises_structure_spec_decode_error(self) -> None:
+        #: Given
+        # a heading's text never has whitespace at either end, so no document could hold this section
+        schema = StructureSchema('{"outline": [{"section": " Checklist"}]}')
+
+        #: When
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
+            StructureSpec.parse(SPEC_FILE, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, "the mistake is the specification's, so the load refuses it"
+        expected = f'outline.0.StructureFileSection.section: {PaddedSectionNameError(" Checklist")}'
+        assert expected in exc_info.value.problems, (
+            f'the section shape reports the name with its rejection, got {exc_info.value.problems}'
+        )
+
+    def test_parse_with_an_empty_section_name_raises_structure_spec_decode_error(self) -> None:
+        #: Given
+        schema = StructureSchema('{"outline": [{"section": ""}]}')
+
+        #: When
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
+            StructureSpec.parse(SPEC_FILE, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'an empty name matches only a heading with no text'
+
+    def test_parse_with_a_padded_forbidden_entry_raises_structure_spec_decode_error(self) -> None:
+        #: Given
+        # a forbidden name no heading can carry would forbid nothing, silently
+        schema = StructureSchema('{"forbidden": ["Changelog "]}')
+
+        #: When
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
+            StructureSpec.parse(SPEC_FILE, schema)
+
+        #: Then
+        assert exc_info.value.problems == (f'forbidden.0: {PaddedSectionNameError("Changelog ")}',), (
+            f'the problem names the entry and reads with the name rejection, got {exc_info.value.problems}'
+        )
+
+    def test_parse_with_a_forbidden_entry_given_twice_raises_repeated_forbidden_section_error(self) -> None:
+        #: Given
+        schema = StructureSchema('{"forbidden": ["Changelog", "Changelog"]}')
+
+        #: When
+        with pytest.raises(RepeatedForbiddenSectionError) as exc_info:
+            StructureSpec.parse(SPEC_FILE, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'the shape lets a repeated entry through, the rules refuse it'
+        assert exc_info.value.sections == ('Changelog',), (
+            f'the error carries the repeated name once, got {exc_info.value.sections}'
+        )
+
 
 @pytest.mark.unit
 class TestStructureSpecConstruction:
@@ -698,8 +755,8 @@ class TestStructureSpecConstruction:
     def test_construction_with_a_section_named_twice_raises_repeated_outline_section_error(self) -> None:
         #: Given
         outline = (
-            SectionEntry(name='Checklist'),
-            SectionEntry(name='Checklist', optional=True),
+            SectionEntry(name=SectionName('Checklist')),
+            SectionEntry(name=SectionName('Checklist'), optional=True),
         )
 
         #: When
@@ -721,9 +778,32 @@ class TestStructureSpecConstruction:
         )
         assert 'Checklist' in str(exc_info.value), f'the message names the repeated section, got {exc_info.value}'
 
+    def test_construction_forbidding_a_section_twice_raises_repeated_forbidden_section_error(self) -> None:
+        #: Given
+        forbidden = (SectionName('Changelog'), SectionName('History'), SectionName('Changelog'))
+
+        #: When
+        with pytest.raises(RepeatedForbiddenSectionError) as exc_info:
+            StructureSpec(
+                file=SPEC_FILE,
+                title=None,
+                forbid_empty_sections=False,
+                outline=(),
+                forbidden=forbidden,
+                tokens=None,
+                frontmatter=None,
+            )
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'a second entry would report every forbidden section twice'
+        assert exc_info.value.sections == ('Changelog',), (
+            f'the error carries only the repeated name, once, got {exc_info.value.sections}'
+        )
+        assert 'Changelog' in str(exc_info.value), f'the message names the repeated section, got {exc_info.value}'
+
     def test_construction_forbidding_a_section_its_outline_names_raises_forbidden_outline_section_error(self) -> None:
         #: Given
-        outline = (SectionEntry(name='Checklist', optional=True),)
+        outline = (SectionEntry(name=SectionName('Checklist'), optional=True),)
 
         #: When
         with pytest.raises(ForbiddenOutlineSectionError) as exc_info:
@@ -732,7 +812,7 @@ class TestStructureSpecConstruction:
                 title=None,
                 forbid_empty_sections=False,
                 outline=outline,
-                forbidden=('Checklist',),
+                forbidden=(SectionName('Checklist'),),
                 tokens=None,
                 frontmatter=None,
             )
@@ -749,7 +829,7 @@ class TestStructureSpecConstruction:
         outline = (
             AnySections(),
             AnySections(),
-            SectionEntry(name='Checklist'),
+            SectionEntry(name=SectionName('Checklist')),
         )
 
         #: When
@@ -782,7 +862,7 @@ class TestStructureSpecAuthority:
             title=None,
             forbid_empty_sections=False,
             outline=(),
-            forbidden=('Changelog',),
+            forbidden=(SectionName('Changelog'),),
             tokens=None,
             frontmatter=None,
         )
