@@ -245,24 +245,28 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
 
 | Piece | Package |
 |---|---|
-| Violation classes and removed rules, the registry, the inputs, the runner, the report types, level resolution | `lorecraft.checks` |
+| Rule classes and removed rules, the registry, the rule groups and their rules, the input types | `lorecraft.rules` |
+| The database, decoding, building the inputs, the runner, the report types, level resolution | `lorecraft.checks` |
 | The configuration file's dialect and its decoding, once it is designed | `lorecraft.project` |
 | Path selection, options, text and machine-readable rendering, the exit code, the rule lookup command | `lorecraft.cli` |
 
-No layer is added and the import contract is unchanged.
+`lorecraft.rules` is a layer of its own, below `lorecraft.checks`, so the import contract refuses a rule that
+imports the database, which the design could otherwise only state.
 
 ```text
+src/lorecraft/rules/
+├── inputs.py            # the input kinds a rule reads
+├── registry.py
+└── <group>/
+    ├── __init__.py      # the group: its prefix and title
+    ├── <rule>.py        # one rule: its class, with its docstring and its check
+    └── tests/
+
 src/lorecraft/checks/
 ├── database.py          # gains the decoded text, the cross-file queries and, later, the configuration
-├── inputs.py            # the input kinds, and how each is resolved from the queries
-├── registry.py
+├── inputs.py            # how each input kind is resolved from the queries
 ├── runner.py            # replaces run.py's four run functions
-├── report.py
-└── rules/
-    └── <group>/
-        ├── __init__.py  # the group: its prefix and title
-        ├── <rule>.py    # one rule: its violation class, with its docstring and its check
-        └── tests/
+└── report.py
 ```
 
 ### Tests
@@ -310,14 +314,14 @@ A more elaborate engine waits for a profile that asks for one.
 
 - **The per-check subcommands go.** One `check` command runs every rule over whatever it is given.
 - **Rule documents change in the same change**, since each states something this design makes untrue:
-  [module-lorecraft-checks](../code/module-lorecraft-checks.md) (the run, where a rule lives, the shared
+  [module-lorecraft-checks](../code/module-lorecraft-checks.md) (the run and the shared
   analysis boundary) and [adr-004-database](adr-004-database.md) (decoding as a value, cross-file queries).
 - **A projecting rule is thin.** A schema rule is a few lines over a problem type, and the validation it
   projects lives with the input.
 - **The runner is hand-written per input kind.** That is the price of typed dispatch with no generic machinery.
-- **A later package split.** The established linters keep the database apart from the linter, and
-  `lorecraft.checks` holds both. Splitting them adds a layer to the import contract, so it is a change of its own,
-  after this one.
+- **A later package split.** The established linters keep the database apart from the linter. The rules already
+  sit apart, in `lorecraft.rules`, but `lorecraft.checks` still holds the database and the runner. Splitting those
+  two adds another layer to the import contract, so it is a change of its own, after this one.
 - **What stays true:** a check is pure, a judgment is never cached, and every value a rule reads comes from a
   query with a stated carry-over rule.
 
