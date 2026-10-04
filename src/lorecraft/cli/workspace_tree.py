@@ -8,6 +8,7 @@ form carries the same content as nested objects.
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Final
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.skill import SkillsDir
@@ -15,10 +16,10 @@ from lorecraft.project.workspace import Corpus, Spec, WorkspaceModel
 
 # The box-drawing prefixes `tree` uses: one for an entry with siblings after it, one for the last entry, and
 # the matching indent each leaves for the entries nested under it.
-_BRANCH: str = '├── '
-_LAST_BRANCH: str = '└── '
-_INDENT: str = '│   '
-_LAST_INDENT: str = '    '
+_BRANCH: Final[str] = '├── '
+_LAST_BRANCH: Final[str] = '└── '
+_INDENT: Final[str] = '│   '
+_LAST_INDENT: Final[str] = '    '
 
 
 @dataclass(frozen=True, slots=True)
