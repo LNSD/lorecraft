@@ -33,7 +33,7 @@ class TrailingSpace(SampleLinesRule):
             subject: The lines judged.
         """
         return tuple(
-            cls(spec=None, line=LineNumber.parse(index + 1))
+            cls(spec=None, line=LineNumber.from_int(index + 1))
             for index, line in enumerate(subject.lines)
             if line.endswith(' ')
         )

@@ -10,7 +10,7 @@ from lorecraft.rules.inputs import TokenCountInput, TokenCountRule
 
 from ..groups import SAMPLE
 
-_FIRST_LINE: Final[LineNumber] = LineNumber.parse(1)
+_FIRST_LINE: Final[LineNumber] = LineNumber.from_int(1)
 """Where an occurrence is reported: a budget concerns the whole file."""
 
 

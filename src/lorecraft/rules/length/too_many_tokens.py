@@ -11,7 +11,7 @@ from lorecraft.rules.location import Elsewhere, Help, Note, Subdiagnostic
 
 from .__ruleset__ import GROUP_ID
 
-_FIRST_LINE: Final[LineNumber] = LineNumber.parse(1)
+_FIRST_LINE: Final[LineNumber] = LineNumber.from_int(1)
 """Where an occurrence is reported. A budget concerns the whole file, not one of its lines, but a document's
 occurrence carries a line under `ContentRule`, so it is reported at the first line, as the budget check is."""
 

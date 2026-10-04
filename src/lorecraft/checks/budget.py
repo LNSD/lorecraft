@@ -19,7 +19,7 @@ from lorecraft.project.syntax import LineNumber
 
 from .reporting import Violation
 
-_FIRST_LINE: Final[LineNumber] = LineNumber.parse(1)
+_FIRST_LINE: Final[LineNumber] = LineNumber.from_int(1)
 """Where a budget violation is reported: it concerns the whole file, not one line of it."""
 
 

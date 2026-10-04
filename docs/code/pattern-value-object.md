@@ -1,6 +1,6 @@
 ---
 name: "pattern-value-object"
-description: "Runtime-validated value objects with documented invariants and a parse() boundary. Load when a domain value needs parsing, a runtime invariant, or behavior of its own"
+description: "Runtime-validated value objects with documented invariants: text enters through parse(), another type through the constructor or a from_<source> classmethod. Load when a domain value needs validation, a runtime invariant, or behavior of its own"
 type: "core"
 scope: "global"
 ---
@@ -14,8 +14,6 @@ remembered for them. When a value needs **runtime validation**, a **unit**, or b
 as a value object — a small frozen class wrapping one field — so that the constraint lives in one place. For a
 pure static distinction between values with no runtime invariant, use [`typing.NewType`](pattern-newtype.md).
 
-`NewType` provides only a static distinction; it does not validate or wrap its input at runtime.
-
 The mechanism that actually holds at runtime:
 
 ```python
@@ -26,8 +24,8 @@ def __post_init__(self) -> None: ...    # guard direct construction when needed
 def __str__(self) -> str: ...           # as convenient as the str it replaces
 ```
 
-plus the same `parse` in the loader that builds a record out of parsed frontmatter, so deserialization runs the
-same check rather than trusting the file.
+plus the same check in the loader that builds a record out of parsed frontmatter, `parse` for text and the
+constructor otherwise, so deserialization never trusts the file.
 
 State the complete value format in the class docstring, beside the field whose value carries it. Name accepted
 characters, excluded forms, bounds, case handling and normalization where they apply. The class docstring tells
@@ -71,13 +69,15 @@ ordinary constructor can still uphold the invariant: when direct construction mu
 
 Two further rules this pattern absorbs:
 
-- **A conversion is a named classmethod, not a second `__init__`.** `DocumentRef.from_parts(corpus, name)`
-  states what it converts. An `__init__` that accepts several shapes and sniffs which one it got hides the
-  conversion inside the constructor and makes the invariant untraceable.
-- **Parsing has one public name.** The input boundary is `parse` on every value object in the codebase. Not
-  `from_str` on one and `validate` on the next: a reader looking for where a value is checked must be able to
-  guess the name. If `__post_init__` enforces direct construction, `parse` delegates to it rather than
-  duplicating the check.
+- **A conversion is a named classmethod, not a second `__init__`.** `DocumentRef.from_parts(corpus, name)` and
+  `LineNumber.from_int(raw)` are named for what they convert
+  ([python-fn-conv](python-fn-conv.md#2-construction-says-its-source-from_-parse_-load_)). An `__init__` that
+  accepts several shapes and sniffs which one it got hides the conversion inside the constructor and makes the
+  invariant untraceable.
+- **Parsing has one public name.** Text enters every value object through `parse`. Not `from_str` on one and
+  `validate` on the next: a reader looking for where a value is checked must be able to guess the name. If
+  `__post_init__` enforces direct construction, `parse` delegates to it rather than duplicating the check. A
+  value built from another type has no `parse`: its constructor checks it, as `NonZeroUnsignedInt(raw)` does.
 
 ## Examples
 
@@ -213,8 +213,8 @@ class LineNumber:
     value: NonZeroUnsignedInt
 
     @classmethod
-    def parse(cls, raw: int) -> 'LineNumber':
-        return cls(NonZeroUnsignedInt.parse(raw))
+    def from_int(cls, raw: int) -> 'LineNumber':
+        return cls(NonZeroUnsignedInt(raw))
 
     @property
     def number(self) -> int:
@@ -239,7 +239,7 @@ class LineSpan:
         """Return the inclusive last line, or None when the span is empty."""
         if self.first == self.end:
             return None
-        return LineNumber.parse(self.end.number - 1)
+        return LineNumber.from_int(self.end.number - 1)
 
 
 def section_lines(span: LineSpan) -> Iterator[str]:
@@ -388,12 +388,13 @@ indistinguishable from an oversight, and the next reader will treat it as one.
 - [ ] A pure static distinction without a runtime invariant uses `typing.NewType` ([pattern-newtype](pattern-newtype.md))
 - [ ] The wrapper is `@dataclass(frozen=True, slots=True)` with exactly one meaningful field
 - [ ] The class docstring states the complete value format and whether parsing normalizes the input
-- [ ] The input boundary is a classmethod named `parse`; a direct-construction guard in `__post_init__` shares its check
+- [ ] Text enters through a classmethod named `parse`, which shares any `__post_init__` guard's check; another
+      type is checked by the constructor or converted by a `from_<source>` classmethod
 - [ ] Rejection raises a value-specific domain error declared beside the value object; the error owns the
       rejected value, useful context and message
 - [ ] The value object is constructed at the boundary the value enters through, and nowhere else
 - [ ] A conversion is a named classmethod (`from_parts`), never a second branch inside `__init__`
-- [ ] Deserialization validates through the same `parse`, rather than storing the bare primitive
+- [ ] Deserialization runs the same check as construction, rather than storing the bare primitive
 - [ ] `__str__` is defined, so interpolation and logging never reach for the inner field
 - [ ] A composite range validates its bound ordering, and element access represents an empty range explicitly
 - [ ] A conversion between two value objects (half-open to inclusive, parts to reference) exists in exactly one place

@@ -388,9 +388,9 @@ class TestDatabase:
         document = database.parse(source)
 
         #: Then
-        assert document.headings == (Heading(level=1, text='Guide', line=LineNumber.parse(4), empty=True, words=0),), (
-            'the parse tree holds the snapshot content'
-        )
+        assert document.headings == (
+            Heading(level=1, text='Guide', line=LineNumber.from_int(4), empty=True, words=0),
+        ), 'the parse tree holds the snapshot content'
 
     def test_parse_called_twice_returns_the_first_answer(self) -> None:
         #: Given
@@ -458,7 +458,7 @@ class TestDatabase:
         document = database.skill_parse(source)
 
         #: Then
-        assert document.links == (MarkdownLink(url='guide.md', line=LineNumber.parse(6)),), (
+        assert document.links == (MarkdownLink(url='guide.md', line=LineNumber.from_int(6)),), (
             'the SKILL.md bytes parse into a tree holding its links'
         )
 
@@ -490,7 +490,7 @@ class TestDatabase:
         document = database.skill_parse(source)
 
         #: Then
-        assert document.links == (MarkdownLink(url='guide.md', line=LineNumber.parse(4)),), (
+        assert document.links == (MarkdownLink(url='guide.md', line=LineNumber.from_int(4)),), (
             'the ref names the linked entry, and the tree is parsed from the SKILL.md the link leads to'
         )
 
