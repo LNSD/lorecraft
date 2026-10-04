@@ -30,6 +30,7 @@ class Note:
     """One note attached to a violation, printed under its message.
 
     Attributes:
+        kind: Whether the note is help or context; its value is the label printed before `text`.
         text: What the note says; it may span several lines.
     """
 
