@@ -6,6 +6,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
+from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import Severity
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
@@ -186,3 +187,15 @@ class TestUndecodableSubject:
         assert diagnostics == (EngineDiagnostic(RootRelativePath.parse('docs/code/latin.md'), InvalidUtf8()),), (
             "the subject's one diagnostic is the engine's, at the document's path"
         )
+
+    def test_diagnostics_of_an_undecodable_skill_are_invalid_utf8_at_its_skill_file(self) -> None:
+        #: Given
+        subject = UndecodableSubject(SkillRef(RootRelativePath.parse('.agents/skills/review')))
+
+        #: When
+        diagnostics = subject.diagnostics
+
+        #: Then
+        assert diagnostics == (
+            EngineDiagnostic(RootRelativePath.parse('.agents/skills/review/SKILL.md'), InvalidUtf8()),
+        ), "a skill's one diagnostic is the engine's, at its SKILL.md, the file that did not decode"
