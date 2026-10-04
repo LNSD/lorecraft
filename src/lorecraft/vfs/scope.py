@@ -32,7 +32,7 @@ from .root_expansion import (
     find_listed_scan_root,
 )
 from .scan_root import ScanRoot
-from .snapshot import Link
+from .snapshot import Link, Snapshot
 from .view import EntryKind, RootExit
 
 
@@ -45,23 +45,18 @@ class ScopeIndex:
     shared by every caller.
     """
 
-    def __init__(
-        self,
-        scope: tuple[ScanRoot, ...],
-        links: tuple[Link, ...],
-        climbed_directories: tuple[RootRelativePath, ...],
-    ) -> None:
-        """Index the recorded links and expand the scope's roots through them; reads no disk.
+    def __init__(self, snapshot: Snapshot) -> None:
+        """Index the links a snapshot recorded and expand its scope's roots through them; reads no disk.
+
+        The scope, the links and the climbed directories are taken from the one snapshot, since only together
+        do they describe a scan.
 
         Args:
-            scope: The scope the snapshot of `links` was taken of, `Snapshot.scope`; another scope's answers
-                would not describe it.
-            links: Every link the snapshot recorded, `Snapshot.links`; no listing and no file of the snapshot is
-                read.
-            climbed_directories: Every directory the scan climbed out of, `Snapshot.climbed_directories`.
+            snapshot: The snapshot to answer for; only its scope, its links and its climbed directories are read,
+                never a listing or a file.
         """
-        self._recorded = _RecordedLinks(links, climbed_directories)
-        self._listed_roots = _listed_scan_roots(scope, self._recorded)
+        self._recorded = _RecordedLinks(snapshot.links, snapshot.climbed_directories)
+        self._listed_roots = _listed_scan_roots(snapshot.scope, self._recorded)
 
     def is_in_scope(self, path: RootRelativePath) -> bool:
         """Whether a scan of the scope lists the directory `path` sits in, so the snapshot holds whatever is there.

@@ -3125,7 +3125,7 @@ class TestPlainRootWalksItsLinksForTheRecord:
         reached = virtual.find_file(path)
 
         #: When
-        declared = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories).is_in_scope(path)
+        declared = ScopeIndex(snapshot).is_in_scope(path)
 
         #: Then
         assert (declared, reached) == (True, RootRelativePath.parse('docs/feat/a.md')), (
@@ -3160,7 +3160,7 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('docs')
         listed = _is_listed(snapshot, directory)
-        index = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories)
+        index = ScopeIndex(snapshot)
 
         #: When
         declared = index.is_in_scope(directory / 'absent.md')
@@ -3173,7 +3173,7 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('docs/feat')
         listed = _is_listed(snapshot, directory)
-        index = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories)
+        index = ScopeIndex(snapshot)
 
         #: When
         declared = index.is_in_scope(directory / 'absent.md')
@@ -3188,7 +3188,7 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('docs/feat/deep')
         listed = _is_listed(snapshot, directory)
-        index = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories)
+        index = ScopeIndex(snapshot)
 
         #: When
         declared = index.is_in_scope(directory / 'absent.md')
@@ -3205,7 +3205,7 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('docs/linked')
         listed = _is_listed(snapshot, directory)
-        index = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories)
+        index = ScopeIndex(snapshot)
 
         #: When
         declared = index.is_in_scope(directory / 'absent.md')
@@ -3222,7 +3222,7 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('docs/alias')
         listed = _is_listed(snapshot, directory)
-        index = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories)
+        index = ScopeIndex(snapshot)
 
         #: When
         declared = index.is_in_scope(directory / 'absent.md')
@@ -3237,7 +3237,7 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('.agents/skills/y')
         listed = _is_listed(snapshot, directory)
-        index = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories)
+        index = ScopeIndex(snapshot)
 
         #: When
         declared = index.is_in_scope(directory / 'absent.md')
@@ -3252,7 +3252,7 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('skills/y')
         listed = _is_listed(snapshot, directory)
-        index = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories)
+        index = ScopeIndex(snapshot)
 
         #: When
         declared = index.is_in_scope(directory / 'absent.md')
@@ -3267,7 +3267,7 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('skills/y/sub')
         listed = _is_listed(snapshot, directory)
-        index = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories)
+        index = ScopeIndex(snapshot)
 
         #: When
         declared = index.is_in_scope(directory / 'absent.md')
@@ -3284,7 +3284,7 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('.claude/skills/x')
         listed = _is_listed(snapshot, directory)
-        index = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories)
+        index = ScopeIndex(snapshot)
 
         #: When
         declared = index.is_in_scope(directory / 'absent.md')
@@ -3297,7 +3297,7 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('.agents/skills/x/lib')
         listed = _is_listed(snapshot, directory)
-        index = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories)
+        index = ScopeIndex(snapshot)
 
         #: When
         declared = index.is_in_scope(directory / 'absent.md')
@@ -3312,7 +3312,7 @@ class TestIsInScopeMatchesSnapshot:
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         directory = RootRelativePath.parse('src')
         listed = _is_listed(snapshot, directory)
-        index = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories)
+        index = ScopeIndex(snapshot)
 
         #: When
         declared = index.is_in_scope(directory / 'absent.md')
@@ -3330,7 +3330,7 @@ class TestFindFileMatchesScan:
         #: Given
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         path = RootRelativePath.parse('.agents/skills/y/SKILL.md')
-        declared = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories).is_in_scope(path)
+        declared = ScopeIndex(snapshot).is_in_scope(path)
         virtual = VirtualFileSystem(snapshot)
 
         #: When
@@ -3345,7 +3345,7 @@ class TestFindFileMatchesScan:
         #: Given
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         path = RootRelativePath.parse('.claude/skills/x/SKILL.md')
-        declared = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories).is_in_scope(path)
+        declared = ScopeIndex(snapshot).is_in_scope(path)
         virtual = VirtualFileSystem(snapshot)
 
         #: When
@@ -3362,7 +3362,7 @@ class TestFindFileMatchesScan:
         #: Given
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         path = RootRelativePath.parse('docs/alias/a.md')
-        declared = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories).is_in_scope(path)
+        declared = ScopeIndex(snapshot).is_in_scope(path)
         virtual = VirtualFileSystem(snapshot)
 
         #: When
@@ -3377,7 +3377,7 @@ class TestFindFileMatchesScan:
         #: Given
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         path = RootRelativePath.parse('docs/linked/a.md')
-        declared = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories).is_in_scope(path)
+        declared = ScopeIndex(snapshot).is_in_scope(path)
         virtual = VirtualFileSystem(snapshot)
 
         #: When
@@ -3392,7 +3392,7 @@ class TestFindFileMatchesScan:
         #: Given
         snapshot = take_snapshot(scope_parity_tree, LAYOUT_SHAPED_SCOPE)
         path = RootRelativePath.parse('.agents/skills/x/lib/a.md')
-        declared = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories).is_in_scope(path)
+        declared = ScopeIndex(snapshot).is_in_scope(path)
         virtual = VirtualFileSystem(snapshot)
 
         #: When
@@ -3409,7 +3409,7 @@ class TestFindFileMatchesScan:
         #: Given
         snapshot = take_snapshot(climbing_chain_tree, CLIMBING_CHAIN_SCOPE)
         path = RootRelativePath.parse('skills/m/SKILL.md')
-        declared = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories).is_in_scope(path)
+        declared = ScopeIndex(snapshot).is_in_scope(path)
         virtual = VirtualFileSystem(snapshot)
 
         #: When
@@ -3426,7 +3426,7 @@ class TestFindFileMatchesScan:
         #: Given
         snapshot = take_snapshot(climbing_chain_tree, CLIMBING_CHAIN_SCOPE)
         path = RootRelativePath.parse('skills/l/SKILL.md')
-        declared = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories).is_in_scope(path)
+        declared = ScopeIndex(snapshot).is_in_scope(path)
         virtual = VirtualFileSystem(snapshot)
 
         #: When
@@ -3443,7 +3443,7 @@ class TestFindFileMatchesScan:
         #: Given
         snapshot = take_snapshot(climbing_chain_tree, CLIMBING_CHAIN_SCOPE)
         path = RootRelativePath.parse('skills/far/SKILL.md')
-        declared = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories).is_in_scope(path)
+        declared = ScopeIndex(snapshot).is_in_scope(path)
         virtual = VirtualFileSystem(snapshot)
 
         #: When
@@ -3460,7 +3460,7 @@ class TestFindFileMatchesScan:
         #: Given
         snapshot = take_snapshot(climbing_chain_tree, CLIMBING_CHAIN_SCOPE)
         path = RootRelativePath.parse('skills/n/SKILL.md')
-        declared = ScopeIndex(snapshot.scope, snapshot.links, snapshot.climbed_directories).is_in_scope(path)
+        declared = ScopeIndex(snapshot).is_in_scope(path)
         virtual = VirtualFileSystem(snapshot)
         target_listed = _is_listed(snapshot, RootRelativePath.parse('a/b'))
 
