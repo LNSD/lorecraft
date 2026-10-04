@@ -19,6 +19,7 @@ import pytest
 
 from lorecraft.checks import Database, DocumentText, SkillText, Undecodable
 from lorecraft.core.mapping import FrozenMapping
+from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
@@ -129,8 +130,8 @@ def _climbing_chain_snapshot() -> Snapshot:
             'skills/out': SymlinkRecord(PurePosixPath('../a/tmp/../../..')),
         },
         scope=(
-            ScanRoot(RootRelativePath.parse('skills'), depth=1, follow_links=True),
-            ScanRoot(RootRelativePath.parse('a'), depth=1),
+            ScanRoot(RootRelativePath.parse('skills'), depth=UnsignedInt(1), follow_links=True),
+            ScanRoot(RootRelativePath.parse('a'), depth=UnsignedInt(1)),
         ),
     )
 
@@ -205,7 +206,7 @@ class TestDatabase:
 
     def test_is_in_scope_with_a_path_the_snapshot_scope_covers_returns_true(self) -> None:
         #: Given
-        database = Database(_snapshot_of({}, scope=(ScanRoot(RootRelativePath.parse('src'), depth=0),)))
+        database = Database(_snapshot_of({}, scope=(ScanRoot(RootRelativePath.parse('src'), depth=UnsignedInt(0)),)))
 
         #: When
         in_scope = database.is_in_scope(RootRelativePath.parse('src/tool.py'))
@@ -217,7 +218,7 @@ class TestDatabase:
 
     def test_is_in_scope_with_a_path_only_the_layout_scope_covers_returns_false(self) -> None:
         #: Given
-        database = Database(_snapshot_of({}, scope=(ScanRoot(RootRelativePath.parse('src'), depth=0),)))
+        database = Database(_snapshot_of({}, scope=(ScanRoot(RootRelativePath.parse('src'), depth=UnsignedInt(0)),)))
 
         #: When
         in_scope = database.is_in_scope(RootRelativePath.parse('docs/code/guide.md'))
@@ -243,7 +244,7 @@ class TestDatabase:
         # builds the expanded scope the database keeps, and the second is answered from it.
         snapshot = _snapshot_of(
             {'.agents/skills/review': SymlinkRecord(PurePosixPath('../../skills/review'))},
-            scope=(ScanRoot(RootRelativePath.parse('.agents/skills'), depth=1, follow_links=True),),
+            scope=(ScanRoot(RootRelativePath.parse('.agents/skills'), depth=UnsignedInt(1), follow_links=True),),
         )
         database = Database(snapshot)
         database.is_in_scope(RootRelativePath.parse('src/tool.py'))
