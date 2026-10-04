@@ -107,7 +107,7 @@ class TooManyTokens(TokenCountRule):
             subject: The document's token count, with the budgets that govern it.
         """
         return tuple(
-            cls(spec=budget.spec, line=_FIRST_LINE, token_count=subject.token_count, budget=budget.tokens)
+            cls(spec=budget.spec, line=_FIRST_LINE, token_count=subject.token_count, budget=budget.tokens.value)
             for budget in subject.budgets
-            if subject.token_count > budget.tokens
+            if subject.token_count > budget.tokens.value
         )
