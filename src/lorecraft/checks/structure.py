@@ -15,7 +15,7 @@ corpus one, so a document governed by both must pass both, and neither can relax
 from dataclasses import dataclass
 from typing import Final, assert_never
 
-from lorecraft.core.num import PositiveInt
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.schemas import AnySections, OutlineEntry, SectionEntry, StructureSpec
 from lorecraft.project.syntax import Heading, LineNumber
 
@@ -265,7 +265,7 @@ def _find_entry_index(outline: tuple[OutlineEntry, ...], name: str) -> int | Non
     return None
 
 
-def _find_run_cap(outline: tuple[OutlineEntry, ...], after: int) -> PositiveInt | None:
+def _find_run_cap(outline: tuple[OutlineEntry, ...], after: int) -> NonZeroUnsignedInt | None:
     """The cap of the first `any` entry past outline index `after`, or None when there is no such entry.
 
     Args:

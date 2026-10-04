@@ -6,7 +6,7 @@ document and no specification file is read.
 
 import pytest
 
-from lorecraft.core.num import PositiveInt
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.layout import SPECS_DIR
 from lorecraft.project.schemas import (
     SpecFileType,
@@ -20,7 +20,7 @@ from lorecraft.project.syntax import LineNumber
 from ..budget import validate_budget
 
 
-def _structure_spec(tokens: PositiveInt | None, spec_name: str = 'code') -> StructureSpec:
+def _structure_spec(tokens: NonZeroUnsignedInt | None, spec_name: str = 'code') -> StructureSpec:
     """A structure specification at `docs/__meta__/<spec_name>.structure.json` with the given budget.
 
     It forbids empty sections as well, so a structure specification without a budget still states a rule and can be
@@ -46,7 +46,7 @@ def _structure_spec(tokens: PositiveInt | None, spec_name: str = 'code') -> Stru
 class TestValidateBudget:
     def test_validate_budget_with_a_file_over_the_budget_reports_it_on_line_1(self) -> None:
         #: Given
-        structure_specs = (_structure_spec(tokens=PositiveInt(6)),)
+        structure_specs = (_structure_spec(tokens=NonZeroUnsignedInt(6)),)
 
         #: When
         result = validate_budget(structure_specs, token_count=7)
@@ -63,7 +63,7 @@ class TestValidateBudget:
 
     def test_validate_budget_with_a_file_at_the_budget_returns_no_violations(self) -> None:
         #: Given
-        structure_specs = (_structure_spec(tokens=PositiveInt(7)),)
+        structure_specs = (_structure_spec(tokens=NonZeroUnsignedInt(7)),)
 
         #: When
         result = validate_budget(structure_specs, token_count=7)
@@ -95,8 +95,8 @@ class TestValidateBudget:
 
     def test_validate_budget_with_two_layers_applies_each_and_names_its_own_file(self) -> None:
         #: Given
-        corpus = _structure_spec(tokens=PositiveInt(100))
-        namespace = _structure_spec(tokens=PositiveInt(11), spec_name='code-python')
+        corpus = _structure_spec(tokens=NonZeroUnsignedInt(100))
+        namespace = _structure_spec(tokens=NonZeroUnsignedInt(11), spec_name='code-python')
 
         #: When
         result = validate_budget((corpus, namespace), token_count=12)

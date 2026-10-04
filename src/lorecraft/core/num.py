@@ -1,6 +1,6 @@
-"""The number values: a whole number of at least 1.
+"""The number values: a whole number of at least 1, and one of at least 0.
 
-`PositiveInt` is also a pydantic type, so a model field declared with it reads a JSON integer into one, writes it
+`NonZeroUnsignedInt` is also a pydantic type, so a model field declared with it reads a JSON integer into one, writes it
 back as the integer, and states its bound in the JSON Schema rendered from the model. A number it refuses is a
 validation error carrying its own message.
 
@@ -21,7 +21,7 @@ from lorecraft.core.error import Error
 
 # The pydantic error type the value object raises its rejection under, typed as a literal because
 # `PydanticCustomError` takes only a literal string.
-_ERROR_TYPE: Final[Literal['positive_int']] = 'positive_int'
+_ERROR_TYPE: Final[Literal['non_zero_unsigned_int']] = 'non_zero_unsigned_int'
 
 
 class NonPositiveIntError(Error):
@@ -35,11 +35,11 @@ class NonPositiveIntError(Error):
 
     def __init__(self, value: int) -> None:
         self.value = value
-        super().__init__(f'must be at least {PositiveInt.MINIMUM}, got {value}')
+        super().__init__(f'must be at least {NonZeroUnsignedInt.MINIMUM}, got {value}')
 
 
 @dataclass(frozen=True, slots=True)
-class PositiveInt:
+class NonZeroUnsignedInt:
     """A whole number of at least 1.
 
     As a pydantic type it is read strictly: a JSON boolean, a number with a fraction or a string of digits is not
@@ -95,14 +95,14 @@ class PositiveInt:
 
     @classmethod
     def _from_pydantic(cls, value: object) -> Self:
-        """Take a `PositiveInt` as it is and parse an integer into one; anything else raises pydantic's own error.
+        """Take a `NonZeroUnsignedInt` as it is and parse an integer into one; anything else raises pydantic's error.
 
         Args:
             value: The input pydantic holds for the field: an instance, an integer, or anything else.
 
         Raises:
             PydanticCustomError: If the value is not an integer (type `int_type`), or is below 1 (type
-                `positive_int`).
+                `non_zero_unsigned_int`).
         """
         if isinstance(value, cls):
             return value
@@ -129,3 +129,59 @@ class PositiveInt:
             handler: Pydantic's JSON Schema generator; unused for the same reason.
         """
         return {'type': 'integer', 'minimum': cls.MINIMUM}
+
+
+class NegativeIntError(Error):
+    """A whole number is below 0.
+
+    Attributes:
+        value: The rejected number.
+    """
+
+    value: int
+
+    def __init__(self, value: int) -> None:
+        self.value = value
+        super().__init__(f'must be at least {UnsignedInt.MINIMUM}, got {value}')
+
+
+@dataclass(frozen=True, slots=True)
+class UnsignedInt:
+    """A whole number of at least 0.
+
+    No model field holds one yet, so it has no pydantic hooks; they go on the type, as `NonZeroUnsignedInt`'s do,
+    when one does.
+
+    Attributes:
+        value: The validated number.
+        MINIMUM: The smallest number the type holds, 0: the bound `__post_init__` checks.
+    """
+
+    MINIMUM: ClassVar[int] = 0
+
+    value: int
+
+    @classmethod
+    def parse(cls, raw: int) -> Self:
+        """Return a validated number.
+
+        Args:
+            raw: Candidate number.
+
+        Raises:
+            NegativeIntError: If the number is below 0.
+        """
+        return cls(raw)
+
+    def __post_init__(self) -> None:
+        """Keep direct construction from bypassing the invariant.
+
+        Raises:
+            NegativeIntError: If the number is below 0.
+        """
+        if self.value < self.MINIMUM:
+            raise NegativeIntError(self.value)
+
+    def __str__(self) -> str:
+        """The number in decimal digits."""
+        return str(self.value)

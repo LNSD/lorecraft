@@ -7,7 +7,7 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.num import PositiveInt
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.inputs import Budget, TokenCountInput
@@ -26,7 +26,9 @@ NAMESPACE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/
 class TestTooManyTokens:
     def test_check_with_a_document_over_the_budget_reports_it_on_line_1(self) -> None:
         #: Given
-        subject = TokenCountInput(token_count=7, budgets=(Budget(tokens=PositiveInt(6), spec=CORPUS_SPEC),))
+        subject = TokenCountInput(
+            token_count=UnsignedInt(7), budgets=(Budget(tokens=NonZeroUnsignedInt(6), spec=CORPUS_SPEC),)
+        )
 
         #: When
         occurrences = TooManyTokens.check(subject)
@@ -38,7 +40,9 @@ class TestTooManyTokens:
 
     def test_check_with_a_document_at_the_budget_reports_nothing(self) -> None:
         #: Given
-        subject = TokenCountInput(token_count=7, budgets=(Budget(tokens=PositiveInt(7), spec=CORPUS_SPEC),))
+        subject = TokenCountInput(
+            token_count=UnsignedInt(7), budgets=(Budget(tokens=NonZeroUnsignedInt(7), spec=CORPUS_SPEC),)
+        )
 
         #: When
         occurrences = TooManyTokens.check(subject)
@@ -49,10 +53,10 @@ class TestTooManyTokens:
     def test_check_with_a_document_over_only_the_namespace_budget_reports_that_budget(self) -> None:
         #: Given
         subject = TokenCountInput(
-            token_count=7,
+            token_count=UnsignedInt(7),
             budgets=(
-                Budget(tokens=PositiveInt(10), spec=CORPUS_SPEC),
-                Budget(tokens=PositiveInt(5), spec=NAMESPACE_SPEC),
+                Budget(tokens=NonZeroUnsignedInt(10), spec=CORPUS_SPEC),
+                Budget(tokens=NonZeroUnsignedInt(5), spec=NAMESPACE_SPEC),
             ),
         )
 
@@ -67,10 +71,10 @@ class TestTooManyTokens:
     def test_check_with_a_document_over_both_budgets_reports_each_in_order(self) -> None:
         #: Given
         subject = TokenCountInput(
-            token_count=12,
+            token_count=UnsignedInt(12),
             budgets=(
-                Budget(tokens=PositiveInt(10), spec=CORPUS_SPEC),
-                Budget(tokens=PositiveInt(5), spec=NAMESPACE_SPEC),
+                Budget(tokens=NonZeroUnsignedInt(10), spec=CORPUS_SPEC),
+                Budget(tokens=NonZeroUnsignedInt(5), spec=NAMESPACE_SPEC),
             ),
         )
 

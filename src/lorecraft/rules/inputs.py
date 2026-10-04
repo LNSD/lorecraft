@@ -9,7 +9,7 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Self
 
-from lorecraft.core.num import PositiveInt
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.rules.rule import ContentRule
 
@@ -23,7 +23,7 @@ class Budget:
         spec: The structure specification file that sets the budget.
     """
 
-    tokens: PositiveInt
+    tokens: NonZeroUnsignedInt
     spec: RootRelativePath
 
 
@@ -36,23 +36,13 @@ class TokenCountInput:
     gets no input at all.
 
     Attributes:
-        token_count: The `o200k_base` tokens in the document's whole file, frontmatter, code and tables included; at
-            least 0.
+        token_count: The `o200k_base` tokens in the document's whole file, frontmatter, code and tables included.
         budgets: One per structure specification that governs the document and sets a budget, in the order the
             specifications apply.
     """
 
-    token_count: int
+    token_count: UnsignedInt
     budgets: tuple[Budget, ...]
-
-    def __post_init__(self) -> None:
-        """Validate the count's bound.
-
-        Raises:
-            ValueError: If `token_count` is negative.
-        """
-        if self.token_count < 0:
-            raise ValueError(f'token_count must be at least 0, got {self.token_count}')
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
