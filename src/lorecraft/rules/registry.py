@@ -6,11 +6,13 @@ tests left out, and keeps the declarations whose module lies in that package out
 that walks a package of sample rules sees only those, and the package's own registry never sees them.
 
 The registry is package data: it reads no workspace and is not a query. A rejection, a code, a name or an alias
-code bound twice, is a defect in `lorecraft.rules`, never in the user's repository, so it raises a `RuntimeError`
-whose traceback locates the declaration.
+code bound twice, a prefix given two groups, a class attribute left unbound or a rule still abstract, is a defect
+in `lorecraft.rules`, never in the user's repository, so it raises a `RuntimeError` whose traceback locates the
+declaration.
 """
 
 import importlib
+import inspect
 import pkgutil
 from collections.abc import Iterable
 from functools import cache
@@ -19,10 +21,58 @@ from typing import Final, Self, assert_never
 
 from lorecraft import rules
 
-from .rule import RemovedRule, Rule, RuleDeclaration, declared_rules
+from .rule import RemovedRule, Rule, RuleDeclaration, RuleGroup, declared_rules
 
 _UNIT_TESTS: Final[str] = 'tests'
 """The name of the subpackage beside a package's modules that holds their unit tests, fixed by the unit tier."""
+
+_RULE_ATTRIBUTES: Final[tuple[str, ...]] = ('CODE', 'NAME', 'LEVEL', 'SINCE')
+"""The class attributes a rule's class must bind; `ALIASES` has a default, so it is not among them."""
+
+_REMOVED_RULE_ATTRIBUTES: Final[tuple[str, ...]] = ('CODE', 'NAME', 'REMOVED_IN', 'REPLACED_BY')
+"""The class attributes a removed rule must bind; `REPLACED_BY` is bound to None when nothing replaced it."""
+
+
+class UnsetRuleAttributeError(RuntimeError):
+    """A declaration leaves a class attribute its kind requires unbound, such as a rule with no `SINCE`.
+
+    The base classes only annotate these attributes, so the type checker accepts a subclass that never binds one.
+
+    Attributes:
+        declaration: The declaration missing the attribute.
+        attribute: The name of the unbound attribute.
+    """
+
+    declaration: RuleDeclaration
+    attribute: str
+
+    def __init__(self, declaration: RuleDeclaration, attribute: str) -> None:
+        self.declaration = declaration
+        self.attribute = attribute
+        super().__init__(f'rule {declaration.__qualname__} does not bind {attribute}')
+
+
+class ConflictingRuleGroupError(RuntimeError):
+    """Two declarations give one prefix two different groups, so the prefix has no single title.
+
+    Attributes:
+        prefix: The prefix declared twice.
+        first: The declaration whose group bound the prefix first.
+        second: The declaration whose group differs from it.
+    """
+
+    prefix: str
+    first: RuleDeclaration
+    second: RuleDeclaration
+
+    def __init__(self, prefix: str, first: RuleDeclaration, second: RuleDeclaration) -> None:
+        self.prefix = prefix
+        self.first = first
+        self.second = second
+        super().__init__(
+            f'rule group {prefix!r} of {second.__qualname__} is titled {second.CODE.group.title!r}, but '
+            f'{first.__qualname__} titles it {first.CODE.group.title!r}'
+        )
 
 
 class DuplicateRuleCodeError(RuntimeError):
@@ -85,6 +135,23 @@ class DuplicateAliasCodeError(RuntimeError):
         super().__init__(f'alias code {code!r} of {second.__qualname__} is already bound to {first.__qualname__}')
 
 
+class AbstractRuleError(RuntimeError):
+    """A rule's class is still abstract, such as one with no `check`, so it can never judge its input.
+
+    Attributes:
+        declaration: The abstract rule class.
+        missing: The names of the methods it leaves abstract, in name order.
+    """
+
+    declaration: type[Rule]
+    missing: tuple[str, ...]
+
+    def __init__(self, declaration: type[Rule], missing: tuple[str, ...]) -> None:
+        self.declaration = declaration
+        self.missing = missing
+        super().__init__(f'rule {declaration.__qualname__} is abstract: it does not implement {", ".join(missing)}')
+
+
 class Registry:
     """The rules a rules package declares, in code order, found by their code, their name or an alias code.
 
@@ -104,21 +171,42 @@ class Registry:
             declarations: The rules to hold, in any order.
 
         Raises:
+            UnsetRuleAttributeError: If a declaration leaves a class attribute its kind requires unbound.
+            AbstractRuleError: If a rule class is still abstract.
             DuplicateRuleCodeError: If a code is bound twice.
+            ConflictingRuleGroupError: If two codes give one prefix two different groups.
             DuplicateRuleNameError: If a name is bound twice, or is already bound as a code.
             DuplicateAliasCodeError: If an alias code is bound twice, or is already bound as a code or a name.
         """
         rule_classes, removed_rules = _split_by_kind(declarations)
 
+        for rule_class in rule_classes:
+            _require_attributes(rule_class, _RULE_ATTRIBUTES)
+        for removed_rule in removed_rules:
+            _require_attributes(removed_rule, _REMOVED_RULE_ATTRIBUTES)
+
+        for rule_class in rule_classes:
+            if inspect.isabstract(rule_class):
+                missing = tuple(sorted(rule_class.__abstractmethods__))
+                raise AbstractRuleError(rule_class, missing)
+
         self._rules = tuple(sorted((*rule_classes, *removed_rules), key=_printed_code))
         self._by_key = {}
 
+        groups: dict[str, tuple[RuleGroup, RuleDeclaration]] = {}
         for declaration in self._rules:
             code = str(declaration.CODE)
             first = self._by_key.get(code)
             if first is not None:
                 raise DuplicateRuleCodeError(code, first, declaration)
             self._by_key[code] = declaration
+
+            group = declaration.CODE.group
+            bound = groups.get(group.prefix)
+            if bound is None:
+                groups[group.prefix] = (group, declaration)
+            elif bound[0] != group:
+                raise ConflictingRuleGroupError(group.prefix, bound[1], declaration)
 
         for declaration in self._rules:
             first = self._by_key.get(declaration.NAME)
@@ -142,7 +230,10 @@ class Registry:
             package: The rules package, walked with its subpackages.
 
         Raises:
+            UnsetRuleAttributeError: If a declaration leaves a class attribute its kind requires unbound.
+            AbstractRuleError: If a rule class declared in the package is still abstract.
             DuplicateRuleCodeError: If a code is bound twice.
+            ConflictingRuleGroupError: If two codes give one prefix two different groups.
             DuplicateRuleNameError: If a name is bound twice, or is already bound as a code.
             DuplicateAliasCodeError: If an alias code is bound twice, or is already bound as a code or a name.
             Exception: Whatever a module of the package raises as it is imported, unchanged, since a registry
@@ -179,7 +270,10 @@ def package_registry() -> Registry:
     as the process runs.
 
     Raises:
+        UnsetRuleAttributeError: If a declaration leaves a class attribute its kind requires unbound.
+        AbstractRuleError: If a rule's class is still abstract.
         DuplicateRuleCodeError: If a code is bound twice.
+        ConflictingRuleGroupError: If two codes give one prefix two different groups.
         DuplicateRuleNameError: If a name is bound twice, or is already bound as a code.
         DuplicateAliasCodeError: If an alias code is bound twice, or is already bound as a code or a name.
         Exception: Whatever a rule module raises as it is imported, unchanged.
@@ -253,6 +347,21 @@ def _split_by_kind(
         else:
             assert_never(declaration)
     return tuple(rule_classes), tuple(removed_rules)
+
+
+def _require_attributes(declaration: RuleDeclaration, attributes: tuple[str, ...]) -> None:
+    """Reject a declaration that leaves one of its kind's class attributes unbound.
+
+    Args:
+        declaration: The rule or removed rule to inspect.
+        attributes: The names its kind requires it to bind.
+
+    Raises:
+        UnsetRuleAttributeError: If one of the attributes is unbound, naming the first in the given order.
+    """
+    for attribute in attributes:
+        if not hasattr(declaration, attribute):
+            raise UnsetRuleAttributeError(declaration, attribute)
 
 
 def _printed_code(declaration: RuleDeclaration) -> str:
