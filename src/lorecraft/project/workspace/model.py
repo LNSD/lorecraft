@@ -209,21 +209,18 @@ class Corpus:
         """Root-relative ``docs/<name>``, the directory the corpus's documents sit directly inside."""
         return DOCS_DIR / str(self.name)
 
-    def governance(self, ref: DocumentRef) -> Governance:
+    def governance(self, filename: AspectFilename) -> Governance:
         """Corpus spec, then every namespace spec that matches, broad to narrow. Pure.
 
         Args:
-            ref: Document whose governing specs are wanted; it must belong to this corpus.
-
-        Raises:
-            ValueError: If `ref.corpus != name`.
+            filename: Stem of the document whose governing specs are wanted; it names no corpus, so the governed
+                document is this corpus's.
         """
-        if ref.corpus != self.name:
-            raise ValueError(f'document {ref.path} is not in corpus {self.name}')
         matching: list[NamespaceSpec] = []
         for namespace_spec in self.namespace_specs:
-            if namespace_spec.is_governing(ref.filename):
+            if namespace_spec.is_governing(filename):
                 matching.append(namespace_spec)
+        ref = DocumentRef(corpus=self.name, filename=filename)
         return Governance(ref, self.corpus_spec, tuple(matching))
 
 
@@ -411,16 +408,15 @@ class WorkspaceModel:
                 agents.append(skills_dir.agent)
         return tuple(agents)
 
-    def governance(self, ref: DocumentRef) -> Governance:
-        """The specs governing a document this model lists.
+    def find_governance(self, ref: DocumentRef) -> Governance | None:
+        """The specs governing a document, or `None` when the model holds no corpus named `ref.corpus`.
+
+        `None` means no specification governs the document: the model has no spec of its corpus to start from.
 
         Args:
-            ref: Document to look up; its corpus must be one of this model's.
-
-        Raises:
-            ValueError: If `ref.corpus` is not a corpus of this model (refs from the model never trigger it).
+            ref: Document to look up, whether or not the model lists it; only its corpus and filename are read.
         """
         corpus = self.find_corpus(ref.corpus)
         if corpus is None:
-            raise ValueError(f'document {ref.path} is in no corpus of this model')
-        return corpus.governance(ref)
+            return None
+        return corpus.governance(ref.filename)

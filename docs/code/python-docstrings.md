@@ -271,7 +271,8 @@ Every function that can raise documents each exception type a caller can reach, 
 produces it. That includes exceptions raised directly and exceptions raised by a callee and allowed to
 propagate as part of this function's contract. An error union is not an exception type: the section lists
 each of its variants, since a variant is what a caller names in an `except`. Whether a built-in belongs there
-at all is owned by [error-boundaries](error-boundaries.md).
+at all is owned by [error-boundaries](error-boundaries.md): a propagated one `error-boundaries` §2 has not
+cleared is a finding against its source, not a line to add.
 
 This is the strongest rule in the document, because Python gives a caller **no other way to find out**: no
 checked exceptions, no `Result` in the return type. A caller who does not know that loading a specification
@@ -385,16 +386,17 @@ class CheckConfig:
 
 Before committing code, verify:
 
-- [ ] Every docstring touched is Google style — no `:param:`, `@param` or NumPy underlines
+- [ ] Every docstring touched is Google style: no `:param:`, `@param` or NumPy underlines
 - [ ] Its sections run `Note:`/`Warning:`, `Args:`, `Returns:`/`Yields:`, `Raises:`, `Attributes:`, `Example:`
-- [ ] Its prose is Markdown — single backticks, no double-backtick literals, reST roles or directives
-- [ ] Every module added or edited has a docstring saying why it exists, not restating its name
-- [ ] Every new class and public function has a docstring whose first line is a one-line summary
-- [ ] Every function or method with a docstring and a parameter has `Args:`, with a line for every parameter
-- [ ] Every `Args:` line says what the parameter is to the call — never its name or type echoed, nor a paragraph
+- [ ] Its prose is Markdown: single backticks, no double-backtick literals, reST roles or directives
+- [ ] Every module touched has a docstring saying why it exists, not restating its name
+- [ ] Every new class and public function has a docstring opening with a one-line summary
+- [ ] Every docstring of a function taking a parameter has `Args:`, a line per parameter
+- [ ] Every `Args:` line says what the parameter is to the call, never its name or type echoed, nor a paragraph
 - [ ] No `Returns:` section restates the return annotation
 - [ ] A generator documents `Yields:`, never `Returns:`; a function returning an iterator documents `Returns:`
-- [ ] Every reachable `raise` in the diff, direct or propagated by contract, is in `Raises:` with its condition
+- [ ] Every reachable `raise` in the diff, direct or propagated by contract, is in `Raises:` with its condition;
+      a propagated built-in failing `error-boundaries` §2 is fixed at its source
 - [ ] An unreachable `raise` has a `#` comment saying why, and no `Raises:` entry
 - [ ] Every `Example:` block is `>>>` doctest lines, never the sole statement of an untested contract
 - [ ] No `Example:` block needs a checked-out corpus, a network fetch, or a fixture tree to run
