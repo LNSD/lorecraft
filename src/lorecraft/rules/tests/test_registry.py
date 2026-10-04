@@ -11,6 +11,7 @@ from lorecraft.rules.frontmatter.missing_frontmatter import MissingFrontmatter
 from lorecraft.rules.frontmatter.name_mismatch import NameMismatch
 from lorecraft.rules.frontmatter.non_mapping_frontmatter import NonMappingFrontmatter
 from lorecraft.rules.frontmatter.unknown_field import UnknownField
+from lorecraft.rules.frontmatter.wrong_type import WrongType
 from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 
@@ -358,6 +359,7 @@ class TestPackageRegistry:
             DuplicateKey,
             MissingField,
             UnknownField,
+            WrongType,
             InvalidUtf8,
             TooManyTokens,
             TooManyLines,

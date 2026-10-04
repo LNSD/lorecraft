@@ -40,42 +40,11 @@ class UnknownFieldProblem:
 
 
 @dataclass(frozen=True, slots=True)
-class NotAStringProblem:
-    """The field's value is not the string the schema requires.
-
-    Attributes:
-        field: The field as written in the frontmatter.
-    """
-
-    field: str
-
-    @property
-    def message(self) -> str:
-        """What a reader is told, naming the field."""
-        return f'`{self.field}` must be a string'
-
-
-@dataclass(frozen=True, slots=True)
-class NotAStringMappingProblem:
-    """The field's value is not the mapping of strings to strings the schema requires.
-
-    Attributes:
-        field: The field as written in the frontmatter.
-    """
-
-    field: str
-
-    @property
-    def message(self) -> str:
-        """What a reader is told, naming the field."""
-        return f'`{self.field}` must be a mapping of strings to strings'
-
-
-@dataclass(frozen=True, slots=True)
 class WrongTypeProblem:
-    """The field's value is of a type the schema does not accept, as a JSON Schema ``type`` keyword reports it.
+    """The field's value is of a type the schema does not accept.
 
-    The JSON Schema types are an open set to this package, so the validator's message names the type expected.
+    Each schema states the type it expects in its own terms, a JSON Schema ``type`` keyword or a field of the Agent
+    Skills specification, so the message names the type expected.
 
     Attributes:
         field: The field as written in the frontmatter.
@@ -114,12 +83,6 @@ class BlockProblem:
 
 
 type FrontmatterProblem = (
-    MissingFieldProblem
-    | UnknownFieldProblem
-    | NotAStringProblem
-    | NotAStringMappingProblem
-    | WrongTypeProblem
-    | InvalidValueProblem
-    | BlockProblem
+    MissingFieldProblem | UnknownFieldProblem | WrongTypeProblem | InvalidValueProblem | BlockProblem
 )
 """One thing a frontmatter schema rejects."""

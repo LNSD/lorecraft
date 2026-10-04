@@ -15,7 +15,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.schemas import MissingFieldProblem, NotAStringProblem, UnknownFieldProblem, WrongTypeProblem
+from lorecraft.project.schemas import MissingFieldProblem, UnknownFieldProblem, WrongTypeProblem
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.inputs import (
@@ -278,7 +278,10 @@ class TestBuildSkillSchemaProblemsInput:
                 SchemaProblems(
                     source=AgentSkillsSchema(),
                     problems=(
-                        LocatedProblem(problem=NotAStringProblem('description'), line=LineNumber.from_int(3)),
+                        LocatedProblem(
+                            problem=WrongTypeProblem('description', '`description` must be a string'),
+                            line=LineNumber.from_int(3),
+                        ),
                         LocatedProblem(
                             problem=UnknownFieldProblem(
                                 'extra', '`extra` is not a field of the Agent Skills specification'
