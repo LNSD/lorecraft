@@ -4,7 +4,9 @@ A rule is one class. The class is the declaration and the check: its code, name,
 release it is stable since and its documentation, as class attributes and the docstring, and the `check`
 classmethod that judges its input. Each input kind has one base class deriving from `ContentRule` or
 `LayoutRule`, whose abstract `check` fixes the input's type, so a rule picks its input by picking its base.
-A retired rule is a `RemovedRule`, which is not a `Rule`, so it can never be built as one or reported.
+A retired rule is a `RemovedRule`, which is not a `Rule`, so it can never be built as one or reported. What the
+engine itself reports about a subject, such as a file that does not decode, is an `EngineCondition`: declared
+and rendered like a rule, but with a fixed `Severity` in place of a level, and no `check`.
 
 `@rule` records each declaration as its module is imported. The registry walks a rules package, imports every
 module in it but its unit tests, and keeps the declarations whose module lies in that package outside its unit
@@ -544,8 +546,60 @@ class RemovedRule:
     REPLACED_BY: ClassVar[RuleCode | None]
 
 
-# What `@rule` registers: a rule in service, as its class, or a retired one.
-type RuleDeclaration = type[Rule] | type[RemovedRule]
+class Severity(Enum):
+    """How a diagnostic is reported; the value is the word the output spells it with.
+
+    A severity is not a `Level`: a rule at `allow` does not run, so it reports nothing, and a diagnostic carries one
+    of two severities where a level has three values. A rule's severity follows from its level; an engine
+    condition fixes its own.
+    """
+
+    ERROR = 'error'
+    """The diagnostic fails the run."""
+    WARNING = 'warning'
+    """The diagnostic is reported, and the run still passes."""
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class EngineCondition(ABC):
+    """A condition the engine reports about a subject before any rule judges it, such as a file that does not decode.
+
+    It is declared like a rule, with a code, a name, the release it is stable since and its documentation, and an
+    instance of it is one occurrence that renders like a rule's. It is not a `Rule`: it has no level, so nothing
+    can turn it off, and no `check`, since the engine finds it, not a judgment of an input. Its severity is fixed
+    on the class, and its code is always in the engine's group, which the registry holds at load.
+
+    Attributes:
+        CODE: The condition's code, in the engine's group, such as `LC001`.
+        NAME: The condition's kebab-case name, such as `invalid-utf8`.
+        SINCE: The release the condition is stable since.
+        SEVERITY: The severity every occurrence of the condition is reported at.
+    """
+
+    CODE: ClassVar[RuleCode]
+    NAME: ClassVar[RuleName]
+    SINCE: ClassVar[Release]
+    SEVERITY: ClassVar[Severity]
+
+    @abstractmethod
+    def message(self) -> str:
+        """What is wrong, rendered from the fields, the same template for every occurrence."""
+
+    @abstractmethod
+    def primary(self) -> Primary:
+        """Where the diagnostic points first."""
+
+    def labels(self) -> tuple[Label | EntryLabel, ...]:
+        """The labelled locations of this occurrence; none, so the primary location is unlabelled."""
+        return ()
+
+    def children(self) -> tuple[Subdiagnostic | EntrySubdiagnostic, ...]:
+        """The help and notes printed under the message; none."""
+        return ()
+
+
+# What `@rule` registers: a rule in service, as its class, a retired one, or an engine condition.
+type RuleDeclaration = type[Rule] | type[RemovedRule] | type[EngineCondition]
 
 # Every declaration `@rule` has seen in this process, in the order their modules were imported. A rules
 # package's registry keeps those whose module lies in it.
@@ -556,8 +610,8 @@ _declared: list[RuleDeclaration] = []
 # for the type checker; it ranges over no input kind, and the registry takes none, as adr-009 states. Without the
 # parameter, every decorated name would be retyped as `RuleDeclaration`, and a rule's own fields and `check` would
 # no longer type-check at its call sites.
-def rule[T: Rule | RemovedRule](declaration: type[T]) -> type[T]:
-    """Register a rule's class, or a removed rule, as its module is imported.
+def rule[T: Rule | RemovedRule | EngineCondition](declaration: type[T]) -> type[T]:
+    """Register a rule's class, a removed rule or an engine condition, as its module is imported.
 
     Args:
         declaration: The class that declares the rule.

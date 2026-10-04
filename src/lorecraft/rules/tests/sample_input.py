@@ -9,7 +9,7 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Self
 
-from ..rule import ContentRule, LayoutRule
+from ..declaration import ContentRule, LayoutRule
 
 
 @dataclass(frozen=True, slots=True)
