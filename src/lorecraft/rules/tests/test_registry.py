@@ -2,6 +2,7 @@
 
 import pytest
 
+from lorecraft import rules
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 
@@ -16,7 +17,6 @@ from ..registry import (
     Registry,
     RuleInEngineGroupError,
     UnsetRuleAttributeError,
-    package_registry,
 )
 from .sample_rules import (
     abstract_condition,
@@ -334,21 +334,22 @@ class TestRegistryFind:
 
 @pytest.mark.unit
 class TestPackageRegistry:
-    def test_package_registry_with_the_package_rules_holds_them_in_code_order(self) -> None:
+    def test_load_with_the_package_rules_holds_them_in_code_order(self) -> None:
         #: Given
-        expected = (InvalidUtf8, TooManyTokens)
+        package = rules
 
         #: When
-        loaded = package_registry()
+        loaded = Registry.load(package)
 
         #: Then
-        assert loaded.rules == expected, (
+        assert loaded.rules == (InvalidUtf8, TooManyTokens), (
             'the registry holds every rule and engine condition `lorecraft.rules` declares, in code order'
         )
 
-    def test_package_registry_with_the_undecodable_condition_code_finds_it(self) -> None:
+    def test_find_with_the_package_rules_and_the_undecodable_condition_code_returns_it(self) -> None:
         #: Given
-        registry = package_registry()
+        package = rules
+        registry = Registry.load(package)
         key = 'LC001'
 
         #: When
@@ -357,24 +358,15 @@ class TestPackageRegistry:
         #: Then
         assert found is InvalidUtf8, "the engine's own condition is found by its code, as a rule is"
 
-    def test_package_registry_with_sample_rules_declared_holds_none_of_them(self) -> None:
+    def test_load_with_sample_rules_declared_holds_none_of_them(self) -> None:
         #: Given
+        package = rules
         sample_rules = {UppercaseEntry, EmptyLine, TrailingSpace, TabIndent, SampleCondition}
 
         #: When
-        loaded = package_registry()
+        loaded = Registry.load(package)
 
         #: Then
         assert sample_rules.isdisjoint(loaded.rules), (
             'the sample rules lie in the unit tests of `lorecraft.rules`, which its own registry leaves out'
         )
-
-    def test_package_registry_called_twice_returns_the_same_registry(self) -> None:
-        #: Given
-        first = package_registry()
-
-        #: When
-        second = package_registry()
-
-        #: Then
-        assert second is first, 'the registry is built once per process'
