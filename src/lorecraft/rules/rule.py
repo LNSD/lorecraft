@@ -1,9 +1,14 @@
-"""How a rule is declared: its identity values and the rule class that declares it.
+"""How a rule is declared: its identity values, the rule class that declares it, and `@rule`.
 
 A rule is one class. The class is the declaration and the check: its code, name, default level, the
 release it is stable since and its documentation, as class attributes and the docstring, and the `check`
 classmethod that judges its input. Each input kind has one base class deriving from `ContentRule` or
 `LayoutRule`, whose abstract `check` fixes the input's type, so a rule picks its input by picking its base.
+A retired rule is a `RemovedRule`, which is not a `Rule`, so it can never be built as one or reported.
+
+`@rule` records each declaration as its module is imported. The registry walks a rules package, imports every
+module in it but its unit tests, and keeps the declarations whose module lies in that package outside its unit
+tests, so the rules a test declares never reach the package's own registry.
 
 A `Release` is a value object, which cannot know whether its caller joined a literal or parsed a file, so its
 format raises an `Error` variant. A `RuleGroup`, a `RuleCode` and an `AliasCode` are records only the package's
@@ -379,3 +384,52 @@ class LayoutRule(Rule):
     def children(self) -> tuple[EntrySubdiagnostic, ...]:
         """The help and notes printed under the message; none."""
         return ()
+
+
+class RemovedRule:
+    """A retired rule: its code stays taken, and a configuration that names it learns what replaced it.
+
+    A subclass declares the retired rule in its class attributes, and its docstring says why it was retired. It
+    is not a `Rule`, so it can never be built as one or reported.
+
+    Attributes:
+        CODE: The code the rule had, never free to reuse.
+        NAME: The name the rule had.
+        REMOVED_IN: The release that removed the rule.
+        REPLACED_BY: The code of the rule that replaced it, or None when nothing did.
+    """
+
+    CODE: ClassVar[RuleCode]
+    NAME: ClassVar[str]
+    REMOVED_IN: ClassVar[Release]
+    REPLACED_BY: ClassVar[RuleCode | None]
+
+
+# What `@rule` registers: a rule in service, as its class, or a retired one.
+type RuleDeclaration = type[Rule] | type[RemovedRule]
+
+# Every declaration `@rule` has seen in this process, in the order their modules were imported. A rules
+# package's registry keeps those whose module lies in it.
+_declared: list[RuleDeclaration] = []
+
+
+# The type parameter only carries the decorated class's own type through, so a rule's name still names its class
+# for the type checker; it ranges over no input kind, and the registry takes none, as adr-009 states. Without the
+# parameter, every decorated name would be retyped as `RuleDeclaration`, and a rule's own fields and `check` would
+# no longer type-check at its call sites.
+def rule[T: Rule | RemovedRule](declaration: type[T]) -> type[T]:
+    """Register a rule's class, or a removed rule, as its module is imported.
+
+    Args:
+        declaration: The class that declares the rule.
+
+    Returns:
+        The class unchanged.
+    """
+    _declared.append(declaration)
+    return declaration
+
+
+def declared_rules() -> tuple[RuleDeclaration, ...]:
+    """Every declaration `@rule` has registered in this process, from every package, in the order seen."""
+    return tuple(_declared)
