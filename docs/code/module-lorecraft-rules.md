@@ -21,7 +21,7 @@ in `lorecraft.checks`, so a rule has nothing to read but the input it is handed.
 
 ## Belongs Here
 
-- A value that identifies a rule: a release, a group's prefix and title, a code, an alias code, a level.
+- A value that identifies a rule: a release, a group's prefix and title, a code, a name, an alias code, a level.
 - A rule class, the base class an input kind gives it, and the places its occurrences may point at.
 - A removed rule, the decorator that registers a declaration, and the registry, with every check it makes on a
   declaration as the package loads.
@@ -49,8 +49,10 @@ in `lorecraft.checks`, so a rule has nothing to read but the input it is handed.
   checked the subject supplies the path.
 - The registry is package data: it reads no workspace and is not a query, and it holds this package's rules,
   never a rule its unit tests declare.
-- A malformed identity value, a code bound twice or a declaration left incomplete is a defect in this package. It
-  is raised when the package loads, never reported as the user's fault.
+- A code bound twice, a declaration left incomplete, or a group, code or alias code written out of form is a
+  defect in this package. It is raised when the package loads, never reported as the user's fault.
+- A release and a rule name are value objects a user's input will also build, so a malformed one raises an
+  `Error` variant, whoever wrote it.
 
 ## Examples
 

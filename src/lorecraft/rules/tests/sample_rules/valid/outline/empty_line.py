@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Self
 
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.rule import Level, Release, RuleCode, rule
+from lorecraft.rules.rule import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.tests.sample_input import SampleLines, SampleLinesRule
 from lorecraft.rules.tests.sample_rules.groups import SAMPLE
 
@@ -15,7 +15,7 @@ class EmptyLine(SampleLinesRule):
     """A line is empty."""
 
     CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 1)
-    NAME: ClassVar[str] = 'empty-line'
+    NAME: ClassVar[RuleName] = RuleName('empty-line')
     LEVEL: ClassVar[Level] = Level.ALLOW
     SINCE: ClassVar[Release] = Release('1.0.0')
 

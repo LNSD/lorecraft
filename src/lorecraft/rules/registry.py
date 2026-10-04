@@ -21,7 +21,7 @@ from typing import Final, Self, assert_never
 
 from lorecraft import rules
 
-from .rule import RemovedRule, Rule, RuleDeclaration, RuleGroup, declared_rules
+from .rule import RemovedRule, Rule, RuleDeclaration, RuleGroup, RuleName, declared_rules
 
 _UNIT_TESTS: Final[str] = 'tests'
 """The name of the subpackage beside a package's modules that holds their unit tests, fixed by the unit tier."""
@@ -96,7 +96,9 @@ class DuplicateRuleCodeError(RuntimeError):
 
 
 class DuplicateRuleNameError(RuntimeError):
-    """Two declarations share a name, or a name is spelled as a code.
+    """Two declarations share a name.
+
+    A name is never spelled as a code: a name is lowercase, and a code starts with its uppercase prefix.
 
     Attributes:
         name: The name bound twice.
@@ -104,15 +106,15 @@ class DuplicateRuleNameError(RuntimeError):
         second: The declaration that bound it again.
     """
 
-    name: str
+    name: RuleName
     first: RuleDeclaration
     second: RuleDeclaration
 
-    def __init__(self, name: str, first: RuleDeclaration, second: RuleDeclaration) -> None:
+    def __init__(self, name: RuleName, first: RuleDeclaration, second: RuleDeclaration) -> None:
         self.name = name
         self.first = first
         self.second = second
-        super().__init__(f'rule name {name!r} of {second.__qualname__} is already bound to {first.__qualname__}')
+        super().__init__(f'rule name {str(name)!r} of {second.__qualname__} is already bound to {first.__qualname__}')
 
 
 class DuplicateAliasCodeError(RuntimeError):
@@ -175,7 +177,7 @@ class Registry:
             AbstractRuleError: If a rule class is still abstract.
             DuplicateRuleCodeError: If a code is bound twice.
             ConflictingRuleGroupError: If two codes give one prefix two different groups.
-            DuplicateRuleNameError: If a name is bound twice, or is already bound as a code.
+            DuplicateRuleNameError: If a name is bound twice.
             DuplicateAliasCodeError: If an alias code is bound twice, or is already bound as a code or a name.
         """
         rule_classes, removed_rules = _split_by_kind(declarations)
@@ -209,10 +211,11 @@ class Registry:
                 raise ConflictingRuleGroupError(group.prefix, bound[1], declaration)
 
         for declaration in self._rules:
-            first = self._by_key.get(declaration.NAME)
+            name = str(declaration.NAME)
+            first = self._by_key.get(name)
             if first is not None:
                 raise DuplicateRuleNameError(declaration.NAME, first, declaration)
-            self._by_key[declaration.NAME] = declaration
+            self._by_key[name] = declaration
 
         for rule_class in sorted(rule_classes, key=_printed_code):
             for alias in rule_class.ALIASES:
@@ -234,7 +237,7 @@ class Registry:
             AbstractRuleError: If a rule class declared in the package is still abstract.
             DuplicateRuleCodeError: If a code is bound twice.
             ConflictingRuleGroupError: If two codes give one prefix two different groups.
-            DuplicateRuleNameError: If a name is bound twice, or is already bound as a code.
+            DuplicateRuleNameError: If a name is bound twice.
             DuplicateAliasCodeError: If an alias code is bound twice, or is already bound as a code or a name.
             Exception: Whatever a module of the package raises as it is imported, unchanged, since a registry
                 missing a module's rules would check less than the package declares.
@@ -274,7 +277,7 @@ def package_registry() -> Registry:
         AbstractRuleError: If a rule's class is still abstract.
         DuplicateRuleCodeError: If a code is bound twice.
         ConflictingRuleGroupError: If two codes give one prefix two different groups.
-        DuplicateRuleNameError: If a name is bound twice, or is already bound as a code.
+        DuplicateRuleNameError: If a name is bound twice.
         DuplicateAliasCodeError: If an alias code is bound twice, or is already bound as a code or a name.
         Exception: Whatever a rule module raises as it is imported, unchanged.
     """

@@ -10,17 +10,17 @@ A retired rule is a `RemovedRule`, which is not a `Rule`, so it can never be bui
 module in it but its unit tests, and keeps the declarations whose module lies in that package outside its unit
 tests, so the rules a test declares never reach the package's own registry.
 
-A `Release` is a value object, which cannot know whether its caller joined a literal or parsed a file, so its
-format raises an `Error` variant. A `RuleGroup`, a `RuleCode` and an `AliasCode` are records only the package's
-own code builds, from literals in a rule's module, never from a file a command read. One that breaks its format
-is therefore a defect in the package, and is rejected with a `ValueError` rather than an `Error` that the command
-line would report as the user's fault.
+A `Release` and a `RuleName` are value objects, which cannot know whether their caller wrote a literal or parsed
+a file or a command line, so their format raises an `Error` variant. A `RuleGroup`, a `RuleCode` and an
+`AliasCode` are records only the package's own code builds, from literals in a rule's module, never from a file a
+command read. One that breaks its format is therefore a defect in the package, and is rejected with a `ValueError`
+rather than an `Error` that the command line would report as the user's fault.
 """
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from string import ascii_uppercase, digits
+from string import ascii_lowercase, ascii_uppercase, digits
 from typing import ClassVar, Self
 
 from lorecraft.core.error import Error
@@ -119,6 +119,145 @@ class Release:
 
     def __str__(self) -> str:
         """The release exactly as supplied."""
+        return self.value
+
+
+class EmptyRuleNameError(Error):
+    """A rule name is empty."""
+
+    def __init__(self) -> None:
+        super().__init__('rule name cannot be empty')
+
+
+class InvalidRuleNameCharacterError(Error):
+    """A rule name holds a character other than a lowercase ASCII letter, a digit or a hyphen.
+
+    Attributes:
+        value: The rejected name.
+        position: Zero-based position of the first invalid character.
+        character: The invalid character.
+    """
+
+    value: str
+    position: int
+    character: str
+
+    def __init__(self, value: str, position: int) -> None:
+        self.value = value
+        self.position = position
+        self.character = value[position]
+        super().__init__(f'invalid character {self.character!r} in rule name {value!r}')
+
+
+class LeadingHyphenRuleNameError(Error):
+    """A rule name starts with a hyphen.
+
+    Attributes:
+        value: The rejected name.
+    """
+
+    value: str
+
+    def __init__(self, value: str) -> None:
+        self.value = value
+        super().__init__(f'rule name {value!r} starts with a hyphen')
+
+
+class TrailingHyphenRuleNameError(Error):
+    """A rule name ends with a hyphen.
+
+    Attributes:
+        value: The rejected name.
+    """
+
+    value: str
+
+    def __init__(self, value: str) -> None:
+        self.value = value
+        super().__init__(f'rule name {value!r} ends with a hyphen')
+
+
+class DoubledHyphenRuleNameError(Error):
+    """A rule name holds two hyphens in a row.
+
+    Attributes:
+        value: The rejected name.
+        position: Zero-based position of the first of the two hyphens.
+    """
+
+    value: str
+    position: int
+
+    def __init__(self, value: str, position: int) -> None:
+        self.value = value
+        self.position = position
+        super().__init__(f'rule name {value!r} has two hyphens in a row at position {position}')
+
+
+@dataclass(frozen=True, slots=True)
+class RuleName:
+    """A rule's name, the kebab-case identity beside its code, such as `empty-section`.
+
+    A valid name:
+
+    - Is not empty.
+    - Holds only lowercase ASCII letters, ASCII digits and hyphens.
+    - Neither starts nor ends with a hyphen, and holds no two hyphens in a row, so it is one or more words
+      joined by single hyphens.
+
+    Parsing preserves the spelling.
+
+    Attributes:
+        value: The name, exactly as supplied.
+    """
+
+    value: str
+
+    @classmethod
+    def parse(cls, raw: str) -> Self:
+        """Return a validated name.
+
+        Args:
+            raw: Candidate name, such as `empty-section`.
+
+        Raises:
+            EmptyRuleNameError: If it is empty.
+            InvalidRuleNameCharacterError: If it holds a character other than a lowercase ASCII letter, a digit
+                or a hyphen.
+            LeadingHyphenRuleNameError: If it starts with a hyphen.
+            TrailingHyphenRuleNameError: If it ends with a hyphen.
+            DoubledHyphenRuleNameError: If it holds two hyphens in a row.
+        """
+        return cls(raw)
+
+    def __post_init__(self) -> None:
+        """Keep direct construction from bypassing the format.
+
+        The characters are checked before the hyphens, so a name with both faults reports its invalid character.
+
+        Raises:
+            EmptyRuleNameError: If it is empty.
+            InvalidRuleNameCharacterError: If it holds a character other than a lowercase ASCII letter, a digit
+                or a hyphen.
+            LeadingHyphenRuleNameError: If it starts with a hyphen.
+            TrailingHyphenRuleNameError: If it ends with a hyphen.
+            DoubledHyphenRuleNameError: If it holds two hyphens in a row.
+        """
+        if not self.value:
+            raise EmptyRuleNameError()
+        for position, character in enumerate(self.value):
+            if character not in ascii_lowercase and character not in digits and character != '-':
+                raise InvalidRuleNameCharacterError(self.value, position)
+        if self.value.startswith('-'):
+            raise LeadingHyphenRuleNameError(self.value)
+        if self.value.endswith('-'):
+            raise TrailingHyphenRuleNameError(self.value)
+        doubled = self.value.find('--')
+        if doubled != -1:
+            raise DoubledHyphenRuleNameError(self.value, doubled)
+
+    def __str__(self) -> str:
+        """The name exactly as supplied."""
         return self.value
 
 
@@ -317,7 +456,7 @@ class Rule(ABC):
     """
 
     CODE: ClassVar[RuleCode]
-    NAME: ClassVar[str]
+    NAME: ClassVar[RuleName]
     LEVEL: ClassVar[Level]
     SINCE: ClassVar[Release]
     ALIASES: ClassVar[tuple[AliasCode, ...]] = ()
@@ -400,7 +539,7 @@ class RemovedRule:
     """
 
     CODE: ClassVar[RuleCode]
-    NAME: ClassVar[str]
+    NAME: ClassVar[RuleName]
     REMOVED_IN: ClassVar[Release]
     REPLACED_BY: ClassVar[RuleCode | None]
 
