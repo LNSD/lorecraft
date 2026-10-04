@@ -9,6 +9,7 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Self
 
+from lorecraft.core.num import PositiveInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.rules.rule import ContentRule
 
@@ -18,21 +19,12 @@ class Budget:
     """A token budget a structure specification sets.
 
     Attributes:
-        tokens: The most tokens the whole file may cost an agent that loads it; at least 1.
+        tokens: The most tokens the whole file may cost an agent that loads it.
         spec: The structure specification file that sets the budget.
     """
 
-    tokens: int
+    tokens: PositiveInt
     spec: RootRelativePath
-
-    def __post_init__(self) -> None:
-        """Validate the budget's bound.
-
-        Raises:
-            ValueError: If `tokens` is below 1.
-        """
-        if self.tokens < 1:
-            raise ValueError(f'tokens must be at least 1, got {self.tokens}')
 
 
 @dataclass(frozen=True, slots=True)
