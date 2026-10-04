@@ -13,8 +13,8 @@ import pytest
 
 from lorecraft.checks import Database, SkillCheckRun, SkillScope, SkillSelection, run_frontmatter, run_skills
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.skill import SkillRef
-from lorecraft.vfs import OsRefusal
+from lorecraft.project.skill import SkillLocation, SkillRef
+from lorecraft.vfs import OsRefusal, ResolvedPath
 
 from ..check_run import (
     DocumentCheck,
@@ -155,13 +155,18 @@ class TestSelectDocuments:
         assert isinstance(exc_info.value.source, FileNotFoundError), 'the operating system failure is kept'
 
 
-def _skill(path: str) -> SkillRef:
-    """The skill at `path`, root-relative.
+def _skill(path: str) -> SkillLocation:
+    """The skill at `path`, root-relative, in a regular directory, so located where its ref names it.
 
     Args:
         path: The skill's directory, with `/` separators.
     """
-    return SkillRef(RootRelativePath.parse(path))
+    directory = RootRelativePath.parse(path)
+    return SkillLocation(
+        SkillRef(directory),
+        resolves_to=ResolvedPath(directory),
+        file_resolves_to=ResolvedPath(directory / 'SKILL.md'),
+    )
 
 
 @pytest.mark.unit

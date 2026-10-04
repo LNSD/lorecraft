@@ -21,7 +21,7 @@ from lorecraft.core.path import ROOT, RootRelativePath
 from lorecraft.project.corpus import CorpusName, EmptyCorpusNameError, InvalidCorpusNameCharacterError
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR
-from lorecraft.project.skill import SkillRef
+from lorecraft.project.skill import SkillLocation
 from lorecraft.project.workspace import WorkspaceModel
 from lorecraft.vfs import ResolvedPath
 
@@ -361,25 +361,26 @@ def select_skills_at(
     if resolved_path is None:
         raise UnlistedSkillPathError(argument)
     if model.has_skills_dir(resolved_path):
-        return select_whole(model.skills_in(resolved_path))
-    refs = model.locate_skill_files(resolved_path)
-    if not refs:
+        return select_whole(model.skill_locations_in(resolved_path))
+    locations = model.locate_skill_files(resolved_path)
+    if not locations:
         raise UnlistedSkillPathError(argument)
     selections: list[SkillSelection] = []
-    for ref in refs:
-        selections.append(SkillSelection(ref, SkillScope.SKILL_FILE))
+    for location in locations:
+        selections.append(SkillSelection(location, SkillScope.SKILL_FILE))
     return tuple(selections)
 
 
-def select_whole(refs: tuple[SkillRef, ...]) -> tuple[SkillSelection, ...]:
+def select_whole(locations: tuple[SkillLocation, ...]) -> tuple[SkillSelection, ...]:
     """Each skill selected whole, in the order given.
 
     Args:
-        refs: The skills to select, such as every skill the model lists or those a skills directory holds.
+        locations: The skills to select, as the model hands them out, such as every skill it lists or those a skills
+            directory holds.
     """
     selections: list[SkillSelection] = []
-    for ref in refs:
-        selections.append(SkillSelection(ref, SkillScope.WHOLE_SKILL))
+    for location in locations:
+        selections.append(SkillSelection(location, SkillScope.WHOLE_SKILL))
     return tuple(selections)
 
 
@@ -425,12 +426,12 @@ def _select_listed_skill(database: Database, spelled: RootRelativePath) -> Skill
     listed_entry = _listed_entry_path(database, spelled)
     if listed_entry is None:
         return None
-    ref = database.model().find_skill(listed_entry)
-    if ref is None:
+    location = database.model().find_skill_location(listed_entry)
+    if location is None:
         return None
     if spelled.name == SKILL_ENTRY_FILENAME:
-        return SkillSelection(ref, SkillScope.SKILL_FILE)
-    return SkillSelection(ref, SkillScope.WHOLE_SKILL)
+        return SkillSelection(location, SkillScope.SKILL_FILE)
+    return SkillSelection(location, SkillScope.WHOLE_SKILL)
 
 
 def _is_entry_leading_outside(database: Database, spelled: RootRelativePath) -> bool:
@@ -474,17 +475,14 @@ def _select_named_skills(model: WorkspaceModel, spelled: RootRelativePath) -> tu
         named_dir = model.find_named_dir(spelled)
         if named_dir is None or named_dir.is_empty():
             return None
-        refs: list[SkillRef] = []
-        for location in named_dir.skills:
-            refs.append(location.ref)
-        return select_whole(tuple(refs))
+        return select_whole(named_dir.skills)
 
     named_dir = model.find_named_dir(spelled.parent)
     if named_dir is None:
         return None
     for location in named_dir.skills:
         if location.ref.directory == spelled.parent:
-            return (SkillSelection(location.ref, SkillScope.SKILL_FILE),)
+            return (SkillSelection(location, SkillScope.SKILL_FILE),)
     for outside in named_dir.outside_symlinks:
         if outside.path == spelled:
             return ()  # the `SKILL.md` named leads outside: the one skill it would be is that finding

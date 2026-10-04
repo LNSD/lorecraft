@@ -7,16 +7,17 @@ Selecting which documents to check is the caller's business: a run checks the re
 given, and reads only the governed ones. Every check reports in the same shape, so the `check` commands print
 every run the same way.
 
-The skill check runs over skills instead: it is handed a `SkillSelection` per skill, the model's `SkillRef` and
-how much of the skill to check, the whole skill or its `SKILL.md` alone. The parts it reads are the frontmatter and
-the line count of each `SKILL.md`, and the links and the heading anchors of the `SKILL.md` and, for a whole skill,
-of each of the skill's resources, and the Agent Skills specification governs every one of them, so a skill is never
-ungoverned. The files a skill links in through `metadata` are checked too, against what the snapshot holds at each
-path listed, and so is each path inside the skill a link names, against what the snapshot holds there. It reports
-in a shape of its own, a `SkillCheckRun` of `SkillReport`s, each locating a violation in the file it was found in:
-the `SKILL.md`, or a resource. A symlink of the skill layout whose chain leaves the repository is reported at the
-path an agent reaches it by, in a `SymlinkReport`: under its skill's report when it is inside a skill, and in the
-run's own layout reports when it is a skills directory, an entry or an entry's `SKILL.md`, none of which is a skill.
+The skill check runs over skills instead: it is handed a `SkillSelection` per skill, the `SkillLocation` the model
+hands out for it and how much of the skill to check, the whole skill or its `SKILL.md` alone. The parts it reads
+are the frontmatter and the line count of each `SKILL.md`, and the links and the heading anchors of the `SKILL.md`
+and, for a whole skill, of each of the skill's resources, and the Agent Skills specification governs every one of
+them, so a skill is never ungoverned. The files a skill links in through `metadata` are checked too, against what
+the snapshot holds at each path listed, and so is each path inside the skill a link names, against what the
+snapshot holds there. It reports in a shape of its own, a `SkillCheckRun` of `SkillReport`s, each locating a
+violation in the file it was found in: the `SKILL.md`, or a resource. A symlink of the skill layout whose chain
+leaves the repository is reported at the path an agent reaches it by, in a `SymlinkReport`: under its skill's report
+when it is inside a skill, and in the run's own layout reports when it is a skills directory, an entry or an entry's
+`SKILL.md`, none of which is a skill.
 """
 
 from dataclasses import dataclass
@@ -27,7 +28,7 @@ from typing import Literal, assert_never
 from lorecraft.core.path import RootRelativePath, RootRelativePathError
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import SKILL_FRONTMATTER_SCHEMA, StructureSpec
-from lorecraft.project.skill import OutsideSymlink, SkillRef, SkillResourceRef
+from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillResourceRef
 from lorecraft.project.syntax import (
     Frontmatter,
     InvalidYamlFrontmatter,
@@ -129,13 +130,19 @@ class SkillSelection:
     """One skill a run is handed, and how much of it to check.
 
     Attributes:
-        ref: The skill; one the database's model lists.
+        location: The skill and where its files live, as the database's model hands it out; the run walks the
+            skill's resources from it and reads where its directory leads from it.
         scope: How much of the skill the run checks. A link in the `SKILL.md` is judged against every file of the
             skill either way, so a link to a resource is not broken when the resource itself goes unchecked.
     """
 
-    ref: SkillRef
+    location: SkillLocation
     scope: SkillScope
+
+    @property
+    def ref(self) -> SkillRef:
+        """The skill selected."""
+        return self.location.ref
 
 
 @dataclass(frozen=True, slots=True)
@@ -442,8 +449,8 @@ def run_skills(database: Database, selections: tuple[SkillSelection, ...]) -> Sk
 
     Args:
         database: The snapshot state the refs come from.
-        selections: The skills to check, each with how much of it to check; each ref must be one the database's
-            model lists.
+        selections: The skills to check, each located as the database's model hands it out, with how much of it to
+            check.
 
     Raises:
         SkillReadError: If a skill's `SKILL.md` is missing from the snapshot; a decode failure is a finding.
@@ -465,14 +472,15 @@ def run_skills(database: Database, selections: tuple[SkillSelection, ...]) -> Sk
                 violations = (_undecodable_skill('SKILL.md'),)
                 linked_in = None
             case SkillText():
-                violations, linked_in = _skill_file_violations(database, source)
+                link_target = _link_target(selection.location)
+                violations, linked_in = _skill_file_violations(database, source, link_target=link_target)
             case _:
                 assert_never(source)
         resources: tuple[SkillResourceReport, ...] = ()
         symlinks: tuple[SymlinkReport, ...] = ()
         if selection.scope is SkillScope.WHOLE_SKILL:
-            resources = _skill_resource_reports(database, ref, linked_in=linked_in)
-            symlinks = _symlink_reports(database.skill_resources(ref).outside_symlinks)
+            resources = _skill_resource_reports(database, selection.location, linked_in=linked_in)
+            symlinks = _symlink_reports(database.skill_resources(selection.location).outside_symlinks)
         reports.append(SkillReport(ref, violations=violations, resources=resources, symlinks=symlinks))
     layout = _symlink_reports(database.model().outside_symlinks)
     return SkillCheckRun(layout=layout, reports=tuple(reports))
@@ -492,7 +500,7 @@ def _symlink_reports(outside_symlinks: tuple[OutsideSymlink, ...]) -> tuple[Syml
 
 
 def _skill_file_violations(
-    database: Database, source: SkillText
+    database: Database, source: SkillText, *, link_target: RootRelativePath | None
 ) -> tuple[tuple[Violation, ...], frozenset[PurePosixPath] | None]:
     """The violations in a skill's decoded `SKILL.md`, and the paths its `metadata` links files in at. Raises nothing.
 
@@ -500,6 +508,8 @@ def _skill_file_violations(
         database: Where the `SKILL.md`'s frontmatter, line count and parse tree are read, and each path its links
             and its `metadata` name is looked up.
         source: The skill's `SKILL.md` text, as the database decoded it.
+        link_target: The resolved directory the skill's listed directory leads to when it is a link, or `None`
+            when it is not, as `_link_target` reads it from the skill's location.
 
     Returns:
         The frontmatter's violations, then the line budget's, then the links', then, when the frontmatter is a
@@ -510,7 +520,6 @@ def _skill_file_violations(
     # `name` is held to the directory an agent lists, never to where a link leads: an agent opens
     # `<entry>/SKILL.md` and lets the OS follow any symlink. Where it leads only words a note.
     directory_name = ref.directory.name
-    link_target = _link_target(database, ref)
     frontmatter = database.skill_frontmatter(source)
     length_result = validate_skill_length(line_count=database.skill_lines(source))
     match frontmatter:
@@ -548,19 +557,17 @@ def _skill_file_violations(
             assert_never(frontmatter)
 
 
-def _link_target(database: Database, ref: SkillRef) -> RootRelativePath | None:
+def _link_target(location: SkillLocation) -> RootRelativePath | None:
     """The resolved directory a skill's listed directory leads to when it is a link, or `None` when it is not.
 
     Read from the location the model records, never from the disk. Raises nothing.
 
     Args:
-        database: Where the model is read from.
-        ref: The skill, one the database's model lists.
+        location: The skill and where its files live, as the model hands it out.
     """
-    resolves_to = database.model().skill_location(ref).resolves_to
-    if resolves_to == ref.directory:
+    if location.resolves_to == location.ref.directory:
         return None
-    return resolves_to
+    return location.resolves_to
 
 
 def _skill_links(
@@ -622,7 +629,7 @@ def _link_target_state(database: Database, ref: SkillRef, path: PurePosixPath) -
 
 
 def _skill_resource_reports(
-    database: Database, ref: SkillRef, *, linked_in: frozenset[PurePosixPath] | None
+    database: Database, skill: SkillLocation, *, linked_in: frozenset[PurePosixPath] | None
 ) -> tuple[SkillResourceReport, ...]:
     """One report per resource of a skill, in the order the database lists them.
 
@@ -632,7 +639,7 @@ def _skill_resource_reports(
     Args:
         database: Where the skill's resources are listed, each one's parse tree is read from, and each path a
             link names is looked up.
-        ref: The skill whose resources are checked.
+        skill: The skill whose resources are checked, located as the model hands it out.
         linked_in: Every path inside the skill the skill's `metadata` links a file in at, or `None` when that
             `metadata` is unknown.
 
@@ -643,9 +650,9 @@ def _skill_resource_reports(
         SkillResourceReadError: If a resource is missing from the snapshot; a decode failure is a finding.
     """
     reports: list[SkillResourceReport] = []
-    for location in database.skill_resources(ref).resources:
+    for location in database.skill_resources(skill).resources:
         resource = location.ref
-        source = database.skill_resource_text(resource)
+        source = database.skill_resource_text(location)
         match source:
             case Undecodable():
                 reports.append(SkillResourceReport(resource, violations=(_undecodable_skill('resource'),)))
@@ -654,7 +661,7 @@ def _skill_resource_reports(
                 result = validate_skill_links(
                     links=parsed.links,
                     anchors=parsed.anchors,
-                    targets=_link_targets(database, ref, parsed.links),
+                    targets=_link_targets(database, skill.ref, parsed.links),
                     linked_in=linked_in,
                 )
                 reports.append(SkillResourceReport(resource, violations=result.violations))

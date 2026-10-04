@@ -25,14 +25,14 @@ use and kept for as long as the database lives (pattern-memoization):
   witness and nothing else.
 - `skill_lines(source)`: how many lines one skill's `SKILL.md` holds, like `tokens(source)` for a document: counted
   from the raw text, frontmatter included, without a parse. It reads the text of the witness and nothing else.
-- `skill_resources(ref)`: one skill's resources, the Markdown files inside it other than its top-level `SKILL.md`,
+- `skill_resources(skill)`: one skill's resources, the Markdown files inside it other than its top-level `SKILL.md`,
   like the IDE's listing of a content root's children, and the symlinks inside it whose chain leaves the
   repository. It reads the listings and the symlink targets reached from that skill, and where the model locates
   the skill, and no file's content.
-- `skill_resource_text(ref)`: one resource decoded, the same document text: a `SkillResourceText` witness, or an
+- `skill_resource_text(resource)`: one resource decoded, the same document text: a `SkillResourceText` witness, or an
   `Undecodable` marker. It reads that resource's bytes, and where its skill's listing locates it, and nothing else.
 - `skill_resource_parse(source)`: one resource's parse tree, the same syntax tree again. It reads the text of the
-  witness `skill_resource_text(ref)` returned and nothing else.
+  witness `skill_resource_text(resource)` returned and nothing else.
 - `tokens(source)`: what one document's whole file costs an agent that loads it, like another per-file index
   entry: counted from the raw text, frontmatter and code included, without a parse. It reads the text of the
   witness `text(ref)` returned and nothing else.
@@ -109,6 +109,7 @@ from lorecraft.project.layout import named_dirs_of_scope, reject_linked_layout
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.skill import (
     SkillDecodeError,
+    SkillLocation,
     SkillRef,
     SkillResourceDecodeError,
     SkillResourceListing,
@@ -431,14 +432,14 @@ class Database:
             self._skill_line_counts[source.ref] = count
         return count
 
-    def skill_resources(self, ref: SkillRef) -> SkillResourceListing:
+    def skill_resources(self, skill: SkillLocation) -> SkillResourceListing:
         """The resources of one skill and its symlinks leading outside the repository, listed on the first call.
 
         Each resource is named where an agent reaches it, under the skill's directory, and located at the resolved file
         that path leads to, sorted by ref; `Repository.list_skill_resources` states which files are resources and
         which symlinks the walk follows. Each symlink whose chain leaves the repository is named the same way, with
-        the link it leaves through, sorted by path. The skill's location is the model's, so the model is loaded
-        first if it is not yet.
+        the link it leaves through, sorted by path. The walk starts at the location given, the one the model hands
+        out for the skill.
 
         Carry-over: the listing of one skill is kept for the next revision unless one of these changed:
 
@@ -455,62 +456,37 @@ class Database:
         A listing that fails is not cached, so each call raises the same error again.
 
         Args:
-            ref: The skill whose resources are listed; the cache key, so one skill is walked once.
+            skill: Where the skill's files live, as this database's model locates it; its ref is the cache key, so one
+                skill is walked once.
 
         Raises:
-            ValueError: If the model lists no skill with this ref (refs from the model never trigger it).
             SkillResourcesListError: If a directory the walk enters cannot be listed.
             SkillResourcesSymlinkResolveError: If a symlink the walk meets cannot be resolved.
-            DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
-            CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
-            StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
-            StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in
-                the dialect's shape.
-            EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
-            RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
-            RepeatedForbiddenSectionError: If the model is not loaded yet and a specification forbids a section twice.
-            ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
-                outline names.
-            AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by
-                side.
-            InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by
-                the meta-schema.
-            FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries
-                `$id`.
-            ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema
-                names another dialect.
-            UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not
-                state an object.
-            DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
-            EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot
-                be inspected, or a link's target read, while looking for where it leaves the repository.
-            SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
-            SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
-            SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
-            SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
         """
-        resources = self._skill_resources.get(ref)
+        resources = self._skill_resources.get(skill.ref)
         if resources is None:
-            location = self.model().skill_location(ref)
-            resources = self._skills.list_skill_resources(location)
-            self._skill_resources[ref] = resources
+            resources = self._skills.list_skill_resources(skill)
+            self._skill_resources[skill.ref] = resources
         return resources
 
-    def skill_resource_text(self, ref: SkillResourceRef) -> SkillResourceText | Undecodable:
+    # Takes the location its listing issued where `text` and `skill_text` take a ref: the model locates a document
+    # or a `SKILL.md` by its ref, but only the skill's resource listing locates a resource's file.
+    def skill_resource_text(self, resource: SkillResourceLocation) -> SkillResourceText | Undecodable:
         """One resource of a skill decoded as UTF-8, read from the snapshot on the first call for its ref.
 
-        The resource is read at the resolved file `skill_resources(ref.skill)` locates the ref at, never at `ref.path`,
-        so the skill's resources are listed first if they are not yet. The one place a resource's bytes become text:
-        every other query about it takes the witness this returns. A resource that is not UTF-8 is cached as
-        `Undecodable` like any answer, so it is decoded once.
+        The resource is read at the resolved file its location records, as `skill_resources` lists it, never at
+        `resource.ref.path`. The one place a resource's bytes become text: every other query about it takes the
+        witness this returns. A resource that is not UTF-8 is cached as `Undecodable` like any answer, so it is
+        decoded once.
 
-        Carry-over: kept for the next revision only when the next `skill_resources(ref.skill)` locates the ref at the
-        same resolved file and that file's bytes did not change.
+        Carry-over: kept for the next revision only when the next `skill_resources` of its skill locates the ref at
+        the same resolved file and that file's bytes did not change.
 
         A resource that cannot be read is not cached, so each call raises the same error again.
 
         Args:
-            ref: The resource to decode, as `skill_resources` names it; the cache key, so one ref is decoded once.
+            resource: The resource to decode, as `skill_resources` locates it; its ref is the cache key, so one ref
+                is decoded once.
 
         Returns:
             The witness, or `Undecodable` when the resource is present but not UTF-8: such bytes are a finding
@@ -518,58 +494,24 @@ class Database:
             is.
 
         Raises:
-            ValueError: If `skill_resources(ref.skill)` lists no resource with this ref (refs from it never trigger
-                it).
             SkillResourceReadError: If the snapshot holds no regular file at the resolved file the ref leads to.
-            SkillResourcesListError: If the skill's resources are not listed yet and a directory the walk enters
-                cannot be listed.
-            SkillResourcesSymlinkResolveError: If the skill's resources are not listed yet and a symlink the walk
-                meets cannot be resolved.
-            DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
-            CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
-            StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
-            StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in
-                the dialect's shape.
-            EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
-            RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
-            RepeatedForbiddenSectionError: If the model is not loaded yet and a specification forbids a section twice.
-            ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
-                outline names.
-            AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by
-                side.
-            InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by
-                the meta-schema.
-            FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries
-                `$id`.
-            ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema
-                names another dialect.
-            UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not
-                state an object.
-            DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
-            EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot
-                be inspected, or a link's target read, while looking for where it leaves the repository.
-            SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
-            SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
-            SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
-            SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
         """
-        source = self._skill_resource_texts.get(ref)
+        source = self._skill_resource_texts.get(resource.ref)
         if source is None:
-            location = _skill_resource_location(self.skill_resources(ref.skill).resources, ref)
             try:
-                source = SkillResourceText(ref, self._skills.get_skill_resource(location).text)
+                source = SkillResourceText(resource.ref, self._skills.get_skill_resource(resource).text)
             except SkillResourceDecodeError:
-                source = Undecodable(ref)
-            self._skill_resource_texts[ref] = source
+                source = Undecodable(resource.ref)
+            self._skill_resource_texts[resource.ref] = source
         return source
 
     def skill_resource_parse(self, source: SkillResourceText) -> ParsedDocument:
         """The parse tree of one resource of a skill, parsed on the first call for its ref. Raises nothing.
 
-        Carry-over: kept for the next revision whenever `skill_resource_text(source.ref)` is.
+        Carry-over: kept for the next revision whenever `skill_resource_text` keeps the text of `source.ref`.
 
         Args:
-            source: The resource's text, as `skill_resource_text(ref)` returns it; its ref is the cache key, so one
+            source: The resource's text, as `skill_resource_text(resource)` returns it; its ref is the cache key, so one
                 ref is parsed once.
         """
         parsed = self._skill_resource_parses.get(source.ref)
@@ -577,21 +519,3 @@ class Database:
             parsed = parse_document(source.text)
             self._skill_resource_parses[source.ref] = parsed
         return parsed
-
-
-def _skill_resource_location(
-    resources: tuple[SkillResourceLocation, ...], ref: SkillResourceRef
-) -> SkillResourceLocation:
-    """The location of one resource among a skill's resources.
-
-    Args:
-        resources: The skill's resources, as `Database.skill_resources` lists them.
-        ref: The resource to look up.
-
-    Raises:
-        ValueError: If no location in `resources` is the ref's.
-    """
-    for location in resources:
-        if location.ref == ref:
-            return location
-    raise ValueError(f'{ref.path} is not a resource of skill {ref.skill.directory}')
