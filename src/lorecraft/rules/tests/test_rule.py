@@ -1,7 +1,10 @@
-"""A rule's declaration: its identity values."""
+"""A rule's declaration: its identity values and its rule bases."""
 
 import pytest
 
+from lorecraft.project.syntax import LineNumber
+
+from ..location import Here, WholeSubject
 from ..rule import (
     AliasCode,
     EmptyAliasLinterError,
@@ -16,7 +19,10 @@ from ..rule import (
     RuleGroup,
     RuleNumberOutOfRangeError,
 )
+from .sample_input import SampleEntry, SampleLines
 from .sample_rules.groups import SAMPLE
+from .sample_rules.valid.trailing_space import TrailingSpace
+from .sample_rules.valid.uppercase_entry import UppercaseEntry
 
 
 @pytest.mark.unit
@@ -271,3 +277,91 @@ class TestLevel:
 
         #: Then
         assert spelled == expected, 'the three levels, in order, are spelled allow, warn and deny'
+
+
+@pytest.mark.unit
+class TestContentRule:
+    def test_primary_of_a_content_rule_occurrence_is_its_line(self) -> None:
+        #: Given
+        occurrence = TrailingSpace(spec=None, line=LineNumber(4))
+
+        #: When
+        primary = occurrence.primary()
+
+        #: Then
+        assert primary == Here(LineNumber(4)), 'an occurrence in a subject with lines points at its line'
+
+    def test_labels_of_a_content_rule_occurrence_by_default_are_empty(self) -> None:
+        #: Given
+        occurrence = TrailingSpace(spec=None, line=LineNumber(4))
+
+        #: When
+        labels = occurrence.labels()
+
+        #: Then
+        assert labels == (), 'a rule that writes no label leaves its line unlabelled'
+
+    def test_children_of_a_content_rule_occurrence_by_default_are_empty(self) -> None:
+        #: Given
+        occurrence = TrailingSpace(spec=None, line=LineNumber(4))
+
+        #: When
+        children = occurrence.children()
+
+        #: Then
+        assert children == (), 'a rule that writes no help or note prints its message alone'
+
+    def test_check_of_a_sample_rule_reports_its_own_occurrences(self) -> None:
+        #: Given
+        subject = SampleLines(('clean', 'trailing ', 'clean'))
+
+        #: When
+        occurrences = TrailingSpace.check(subject)
+
+        #: Then
+        assert occurrences == (TrailingSpace(spec=None, line=LineNumber(2)),), (
+            'a rule reports one instance of its own class per occurrence'
+        )
+
+
+@pytest.mark.unit
+class TestLayoutRule:
+    def test_primary_of_a_layout_rule_occurrence_is_the_whole_subject(self) -> None:
+        #: Given
+        occurrence = UppercaseEntry(spec=None)
+
+        #: When
+        primary = occurrence.primary()
+
+        #: Then
+        assert primary == WholeSubject(), 'a layout entry has no lines, so its occurrence points at the entry'
+
+    def test_labels_of_a_layout_rule_occurrence_by_default_are_empty(self) -> None:
+        #: Given
+        occurrence = UppercaseEntry(spec=None)
+
+        #: When
+        labels = occurrence.labels()
+
+        #: Then
+        assert labels == (), 'a rule that writes no label leaves the entry unlabelled'
+
+    def test_children_of_a_layout_rule_occurrence_by_default_are_empty(self) -> None:
+        #: Given
+        occurrence = UppercaseEntry(spec=None)
+
+        #: When
+        children = occurrence.children()
+
+        #: Then
+        assert children == (), 'a rule that writes no help or note prints its message alone'
+
+    def test_check_of_a_sample_layout_rule_reports_one_occurrence_for_the_entry(self) -> None:
+        #: Given
+        subject = SampleEntry('README')
+
+        #: When
+        occurrences = UppercaseEntry.check(subject)
+
+        #: Then
+        assert occurrences == (UppercaseEntry(spec=None),), 'a layout rule reports the entry once, with no line'

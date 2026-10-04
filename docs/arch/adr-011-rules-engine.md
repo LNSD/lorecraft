@@ -69,8 +69,8 @@ per run            configuration (a query of the revision) ──▶ levels
                        decode → witness, or an undecodable engine diagnostic
                        for each input kind with enabled rules:
                          build the input once from the queries → governed or ungoverned
-                         for each rule in that partition: rule.check(input) → violations
-                       locate the violations into diagnostics with the table's severities
+                         for each rule in that partition: rule.check(input) → occurrences
+                       locate the occurrences into diagnostics with the table's severities
                        │
                        ▼
                    subject reports → command line renders text / JSON, exit code
@@ -79,7 +79,7 @@ per run            configuration (a query of the revision) ──▶ levels
 - **Generic over rules.** The runner never names a rule: a new rule is a class the registry collects, and it
   joins its input's partition of the table.
 - **Specific over inputs.** The runner has one hand-written branch per input kind, which keeps dispatch typed:
-  the headings partition holds `type[HeadingsViolation]`, so `rule.check(input)` checks against `HeadingsInput`.
+  the headings partition holds `type[HeadingsRule]`, so `rule.check(input)` checks against `HeadingsInput`.
 - **Configuration and selection never reach a rule.** They shape the table and nothing else.
 - **Subjects arrive chosen.** The command line resolves the paths into subject refs; the runner receives those,
   the database and the table, and nothing else.
@@ -90,7 +90,7 @@ An input is a frozen value of Lorecraft's own types: the facts a query returned,
 them, and the subject's identity values, such as a filename or the directory a skill is listed under. A rule
 receives one input and nothing else: never the database, a view or a path.
 
-The set is closed. Each kind is one dataclass and one violation base class whose `check` takes it.
+The set is closed. Each kind is one dataclass and one rule base class whose `check` takes it.
 
 | Input | Subjects | Built from | Governed by |
 |---|---|---|---|
@@ -116,7 +116,7 @@ reviewed.
 
 **A shared analysis is an input.** Schema validation and outline matching each find several conditions in one
 pass. The runner computes the analysis once per subject, as a tuple of typed problems, when an enabled rule
-reads it. Each condition is then a rule that projects its own problem type into its violation class. The
+reads it. Each condition is then a rule that projects its own problem type into its occurrences. The
 analysis is a judgment, so it lives for one run and is never memoized as a query: the invariant that check
 results are not cached stands.
 
@@ -166,7 +166,7 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
         return UndecodableSubject(ref)
     # `source` is a `DocumentText` from here on: the witness every per-file query takes
 
-    violations: list[Violation] = []
+    occurrences: list[Rule] = []
     ungoverned: list[InputKind] = []
 
     if table.headings:  # the parse is never asked for when no enabled rule reads it
@@ -175,9 +175,9 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
                 ungoverned.append(InputKind.HEADINGS)
             case HeadingsInput() as subject:
                 for rule in table.headings:
-                    violations.extend(rule.check(subject))
+                    occurrences.extend(rule.check(subject))
     ...
-    return CheckedSubject(ref, diagnostics=table.located(ref, violations), ungoverned=tuple(ungoverned))
+    return CheckedSubject(ref, diagnostics=table.located(ref, occurrences), ungoverned=tuple(ungoverned))
 ```
 
 - **Adding a rule never touches the runner.** The rule joins its input's partition through the registry

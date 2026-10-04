@@ -1,6 +1,6 @@
 ---
 name: "adr-009-rules"
-description: "How a rule of the structured checks is declared and identified: one violation class per rule with its own typed check, codes in groups named after the mechanism that states them, alias codes for rules absorbed from other linters, a removed rule as a type of its own, one registry, and a rulebook generated from the classes. Load when writing, porting, renaming or retiring a rule, or changing its code, group, default level or documentation"
+description: "How a rule of the structured checks is declared and identified: one class per rule with its own typed check, codes in groups named after the mechanism that states them, alias codes for rules absorbed from other linters, a removed rule as a type of its own, one registry, and a rulebook generated from the classes. Load when writing, porting, renaming or retiring a rule, or changing its code, group, default level or documentation"
 type: "adr"
 status: "proposed"
 ---
@@ -26,22 +26,22 @@ the design.
 ## Glossary
 
 The terms are the established linters', so a reader who knows one reads this design and its code without
-translating: a rule identified by its violation type, with a code and a name; levels that configure it;
+translating: a rule identified by its type, with a code and a name; levels that configure it;
 diagnostics in the shape a language server publishes; help and notes beside a message. For a user the model is
 shorter still: the checker reports errors and warnings, and they act on them.
 
 | Term | Meaning |
 |---|---|
-| **Rule** | What a user reads about and configures: a code, a name, a default level and a rulebook page. Its violation class is its declaration |
-| **Violation** | The class that declares a rule and checks for it, and each instance it reports: one occurrence, with its line and its data. It names no subject |
+| **Rule** | What a user reads about and configures: a code, a name, a default level and a rulebook page. In the code it is one class, its declaration and its check |
+| **Occurrence** | One instance of a rule: where it fired, with the data of that place; names no subject |
 | **Rule code**, **rule name** | `OUT002` and `empty-section`. A code is a rule group's prefix and a number |
 | **Rule group** | The rules one mechanism states, under one prefix and title |
 | **Rulebook** | The reference manual of the engine's rules, one page per code in `docs/rulebook/`, generated from the rules' classes |
 | **Alias code** | An upstream linter's code for a rule Lorecraft absorbed, such as `MD040`. A rule's code is always Lorecraft's; an alias code only points to it |
-| **Removed rule** | A retired code, with the release that removed it and its replacement. Never a violation |
+| **Removed rule** | A retired code, with the release that removed it and its replacement. Never has an occurrence |
 | **Subject** | What is checked: a document, a skill, a skill resource or a layout entry |
 | **Input** | The one frozen value a rule reads about a subject, built from the database's queries |
-| **Diagnostic** | A violation located at a subject's path, with a severity |
+| **Diagnostic** | An occurrence located at a subject's path, with a severity |
 | **Level** | `allow`, `warn` or `deny`: how a rule is configured |
 | **Severity** | `error` or `warning`: what a diagnostic carries, and what a user acts on |
 | **Label** | Text attached to a location: the primary label says what is wrong there, a secondary one points at a related place |
@@ -53,7 +53,7 @@ shorter still: the checker reports errors and warnings, and they act on them.
 
 ## Decision
 
-1. **A rule is a violation class.** The class is the declaration and the check: its code, name, default level,
+1. **A rule is one class.** The class is the declaration and the check: its code, name, default level,
    documentation, and the classmethod that judges its input. One rule has one code, one class and one file. A
    removed rule is a type of its own, which can never be reported.
 2. **One registry**, discovered by a package walk, is the only list of rules. The runner, the rulebook and the
@@ -68,12 +68,12 @@ shorter still: the checker reports errors and warnings, and they act on them.
 
 ## Design
 
-### A Rule Is a Violation Class
+### A Rule Is One Class
 
 ```python
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class EmptySection(HeadingsViolation):
+class EmptySection(HeadingsRule):
     """A section holds no content, under a specification that forbids empty sections.
 
     ## What it does
@@ -101,14 +101,14 @@ class EmptySection(HeadingsViolation):
         )
 ```
 
-- **`Violation`** carries what every violation has: the specification file that states the rule (or none, for a
+- **`Rule`** carries what every occurrence has: the specification file that states the rule (or none, for a
   rule the package states). The line is not on it: every input base whose subject has lines derives from
-  `ContentViolation`, which carries the line, and `LayoutViolation`, for a layout entry, carries none. A subclass
+  `ContentRule`, which carries the line, and `LayoutRule`, for a layout entry, carries none. A subclass
   adds the data of its own condition and the context its diagnostic needs, as
   [adr-010-diagnostics](adr-010-diagnostics.md) states.
-- **The base class names the input.** Each input kind has one base, `HeadingsViolation` for the headings, whose
+- **The base class names the input.** Each input kind has one base, `HeadingsRule` for the headings, whose
   abstract `check` fixes the input's type. A rule picks its input by picking its base.
-- **`check` returns `tuple[Self, ...]`**, so a rule can only report its own violation, and the type checker
+- **`check` returns `tuple[Self, ...]`**, so a rule can only report its own occurrence, and the type checker
   rejects one that reports another's. That needs no type parameter anywhere in the engine.
 - **The message is rendered from the fields.** The corpus, the field and the section travel as data, not as
   text inside a message (FR-011), so the machine-readable output and a persisted result hold structured values.
@@ -125,7 +125,9 @@ class EmptySection(HeadingsViolation):
 
 The established linters keep a rule's check as a function beside its violation type. Here it is a classmethod
 of the type, the one departure from their shape, so that a rule is one declaration: a rule in service without a
-check is an abstract class, which the registry rejects at load, and a removed rule is not a violation at all.
+check is an abstract class, which the registry rejects at load, and a removed rule is not a `Rule` at all.
+Since the class is then the rule itself, it is named after the rule rather than after a violation, and each
+instance is one occurrence of it.
 
 ### Codes, Groups and Life Cycle
 
@@ -164,9 +166,9 @@ check is an abstract class, which the registry rejects at load, and a removed ru
 - **Codes identify the engine's rules alone.** A code rule under `docs/code/`, and any rule a repository's own
   documents state, keeps its document's kebab-case name and never takes a code: agents read and apply those
   rules, and the engine reports none of them.
-- **Life cycle is a type.** A rule in service is a violation class, with `SINCE`. A retired rule becomes a
+- **Life cycle is a type.** A rule in service is a rule class, with `SINCE`. A retired rule becomes a
   `RemovedRule`: its code, its name, `REMOVED_IN`, `REPLACED_BY` and its docstring, registered by `@rule` in the
-  same file. It is not a `Violation`, so it can never be built as one or reported. Its code is never free to
+  same file. It is not a `Rule`, so it can never be built as one or reported. Its code is never free to
   reuse (FR-014), and a configuration that names it fails with the release and the replacement (FR-015).
 - **`SINCE` and `REMOVED_IN` are `Release` values**, a value object by
   [pattern-value-object](../code/pattern-value-object.md): one string field in the form `MAJOR.MINOR.PATCH`,
@@ -181,9 +183,9 @@ check is an abstract class, which the registry rejects at load, and a removed ru
 ### The Registry
 
 The registry follows [pattern-registry](../code/pattern-registry.md). It walks the rules package once, imports
-every module, and collects the violation classes and removed rules `@rule` registered.
+every module, and collects the rule classes and removed rules `@rule` registered.
 
-- It rejects a code, an alias code or a name bound twice, and a violation class that is still abstract: a
+- It rejects a code, an alias code or a name bound twice, and a rule class that is still abstract: a
   rule with no `check`. It propagates an import failure.
 - It lists rules in code order.
 - It is package data. It reads no workspace, is not a query, and no class from it enters a query result. A
@@ -225,7 +227,7 @@ docs/rulebook/
 
 ### Tests
 
-- **Per rule:** a triggering case and a near miss, keyed by the code and asserted on the violation's type
+- **Per rule:** a triggering case and a near miss, keyed by the code and asserted on the occurrence's type
   (NFR-006).
 - **A meta-test over the registry** names every code that lacks either case, and fails when two codes fire on
   one line of a case unless the pair is declared.
@@ -242,7 +244,7 @@ docs/rulebook/
   set, so the runner would need a membership check, and a rule would no longer be one file. It becomes the
   better choice only if a shared analysis turns expensive.
 - **A decorator on a function that returns code-less hits, stamped by the runner.** It was the first proposal.
-  The violation class needs no stamping, and it makes a diagnostic structured data.
+  The rule class needs no stamping, and it makes a diagnostic structured data.
 - **The check as a function beside the class, registered by a generic decorator.** The established linters'
   shape, and this design's previous draft. Class and function are then two declarations tied at runtime: a rule
   in service can lack its check, and a removed rule is still a violation that can be built. The classmethod
