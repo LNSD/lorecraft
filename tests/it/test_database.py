@@ -1,7 +1,8 @@
 """The database over a hand-built snapshot.
 
-The model, each frontmatter, each parse tree, each token count and each skill's parse tree are computed once, and
-the layout guard and the scope question read the same snapshot. The expanded scope behind the scope question is
+The model, each decoded text, each frontmatter, each parse tree, each token count and each skill's parse tree are
+computed once, and every query about a document's content is asked with the witness its decode query returned. The
+layout guard and the scope question read the same snapshot. The expanded scope behind the scope question is
 private to the database, so that it is built once is not observed here; that every question after the first is
 answered correctly from it is.
 
@@ -15,11 +16,11 @@ from typing import Final
 
 import pytest
 
-from lorecraft.checks import Database
+from lorecraft.checks import Database, DocumentText, Undecodable
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.document import DocumentDecodeError, DocumentRef
+from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import LinkedLayoutError, scope_with_named_dirs
 from lorecraft.project.skill import NamedDir, SkillDecodeError, SkillLocation, SkillRef
 from lorecraft.project.syntax import Frontmatter, Heading, LineNumber, count_tokens
@@ -52,6 +53,18 @@ def _skill_snapshot(skill: bytes) -> Snapshot:
         skill: Bytes of the skill's `SKILL.md`.
     """
     return Snapshot.from_files({RootRelativePath.parse('.agents/skills/review/SKILL.md'): skill})
+
+
+def _document_text(database: Database, ref: DocumentRef) -> DocumentText:
+    """The witness of a document the test wrote as UTF-8, as the database decodes it.
+
+    Args:
+        database: The database the document is decoded by.
+        ref: A document whose bytes are UTF-8.
+    """
+    source = database.text(ref)
+    assert isinstance(source, DocumentText), f'{ref.path} was written as UTF-8, so it decodes'
+    return source
 
 
 def _climbing_chain_snapshot() -> Snapshot:
@@ -293,12 +306,44 @@ class TestDatabase:
         #: Then
         assert resolved == RootRelativePath.parse('a/b/SKILL.md'), 'the scan follows skills/m to a/b'
 
-    def test_frontmatter_of_a_listed_document_returns_its_decoded_block(self) -> None:
+    def test_text_of_a_utf8_document_returns_its_witness(self) -> None:
         #: Given
         database = Database(_snapshot(b'---\nname: "guide"\n---\n'))
 
         #: When
-        frontmatter = database.frontmatter(GUIDE)
+        source = database.text(GUIDE)
+
+        #: Then
+        assert source == DocumentText(GUIDE, '---\nname: "guide"\n---\n'), 'the witness holds the ref and its text'
+
+    def test_text_of_a_document_that_is_not_utf8_returns_undecodable(self) -> None:
+        #: Given
+        database = Database(_snapshot(b'---\nname: "gu\xffide"\n---\n'))
+
+        #: When
+        source = database.text(GUIDE)
+
+        #: Then
+        assert source == Undecodable(GUIDE), 'a decode failure is an answer naming the document, not an error'
+
+    def test_text_of_a_document_that_is_not_utf8_called_twice_returns_the_first_answer(self) -> None:
+        #: Given
+        database = Database(_snapshot(b'---\nname: "gu\xffide"\n---\n'))
+        first = database.text(GUIDE)
+
+        #: When
+        second = database.text(GUIDE)
+
+        #: Then
+        assert second is first, 'an undecodable document is cached like any answer, so it is decoded once'
+
+    def test_frontmatter_of_a_listed_document_returns_its_decoded_block(self) -> None:
+        #: Given
+        database = Database(_snapshot(b'---\nname: "guide"\n---\n'))
+        source = _document_text(database, GUIDE)
+
+        #: When
+        frontmatter = database.frontmatter(source)
 
         #: Then
         assert isinstance(frontmatter, Frontmatter), 'the snapshot bytes decode into a frontmatter node'
@@ -307,24 +352,14 @@ class TestDatabase:
     def test_frontmatter_called_twice_returns_the_first_answer(self) -> None:
         #: Given
         database = Database(_snapshot(b'---\nname: "guide"\n---\n'))
-        first = database.frontmatter(GUIDE)
+        source = _document_text(database, GUIDE)
+        first = database.frontmatter(source)
 
         #: When
-        second = database.frontmatter(GUIDE)
+        second = database.frontmatter(source)
 
         #: Then
         assert second is first, 'a document frontmatter is decoded once per database, then shared by every check'
-
-    def test_frontmatter_of_a_document_that_is_not_utf8_raises_document_decode_error(self) -> None:
-        #: Given
-        database = Database(_snapshot(b'---\nname: "gu\xffide"\n---\n'))
-
-        #: When
-        with pytest.raises(DocumentDecodeError) as exc_info:
-            database.frontmatter(GUIDE)
-
-        #: Then
-        assert exc_info.value.ref == GUIDE, 'the error names the document that could not be decoded'
 
     def test_parse_of_a_listed_document_returns_its_headings(self) -> None:
         #: Given
@@ -337,9 +372,10 @@ class TestDatabase:
             """
         )
         database = Database(_snapshot(text.encode()))
+        source = _document_text(database, GUIDE)
 
         #: When
-        document = database.parse(GUIDE)
+        document = database.parse(source)
 
         #: Then
         assert document.headings == (Heading(level=1, text='Guide', line=LineNumber(4), empty=True, words=0),), (
@@ -349,48 +385,28 @@ class TestDatabase:
     def test_parse_called_twice_returns_the_first_answer(self) -> None:
         #: Given
         database = Database(_snapshot(b'---\nname: "guide"\n---\n'))
-        first = database.parse(GUIDE)
+        source = _document_text(database, GUIDE)
+        first = database.parse(source)
 
         #: When
-        second = database.parse(GUIDE)
+        second = database.parse(source)
 
         #: Then
         assert second is first, 'a document is parsed once per database, then shared by every check'
-
-    def test_parse_of_a_document_that_is_not_utf8_raises_document_decode_error(self) -> None:
-        #: Given
-        database = Database(_snapshot(b'---\nname: "gu\xffide"\n---\n'))
-
-        #: When
-        with pytest.raises(DocumentDecodeError) as exc_info:
-            database.parse(GUIDE)
-
-        #: Then
-        assert exc_info.value.ref == GUIDE, 'the error names the document that could not be decoded'
 
     def test_tokens_of_a_listed_document_counts_its_whole_file(self) -> None:
         #: Given
         # no prose words at all, but an agent loading the file still pays for every character of it
         guide = '---\nname: "guide"\n---\n```python\nx = 1\n```\n'
         database = Database(_snapshot(guide.encode()))
+        source = _document_text(database, GUIDE)
         expected = count_tokens(guide)
 
         #: When
-        tokens = database.tokens(GUIDE)
+        tokens = database.tokens(source)
 
         #: Then
         assert tokens == expected, f'frontmatter and code count too, got {tokens}'
-
-    def test_tokens_of_a_document_that_is_not_utf8_raises_document_decode_error(self) -> None:
-        #: Given
-        database = Database(_snapshot(b'---\nname: "gu\xffide"\n---\n'))
-
-        #: When
-        with pytest.raises(DocumentDecodeError) as exc_info:
-            database.tokens(GUIDE)
-
-        #: Then
-        assert exc_info.value.ref == GUIDE, 'the error names the document that could not be decoded'
 
     def test_skill_parse_of_a_skill_returns_its_links(self) -> None:
         #: Given
