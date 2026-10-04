@@ -70,7 +70,11 @@ class _CorpusJson(TypedDict):
     """One corpus: the directory it reads, its specifications and its governed documents.
 
     Attributes:
+        name: The corpus's name, the directory under `docs/` it reads.
         directory: The directory the corpus reads, as a root-relative path.
+        specs: The corpus spec first, then its namespace specs broad to narrow; at least one entry.
+        documents: The Markdown files directly inside `directory`, sorted by filename, each with the spec files that
+            govern it.
     """
 
     name: str
@@ -83,6 +87,7 @@ class _AgentSkillsDirJson(TypedDict):
     """One agent's skills directory.
 
     Attributes:
+        agent: The name of the agent that reads the directory, such as `codex`.
         path: The directory where the agent finds it, as a root-relative path.
         resolves_to: The directory it leads to: `path` itself unless `path` is a link.
     """
@@ -97,6 +102,8 @@ class _SkillJson(TypedDict):
 
     Attributes:
         path: The skill's `SKILL.md`, as a root-relative path.
+        agents: The names of the agents whose skills directory leads to the one holding the skill, each once, sorted
+            by name; each is the `agent` of an entry in `agent_skills_dirs`.
     """
 
     path: str
@@ -108,6 +115,11 @@ class _WorkspaceJson(TypedDict):
 
     Attributes:
         root: The workspace root, as an absolute path; every other path is root-relative.
+        corpora: Every corpus, sorted by name.
+        agent_skills_dirs: Every project skills directory an agent reads that the repository has, one entry per agent
+            and directory, sorted by agent then path; two agents reading one directory share a `resolves_to`.
+        skills: Every skill directly inside a directory an entry of `agent_skills_dirs` resolves to, each once, sorted
+            by its directory.
     """
 
     root: str

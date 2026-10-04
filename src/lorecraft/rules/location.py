@@ -58,6 +58,7 @@ class Label:
 
     Attributes:
         at: The place it labels: a line of the subject, or a line or the whole of another file.
+        text: What is wrong at `at`, or how that place relates to the occurrence.
     """
 
     at: Location
@@ -69,6 +70,7 @@ class Help:
     """How to fix this occurrence, on a subject with lines.
 
     Attributes:
+        text: The fix, addressed to the user who edits the subject.
         at: The place the help points at, or None when it points nowhere.
     """
 
@@ -81,6 +83,7 @@ class Note:
     """Context that explains this occurrence, on a subject with lines.
 
     Attributes:
+        text: The context; for a rule the package states, it names the external specification, with no `at`.
         at: The place the note points at, or None when it points nowhere.
     """
 
@@ -98,6 +101,7 @@ class EntryLabel:
 
     Attributes:
         at: The place it labels.
+        text: What is wrong at `at`, or how that place relates to the occurrence.
     """
 
     at: Elsewhere
@@ -109,6 +113,7 @@ class EntryHelp:
     """How to fix this occurrence, on a layout entry.
 
     Attributes:
+        text: The fix, addressed to the user who edits the entry.
         at: The place in another file the help points at, or None when it points nowhere.
     """
 
@@ -121,6 +126,7 @@ class EntryNote:
     """Context that explains this occurrence, on a layout entry.
 
     Attributes:
+        text: The context; for a rule the package states, it names the external specification, with no `at`.
         at: The place in another file the note points at, or None when it points nowhere.
     """
 
