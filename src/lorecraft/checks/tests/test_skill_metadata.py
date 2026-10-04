@@ -239,7 +239,7 @@ class TestValidateSkillMetadata:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber(3),
+                line=LineNumber.parse(3),
                 rule='skill.metadata-missing-file',
                 message='`metadata.references` lists `docs/code/gone.md`, where lorecraft finds no file',
             ),
@@ -300,7 +300,7 @@ class TestValidateSkillMetadata:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber(3),
+                line=LineNumber.parse(3),
                 rule='skill.metadata-outside-scope',
                 message=(
                     '`metadata.scripts` lists `src/tool.py`, which lorecraft does not read; list a file directly '
@@ -339,7 +339,7 @@ class TestValidateSkillMetadata:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber(3),
+                line=LineNumber.parse(3),
                 rule='skill.metadata-duplicate-name',
                 message=(
                     '`metadata.references` lists `docs/code/a.md` and `docs/feat/a.md`, '
@@ -413,7 +413,7 @@ class TestValidateSkillMetadata:
         result = validate_skill_metadata(frontmatter=frontmatter, listed=listed)
 
         #: Then
-        assert [violation.line for violation in result.violations] == [LineNumber(5)], (
+        assert [violation.line for violation in result.violations] == [LineNumber.parse(5)], (
             'the value checked is the last one written, so the finding is on its line'
         )
 

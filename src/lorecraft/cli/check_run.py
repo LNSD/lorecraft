@@ -462,7 +462,7 @@ def _json_findings(findings: tuple[Finding, ...]) -> list[dict[str, object]]:
         objects.append(
             {
                 'file': str(finding.path),
-                'line': finding.line.value,
+                'line': finding.line.number,
                 'rule': finding.rule,
                 'message': finding.message,
                 'spec': None if finding.spec is None else str(finding.spec),

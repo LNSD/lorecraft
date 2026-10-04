@@ -20,7 +20,7 @@ from .frontmatter import (
 from .heading import Heading
 from .lines import count_lines
 from .link import Link
-from .position import InvalidLineNumberError, LineNumber
+from .position import LineNumber
 from .tokens import count_tokens
 
 __all__: list[str] = [
@@ -38,7 +38,6 @@ __all__: list[str] = [
     'Anchor',
     'InvalidAnchorError',
     'LineNumber',
-    'InvalidLineNumberError',
     'count_tokens',
     'count_lines',
 ]

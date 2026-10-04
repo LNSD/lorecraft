@@ -69,7 +69,7 @@ class TestValidateFrontmatter:
         assert [violation.rule for violation in result.violations] == ['frontmatter.name-matches-filename'], (
             'the frontmatter name must equal the filename stem'
         )
-        assert result.violations[0].line == LineNumber(3), (
+        assert result.violations[0].line == LineNumber.parse(3), (
             f'the violation points at the name key, got line {result.violations[0].line}'
         )
 
@@ -85,7 +85,7 @@ class TestValidateFrontmatter:
         assert [violation.rule for violation in result.violations] == ['frontmatter.missing'], (
             'a document without a delimited block has one missing-frontmatter violation'
         )
-        assert result.violations[0].line == LineNumber(1), 'a missing block is reported on line 1'
+        assert result.violations[0].line == LineNumber.parse(1), 'a missing block is reported on line 1'
 
     def test_validate_frontmatter_with_invalid_yaml_reports_unparseable(self) -> None:
         #: Given
@@ -100,7 +100,7 @@ class TestValidateFrontmatter:
             'YAML that does not parse is one unparseable violation'
         )
         assert result.violations[0].message.startswith('frontmatter is not valid YAML'), 'the message names the cause'
-        assert result.violations[0].line == LineNumber(3), 'the violation sits on the line the parser stopped at'
+        assert result.violations[0].line == LineNumber.parse(3), 'the violation sits on the line the parser stopped at'
 
     def test_validate_frontmatter_with_a_tagged_value_its_tag_cannot_construct_reports_unparseable(self) -> None:
         #: Given
@@ -113,7 +113,7 @@ class TestValidateFrontmatter:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber(3),
+                line=LineNumber.parse(3),
                 rule='frontmatter.unparseable',
                 message=(
                     "frontmatter is not valid YAML: could not construct a value for the tag 'tag:yaml.org,2002:int'"
@@ -131,7 +131,9 @@ class TestValidateFrontmatter:
 
         #: Then
         assert result.violations == (
-            Violation(line=LineNumber(1), rule='frontmatter.unparseable', message='frontmatter is not a YAML mapping'),
+            Violation(
+                line=LineNumber.parse(1), rule='frontmatter.unparseable', message='frontmatter is not a YAML mapping'
+            ),
         ), 'a YAML list is not a frontmatter mapping, reported on the line the block opens'
 
     def test_validate_frontmatter_with_missing_required_field_reports_it_under_the_corpus_with_the_schema(self) -> None:
@@ -149,7 +151,7 @@ class TestValidateFrontmatter:
         assert result.violations[0].message.endswith('(per docs/__meta__/code.structure.json)'), (
             'the violation names the schema that required the field'
         )
-        assert result.violations[0].line == LineNumber(1), 'an absent field is reported on line 1'
+        assert result.violations[0].line == LineNumber.parse(1), 'an absent field is reported on line 1'
 
     def test_validate_frontmatter_with_a_field_the_schema_does_not_allow_reports_it_unknown_on_its_line(self) -> None:
         #: Given
@@ -163,7 +165,9 @@ class TestValidateFrontmatter:
         assert len(result.violations) == 1, (
             f'a field the schema does not allow is reported once, got {result.violations}'
         )
-        assert result.violations[0].line == LineNumber(3), 'the unknown field is reported on the line it is written on'
+        assert result.violations[0].line == LineNumber.parse(3), (
+            'the unknown field is reported on the line it is written on'
+        )
         assert result.violations[0].rule == 'code.unknown-field', (
             'a field outside the schema breaks the unknown-field rule'
         )
@@ -193,7 +197,7 @@ class TestValidateFrontmatter:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber(4),
+                line=LineNumber.parse(4),
                 rule='frontmatter.duplicate-key',
                 message="'name' is already written on line 2",
             ),
@@ -210,7 +214,7 @@ class TestValidateFrontmatter:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber(4),
+                line=LineNumber.parse(4),
                 rule='frontmatter.duplicate-key',
                 message="'type' is already written on line 3",
             ),
@@ -227,12 +231,12 @@ class TestValidateFrontmatter:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber(3),
+                line=LineNumber.parse(3),
                 rule='frontmatter.duplicate-key',
                 message="'name' is already written on line 2",
             ),
             Violation(
-                line=LineNumber(4),
+                line=LineNumber.parse(4),
                 rule='frontmatter.duplicate-key',
                 message="'name' is already written on line 2",
             ),
@@ -249,12 +253,12 @@ class TestValidateFrontmatter:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber(4),
+                line=LineNumber.parse(4),
                 rule='frontmatter.name-matches-filename',
                 message="`name` is 'other'; expected 'guide', the document's filename",
             ),
             Violation(
-                line=LineNumber(4),
+                line=LineNumber.parse(4),
                 rule='frontmatter.duplicate-key',
                 message="'name' is already written on line 2",
             ),
@@ -271,7 +275,7 @@ class TestValidateFrontmatter:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber(4),
+                line=LineNumber.parse(4),
                 rule='frontmatter.duplicate-key',
                 message="'name' is already written on line 2",
             ),
@@ -288,13 +292,13 @@ class TestValidateFrontmatter:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber(4),
+                line=LineNumber.parse(4),
                 rule='code.type',
                 message="'bad' is not one of ['rule', 'pattern'] (per docs/__meta__/code.structure.json)",
                 spec=SPECS_DIR / 'code.structure.json',
             ),
             Violation(
-                line=LineNumber(4),
+                line=LineNumber.parse(4),
                 rule='frontmatter.duplicate-key',
                 message="'type' is already written on line 3",
             ),
@@ -311,7 +315,7 @@ class TestValidateFrontmatter:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber(4),
+                line=LineNumber.parse(4),
                 rule='frontmatter.duplicate-key',
                 message="'type' is already written on line 3",
             ),
@@ -336,7 +340,7 @@ class TestValidateFrontmatter:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber(4),
+                line=LineNumber.parse(4),
                 rule='code.unknown-field',
                 message=(
                     "Additional properties are not allowed ('model' was unexpected) "
@@ -345,7 +349,7 @@ class TestValidateFrontmatter:
                 spec=SPECS_DIR / 'code.structure.json',
             ),
             Violation(
-                line=LineNumber(4),
+                line=LineNumber.parse(4),
                 rule='frontmatter.duplicate-key',
                 message="'model' is already written on line 3",
             ),
@@ -373,7 +377,7 @@ class TestValidateFrontmatter:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber(4),
+                line=LineNumber.parse(4),
                 rule='frontmatter.duplicate-key',
                 message="'\\ud83d' is already written on line 3",
             ),
@@ -390,7 +394,7 @@ class TestValidateFrontmatter:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber(4),
+                line=LineNumber.parse(4),
                 rule='frontmatter.duplicate-key',
                 message="'a\\nb' is already written on line 3",
             ),
@@ -407,7 +411,7 @@ class TestValidateFrontmatter:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber(1),
+                line=LineNumber.parse(1),
                 rule='code.type',
                 message="'bad' is not one of ['rule', 'pattern'] (per docs/__meta__/code.structure.json)",
                 spec=SPECS_DIR / 'code.structure.json',
@@ -425,7 +429,7 @@ class TestValidateFrontmatter:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber(3),
+                line=LineNumber.parse(3),
                 rule='code.unknown-field',
                 message=(
                     "Additional properties are not allowed ('=' was unexpected) (per docs/__meta__/code.structure.json)"
@@ -453,7 +457,7 @@ class TestValidateFrontmatter:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber(1),
+                line=LineNumber.parse(1),
                 rule='code.frontmatter',
                 message="{'name': 'guide'} does not have enough properties (per docs/__meta__/code.structure.json)",
                 spec=SPECS_DIR / 'code.structure.json',
@@ -482,7 +486,7 @@ class TestValidateFrontmatter:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber(3),
+                line=LineNumber.parse(3),
                 rule='code.type',
                 message="'bad' is not one of ['rule', 'pattern'] (per docs/__meta__/code.structure.json)",
                 spec=SPECS_DIR / 'code.structure.json',
@@ -513,7 +517,7 @@ class TestValidateFrontmatter:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber(2),
+                line=LineNumber.parse(2),
                 rule='frontmatter.duplicate-key',
                 message="'type' is already written on line 2",
             ),

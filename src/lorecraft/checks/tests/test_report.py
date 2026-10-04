@@ -16,7 +16,7 @@ from ..report import Diagnostic, Severity, diagnostic_order
 class TestDiagnosticOrder:
     def test_diagnostic_order_with_paths_differing_compares_them_as_posix_strings(self) -> None:
         #: Given
-        occurrence = TrailingSpace(spec=None, line=LineNumber(1))
+        occurrence = TrailingSpace(spec=None, line=LineNumber.parse(1))
         nested = Diagnostic(RootRelativePath.parse('a/b.md'), occurrence, Severity.ERROR)
         hyphenated = Diagnostic(RootRelativePath.parse('a-b/c.md'), occurrence, Severity.ERROR)
 
@@ -30,7 +30,7 @@ class TestDiagnosticOrder:
 
     def test_diagnostic_order_with_paths_differing_in_case_puts_uppercase_first(self) -> None:
         #: Given
-        occurrence = TrailingSpace(spec=None, line=LineNumber(1))
+        occurrence = TrailingSpace(spec=None, line=LineNumber.parse(1))
         lowercase = Diagnostic(RootRelativePath.parse('docs/a.md'), occurrence, Severity.ERROR)
         uppercase = Diagnostic(RootRelativePath.parse('docs/B.md'), occurrence, Severity.ERROR)
 
@@ -43,8 +43,8 @@ class TestDiagnosticOrder:
     def test_diagnostic_order_with_lines_differing_puts_the_earlier_line_first(self) -> None:
         #: Given
         path = RootRelativePath.parse('docs/a.md')
-        later = Diagnostic(path, TrailingSpace(spec=None, line=LineNumber(10)), Severity.ERROR)
-        earlier = Diagnostic(path, TrailingSpace(spec=None, line=LineNumber(2)), Severity.ERROR)
+        later = Diagnostic(path, TrailingSpace(spec=None, line=LineNumber.parse(10)), Severity.ERROR)
+        earlier = Diagnostic(path, TrailingSpace(spec=None, line=LineNumber.parse(2)), Severity.ERROR)
 
         #: When
         ordered = sorted([later, earlier], key=diagnostic_order)
@@ -55,7 +55,7 @@ class TestDiagnosticOrder:
     def test_diagnostic_order_with_the_whole_subject_and_a_line_puts_the_whole_subject_first(self) -> None:
         #: Given
         path = RootRelativePath.parse('skills/a')
-        at_line = Diagnostic(path, TrailingSpace(spec=None, line=LineNumber(1)), Severity.ERROR)
+        at_line = Diagnostic(path, TrailingSpace(spec=None, line=LineNumber.parse(1)), Severity.ERROR)
         whole_subject = Diagnostic(path, UppercaseEntry(spec=None), Severity.WARNING)
 
         #: When
@@ -69,7 +69,7 @@ class TestDiagnosticOrder:
     def test_diagnostic_order_with_severities_differing_puts_the_error_first(self) -> None:
         #: Given
         path = RootRelativePath.parse('docs/a.md')
-        occurrence = TrailingSpace(spec=None, line=LineNumber(1))
+        occurrence = TrailingSpace(spec=None, line=LineNumber.parse(1))
         warning = Diagnostic(path, occurrence, Severity.WARNING)
         error = Diagnostic(path, occurrence, Severity.ERROR)
 
@@ -82,8 +82,8 @@ class TestDiagnosticOrder:
     def test_diagnostic_order_with_codes_differing_compares_them_as_printed(self) -> None:
         #: Given
         path = RootRelativePath.parse('docs/a.md')
-        second = Diagnostic(path, TrailingSpace(spec=None, line=LineNumber(1)), Severity.ERROR)
-        first = Diagnostic(path, EmptyLine(spec=None, line=LineNumber(1)), Severity.ERROR)
+        second = Diagnostic(path, TrailingSpace(spec=None, line=LineNumber.parse(1)), Severity.ERROR)
+        first = Diagnostic(path, EmptyLine(spec=None, line=LineNumber.parse(1)), Severity.ERROR)
 
         #: When
         ordered = sorted([second, first], key=diagnostic_order)
@@ -94,8 +94,8 @@ class TestDiagnosticOrder:
     def test_diagnostic_order_with_messages_differing_compares_the_message_text(self) -> None:
         #: Given
         path = RootRelativePath.parse('docs/a.md')
-        ninety = Diagnostic(path, LongLine(spec=None, line=LineNumber(1), length=90), Severity.WARNING)
-        eighty_one = Diagnostic(path, LongLine(spec=None, line=LineNumber(1), length=81), Severity.WARNING)
+        ninety = Diagnostic(path, LongLine(spec=None, line=LineNumber.parse(1), length=90), Severity.WARNING)
+        eighty_one = Diagnostic(path, LongLine(spec=None, line=LineNumber.parse(1), length=81), Severity.WARNING)
 
         #: When
         ordered = sorted([ninety, eighty_one], key=diagnostic_order)
@@ -106,12 +106,12 @@ class TestDiagnosticOrder:
     def test_diagnostic_order_with_any_input_order_sorts_to_the_same_output(self) -> None:
         #: Given
         path = RootRelativePath.parse('docs/a.md')
-        long_line = Diagnostic(path, LongLine(spec=None, line=LineNumber(3), length=81), Severity.WARNING)
-        trailing_space = Diagnostic(path, TrailingSpace(spec=None, line=LineNumber(3)), Severity.ERROR)
-        empty_line = Diagnostic(path, EmptyLine(spec=None, line=LineNumber(3)), Severity.ERROR)
+        long_line = Diagnostic(path, LongLine(spec=None, line=LineNumber.parse(3), length=81), Severity.WARNING)
+        trailing_space = Diagnostic(path, TrailingSpace(spec=None, line=LineNumber.parse(3)), Severity.ERROR)
+        empty_line = Diagnostic(path, EmptyLine(spec=None, line=LineNumber.parse(3)), Severity.ERROR)
         whole_subject = Diagnostic(path, UppercaseEntry(spec=None), Severity.ERROR)
         next_path = Diagnostic(
-            RootRelativePath.parse('docs/b.md'), EmptyLine(spec=None, line=LineNumber(1)), Severity.ERROR
+            RootRelativePath.parse('docs/b.md'), EmptyLine(spec=None, line=LineNumber.parse(1)), Severity.ERROR
         )
         diagnostics = [long_line, trailing_space, empty_line, whole_subject, next_path]
 
