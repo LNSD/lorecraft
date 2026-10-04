@@ -10,6 +10,7 @@ from pathlib import PurePosixPath
 
 import pytest
 
+from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 
 from ..root_expansion import (
@@ -360,13 +361,13 @@ class TestFindListedScanRoot:
     ) -> None:
         #: Given
         tree = _FakeTree(directories=('shared', 'shared/skills'), links={'.agents': 'shared'})
-        scan_root = ScanRoot(_path('.agents/skills'), depth=1, follow_links=True)
+        scan_root = ScanRoot(_path('.agents/skills'), depth=UnsignedInt(1), follow_links=True)
 
         #: When
         resolved_root = find_listed_scan_root(scan_root, tree)
 
         #: Then
-        assert resolved_root == ScanRoot(_path('shared/skills'), depth=1, follow_links=True), (
+        assert resolved_root == ScanRoot(_path('shared/skills'), depth=UnsignedInt(1), follow_links=True), (
             'a following root starts where its directory leads, with its declared depth and policy'
         )
 
@@ -386,7 +387,7 @@ class TestFindListedScanRoot:
     def test_find_listed_scan_root_not_following_links_with_a_link_on_the_way_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(directories=('shared', 'shared/skills'), links={'.agents': 'shared'})
-        scan_root = ScanRoot(_path('.agents/skills'), depth=1)
+        scan_root = ScanRoot(_path('.agents/skills'), depth=UnsignedInt(1))
 
         #: When
         resolved_root = find_listed_scan_root(scan_root, tree)
@@ -397,7 +398,7 @@ class TestFindListedScanRoot:
     def test_find_listed_scan_root_with_a_regular_file_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(files=('README.md',))
-        scan_root = ScanRoot(_path('README.md'), depth=0)
+        scan_root = ScanRoot(_path('README.md'), depth=UnsignedInt(0))
 
         #: When
         resolved_root = find_listed_scan_root(scan_root, tree)
@@ -408,7 +409,7 @@ class TestFindListedScanRoot:
     def test_find_listed_scan_root_following_links_with_a_link_to_a_file_at_the_end_returns_none(self) -> None:
         #: Given
         tree = _FakeTree(directories=('shared',), files=('shared/a.md',), links={'docs': 'shared/a.md'})
-        scan_root = ScanRoot(_path('docs'), depth=1, follow_links=True)
+        scan_root = ScanRoot(_path('docs'), depth=UnsignedInt(1), follow_links=True)
 
         #: When
         resolved_root = find_listed_scan_root(scan_root, tree)
@@ -419,7 +420,7 @@ class TestFindListedScanRoot:
     def test_find_listed_scan_root_with_a_missing_directory_returns_none(self) -> None:
         #: Given
         tree = _FakeTree()
-        scan_root = ScanRoot(_path('docs'), depth=1)
+        scan_root = ScanRoot(_path('docs'), depth=UnsignedInt(1))
 
         #: When
         resolved_root = find_listed_scan_root(scan_root, tree)
@@ -432,33 +433,33 @@ class TestFindListedScanRoot:
 class TestFindLinkedScanRoot:
     def test_find_linked_scan_root_with_a_link_listed_with_depth_left_returns_a_root_one_level_shallower(self) -> None:
         #: Given
-        scan_root = ScanRoot(_path('skills'), depth=2, follow_links=True)
+        scan_root = ScanRoot(_path('skills'), depth=UnsignedInt(2), follow_links=True)
         link = _path('skills/a')
         directory = _path('shared/a')
         #: When
         linked_root = find_linked_scan_root(scan_root, link, directory)
 
         #: Then
-        assert linked_root == ScanRoot(_path('shared/a'), depth=1, follow_links=True), (
+        assert linked_root == ScanRoot(_path('shared/a'), depth=UnsignedInt(1), follow_links=True), (
             'the link uses up one level of depth, as a directory entry does'
         )
 
     def test_find_linked_scan_root_with_a_link_below_the_root_returns_the_depth_left_at_the_link(self) -> None:
         #: Given
-        scan_root = ScanRoot(_path('skills'), depth=2, follow_links=True)
+        scan_root = ScanRoot(_path('skills'), depth=UnsignedInt(2), follow_links=True)
         link = _path('skills/a/b')
         directory = _path('shared/b')
         #: When
         linked_root = find_linked_scan_root(scan_root, link, directory)
 
         #: Then
-        assert linked_root == ScanRoot(_path('shared/b'), depth=0, follow_links=True), (
+        assert linked_root == ScanRoot(_path('shared/b'), depth=UnsignedInt(0), follow_links=True), (
             'a link one level below the root is listed with one level left, and uses it up'
         )
 
     def test_find_linked_scan_root_with_a_link_listed_with_no_depth_left_returns_none(self) -> None:
         #: Given
-        scan_root = ScanRoot(_path('skills'), depth=0, follow_links=True)
+        scan_root = ScanRoot(_path('skills'), depth=UnsignedInt(0), follow_links=True)
         link = _path('skills/a')
         directory = _path('shared/a')
         #: When
@@ -469,7 +470,7 @@ class TestFindLinkedScanRoot:
 
     def test_find_linked_scan_root_from_a_root_not_following_links_returns_none(self) -> None:
         #: Given
-        scan_root = ScanRoot(_path('skills'), depth=2)
+        scan_root = ScanRoot(_path('skills'), depth=UnsignedInt(2))
         link = _path('skills/a')
         directory = _path('shared/a')
         #: When
@@ -480,7 +481,7 @@ class TestFindLinkedScanRoot:
 
     def test_find_linked_scan_root_with_a_link_the_root_does_not_list_returns_none(self) -> None:
         #: Given
-        scan_root = ScanRoot(_path('skills'), depth=2, follow_links=True)
+        scan_root = ScanRoot(_path('skills'), depth=UnsignedInt(2), follow_links=True)
         link = _path('docs/a')
         directory = _path('shared/a')
         #: When

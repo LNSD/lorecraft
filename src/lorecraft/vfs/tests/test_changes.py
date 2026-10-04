@@ -10,6 +10,7 @@ from pathlib import PurePosixPath
 import pytest
 
 from lorecraft.core.mapping import FrozenMapping
+from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 
 from ..changes import Change, ChangeKind, ChangeSet, diff
@@ -118,8 +119,8 @@ class TestDiff:
     def test_diff_with_only_the_scope_changed_returns_empty(self) -> None:
         #: Given
         records = {'docs': DirectoryRecord(listed=True)}
-        old = _snapshot(records, scope=(ScanRoot(RootRelativePath.parse('docs'), depth=0),))
-        new = _snapshot(records, scope=(ScanRoot(RootRelativePath.parse('docs'), depth=1),))
+        old = _snapshot(records, scope=(ScanRoot(RootRelativePath.parse('docs'), depth=UnsignedInt(0)),))
+        new = _snapshot(records, scope=(ScanRoot(RootRelativePath.parse('docs'), depth=UnsignedInt(1)),))
         expected: ChangeSet = frozenset()
 
         #: When
