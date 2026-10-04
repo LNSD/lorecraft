@@ -3,12 +3,13 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.rules.rule import Level, Release, RuleCode
+from lorecraft.rules.rule import Level, Release, RuleCode, rule
 from lorecraft.rules.tests.sample_input import SampleEntry, SampleEntryRule
 
 from ..groups import LAYOUT
 
 
+@rule
 @dataclass(frozen=True, slots=True, kw_only=True)
 class UppercaseEntry(SampleEntryRule):
     """A layout entry's name holds an uppercase letter."""
