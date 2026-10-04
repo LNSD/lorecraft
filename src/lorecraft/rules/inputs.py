@@ -7,11 +7,19 @@ and nothing else. Building an input from the queries is the run's job, in `lorec
 
 from abc import abstractmethod
 from dataclasses import dataclass
+from enum import Enum
 from typing import Self
 
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.rules.declaration import ContentRule
+
+
+class InputKind(Enum):
+    """The kind of input a rule reads: each member names one input type, which one rule base's `check` takes."""
+
+    TOKEN_COUNT = 'token-count'
+    """A document's whole-file token count, with the budgets that govern it: `TokenCountInput`."""
 
 
 @dataclass(frozen=True, slots=True)

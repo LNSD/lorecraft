@@ -232,17 +232,31 @@ class LayoutRule(Rule):         # the base of the layout input
 
 ```python
 @dataclass(frozen=True, slots=True)
-class Diagnostic:
+class RuleDiagnostic:
     path: RootRelativePath
     occurrence: Rule
-    severity: Severity  # ERROR or WARNING
+    severity: Severity  # ERROR or WARNING, from the rule's level
 
 
+@dataclass(frozen=True, slots=True)
+class EngineDiagnostic:
+    path: RootRelativePath
+    occurrence: EngineCondition
+
+    @property
+    def severity(self) -> Severity:
+        return self.occurrence.SEVERITY  # fixed by the condition's class
+
+
+type Diagnostic = RuleDiagnostic | EngineDiagnostic
 type SubjectReport = CheckedSubject | UndecodableSubject
 ```
 
 - **A diagnostic holds its occurrence** and copies none of its fields. The code, the message, the labels, the
   help and notes, and the specification reach the text and the machine-readable output through it (FR-017).
+- **An engine diagnostic's severity cannot be set.** It is read from the condition's class, so an engine
+  condition reported at a severity its class does not fix cannot be built. Renderers and the order take the one
+  name `Diagnostic`, and read the same attributes on both kinds.
 - **`Severity` is not `Level`.** A level has three values, and a diagnostic at `allow` does not exist, so a
   diagnostic carries one of two severities.
 - **An undecodable subject has no diagnostics and no coverage**, which the union states.
