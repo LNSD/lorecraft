@@ -78,7 +78,7 @@ sits outside it is absolute: another top-level package, a module directly in a r
 `from lorecraft.project.layout import SNAPSHOT_SCOPE`. A module directly in a root has no top-level package,
 so every library import it makes is absolute; so is every import from one root into another, and every import
 in a test outside `src/`. A unit test co-located in a `tests/` subpackage is part of the package it sits in and
-follows the same rule as that package's code ([test-organization](test-organization.md) §2). A layer imports
+follows the same rule as that package's code ([tests-organization](tests-organization.md) §2). A layer imports
 only the layers below it in the contract, which `just check` runs: a library never imports the command line,
 which sits above every library, and `lorecraft.core`, the base every other layer builds on, imports none at
 all.
@@ -312,7 +312,7 @@ Before committing code, verify:
 - [error-types](error-types.md) - Related: Owns how an error type is declared
 - [pattern-registry](pattern-registry.md) - Related: The discovery mechanism that import-time registration
   serves
-- [test-organization](test-organization.md) - Related: Where a co-located unit test sits, and so which import
+- [tests-organization](tests-organization.md) - Related: Where a co-located unit test sits, and so which import
   rule it follows
 
 ## External References

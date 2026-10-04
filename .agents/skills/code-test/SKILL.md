@@ -138,7 +138,7 @@ Read [references/mutation-testing.md](references/mutation-testing.md) before act
 Unit tests sit beside the module they test, in a `tests/` subpackage under `src/`: the tests
 for `<pkg>/<module>.py` are `<pkg>/tests/test_<module>.py`, and no wheel or sdist ships them. The `it`
 tier lives flat, in `tests/it/`.
-`docs/code/test-organization.md` §2 owns the placement.
+`docs/code/tests-organization.md` §2 owns the placement.
 The end-to-end tier lives in `tests/e2e/` and covers the command line only: it drives the installed
 `lorecraft` console script. Its shared helpers live beside the suites in `tests/lib/`, imported as
 `lib` (`from lib.cli import run_cli`) through pytest's `pythonpath = ["tests"]`. A library layer has no
@@ -160,7 +160,7 @@ but the test that consumes it still needs its marker.
 - Running tests before `/code-check` is green.
 - Reaching for `just test` when the change is pure logic — use `just test-unit`.
 - Putting a test that spawns a process, or one that needs the package installed, anywhere but
-  `tests/e2e/`. `docs/code/test-organization.md` owns the tier boundaries.
+  `tests/e2e/`. `docs/code/tests-organization.md` owns the tier boundaries.
 - Introducing a marker without declaring it in the root `pyproject.toml`.
 - Calling `pytest` outside `uv run` — it is not installed in a system interpreter.
 - Reading a zero-collected run as a passing run.

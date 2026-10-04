@@ -190,7 +190,7 @@ if report.problems:
 
 A command is tested by invoking an application built for the test through Typer's `CliRunner`, which runs it
 in process and captures its output and exit status; the tier that test belongs to is owned by
-[test-organization](test-organization.md). A test of `--help` passes a plain terminal in `env=`: Rich draws
+[tests-organization](tests-organization.md). A test of `--help` passes a plain terminal in `env=`: Rich draws
 the help for the terminal it finds, so colour codes and the wrap width otherwise change from one machine to
 the next, and the reviewed snapshot fails on CI alone.
 
@@ -238,7 +238,7 @@ Before committing code, verify:
   only in a command
 - [error-handling](error-handling.md) - Related: Owns catching `Error` at the command line's top level to
   report it and exit
-- [test-organization](test-organization.md) - Related: Owns the tier a `CliRunner` test belongs to
+- [tests-organization](tests-organization.md) - Related: Owns the tier a `CliRunner` test belongs to
 - [principle-validate-at-edge](principle-validate-at-edge.md) - Foundation: A command is the edge where input
   is refused as a usage error
 
