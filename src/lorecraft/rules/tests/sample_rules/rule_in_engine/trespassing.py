@@ -1,21 +1,20 @@
-"""A sample rule declared with the code `SMP001`."""
+"""A sample rule declared with a code in the engine's group."""
 
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
+from lorecraft.rules.engine.__ruleset__ import GROUP_ID
 from lorecraft.rules.tests.sample_input import SampleLines, SampleLinesRule
-
-from ..groups import SAMPLE
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class SecondRule(SampleLinesRule):
-    """A sample rule that never fires."""
+class Trespassing(SampleLinesRule):
+    """A sample rule that never fires, in the group reserved for engine conditions."""
 
-    CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 1)
-    NAME: ClassVar[RuleName] = RuleName('second-rule')
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 901)
+    NAME: ClassVar[RuleName] = RuleName('trespassing')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('1.0.0')
 

@@ -56,8 +56,10 @@ A module or package name identifies the specific subject it owns. Prefer a singl
 those names. These names give readers no clue where a definition belongs and collect unrelated code over time.
 
 No module or package name starts with a single underscore; `__init__.py` and `__main__.py` are Python's own. A
-module exists to be imported by the modules beside it, so an underscored file name makes each of those imports
-read as reaching past a privacy boundary, and a reader can no longer tell the legitimate import from the
+module name with double underscores is reserved for a role every package of one kind shares, and is named by the
+package's own module rule, such as the `__ruleset__.py` of a rule group, which declares what the group's rules
+share. A module exists to be imported by the modules beside it, so an underscored file name makes each of those
+imports read as reaching past a privacy boundary, and a reader can no longer tell the legitimate import from the
 breach. What a package offers is its `__all__` ([§5](#5-__all__-declares-a-packages-surface)): a module whose
 names it does not re-export is internal whatever the file is called.
 

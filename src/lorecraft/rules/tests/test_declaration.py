@@ -5,8 +5,7 @@ import pytest
 from lorecraft.core.error import Error
 from lorecraft.project.syntax import LineNumber
 
-from ..location import Here, WholeSubject
-from ..rule import (
+from ..declaration import (
     AliasCode,
     DoubledHyphenRuleNameError,
     EmptyAliasLinterError,
@@ -25,12 +24,15 @@ from ..rule import (
     RuleGroup,
     RuleName,
     RuleNumberOutOfRangeError,
+    Severity,
     TrailingHyphenRuleNameError,
     declared_rules,
 )
+from ..location import Here, WholeSubject
 from .sample_input import SampleEntry, SampleLines
 from .sample_rules.groups import SAMPLE
 from .sample_rules.rendered_message.long_line import LongLine
+from .sample_rules.token_count.sample_condition import SampleCondition
 from .sample_rules.valid.retired import TabIndent
 from .sample_rules.valid.trailing_space import TrailingSpace
 from .sample_rules.valid.uppercase_entry import UppercaseEntry
@@ -550,6 +552,52 @@ class TestRemovedRule:
 
 
 @pytest.mark.unit
+class TestSeverity:
+    def test_severity_values_in_declaration_order_spell_error_warning(self) -> None:
+        #: Given
+        severities = list(Severity)
+
+        #: When
+        values = [severity.value for severity in severities]
+
+        #: Then
+        assert values == ['error', 'warning'], 'each severity is spelled as the output prints it'
+
+
+@pytest.mark.unit
+class TestEngineCondition:
+    def test_engine_condition_as_a_class_is_not_a_rule_subclass(self) -> None:
+        #: Given
+        condition = SampleCondition
+
+        #: When
+        is_rule = issubclass(condition, Rule)
+
+        #: Then
+        assert is_rule is False, 'an engine condition has no level and no check, so no rule table can hold it'
+
+    def test_labels_of_an_engine_condition_occurrence_by_default_are_empty(self) -> None:
+        #: Given
+        occurrence = SampleCondition()
+
+        #: When
+        labels = occurrence.labels()
+
+        #: Then
+        assert labels == (), 'a condition labels nothing unless it says so'
+
+    def test_children_of_an_engine_condition_occurrence_by_default_are_empty(self) -> None:
+        #: Given
+        occurrence = SampleCondition()
+
+        #: When
+        children = occurrence.children()
+
+        #: Then
+        assert children == (), 'a condition prints no help or note unless it says so'
+
+
+@pytest.mark.unit
 class TestRuleDecorator:
     def test_rule_on_a_rule_class_at_import_leaves_its_declaration_unchanged(self) -> None:
         #: Given
@@ -573,3 +621,14 @@ class TestRuleDecorator:
 
         #: Then
         assert removed in declared, 'a removed rule is recorded for the registry to collect'
+
+    def test_rule_on_an_engine_condition_at_import_records_it(self) -> None:
+        #: Given
+        # SampleCondition was decorated with @rule as its module was imported with this one
+        condition = SampleCondition
+
+        #: When
+        declared = declared_rules()
+
+        #: Then
+        assert condition in declared, 'an engine condition is recorded for the registry to collect'

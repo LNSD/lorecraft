@@ -2,39 +2,58 @@
 
 import pytest
 
+from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 
+from ..declaration import RuleName
 from ..registry import (
     AbstractRuleError,
+    ConditionOutsideEngineGroupError,
     ConflictingRuleGroupError,
     DuplicateAliasCodeError,
     DuplicateRuleCodeError,
     DuplicateRuleNameError,
     Registry,
+    RuleInEngineGroupError,
     UnsetRuleAttributeError,
     package_registry,
 )
-from ..rule import RuleName
 from .sample_rules import (
+    abstract_condition,
     abstract_rule,
     alias_as_code,
+    condition_outside_engine,
     conflicting_group,
     duplicate_alias,
     duplicate_code,
     duplicate_name,
     import_failure,
+    removed_rule_in_engine,
+    rule_in_engine,
+    token_count,
     unset_attribute,
+    unset_condition_attribute,
     unset_removed_attribute,
 )
 from .sample_rules import valid as valid_rules
+from .sample_rules.abstract_condition.unworded import Unworded
 from .sample_rules.abstract_rule.unchecked import Unchecked
 from .sample_rules.alias_as_code.aliased import Lookalike, Original
+from .sample_rules.condition_outside_engine.misplaced import Misplaced
 from .sample_rules.conflicting_group.retitled import Retitled, Titled
 from .sample_rules.duplicate_alias.aliased import FirstAliased, SecondAliased
 from .sample_rules.duplicate_code.first import FirstRule
 from .sample_rules.duplicate_code.second import SecondRule
 from .sample_rules.duplicate_name.shared import InService, Retired
+from .sample_rules.removed_rule_in_engine.retired import RetiredTrespasser
+from .sample_rules.rule_in_engine.trespassing import Trespassing
+from .sample_rules.token_count.any_tokens import AnyTokens
+from .sample_rules.token_count.empty_document import EmptyDocument
+from .sample_rules.token_count.over_half_budget import OverHalfBudget
+from .sample_rules.token_count.retired import NearBudget
+from .sample_rules.token_count.sample_condition import SampleCondition
 from .sample_rules.unset_attribute.unreleased import Unreleased
+from .sample_rules.unset_condition_attribute.unsevere import Unsevere
 from .sample_rules.unset_removed_attribute.unreplaced import Unreplaced
 from .sample_rules.valid.outline.empty_line import EmptyLine
 from .sample_rules.valid.retired import TabIndent
@@ -175,6 +194,77 @@ class TestRegistryLoad:
         assert exc_info.value.first is Titled, 'the rule earlier in code order bound the prefix first'
         assert exc_info.value.second is Retitled, 'the later rule gave it another title'
 
+    def test_load_with_an_engine_condition_holds_it_in_code_order(self) -> None:
+        #: Given
+        package = token_count
+
+        #: When
+        loaded = Registry.load(package)
+
+        #: Then
+        assert loaded.rules == (SampleCondition, OverHalfBudget, EmptyDocument, AnyTokens, NearBudget), (
+            'the engine condition is held beside the rules and the removed rule, in code order'
+        )
+
+    def test_load_with_an_engine_condition_without_severity_raises_unset_rule_attribute_error(self) -> None:
+        #: Given
+        package = unset_condition_attribute
+
+        #: When
+        with pytest.raises(UnsetRuleAttributeError) as exc_info:
+            Registry.load(package)
+
+        #: Then
+        assert exc_info.value.declaration is Unsevere, 'the error names the condition missing the attribute'
+        assert exc_info.value.attribute == 'SEVERITY', 'the error names the attribute it leaves unbound'
+
+    def test_load_with_an_engine_condition_without_message_raises_abstract_rule_error(self) -> None:
+        #: Given
+        package = abstract_condition
+
+        #: When
+        with pytest.raises(AbstractRuleError) as exc_info:
+            Registry.load(package)
+
+        #: Then
+        assert exc_info.value.declaration is Unworded, 'the error names the abstract condition'
+        assert exc_info.value.missing == ('message',), 'the error names the method it does not implement'
+
+    def test_load_with_an_engine_condition_outside_the_engine_group_raises_condition_outside_engine_group_error(
+        self,
+    ) -> None:
+        #: Given
+        package = condition_outside_engine
+
+        #: When
+        with pytest.raises(ConditionOutsideEngineGroupError) as exc_info:
+            Registry.load(package)
+
+        #: Then
+        assert exc_info.value.declaration is Misplaced, 'the error names the condition outside the engine group'
+
+    def test_load_with_a_rule_in_the_engine_group_raises_rule_in_engine_group_error(self) -> None:
+        #: Given
+        package = rule_in_engine
+
+        #: When
+        with pytest.raises(RuleInEngineGroupError) as exc_info:
+            Registry.load(package)
+
+        #: Then
+        assert exc_info.value.declaration is Trespassing, 'the error names the rule in the engine group'
+
+    def test_load_with_a_removed_rule_in_the_engine_group_raises_rule_in_engine_group_error(self) -> None:
+        #: Given
+        package = removed_rule_in_engine
+
+        #: When
+        with pytest.raises(RuleInEngineGroupError) as exc_info:
+            Registry.load(package)
+
+        #: Then
+        assert exc_info.value.declaration is RetiredTrespasser, 'the error names the removed rule in the engine group'
+
     def test_load_with_a_module_that_fails_to_import_propagates_the_failure(self) -> None:
         #: Given
         package = import_failure
@@ -246,17 +336,30 @@ class TestRegistryFind:
 class TestPackageRegistry:
     def test_package_registry_with_the_package_rules_holds_them_in_code_order(self) -> None:
         #: Given
-        expected = (TooManyTokens,)
+        expected = (InvalidUtf8, TooManyTokens)
 
         #: When
         loaded = package_registry()
 
         #: Then
-        assert loaded.rules == expected, 'the registry holds every rule `lorecraft.rules` declares, in code order'
+        assert loaded.rules == expected, (
+            'the registry holds every rule and engine condition `lorecraft.rules` declares, in code order'
+        )
+
+    def test_package_registry_with_the_undecodable_condition_code_finds_it(self) -> None:
+        #: Given
+        registry = package_registry()
+        key = 'LC001'
+
+        #: When
+        found = registry.find(key)
+
+        #: Then
+        assert found is InvalidUtf8, "the engine's own condition is found by its code, as a rule is"
 
     def test_package_registry_with_sample_rules_declared_holds_none_of_them(self) -> None:
         #: Given
-        sample_rules = {UppercaseEntry, EmptyLine, TrailingSpace, TabIndent}
+        sample_rules = {UppercaseEntry, EmptyLine, TrailingSpace, TabIndent, SampleCondition}
 
         #: When
         loaded = package_registry()

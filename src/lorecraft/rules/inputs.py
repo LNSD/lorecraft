@@ -11,7 +11,7 @@ from typing import Self
 
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.rules.rule import ContentRule
+from lorecraft.rules.declaration import ContentRule
 
 
 @dataclass(frozen=True, slots=True)

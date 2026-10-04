@@ -6,9 +6,12 @@ tests left out, and keeps the declarations whose module lies in that package out
 that walks a package of sample rules sees only those, and the package's own registry never sees them.
 
 The registry is package data: it reads no workspace and is not a query. A rejection, a code, a name or an alias
-code bound twice, a prefix given two groups, a class attribute left unbound or a rule still abstract, is a defect
-in `lorecraft.rules`, never in the user's repository, so it raises a `RuntimeError` whose traceback locates the
-declaration.
+code bound twice, a prefix given two groups, a class attribute left unbound, a rule or a condition still abstract,
+or a code in a group its kind may not use, is a defect in `lorecraft.rules`, never in the user's repository, so it
+raises a `RuntimeError` whose traceback locates the declaration.
+
+The engine's group is reserved for engine conditions, and every condition is in it. No type can say which group a
+code is in, so the registry holds both directions as it loads.
 """
 
 import importlib
@@ -21,7 +24,8 @@ from typing import Final, Self, assert_never
 
 from lorecraft import rules
 
-from .rule import RemovedRule, Rule, RuleDeclaration, RuleGroup, RuleName, declared_rules
+from .declaration import EngineCondition, RemovedRule, Rule, RuleDeclaration, RuleGroup, RuleName, declared_rules
+from .engine.__ruleset__ import GROUP_ID as ENGINE_GROUP_ID
 
 _UNIT_TESTS: Final[str] = 'tests'
 """The name of the subpackage beside a package's modules that holds their unit tests, fixed by the unit tier."""
@@ -31,6 +35,9 @@ _RULE_ATTRIBUTES: Final[tuple[str, ...]] = ('CODE', 'NAME', 'LEVEL', 'SINCE')
 
 _REMOVED_RULE_ATTRIBUTES: Final[tuple[str, ...]] = ('CODE', 'NAME', 'REMOVED_IN', 'REPLACED_BY')
 """The class attributes a removed rule must bind; `REPLACED_BY` is bound to None when nothing replaced it."""
+
+_CONDITION_ATTRIBUTES: Final[tuple[str, ...]] = ('CODE', 'NAME', 'SINCE', 'SEVERITY')
+"""The class attributes an engine condition must bind."""
 
 
 class UnsetRuleAttributeError(RuntimeError):
@@ -49,7 +56,7 @@ class UnsetRuleAttributeError(RuntimeError):
     def __init__(self, declaration: RuleDeclaration, attribute: str) -> None:
         self.declaration = declaration
         self.attribute = attribute
-        super().__init__(f'rule {declaration.__qualname__} does not bind {attribute}')
+        super().__init__(f'declaration {declaration.__qualname__} does not bind {attribute}')
 
 
 class ConflictingRuleGroupError(RuntimeError):
@@ -76,7 +83,7 @@ class ConflictingRuleGroupError(RuntimeError):
 
 
 class DuplicateRuleCodeError(RuntimeError):
-    """Two declarations share a code: two rules, two removed rules, or a rule and a removed rule.
+    """Two declarations share a code, whichever their kinds: rules, removed rules or engine conditions.
 
     Attributes:
         code: The code bound twice, as printed.
@@ -138,20 +145,58 @@ class DuplicateAliasCodeError(RuntimeError):
 
 
 class AbstractRuleError(RuntimeError):
-    """A rule's class is still abstract, such as one with no `check`, so it can never judge its input.
+    """A rule's class or an engine condition is still abstract, such as a rule with no `check`, so it is never built.
 
     Attributes:
-        declaration: The abstract rule class.
+        declaration: The abstract rule class or engine condition.
         missing: The names of the methods it leaves abstract, in name order.
     """
 
-    declaration: type[Rule]
+    declaration: type[Rule] | type[EngineCondition]
     missing: tuple[str, ...]
 
-    def __init__(self, declaration: type[Rule], missing: tuple[str, ...]) -> None:
+    def __init__(self, declaration: type[Rule] | type[EngineCondition], missing: tuple[str, ...]) -> None:
         self.declaration = declaration
         self.missing = missing
-        super().__init__(f'rule {declaration.__qualname__} is abstract: it does not implement {", ".join(missing)}')
+        super().__init__(
+            f'declaration {declaration.__qualname__} is abstract: it does not implement {", ".join(missing)}'
+        )
+
+
+class ConditionOutsideEngineGroupError(RuntimeError):
+    """An engine condition's code is outside the engine's group, which every condition's code is in.
+
+    Attributes:
+        declaration: The engine condition.
+    """
+
+    declaration: type[EngineCondition]
+
+    def __init__(self, declaration: type[EngineCondition]) -> None:
+        self.declaration = declaration
+        group = declaration.CODE.group
+        super().__init__(
+            f'engine condition {declaration.__qualname__} has the code {str(declaration.CODE)!r}, in the group '
+            f'{group.prefix!r} titled {group.title!r}, not the engine group {ENGINE_GROUP_ID.prefix!r} titled '
+            f'{ENGINE_GROUP_ID.title!r}'
+        )
+
+
+class RuleInEngineGroupError(RuntimeError):
+    """A rule or a removed rule has its code in the engine's group, which is reserved for engine conditions.
+
+    Attributes:
+        declaration: The rule class or removed rule.
+    """
+
+    declaration: type[Rule] | type[RemovedRule]
+
+    def __init__(self, declaration: type[Rule] | type[RemovedRule]) -> None:
+        self.declaration = declaration
+        super().__init__(
+            f'rule {declaration.__qualname__} has the code {str(declaration.CODE)!r}, in the engine group '
+            f'{ENGINE_GROUP_ID.prefix!r} reserved for engine conditions'
+        )
 
 
 class Registry:
@@ -174,25 +219,44 @@ class Registry:
 
         Raises:
             UnsetRuleAttributeError: If a declaration leaves a class attribute its kind requires unbound.
-            AbstractRuleError: If a rule class is still abstract.
+            AbstractRuleError: If a rule class or an engine condition is still abstract.
+            RuleInEngineGroupError: If a rule's or a removed rule's code is in the engine's group.
+            ConditionOutsideEngineGroupError: If an engine condition's code is outside the engine's group.
             DuplicateRuleCodeError: If a code is bound twice.
             ConflictingRuleGroupError: If two codes give one prefix two different groups.
             DuplicateRuleNameError: If a name is bound twice.
             DuplicateAliasCodeError: If an alias code is bound twice, or is already bound as a code or a name.
         """
-        rule_classes, removed_rules = _split_by_kind(declarations)
+        rule_classes, removed_rules, conditions = _split_by_kind(declarations)
 
         for rule_class in rule_classes:
             _require_attributes(rule_class, _RULE_ATTRIBUTES)
         for removed_rule in removed_rules:
             _require_attributes(removed_rule, _REMOVED_RULE_ATTRIBUTES)
+        for condition in conditions:
+            _require_attributes(condition, _CONDITION_ATTRIBUTES)
 
         for rule_class in rule_classes:
             if inspect.isabstract(rule_class):
                 missing = tuple(sorted(rule_class.__abstractmethods__))
                 raise AbstractRuleError(rule_class, missing)
+        for condition in conditions:
+            if inspect.isabstract(condition):
+                missing = tuple(sorted(condition.__abstractmethods__))
+                raise AbstractRuleError(condition, missing)
 
-        self._rules = tuple(sorted((*rule_classes, *removed_rules), key=_printed_code))
+        # A rule is compared by prefix rather than by group, so one that retitles `LC` is refused as well.
+        for rule_class in rule_classes:
+            if rule_class.CODE.group.prefix == ENGINE_GROUP_ID.prefix:
+                raise RuleInEngineGroupError(rule_class)
+        for removed_rule in removed_rules:
+            if removed_rule.CODE.group.prefix == ENGINE_GROUP_ID.prefix:
+                raise RuleInEngineGroupError(removed_rule)
+        for condition in conditions:
+            if condition.CODE.group != ENGINE_GROUP_ID:
+                raise ConditionOutsideEngineGroupError(condition)
+
+        self._rules = tuple(sorted((*rule_classes, *removed_rules, *conditions), key=_printed_code))
         self._by_key = {}
 
         groups: dict[str, tuple[RuleGroup, RuleDeclaration]] = {}
@@ -234,7 +298,9 @@ class Registry:
 
         Raises:
             UnsetRuleAttributeError: If a declaration leaves a class attribute its kind requires unbound.
-            AbstractRuleError: If a rule class declared in the package is still abstract.
+            AbstractRuleError: If a rule class or an engine condition declared in the package is still abstract.
+            RuleInEngineGroupError: If a rule's or a removed rule's code is in the engine's group.
+            ConditionOutsideEngineGroupError: If an engine condition's code is outside the engine's group.
             DuplicateRuleCodeError: If a code is bound twice.
             ConflictingRuleGroupError: If two codes give one prefix two different groups.
             DuplicateRuleNameError: If a name is bound twice.
@@ -274,7 +340,9 @@ def package_registry() -> Registry:
 
     Raises:
         UnsetRuleAttributeError: If a declaration leaves a class attribute its kind requires unbound.
-        AbstractRuleError: If a rule's class is still abstract.
+        AbstractRuleError: If a rule's class or an engine condition is still abstract.
+        RuleInEngineGroupError: If a rule's or a removed rule's code is in the engine's group.
+        ConditionOutsideEngineGroupError: If an engine condition's code is outside the engine's group.
         DuplicateRuleCodeError: If a code is bound twice.
         ConflictingRuleGroupError: If two codes give one prefix two different groups.
         DuplicateRuleNameError: If a name is bound twice.
@@ -331,32 +399,35 @@ def _is_in_unit_tests(module_name: str, package_name: str) -> bool:
 
 def _split_by_kind(
     declarations: Iterable[RuleDeclaration],
-) -> tuple[tuple[type[Rule], ...], tuple[type[RemovedRule], ...]]:
-    """Separate the rules in service from the removed rules, each in the order given.
+) -> tuple[tuple[type[Rule], ...], tuple[type[RemovedRule], ...], tuple[type[EngineCondition], ...]]:
+    """Separate the rules in service, the removed rules and the engine conditions, each in the order given.
 
     A `match` class pattern tests an instance, not a class, so the branch on a declaration's kind is an
-    `issubclass` chain, closed by `assert_never` so a third kind of declaration is a type error here.
+    `issubclass` chain, closed by `assert_never` so a fourth kind of declaration is a type error here.
 
     Args:
         declarations: The rules to separate.
     """
     rule_classes: list[type[Rule]] = []
     removed_rules: list[type[RemovedRule]] = []
+    conditions: list[type[EngineCondition]] = []
     for declaration in declarations:
         if issubclass(declaration, Rule):
             rule_classes.append(declaration)
         elif issubclass(declaration, RemovedRule):
             removed_rules.append(declaration)
+        elif issubclass(declaration, EngineCondition):
+            conditions.append(declaration)
         else:
             assert_never(declaration)
-    return tuple(rule_classes), tuple(removed_rules)
+    return tuple(rule_classes), tuple(removed_rules), tuple(conditions)
 
 
 def _require_attributes(declaration: RuleDeclaration, attributes: tuple[str, ...]) -> None:
     """Reject a declaration that leaves one of its kind's class attributes unbound.
 
     Args:
-        declaration: The rule or removed rule to inspect.
+        declaration: The rule, removed rule or engine condition to inspect.
         attributes: The names its kind requires it to bind.
 
     Raises:
