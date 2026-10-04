@@ -1,6 +1,6 @@
 ---
 name: "python-dataclasses"
-description: "Choosing between `@dataclass` and pydantic `BaseModel`, mutable defaults, avoiding set-later `None`, `frozen=True` for value records, `__post_init__` range checks, and the `Attributes:` contract. Load when declaring a config record, a value object, or a wire-boundary model"
+description: "Choosing between `@dataclass` and pydantic `BaseModel`, a `TypedDict` for a JSON document written, mutable defaults, avoiding set-later `None`, `frozen=True` for value records, `__post_init__` range checks, and the `Attributes:` contract. Load when declaring a config record, a value object, or a wire-boundary model"
 type: "core"
 scope: "global"
 ---
@@ -57,6 +57,10 @@ class RuleFrontmatter(BaseModel):
 
 The boundary is where the data arrives from outside, not where it is first used. Validating deep in the call
 stack means the untrusted value travelled through several frames first.
+
+A JSON document the package writes is the one record that is neither: it is described by one `TypedDict` per
+object, every key required, so `ty` checks each key at the literal that builds it. A `TypedDict` never
+describes input, which [principle-validate-at-edge](principle-validate-at-edge.md) owns.
 
 ## 2. Generated Models Are Never Hand-Edited
 
@@ -307,7 +311,8 @@ Docstring form beyond this — sections, wording, when a method needs one — is
 Before committing code, verify:
 
 - [ ] Every new record is a `@dataclass` unless it decodes data arriving from outside the process, in which
-      case it is a `BaseModel`
+      case it is a `BaseModel`, or describes a JSON document the package writes, in which case it is a
+      `TypedDict` with every key required
 - [ ] No generated model file is edited by hand, and no helper or property was added to one
 - [ ] Every list, dict, or set default uses `field(default_factory=...)`; no module-level mutable is used as a
       default
@@ -328,6 +333,8 @@ Before committing code, verify:
   forward references
 - [python-naming](python-naming.md) - Related: Field and class naming, and `ClassVar` capability constants
 - [python-docstrings](python-docstrings.md) - Related: Docstring sections beyond `Attributes:`
+- [principle-validate-at-edge](principle-validate-at-edge.md) - Related: Why a `TypedDict` never describes
+  unchecked input
 - [error-boundaries](error-boundaries.md) - Related: Owns whether a guard raises an `Error` variant or
   `ValueError`, and the questions a built-in in `Raises:` must pass first
 

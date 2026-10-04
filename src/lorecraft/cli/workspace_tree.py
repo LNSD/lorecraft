@@ -1,4 +1,4 @@
-"""Draw the workspace model: the text `lorecraft inspect` prints, and the JSON it prints with `--json`.
+"""Draw the workspace model: the text `lorecraft inspect` prints, and the JSON it prints with `--format json`.
 
 Pure: the model arrives as a value, so nothing here reads the disk. The text form is a tree with one section
 per part of the model — the corpora, the agent skills directories the root has, and the skills — and the JSON
@@ -8,7 +8,7 @@ form carries the same content as nested objects.
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final
+from typing import Final, TypedDict
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.skill import SkillsDir
@@ -33,6 +33,87 @@ class _Line:
 
     label: str
     children: tuple['_Line', ...] = ()
+
+
+# The JSON `--format json` prints, one `TypedDict` per object, so a misspelt or missing key fails the type
+# check. The keys are the command's published output: renaming one is a change to that contract, not a refactor.
+
+
+class _SpecJson(TypedDict):
+    """One specification of a corpus.
+
+    Attributes:
+        stem: The specification's name.
+        files: The specification's files as root-relative paths, sorted.
+    """
+
+    # The key is `stem` for the specification name: the JSON is the command's published output, so it keeps the
+    # word the code has since moved away from.
+    stem: str
+    files: list[str]
+
+
+class _DocumentJson(TypedDict):
+    """One governed document of a corpus.
+
+    Attributes:
+        path: The document, as a root-relative path.
+        governed_by: Every file of the governing specifications, broad to narrow, each specification's files
+            sorted.
+    """
+
+    path: str
+    governed_by: list[str]
+
+
+class _CorpusJson(TypedDict):
+    """One corpus: the directory it reads, its specifications and its governed documents.
+
+    Attributes:
+        directory: The directory the corpus reads, as a root-relative path.
+    """
+
+    name: str
+    directory: str
+    specs: list[_SpecJson]
+    documents: list[_DocumentJson]
+
+
+class _AgentSkillsDirJson(TypedDict):
+    """One agent's skills directory.
+
+    Attributes:
+        path: The directory where the agent finds it, as a root-relative path.
+        resolves_to: The directory it leads to: `path` itself unless `path` is a link.
+    """
+
+    agent: str
+    path: str
+    resolves_to: str
+
+
+class _SkillJson(TypedDict):
+    """One skill and the agents that read it.
+
+    Attributes:
+        path: The skill's `SKILL.md`, as a root-relative path.
+    """
+
+    path: str
+    agents: list[str]
+
+
+class _WorkspaceJson(TypedDict):
+    """The whole document: the root beside one key per section of the model.
+
+    Attributes:
+        root: The workspace root, as an absolute path; every other path is root-relative.
+    """
+
+    root: str
+    corpora: list[_CorpusJson]
+    agent_skills_dirs: list[_AgentSkillsDirJson]
+    skills: list[_SkillJson]
 
 
 def render_text(root: Path, model: WorkspaceModel) -> str:
@@ -68,18 +149,18 @@ def render_json(root: Path, model: WorkspaceModel) -> str:
         root: The workspace root, written under the `root` key.
         model: Corpora, agent skills directories and skills to encode, one key per section.
     """
-    corpora: list[dict[str, object]] = []
+    corpora: list[_CorpusJson] = []
     for corpus in model.corpora:
         corpora.append(_json_corpus(corpus))
-    skills_dirs: list[dict[str, object]] = []
+    skills_dirs: list[_AgentSkillsDirJson] = []
     for skills_dir in model.skills_dirs:
         skills_dirs.append(
             {'agent': skills_dir.agent, 'path': str(skills_dir.path), 'resolves_to': str(skills_dir.resolves_to)}
         )
-    skills: list[dict[str, object]] = []
+    skills: list[_SkillJson] = []
     for ref in model.skills():
         skills.append({'path': str(ref.path), 'agents': list(model.skill_agents(ref))})
-    document = {
+    document: _WorkspaceJson = {
         'root': str(root),
         'corpora': corpora,
         'agent_skills_dirs': skills_dirs,
@@ -166,18 +247,16 @@ def _skills_section(model: WorkspaceModel) -> _Line:
     return _Line(f'skills ({len(model.skill_locations)})', tuple(lines))
 
 
-def _json_corpus(corpus: Corpus) -> dict[str, object]:
+def _json_corpus(corpus: Corpus) -> _CorpusJson:
     """One corpus as a JSON object: its specs, and its documents with the spec files that govern each.
 
     Args:
         corpus: Corpus whose specs and documents become the object's keys.
     """
-    specs: list[dict[str, object]] = []
+    specs: list[_SpecJson] = []
     for spec in (corpus.corpus_spec, *corpus.namespace_specs):
-        # The key is `stem` for the specification name: the JSON is the command's published output, so it keeps
-        # the word the code has since moved away from.
         specs.append({'stem': str(spec.name), 'files': _paths(spec.files)})
-    documents: list[dict[str, object]] = []
+    documents: list[_DocumentJson] = []
     for ref in corpus.documents:
         documents.append(
             {'path': str(ref.path), 'governed_by': _governing_files(corpus.governance(ref).specs())},
