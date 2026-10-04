@@ -13,6 +13,7 @@ from typing import Final, cast
 import pytest
 
 from lorecraft.core.mapping import FrozenMapping
+from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import PathComponent, PathComponentError, RootRelativePath
 
 from ..scan_root import ScanRoot
@@ -93,8 +94,8 @@ def _climbing_chain_records() -> dict[str, EntryRecord]:
 
 # The scope `_climbing_chain_snapshot` was taken of.
 CLIMBING_CHAIN_SCOPE: Final[tuple[ScanRoot, ...]] = (
-    ScanRoot(RootRelativePath.parse('skills'), depth=1, follow_links=True),
-    ScanRoot(RootRelativePath.parse('a'), depth=1),
+    ScanRoot(RootRelativePath.parse('skills'), depth=UnsignedInt(1), follow_links=True),
+    ScanRoot(RootRelativePath.parse('a'), depth=UnsignedInt(1)),
 )
 
 
@@ -286,8 +287,8 @@ class TestSnapshotEquality:
     def test_snapshots_with_different_scopes_compare_unequal(self) -> None:
         #: Given
         records = {'docs': DirectoryRecord(listed=True)}
-        narrow = _snapshot(records, scope=(ScanRoot(RootRelativePath.parse('docs'), depth=0),))
-        wide = _snapshot(records, scope=(ScanRoot(RootRelativePath.parse('docs'), depth=1),))
+        narrow = _snapshot(records, scope=(ScanRoot(RootRelativePath.parse('docs'), depth=UnsignedInt(0)),))
+        wide = _snapshot(records, scope=(ScanRoot(RootRelativePath.parse('docs'), depth=UnsignedInt(1)),))
 
         #: When
         equal = narrow == wide
