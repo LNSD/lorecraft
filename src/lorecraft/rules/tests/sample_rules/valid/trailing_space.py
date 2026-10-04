@@ -4,12 +4,13 @@ from dataclasses import dataclass
 from typing import ClassVar, Self
 
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.rule import AliasCode, Level, Release, RuleCode
+from lorecraft.rules.rule import AliasCode, Level, Release, RuleCode, rule
 from lorecraft.rules.tests.sample_input import SampleLines, SampleLinesRule
 
 from ..groups import SAMPLE
 
 
+@rule
 @dataclass(frozen=True, slots=True, kw_only=True)
 class TrailingSpace(SampleLinesRule):
     """A line ends in a space."""

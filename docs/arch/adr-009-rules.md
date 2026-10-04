@@ -120,7 +120,8 @@ class EmptySection(HeadingsRule):
 - **The docstring is the documentation**, in fixed sections: *What it does*, *Why is this bad?*, *Example*,
   *Use instead*, and optionally *Known problems* and, for a rule with an alias, *Deviations from upstream*. Nothing
   about a rule is written in a second place.
-- **`@rule` registers the class** and returns it unchanged. It is not generic.
+- **`@rule` registers the class** and returns it unchanged. Its one type parameter only passes the decorated
+  class's type through; nothing in the engine is generic over the input kind.
 - **One file per rule.** The class, its docstring and its check sit in one module, in a directory per group.
 
 The established linters keep a rule's check as a function beside its violation type. Here it is a classmethod
