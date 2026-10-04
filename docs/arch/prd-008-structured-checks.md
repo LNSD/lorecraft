@@ -194,7 +194,7 @@ Scenario: A sample rule
 - **Code:** A rule's permanent identifier: its group's prefix, then digits.
 - **Level:** How a rule is configured: `allow` hides its diagnostics, `warn` reports them as warnings, `deny`
   reports them as errors, which fail the run.
-- **Diagnostic:** One rule's violation at a location in a subject, reported as an error or a warning.
+- **Diagnostic:** One rule's occurrence at a location in a subject, reported as an error or a warning.
 - **Coverage:** Which subjects were checked, and which no specification governs.
 - **Revision:** The workspace as it stands at one moment; a change produces the next one.
 
