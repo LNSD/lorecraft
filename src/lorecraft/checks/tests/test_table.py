@@ -4,6 +4,7 @@ import pytest
 
 from lorecraft import rules
 from lorecraft.rules.declaration import Rule, Severity
+from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.tests.sample_rules import token_count
@@ -95,6 +96,18 @@ class TestRuleTableFromRegistry:
             "the package's token budget is enabled by default as an error, and its engine condition is not in the table"
         )
 
+    def test_from_registry_with_the_package_registry_enables_the_line_budget(self) -> None:
+        #: Given
+        registry = Registry.load(rules)
+
+        #: When
+        table = RuleTable.from_registry(registry)
+
+        #: Then
+        assert table.line_count_rules == (EnabledRule(TooManyLines, Severity.ERROR),), (
+            "the package's line budget is enabled by default as an error"
+        )
+
 
 @pytest.mark.unit
 class TestRuleTable:
@@ -120,3 +133,23 @@ class TestRuleTable:
 
         #: Then
         assert table.token_count_rules == (), 'no enabled rule reads the token count'
+
+    def test_rule_table_with_no_rules_has_an_empty_line_count_partition(self) -> None:
+        #: Given
+        severities: dict[type[Rule], Severity] = {}
+
+        #: When
+        table = RuleTable(severities)
+
+        #: Then
+        assert table.line_count_rules == (), 'no enabled rule reads the line count'
+
+    def test_rule_table_with_a_rule_over_the_line_count_leaves_it_out_of_the_token_count_partition(self) -> None:
+        #: Given
+        severities: dict[type[Rule], Severity] = {TooManyLines: Severity.WARNING}
+
+        #: When
+        table = RuleTable(severities)
+
+        #: Then
+        assert table.token_count_rules == (), 'a rule joins the partition of the input it reads, and no other'
