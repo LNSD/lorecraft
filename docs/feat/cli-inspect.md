@@ -112,7 +112,7 @@ skills, and both exit `0`.
 | Code | Meaning |
 |------|---------|
 | `0`  | The model was printed |
-| `2`  | The command could not run: the model could not be loaded (an entry that cannot be read, under `docs/` or a skills directory, a `docs/` or `docs/__meta__/` that is a [symlink](workspace.md#one-snapshot), or a specification file that cannot be decoded or states no usable rules), or a usage error, including a `ROOT` that is not an existing directory, or both `--format` and `--json`. A load error goes to stderr, prefixed `error:` and followed by its causes ([cli](cli.md)) |
+| `2`  | The command could not run: the model could not be loaded (an entry that cannot be read, or that changed kind while read, under `docs/` or a skills directory, a `docs/` or `docs/__meta__/` that is a [symlink](workspace.md#one-snapshot), or a specification file that cannot be decoded or states no usable rules), or a usage error, including a `ROOT` that is not an existing directory, or both `--format` and `--json`. A load error goes to stderr, prefixed `error:` and followed by its causes ([cli](cli.md)) |
 
 ```text
 error: invalid structure schema docs/__meta__/feat.structure.json: Invalid JSON: key must be a string at line 2 column 3

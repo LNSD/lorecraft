@@ -179,6 +179,7 @@ def select_documents(root: Path | None, paths: list[Path] | None) -> tuple[Datab
         SnapshotEntryInspectError: If an entry on the way to a scope root cannot be inspected.
         SnapshotFileReadError: If a file in scope cannot be read.
         SnapshotLinkReadError: If a symlink's target cannot be read.
+        ChangedSnapshotEntryError: If an entry changes kind while the snapshot is taken.
         LinkedLayoutError: If ``docs/`` or ``docs/__meta__/`` under the root is a symlink.
         DirListError: If the specification directory or docs/ cannot be listed.
         CorpusListError: If a corpus directory cannot be listed.
@@ -253,6 +254,7 @@ def select_skills(root: Path | None, paths: list[Path] | None) -> tuple[Database
         SnapshotEntryInspectError: If an entry on the way to a scope root cannot be inspected.
         SnapshotFileReadError: If a file in scope cannot be read.
         SnapshotLinkReadError: If a symlink's target cannot be read.
+        ChangedSnapshotEntryError: If an entry changes kind while the snapshot is taken.
         LinkedLayoutError: If `docs/` or `docs/__meta__/` under the root is a symlink.
         DirListError: If the specification directory or docs/ cannot be listed.
         CorpusListError: If a corpus directory cannot be listed.

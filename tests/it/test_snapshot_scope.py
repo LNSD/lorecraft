@@ -8,7 +8,7 @@ resources `Database.skill_resources` lists for the skill and how `Database.skill
 """
 
 from pathlib import Path, PurePosixPath
-from typing import Final
+from typing import Final, assert_never
 
 import pytest
 
@@ -18,7 +18,15 @@ from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.skill import SkillRef, SkillRelativePath, SkillResourceLocation, SkillResourceRef
 from lorecraft.project.syntax import LineNumber
 from lorecraft.project.syntax import Link as MarkdownLink
-from lorecraft.vfs import Link, ResolvedPath, Snapshot, take_snapshot
+from lorecraft.vfs import (
+    DirectoryRecord,
+    FileRecord,
+    OtherRecord,
+    ResolvedPath,
+    Snapshot,
+    SymlinkRecord,
+    take_snapshot,
+)
 
 SKILL: Final[str] = '.agents/skills/review'
 REVIEW: Final[SkillRef] = SkillRef(RootRelativePath.parse(SKILL))
@@ -70,8 +78,14 @@ def _file_paths(snapshot: Snapshot) -> set[RootRelativePath]:
         snapshot: The scan whose file records are read.
     """
     paths: set[RootRelativePath] = set()
-    for file in snapshot.files:
-        paths.add(file.path)
+    for path, record in snapshot.records.items():
+        match record:
+            case FileRecord():
+                paths.add(path)
+            case DirectoryRecord() | SymlinkRecord() | OtherRecord():
+                pass  # no bytes
+            case _:
+                assert_never(record)
     return paths
 
 
@@ -131,7 +145,7 @@ class TestSnapshotScopeInsideASkill:
         snapshot = take_snapshot(skill_tree, SNAPSHOT_SCOPE)
 
         #: Then
-        assert Link(RootRelativePath.parse(f'{SKILL}/outside'), PurePosixPath(outside)) in snapshot.links, (
+        assert snapshot.records[RootRelativePath.parse(f'{SKILL}/outside')] == SymlinkRecord(PurePosixPath(outside)), (
             'the link outside the repository is recorded as it is, absolute, and nothing behind it is read'
         )
 
@@ -143,7 +157,7 @@ class TestSnapshotScopeInsideASkill:
         snapshot = take_snapshot(skill_tree, SNAPSHOT_SCOPE)
 
         #: Then
-        assert Link(link, PurePosixPath('..')) in snapshot.links, (
+        assert snapshot.records[link] == SymlinkRecord(PurePosixPath('..')), (
             'the link back to the skill directory is recorded, and the scan ends rather than looping through it'
         )
 

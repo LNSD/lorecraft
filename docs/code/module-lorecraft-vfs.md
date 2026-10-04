@@ -40,8 +40,9 @@ and the package never knows why those directories matter or what the files in th
 
 ## Invariants
 
-- A snapshot is an immutable value. It holds listings, bytes and symlink targets, and never a handle, a stat result
-  or an mtime, so two snapshots compare and hash structurally.
+- A snapshot is an immutable value. It holds one record for each path a scan saw, a directory, a file's bytes, a
+  symlink's target or another entry, and never a handle, a stat result or an mtime, so two snapshots compare and
+  hash structurally. A listing is derived from the records, never stored beside them, so no path has two kinds.
 - Every path crossing the boundary is root-relative. The root is joined to a path only inside this package, and
   every answer leaves root-relative again.
 - Code above reads through the view contract and never names a concrete view, except the code that builds one.
@@ -70,6 +71,7 @@ Before committing code, verify:
 
 - [ ] Nothing added to `lorecraft.vfs` names a directory of the layout or a kind of document
 - [ ] A new snapshot field is immutable and holds no handle, stat result or mtime
+- [ ] What a scan sees at a path is one record of `EntryRecord`; no listing or index is stored beside the records
 - [ ] Every new argument and answer is root-relative, and no `Path` crosses the boundary
 - [ ] A new contract operation answers alike on both views for paths under the root; one only a single view can
       answer lives on that view, off the contract

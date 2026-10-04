@@ -10,6 +10,7 @@ Every snapshot here is built in memory, so no case reads the disk: the database 
 the model loader, the layout guard and the parser together.
 """
 
+from collections.abc import Mapping
 from pathlib import PurePosixPath
 from textwrap import dedent
 from typing import Final
@@ -17,7 +18,8 @@ from typing import Final
 import pytest
 
 from lorecraft.checks import Database, DocumentText, SkillText, Undecodable
-from lorecraft.core.path import PathComponent, RootRelativePath
+from lorecraft.core.mapping import FrozenMapping
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
@@ -25,7 +27,15 @@ from lorecraft.project.layout import LinkedLayoutError, scope_with_named_dirs
 from lorecraft.project.skill import NamedDir, SkillLocation, SkillRef
 from lorecraft.project.syntax import Frontmatter, Heading, LineNumber, count_tokens
 from lorecraft.project.syntax import Link as MarkdownLink
-from lorecraft.vfs import DirEntry, EntryKind, FileBytes, Link, Listing, ResolvedPath, ScanRoot, Snapshot
+from lorecraft.vfs import (
+    DirectoryRecord,
+    EntryRecord,
+    FileRecord,
+    ResolvedPath,
+    ScanRoot,
+    Snapshot,
+    SymlinkRecord,
+)
 
 GUIDE: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('guide'))
 REVIEW: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/review'))
@@ -80,6 +90,19 @@ def _skill_text(database: Database, ref: SkillRef) -> SkillText:
     return source
 
 
+def _snapshot_of(records: Mapping[str, EntryRecord], *, scope: tuple[ScanRoot, ...] = ()) -> Snapshot:
+    """A snapshot holding `records`, each keyed by its root-relative path as spelled, and `scope`.
+
+    Args:
+        records: Each record the snapshot holds, keyed by the path it was recorded at.
+        scope: The scan roots the snapshot records it was taken of; none by default, as for one built by hand.
+    """
+    parsed: dict[RootRelativePath, EntryRecord] = {}
+    for raw_path, record in records.items():
+        parsed[RootRelativePath.parse(raw_path)] = record
+    return Snapshot(FrozenMapping(parsed), scope=scope)
+
+
 def _climbing_chain_snapshot() -> Snapshot:
     """What `take_snapshot` records for link chains whose `..` climbs out of a directory stepped into by name.
 
@@ -89,46 +112,22 @@ def _climbing_chain_snapshot() -> Snapshot:
     nowhere; `skills/out` names `../a/tmp/../../..` and climbs above the root. Every directory a followed chain
     climbs out of is recorded.
     """
-    return Snapshot(
-        listings=(
-            Listing(
-                RootRelativePath.parse('a'),
-                (
-                    DirEntry(PathComponent.parse('b'), EntryKind.DIRECTORY),
-                    DirEntry(PathComponent.parse('tmp'), EntryKind.DIRECTORY),
-                ),
-            ),
-            Listing(RootRelativePath.parse('a/b'), (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),)),
-            Listing(RootRelativePath.parse('a/tmp'), ()),
-            Listing(RootRelativePath.parse('c/d'), (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),)),
-            Listing(
-                RootRelativePath.parse('skills'),
-                (
-                    DirEntry(PathComponent.parse('far'), EntryKind.SYMLINK),
-                    DirEntry(PathComponent.parse('l'), EntryKind.SYMLINK),
-                    DirEntry(PathComponent.parse('m'), EntryKind.SYMLINK),
-                    DirEntry(PathComponent.parse('n'), EntryKind.SYMLINK),
-                    DirEntry(PathComponent.parse('out'), EntryKind.SYMLINK),
-                ),
-            ),
-        ),
-        files=(
-            FileBytes(RootRelativePath.parse('a/b/SKILL.md'), b'---\nname: b\n---\n'),
-            FileBytes(RootRelativePath.parse('c/d/SKILL.md'), b'---\nname: d\n---\n'),
-        ),
-        links=(
-            Link(RootRelativePath.parse('skills/far'), PurePosixPath('../c/tmp/../d')),
-            Link(RootRelativePath.parse('skills/l'), PurePosixPath('../a/tmp/../b')),
-            Link(RootRelativePath.parse('skills/m'), PurePosixPath('../a/b')),
-            Link(RootRelativePath.parse('skills/n'), PurePosixPath('../a/missing/../b')),
-            Link(RootRelativePath.parse('skills/out'), PurePosixPath('../a/tmp/../../..')),
-        ),
-        climbed_directories=(
-            RootRelativePath.parse('a'),
-            RootRelativePath.parse('a/tmp'),
-            RootRelativePath.parse('c/tmp'),
-            RootRelativePath.parse('skills'),
-        ),
+    return _snapshot_of(
+        {
+            'a': DirectoryRecord(listed=True, climbed=True),
+            'a/b': DirectoryRecord(listed=True),
+            'a/b/SKILL.md': FileRecord(b'---\nname: b\n---\n'),
+            'a/tmp': DirectoryRecord(listed=True, climbed=True),
+            'c/d': DirectoryRecord(listed=True),
+            'c/d/SKILL.md': FileRecord(b'---\nname: d\n---\n'),
+            'c/tmp': DirectoryRecord(climbed=True),
+            'skills': DirectoryRecord(listed=True, climbed=True),
+            'skills/far': SymlinkRecord(PurePosixPath('../c/tmp/../d')),
+            'skills/l': SymlinkRecord(PurePosixPath('../a/tmp/../b')),
+            'skills/m': SymlinkRecord(PurePosixPath('../a/b')),
+            'skills/n': SymlinkRecord(PurePosixPath('../a/missing/../b')),
+            'skills/out': SymlinkRecord(PurePosixPath('../a/tmp/../../..')),
+        },
         scope=(
             ScanRoot(RootRelativePath.parse('skills'), depth=1, follow_links=True),
             ScanRoot(RootRelativePath.parse('a'), depth=1),
@@ -152,7 +151,7 @@ class TestDatabase:
         #: Given
         files = Snapshot.from_tree({'skills': {'review': {'SKILL.md': b''}}})
         scope = scope_with_named_dirs((RootRelativePath.parse('skills'),))
-        snapshot = Snapshot(listings=files.listings, files=files.files, scope=scope)
+        snapshot = Snapshot(files.records, scope=scope)
 
         #: When
         model = Database(snapshot).model()
@@ -185,12 +184,7 @@ class TestDatabase:
         #: Given
         # What a scan records for a `docs -> documentation` link: the link on the way to the scope root, and
         # nothing behind it.
-        snapshot = Snapshot(
-            listings=(),
-            files=(),
-            links=(Link(RootRelativePath.parse('docs'), PurePosixPath('documentation')),),
-        )
-        database = Database(snapshot)
+        database = Database(_snapshot_of({'docs': SymlinkRecord(PurePosixPath('documentation'))}))
 
         #: When
         with pytest.raises(LinkedLayoutError) as exc_info:
@@ -211,8 +205,7 @@ class TestDatabase:
 
     def test_is_in_scope_with_a_path_the_snapshot_scope_covers_returns_true(self) -> None:
         #: Given
-        snapshot = Snapshot(listings=(), files=(), scope=(ScanRoot(RootRelativePath.parse('src'), depth=0),))
-        database = Database(snapshot)
+        database = Database(_snapshot_of({}, scope=(ScanRoot(RootRelativePath.parse('src'), depth=0),)))
 
         #: When
         in_scope = database.is_in_scope(RootRelativePath.parse('src/tool.py'))
@@ -224,8 +217,7 @@ class TestDatabase:
 
     def test_is_in_scope_with_a_path_only_the_layout_scope_covers_returns_false(self) -> None:
         #: Given
-        snapshot = Snapshot(listings=(), files=(), scope=(ScanRoot(RootRelativePath.parse('src'), depth=0),))
-        database = Database(snapshot)
+        database = Database(_snapshot_of({}, scope=(ScanRoot(RootRelativePath.parse('src'), depth=0),)))
 
         #: When
         in_scope = database.is_in_scope(RootRelativePath.parse('docs/code/guide.md'))
@@ -249,10 +241,8 @@ class TestDatabase:
         #: Given
         # The skills root follows links, so the link adds skills/review to what the scan lists; the first question
         # builds the expanded scope the database keeps, and the second is answered from it.
-        snapshot = Snapshot(
-            listings=(),
-            files=(),
-            links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),),
+        snapshot = _snapshot_of(
+            {'.agents/skills/review': SymlinkRecord(PurePosixPath('../../skills/review'))},
             scope=(ScanRoot(RootRelativePath.parse('.agents/skills'), depth=1, follow_links=True),),
         )
         database = Database(snapshot)
@@ -490,12 +480,9 @@ class TestDatabase:
         shipped = Snapshot.from_tree(
             {'skills': {'review': {'SKILL.md': b'---\nname: review\n---\n[the guide](guide.md)\n'}}}
         )
-        snapshot = Snapshot(
-            listings=shipped.listings,
-            files=shipped.files,
-            links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),),
-        )
-        database = Database(snapshot)
+        records: dict[RootRelativePath, EntryRecord] = dict(shipped.records)
+        records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(PurePosixPath('../../skills/review'))
+        database = Database(Snapshot(FrozenMapping(records)))
         source = _skill_text(database, REVIEW)
 
         #: When
