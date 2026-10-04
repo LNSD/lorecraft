@@ -13,6 +13,11 @@ paths a skill that links files in through `metadata` lists there, with what the 
 returns violations, which name no document; `run` files them under the document's report, or the skill's, or the
 resource's, which locates them as findings. Nothing here prints: the `check` commands own the output and the exit
 codes.
+
+The rules engine that replaces these pipelines sits beside them, not yet run by the command line: `runner` judges
+each document by the rules of `lorecraft.rules` a `RuleTable` enables, building each input a rule reads once, in
+`inputs`, and reports each subject as `report` states. Until the command line runs it, nothing of it is exported
+here: a caller imports it from its module.
 """
 
 from .budget import BudgetCheckResult, validate_budget
