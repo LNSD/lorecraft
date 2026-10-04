@@ -69,7 +69,7 @@ from .structure import (
 )
 from .structure_file import StructureFile
 
-__all__ = [
+__all__: list[str] = [
     'CorpusSpecName',
     'NamespaceSpecName',
     'SpecName',

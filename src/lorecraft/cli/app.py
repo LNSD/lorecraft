@@ -5,14 +5,14 @@ name, the help text, `--version` — and delegates the rest to the registry, so 
 never edits it.
 """
 
-from typing import Annotated
+from typing import Annotated, Final
 
 import typer
 
 from .registry import mount
 from .version import short_version
 
-_HELP: str = "Check a repository's agent-facing documentation: rule documents, feature docs and skills."
+_HELP: Final[str] = "Check a repository's agent-facing documentation: rule documents, feature docs and skills."
 
 
 def build_app() -> typer.Typer:

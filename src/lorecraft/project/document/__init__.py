@@ -10,7 +10,7 @@ from .repo import (
     Repository,
 )
 
-__all__ = [
+__all__: list[str] = [
     'DocumentRef',
     'Document',
     'DocumentFile',

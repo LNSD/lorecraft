@@ -34,7 +34,7 @@ app: typer.Typer = typer.Typer(
 )
 register_group('check', app)
 
-__all__ = ['app']
+__all__: list[str] = ['app']
 
 
 @app.callback()
