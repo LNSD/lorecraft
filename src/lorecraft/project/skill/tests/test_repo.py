@@ -26,7 +26,7 @@ from lorecraft.vfs import (
 )
 
 from ..outside import OutsideSymlink
-from ..ref import SkillLocation, SkillRef, SkillResourceLocation, SkillResourceRef
+from ..ref import SkillLocation, SkillRef, SkillRelativePath, SkillResourceLocation, SkillResourceRef
 from ..repo import (
     Repository,
     SkillResource,
@@ -107,12 +107,12 @@ def _resource(path: str, resolves_to: str | None = None) -> SkillResourceLocatio
     """The location of a resource of the `review` skill.
 
     Args:
-        path: Where an agent reaches the resource, root-relative.
-        resolves_to: The resolved file it leads to; `path` itself when omitted.
+        path: Where an agent reaches the resource, spelled from the skill's directory.
+        resolves_to: The resolved file it leads to, root-relative; `path` inside the skill's directory when omitted.
     """
-    resolved = path if resolves_to is None else resolves_to
+    resolved = f'{SKILL}/{path}' if resolves_to is None else resolves_to
     return SkillResourceLocation(
-        SkillResourceRef(REVIEW.ref, RootRelativePath.parse(path)),
+        SkillResourceRef(REVIEW.ref, SkillRelativePath.parse(path)),
         resolves_to=ResolvedPath(RootRelativePath.parse(resolved)),
     )
 
@@ -136,9 +136,9 @@ class TestRepositoryListSkillResources:
 
         #: Then
         assert resources == (
-            _resource(f'{SKILL}/guide.md'),
-            _resource(f'{SKILL}/references/a.md'),
-            _resource(f'{SKILL}/references/deep/b.md'),
+            _resource('guide.md'),
+            _resource('references/a.md'),
+            _resource('references/deep/b.md'),
         ), 'every Markdown file at any depth is a resource, each at its own resolved path, in path order'
 
     def test_list_skill_resources_with_only_the_top_level_skill_file_returns_empty(self) -> None:
@@ -167,7 +167,7 @@ class TestRepositoryListSkillResources:
         resources = repository.list_skill_resources(review).resources
 
         #: Then
-        assert resources == (_resource(f'{SKILL}/references/a.md'),), (
+        assert resources == (_resource('references/a.md'),), (
             'the top-level SKILL.md is the skill itself even when it is a symlink to where its text lives'
         )
 
@@ -179,9 +179,7 @@ class TestRepositoryListSkillResources:
         resources = repository.list_skill_resources(REVIEW).resources
 
         #: Then
-        assert resources == (_resource(f'{SKILL}/examples/SKILL.md'),), (
-            'a SKILL.md below the top level is a resource like any'
-        )
+        assert resources == (_resource('examples/SKILL.md'),), 'a SKILL.md below the top level is a resource like any'
 
     def test_list_skill_resources_with_files_not_ending_in_md_leaves_them_out(self) -> None:
         #: Given
@@ -212,7 +210,7 @@ class TestRepositoryListSkillResources:
         resources = repository.list_skill_resources(REVIEW).resources
 
         #: Then
-        assert resources == (_resource(f'{SKILL}/guides/deeper/d.md', 'shared/guides/deeper/d.md'),), (
+        assert resources == (_resource('guides/deeper/d.md', 'shared/guides/deeper/d.md'),), (
             'the symlinked directory is entered: its resource is named through the symlink, and located where it lives'
         )
 
@@ -227,7 +225,7 @@ class TestRepositoryListSkillResources:
         resources = repository.list_skill_resources(REVIEW).resources
 
         #: Then
-        assert resources == (_resource(f'{SKILL}/notes.md', 'notes/e.md'),), (
+        assert resources == (_resource('notes.md', 'notes/e.md'),), (
             'the symlink is named where it sits in the skill, and located at the file it leads to'
         )
 
@@ -261,7 +259,7 @@ class TestRepositoryListSkillResources:
         resources = repository.list_skill_resources(REVIEW).resources
 
         #: Then
-        assert resources == (_resource(f'{SKILL}/references/a.md'),), (
+        assert resources == (_resource('references/a.md'),), (
             "a directory holding the skill is never entered, so no other skill's resource is counted as this one's"
         )
 
@@ -276,7 +274,7 @@ class TestRepositoryListSkillResources:
         resources = repository.list_skill_resources(REVIEW).resources
 
         #: Then
-        assert resources == (_resource(f'{SKILL}/references/a.md'),), (
+        assert resources == (_resource('references/a.md'),), (
             'the skill directory was entered already, so the symlink back to it adds nothing'
         )
 
@@ -292,7 +290,7 @@ class TestRepositoryListSkillResources:
         resources = repository.list_skill_resources(REVIEW).resources
 
         #: Then
-        assert resources == (_resource(f'{SKILL}/references/a.md'),), (
+        assert resources == (_resource('references/a.md'),), (
             'every directory reached without a symlink is entered first, so the resource keeps its resolved name'
         )
 
@@ -310,7 +308,7 @@ class TestRepositoryListSkillResources:
         resources = repository.list_skill_resources(REVIEW).resources
 
         #: Then
-        assert resources == (_resource(f'{SKILL}/references/deep/b.md'),), (
+        assert resources == (_resource('references/deep/b.md'),), (
             'the symlink waits until references/deep/ is entered by its resolved path, so the resource keeps that name'
         )
 
@@ -331,8 +329,8 @@ class TestRepositoryListSkillResources:
 
         #: Then
         assert resources == (
-            _resource(f'{SKILL}/q/a.md', 'shared/q/a.md'),
-            _resource(f'{SKILL}/q/to-s/b.md', 'shared/s/b.md'),
+            _resource('q/a.md', 'shared/q/a.md'),
+            _resource('q/to-s/b.md', 'shared/s/b.md'),
         ), 'each resolved directory is entered once, so the walk ends, and each resource is listed once'
 
     def test_list_skill_resources_with_dangling_symlinks_leaves_them_out(self) -> None:
@@ -417,7 +415,7 @@ class TestRepositoryListSkillResources:
         #: Then
         assert resources == (
             SkillResourceLocation(
-                SkillResourceRef(audit.ref, RootRelativePath.parse('.agents/skills/audit/references/a.md')),
+                SkillResourceRef(audit.ref, SkillRelativePath.parse('references/a.md')),
                 resolves_to=ResolvedPath(RootRelativePath.parse('skills/audit/references/a.md')),
             ),
         ), 'the resource is named under the skill entry, and located under the directory the entry leads to'
@@ -449,7 +447,7 @@ class TestRepositoryListSkillResources:
         #: Then
         assert resources == (
             SkillResourceLocation(
-                SkillResourceRef(audit.ref, RootRelativePath.parse('.agents/skills/audit/references/a.md')),
+                SkillResourceRef(audit.ref, SkillRelativePath.parse('references/a.md')),
                 resolves_to=ResolvedPath(RootRelativePath.parse('skills/audit/references/a.md')),
             ),
         ), 'the skills directory holds the entry the skill is named by, so the review skill is never counted'
@@ -592,7 +590,7 @@ class TestRepositoryGetSkillResource:
         #: Given
         # nothing is at the ref's own path: only the recorded resolved file can answer
         repository = _repository({'notes/e.md': b'# Notes\n'}, {})
-        location = _resource(f'{SKILL}/notes.md', 'notes/e.md')
+        location = _resource('notes.md', 'notes/e.md')
 
         #: When
         resource = repository.get_skill_resource(location)
@@ -605,7 +603,7 @@ class TestRepositoryGetSkillResource:
     def test_get_skill_resource_with_bytes_that_are_not_utf8_raises_skill_resource_decode_error(self) -> None:
         #: Given
         repository = _repository({f'{SKILL}/references/a.md': b'caf\xe9\n'}, {})
-        location = _resource(f'{SKILL}/references/a.md')
+        location = _resource('references/a.md')
 
         #: When
         with pytest.raises(SkillResourceDecodeError) as exc_info:
@@ -618,7 +616,7 @@ class TestRepositoryGetSkillResource:
     def test_get_skill_resource_with_no_file_at_its_location_raises_skill_resource_read_error(self) -> None:
         #: Given
         repository = _repository({f'{SKILL}/SKILL.md': b''}, {})
-        location = _resource(f'{SKILL}/references/a.md')
+        location = _resource('references/a.md')
 
         #: When
         with pytest.raises(SkillResourceReadError) as exc_info:

@@ -10,7 +10,7 @@ may name another directory to check the skills in, recorded as a `NamedDir`: one
 
 from .named_dir import NamedDir
 from .outside import OutsideSymlink
-from .ref import SkillLocation, SkillRef, SkillResourceLocation, SkillResourceRef
+from .ref import SkillLocation, SkillRef, SkillRelativePath, SkillResourceLocation, SkillResourceRef
 from .repo import (
     Repository,
     Skill,
@@ -33,6 +33,7 @@ from .skills_dir import SkillsDir
 __all__: list[str] = [
     'SkillRef',
     'SkillLocation',
+    'SkillRelativePath',
     'SkillResourceRef',
     'SkillResourceLocation',
     'SkillsDir',
