@@ -29,7 +29,7 @@ ls docs/__meta__/<corpus>*                                        # from a corpu
 
 **A namespace is a group only once a specification name here names it.** `docs/code/` holds documents under
 several namespaces; those no `<corpus>-<namespace>` name matches are governed by the corpus specification alone,
-which is the normal case and not a gap to fill: `test-*` and `logging` answer to `code.*` and nothing else. Add a
+which is the normal case and not a gap to fill: `tests-*` and `logging` answer to `code.*` and nothing else. Add a
 namespace specification when a group's members genuinely share rules the rest of the corpus does not, and the
 group's documents then answer to both. A namespace specification whose corpus has no specification of its own
 narrows nothing and is ignored.

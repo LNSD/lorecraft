@@ -1,5 +1,5 @@
 ---
-name: "test-organization"
+name: "tests-organization"
 description: "Test tiers and their directories, unit tests co-located in a `tests/` subpackage beside their module, the one mandatory tier marker per test, marker declaration under --strict-markers, what a unit test may not depend on or mock, and the shared contract suite a new checker passes first. Load when adding a test file, choosing where a test belongs, introducing a marker, or adding a new checker"
 type: "core"
 scope: "global"
@@ -10,8 +10,8 @@ scope: "global"
 A test's directory says what it needs to run, and its marker says the same thing to pytest. Those two facts
 must agree, because the directory is what a reader selects on and the marker is what `just` and CI select on,
 and a test whose marker disagrees with its directory runs in a suite that cannot satisfy it. Everything inside
-a test function — its name, its structure, its fixtures — is owned by [test-functions](test-functions.md),
-and what it asserts by [test-assertions](test-assertions.md). This document owns where a test lives and what selects it.
+a test function — its name, its structure, its fixtures — is owned by [tests-functions](tests-functions.md),
+and what it asserts by [tests-assertions](tests-assertions.md). This document owns where a test lives and what selects it.
 
 ## 1. One Tier, One Directory
 
@@ -24,7 +24,7 @@ and what it asserts by [test-assertions](test-assertions.md). This document owns
 `unit` lives in the source tree, in a `tests/` subpackage beside the module it tests ([§2](#2-a-unit-test-sits-beside-the-module-it-tests)).
 `it` lives in `tests/it/`. `e2e` lives in `tests/e2e/` and covers
 the command line only, because it tests the product rather than any one layer; its shared helpers sit in
-`tests/lib/`, imported as `lib` and never built or installed; [test-e2e](test-e2e.md) owns how an
+`tests/lib/`, imported as `lib` and never built or installed; [tests-e2e](tests-e2e.md) owns how an
 `e2e` test uses them. The library has no `e2e` tier: its end-to-end
 surface is its public API, which its `it` tier already exercises.
 
@@ -277,8 +277,8 @@ Before committing code, verify:
 
 ## References
 
-- [test-functions](test-functions.md) - Related: Owns everything inside the test function — naming, one behaviour and one case per test, fixtures
-- [test-assertions](test-assertions.md) - Related: Owns what a test asserts and the message each assertion carries
+- [tests-functions](tests-functions.md) - Related: Owns everything inside the test function — naming, one behaviour and one case per test, fixtures
+- [tests-assertions](tests-assertions.md) - Related: Owns what a test asserts and the message each assertion carries
 - [pattern-resource-lifecycle](pattern-resource-lifecycle.md) - Related: Owns the acquire/release contract a scoped fixture drives
 - [logging](logging.md) - Related: Owns the log lines a failing test is read through
 - [python-modules](python-modules.md) - Related: Owns the import form a co-located unit test uses and the ban on underscored package names

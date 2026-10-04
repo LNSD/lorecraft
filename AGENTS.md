@@ -212,8 +212,8 @@ beside it narrow it for their groups. Read the specifications that govern a docu
 
 ## Testing
 
-[test-organization](docs/code/test-organization.md) owns the tiers and where a test lives,
-[test-functions](docs/code/test-functions.md) the shape of a test, and the `code-test` skill the recipes,
+[tests-organization](docs/code/tests-organization.md) owns the tiers and where a test lives,
+[tests-functions](docs/code/tests-functions.md) the shape of a test, and the `code-test` skill the recipes,
 snapshots included. Run tests through the `just` recipes, never a bare `pytest`; CI runs `just test`.
 
 ## Commits

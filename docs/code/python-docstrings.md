@@ -184,7 +184,7 @@ here are half-open (`start` inclusive, `end` exclusive) so that the last section
 ```
 
 A test module carries a docstring saying what it pins; a test class or function does not, since its name
-already says what it checks ([test-functions](test-functions.md)). An `__init__` needs none: the class
+already says what it checks ([tests-functions](tests-functions.md)). An `__init__` needs none: the class
 docstring states what constructing it takes; one that has a docstring follows §3. A magic method carries one
 too, saying what this class's version gives: what a `__str__` prints, what a `__lt__` orders by.
 
@@ -309,7 +309,7 @@ docstring is a usage story that was true once, and a reader cannot tell which pa
 **Nothing executes them in this repository today**: the suite runs without `--doctest-modules`. So every
 `Example:` block is **illustrative, not verified** — written as a doctest so it is ready the day doctests are
 turned on, kept to a handful of lines, and never the only statement of a contract. A behaviour that must be
-guaranteed is guaranteed by a test ([test-organization](test-organization.md)).
+guaranteed is guaranteed by a test ([tests-organization](tests-organization.md)).
 
 An example that would need a corpus checked out on disk, a network fetch, or a fixture tree to run is not an
 example; it is a test that has wandered into a docstring.
@@ -409,7 +409,7 @@ Before committing code, verify:
 - [error-boundaries](error-boundaries.md) - Related: Owns whether a built-in belongs in `Raises:`
 - [python-dataclasses](python-dataclasses.md) - Related: Owns the record whose fields an `Attributes:` section documents
 - [pattern-value-object](pattern-value-object.md) - Related: The replacement for a parameter that needs a paragraph
-- [test-organization](test-organization.md) - Related: Where a contract that must be guaranteed is actually guaranteed
+- [tests-organization](tests-organization.md) - Related: Where a contract that must be guaranteed is actually guaranteed
 - [logging](logging.md) - Related: Owns runtime narration, which is never a docstring's job
 - [principle-least-surprise](principle-least-surprise.md) - Foundation: A `Raises:` section exists because Python cannot surprise a caller with an exception type any other way
 - [principle-information-hiding](principle-information-hiding.md) - Foundation: A docstring states the contract, not the implementation behind it
