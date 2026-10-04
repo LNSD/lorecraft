@@ -10,6 +10,7 @@ from typing import ClassVar, Final, Self
 
 import pytest
 
+from lorecraft import rules
 from lorecraft.checks import Database, DocumentText
 from lorecraft.checks.report import CheckedSubject, RuleDiagnostic, UndecodableSubject
 from lorecraft.checks.runner import check_subjects
@@ -22,7 +23,7 @@ from lorecraft.project.syntax import LineNumber, count_tokens
 from lorecraft.rules.declaration import Level, Release, Rule, RuleCode, RuleGroup, RuleName, Severity
 from lorecraft.rules.inputs import InputKind, TokenCountInput, TokenCountRule
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
-from lorecraft.rules.registry import Registry, package_registry
+from lorecraft.rules.registry import Registry
 from lorecraft.vfs import Snapshot
 
 GUIDE: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('guide'))
@@ -189,7 +190,7 @@ def _budget(tokens: int) -> bytes:
 @pytest.fixture(scope='module')
 def package_table() -> RuleTable:
     """The rule table of the package's own rules at their default levels; immutable, so shared by the module."""
-    return RuleTable.from_registry(package_registry())
+    return RuleTable.from_registry(Registry.load(rules))
 
 
 @pytest.fixture(scope='module')

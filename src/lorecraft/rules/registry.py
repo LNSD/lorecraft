@@ -10,6 +10,10 @@ code bound twice, a prefix given two groups, a class attribute left unbound, a r
 or a code in a group its kind may not use, is a defect in `lorecraft.rules`, never in the user's repository, so it
 raises a `RuntimeError` whose traceback locates the declaration.
 
+A command's composition root builds the registry with `Registry.load(rules)`, once per invocation, and hands it to
+what reads it; nothing below the composition root imports a registry or keeps one. A long-lived process builds it
+once as it starts and keeps it for its lifetime, since the rules are fixed for as long as the process runs.
+
 The engine's group is reserved for engine conditions, and every condition is in it. No type can say which group a
 code is in, so the registry holds both directions as it loads.
 """
@@ -18,11 +22,8 @@ import importlib
 import inspect
 import pkgutil
 from collections.abc import Iterable
-from functools import cache
 from types import ModuleType
 from typing import Final, Self, assert_never
-
-from lorecraft import rules
 
 from .declaration import EngineCondition, RemovedRule, Rule, RuleDeclaration, RuleGroup, RuleName, declared_rules
 from .engine.__ruleset__ import GROUP_ID as ENGINE_GROUP_ID
@@ -329,27 +330,6 @@ class Registry:
                 `MD040`.
         """
         return self._by_key.get(key)
-
-
-@cache
-def package_registry() -> Registry:
-    """The registry of the rules the package ships, from `lorecraft.rules`, its unit tests left out.
-
-    Built on the first call and kept for the life of the process: the rules are package data, fixed for as long
-    as the process runs.
-
-    Raises:
-        UnsetRuleAttributeError: If a declaration leaves a class attribute its kind requires unbound.
-        AbstractRuleError: If a rule's class or an engine condition is still abstract.
-        RuleInEngineGroupError: If a rule's or a removed rule's code is in the engine's group.
-        ConditionOutsideEngineGroupError: If an engine condition's code is outside the engine's group.
-        DuplicateRuleCodeError: If a code is bound twice.
-        ConflictingRuleGroupError: If two codes give one prefix two different groups.
-        DuplicateRuleNameError: If a name is bound twice.
-        DuplicateAliasCodeError: If an alias code is bound twice, or is already bound as a code or a name.
-        Exception: Whatever a rule module raises as it is imported, unchanged.
-    """
-    return Registry.load(rules)
 
 
 def _import_modules(package: ModuleType) -> None:
