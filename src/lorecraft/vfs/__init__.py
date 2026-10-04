@@ -10,6 +10,7 @@ this package's.
 
 from .changes import Change, ChangeKind, ChangeSet, diff
 from .disk import (
+    ChangedSnapshotEntryError,
     DiskFileSystem,
     SnapshotDirListError,
     SnapshotEntryInspectError,
@@ -20,7 +21,16 @@ from .disk import (
 )
 from .scan_root import ScanRoot
 from .scope import ScopeIndex
-from .snapshot import FileBytes, FileTree, Link, Listing, Snapshot, VirtualFileSystem
+from .snapshot import (
+    DirectoryRecord,
+    EntryRecord,
+    FileRecord,
+    FileTree,
+    OtherRecord,
+    Snapshot,
+    SymlinkRecord,
+    VirtualFileSystem,
+)
 from .view import (
     DirEntry,
     DirListError,
@@ -45,9 +55,11 @@ __all__: list[str] = [
     'VirtualFileSystem',
     'Snapshot',
     'FileTree',
-    'Listing',
-    'FileBytes',
-    'Link',
+    'EntryRecord',
+    'DirectoryRecord',
+    'FileRecord',
+    'SymlinkRecord',
+    'OtherRecord',
     'ScanRoot',
     'ScopeIndex',
     'take_snapshot',
@@ -55,6 +67,7 @@ __all__: list[str] = [
     'SnapshotEntryInspectError',
     'SnapshotFileReadError',
     'SnapshotLinkReadError',
+    'ChangedSnapshotEntryError',
     'EntryKind',
     'DirEntry',
     'RootExit',

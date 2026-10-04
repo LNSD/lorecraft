@@ -22,7 +22,8 @@ through the snapshot, so two checks behind one report never see two states of th
 
 ### The Snapshot Is a Value
 
-A snapshot holds listings, file bytes and symlink targets, and is never patched. The next one is a new value:
+A snapshot holds what the scan recorded at each path (a directory, a file's bytes, a symlink's target), and is
+never patched. The next one is a new value:
 a full scan, or the previous snapshot with only the paths that events name scanned again, provided it equals
 what a full scan would see. Two snapshots compare structurally, so what changed between two revisions is the
 difference between their snapshots. Filesystem events say where and when to look; the change is always computed

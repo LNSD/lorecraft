@@ -11,27 +11,29 @@ import os
 from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path, PurePosixPath
 from types import MappingProxyType
-from typing import Final
+from typing import Final, assert_never
 
 import pytest
 
 from lorecraft.core.error import Error
+from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.vfs import (
     Change,
     ChangeKind,
+    DirectoryRecord,
     DirEntry,
     DirListError,
     DirResolveError,
     DiskFileSystem,
     EntryInspectError,
     EntryKind,
-    FileBytes,
+    EntryRecord,
     FileReadError,
+    FileRecord,
     FileResolveError,
-    Link,
-    Listing,
     OsRefusal,
+    OtherRecord,
     RootExit,
     ScanRoot,
     ScopeIndex,
@@ -40,6 +42,7 @@ from lorecraft.vfs import (
     SnapshotEntryInspectError,
     SnapshotFileReadError,
     SnapshotLinkReadError,
+    SymlinkRecord,
     TextDecodeError,
     UnrecordedFileError,
     VirtualFileSystem,
@@ -297,6 +300,49 @@ def chain_of_40_links(tmp_path: Path) -> str:
         (tmp_path / f'link-{index}').symlink_to(target)
         target = f'link-{index}'
     return target
+
+
+def _snapshot(records: Mapping[str, EntryRecord], *, scope: tuple[ScanRoot, ...]) -> Snapshot:
+    """A snapshot holding `records`, each keyed by its root-relative path as spelled, taken of `scope`.
+
+    Args:
+        records: Each record the snapshot holds, keyed by the path it was recorded at.
+        scope: The scan roots the snapshot records it was taken of.
+    """
+    parsed: dict[RootRelativePath, EntryRecord] = {}
+    for raw_path, record in records.items():
+        parsed[RootRelativePath.parse(raw_path)] = record
+    return Snapshot(FrozenMapping(parsed), scope=scope)
+
+
+def _listed_directories(snapshot: Snapshot) -> set[RootRelativePath]:
+    """Every directory the scan of `snapshot` listed.
+
+    Args:
+        snapshot: The scan whose directory records are read.
+    """
+    listed: set[RootRelativePath] = set()
+    for path, record in snapshot.records.items():
+        match record:
+            case DirectoryRecord(listed=True):
+                listed.add(path)
+            case DirectoryRecord() | FileRecord() | SymlinkRecord() | OtherRecord():
+                pass  # no listing
+            case _:
+                assert_never(record)
+    return listed
+
+
+def _recorded_kinds(snapshot: Snapshot) -> dict[RootRelativePath, EntryKind]:
+    """Every path the scan of `snapshot` recorded, with the kind its record gives it.
+
+    Args:
+        snapshot: The scan whose records are read.
+    """
+    kinds: dict[RootRelativePath, EntryKind] = {}
+    for path, record in snapshot.records.items():
+        kinds[path] = record.kind
+    return kinds
 
 
 # What a failed read answers in a parity comparison. ``FileSystem.read_text`` lists two read failures: the disk
@@ -969,21 +1015,13 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, SNAPSHOT_SCOPE)
 
         #: Then
-        assert snapshot == Snapshot(
-            listings=(
-                Listing(
-                    RootRelativePath.parse('docs'),
-                    (
-                        DirEntry(PathComponent.parse('code'), EntryKind.DIRECTORY),
-                        DirEntry(PathComponent.parse('glossary.md'), EntryKind.FILE),
-                    ),
-                ),
-                Listing(RootRelativePath.parse('docs/code'), (DirEntry(PathComponent.parse('a.md'), EntryKind.FILE),)),
-            ),
-            files=(
-                FileBytes(RootRelativePath.parse('docs/code/a.md'), b'# A\n'),
-                FileBytes(RootRelativePath.parse('docs/glossary.md'), b'# Glossary\n'),
-            ),
+        assert snapshot == _snapshot(
+            {
+                'docs': DirectoryRecord(listed=True),
+                'docs/code': DirectoryRecord(listed=True),
+                'docs/code/a.md': FileRecord(b'# A\n'),
+                'docs/glossary.md': FileRecord(b'# Glossary\n'),
+            },
             scope=SNAPSHOT_SCOPE,
         ), 'each listing down to the depth, and the bytes of every file entry in them'
 
@@ -996,14 +1034,12 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, SNAPSHOT_SCOPE)
 
         #: Then
-        assert snapshot == Snapshot(
-            listings=(
-                Listing(RootRelativePath.parse('docs'), (DirEntry(PathComponent.parse('code'), EntryKind.DIRECTORY),)),
-                Listing(
-                    RootRelativePath.parse('docs/code'), (DirEntry(PathComponent.parse('sub'), EntryKind.DIRECTORY),)
-                ),
-            ),
-            files=(),
+        assert snapshot == _snapshot(
+            {
+                'docs': DirectoryRecord(listed=True),
+                'docs/code': DirectoryRecord(listed=True),
+                'docs/code/sub': DirectoryRecord(),
+            },
             scope=SNAPSHOT_SCOPE,
         ), 'a directory at depth 2 is an entry of its parent, and nothing inside it is read'
 
@@ -1019,18 +1055,12 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, SNAPSHOT_SCOPE)
 
         #: Then
-        assert snapshot == Snapshot(
-            listings=(
-                Listing(
-                    RootRelativePath.parse('docs'),
-                    (
-                        DirEntry(PathComponent.parse('a.md'), EntryKind.FILE),
-                        DirEntry(PathComponent.parse('linked.md'), EntryKind.SYMLINK),
-                    ),
-                ),
-            ),
-            files=(FileBytes(RootRelativePath.parse('docs/a.md'), b'# A\n'),),
-            links=(Link(RootRelativePath.parse('docs/linked.md'), PurePosixPath('a.md')),),
+        assert snapshot == _snapshot(
+            {
+                'docs': DirectoryRecord(listed=True),
+                'docs/a.md': FileRecord(b'# A\n'),
+                'docs/linked.md': SymlinkRecord(PurePosixPath('a.md')),
+            },
             scope=SNAPSHOT_SCOPE,
         ), 'the link is an entry with its target recorded, and no bytes are read through it'
 
@@ -1043,12 +1073,8 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, SNAPSHOT_SCOPE)
 
         #: Then
-        assert snapshot == Snapshot(
-            listings=(
-                Listing(RootRelativePath.parse('docs'), (DirEntry(PathComponent.parse('pipe'), EntryKind.OTHER),)),
-            ),
-            files=(),
-            scope=SNAPSHOT_SCOPE,
+        assert snapshot == _snapshot(
+            {'docs': DirectoryRecord(listed=True), 'docs/pipe': OtherRecord()}, scope=SNAPSHOT_SCOPE
         ), 'a fifo is an OTHER entry, and nothing is read from it'
 
     def test_take_snapshot_with_missing_scope_roots_returns_an_empty_snapshot(self, tmp_path: Path) -> None:
@@ -1059,7 +1085,7 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, SNAPSHOT_SCOPE)
 
         #: Then
-        assert snapshot == Snapshot(listings=(), files=(), links=(), scope=SNAPSHOT_SCOPE), (
+        assert snapshot == _snapshot({}, scope=SNAPSHOT_SCOPE), (
             'a missing scope root is simply absent, and still recorded in the scope'
         )
 
@@ -1076,23 +1102,14 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, SNAPSHOT_SCOPE)
 
         #: Then
-        assert snapshot == Snapshot(
-            listings=(
-                Listing(
-                    RootRelativePath.parse('.agents/skills'),
-                    (DirEntry(PathComponent.parse('alpha'), EntryKind.DIRECTORY),),
-                ),
-                Listing(
-                    RootRelativePath.parse('.agents/skills/alpha'),
-                    (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),),
-                ),
-                Listing(
-                    RootRelativePath.parse('.claude'), (DirEntry(PathComponent.parse('skills'), EntryKind.SYMLINK),)
-                ),
-            ),
-            files=(FileBytes(RootRelativePath.parse('.agents/skills/alpha/SKILL.md'), b'---\n'),),
-            links=(Link(RootRelativePath.parse('.claude/skills'), PurePosixPath('../.agents/skills')),),
-            climbed_directories=(RootRelativePath.parse('.claude'),),
+        assert snapshot == _snapshot(
+            {
+                '.agents/skills': DirectoryRecord(listed=True),
+                '.agents/skills/alpha': DirectoryRecord(listed=True),
+                '.agents/skills/alpha/SKILL.md': FileRecord(b'---\n'),
+                '.claude': DirectoryRecord(listed=True, climbed=True),
+                '.claude/skills': SymlinkRecord(PurePosixPath('../.agents/skills')),
+            },
             scope=SNAPSHOT_SCOPE,
         ), 'the linked agent directory is one link, its chain walked for the record; its skills are listed once'
 
@@ -1106,7 +1123,7 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(root, SNAPSHOT_SCOPE)
 
         #: Then
-        assert snapshot.links == (Link(RootRelativePath.parse('docs/absolute'), PurePosixPath('../docs/code')),), (
+        assert snapshot.symlink_targets() == {RootRelativePath.parse('docs/absolute'): PurePosixPath('../docs/code')}, (
             'an absolute target under the root, through either spelling of it, is recorded from the link'
         )
 
@@ -1122,7 +1139,7 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, SNAPSHOT_SCOPE)
 
         #: Then
-        assert snapshot.links == (Link(RootRelativePath.parse('docs/outside'), PurePosixPath(outside)),), (
+        assert snapshot.symlink_targets() == {RootRelativePath.parse('docs/outside'): PurePosixPath(outside)}, (
             'an absolute target outside the root is recorded as the disk returned it'
         )
 
@@ -1137,17 +1154,13 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, scope)
 
         #: Then
-        assert snapshot == Snapshot(
-            listings=(
-                Listing(RootRelativePath.parse('docs'), (DirEntry(PathComponent.parse('code'), EntryKind.DIRECTORY),)),
-                Listing(
-                    RootRelativePath.parse('docs/code'), (DirEntry(PathComponent.parse('sub'), EntryKind.DIRECTORY),)
-                ),
-                Listing(
-                    RootRelativePath.parse('docs/code/sub'), (DirEntry(PathComponent.parse('x.md'), EntryKind.FILE),)
-                ),
-            ),
-            files=(FileBytes(RootRelativePath.parse('docs/code/sub/x.md'), b'# X\n'),),
+        assert snapshot == _snapshot(
+            {
+                'docs': DirectoryRecord(listed=True),
+                'docs/code': DirectoryRecord(listed=True),
+                'docs/code/sub': DirectoryRecord(listed=True),
+                'docs/code/sub/x.md': FileRecord(b'# X\n'),
+            },
             scope=scope,
         ), 'a directory two roots reach is listed down to the deeper of their depths'
 
@@ -1182,19 +1195,14 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, scope)
 
         #: Then
-        assert snapshot == Snapshot(
-            listings=(
-                Listing(
-                    RootRelativePath.parse('skills'), (DirEntry(PathComponent.parse('review'), EntryKind.DIRECTORY),)
-                ),
-                Listing(
-                    RootRelativePath.parse('skills/review'),
-                    (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),),
-                ),
-            ),
-            files=(FileBytes(RootRelativePath.parse('skills/review/SKILL.md'), b'---\n'),),
-            links=(Link(RootRelativePath.parse('.claude/skills'), PurePosixPath('../skills')),),
-            climbed_directories=(RootRelativePath.parse('.claude'),),
+        assert snapshot == _snapshot(
+            {
+                '.claude': DirectoryRecord(climbed=True),
+                '.claude/skills': SymlinkRecord(PurePosixPath('../skills')),
+                'skills': DirectoryRecord(listed=True),
+                'skills/review': DirectoryRecord(listed=True),
+                'skills/review/SKILL.md': FileRecord(b'---\n'),
+            },
             scope=scope,
         ), 'the directory the scope root leads to is listed at its resolved path, down to the depth'
 
@@ -1210,23 +1218,14 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, scope)
 
         #: Then
-        assert snapshot == Snapshot(
-            listings=(
-                Listing(
-                    RootRelativePath.parse('.agents/skills'),
-                    (DirEntry(PathComponent.parse('review'), EntryKind.SYMLINK),),
-                ),
-                Listing(
-                    RootRelativePath.parse('skills/review'),
-                    (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),),
-                ),
-            ),
-            files=(FileBytes(RootRelativePath.parse('skills/review/SKILL.md'), b'---\n'),),
-            links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),),
-            climbed_directories=(
-                RootRelativePath.parse('.agents'),
-                RootRelativePath.parse('.agents/skills'),
-            ),
+        assert snapshot == _snapshot(
+            {
+                '.agents': DirectoryRecord(climbed=True),
+                '.agents/skills': DirectoryRecord(listed=True, climbed=True),
+                '.agents/skills/review': SymlinkRecord(PurePosixPath('../../skills/review')),
+                'skills/review': DirectoryRecord(listed=True),
+                'skills/review/SKILL.md': FileRecord(b'---\n'),
+            },
             scope=scope,
         ), 'the entry stays a symlink, and the directory it leads to is listed at its resolved path'
 
@@ -1244,19 +1243,12 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, scope)
 
         #: Then
-        assert snapshot == Snapshot(
-            listings=(
-                Listing(
-                    RootRelativePath.parse('.agents/skills'),
-                    (DirEntry(PathComponent.parse('review'), EntryKind.SYMLINK),),
-                ),
-            ),
-            files=(),
-            links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),),
-            climbed_directories=(
-                RootRelativePath.parse('.agents'),
-                RootRelativePath.parse('.agents/skills'),
-            ),
+        assert snapshot == _snapshot(
+            {
+                '.agents': DirectoryRecord(climbed=True),
+                '.agents/skills': DirectoryRecord(listed=True, climbed=True),
+                '.agents/skills/review': SymlinkRecord(PurePosixPath('../../skills/review')),
+            },
             scope=scope,
         ), 'a linked entry costs depth as a directory entry does, so at depth 0 it is recorded and not entered'
 
@@ -1272,18 +1264,14 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, scope)
 
         #: Then
-        assert snapshot == Snapshot(
-            listings=(
-                Listing(
-                    RootRelativePath.parse('skills'), (DirEntry(PathComponent.parse('review'), EntryKind.DIRECTORY),)
-                ),
-            ),
-            files=(),
-            links=(
-                Link(RootRelativePath.parse('.claude/skills'), PurePosixPath('../current')),
-                Link(RootRelativePath.parse('current'), PurePosixPath('skills')),
-            ),
-            climbed_directories=(RootRelativePath.parse('.claude'),),
+        assert snapshot == _snapshot(
+            {
+                '.claude': DirectoryRecord(climbed=True),
+                '.claude/skills': SymlinkRecord(PurePosixPath('../current')),
+                'current': SymlinkRecord(PurePosixPath('skills')),
+                'skills': DirectoryRecord(listed=True),
+                'skills/review': DirectoryRecord(),
+            },
             scope=scope,
         ), 'both links of the chain are recorded, so the virtual view can walk it to the listed directory'
 
@@ -1301,15 +1289,11 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, scope)
 
         #: Then
-        assert snapshot == Snapshot(
-            listings=(
-                Listing(
-                    RootRelativePath.parse('.agents/skills'),
-                    (DirEntry(PathComponent.parse('review'), EntryKind.SYMLINK),),
-                ),
-            ),
-            files=(),
-            links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath(outside)),),
+        assert snapshot == _snapshot(
+            {
+                '.agents/skills': DirectoryRecord(listed=True),
+                '.agents/skills/review': SymlinkRecord(PurePosixPath(outside)),
+            },
             scope=scope,
         ), 'a link leading outside the root is recorded, and nothing outside the root is read'
 
@@ -1325,15 +1309,11 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, scope)
 
         #: Then
-        assert snapshot == Snapshot(
-            listings=(
-                Listing(
-                    RootRelativePath.parse('.agents/skills'),
-                    (DirEntry(PathComponent.parse('loop'), EntryKind.SYMLINK),),
-                ),
-            ),
-            files=(),
-            links=(Link(RootRelativePath.parse('.agents/skills/loop'), PurePosixPath('loop')),),
+        assert snapshot == _snapshot(
+            {
+                '.agents/skills': DirectoryRecord(listed=True),
+                '.agents/skills/loop': SymlinkRecord(PurePosixPath('loop')),
+            },
             scope=scope,
         ), 'a link that leads back to itself ends the walk instead of the scan never returning'
 
@@ -1350,19 +1330,13 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, scope)
 
         #: Then
-        assert snapshot == Snapshot(
-            listings=(
-                Listing(
-                    RootRelativePath.parse('.agents/skills'),
-                    (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.SYMLINK),),
-                ),
-            ),
-            files=(FileBytes(RootRelativePath.parse('REVIEW.md'), b'---\n'),),
-            links=(Link(RootRelativePath.parse('.agents/skills/SKILL.md'), PurePosixPath('../../REVIEW.md')),),
-            climbed_directories=(
-                RootRelativePath.parse('.agents'),
-                RootRelativePath.parse('.agents/skills'),
-            ),
+        assert snapshot == _snapshot(
+            {
+                '.agents': DirectoryRecord(climbed=True),
+                '.agents/skills': DirectoryRecord(listed=True, climbed=True),
+                '.agents/skills/SKILL.md': SymlinkRecord(PurePosixPath('../../REVIEW.md')),
+                'REVIEW.md': FileRecord(b'---\n'),
+            },
             scope=scope,
         ), 'the entry stays a symlink, and the file it leads to is read at its resolved path, whatever the depth'
 
@@ -1380,15 +1354,11 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, scope)
 
         #: Then
-        assert snapshot == Snapshot(
-            listings=(
-                Listing(
-                    RootRelativePath.parse('.agents/skills'),
-                    (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.SYMLINK),),
-                ),
-            ),
-            files=(),
-            links=(Link(RootRelativePath.parse('.agents/skills/SKILL.md'), PurePosixPath(outside)),),
+        assert snapshot == _snapshot(
+            {
+                '.agents/skills': DirectoryRecord(listed=True),
+                '.agents/skills/SKILL.md': SymlinkRecord(PurePosixPath(outside)),
+            },
             scope=scope,
         ), 'a link leading outside the root is recorded, and no bytes outside the root are read'
 
@@ -1407,24 +1377,15 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, scope)
 
         #: Then
-        assert snapshot == Snapshot(
-            listings=(
-                Listing(
-                    RootRelativePath.parse('.agents/skills'),
-                    (DirEntry(PathComponent.parse('review'), EntryKind.SYMLINK),),
-                ),
-                Listing(
-                    RootRelativePath.parse('skills/review'),
-                    (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),),
-                ),
-            ),
-            files=(FileBytes(RootRelativePath.parse('skills/review/SKILL.md'), b'---\n'),),
-            links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/tmp/../review')),),
-            climbed_directories=(
-                RootRelativePath.parse('.agents'),
-                RootRelativePath.parse('.agents/skills'),
-                RootRelativePath.parse('skills/tmp'),
-            ),
+        assert snapshot == _snapshot(
+            {
+                '.agents': DirectoryRecord(climbed=True),
+                '.agents/skills': DirectoryRecord(listed=True, climbed=True),
+                '.agents/skills/review': SymlinkRecord(PurePosixPath('../../skills/tmp/../review')),
+                'skills/review': DirectoryRecord(listed=True),
+                'skills/review/SKILL.md': FileRecord(b'---\n'),
+                'skills/tmp': DirectoryRecord(climbed=True),
+            },
             scope=scope,
         ), 'the `..` after skills/tmp is skills, so the link leads to skills/review, and skills/tmp is recorded climbed'
 
@@ -1443,14 +1404,13 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, scope)
 
         #: Then
-        assert snapshot == Snapshot(
-            listings=(
-                Listing(RootRelativePath.parse('docs'), (DirEntry(PathComponent.parse('shared'), EntryKind.SYMLINK),)),
-                Listing(RootRelativePath.parse('shared'), (DirEntry(PathComponent.parse('a.md'), EntryKind.FILE),)),
-            ),
-            files=(FileBytes(RootRelativePath.parse('shared/a.md'), b'# A\n'),),
-            links=(Link(RootRelativePath.parse('docs/shared'), PurePosixPath('../shared')),),
-            climbed_directories=(RootRelativePath.parse('docs'),),
+        assert snapshot == _snapshot(
+            {
+                'docs': DirectoryRecord(listed=True, climbed=True),
+                'docs/shared': SymlinkRecord(PurePosixPath('../shared')),
+                'shared': DirectoryRecord(listed=True),
+                'shared/a.md': FileRecord(b'# A\n'),
+            },
             scope=scope,
         ), 'a directory two roots reach has its links followed when either root asks for it'
 
@@ -1474,10 +1434,9 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, scope)
 
         #: Then
-        assert snapshot.listings == (
-            Listing(RootRelativePath.parse('docs'), (DirEntry(PathComponent.parse('a.md'), EntryKind.FILE),)),
-            Listing(RootRelativePath.parse('skills'), (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),)),
-        ), 'skipping a root another root already covered goes on to the roots left to scan'
+        assert _listed_directories(snapshot) == {DOCS_DIR, RootRelativePath.parse('skills')}, (
+            'skipping a root another root already covered goes on to the roots left to scan'
+        )
 
     def test_take_snapshot_with_a_plain_root_under_a_deeper_plain_one_still_lists_the_roots_before_it(
         self, tmp_path: Path
@@ -1498,10 +1457,9 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, scope)
 
         #: Then
-        assert snapshot.listings == (
-            Listing(RootRelativePath.parse('docs'), (DirEntry(PathComponent.parse('a.md'), EntryKind.FILE),)),
-            Listing(RootRelativePath.parse('skills'), (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),)),
-        ), 'skipping a root another root already covered goes on to the roots left to scan'
+        assert _listed_directories(snapshot) == {DOCS_DIR, RootRelativePath.parse('skills')}, (
+            'skipping a root another root already covered goes on to the roots left to scan'
+        )
 
     def test_take_snapshot_following_a_linked_entry_lists_the_directory_it_leads_to_one_level_deeper(
         self, tmp_path: Path
@@ -1517,23 +1475,14 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, scope)
 
         #: Then
-        assert snapshot == Snapshot(
-            listings=(
-                Listing(
-                    RootRelativePath.parse('.agents/skills'),
-                    (DirEntry(PathComponent.parse('review'), EntryKind.SYMLINK),),
-                ),
-                Listing(
-                    RootRelativePath.parse('skills/review'),
-                    (DirEntry(PathComponent.parse('references'), EntryKind.DIRECTORY),),
-                ),
-            ),
-            files=(),
-            links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),),
-            climbed_directories=(
-                RootRelativePath.parse('.agents'),
-                RootRelativePath.parse('.agents/skills'),
-            ),
+        assert snapshot == _snapshot(
+            {
+                '.agents': DirectoryRecord(climbed=True),
+                '.agents/skills': DirectoryRecord(listed=True, climbed=True),
+                '.agents/skills/review': SymlinkRecord(PurePosixPath('../../skills/review')),
+                'skills/review': DirectoryRecord(listed=True),
+                'skills/review/references': DirectoryRecord(),
+            },
             scope=scope,
         ), 'the link spends the one level of depth, so the directory inside its target is listed and not entered'
 
@@ -1551,32 +1500,17 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, scope)
 
         #: Then
-        assert snapshot == Snapshot(
-            listings=(
-                Listing(
-                    RootRelativePath.parse('.agents/skills'),
-                    (DirEntry(PathComponent.parse('review'), EntryKind.SYMLINK),),
-                ),
-                Listing(
-                    RootRelativePath.parse('shared/references'),
-                    (DirEntry(PathComponent.parse('guide.md'), EntryKind.FILE),),
-                ),
-                Listing(
-                    RootRelativePath.parse('skills/review'),
-                    (DirEntry(PathComponent.parse('references'), EntryKind.SYMLINK),),
-                ),
-            ),
-            files=(FileBytes(RootRelativePath.parse('shared/references/guide.md'), b'# Guide\n'),),
-            links=(
-                Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),
-                Link(RootRelativePath.parse('skills/review/references'), PurePosixPath('../../shared/references')),
-            ),
-            climbed_directories=(
-                RootRelativePath.parse('.agents'),
-                RootRelativePath.parse('.agents/skills'),
-                RootRelativePath.parse('skills'),
-                RootRelativePath.parse('skills/review'),
-            ),
+        assert snapshot == _snapshot(
+            {
+                '.agents': DirectoryRecord(climbed=True),
+                '.agents/skills': DirectoryRecord(listed=True, climbed=True),
+                '.agents/skills/review': SymlinkRecord(PurePosixPath('../../skills/review')),
+                'shared/references': DirectoryRecord(listed=True),
+                'shared/references/guide.md': FileRecord(b'# Guide\n'),
+                'skills': DirectoryRecord(climbed=True),
+                'skills/review': DirectoryRecord(listed=True, climbed=True),
+                'skills/review/references': SymlinkRecord(PurePosixPath('../../shared/references')),
+            },
             scope=scope,
         ), 'a directory reached through a followed link has its own links followed as well'
 
@@ -1595,16 +1529,12 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, scope)
 
         #: Then
-        assert snapshot == Snapshot(
-            listings=(
-                Listing(
-                    RootRelativePath.parse('.agents/skills'),
-                    (DirEntry(PathComponent.parse('review'), EntryKind.SYMLINK),),
-                ),
-            ),
-            files=(),
-            links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../tmp/../skills/review')),),
-            climbed_directories=(RootRelativePath.parse('.agents'), RootRelativePath.parse('.agents/skills')),
+        assert snapshot == _snapshot(
+            {
+                '.agents': DirectoryRecord(climbed=True),
+                '.agents/skills': DirectoryRecord(listed=True, climbed=True),
+                '.agents/skills/review': SymlinkRecord(PurePosixPath('../../tmp/../skills/review')),
+            },
             scope=scope,
         ), 'a `..` after a missing directory is no step at all, so the link leads nowhere and nothing is listed'
 
@@ -1618,9 +1548,9 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, scope)
 
         #: Then
-        assert snapshot.listings == (
-            Listing(RootRelativePath.parse('real'), (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),)),
-        ), 'a chain of 40 links is as long as the kernel follows, so the scan lists the directory it leads to'
+        assert _listed_directories(snapshot) == {RootRelativePath.parse('real')}, (
+            'a chain of 40 links is as long as the kernel follows, so the scan lists the directory it leads to'
+        )
 
     def test_take_snapshot_with_no_depth_limit_lists_every_directory_below_and_reads_every_file(
         self, tmp_path: Path
@@ -1636,33 +1566,16 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, scope)
 
         #: Then
-        assert snapshot == Snapshot(
-            listings=(
-                Listing(RootRelativePath.parse('skills'), (DirEntry(PathComponent.parse('x'), EntryKind.DIRECTORY),)),
-                Listing(
-                    RootRelativePath.parse('skills/x'),
-                    (
-                        DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),
-                        DirEntry(PathComponent.parse('references'), EntryKind.DIRECTORY),
-                    ),
-                ),
-                Listing(
-                    RootRelativePath.parse('skills/x/references'),
-                    (
-                        DirEntry(PathComponent.parse('a.md'), EntryKind.FILE),
-                        DirEntry(PathComponent.parse('deep'), EntryKind.DIRECTORY),
-                    ),
-                ),
-                Listing(
-                    RootRelativePath.parse('skills/x/references/deep'),
-                    (DirEntry(PathComponent.parse('b.md'), EntryKind.FILE),),
-                ),
-            ),
-            files=(
-                FileBytes(RootRelativePath.parse('skills/x/SKILL.md'), b'---\n'),
-                FileBytes(RootRelativePath.parse('skills/x/references/a.md'), b'# A\n'),
-                FileBytes(RootRelativePath.parse('skills/x/references/deep/b.md'), b'# B\n'),
-            ),
+        assert snapshot == _snapshot(
+            {
+                'skills': DirectoryRecord(listed=True),
+                'skills/x': DirectoryRecord(listed=True),
+                'skills/x/SKILL.md': FileRecord(b'---\n'),
+                'skills/x/references': DirectoryRecord(listed=True),
+                'skills/x/references/a.md': FileRecord(b'# A\n'),
+                'skills/x/references/deep': DirectoryRecord(listed=True),
+                'skills/x/references/deep/b.md': FileRecord(b'# B\n'),
+            },
             scope=scope,
         ), 'a root with no depth limit lists every directory below it and reads every file, at any depth'
 
@@ -1680,25 +1593,15 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, scope)
 
         #: Then
-        assert snapshot == Snapshot(
-            listings=(
-                Listing(
-                    RootRelativePath.parse('shared'), (DirEntry(PathComponent.parse('deep'), EntryKind.DIRECTORY),)
-                ),
-                Listing(
-                    RootRelativePath.parse('shared/deep'), (DirEntry(PathComponent.parse('b.md'), EntryKind.FILE),)
-                ),
-                Listing(RootRelativePath.parse('skills'), (DirEntry(PathComponent.parse('x'), EntryKind.DIRECTORY),)),
-                Listing(
-                    RootRelativePath.parse('skills/x'), (DirEntry(PathComponent.parse('refs'), EntryKind.SYMLINK),)
-                ),
-            ),
-            files=(FileBytes(RootRelativePath.parse('shared/deep/b.md'), b'# B\n'),),
-            links=(Link(RootRelativePath.parse('skills/x/refs'), PurePosixPath('../../shared')),),
-            climbed_directories=(
-                RootRelativePath.parse('skills'),
-                RootRelativePath.parse('skills/x'),
-            ),
+        assert snapshot == _snapshot(
+            {
+                'shared': DirectoryRecord(listed=True),
+                'shared/deep': DirectoryRecord(listed=True),
+                'shared/deep/b.md': FileRecord(b'# B\n'),
+                'skills': DirectoryRecord(listed=True, climbed=True),
+                'skills/x': DirectoryRecord(listed=True, climbed=True),
+                'skills/x/refs': SymlinkRecord(PurePosixPath('../../shared')),
+            },
             scope=scope,
         ), 'the link inside a skill is followed, and the directory it leads to is listed with no depth limit'
 
@@ -1715,20 +1618,13 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, scope)
 
         #: Then
-        assert snapshot == Snapshot(
-            listings=(
-                Listing(RootRelativePath.parse('skills'), (DirEntry(PathComponent.parse('x'), EntryKind.DIRECTORY),)),
-                Listing(
-                    RootRelativePath.parse('skills/x'),
-                    (
-                        DirEntry(PathComponent.parse('SKILL.md'), EntryKind.FILE),
-                        DirEntry(PathComponent.parse('up'), EntryKind.SYMLINK),
-                    ),
-                ),
-            ),
-            files=(FileBytes(RootRelativePath.parse('skills/x/SKILL.md'), b'---\n'),),
-            links=(Link(RootRelativePath.parse('skills/x/up'), PurePosixPath('..')),),
-            climbed_directories=(RootRelativePath.parse('skills/x'),),
+        assert snapshot == _snapshot(
+            {
+                'skills': DirectoryRecord(listed=True),
+                'skills/x': DirectoryRecord(listed=True, climbed=True),
+                'skills/x/SKILL.md': FileRecord(b'---\n'),
+                'skills/x/up': SymlinkRecord(PurePosixPath('..')),
+            },
             scope=scope,
         ), 'the link leads back to skills/, already listed with no limit, so the scan ends instead of looping'
 
@@ -1746,20 +1642,13 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, scope)
 
         #: Then
-        assert snapshot == Snapshot(
-            listings=(
-                Listing(RootRelativePath.parse('a'), (DirEntry(PathComponent.parse('to-b'), EntryKind.SYMLINK),)),
-                Listing(RootRelativePath.parse('b'), (DirEntry(PathComponent.parse('to-a'), EntryKind.SYMLINK),)),
-            ),
-            files=(),
-            links=(
-                Link(RootRelativePath.parse('a/to-b'), PurePosixPath('../b')),
-                Link(RootRelativePath.parse('b/to-a'), PurePosixPath('../a')),
-            ),
-            climbed_directories=(
-                RootRelativePath.parse('a'),
-                RootRelativePath.parse('b'),
-            ),
+        assert snapshot == _snapshot(
+            {
+                'a': DirectoryRecord(listed=True, climbed=True),
+                'a/to-b': SymlinkRecord(PurePosixPath('../b')),
+                'b': DirectoryRecord(listed=True, climbed=True),
+                'b/to-a': SymlinkRecord(PurePosixPath('../a')),
+            },
             scope=scope,
         ), 'a/ leads to b/ and b/ back to a/, already listed with no limit, so the scan ends'
 
@@ -1775,15 +1664,12 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, scope)
 
         #: Then
-        assert snapshot == Snapshot(
-            listings=(
-                Listing(RootRelativePath.parse('skills'), (DirEntry(PathComponent.parse('x'), EntryKind.DIRECTORY),)),
-                Listing(
-                    RootRelativePath.parse('skills/x'), (DirEntry(PathComponent.parse('self'), EntryKind.SYMLINK),)
-                ),
-            ),
-            files=(),
-            links=(Link(RootRelativePath.parse('skills/x/self'), PurePosixPath('self')),),
+        assert snapshot == _snapshot(
+            {
+                'skills': DirectoryRecord(listed=True),
+                'skills/x': DirectoryRecord(listed=True),
+                'skills/x/self': SymlinkRecord(PurePosixPath('self')),
+            },
             scope=scope,
         ), 'a link to itself leads nowhere, so it is recorded and nothing is listed through it'
 
@@ -1868,7 +1754,7 @@ class TestVirtualFileSystemMatchesDisk:
         snapshot = take_snapshot(parity_tree, SNAPSHOT_SCOPE)
 
         #: Then
-        assert snapshot.entries() == expected, 'the parity tables cover every path the snapshot lists'
+        assert _recorded_kinds(snapshot) == expected, 'the parity tables cover every path the snapshot lists'
 
     # list_dir: every listing, every entry that is no directory, and a link to a listed directory. A link to a
     # directory the scan did not list and an unentered directory are left out: the disk lists them, while the
@@ -3187,30 +3073,16 @@ class TestPlainRootWalksItsLinksForTheRecord:
         snapshot = take_snapshot(plain_climbing_tree, PLAIN_DOCS_SCOPE)
 
         #: Then
-        assert snapshot == Snapshot(
-            listings=(
-                Listing(
-                    RootRelativePath.parse('docs'),
-                    (
-                        DirEntry(PathComponent.parse('code'), EntryKind.DIRECTORY),
-                        DirEntry(PathComponent.parse('feat'), EntryKind.DIRECTORY),
-                        DirEntry(PathComponent.parse('linked'), EntryKind.SYMLINK),
-                        DirEntry(PathComponent.parse('out'), EntryKind.SYMLINK),
-                    ),
-                ),
-                Listing(RootRelativePath.parse('docs/code'), ()),
-                Listing(RootRelativePath.parse('docs/feat'), (DirEntry(PathComponent.parse('a.md'), EntryKind.FILE),)),
-            ),
-            files=(FileBytes(RootRelativePath.parse('docs/feat/a.md'), b'# A\n'),),
-            links=(
-                Link(RootRelativePath.parse('docs/linked'), PurePosixPath('code/../feat')),
-                Link(RootRelativePath.parse('docs/out'), PurePosixPath('../src/../../..')),
-            ),
-            climbed_directories=(
-                RootRelativePath.parse('docs'),
-                RootRelativePath.parse('docs/code'),
-                RootRelativePath.parse('src'),
-            ),
+        assert snapshot == _snapshot(
+            {
+                'docs': DirectoryRecord(listed=True, climbed=True),
+                'docs/code': DirectoryRecord(listed=True, climbed=True),
+                'docs/feat': DirectoryRecord(listed=True),
+                'docs/feat/a.md': FileRecord(b'# A\n'),
+                'docs/linked': SymlinkRecord(PurePosixPath('code/../feat')),
+                'docs/out': SymlinkRecord(PurePosixPath('../src/../../..')),
+                'src': DirectoryRecord(climbed=True),
+            },
             scope=PLAIN_DOCS_SCOPE,
         ), 'the climbs on both chains are recorded, src/ included, and nothing is listed or read through a link'
 
@@ -3260,10 +3132,7 @@ def _is_listed(snapshot: Snapshot, directory: RootRelativePath) -> bool:
         directory: The root-relative directory to look up, spelled through any link.
     """
     resolved_directory = VirtualFileSystem(snapshot).find_dir(directory)
-    listed: set[RootRelativePath] = set()
-    for listing in snapshot.listings:
-        listed.add(listing.path)
-    return resolved_directory in listed
+    return resolved_directory in _listed_directories(snapshot)
 
 
 @pytest.mark.it

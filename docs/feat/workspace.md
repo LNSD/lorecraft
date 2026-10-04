@@ -93,6 +93,8 @@ specification, so a command stops with an error naming the linked directory rath
 - A link inside a skill to an ancestor directory, or to a large directory, makes the snapshot read that whole
   subtree; a directory is never read twice, so the read is finite. A directory in it that cannot be read stops
   the command. A link into `docs/` reads that part of `docs/` as a skill is read, its symlinks followed.
+- An entry that changes kind while the snapshot is read, such as a directory replaced by a symlink, stops the
+  command with an error naming it. Running it again reads the tree as it then stands.
 
 ## References
 

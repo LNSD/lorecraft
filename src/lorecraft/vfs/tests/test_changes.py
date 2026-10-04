@@ -1,19 +1,33 @@
 """The change set between two hand-built snapshots.
 
-Nothing here touches the disk: every snapshot is built with `Snapshot.from_tree`, or with its constructor
-where a symlink a scan would record must be written out by hand.
+Nothing here touches the disk: every snapshot is built with `Snapshot.from_tree`, or from its records where a
+symlink a scan would record must be written out by hand.
 """
 
+from collections.abc import Mapping
 from pathlib import PurePosixPath
 
 import pytest
 
-from lorecraft.core.path import PathComponent, RootRelativePath
+from lorecraft.core.mapping import FrozenMapping
+from lorecraft.core.path import RootRelativePath
 
 from ..changes import Change, ChangeKind, ChangeSet, diff
 from ..scan_root import ScanRoot
-from ..snapshot import FileBytes, Link, Listing, Snapshot
-from ..view import DirEntry, EntryKind
+from ..snapshot import DirectoryRecord, EntryRecord, FileRecord, OtherRecord, Snapshot, SymlinkRecord
+
+
+def _snapshot(records: Mapping[str, EntryRecord], *, scope: tuple[ScanRoot, ...] = ()) -> Snapshot:
+    """A snapshot holding `records`, each keyed by its root-relative path as spelled, and `scope`.
+
+    Args:
+        records: Each record the snapshot holds, keyed by the path it was recorded at.
+        scope: The scan roots the snapshot records it was taken of; none by default, as for one built by hand.
+    """
+    parsed: dict[RootRelativePath, EntryRecord] = {}
+    for raw_path, record in records.items():
+        parsed[RootRelativePath.parse(raw_path)] = record
+    return Snapshot(FrozenMapping(parsed), scope=scope)
 
 
 def _docs_link(name: str, target: str) -> Snapshot:
@@ -23,29 +37,27 @@ def _docs_link(name: str, target: str) -> Snapshot:
         name: The symlink's name inside `docs`.
         target: The link's target as a scan would record it, relative to the link's directory.
     """
-    return Snapshot(
-        listings=(
-            Listing(RootRelativePath.parse('.'), (DirEntry(PathComponent.parse('docs'), EntryKind.DIRECTORY),)),
-            Listing(RootRelativePath.parse('docs'), (DirEntry(PathComponent.parse(name), EntryKind.SYMLINK),)),
-        ),
-        files=(),
-        links=(Link(RootRelativePath.parse('docs') / name, PurePosixPath(target)),),
+    return _snapshot(
+        {
+            '.': DirectoryRecord(listed=True),
+            'docs': DirectoryRecord(listed=True),
+            f'docs/{name}': SymlinkRecord(PurePosixPath(target)),
+        }
     )
 
 
-def _linked_skill(listings: tuple[Listing, ...]) -> Snapshot:
-    """A scan-shaped snapshot whose one skill entry links to `skills/review`, plus the listings given.
+def _linked_skill(leads_to: Mapping[str, EntryRecord]) -> Snapshot:
+    """A scan-shaped snapshot whose one skill entry links to `skills/review`, plus the records given.
 
     Args:
-        listings: What the scan listed where the link leads; empty when the link dangles.
+        leads_to: What the scan recorded where the link leads; empty when the link dangles.
     """
-    skills_dir = Listing(
-        RootRelativePath.parse('.agents/skills'), (DirEntry(PathComponent.parse('review'), EntryKind.SYMLINK),)
-    )
-    return Snapshot(
-        listings=(skills_dir, *listings),
-        files=(),
-        links=(Link(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('../../skills/review')),),
+    return _snapshot(
+        {
+            '.agents/skills': DirectoryRecord(listed=True),
+            '.agents/skills/review': SymlinkRecord(PurePosixPath('../../skills/review')),
+            **leads_to,
+        }
     )
 
 
@@ -55,15 +67,12 @@ def _linked_skill_file(data: bytes) -> Snapshot:
     Args:
         data: The bytes recorded for `REVIEW.md`, the file the link leads to.
     """
-    return Snapshot(
-        listings=(
-            Listing(
-                RootRelativePath.parse('.agents/skills'),
-                (DirEntry(PathComponent.parse('SKILL.md'), EntryKind.SYMLINK),),
-            ),
-        ),
-        files=(FileBytes(RootRelativePath.parse('REVIEW.md'), data),),
-        links=(Link(RootRelativePath.parse('.agents/skills/SKILL.md'), PurePosixPath('../../REVIEW.md')),),
+    return _snapshot(
+        {
+            '.agents/skills': DirectoryRecord(listed=True),
+            '.agents/skills/SKILL.md': SymlinkRecord(PurePosixPath('../../REVIEW.md')),
+            'REVIEW.md': FileRecord(data),
+        }
     )
 
 
@@ -108,9 +117,9 @@ class TestDiff:
 
     def test_diff_with_only_the_scope_changed_returns_empty(self) -> None:
         #: Given
-        listing = Listing(RootRelativePath.parse('docs'), ())
-        old = Snapshot(listings=(listing,), files=(), scope=(ScanRoot(RootRelativePath.parse('docs'), depth=0),))
-        new = Snapshot(listings=(listing,), files=(), scope=(ScanRoot(RootRelativePath.parse('docs'), depth=1),))
+        records = {'docs': DirectoryRecord(listed=True)}
+        old = _snapshot(records, scope=(ScanRoot(RootRelativePath.parse('docs'), depth=0),))
+        new = _snapshot(records, scope=(ScanRoot(RootRelativePath.parse('docs'), depth=1),))
         expected: ChangeSet = frozenset()
 
         #: When
@@ -118,6 +127,42 @@ class TestDiff:
 
         #: Then
         assert changes == expected, 'a scope is no path, so a change set names no change for it'
+
+    def test_diff_with_only_the_root_listing_changed_returns_empty(self) -> None:
+        #: Given
+        old = _snapshot({'docs': DirectoryRecord(listed=True)})
+        new = _snapshot({'.': DirectoryRecord(listed=True), 'docs': DirectoryRecord(listed=True)})
+        expected: ChangeSet = frozenset()
+
+        #: When
+        changes = diff(old, new)
+
+        #: Then
+        assert changes == expected, 'the root always exists, so whether a scan listed it is no change'
+
+    def test_diff_with_a_directory_newly_listed_returns_empty(self) -> None:
+        #: Given
+        old = _snapshot({'docs': DirectoryRecord(listed=True), 'docs/code': DirectoryRecord()})
+        new = _snapshot({'docs': DirectoryRecord(listed=True), 'docs/code': DirectoryRecord(listed=True)})
+        expected: ChangeSet = frozenset()
+
+        #: When
+        changes = diff(old, new)
+
+        #: Then
+        assert changes == expected, "a directory's flags say how the scan reached it, not what is there"
+
+    def test_diff_with_the_same_other_entry_returns_empty(self) -> None:
+        #: Given
+        old = _snapshot({'docs': DirectoryRecord(listed=True), 'docs/pipe': OtherRecord()})
+        new = _snapshot({'docs': DirectoryRecord(listed=True), 'docs/pipe': OtherRecord()})
+        expected: ChangeSet = frozenset()
+
+        #: When
+        changes = diff(old, new)
+
+        #: Then
+        assert changes == expected, 'an other entry records nothing that could change but its kind'
 
     def test_diff_with_a_new_file_returns_it_added(self) -> None:
         #: Given
@@ -235,8 +280,8 @@ class TestDiff:
         #: Given
         # What a following scan records for `.agents/skills/review -> ../../skills/review`: the directory is
         # listed at its resolved path, and no listing of `skills` names it.
-        old = _linked_skill(listings=(Listing(RootRelativePath.parse('skills/review'), ()),))
-        new = _linked_skill(listings=())
+        old = _linked_skill({'skills/review': DirectoryRecord(listed=True)})
+        new = _linked_skill({})
         expected = frozenset({Change(RootRelativePath.parse('skills/review'), ChangeKind.DELETED)})
 
         #: When
@@ -247,8 +292,8 @@ class TestDiff:
 
     def test_diff_with_an_empty_linked_directory_created_returns_it_added(self) -> None:
         #: Given
-        old = _linked_skill(listings=())
-        new = _linked_skill(listings=(Listing(RootRelativePath.parse('skills/review'), ()),))
+        old = _linked_skill({})
+        new = _linked_skill({'skills/review': DirectoryRecord(listed=True)})
         expected = frozenset({Change(RootRelativePath.parse('skills/review'), ChangeKind.ADDED)})
 
         #: When
@@ -268,3 +313,31 @@ class TestDiff:
 
         #: Then
         assert changes == expected, 'the file a followed link leads to is compared at its resolved path'
+
+    def test_diff_with_a_climbed_directory_removed_returns_it_deleted(self) -> None:
+        #: Given
+        # What a following scan records for `skills/x -> ../c/tmp/../d`, before and after `c/tmp` is removed: the
+        # second walk stops at the missing `c/tmp`, so it climbs out of nothing.
+        old = _snapshot(
+            {
+                'skills': DirectoryRecord(listed=True),
+                'skills/x': SymlinkRecord(PurePosixPath('../c/tmp/../d')),
+                'c/tmp': DirectoryRecord(climbed=True),
+                'c/d': DirectoryRecord(listed=True),
+            }
+        )
+        new = _snapshot(
+            {'skills': DirectoryRecord(listed=True), 'skills/x': SymlinkRecord(PurePosixPath('../c/tmp/../d'))}
+        )
+        expected = frozenset(
+            {
+                Change(RootRelativePath.parse('c/tmp'), ChangeKind.DELETED),
+                Change(RootRelativePath.parse('c/d'), ChangeKind.DELETED),
+            }
+        )
+
+        #: When
+        changes = diff(old, new)
+
+        #: Then
+        assert changes == expected, 'a directory a chain climbed out of is a record, so a diff sees it go'

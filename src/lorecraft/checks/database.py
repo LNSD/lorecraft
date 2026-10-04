@@ -76,8 +76,8 @@ or to its `SKILL.md` that changed its target, and so does a changed specificatio
 target on the chain of a skills directory an agent declares, of an entry in a skills directory, or of an entry's
 `SKILL.md`, a chain leaving the repository included, since the model records the link each such chain leaves
 through and its target. So does a directory added or deleted that a `..` on such a chain climbs out of: deleting
-`tmp` leaves `x -> tmp/../alpha` leading nowhere, and the change set shows `tmp` go, since `Snapshot.entries` reports
-each climbed directory and the next scan, stopping at the missing `tmp`, no longer records it. The directories a
+`tmp` leaves `x -> tmp/../alpha` leading nowhere, and the change set shows `tmp` go, since the snapshot records each
+climbed directory and the next scan, stopping at the missing `tmp`, no longer records it. The directories a
 command named are read from the snapshot's scope, so a scope that adds or drops one invalidates the model too, and
 each counts as a skills directory for every rule above, a `SKILL.md` at its root as an entry's. Any other change
 leaves the model valid, an entry added or deleted anywhere else inside a skill included: the model lists nothing below

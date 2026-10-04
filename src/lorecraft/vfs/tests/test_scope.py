@@ -15,11 +15,12 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 
 from ..scan_root import ScanRoot
 from ..scope import ScopeIndex
-from ..snapshot import Link, Snapshot
+from ..snapshot import DirectoryRecord, EntryRecord, Snapshot, SymlinkRecord
 
 DOCS: Final[RootRelativePath] = RootRelativePath.parse('docs')
 AGENTS_SKILLS: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills')
@@ -54,13 +55,12 @@ def _snapshot_of_links(
         climbed_directories: Each directory the scan climbed out of with a `..`, as it records them.
         scope: The scan roots the snapshot declares it was taken of.
     """
-    records: list[Link] = []
-    for path in sorted(links):
-        records.append(Link(_path(path), PurePosixPath(links[path])))
-    climbed: list[RootRelativePath] = []
-    for raw in sorted(climbed_directories):
-        climbed.append(_path(raw))
-    return Snapshot(listings=(), files=(), links=tuple(records), climbed_directories=tuple(climbed), scope=scope)
+    records: dict[RootRelativePath, EntryRecord] = {}
+    for path, target in links.items():
+        records[_path(path)] = SymlinkRecord(PurePosixPath(target))
+    for directory in climbed_directories:
+        records[_path(directory)] = DirectoryRecord(climbed=True)
+    return Snapshot(FrozenMapping(records), scope=scope)
 
 
 @pytest.mark.unit
