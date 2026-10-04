@@ -208,7 +208,7 @@ rule's page states the release that removed it and its replacement.
 
 ```text
 docs/rulebook/
-├── FM001-unparseable-block.md
+├── FM001-missing-frontmatter.md
 ├── …
 ├── OUT003-missing-section.md
 └── LEN001-too-many-tokens.md
