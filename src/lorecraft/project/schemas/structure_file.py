@@ -15,7 +15,8 @@ its examples and bounds, and each model's config names it and gives a whole exam
 here; what a shape cannot state, such as an outline naming a section twice, is refused by `StructureSpec`.
 
 A count, the title count, a word cap or the token budget, is a `NonZeroUnsignedInt`, which states its own bound: it is
-built while the file is decoded, and a number it refuses is a validation error carrying its own message.
+built while the file is decoded, and a number it refuses is a validation error carrying its own message. A section
+name, in an outline entry or in `forbidden`, is a `SectionName` the same way, which states its own rule.
 """
 
 from typing import Annotated, Final, Literal
@@ -23,6 +24,8 @@ from typing import Annotated, Final, Literal
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, WithJsonSchema, field_validator
 
 from lorecraft.core.num import NonZeroUnsignedInt
+
+from .section_name import SectionName
 
 JSON_SCHEMA_DIALECT: Final[str] = 'https://json-schema.org/draft/2020-12/schema'
 """Draft 2020-12, the one dialect a frontmatter schema is written in: the only one its ``$schema`` may name."""
@@ -126,7 +129,7 @@ class StructureFileSection(_StructureFileModel):
         },
     )
 
-    section: str = Field(examples=['Checklist', 'References'])
+    section: SectionName = Field(examples=['Checklist', 'References'])
     """The section's heading text, without its `#` markers or inline markup."""
     optional: bool = False
     """True when a document may leave the section out."""
@@ -212,7 +215,10 @@ class StructureFile(_StructureFileModel):
     may not sit side by side. An entry's `words` caps each section it matches; an entry without one caps none. A
     word is a whitespace-delimited token of prose: fenced code and table rows are not counted. A named section's
     `description` and the first of its `examples` tell the author of a document that lacks it what to write there."""
-    forbidden: tuple[str, ...] = Field(default=(), examples=[['Changelog']])
+    # `uniqueItems` is for the editor only: pydantic does not apply it, and `StructureSpec` refuses a repeated name.
+    forbidden: tuple[SectionName, ...] = Field(
+        default=(), examples=[['Changelog']], json_schema_extra={'uniqueItems': True}
+    )
     """Sections that must not appear at all; none may also be named in the outline."""
 
     @field_validator('frontmatter', mode='before')

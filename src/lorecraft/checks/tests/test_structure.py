@@ -14,6 +14,7 @@ from lorecraft.project.schemas import (
     AnySections,
     OutlineEntry,
     SectionEntry,
+    SectionName,
     SpecFileType,
     StructureSpec,
     StructureSpecFile,
@@ -29,8 +30,8 @@ from ..structure import validate_structure
 # The outline of a rule document: its own sections, then the Checklist, then an optional References.
 RULE_OUTLINE: Final[tuple[OutlineEntry, ...]] = (
     AnySections(),
-    SectionEntry(name='Checklist'),
-    SectionEntry(name='References', optional=True),
+    SectionEntry(name=SectionName('Checklist')),
+    SectionEntry(name=SectionName('References'), optional=True),
 )
 
 # What a rule document's Checklist holds, as the outline entry naming it states it.
@@ -76,7 +77,7 @@ def _structure_spec(
     title: TitleRule | None = None,
     forbid_empty_sections: bool = False,
     outline: tuple[OutlineEntry, ...] = (),
-    forbidden: tuple[str, ...] = (),
+    forbidden: tuple[SectionName, ...] = (),
     spec_name: str = 'code',
 ) -> StructureSpec:
     """A structure specification at `docs/__meta__/<spec_name>.structure.json`, whose authority is `<spec_name>.md`.
@@ -194,7 +195,7 @@ class TestValidateStructure:
         #: Given
         text = '## Rule\n\ntext\n\n## Changelog\n\ntext\n'
         document = parse_document(text)
-        structure_specs = (_structure_spec(forbidden=('Changelog',)),)
+        structure_specs = (_structure_spec(forbidden=(SectionName('Changelog'),)),)
 
         #: When
         result = validate_structure(structure_specs, headings=document.headings)
@@ -236,8 +237,8 @@ class TestValidateStructure:
         structure_specs = (
             _structure_spec(
                 outline=(
-                    SectionEntry(name='Summary'),
-                    SectionEntry(name='Usage'),
+                    SectionEntry(name=SectionName('Summary')),
+                    SectionEntry(name=SectionName('Usage')),
                 )
             ),
         )
@@ -267,9 +268,9 @@ class TestValidateStructure:
         structure_specs = (
             _structure_spec(
                 outline=(
-                    SectionEntry(name='Summary'),
-                    SectionEntry(name='Usage', optional=True),
-                    SectionEntry(name='Checklist'),
+                    SectionEntry(name=SectionName('Summary')),
+                    SectionEntry(name=SectionName('Usage'), optional=True),
+                    SectionEntry(name=SectionName('Checklist')),
                 )
             ),
         )
@@ -365,7 +366,7 @@ class TestValidateStructure:
         namespace = _structure_spec(
             outline=(
                 AnySections(),
-                SectionEntry(name='References'),
+                SectionEntry(name=SectionName('References')),
                 AnySections(),
             ),
             spec_name='code-python',
@@ -383,7 +384,9 @@ class TestValidateStructure:
         #: Given
         text = '## Changelog\n\ntext\n\n## Empty\n'
         document = parse_document(text)
-        structure_specs = (_structure_spec(forbid_empty_sections=True, forbidden=('Changelog',), outline=RULE_OUTLINE),)
+        structure_specs = (
+            _structure_spec(forbid_empty_sections=True, forbidden=(SectionName('Changelog'),), outline=RULE_OUTLINE),
+        )
 
         #: When
         result = validate_structure(structure_specs, headings=document.headings)
@@ -399,7 +402,7 @@ class TestValidateStructure:
         #: Given
         text = '## Rule\n\ntext\n\n## Checklist\n\none two three\n'
         document = parse_document(text)
-        outline = (AnySections(), SectionEntry(name='Checklist', words=NonZeroUnsignedInt(2)))
+        outline = (AnySections(), SectionEntry(name=SectionName('Checklist'), words=NonZeroUnsignedInt(2)))
         structure_specs = (_structure_spec(outline=outline),)
 
         #: When
@@ -423,7 +426,7 @@ class TestValidateStructure:
         #: Given
         text = '## Rule\n\none two three\n\n## Checklist\n\ntext\n'
         document = parse_document(text)
-        outline = (AnySections(words=NonZeroUnsignedInt(2)), SectionEntry(name='Checklist'))
+        outline = (AnySections(words=NonZeroUnsignedInt(2)), SectionEntry(name=SectionName('Checklist')))
         structure_specs = (_structure_spec(outline=outline),)
 
         #: When
@@ -444,7 +447,7 @@ class TestValidateStructure:
         #: Given
         text = '## Rule\n\none\n\n## Checklist\n\none two three\n'
         document = parse_document(text)
-        outline = (AnySections(words=NonZeroUnsignedInt(1)), SectionEntry(name='Checklist'))
+        outline = (AnySections(words=NonZeroUnsignedInt(1)), SectionEntry(name=SectionName('Checklist')))
         structure_specs = (_structure_spec(outline=outline),)
 
         #: When
@@ -459,7 +462,7 @@ class TestValidateStructure:
         document = parse_document(text)
         outline = (
             AnySections(words=NonZeroUnsignedInt(1)),
-            SectionEntry(name='Middle'),
+            SectionEntry(name=SectionName('Middle')),
             AnySections(words=NonZeroUnsignedInt(5)),
         )
         structure_specs = (_structure_spec(outline=outline),)
@@ -474,7 +477,7 @@ class TestValidateStructure:
         #: Given
         text = '## Rule\n\none two\n\n### Detail\n\nthree four\n\n## Checklist\n\ntext\n'
         document = parse_document(text)
-        outline = (AnySections(words=NonZeroUnsignedInt(3)), SectionEntry(name='Checklist'))
+        outline = (AnySections(words=NonZeroUnsignedInt(3)), SectionEntry(name=SectionName('Checklist')))
         structure_specs = (_structure_spec(outline=outline),)
 
         #: When
@@ -495,7 +498,9 @@ class TestValidateStructure:
         #: Given
         text = '## Rule\n\none two three\n\n## Checklist\n\ntext\n'
         document = parse_document(text)
-        corpus = _structure_spec(outline=(AnySections(words=NonZeroUnsignedInt(5)), SectionEntry(name='Checklist')))
+        corpus = _structure_spec(
+            outline=(AnySections(words=NonZeroUnsignedInt(5)), SectionEntry(name=SectionName('Checklist')))
+        )
         namespace = _structure_spec(outline=(AnySections(words=NonZeroUnsignedInt(2)),), spec_name='code-python')
 
         #: When
@@ -513,7 +518,9 @@ class TestValidateStructureOutlineNotes:
         #: Given
         text = '## Rule\n\ntext\n'
         document = parse_document(text)
-        checklist = SectionEntry(name='Checklist', description=CHECKLIST_DESCRIPTION, examples=(LOGGING_CHECKLIST,))
+        checklist = SectionEntry(
+            name=SectionName('Checklist'), description=CHECKLIST_DESCRIPTION, examples=(LOGGING_CHECKLIST,)
+        )
         structure_specs = (_structure_spec(outline=(AnySections(), checklist)),)
 
         #: When
@@ -531,7 +538,7 @@ class TestValidateStructureOutlineNotes:
         #: Given
         text = '## Rule\n\ntext\n'
         document = parse_document(text)
-        checklist = SectionEntry(name='Checklist', examples=(LOGGING_CHECKLIST, DOCSTRINGS_CHECKLIST))
+        checklist = SectionEntry(name=SectionName('Checklist'), examples=(LOGGING_CHECKLIST, DOCSTRINGS_CHECKLIST))
         structure_specs = (_structure_spec(outline=(AnySections(), checklist)),)
 
         #: When
@@ -548,8 +555,8 @@ class TestValidateStructureOutlineNotes:
         #: Given
         text = '## Summary\n\ntext\n\n## Rule\n\ntext\n'
         document = parse_document(text)
-        usage = SectionEntry(name='Usage', description=USAGE_DESCRIPTION, examples=(BUDGET_USAGE,))
-        structure_specs = (_structure_spec(outline=(SectionEntry(name='Summary'), usage)),)
+        usage = SectionEntry(name=SectionName('Usage'), description=USAGE_DESCRIPTION, examples=(BUDGET_USAGE,))
+        structure_specs = (_structure_spec(outline=(SectionEntry(name=SectionName('Summary')), usage)),)
 
         #: When
         result = validate_structure(structure_specs, headings=document.headings)
@@ -571,7 +578,7 @@ class TestValidateStructureOutlineNotes:
         #: Given
         text = '## Rule\n\ntext\n'
         document = parse_document(text)
-        checklist = SectionEntry(name='Checklist', description=CHECKLIST_DESCRIPTION)
+        checklist = SectionEntry(name=SectionName('Checklist'), description=CHECKLIST_DESCRIPTION)
         structure_specs = (_structure_spec(outline=(AnySections(), checklist)),)
 
         #: When
@@ -586,7 +593,7 @@ class TestValidateStructureOutlineNotes:
         #: Given
         text = '## Rule\n\ntext\n'
         document = parse_document(text)
-        checklist = SectionEntry(name='Checklist', examples=(LOGGING_CHECKLIST,))
+        checklist = SectionEntry(name=SectionName('Checklist'), examples=(LOGGING_CHECKLIST,))
         structure_specs = (_structure_spec(outline=(AnySections(), checklist)),)
 
         #: When
