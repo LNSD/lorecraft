@@ -7,12 +7,13 @@ shape. The messages are Lorecraft's own: the specification is fixed, so a reader
 words that do not change with pydantic's version.
 """
 
-from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Final
 
 from pydantic import ValidationError
 from pydantic_core import ErrorDetails
+
+from lorecraft.core.mapping import Frozen, FrozenMapping
 
 from .frontmatter_problem import (
     BlockProblem,
@@ -35,18 +36,20 @@ class SkillFrontmatterSchema:
     ``SKILL_FRONTMATTER_SCHEMA`` is the one instance.
     """
 
-    def validate(self, data: Mapping[str, object]) -> tuple[FrontmatterProblem, ...]:
+    def validate(self, data: FrozenMapping[str, Frozen]) -> tuple[FrontmatterProblem, ...]:
         """Hold one decoded frontmatter to the specification. Pure: raises nothing.
 
         Args:
-            data: The decoded frontmatter mapping, every key a string at any depth.
+            data: The decoded frontmatter mapping, frozen all the way down, every key a string at any depth.
 
         Returns:
-            One problem per field at fault, in the order the specification declares its fields, or ``()`` when
+            One problem per field at fault, in the order the specification declares its fields, or `()` when
             the frontmatter conforms.
         """
+        # The model is strict, so it takes a mapping only as a `dict`: the frozen frontmatter is handed to it as
+        # plain data, copied from the frozen value.
         try:
-            SkillFrontmatter.model_validate(data)
+            SkillFrontmatter.model_validate(data.to_plain())
         except ValidationError as exc:
             problems: list[FrontmatterProblem] = []
             for detail in exc.errors(include_url=False):

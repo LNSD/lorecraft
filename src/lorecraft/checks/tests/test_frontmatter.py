@@ -9,6 +9,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.mapping import FrozenMapping
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.layout import SPECS_DIR
@@ -30,7 +31,7 @@ def _code_frontmatter(schema: dict[str, object]) -> FrontmatterSchema:
     Args:
         schema: The JSON Schema the frontmatter is validated against, as it appears under that key.
     """
-    return FrontmatterSchema(path=SPECS_DIR / 'code.structure.json', schema=schema)
+    return FrontmatterSchema(path=SPECS_DIR / 'code.structure.json', schema=FrozenMapping.from_plain(schema))
 
 
 @pytest.mark.unit
@@ -72,6 +73,23 @@ class TestValidateFrontmatter:
         assert result.violations[0].line == LineNumber.from_int(3), (
             f'the violation points at the name key, got line {result.violations[0].line}'
         )
+
+    def test_validate_frontmatter_with_a_list_name_quotes_it_as_a_list(self) -> None:
+        #: Given
+        frontmatter = parse_frontmatter('---\nname: [guide]\n---\n')
+        schemas = (_code_frontmatter({'type': 'object'}),)
+
+        #: When
+        result = validate_frontmatter(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
+
+        #: Then
+        assert result.violations == (
+            Violation(
+                line=LineNumber.from_int(2),
+                rule='frontmatter.name-matches-filename',
+                message="`name` is ['guide']; expected 'guide', the document's filename",
+            ),
+        ), 'the name is quoted as the YAML list it is written as, not as the tuple it is frozen into'
 
     def test_validate_frontmatter_without_frontmatter_block_reports_missing(self) -> None:
         #: Given

@@ -14,6 +14,7 @@ the same `SkillCheckResult`. Where each listed file lands in the skill is `linke
 reads too: a link to one of those paths names a file the skill carries once it is installed.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import PurePosixPath
@@ -78,7 +79,7 @@ def listed_by_subkey(frontmatter: Frontmatter) -> tuple[tuple[str, tuple[str, ..
         frontmatter: The skill's decoded frontmatter, whose `metadata` mapping is read.
     """
     metadata = frontmatter.data.get('metadata')
-    if not isinstance(metadata, dict):
+    if not isinstance(metadata, Mapping):
         return ()
     listed: list[tuple[str, tuple[str, ...]]] = []
     for subkey in _LINKED_SUBKEYS:

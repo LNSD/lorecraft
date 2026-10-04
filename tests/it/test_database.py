@@ -357,7 +357,7 @@ class TestDatabase:
 
         #: Then
         assert isinstance(frontmatter, Frontmatter), 'the snapshot bytes decode into a frontmatter node'
-        assert frontmatter.data == {'name': 'guide'}, 'the frontmatter holds the snapshot content'
+        assert frontmatter.data == FrozenMapping({'name': 'guide'}), 'the frontmatter holds the snapshot content'
 
     def test_frontmatter_called_twice_returns_the_first_answer(self) -> None:
         #: Given

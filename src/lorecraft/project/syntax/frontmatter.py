@@ -18,7 +18,6 @@ and JSON names every key with a string.
 import math
 import re
 import sys
-from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Final
 
@@ -36,6 +35,8 @@ from yaml.events import (
 from yaml.parser import Parser
 from yaml.reader import Reader, ReaderError
 from yaml.scanner import Scanner, ScannerError
+
+from lorecraft.core.mapping import Frozen, FrozenMapping
 
 from .position import LineNumber
 
@@ -88,19 +89,16 @@ class Frontmatter:
     Every key in it is a string, at any depth: a block writing any other key, such as `1:` or `true:`, does not
     decode to frontmatter at all, so no check ever meets a key a JSON Schema cannot name.
 
-    Frozen for equality only: `data` holds a dict, so an instance is not hashable and must not be put in a set
-    or used as a key.
-
     Attributes:
-        data: The decoded mapping: a `dict`, a `list`, a string, an integer, a float, a boolean or `None` at every
-            depth, which is what `json.loads` would build for the same data. A `Mapping`, not a `dict`, so no check
-            can write to it: the parse tree is shared by every check that reads the document. Only the top level is
-            read-only; a nested mapping or list is a plain `dict` or `list`, and nothing stops a write to it.
+        data: The decoded mapping, frozen all the way down: every mapping in it is a `FrozenMapping`, every list a
+            tuple, and every scalar a string, an integer, a float, a boolean or `None`, which is what `json.loads`
+            would build for the same data, frozen. So no check can write to it, at any depth, although the parse tree
+            is shared by every check that reads the document.
         keys: Every top-level key the mapping writes, in document order, with its line. A key written more than
             once appears once per occurrence, although `data` holds only one value for it.
     """
 
-    data: Mapping[str, object]
+    data: FrozenMapping[str, Frozen]
     keys: tuple[FrontmatterKey, ...]
 
     def find_key_line(self, name: str) -> LineNumber | None:
@@ -152,7 +150,7 @@ class NonMappingFrontmatter:
 type FrontmatterNode = Frontmatter | MissingFrontmatter | InvalidYamlFrontmatter | NonMappingFrontmatter
 """Every outcome of parsing a document's frontmatter."""
 
-type _Entry = tuple[FrontmatterKey, object]
+type _Entry = tuple[FrontmatterKey, Frozen]
 """One pair of a mapping as it is written: the key, with its line, and the decoded value."""
 
 
@@ -275,7 +273,7 @@ def _read_document(parser: _BasicYamlParser) -> Frontmatter | NonMappingFrontmat
     parser.get_event()  # The document's start.
     if isinstance(_peek_node_start(parser), MappingStartEvent):
         entries = _read_mapping(parser)
-        node: Frontmatter | NonMappingFrontmatter = Frontmatter(data=_to_dict(entries), keys=_keys(entries))
+        node: Frontmatter | NonMappingFrontmatter = Frontmatter(data=_to_mapping(entries), keys=_keys(entries))
     else:
         _read_value(parser)
         node = NonMappingFrontmatter()
@@ -309,8 +307,8 @@ def _peek_node_start(parser: _BasicYamlParser) -> ScalarEvent | SequenceStartEve
     return event
 
 
-def _read_value(parser: _BasicYamlParser) -> object:
-    """Read one value and everything in it, and decode it to a `dict`, a `list` or a scalar.
+def _read_value(parser: _BasicYamlParser) -> Frozen:
+    """Read one value and everything in it, and decode it frozen: to a `FrozenMapping`, a tuple or a scalar.
 
     Args:
         parser: The parser, whose next event starts the value.
@@ -320,7 +318,7 @@ def _read_value(parser: _BasicYamlParser) -> object:
     """
     event = _peek_node_start(parser)
     if isinstance(event, MappingStartEvent):
-        return _to_dict(_read_mapping(parser))
+        return _to_mapping(_read_mapping(parser))
     if isinstance(event, SequenceStartEvent):
         return _read_sequence(parser)
     parser.get_event()
@@ -347,8 +345,8 @@ def _read_mapping(parser: _BasicYamlParser) -> list[_Entry]:
     return entries
 
 
-def _read_sequence(parser: _BasicYamlParser) -> list[object]:
-    """Read one sequence, every item in the order it is written.
+def _read_sequence(parser: _BasicYamlParser) -> tuple[Frozen, ...]:
+    """Read one sequence, every item in the order it is written, as a tuple, the sequence that cannot change.
 
     Args:
         parser: The parser, whose next event starts the sequence.
@@ -357,11 +355,11 @@ def _read_sequence(parser: _BasicYamlParser) -> list[object]:
         yaml.MarkedYAMLError: An item is not valid YAML or uses what basic YAML leaves out.
     """
     parser.get_event()  # The sequence's start.
-    items: list[object] = []
+    items: list[Frozen] = []
     while not parser.check_event(SequenceEndEvent):
         items.append(_read_value(parser))
     parser.get_event()  # The sequence's end.
-    return items
+    return tuple(items)
 
 
 def _read_key(parser: _BasicYamlParser) -> FrontmatterKey:
@@ -423,16 +421,16 @@ def _scalar_value(event: ScalarEvent) -> str | int | float | bool | None:
     return text
 
 
-def _to_dict(entries: list[_Entry]) -> dict[str, object]:
+def _to_mapping(entries: list[_Entry]) -> FrozenMapping[str, Frozen]:
     """The mapping the pairs decode to: a key written more than once holds the value of its last occurrence.
 
     Args:
         entries: The mapping's pairs, in the order they are written.
     """
-    mapping: dict[str, object] = {}
+    mapping: dict[str, Frozen] = {}
     for key, value in entries:
         mapping[key.name] = value
-    return mapping
+    return FrozenMapping(mapping)
 
 
 def _keys(entries: list[_Entry]) -> tuple[FrontmatterKey, ...]:

@@ -35,9 +35,6 @@ class CorpusSpec:
 
     A corpus spec governs every document in its corpus.
 
-    Not hashable: a structure specification's `FrontmatterSchema` holds a dict, so instances must not be put in a
-    set or used as a key.
-
     Attributes:
         name: The specification name, the corpus alone.
         files: Every root-relative file at this specification name (prose and JSON), sorted; may be prose only.
@@ -52,9 +49,6 @@ class CorpusSpec:
 @dataclass(frozen=True, slots=True)
 class NamespaceSpec:
     """A namespace spec in docs/__meta__, at a `<corpus>-<namespace>` specification name, narrowing its corpus spec.
-
-    Not hashable: a structure specification's `FrontmatterSchema` holds a dict, so instances must not be put in a
-    set or used as a key.
 
     Attributes:
         name: The specification name, the corpus and the namespace.
@@ -146,9 +140,6 @@ class CorpusNamespace:
 
     The `Corpus` holding the record supplies the corpus, so the record cannot name another one;
     `Corpus.namespace_specs` builds the `NamespaceSpec` from both.
-
-    Not hashable: a structure specification's `FrontmatterSchema` holds a dict, so instances must not be put in a
-    set or used as a key.
 
     Attributes:
         namespace: The namespace, the specification name after its corpus.
