@@ -32,9 +32,10 @@ in `lorecraft.checks`, so a rule has nothing to read but the input it is handed.
 - A rule group, as a subpackage: its `__ruleset__.py` declares the group as `GROUP_ID` and whatever else its rules
   share, its `__init__.py` holds only the docstring, and each of its rules is one module. The `LC` group is
   declared the same way, and the registry imports its `GROUP_ID` to hold the reservation.
-- The input value types a rule reads: frozen values of Lorecraft's own types, holding facts and the
-  specifications that govern them. An input the package governs, such as a skill's line count, holds the facts
-  alone.
+- The input value types a rule reads: frozen values of Lorecraft's own types, holding facts, the subject's identity
+  values a rule compares them with, such as a document's filename or a skill's directory name, and the
+  specifications that govern them. An input the package governs, such as a skill's line count, holds no
+  specification.
 
 ## Belongs Elsewhere
 

@@ -12,7 +12,9 @@ as ungoverned rather than a diagnostic. An input no enabled rule reads is never 
 asked.
 
 The subjects are documents and skills, each matched to its own function, so a subject kind without one is a type
-error. A skill is its `SKILL.md`, decoded and reported at that path; its resources are not subjects yet. The command
+error. A document is handed over as its ref, and a skill as the `SkillLocation` the model hands out for it, since a
+rule over a skill may read where its directory leads. A skill is its `SKILL.md`, decoded and reported at that path,
+under its ref; its resources are not subjects yet. The command
 line does not run this yet, and the per-check pipelines in `run` serve it until then.
 """
 
@@ -20,23 +22,34 @@ from collections.abc import Iterable
 from typing import assert_never
 
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.skill import SkillRef
-from lorecraft.rules.inputs import InputKind, TokenCountInput
+from lorecraft.project.skill import SkillLocation
+from lorecraft.rules.inputs import FrontmatterBlockInput, InputKind, TokenCountInput
+from lorecraft.vfs import ResolvedPath
 
 from .database import Database
-from .inputs import Ungoverned, build_line_count_input, build_token_count_input
-from .report import CheckedSubject, Diagnostic, RuleDiagnostic, SubjectRef, SubjectReport, UndecodableSubject
+from .inputs import (
+    Ungoverned,
+    build_document_frontmatter_block_input,
+    build_line_count_input,
+    build_skill_frontmatter_block_input,
+    build_token_count_input,
+)
+from .report import CheckedSubject, Diagnostic, RuleDiagnostic, SubjectReport, UndecodableSubject
 from .table import RuleTable
 from .text import DocumentText, SkillText, Undecodable
 
+# A subject the runner checks: a document, by its ref, or a skill, by the location the model hands out for it. Its
+# report holds its ref either way: a `SkillLocation` carries the skill's ref.
+type Subject = DocumentRef | SkillLocation
 
-def check_subjects(database: Database, refs: Iterable[SubjectRef], table: RuleTable) -> tuple[SubjectReport, ...]:
+
+def check_subjects(database: Database, subjects: Iterable[Subject], table: RuleTable) -> tuple[SubjectReport, ...]:
     """Run the table's rules over each document and skill, and report each in the order given.
 
     Args:
         database: The revision the subjects are read from; its model decides which specifications govern each.
-        refs: The documents and skills to check; a document in no corpus the database's model holds is ungoverned
-            for the token count.
+        subjects: The documents and skills to check; a document in no corpus the database's model holds is
+            ungoverned for every input a specification governs.
         table: The rules the run enables, each with its severity.
 
     Raises:
@@ -69,14 +82,14 @@ def check_subjects(database: Database, refs: Iterable[SubjectRef], table: RuleTa
         SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
     """
     reports: list[SubjectReport] = []
-    for ref in refs:
-        match ref:
+    for subject in subjects:
+        match subject:
             case DocumentRef():
-                reports.append(_check_document(database, ref, table))
-            case SkillRef():
-                reports.append(_check_skill(database, ref, table))
+                reports.append(_check_document(database, subject, table))
+            case SkillLocation():
+                reports.append(_check_skill(database, subject, table))
             case _:
-                assert_never(ref)
+                assert_never(subject)
     return tuple(reports)
 
 
@@ -164,6 +177,19 @@ def _check_document_text(database: Database, source: DocumentText, table: RuleTa
     diagnostics: list[Diagnostic] = []
     ungoverned: list[InputKind] = []
 
+    # The frontmatter is never asked for when no enabled rule reads it.
+    if table.frontmatter_block_rules:
+        frontmatter_block_input = build_document_frontmatter_block_input(database, source)
+        match frontmatter_block_input:
+            case Ungoverned():
+                ungoverned.append(InputKind.FRONTMATTER_BLOCK)
+            case FrontmatterBlockInput():
+                for enabled in table.frontmatter_block_rules:
+                    for occurrence in enabled.rule.check(frontmatter_block_input):
+                        diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
+            case _:
+                assert_never(frontmatter_block_input)
+
     # The token count is never asked for when no enabled rule reads it.
     if table.token_count_rules:
         token_count_input = build_token_count_input(database, source)
@@ -180,36 +206,48 @@ def _check_document_text(database: Database, source: DocumentText, table: RuleTa
     return CheckedSubject(source.ref, diagnostics=tuple(diagnostics), ungoverned=tuple(ungoverned))
 
 
-def _check_skill(database: Database, ref: SkillRef, table: RuleTable) -> SubjectReport:
+def _check_skill(database: Database, location: SkillLocation, table: RuleTable) -> SubjectReport:
     """Decode one skill's `SKILL.md`, then run the table's rules over it if it decoded.
 
     Args:
         database: The revision the skill is read from.
-        ref: The skill to check.
+        location: The skill to check, and where its files live, as the model hands it out.
         table: The rules the run enables.
 
     Raises:
         SkillReadError: If the skill's `SKILL.md` is missing from the snapshot; a decode failure is a diagnostic.
     """
+    ref = location.ref
     source = database.skill_text(ref)
     match source:
         case Undecodable():
             return UndecodableSubject(ref)
         case SkillText():
-            return _check_skill_text(database, source, table)
+            return _check_skill_text(database, source, _link_target(location), table)
         case _:
             assert_never(source)
 
 
-def _check_skill_text(database: Database, source: SkillText, table: RuleTable) -> CheckedSubject:
+def _check_skill_text(
+    database: Database, source: SkillText, link_target: ResolvedPath | None, table: RuleTable
+) -> CheckedSubject:
     """Build each input an enabled rule reads from a decoded `SKILL.md`, and run those rules over it. Raises nothing.
 
     Args:
         database: The revision the skill is read from.
+        link_target: The resolved directory the skill's listed directory leads to when it is a link, or `None` when
+            it is not.
         source: The skill's `SKILL.md` text, the witness every per-file query takes.
         table: The rules the run enables.
     """
     diagnostics: list[Diagnostic] = []
+
+    # The frontmatter is never asked for when no enabled rule reads it.
+    if table.frontmatter_block_rules:
+        frontmatter_block_input = build_skill_frontmatter_block_input(database, source, link_target)
+        for enabled in table.frontmatter_block_rules:
+            for occurrence in enabled.rule.check(frontmatter_block_input):
+                diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
 
     # The line count is never asked for when no enabled rule reads it.
     if table.line_count_rules:
@@ -220,3 +258,16 @@ def _check_skill_text(database: Database, source: SkillText, table: RuleTable) -
 
     # The package governs every input a skill has, so none is ever ungoverned.
     return CheckedSubject(source.ref, diagnostics=tuple(diagnostics), ungoverned=())
+
+
+def _link_target(location: SkillLocation) -> ResolvedPath | None:
+    """The resolved directory a skill's listed directory leads to when it is a link, or `None` when it is not.
+
+    Read from the location the model hands out, never from the disk. Raises nothing.
+
+    Args:
+        location: The skill, and where its files live.
+    """
+    if location.resolves_to == location.ref.directory:
+        return None
+    return location.resolves_to
