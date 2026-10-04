@@ -73,7 +73,7 @@ class TestRejectLinkedLayout:
     def test_reject_linked_layout_with_real_directories_returns_without_raising(self) -> None:
         #: Given
         fs = VirtualFileSystem(
-            Snapshot.from_files({SPECS_DIR / 'code.md': b'# Code\n', DOCS_DIR / 'code' / 'logging.md': b''})
+            Snapshot.from_tree({'docs': {'__meta__': {'code.md': b'# Code\n'}, 'code': {'logging.md': b''}}})
         )
 
         #: When
