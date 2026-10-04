@@ -3,7 +3,7 @@
 from .loader import load_model, load_workspace
 from .model import Corpus, CorpusSpec, Governance, NamespaceSpec, Spec, WorkspaceModel
 
-__all__ = [
+__all__: list[str] = [
     'WorkspaceModel',
     'Corpus',
     'Spec',

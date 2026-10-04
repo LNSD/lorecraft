@@ -8,7 +8,7 @@ from .namespace import (
     InvalidAspectNamespaceCharacterError,
 )
 
-__all__ = [
+__all__: list[str] = [
     'AspectName',
     'EmptyAspectNameError',
     'InvalidAspectNameCharacterError',

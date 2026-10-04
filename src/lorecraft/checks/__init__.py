@@ -39,7 +39,7 @@ from .skill import SkillCheckResult, validate_skill
 from .structure import StructureCheckResult, validate_structure
 from .text import DocumentText, SkillResourceText, SkillText, Undecodable
 
-__all__ = [
+__all__: list[str] = [
     'Database',
     'DocumentText',
     'SkillText',

@@ -7,16 +7,17 @@ version the installed copy was *built* with, which is what `importlib.metadata` 
 
 import logging
 from importlib.metadata import PackageNotFoundError, version
+from typing import Final
 
 logger: logging.Logger = logging.getLogger(__name__)
 
 # Distribution name as declared in pyproject.toml, which is what importlib.metadata keys on.
-_DISTRIBUTION_NAME: str = 'lorecraft'
+_DISTRIBUTION_NAME: Final[str] = 'lorecraft'
 
 # Reported when the package is imported from a source tree that was never installed: running
 # `git describe` here would report a version no artifact carries, so the CLI says plainly that it
 # does not know instead. PEP 440 accepts it as a version, so nothing downstream has to special-case it.
-_UNINSTALLED_VERSION: str = '0+unknown'
+_UNINSTALLED_VERSION: Final[str] = '0+unknown'
 
 try:
     __version__: str = version(_DISTRIBUTION_NAME)
