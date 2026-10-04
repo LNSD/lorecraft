@@ -24,8 +24,9 @@ and what it asserts by [test-assertions](test-assertions.md). This document owns
 `unit` lives in the source tree, in a `tests/` subpackage beside the module it tests ([§2](#2-a-unit-test-sits-beside-the-module-it-tests)).
 `it` lives in `tests/it/`. `e2e` lives in `tests/e2e/` and covers
 the command line only, because it tests the product rather than any one layer; its shared helpers sit in
-`tests/lib/`, imported as `lib` and never built or installed. The library has no `e2e` tier:
-its end-to-end surface is its public API, which its `it` tier already exercises.
+`tests/lib/`, imported as `lib` and never built or installed; [test-e2e](test-e2e.md) owns how an
+`e2e` test uses them. The library has no `e2e` tier: its end-to-end
+surface is its public API, which its `it` tier already exercises.
 
 **Three tiers, selected by `just test-unit`, `just test-it` and `just test-e2e`.** A test that needs a
 network service has no directory to live in yet, and putting it in one of these does not give it one — it

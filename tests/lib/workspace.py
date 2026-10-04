@@ -10,6 +10,10 @@ Each part renders its files, every root-relative path to the whole text written 
 `Workspace.write` is the one place that creates directories and writes files. Parts render in the order the
 workspace lists them, drawing from one generator, so reordering them changes the generated values; nothing a test
 asserts on is generated, so no test depends on that order.
+
+A symlink has no text, so a part renders its links apart from its files, every root-relative path to the target
+the link holds. `Workspace.write` creates every link after every file: a link may then dangle, or lead to a
+directory the same workspace wrote files into, and no file is ever written through a link into what it leads to.
 """
 
 import json
@@ -76,12 +80,15 @@ class Skill:
             paragraph, linking nothing.
         references: The files directly under the skill's `references/` directory, each file name to its whole
             text. Empty by default, in which case no `references/` directory is written.
+        links: The symlinks directly in the skill's directory, each entry name to the target the link holds,
+            written as a `Link` target is. Empty by default.
     """
 
     name: str
     frontmatter: SkillFrontmatter | RawFrontmatter = field(default_factory=SkillFrontmatter)
     body: str | None = None
     references: Mapping[str, str] = field(default_factory=dict)
+    links: Mapping[str, str] = field(default_factory=dict)
 
     def _render(self, faker: Faker) -> dict[PurePosixPath, str]:
         """Every file of the skill, each root-relative path to its text.
@@ -105,6 +112,14 @@ class Skill:
         for file_name, text in self.references.items():
             files[skill_directory / 'references' / file_name] = text
         return files
+
+    def _render_links(self) -> dict[PurePosixPath, str]:
+        """Every link in the skill's directory, each root-relative path to its target."""
+        skill_directory = _SKILLS_DIRECTORY / self.name
+        links: dict[PurePosixPath, str] = {}
+        for entry_name, target in self.links.items():
+            links[skill_directory / entry_name] = target
+        return links
 
 
 @dataclass(frozen=True)
@@ -204,8 +219,32 @@ class File:
 
 
 @dataclass(frozen=True)
+class Link:
+    """Any symlink, governed by nothing in this model: the part for a link no other part covers.
+
+    Attributes:
+        path: Where the link goes, relative to the root, with `/` between its parts. Never under another link's
+            path: it would be created inside whatever that link leads to, which may be a checked-in directory, and
+            nothing refuses it.
+        target: What the link holds, written as given: relative to the link's own directory, or absolute for a
+            directory the test did not write, such as a checked-in fixture. Text rather than a `Path`, since a
+            relative target names no location until the link resolves it.
+    """
+
+    path: str
+    target: str
+
+    def _render_links(self) -> dict[PurePosixPath, str]:
+        """The one link, its root-relative path to its target."""
+        return {PurePosixPath(self.path): self.target}
+
+
+@dataclass(frozen=True)
 class Workspace:
     """A repository root, holding the parts listed and nothing else.
+
+    A test writes any tree it needs beside a root the same way, such as a directory outside the repository that a
+    link in the root leads to.
 
     Every list is empty by default, in which case that kind of part is not written, nor the directory it lives in.
 
@@ -214,25 +253,30 @@ class Workspace:
         documents: The documents under `docs/`.
         skills: The skills under `.agents/skills/`.
         files: Any other file, at the path it gives.
+        links: Any other symlink, at the path it gives.
     """
 
     specs: Sequence[Spec] = ()
     documents: Sequence[Document] = ()
     skills: Sequence[Skill] = ()
     files: Sequence[File] = ()
+    links: Sequence[Link] = ()
 
     def write(self, root: Path, faker: Faker) -> Path:
-        """Write every part into `root`, creating the directories each needs, and return `root`.
+        """Write every part into `root`, every file first and then every link, and return `root`.
 
         Args:
-            root: An existing directory, written into as the repository root; usually the test's `tmp_path`.
+            root: The directory written into as the repository root, created with its parents when absent;
+                usually the test's `tmp_path`, or a directory under it.
             faker: The test's seeded generator, which fills every field the test left unset.
 
         Raises:
-            FileExistsError: Two parts render the same path, or `root` already holds a file at one.
+            FileExistsError: Two parts render the same path, or `root` already holds a file or a link at one.
         """
-        parts = [*self.specs, *self.documents, *self.skills, *self.files]
-        for part in parts:
+        root.mkdir(parents=True, exist_ok=True)
+
+        parts_with_files = [*self.specs, *self.documents, *self.skills, *self.files]
+        for part in parts_with_files:
             for relative_path, text in part._render(faker).items():
                 path = root / relative_path
                 path.parent.mkdir(parents=True, exist_ok=True)
@@ -240,6 +284,14 @@ class Workspace:
                 # instead of the later one silently replacing the earlier.
                 with path.open('x', encoding='utf-8') as file:
                     file.write(text)
+
+        parts_with_links = [*self.skills, *self.links]
+        for part in parts_with_links:
+            for relative_path, target in part._render_links().items():
+                path = root / relative_path
+                path.parent.mkdir(parents=True, exist_ok=True)
+                # Like mode `x`, creating a link refuses a path already holding a file, a directory or a link.
+                path.symlink_to(target)
         return root
 
 
