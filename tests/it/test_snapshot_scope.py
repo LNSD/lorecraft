@@ -3,7 +3,8 @@
 `take_snapshot` reads the tree with `SNAPSHOT_SCOPE`, the scope every command passes, and the database answers
 from that one snapshot, so these see the layout, the scan and the queries wired together: what the snapshot holds
 inside a skill, what `Database.is_in_scope` and `Database.find_file` say about a path there, and which
-resources `Database.skill_resources` lists for the skill and how `Database.skill_resource_parse` reads one.
+resources `Database.skill_resources` lists for the skill and how `Database.skill_resource_text` decodes one and
+`Database.skill_resource_parse` parses it.
 """
 
 from pathlib import Path, PurePosixPath
@@ -11,10 +12,10 @@ from typing import Final
 
 import pytest
 
-from lorecraft.checks import Database
+from lorecraft.checks import Database, SkillResourceText, Undecodable
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.layout import SNAPSHOT_SCOPE
-from lorecraft.project.skill import SkillRef, SkillResourceDecodeError, SkillResourceLocation, SkillResourceRef
+from lorecraft.project.skill import SkillRef, SkillResourceLocation, SkillResourceRef
 from lorecraft.project.syntax import LineNumber
 from lorecraft.project.syntax import Link as MarkdownLink
 from lorecraft.vfs import Link, ResolvedPath, Snapshot, take_snapshot
@@ -34,6 +35,18 @@ def _write(root: Path, relative: str, data: bytes = b'') -> None:
     path = root / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
+
+
+def _skill_resource_text(database: Database, ref: SkillResourceRef) -> SkillResourceText:
+    """The witness of a resource the test wrote as UTF-8, as the database decodes it.
+
+    Args:
+        database: The database the resource is decoded by.
+        ref: A resource whose bytes are UTF-8.
+    """
+    source = database.skill_resource_text(ref)
+    assert isinstance(source, SkillResourceText), f'{ref.path} was written as UTF-8, so it decodes'
+    return source
 
 
 def _skill_resource(path: str, resolves_to: str | None = None) -> SkillResourceLocation:
@@ -312,9 +325,10 @@ class TestDatabaseSkillResources:
         #: Given
         database = Database(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
         ref = SkillResourceRef(REVIEW, RootRelativePath.parse(f'{SKILL}/guides/deeper/d.md'))
+        source = _skill_resource_text(database, ref)
 
         #: When
-        document = database.skill_resource_parse(ref)
+        document = database.skill_resource_parse(source)
 
         #: Then
         assert document.links == (MarkdownLink(url='../../SKILL.md', line=LineNumber(3)),), (
@@ -325,17 +339,16 @@ class TestDatabaseSkillResources:
         #: Given
         database = Database(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
         ref = SkillResourceRef(REVIEW, RootRelativePath.parse(f'{SKILL}/references/a.md'))
-        first = database.skill_resource_parse(ref)
+        source = _skill_resource_text(database, ref)
+        first = database.skill_resource_parse(source)
 
         #: When
-        second = database.skill_resource_parse(ref)
+        second = database.skill_resource_parse(source)
 
         #: Then
         assert second is first, 'a resource is parsed once per database, then shared by every check'
 
-    def test_skill_resource_parse_of_a_resource_that_is_not_utf8_raises_skill_resource_decode_error(
-        self, tmp_path: Path
-    ) -> None:
+    def test_skill_resource_text_of_a_resource_that_is_not_utf8_returns_undecodable(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, f'{SKILL}/SKILL.md', b'---\nname: review\n---\n')
         _write(tmp_path, f'{SKILL}/references/a.md', b'caf\xe9\n')
@@ -343,13 +356,28 @@ class TestDatabaseSkillResources:
         ref = SkillResourceRef(REVIEW, RootRelativePath.parse(f'{SKILL}/references/a.md'))
 
         #: When
-        with pytest.raises(SkillResourceDecodeError) as exc_info:
-            database.skill_resource_parse(ref)
+        source = database.skill_resource_text(ref)
 
         #: Then
-        assert exc_info.value.ref == ref, 'the error names the resource that could not be decoded'
+        assert source == Undecodable(ref), 'a decode failure is an answer naming the resource, not an error'
 
-    def test_skill_resource_parse_of_a_resource_the_skill_does_not_hold_raises_value_error(
+    def test_skill_resource_text_of_a_resource_that_is_not_utf8_called_twice_returns_the_first_answer(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(tmp_path, f'{SKILL}/SKILL.md', b'---\nname: review\n---\n')
+        _write(tmp_path, f'{SKILL}/references/a.md', b'caf\xe9\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        ref = SkillResourceRef(REVIEW, RootRelativePath.parse(f'{SKILL}/references/a.md'))
+        first = database.skill_resource_text(ref)
+
+        #: When
+        second = database.skill_resource_text(ref)
+
+        #: Then
+        assert second is first, 'an undecodable resource is cached like any answer, so it is decoded once'
+
+    def test_skill_resource_text_of_a_resource_the_skill_does_not_hold_raises_value_error(
         self, skill_tree: Path
     ) -> None:
         #: Given
@@ -358,7 +386,7 @@ class TestDatabaseSkillResources:
 
         #: When
         with pytest.raises(ValueError) as exc_info:
-            database.skill_resource_parse(ref)
+            database.skill_resource_text(ref)
 
         #: Then
         assert f'{SKILL}/references/absent.md' in str(exc_info.value), 'the error names the resource the skill lacks'

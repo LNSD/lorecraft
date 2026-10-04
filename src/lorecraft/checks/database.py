@@ -17,18 +17,22 @@ use and kept for as long as the database lives (pattern-memoization):
   building its full syntax tree. It reads the text of the witness `text(ref)` returned and nothing else.
 - `parse(source)`: one document's parse tree, like the IDE's syntax tree of a file or a per-file index entry. It
   reads the text of the witness and nothing else.
-- `skill_frontmatter(ref)`: one skill's frontmatter node, the same stub for a `SKILL.md`. It reads that
-  skill's bytes and nothing else.
-- `skill_parse(ref)`: one skill's parse tree, the same syntax tree for a `SKILL.md`. It reads that skill's bytes
-  and nothing else.
-- `skill_lines(ref)`: how many lines one skill's `SKILL.md` holds, like `tokens(source)` for a document: counted
-  from the raw text, frontmatter included, without a parse. It reads that skill's bytes and nothing else.
+- `skill_text(ref)`: one skill's `SKILL.md` decoded, the same document text: a `SkillText` witness, or an
+  `Undecodable` marker. It reads that skill's bytes and nothing else.
+- `skill_frontmatter(source)`: one skill's frontmatter node, the same stub for a `SKILL.md`. It reads the text of
+  the witness `skill_text(ref)` returned and nothing else.
+- `skill_parse(source)`: one skill's parse tree, the same syntax tree for a `SKILL.md`. It reads the text of the
+  witness and nothing else.
+- `skill_lines(source)`: how many lines one skill's `SKILL.md` holds, like `tokens(source)` for a document: counted
+  from the raw text, frontmatter included, without a parse. It reads the text of the witness and nothing else.
 - `skill_resources(ref)`: one skill's resources, the Markdown files inside it other than its top-level `SKILL.md`,
   like the IDE's listing of a content root's children, and the symlinks inside it whose chain leaves the
   repository. It reads the listings and the symlink targets reached from that skill, and where the model locates
   the skill, and no file's content.
-- `skill_resource_parse(ref)`: one resource's parse tree, the same syntax tree again. It reads that resource's bytes,
-  and where its skill's listing locates it, and nothing else.
+- `skill_resource_text(ref)`: one resource decoded, the same document text: a `SkillResourceText` witness, or an
+  `Undecodable` marker. It reads that resource's bytes, and where its skill's listing locates it, and nothing else.
+- `skill_resource_parse(source)`: one resource's parse tree, the same syntax tree again. It reads the text of the
+  witness `skill_resource_text(ref)` returned and nothing else.
 - `tokens(source)`: what one document's whole file costs an agent that loads it, like another per-file index
   entry: counted from the raw text, frontmatter and code included, without a parse. It reads the text of the
   witness `text(ref)` returned and nothing else.
@@ -47,12 +51,12 @@ for one path is cheap:
   leads, and never from which directories the snapshot holds. The index is what costs, so it is kept; the
   answer for one path is cheap, so it is not.
 
-Every query about one document's content takes the witness its decode query returned, never a bare ref, so a fact
-of a document that is not UTF-8 cannot be asked for: a reader matches the decode once and no later reader carries a
-branch for it. Each still caches by the witness's ref.
+Every query about one file's content takes the witness its decode query returned, never a bare ref, so a fact of a
+file that is not UTF-8 cannot be asked for: a reader matches the decode once and no later reader carries a branch for
+it. Each still caches by the witness's ref.
 
 Checks are pure functions of the values a run reads for them through the database, like an inspection run over one
-file: the run matches each document's decode once and hands a check only the part it judges. It asks for the cheapest
+file: the run matches each file's decode once and hands a check only the part it judges. It asks for the cheapest
 query that holds what a check reads, so a check that needs only the frontmatter never pays for the full
 parse, and every check reading the same query shares one computation of it. Their results are not cached; a
 check runs again every time.
@@ -61,9 +65,9 @@ Nothing here records what a cached value read, so no dependency is tracked. Inva
 the way the IDE drops per-file index entries on a file change event and resets structural caches on a project model
 change. Reserved, not implemented: `advance(snapshot) -> Database`, the next state. It would `diff` the two
 snapshots and carry over each cached value the change set leaves valid: the decoded text, the frontmatter, the parse
-and the token count of every document whose bytes did not change, the frontmatter, the parse and the line count of
-every skill whose bytes did not, the resources of every skill and the parse of every resource as their own
-docstrings state, and
+and the token count of every document whose bytes did not change, the decoded text, the frontmatter, the parse and the
+line count of every skill whose bytes did not, the resources of every skill and the decoded text and the parse of
+every resource as their own docstrings state, and
 the model unless one of these changes invalidates it. An entry added or deleted under `docs/` invalidates it. So
 does an entry added or deleted in a skills directory, or in a skill's directory, both where the skill's entry names
 it and where a link leads it. So does an entry added or deleted at the resolved path a skill's linked `SKILL.md` leads
@@ -81,21 +85,21 @@ a skill's directory, and reads nothing there but the way to its `SKILL.md`. The 
 two snapshots' scopes, links or climbed directories differ, compared as recorded rather than through the change set,
 which holds no scope. A change of scope invalidates nothing else but the model, when it adds or drops a named
 directory: what the new scope adds or drops reaches the model and each skill's resources as entries in the change
-set. That rule holds only while the decoded text reads its own document, the frontmatter, the parse and the token
-count of a document read only its decoded text, the frontmatter, the parse and the line count of a skill or a
-resource each read their own skill or resource, the model and each skill's resource listing read no document, and
-the scope index reads only the scope, the links and the climbed directories, so keep them that way: data drawn from
-several documents belongs in a new cache with its own rule.
+set. That rule holds only while the decoded text reads its own document, skill or resource, the frontmatter, the
+parse, the token count and the line count each read only the decoded text of their own, the model and each skill's
+resource listing read no document, and the scope index reads only the scope, the links and the climbed directories,
+so keep them that way: data drawn from several documents belongs in a new cache with its own rule.
 
 A change names a resolved path, while a ref may name a path through a link: a skill's `SKILL.md` under a linked
 skill entry changes at the path the link leads to, not at the ref's. A snapshot maps a linked path to its resolved one
 and not back, so the model records each skill's `SkillLocation`, the resolved `SKILL.md` its ref leads to, and
 `advance` would look that path up in the change set. A link retargeted to another skill leaves every file's bytes as
 they were and the ref as it was, like a file's identity in the IDE, while its location changes. So a skill's
-frontmatter, its parse and its line count carry over only when the two models locate its ref at the same resolved
-file and that file's bytes did not change. A resource is named the same way, through the symlinks on the way to it,
-and its `SkillResourceLocation` records the resolved file: its parse carries over only when the two databases'
-`skill_resources` locate its ref at the same resolved file and that file's bytes did not change.
+decoded text, its frontmatter, its parse and its line count carry over only when the two models locate its ref at the
+same resolved file and that file's bytes did not change. A resource is named the same way, through the symlinks on
+the way to it, and its `SkillResourceLocation` records the resolved file: its decoded text and its parse carry over
+only when the two databases' `skill_resources` locate its ref at the same resolved file and that file's bytes did not
+change.
 """
 
 from lorecraft.core.path import RootRelativePath
@@ -103,7 +107,14 @@ from lorecraft.project.document import DocumentDecodeError, DocumentRef
 from lorecraft.project.document import Repository as DocumentRepository
 from lorecraft.project.layout import named_dirs_of_scope, reject_linked_layout
 from lorecraft.project.skill import Repository as SkillRepository
-from lorecraft.project.skill import SkillRef, SkillResourceListing, SkillResourceLocation, SkillResourceRef
+from lorecraft.project.skill import (
+    SkillDecodeError,
+    SkillRef,
+    SkillResourceDecodeError,
+    SkillResourceListing,
+    SkillResourceLocation,
+    SkillResourceRef,
+)
 from lorecraft.project.syntax import (
     FrontmatterNode,
     ParsedDocument,
@@ -115,15 +126,15 @@ from lorecraft.project.syntax import (
 from lorecraft.project.workspace import WorkspaceModel, load_model
 from lorecraft.vfs import ResolvedPath, ScopeIndex, Snapshot, VirtualFileSystem
 
-from .text import DocumentText, Undecodable
+from .text import DocumentText, SkillResourceText, SkillText, Undecodable
 
 
 class Database:
     """What the checks read from one snapshot, each computed once and cached for the snapshot's lifetime.
 
     That is the workspace model, the decoded text, the frontmatter, the parse trees and the token counts of the
-    documents, the frontmatter, the parse trees and the line counts of the skills, the resources of each skill and
-    their parse trees, and the scope index `is_in_scope` answers from.
+    documents, the decoded text, the frontmatter, the parse trees and the line counts of the skills, the resources of
+    each skill with their decoded text and their parse trees, and the scope index `is_in_scope` answers from.
     """
 
     def __init__(self, snapshot: Snapshot) -> None:
@@ -144,10 +155,12 @@ class Database:
         self._frontmatters: dict[DocumentRef, FrontmatterNode] = {}
         self._parses: dict[DocumentRef, ParsedDocument] = {}
         self._token_counts: dict[DocumentRef, int] = {}
+        self._skill_texts: dict[SkillRef, SkillText | Undecodable] = {}
         self._skill_frontmatters: dict[SkillRef, FrontmatterNode] = {}
         self._skill_parses: dict[SkillRef, ParsedDocument] = {}
         self._skill_line_counts: dict[SkillRef, int] = {}
         self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
+        self._skill_resource_texts: dict[SkillResourceRef, SkillResourceText | Undecodable] = {}
         self._skill_resource_parses: dict[SkillResourceRef, ParsedDocument] = {}
 
     def model(self) -> WorkspaceModel:
@@ -341,51 +354,11 @@ class Database:
             self._token_counts[source.ref] = count
         return count
 
-    def skill_frontmatter(self, ref: SkillRef) -> FrontmatterNode:
-        """The frontmatter of one skill's `SKILL.md`, parsed from the snapshot on the first call for its ref.
+    def skill_text(self, ref: SkillRef) -> SkillText | Undecodable:
+        """One skill's `SKILL.md` decoded as UTF-8, read from the snapshot on the first call for its ref.
 
-        A skill that cannot be read is not cached, so each call raises the same error again.
-
-        Args:
-            ref: The skill whose `SKILL.md` is read; the cache key, so one ref is parsed once.
-
-        Raises:
-            SkillDecodeError: If the skill's bytes are not UTF-8.
-            SkillReadError: If the snapshot holds no regular file at the skill's path.
-        """
-        decoded = self._skill_frontmatters.get(ref)
-        if decoded is None:
-            text = self._skills.get_skill(ref).text
-            decoded = parse_frontmatter(text)
-            self._skill_frontmatters[ref] = decoded
-        return decoded
-
-    def skill_parse(self, ref: SkillRef) -> ParsedDocument:
-        """The parse tree of one skill's `SKILL.md`, parsed from the snapshot on the first call for its ref.
-
-        Cached apart from `skill_frontmatter(ref)`, and holds no frontmatter, as a document's parse holds none.
-
-        A skill that cannot be read is not cached, so each call raises the same error again.
-
-        Args:
-            ref: The skill whose `SKILL.md` is parsed; the cache key, so one ref is parsed once.
-
-        Raises:
-            SkillDecodeError: If the skill's bytes are not UTF-8.
-            SkillReadError: If the snapshot holds no regular file at the skill's path.
-        """
-        parsed = self._skill_parses.get(ref)
-        if parsed is None:
-            text = self._skills.get_skill(ref).text
-            parsed = parse_document(text)
-            self._skill_parses[ref] = parsed
-        return parsed
-
-    def skill_lines(self, ref: SkillRef) -> int:
-        """The lines in one skill's whole `SKILL.md`, counted from the snapshot on the first call for its ref.
-
-        Cached apart from `skill_parse(ref)` and never read from it, as a document's token count is from its parse:
-        the count needs the raw text, frontmatter included, not the tree.
+        The one place a `SKILL.md`'s bytes become text: every other query about it takes the witness this returns.
+        A `SKILL.md` that is not UTF-8 is cached as `Undecodable` like any answer, so it is decoded once.
 
         Carry-over: kept for the next revision only when the next model locates the ref at the same resolved `SKILL.md`
         and that file's bytes did not change.
@@ -393,17 +366,73 @@ class Database:
         A skill that cannot be read is not cached, so each call raises the same error again.
 
         Args:
-            ref: The skill whose `SKILL.md` is counted; the cache key, so one ref is counted once.
+            ref: The skill whose `SKILL.md` is decoded; the cache key, so one ref is decoded once.
+
+        Returns:
+            The witness, or `Undecodable` when the `SKILL.md` is present but not UTF-8: such bytes are a finding
+            about the file, on the same side of the line as invalid YAML, not the failure to read it a missing file
+            is.
 
         Raises:
-            SkillDecodeError: If the skill's bytes are not UTF-8.
             SkillReadError: If the snapshot holds no regular file at the skill's path.
         """
-        count = self._skill_line_counts.get(ref)
+        source = self._skill_texts.get(ref)
+        if source is None:
+            try:
+                source = SkillText(ref, self._skills.get_skill(ref).text)
+            except SkillDecodeError:
+                source = Undecodable(ref)
+            self._skill_texts[ref] = source
+        return source
+
+    def skill_frontmatter(self, source: SkillText) -> FrontmatterNode:
+        """The frontmatter of one skill's `SKILL.md`, parsed on the first call for its ref. Raises nothing.
+
+        Carry-over: kept for the next revision whenever `skill_text(source.ref)` is.
+
+        Args:
+            source: The skill's `SKILL.md` text, as `skill_text(ref)` returns it; its ref is the cache key, so one ref
+                is parsed once.
+        """
+        decoded = self._skill_frontmatters.get(source.ref)
+        if decoded is None:
+            decoded = parse_frontmatter(source.text)
+            self._skill_frontmatters[source.ref] = decoded
+        return decoded
+
+    def skill_parse(self, source: SkillText) -> ParsedDocument:
+        """The parse tree of one skill's `SKILL.md`, parsed on the first call for its ref. Raises nothing.
+
+        Cached apart from `skill_frontmatter(source)`, and holds no frontmatter, as a document's parse holds none.
+
+        Carry-over: kept for the next revision whenever `skill_text(source.ref)` is.
+
+        Args:
+            source: The skill's `SKILL.md` text, as `skill_text(ref)` returns it; its ref is the cache key, so one ref
+                is parsed once.
+        """
+        parsed = self._skill_parses.get(source.ref)
+        if parsed is None:
+            parsed = parse_document(source.text)
+            self._skill_parses[source.ref] = parsed
+        return parsed
+
+    def skill_lines(self, source: SkillText) -> int:
+        """The lines in one skill's whole `SKILL.md`, counted on the first call for its ref. Raises nothing.
+
+        Cached apart from `skill_parse(source)` and never read from it, as a document's token count is from its
+        parse: the count needs the raw text, frontmatter included, not the tree.
+
+        Carry-over: kept for the next revision whenever `skill_text(source.ref)` is.
+
+        Args:
+            source: The skill's `SKILL.md` text, as `skill_text(ref)` returns it; its ref is the cache key, so one ref
+                is counted once.
+        """
+        count = self._skill_line_counts.get(source.ref)
         if count is None:
-            text = self._skills.get_skill(ref).text
-            count = count_lines(text)
-            self._skill_line_counts[ref] = count
+            count = count_lines(source.text)
+            self._skill_line_counts[source.ref] = count
         return count
 
     def skill_resources(self, ref: SkillRef) -> SkillResourceListing:
@@ -473,11 +502,13 @@ class Database:
             self._skill_resources[ref] = resources
         return resources
 
-    def skill_resource_parse(self, ref: SkillResourceRef) -> ParsedDocument:
-        """The parse tree of one resource of a skill, parsed from the snapshot on the first call for its ref.
+    def skill_resource_text(self, ref: SkillResourceRef) -> SkillResourceText | Undecodable:
+        """One resource of a skill decoded as UTF-8, read from the snapshot on the first call for its ref.
 
         The resource is read at the resolved file `skill_resources(ref.skill)` locates the ref at, never at `ref.path`,
-        so the skill's resources are listed first if they are not yet.
+        so the skill's resources are listed first if they are not yet. The one place a resource's bytes become text:
+        every other query about it takes the witness this returns. A resource that is not UTF-8 is cached as
+        `Undecodable` like any answer, so it is decoded once.
 
         Carry-over: kept for the next revision only when the next `skill_resources(ref.skill)` locates the ref at the
         same resolved file and that file's bytes did not change.
@@ -485,12 +516,16 @@ class Database:
         A resource that cannot be read is not cached, so each call raises the same error again.
 
         Args:
-            ref: The resource to parse, as `skill_resources` names it; the cache key, so one ref is parsed once.
+            ref: The resource to decode, as `skill_resources` names it; the cache key, so one ref is decoded once.
+
+        Returns:
+            The witness, or `Undecodable` when the resource is present but not UTF-8: such bytes are a finding
+            about the file, on the same side of the line as invalid YAML, not the failure to read it a missing file
+            is.
 
         Raises:
             ValueError: If `skill_resources(ref.skill)` lists no resource with this ref (refs from it never trigger
                 it).
-            SkillResourceDecodeError: If the resource's bytes are not UTF-8.
             SkillResourceReadError: If the snapshot holds no regular file at the resolved file the ref leads to.
             SkillResourcesListError: If the skill's resources are not listed yet and a directory the walk enters
                 cannot be listed.
@@ -526,12 +561,29 @@ class Database:
             SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
             SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
         """
-        parsed = self._skill_resource_parses.get(ref)
-        if parsed is None:
+        source = self._skill_resource_texts.get(ref)
+        if source is None:
             location = _skill_resource_location(self.skill_resources(ref.skill).resources, ref)
-            text = self._skills.get_skill_resource(location).text
-            parsed = parse_document(text)
-            self._skill_resource_parses[ref] = parsed
+            try:
+                source = SkillResourceText(ref, self._skills.get_skill_resource(location).text)
+            except SkillResourceDecodeError:
+                source = Undecodable(ref)
+            self._skill_resource_texts[ref] = source
+        return source
+
+    def skill_resource_parse(self, source: SkillResourceText) -> ParsedDocument:
+        """The parse tree of one resource of a skill, parsed on the first call for its ref. Raises nothing.
+
+        Carry-over: kept for the next revision whenever `skill_resource_text(source.ref)` is.
+
+        Args:
+            source: The resource's text, as `skill_resource_text(ref)` returns it; its ref is the cache key, so one
+                ref is parsed once.
+        """
+        parsed = self._skill_resource_parses.get(source.ref)
+        if parsed is None:
+            parsed = parse_document(source.text)
+            self._skill_resource_parses[source.ref] = parsed
         return parsed
 
 
