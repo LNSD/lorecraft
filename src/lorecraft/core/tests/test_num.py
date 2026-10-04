@@ -12,44 +12,17 @@ ADAPTER: Final[TypeAdapter[NonZeroUnsignedInt]] = TypeAdapter(NonZeroUnsignedInt
 
 @pytest.mark.unit
 class TestNonZeroUnsignedInt:
-    def test_parse_with_one_keeps_it(self) -> None:
+    def test_construction_with_one_keeps_it(self) -> None:
         #: Given
         raw = 1
 
         #: When
-        number = NonZeroUnsignedInt.parse(raw)
+        number = NonZeroUnsignedInt(raw)
 
         #: Then
         assert number.value == 1, f'1 is the smallest number the type holds, got {number.value}'
 
-    def test_parse_with_zero_raises_non_non_zero_unsigned_int(self) -> None:
-        #: Given
-        raw = 0
-
-        #: When
-        with pytest.raises(NonPositiveIntError) as exc_info:
-            NonZeroUnsignedInt.parse(raw)
-
-        #: Then
-        assert exc_info.value.value == raw, 'the error keeps the rejected zero'
-        assert str(raw) in str(exc_info.value), f'the message names the rejected zero, got {exc_info.value}'
-        assert str(NonZeroUnsignedInt.MINIMUM) in str(exc_info.value), (
-            f'the message names the bound, got {exc_info.value}'
-        )
-
-    def test_parse_with_a_negative_number_raises_non_non_zero_unsigned_int(self) -> None:
-        #: Given
-        raw = -1
-
-        #: When
-        with pytest.raises(NonPositiveIntError) as exc_info:
-            NonZeroUnsignedInt.parse(raw)
-
-        #: Then
-        assert exc_info.value.value == raw, 'the error keeps the rejected negative number'
-        assert str(raw) in str(exc_info.value), f'the message names the rejected number, got {exc_info.value}'
-
-    def test_construction_with_zero_raises_non_non_zero_unsigned_int(self) -> None:
+    def test_construction_with_zero_raises_non_positive_int(self) -> None:
         #: Given
         raw = 0
 
@@ -58,7 +31,23 @@ class TestNonZeroUnsignedInt:
             NonZeroUnsignedInt(raw)
 
         #: Then
-        assert exc_info.value.value == raw, 'direct construction checks the number as parsing does'
+        assert exc_info.value.value == raw, 'the error keeps the rejected zero'
+        assert str(raw) in str(exc_info.value), f'the message names the rejected zero, got {exc_info.value}'
+        assert str(NonZeroUnsignedInt.MINIMUM) in str(exc_info.value), (
+            f'the message names the bound, got {exc_info.value}'
+        )
+
+    def test_construction_with_a_negative_number_raises_non_positive_int(self) -> None:
+        #: Given
+        raw = -1
+
+        #: When
+        with pytest.raises(NonPositiveIntError) as exc_info:
+            NonZeroUnsignedInt(raw)
+
+        #: Then
+        assert exc_info.value.value == raw, 'the error keeps the rejected negative number'
+        assert str(raw) in str(exc_info.value), f'the message names the rejected number, got {exc_info.value}'
 
     def test_minimum_of_the_type_is_one(self) -> None:
         #: Given
@@ -148,7 +137,7 @@ class TestNonZeroUnsignedIntAsPydanticType:
         number = ADAPTER.validate_json(text)
 
         #: Then
-        assert number == NonZeroUnsignedInt(250), 'the integer is parsed into the value object'
+        assert number == NonZeroUnsignedInt(250), 'the integer is read into the value object'
 
     def test_validate_python_with_an_instance_returns_it_unchanged(self) -> None:
         #: Given
@@ -183,28 +172,15 @@ class TestNonZeroUnsignedIntAsPydanticType:
 
 @pytest.mark.unit
 class TestUnsignedInt:
-    def test_parse_with_zero_keeps_it(self) -> None:
+    def test_construction_with_zero_keeps_it(self) -> None:
         #: Given
         raw = 0
 
         #: When
-        number = UnsignedInt.parse(raw)
+        number = UnsignedInt(raw)
 
         #: Then
         assert number.value == 0, f'0 is the smallest number the type holds, got {number.value}'
-
-    def test_parse_with_a_negative_number_raises_negative_int(self) -> None:
-        #: Given
-        raw = -1
-
-        #: When
-        with pytest.raises(NegativeIntError) as exc_info:
-            UnsignedInt.parse(raw)
-
-        #: Then
-        assert exc_info.value.value == raw, 'the error keeps the rejected negative number'
-        assert str(raw) in str(exc_info.value), f'the message names the rejected number, got {exc_info.value}'
-        assert str(UnsignedInt.MINIMUM) in str(exc_info.value), f'the message names the bound, got {exc_info.value}'
 
     def test_construction_with_a_negative_number_raises_negative_int(self) -> None:
         #: Given
@@ -215,7 +191,9 @@ class TestUnsignedInt:
             UnsignedInt(raw)
 
         #: Then
-        assert exc_info.value.value == raw, 'direct construction checks the number as parsing does'
+        assert exc_info.value.value == raw, 'the error keeps the rejected negative number'
+        assert str(raw) in str(exc_info.value), f'the message names the rejected number, got {exc_info.value}'
+        assert str(UnsignedInt.MINIMUM) in str(exc_info.value), f'the message names the bound, got {exc_info.value}'
 
     def test_minimum_of_the_type_is_zero(self) -> None:
         #: Given

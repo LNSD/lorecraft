@@ -162,12 +162,12 @@ class TestRunSkills:
         assert [report.violations for report in run.reports] == [
             (
                 Violation(
-                    line=LineNumber.parse(4),
+                    line=LineNumber.from_int(4),
                     rule='skill.name-matches-directory',
                     message="`name` is 'audit'; expected 'review', the name of the skill directory",
                 ),
                 Violation(
-                    line=LineNumber.parse(4),
+                    line=LineNumber.from_int(4),
                     rule='skill.duplicate-key',
                     message="'name' is already written on line 2",
                 ),
@@ -190,7 +190,7 @@ class TestRunSkills:
         assert [report.violations for report in run.reports] == [
             (
                 Violation(
-                    line=LineNumber.parse(4),
+                    line=LineNumber.from_int(4),
                     rule='skill.duplicate-key',
                     message="'name' is already written on line 2",
                 ),
@@ -213,7 +213,7 @@ class TestRunSkills:
             (),
             (
                 Violation(
-                    line=LineNumber.parse(3),
+                    line=LineNumber.from_int(3),
                     rule='skill.frontmatter-unparseable',
                     message=(
                         'frontmatter is not valid YAML: '
@@ -239,12 +239,12 @@ class TestRunSkills:
         assert [report.violations for report in run.reports] == [
             (
                 Violation(
-                    line=LineNumber.parse(2),
+                    line=LineNumber.from_int(2),
                     rule='skill.name-matches-directory',
                     message="`name` is 'audit'; expected 'review', the name of the skill directory",
                 ),
                 Violation(
-                    line=LineNumber.parse(7),
+                    line=LineNumber.from_int(7),
                     rule='skill.link-absolute',
                     message='`/docs/guide.md` is absolute',
                     notes=(Note(NoteKind.HELP, 'link relative to the skill root'),),
@@ -272,7 +272,7 @@ class TestRunSkills:
         assert run.findings() == (
             Finding(
                 path=RootRelativePath.parse('.agents/skills/review/SKILL.md'),
-                line=LineNumber.parse(5),
+                line=LineNumber.from_int(5),
                 rule='skill.link-absolute',
                 message='`/assets/flow.png` is absolute',
                 notes=(Note(NoteKind.HELP, 'link relative to the skill root'),),
@@ -296,7 +296,7 @@ class TestRunSkills:
         assert run.findings() == (
             Finding(
                 path=RootRelativePath.parse('.agents/skills/review/SKILL.md'),
-                line=LineNumber.parse(7),
+                line=LineNumber.from_int(7),
                 rule='skill.link-fragment',
                 message='`#checklist` names a heading this file does not have',
             ),
@@ -321,7 +321,7 @@ class TestRunSkills:
         assert run.findings() == (
             Finding(
                 path=RootRelativePath.parse('.agents/skills/review/SKILL.md'),
-                line=LineNumber.parse(7),
+                line=LineNumber.from_int(7),
                 rule='skill.link-fragment',
                 message='`#missing` names a heading this file does not have',
             ),
@@ -347,7 +347,7 @@ class TestRunSkills:
         assert run.findings() == (
             Finding(
                 path=RootRelativePath.parse('.agents/skills/review/SKILL.md'),
-                line=LineNumber.parse(7),
+                line=LineNumber.from_int(7),
                 rule='skill.link-fragment',
                 message='`#checklist` names a heading this file does not have',
             ),
@@ -397,7 +397,7 @@ class TestRunSkillsMetadata:
         assert run.findings() == (
             Finding(
                 path=RootRelativePath.parse('.agents/skills/x/SKILL.md'),
-                line=LineNumber.parse(4),
+                line=LineNumber.from_int(4),
                 rule='skill.metadata-duplicate-name',
                 message=(
                     '`metadata.references` lists `docs/code/a.md` and `docs/feat/a.md`, '
@@ -431,7 +431,7 @@ class TestRunSkillsMetadata:
         assert run.findings() == (
             Finding(
                 path=RootRelativePath.parse('.agents/skills/x/SKILL.md'),
-                line=LineNumber.parse(4),
+                line=LineNumber.from_int(4),
                 rule='skill.metadata-outside-scope',
                 message=(
                     '`metadata.scripts` lists `src/tool.py`, which lorecraft does not read; list a file directly '
@@ -525,7 +525,7 @@ class TestRunSkillsMetadata:
         assert run.findings() == (
             Finding(
                 path=RootRelativePath.parse('.agents/skills/x/SKILL.md'),
-                line=LineNumber.parse(4),
+                line=LineNumber.from_int(4),
                 rule='skill.metadata-missing-file',
                 message=(
                     '`metadata.references` lists `.agents/skills/x/references/deep/q.md`, where lorecraft finds no file'
@@ -546,7 +546,7 @@ class TestRunSkillsMetadata:
         assert run.findings() == (
             Finding(
                 path=RootRelativePath.parse('.agents/skills/x/SKILL.md'),
-                line=LineNumber.parse(4),
+                line=LineNumber.from_int(4),
                 rule='skill.metadata-missing-file',
                 message='`metadata.references` lists `docs/feat/absent.md`, where lorecraft finds no file',
             ),
@@ -649,7 +649,7 @@ class TestRunSkillsMetadata:
         assert run.findings() == (
             Finding(
                 path=RootRelativePath.parse('.agents/skills/y/SKILL.md'),
-                line=LineNumber.parse(4),
+                line=LineNumber.from_int(4),
                 rule='skill.metadata-missing-file',
                 message='`metadata.assets` lists `skills/y/absent.md`, where lorecraft finds no file',
             ),
@@ -670,7 +670,7 @@ class TestRunSkillsMetadata:
         assert run.findings() == (
             Finding(
                 path=RootRelativePath.parse('.agents/skills/x/SKILL.md'),
-                line=LineNumber.parse(4),
+                line=LineNumber.from_int(4),
                 rule='skill.metadata-missing-file',
                 message='`metadata.references` lists `docs/nope/a.md`, where lorecraft finds no file',
             ),
@@ -771,28 +771,28 @@ class TestRunSkillsResources:
         assert run.findings() == (
             Finding(
                 path=RootRelativePath.parse(f'{skill}/SKILL.md'),
-                line=LineNumber.parse(7),
+                line=LineNumber.from_int(7),
                 rule='skill.link-escapes',
                 message='`../../docs/guide.md` leaves the skill directory',
                 notes=(Note(NoteKind.HELP, 'link a file inside the skill, relative to the skill root'),),
             ),
             Finding(
                 path=RootRelativePath.parse(f'{skill}/references/a.md'),
-                line=LineNumber.parse(1),
+                line=LineNumber.from_int(1),
                 rule='skill.link-escapes',
                 message='`../a.md` leaves the skill directory',
                 notes=(Note(NoteKind.HELP, 'link a file inside the skill, relative to the skill root'),),
             ),
             Finding(
                 path=RootRelativePath.parse(f'{skill}/references/a.md'),
-                line=LineNumber.parse(3),
+                line=LineNumber.from_int(3),
                 rule='skill.link-escapes',
                 message='`../../flow.png` leaves the skill directory',
                 notes=(Note(NoteKind.HELP, 'link a file inside the skill, relative to the skill root'),),
             ),
             Finding(
                 path=RootRelativePath.parse(f'{skill}/references/deep/guide.md'),
-                line=LineNumber.parse(3),
+                line=LineNumber.from_int(3),
                 rule='skill.link-escapes',
                 message='`../SKILL.md` leaves the skill directory',
                 notes=(Note(NoteKind.HELP, 'link a file inside the skill, relative to the skill root'),),
@@ -816,7 +816,7 @@ class TestRunSkillsResources:
         assert run.findings() == (
             Finding(
                 path=RootRelativePath.parse('.agents/skills/review/references/a.md'),
-                line=LineNumber.parse(1),
+                line=LineNumber.from_int(1),
                 rule='skill.link-escapes',
                 message='`../SKILL.md` leaves the skill directory',
                 notes=(Note(NoteKind.HELP, 'link a file inside the skill, relative to the skill root'),),
@@ -836,7 +836,7 @@ class TestRunSkillsResources:
         assert run.findings() == (
             Finding(
                 path=RootRelativePath.parse('.agents/skills/review/references/latin.md'),
-                line=LineNumber.parse(1),
+                line=LineNumber.from_int(1),
                 rule='skill.undecodable',
                 message='resource is not valid UTF-8',
             ),
@@ -855,13 +855,13 @@ class TestRunSkillsResources:
         assert run.findings() == (
             Finding(
                 path=RootRelativePath.parse('.agents/skills/review/SKILL.md'),
-                line=LineNumber.parse(1),
+                line=LineNumber.from_int(1),
                 rule='skill.undecodable',
                 message='SKILL.md is not valid UTF-8',
             ),
             Finding(
                 path=RootRelativePath.parse('.agents/skills/review/references/a.md'),
-                line=LineNumber.parse(1),
+                line=LineNumber.from_int(1),
                 rule='skill.link-escapes',
                 message='`../a.md` leaves the skill directory',
                 notes=(Note(NoteKind.HELP, 'link a file inside the skill, relative to the skill root'),),
@@ -887,14 +887,14 @@ class TestRunSkillsResources:
         assert run.findings() == (
             Finding(
                 path=RootRelativePath.parse('.agents/skills/review/references/a.md'),
-                line=LineNumber.parse(3),
+                line=LineNumber.from_int(3),
                 rule='skill.link-absolute',
                 message='`/x.md` is absolute',
                 notes=(Note(NoteKind.HELP, 'link relative to the skill root'),),
             ),
             Finding(
                 path=RootRelativePath.parse('.agents/skills/review/references/a.md'),
-                line=LineNumber.parse(3),
+                line=LineNumber.from_int(3),
                 rule='skill.link-fragment',
                 message='`#nothing` names a heading this file does not have',
             ),
@@ -924,13 +924,13 @@ class TestRunSkillsResources:
         assert run.findings() == (
             Finding(
                 path=RootRelativePath.parse('.agents/skills/review/references/deep/guide.md'),
-                line=LineNumber.parse(3),
+                line=LineNumber.from_int(3),
                 rule='skill.link-fragment',
                 message='`#usage` names a heading this file does not have',
             ),
             Finding(
                 path=RootRelativePath.parse('.agents/skills/review/references/deep/guide.md'),
-                line=LineNumber.parse(3),
+                line=LineNumber.from_int(3),
                 rule='skill.link-absolute',
                 message='`/assets/flow.png` is absolute',
                 notes=(Note(NoteKind.HELP, 'link relative to the skill root'),),
@@ -959,7 +959,7 @@ class TestRunSkillsResources:
         assert run.findings() == (
             Finding(
                 path=RootRelativePath.parse('.agents/skills/review/references/guide.md'),
-                line=LineNumber.parse(3),
+                line=LineNumber.from_int(3),
                 rule='skill.link-absolute',
                 message='`/docs/guide.md` is absolute',
                 notes=(Note(NoteKind.HELP, 'link relative to the skill root'),),
@@ -997,7 +997,7 @@ def _broken(path: str, line: int, url: str) -> Finding:
     """
     return Finding(
         path=RootRelativePath.parse(path),
-        line=LineNumber.parse(line),
+        line=LineNumber.from_int(line),
         rule='skill.link-broken',
         message=f'`{url}` names nothing in the skill',
         notes=(Note(NoteKind.HELP, 'link a file or a directory the skill holds, relative to the skill root'),),
@@ -1208,7 +1208,7 @@ class TestRunSkillsLineBudget:
         assert run.findings() == (
             Finding(
                 path=RootRelativePath.parse('.agents/skills/review/SKILL.md'),
-                line=LineNumber.parse(1),
+                line=LineNumber.from_int(1),
                 rule='skill.lines-budget',
                 message='501 lines; the budget is 500',
                 notes=(
@@ -1324,7 +1324,7 @@ class TestRunSkillsNameMatchesDirectory:
         assert run.findings() == (
             Finding(
                 path=RootRelativePath.parse('.agents/skills/bar/SKILL.md'),
-                line=LineNumber.parse(2),
+                line=LineNumber.from_int(2),
                 rule='skill.name-matches-directory',
                 message="`name` is 'foo'; expected 'bar', the name of the skill directory",
                 notes=_RENAMING_LINK_NOTES,
@@ -1347,7 +1347,7 @@ class TestRunSkillsNameMatchesDirectory:
         assert run.findings() == (
             Finding(
                 path=RootRelativePath.parse('.agents/skills/bar/SKILL.md'),
-                line=LineNumber.parse(2),
+                line=LineNumber.from_int(2),
                 rule='skill.name-matches-directory',
                 message="`name` is 'foo'; expected 'bar', the name of the skill directory",
                 notes=_RENAMING_LINK_NOTES,
@@ -1374,7 +1374,7 @@ class TestRunSkillsNameMatchesDirectory:
         assert run.findings() == (
             Finding(
                 path=RootRelativePath.parse('agent-skills/bar/SKILL.md'),
-                line=LineNumber.parse(2),
+                line=LineNumber.from_int(2),
                 rule='skill.name-matches-directory',
                 message="`name` is 'foo'; expected 'bar', the name of the skill directory",
                 notes=_RENAMING_LINK_NOTES,
@@ -1425,7 +1425,7 @@ class TestRunSkillsNameMatchesDirectory:
         assert run.findings() == (
             Finding(
                 path=RootRelativePath.parse('.agents/skills/x/SKILL.md'),
-                line=LineNumber.parse(2),
+                line=LineNumber.from_int(2),
                 rule='skill.name-matches-directory',
                 message="`name` is 'review'; expected 'x', the name of the skill directory",
                 notes=(Note(NoteKind.NOTE, "'x' is a link to the repository root"),),
@@ -1444,7 +1444,7 @@ class TestRunSkillsNameMatchesDirectory:
         assert run.findings() == (
             Finding(
                 path=RootRelativePath.parse('.agents/skills/review/SKILL.md'),
-                line=LineNumber.parse(2),
+                line=LineNumber.from_int(2),
                 rule='skill.name-matches-directory',
                 message="`name` is 'audit'; expected 'review', the name of the skill directory",
             ),
@@ -1465,7 +1465,7 @@ def _outside_finding(path: str, link: str, target: Path | str) -> Finding:
     """
     return Finding(
         path=RootRelativePath.parse(path),
-        line=LineNumber.parse(1),
+        line=LineNumber.from_int(1),
         rule='skill.symlink-outside',
         message='symlink leads outside the repository',
         notes=(
@@ -1671,7 +1671,7 @@ class TestRunSkillsSkillFile:
                 selection.ref,
                 violations=(
                     Violation(
-                        line=LineNumber.parse(7),
+                        line=LineNumber.from_int(7),
                         rule='skill.link-absolute',
                         message='`/x.md` is absolute',
                         notes=(Note(NoteKind.HELP, 'link relative to the skill root'),),

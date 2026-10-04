@@ -27,7 +27,7 @@ class TestValidateOutsideSymlink:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.parse(1),
+                line=LineNumber.from_int(1),
                 rule='skill.symlink-outside',
                 message='symlink leads outside the repository',
                 notes=(

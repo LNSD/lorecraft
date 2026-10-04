@@ -28,7 +28,7 @@ class TestParseMarkdown:
         #: Then
         assert tree == MarkdownTree(
             blocks=(
-                HeadingBlock(level=1, text='Guide', line=LineNumber.parse(1)),
+                HeadingBlock(level=1, text='Guide', line=LineNumber.from_int(1)),
                 ContentBlock(source_outside_code=('Some prose.\n',)),
             ),
             heading_texts=('Guide',),
@@ -43,7 +43,7 @@ class TestParseMarkdown:
         tree = parse_markdown(text)
 
         #: Then
-        assert tree.blocks == (HeadingBlock(level=1, text='Title', line=LineNumber.parse(1)),), (
+        assert tree.blocks == (HeadingBlock(level=1, text='Title', line=LineNumber.from_int(1)),), (
             'an underlined title is a heading as much as a `#` one'
         )
 
@@ -82,7 +82,7 @@ class TestParseMarkdown:
         #: Then
         assert tree.blocks == (
             ContentBlock(source_outside_code=('> # Quoted\n',)),
-            HeadingBlock(level=2, text='Real', line=LineNumber.parse(3)),
+            HeadingBlock(level=2, text='Real', line=LineNumber.from_int(3)),
         ), 'a quoted heading is part of the blockquote, not a block of its own'
 
     def test_parse_markdown_with_a_heading_in_a_blockquote_returns_its_text_among_the_heading_texts(self) -> None:
@@ -103,7 +103,7 @@ class TestParseMarkdown:
         tree = parse_markdown(text)
 
         #: Then
-        assert tree.blocks == (HeadingBlock(level=1, text='Hi \n<b>\nx\n</b>\n alt', line=LineNumber.parse(1)),), (
+        assert tree.blocks == (HeadingBlock(level=1, text='Hi \n<b>\nx\n</b>\n alt', line=LineNumber.from_int(1)),), (
             "the heading block's plain text keeps inline HTML and an image's alt text"
         )
 
@@ -126,9 +126,9 @@ class TestParseMarkdown:
 
         #: Then
         assert tree.links == (
-            Link(url='a.md', line=LineNumber.parse(1)),
-            Link(url='b.md', line=LineNumber.parse(3)),
-            Link(url='i.png', line=LineNumber.parse(3)),
+            Link(url='a.md', line=LineNumber.from_int(1)),
+            Link(url='b.md', line=LineNumber.from_int(3)),
+            Link(url='i.png', line=LineNumber.from_int(3)),
         ), 'a link in a list item is found too, and an image inside a link comes after that link'
 
     def test_parse_markdown_with_crlf_line_endings_returns_each_heading_on_its_document_line(self) -> None:
@@ -140,8 +140,8 @@ class TestParseMarkdown:
 
         #: Then
         assert tree.blocks == (
-            HeadingBlock(level=1, text='Guide', line=LineNumber.parse(1)),
-            HeadingBlock(level=2, text='Usage', line=LineNumber.parse(3)),
+            HeadingBlock(level=1, text='Guide', line=LineNumber.from_int(1)),
+            HeadingBlock(level=2, text='Usage', line=LineNumber.from_int(3)),
         ), 'a CRLF line ending counts as one line break'
 
     def test_parse_markdown_with_a_delimited_block_returns_no_block_for_it(self) -> None:
@@ -152,7 +152,7 @@ class TestParseMarkdown:
         tree = parse_markdown(text)
 
         #: Then
-        assert tree.blocks == (HeadingBlock(level=1, text='Guide', line=LineNumber.parse(4)),), (
+        assert tree.blocks == (HeadingBlock(level=1, text='Guide', line=LineNumber.from_int(4)),), (
             'the frontmatter block is no Markdown block, and the heading after it keeps its document line'
         )
 
@@ -169,7 +169,7 @@ class TestParseMarkdownFrontmatter:
         #: Then
         assert frontmatter == Frontmatter(
             data={'name': 'guide'},
-            keys=(FrontmatterKey('name', LineNumber.parse(2)),),
+            keys=(FrontmatterKey('name', LineNumber.from_int(2)),),
         ), 'the block between the delimiters is decoded, each key on its document line'
 
     def test_parse_markdown_frontmatter_without_an_opening_delimiter_returns_missing(self) -> None:
@@ -192,7 +192,7 @@ class TestHeadingBlock:
 
         #: When
         with pytest.raises(AssertionError) as exc_info:
-            HeadingBlock(level=rejected, text='Intro', line=LineNumber.parse(1))
+            HeadingBlock(level=rejected, text='Intro', line=LineNumber.from_int(1))
 
         #: Then
         assert str(rejected) in str(exc_info.value), 'the error names the rejected level'
@@ -204,7 +204,7 @@ class TestHeadingBlock:
 
         #: When
         with pytest.raises(AssertionError) as exc_info:
-            HeadingBlock(level=rejected, text='Deep', line=LineNumber.parse(1))
+            HeadingBlock(level=rejected, text='Deep', line=LineNumber.from_int(1))
 
         #: Then
         assert str(rejected) in str(exc_info.value), 'the error names the rejected level'

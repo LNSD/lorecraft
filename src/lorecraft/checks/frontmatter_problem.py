@@ -19,7 +19,7 @@ from lorecraft.project.schemas import (
 )
 from lorecraft.project.syntax import Frontmatter, LineNumber
 
-_FIRST_LINE: Final[LineNumber] = LineNumber.parse(1)
+_FIRST_LINE: Final[LineNumber] = LineNumber.from_int(1)
 """Where a problem with no more precise position is reported: one on no field, or on a field not written."""
 
 

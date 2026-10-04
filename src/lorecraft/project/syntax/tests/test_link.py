@@ -12,7 +12,7 @@ from ..position import LineNumber
 class TestLinkToRelativePath:
     def test_to_relative_path_with_a_relative_destination_returns_its_path(self) -> None:
         #: Given
-        link = Link(url='references/guide.md', line=LineNumber.parse(1))
+        link = Link(url='references/guide.md', line=LineNumber.from_int(1))
 
         #: When
         path = link.to_relative_path()
@@ -22,7 +22,7 @@ class TestLinkToRelativePath:
 
     def test_to_relative_path_with_parent_components_keeps_them_unnormalised(self) -> None:
         #: Given
-        link = Link(url='references/../../SKILL.md', line=LineNumber.parse(1))
+        link = Link(url='references/../../SKILL.md', line=LineNumber.from_int(1))
 
         #: When
         path = link.to_relative_path()
@@ -34,7 +34,7 @@ class TestLinkToRelativePath:
 
     def test_to_relative_path_with_a_fragment_returns_the_path_before_it(self) -> None:
         #: Given
-        link = Link(url='other.md#usage', line=LineNumber.parse(1))
+        link = Link(url='other.md#usage', line=LineNumber.from_int(1))
 
         #: When
         path = link.to_relative_path()
@@ -44,7 +44,7 @@ class TestLinkToRelativePath:
 
     def test_to_relative_path_with_a_query_returns_the_path_before_it(self) -> None:
         #: Given
-        link = Link(url='other.md?from=/../x#usage', line=LineNumber.parse(1))
+        link = Link(url='other.md?from=/../x#usage', line=LineNumber.from_int(1))
 
         #: When
         path = link.to_relative_path()
@@ -54,7 +54,7 @@ class TestLinkToRelativePath:
 
     def test_to_relative_path_with_a_percent_encoded_destination_returns_it_decoded(self) -> None:
         #: Given
-        link = Link(url='%2E%2E/a%20b.md', line=LineNumber.parse(1))
+        link = Link(url='%2E%2E/a%20b.md', line=LineNumber.from_int(1))
 
         #: When
         path = link.to_relative_path()
@@ -64,7 +64,7 @@ class TestLinkToRelativePath:
 
     def test_to_relative_path_with_a_url_scheme_returns_none(self) -> None:
         #: Given
-        link = Link(url='https://agentskills.io/specification', line=LineNumber.parse(1))
+        link = Link(url='https://agentskills.io/specification', line=LineNumber.from_int(1))
 
         #: When
         path = link.to_relative_path()
@@ -74,7 +74,7 @@ class TestLinkToRelativePath:
 
     def test_to_relative_path_with_a_scheme_without_slashes_returns_none(self) -> None:
         #: Given
-        link = Link(url='mailto:team@example.com', line=LineNumber.parse(1))
+        link = Link(url='mailto:team@example.com', line=LineNumber.from_int(1))
 
         #: When
         path = link.to_relative_path()
@@ -84,7 +84,7 @@ class TestLinkToRelativePath:
 
     def test_to_relative_path_with_an_absolute_destination_returns_none(self) -> None:
         #: Given
-        link = Link(url='/docs/guide.md', line=LineNumber.parse(1))
+        link = Link(url='/docs/guide.md', line=LineNumber.from_int(1))
 
         #: When
         path = link.to_relative_path()
@@ -94,7 +94,7 @@ class TestLinkToRelativePath:
 
     def test_to_relative_path_with_an_encoded_leading_slash_returns_none(self) -> None:
         #: Given
-        link = Link(url='%2Fdocs/guide.md', line=LineNumber.parse(1))
+        link = Link(url='%2Fdocs/guide.md', line=LineNumber.from_int(1))
 
         #: When
         path = link.to_relative_path()
@@ -104,7 +104,7 @@ class TestLinkToRelativePath:
 
     def test_to_relative_path_with_a_fragment_only_destination_returns_none(self) -> None:
         #: Given
-        link = Link(url='#usage', line=LineNumber.parse(1))
+        link = Link(url='#usage', line=LineNumber.from_int(1))
 
         #: When
         path = link.to_relative_path()
@@ -114,7 +114,7 @@ class TestLinkToRelativePath:
 
     def test_to_relative_path_with_an_empty_destination_returns_none(self) -> None:
         #: Given
-        link = Link(url='', line=LineNumber.parse(1))
+        link = Link(url='', line=LineNumber.from_int(1))
 
         #: When
         path = link.to_relative_path()
@@ -127,7 +127,7 @@ class TestLinkToRelativePath:
 class TestLinkToNormalisedRelativePath:
     def test_to_normalised_relative_path_with_dot_components_returns_them_dropped(self) -> None:
         #: Given
-        link = Link(url='references/./a%20b.md#usage', line=LineNumber.parse(1))
+        link = Link(url='references/./a%20b.md#usage', line=LineNumber.from_int(1))
 
         #: When
         path = link.to_normalised_relative_path()
@@ -137,7 +137,7 @@ class TestLinkToNormalisedRelativePath:
 
     def test_to_normalised_relative_path_with_a_parent_below_the_start_returns_it_cancelled(self) -> None:
         #: Given
-        link = Link(url='references/deep/../a.md', line=LineNumber.parse(1))
+        link = Link(url='references/deep/../a.md', line=LineNumber.from_int(1))
 
         #: When
         path = link.to_normalised_relative_path()
@@ -147,7 +147,7 @@ class TestLinkToNormalisedRelativePath:
 
     def test_to_normalised_relative_path_with_a_parent_cancelling_every_component_returns_the_start(self) -> None:
         #: Given
-        link = Link(url='references/..', line=LineNumber.parse(1))
+        link = Link(url='references/..', line=LineNumber.from_int(1))
 
         #: When
         path = link.to_normalised_relative_path()
@@ -157,7 +157,7 @@ class TestLinkToNormalisedRelativePath:
 
     def test_to_normalised_relative_path_with_a_leading_parent_keeps_it_first(self) -> None:
         #: Given
-        link = Link(url='a/../../b.md', line=LineNumber.parse(1))
+        link = Link(url='a/../../b.md', line=LineNumber.from_int(1))
 
         #: When
         path = link.to_normalised_relative_path()
@@ -167,7 +167,7 @@ class TestLinkToNormalisedRelativePath:
 
     def test_to_normalised_relative_path_with_a_url_returns_none(self) -> None:
         #: Given
-        link = Link(url='https://agentskills.io/../specification', line=LineNumber.parse(1))
+        link = Link(url='https://agentskills.io/../specification', line=LineNumber.from_int(1))
 
         #: When
         path = link.to_normalised_relative_path()

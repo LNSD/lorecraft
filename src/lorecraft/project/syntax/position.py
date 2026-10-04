@@ -19,7 +19,7 @@ class LineNumber:
     value: NonZeroUnsignedInt
 
     @classmethod
-    def parse(cls, raw: int) -> Self:
+    def from_int(cls, raw: int) -> Self:
         """Return the line number `raw` names.
 
         Args:
@@ -28,7 +28,7 @@ class LineNumber:
         Raises:
             NonPositiveIntError: If the number is below 1, which names no line.
         """
-        return cls(NonZeroUnsignedInt.parse(raw))
+        return cls(NonZeroUnsignedInt(raw))
 
     @property
     def number(self) -> int:
