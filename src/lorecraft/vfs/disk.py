@@ -431,24 +431,29 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
         kept: list[DirEntry] = []
         for entry in entries:
             path = directory / entry.name
-            if entry.kind is EntryKind.DIRECTORY:
-                entered_root = listed_root.find_root_below(path, levels=1)
-                if entered_root is not None:  # None when no depth is left: the entry is listed, never entered
-                    pending.append(entered_root)
-            elif entry.kind is EntryKind.FILE:
-                data = _find_file_bytes(root, path)
-                if data is None:
-                    continue  # vanished after the listing; see the docstring
-                files[path] = data
-            elif entry.kind is EntryKind.SYMLINK:
-                target = _find_symlink_target(root, path)
-                if target is None:
-                    continue  # vanished after the listing; see the docstring
-                links[path] = target
-                if follow_links:
-                    _follow_listed_link(root, listed_root, path, on_disk, files, pending)
-                else:
-                    _record_chain(path, on_disk)
+            match entry.kind:
+                case EntryKind.DIRECTORY:
+                    entered_root = listed_root.find_root_below(path, levels=1)
+                    if entered_root is not None:  # None when no depth is left: the entry is listed, never entered
+                        pending.append(entered_root)
+                case EntryKind.FILE:
+                    data = _find_file_bytes(root, path)
+                    if data is None:
+                        continue  # vanished after the listing; see the docstring
+                    files[path] = data
+                case EntryKind.SYMLINK:
+                    target = _find_symlink_target(root, path)
+                    if target is None:
+                        continue  # vanished after the listing; see the docstring
+                    links[path] = target
+                    if follow_links:
+                        _follow_listed_link(root, listed_root, path, on_disk, files, pending)
+                    else:
+                        _record_chain(path, on_disk)
+                case EntryKind.OTHER:
+                    pass  # recorded in the listing, never read
+                case _:
+                    assert_never(entry.kind)
             kept.append(entry)
         listings[directory] = tuple(kept)
 
