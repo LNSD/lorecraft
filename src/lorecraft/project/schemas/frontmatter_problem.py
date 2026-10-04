@@ -6,8 +6,8 @@ Two kinds of schema govern a frontmatter: the JSON Schema a structure specificat
 ``FrontmatterProblem`` values at its own seam, so a check reads the same shape from either and never reads a
 validator's error record.
 
-Each cause is its own class. A problem on a top-level field names it; the two causes that concern no field,
-a key that is not a string and a rule over the whole block, have no ``field`` at all.
+Each cause is its own class. A problem on a top-level field names it; the one cause that concerns no field, a
+rule over the whole block, has no ``field`` at all.
 """
 
 from dataclasses import dataclass
@@ -36,17 +36,6 @@ class UnknownFieldProblem:
     """
 
     field: str
-    message: str
-
-
-@dataclass(frozen=True, slots=True)
-class NonStringKeyProblem:
-    """A top-level key that is not a string, and so names no field.
-
-    Attributes:
-        message: What a reader is told, naming the key where the validator reports it as written.
-    """
-
     message: str
 
 
@@ -127,7 +116,6 @@ class BlockProblem:
 type FrontmatterProblem = (
     MissingFieldProblem
     | UnknownFieldProblem
-    | NonStringKeyProblem
     | NotAStringProblem
     | NotAStringMappingProblem
     | WrongTypeProblem

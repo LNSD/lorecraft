@@ -234,6 +234,31 @@ class TestRunSkills:
             ),
         ], 'the scalar is one finding on its line, and the run goes on to check the other skill'
 
+    def test_run_skills_with_keys_that_are_not_strings_reports_the_frontmatter_unparseable(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        _write(
+            tmp_path,
+            '.agents/skills/review/SKILL.md',
+            b'---\nname: review\ndescription: Review a change\n1: one\nmetadata:\n  2026-10-04: launch\n---\n',
+        )
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_skill(database)
+
+        #: Then
+        assert [report.violations for report in run.reports] == [
+            (
+                Violation(
+                    line=LineNumber.from_int(4),
+                    rule='skill.frontmatter-unparseable',
+                    message='frontmatter is not valid YAML: found the key 1, which is not a string',
+                ),
+            )
+        ], 'the first key that is not a string is refused on its line, and the specification schema never meets it'
+
     def test_run_skills_with_an_absolute_link_reports_it_after_the_frontmatter_findings(self, tmp_path: Path) -> None:
         #: Given
         _write(

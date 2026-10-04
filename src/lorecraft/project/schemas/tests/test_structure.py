@@ -16,7 +16,6 @@ from ..frontmatter_problem import (
     BlockProblem,
     InvalidValueProblem,
     MissingFieldProblem,
-    NonStringKeyProblem,
     UnknownFieldProblem,
     WrongTypeProblem,
 )
@@ -1025,7 +1024,7 @@ class TestFrontmatterSchema:
     def test_validate_with_a_conforming_frontmatter_returns_no_problems(self) -> None:
         #: Given
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema={'type': 'object', 'required': ['name']})
-        data: dict[object, object] = {'name': 'guide'}
+        data: dict[str, object] = {'name': 'guide'}
 
         #: When
         problems = frontmatter.validate(data)
@@ -1036,7 +1035,7 @@ class TestFrontmatterSchema:
     def test_validate_without_two_required_fields_returns_one_missing_problem_each(self) -> None:
         #: Given
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema={'type': 'object', 'required': ['name', 'type']})
-        data: dict[object, object] = {}
+        data: dict[str, object] = {}
 
         #: When
         problems = frontmatter.validate(data)
@@ -1050,7 +1049,7 @@ class TestFrontmatterSchema:
     def test_validate_with_one_of_two_required_fields_present_returns_a_missing_problem_for_the_other(self) -> None:
         #: Given
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema={'type': 'object', 'required': ['name', 'type']})
-        data: dict[object, object] = {'name': 'guide'}
+        data: dict[str, object] = {'name': 'guide'}
 
         #: When
         problems = frontmatter.validate(data)
@@ -1068,7 +1067,7 @@ class TestFrontmatterSchema:
             'properties': {'name': {'type': 'string'}, 'type': {'enum': ['rule', 'pattern']}},
         }
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=schema)
-        data: dict[object, object] = {'name': 3, 'type': 'guide'}
+        data: dict[str, object] = {'name': 3, 'type': 'guide'}
 
         #: When
         problems = frontmatter.validate(data)
@@ -1088,7 +1087,7 @@ class TestFrontmatterSchema:
             'additionalProperties': False,
         }
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=schema)
-        data: dict[object, object] = {'name': 'guide', 'x-owner': 'me', 'model': 'opus', 'tier': 1}
+        data: dict[str, object] = {'name': 'guide', 'x-owner': 'me', 'model': 'opus', 'tier': 1}
 
         #: When
         problems = frontmatter.validate(data)
@@ -1105,24 +1104,11 @@ class TestFrontmatterSchema:
             ),
         ), 'each field neither properties nor patternProperties names is its own problem'
 
-    def test_validate_with_a_key_that_is_not_a_string_returns_a_non_string_key_problem(self) -> None:
-        #: Given
-        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema={'type': 'object', 'additionalProperties': False})
-        data: dict[object, object] = {123: 'x'}
-
-        #: When
-        problems = frontmatter.validate(data)
-
-        #: Then
-        assert problems == (NonStringKeyProblem('Additional properties are not allowed (123 was unexpected)'),), (
-            'a key that is not a string names no field'
-        )
-
     def test_validate_with_a_value_of_the_wrong_type_returns_a_wrong_type_problem(self) -> None:
         #: Given
         schema: dict[str, object] = {'type': 'object', 'properties': {'name': {'type': 'string'}}}
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=schema)
-        data: dict[object, object] = {'name': 3}
+        data: dict[str, object] = {'name': 3}
 
         #: When
         problems = frontmatter.validate(data)
@@ -1136,7 +1122,7 @@ class TestFrontmatterSchema:
         #: Given
         schema: dict[str, object] = {'type': 'object', 'properties': {'type': {'enum': ['rule', 'pattern']}}}
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=schema)
-        data: dict[object, object] = {'type': 'guide'}
+        data: dict[str, object] = {'type': 'guide'}
 
         #: When
         problems = frontmatter.validate(data)
@@ -1153,7 +1139,7 @@ class TestFrontmatterSchema:
             'properties': {'metadata': {'type': 'object', 'properties': {'author': {}}, 'additionalProperties': False}},
         }
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=schema)
-        data: dict[object, object] = {'metadata': {'owner': 'me'}}
+        data: dict[str, object] = {'metadata': {'owner': 'me'}}
 
         #: When
         problems = frontmatter.validate(data)
@@ -1169,7 +1155,7 @@ class TestFrontmatterSchema:
     def test_validate_with_a_rule_over_the_whole_block_returns_a_block_problem(self) -> None:
         #: Given
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema={'type': 'object', 'minProperties': 1})
-        data: dict[object, object] = {}
+        data: dict[str, object] = {}
 
         #: When
         problems = frontmatter.validate(data)
