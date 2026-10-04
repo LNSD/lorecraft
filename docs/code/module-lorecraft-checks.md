@@ -17,7 +17,8 @@ changes: a query, a check, or the shape of what a check reports.
 **Analysis.** Two kinds of code share the role, and they stay distinct inside it. The database wraps one
 revision's inputs and memoizes every derived value for as long as it lives. A check is a pure function of the values
 those queries return. A run joins the two: it asks the queries for what a check reads, hands the check only that,
-and locates each violation in its document.
+and locates each violation in its document. It runs the rules of `lorecraft.rules`, the layer below, the same
+way: it builds the input each rule reads from the queries, and the rules are declared there.
 
 ## Belongs Here
 
@@ -30,6 +31,7 @@ and locates each violation in its document.
 - Resolving a Markdown link's target in the model: whether its path names a document, and the anchors it has.
 - A check: values in, violations out.
 - A run that resolves a check's inputs and turns violations into findings.
+- Building the input a rule reads from the queries, and running the rules over a subject.
 - The value types a check reports in, and their plain-text form.
 
 ## Belongs Elsewhere
@@ -38,6 +40,7 @@ and locates each violation in its document.
 |---|---|
 | Takes the snapshot, or chooses which documents or skills to check | `lorecraft.cli` |
 | Prints, writes JSON, or sets an exit code | `lorecraft.cli` |
+| Declares a rule, its identity or its group, or the input type a rule reads | `lorecraft.rules` |
 | Parses text, decodes a specification, or builds the model | `lorecraft.project` |
 | Reads the disk | `lorecraft.vfs` |
 
