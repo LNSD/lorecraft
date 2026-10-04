@@ -246,6 +246,30 @@ class TestCheckSubjects:
             'no specification sets a budget, which is coverage, not a diagnostic'
         )
 
+    def test_check_subjects_with_a_document_in_no_corpus_reports_the_token_count_as_ungoverned(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        # the code corpus sets a budget, but `docs/blog/` has no corpus spec, so the model holds no `blog` corpus
+        snapshot = Snapshot.from_tree(
+            {
+                'docs': {
+                    '__meta__': {'code.md': b'# Code\n', 'code.structure.json': _budget(5)},
+                    'blog': {'launch.md': GUIDE_TEXT.encode()},
+                }
+            }
+        )
+        database = Database(snapshot)
+        launch = DocumentRef(CorpusName.parse('blog'), AspectFilename.parse('launch'))
+
+        #: When
+        reports = check_subjects(database, (launch,), package_table)
+
+        #: Then
+        assert reports == (CheckedSubject(launch, diagnostics=(), ungoverned=(InputKind.TOKEN_COUNT,)),), (
+            'no specification governs a document in no corpus the model holds, which is coverage, not a diagnostic'
+        )
+
     def test_check_subjects_with_an_undecodable_document_reports_it_undecodable(self, package_table: RuleTable) -> None:
         #: Given
         database = Database(_snapshot(_budget(1000), guide=b'# Caf\xe9\n'))

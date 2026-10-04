@@ -348,7 +348,9 @@ class TestLoadWorkspaceMono:
         #: Then
         ref = model.find_document(RootRelativePath.parse('docs/code/rust-errors-handling.md'))
         assert ref is not None, 'the document is listed'
-        assert model.governance(ref).frontmatter_schemas() == (), 'prose-only specs carry no frontmatter schema'
+        governance = model.find_governance(ref)
+        assert governance is not None, 'the document is in a corpus the model holds'
+        assert governance.frontmatter_schemas() == (), 'prose-only specs carry no frontmatter schema'
         assert _namespaces(model, CODE) == ('pattern', 'principle', 'rust'), 'prose-only namespace specs load'
 
 
@@ -586,8 +588,9 @@ class TestLoadWorkspaceEdgeCases:
         #: Then
         ref = model.find_document(RootRelativePath.parse('docs/code/logging.md'))
         assert ref is not None, 'the document is listed'
-        structure_specs = model.governance(ref).structure_specs()
-        assert tuple(structure_spec.path for structure_spec in structure_specs) == (
+        governance = model.find_governance(ref)
+        assert governance is not None, 'the document is in a corpus the model holds'
+        assert tuple(structure_spec.path for structure_spec in governance.structure_specs()) == (
             SPECS_DIR / 'code.structure.json',
         ), 'the corpus structure specification governs its document'
 

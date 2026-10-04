@@ -19,6 +19,9 @@ from lorecraft.checks import (
     run_budget,
 )
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.corpus import CorpusName
+from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.syntax import LineNumber
 from lorecraft.vfs import take_snapshot
@@ -207,4 +210,21 @@ class TestRunBudget:
         )
         assert reports[1] == (RootRelativePath.parse('docs/code/guide.md'), GovernedDocumentReport), (
             'skipping the ungoverned document does not end the run'
+        )
+
+    def test_run_budget_with_a_document_in_no_corpus_reports_it_ungoverned(self, tmp_path: Path) -> None:
+        #: Given
+        # `docs/blog/` has no corpus spec, so the model holds no `blog` corpus and no specification governs the ref
+        _write(tmp_path, 'docs/__meta__/code.md', b'# Code\n')
+        _write(tmp_path, 'docs/__meta__/code.structure.json', CODE_STRUCTURE_SPEC.encode())
+        _write(tmp_path, 'docs/blog/launch.md', b'# Launch\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        ref = DocumentRef(CorpusName.parse('blog'), AspectFilename.parse('launch'))
+
+        #: When
+        run = run_budget(database, (ref,))
+
+        #: Then
+        assert run == CheckRun(reports=(UngovernedDocumentReport(ref),)), (
+            'a document in no corpus the model holds is reported ungoverned, never refused'
         )

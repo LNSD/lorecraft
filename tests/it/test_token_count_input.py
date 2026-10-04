@@ -142,3 +142,23 @@ class TestBuildTokenCountInput:
 
         #: Then
         assert database.counted == [], 'governance is read first, so an ungoverned document never pays for the count'
+
+    def test_build_token_count_input_with_a_document_in_no_corpus_returns_ungoverned(self) -> None:
+        #: Given
+        # the code corpus sets a budget, but `docs/blog/` has no corpus spec, so the model holds no `blog` corpus
+        snapshot = Snapshot.from_tree(
+            {
+                'docs': {
+                    '__meta__': {'code.md': b'# Code\n', 'code.structure.json': b'{"tokens": 40}'},
+                    'blog': {'launch.md': b'# Launch\n'},
+                }
+            }
+        )
+        database = Database(snapshot)
+        source = _document_text(database, DocumentRef(CorpusName.parse('blog'), AspectFilename.parse('launch')))
+
+        #: When
+        subject = build_token_count_input(database, source)
+
+        #: Then
+        assert subject == Ungoverned(), 'no specification governs a document in no corpus the model holds'

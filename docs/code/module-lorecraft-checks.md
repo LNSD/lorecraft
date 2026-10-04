@@ -73,7 +73,7 @@ way: it builds the input each rule reads from the queries, and the rules are dec
 # ❌ Bad — the check asks the database for itself: it can read any document, so nothing bounds what a
 # change to one file invalidates, and a unit test needs a whole snapshot to test a rule about one heading
 def validate_sections(db: AnalysisDb, source: DocumentText) -> tuple[Violation, ...]:
-    return _outline_violations(db.parse(source).headings, db.model().governance(source.ref).structure_specs())
+    return _outline_violations(db.parse(source).headings, db.model().specs_for(source.ref).structure_specs())
 ```
 
 ```python
