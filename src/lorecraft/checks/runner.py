@@ -1,0 +1,172 @@
+"""The rules engine's runner: every enabled rule over each subject, through one rule table.
+
+The runner never names a rule. A rule joins its input's partition of the table through the registry, and the
+runner runs every rule of a partition over the input built for it, so adding a rule never edits this module.
+What it names is each input kind, in one hand-written branch, so `rule.check(input)` stays typed; adding an input
+adds a branch here.
+
+A subject's status comes before any rule. Each subject is decoded once: one that does not decode is reported as
+`UndecodableSubject`, whatever the table enables, and no rule sees it. For each input kind an enabled rule reads,
+the input is built once from the queries, and a subject no specification governs for it records that input kind
+as ungoverned rather than a diagnostic. An input no enabled rule reads is never built, so its queries are never
+asked.
+
+The subjects are documents until a rule over a skill lands; the command line does not run this yet, and the
+per-check pipelines in `run` serve it until then.
+"""
+
+from collections.abc import Iterable
+from typing import assert_never
+
+from lorecraft.project.document import DocumentRef
+from lorecraft.rules.inputs import InputKind, TokenCountInput
+
+from .database import Database
+from .inputs import Ungoverned, build_token_count_input
+from .report import CheckedSubject, Diagnostic, RuleDiagnostic, SubjectReport, UndecodableSubject
+from .table import RuleTable
+from .text import DocumentText, Undecodable
+
+
+def check_subjects(database: Database, refs: Iterable[DocumentRef], table: RuleTable) -> tuple[SubjectReport, ...]:
+    """Run the table's rules over each document, and report each in the order given.
+
+    Args:
+        database: The revision the documents are read from; its model decides which specifications govern each.
+        refs: The documents to check; each must be one the database's model lists.
+        table: The rules the run enables, each with its severity.
+
+    Raises:
+        ValueError: If a ref's corpus is not one the database's model lists (refs from the model never trigger it).
+        DocumentReadError: If a document is missing from the snapshot; a decode failure is a diagnostic.
+        DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
+        CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
+        StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
+        StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in the
+            dialect's shape.
+        EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
+        RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
+        ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
+            outline names.
+        AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
+        InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by the
+            meta-schema.
+        FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries `$id`.
+        ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema names
+            another dialect.
+        UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not state
+            an object.
+        DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
+        EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot be
+            inspected, or a link's target read, while looking for where it leaves the repository.
+        SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
+        SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
+        SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
+        SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
+    """
+    reports: list[SubjectReport] = []
+    for ref in refs:
+        reports.append(_check_document(database, ref, table))
+    return tuple(reports)
+
+
+def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> SubjectReport:
+    """Decode one document, then run the table's rules over it if it decoded.
+
+    Args:
+        database: The revision the document is read from.
+        ref: The document to check.
+        table: The rules the run enables.
+
+    Raises:
+        ValueError: If the document's corpus is not one the database's model lists (refs from the model never
+            trigger it).
+        DocumentReadError: If the document is missing from the snapshot; a decode failure is a diagnostic.
+        DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
+        CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
+        StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
+        StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in the
+            dialect's shape.
+        EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
+        RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
+        ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
+            outline names.
+        AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
+        InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by the
+            meta-schema.
+        FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries `$id`.
+        ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema names
+            another dialect.
+        UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not state
+            an object.
+        DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
+        EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot be
+            inspected, or a link's target read, while looking for where it leaves the repository.
+        SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
+        SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
+        SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
+        SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
+    """
+    source = database.text(ref)
+    match source:
+        case Undecodable():
+            return UndecodableSubject(ref)
+        case DocumentText():
+            return _check_text(database, source, table)
+        case _:
+            assert_never(source)
+
+
+def _check_text(database: Database, source: DocumentText, table: RuleTable) -> CheckedSubject:
+    """Build each input an enabled rule reads from a decoded document, and run those rules over it.
+
+    Args:
+        database: The revision the document is read from.
+        source: The document's text, the witness every per-file query takes.
+        table: The rules the run enables.
+
+    Raises:
+        ValueError: If the document's corpus is not one the database's model lists (refs from the model never
+            trigger it).
+        DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
+        CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
+        StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
+        StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in the
+            dialect's shape.
+        EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
+        RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
+        ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
+            outline names.
+        AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
+        InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by the
+            meta-schema.
+        FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries `$id`.
+        ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema names
+            another dialect.
+        UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not state
+            an object.
+        DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
+        EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot be
+            inspected, or a link's target read, while looking for where it leaves the repository.
+        SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
+        SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
+        SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
+        SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
+    """
+    diagnostics: list[Diagnostic] = []
+    ungoverned: list[InputKind] = []
+
+    # The token count is never asked for when no enabled rule reads it.
+    if table.token_count_rules:
+        token_count_input = build_token_count_input(database, source)
+        match token_count_input:
+            case Ungoverned():
+                ungoverned.append(InputKind.TOKEN_COUNT)
+            case TokenCountInput():
+                for enabled in table.token_count_rules:
+                    for occurrence in enabled.rule.check(token_count_input):
+                        diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
+            case _:
+                assert_never(token_count_input)
+
+    return CheckedSubject(source.ref, diagnostics=tuple(diagnostics), ungoverned=tuple(ungoverned))
