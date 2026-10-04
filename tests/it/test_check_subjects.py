@@ -22,6 +22,9 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
+from lorecraft.project.schemas import (
+    MissingFieldProblem,
+)
 from lorecraft.project.skill import SkillLocation, SkillRef
 from lorecraft.project.syntax import (
     FrontmatterNode,
@@ -33,6 +36,7 @@ from lorecraft.project.syntax import (
 from lorecraft.rules.declaration import Level, Release, Rule, RuleCode, RuleGroup, RuleName, Severity
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
 from lorecraft.rules.frontmatter.invalid_yaml import InvalidYaml
+from lorecraft.rules.frontmatter.missing_field import MissingField
 from lorecraft.rules.frontmatter.missing_frontmatter import MissingFrontmatter
 from lorecraft.rules.frontmatter.name_mismatch import DirectoryNameExpected, FilenameExpected, NameMismatch
 from lorecraft.rules.frontmatter.non_mapping_frontmatter import NonMappingFrontmatter
@@ -62,6 +66,16 @@ REVIEW_FILE: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills/re
 
 OBJECT_SCHEMA: Final[bytes] = b'{"frontmatter": {"type": "object"}}'
 """A corpus structure specification whose frontmatter schema accepts any mapping, and which sets no budget."""
+
+REVIEW_FRONTMATTER: Final[bytes] = b'---\nname: review\ndescription: Review a change before it is merged.\n---\n'
+"""A frontmatter of four lines the Agent Skills specification accepts, for `REVIEW`."""
+
+GUIDE_SCHEMA: Final[bytes] = (
+    b'{"frontmatter": {"type": "object", "required": ["name", "owner"], "minProperties": 6, '
+    b'"properties": {"name": {"type": "string"}, "description": {"type": "string"}, '
+    b'"status": {"type": "string", "pattern": "^(draft|stable)$"}}, "additionalProperties": false}}'
+)
+"""A structure specification whose frontmatter schema each kind of schema problem can break."""
 
 SAMPLE: Final[RuleGroup] = RuleGroup('SMP', 'Sample rules')
 """The group of the sample rules this module declares."""
@@ -215,7 +229,7 @@ class CountingDatabase(Database):
 
 
 def _snapshot(
-    structure_spec: bytes, *, guide: bytes, intro: bytes = b'# Intro\n', review: bytes = b'---\nname: review\n---\n'
+    structure_spec: bytes, *, guide: bytes, intro: bytes = b'# Intro\n', review: bytes = REVIEW_FRONTMATTER
 ) -> Snapshot:
     """A snapshot of corpus `code`, holding the documents `GUIDE` and `INTRO`, and the skill `REVIEW`.
 
@@ -223,7 +237,7 @@ def _snapshot(
         structure_spec: Bytes of the corpus structure specification.
         guide: Bytes of `GUIDE`.
         intro: Bytes of `INTRO`.
-        review: Bytes of `REVIEW`'s `SKILL.md`; by default a frontmatter of three lines and nothing else.
+        review: Bytes of `REVIEW`'s `SKILL.md`; by default `REVIEW_FRONTMATTER` and nothing else.
     """
     return Snapshot.from_tree(
         {
@@ -237,12 +251,12 @@ def _snapshot(
 
 
 def _skill_of(lines: int) -> bytes:
-    """The bytes of a `SKILL.md` of exactly `lines` lines: a frontmatter of three, then one step per line.
+    """The bytes of a `SKILL.md` of exactly `lines` lines: `REVIEW_FRONTMATTER`, then one step per line.
 
     Args:
-        lines: The lines the file holds; at least 3, for the frontmatter.
+        lines: The lines the file holds; at least 4, for the frontmatter.
     """
-    return b'---\nname: review\n---\n' + b'Run the next step.\n' * (lines - 3)
+    return REVIEW_FRONTMATTER + b'Run the next step.\n' * (lines - 4)
 
 
 def _location(database: Database, ref: SkillRef) -> SkillLocation:
@@ -311,7 +325,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK,),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS),
             ),
         ), 'LEN001 runs at deny, so a document over its budget carries its occurrence as an error'
 
@@ -323,9 +337,9 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        assert reports == (CheckedSubject(GUIDE, diagnostics=(), ungoverned=(InputKind.FRONTMATTER_BLOCK,)),), (
-            'a document within its budget has no diagnostic, and no frontmatter schema governs it'
-        )
+        assert reports == (
+            CheckedSubject(GUIDE, diagnostics=(), ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS)),
+        ), 'a document within its budget has no diagnostic, and no frontmatter schema governs it'
 
     def test_check_subjects_with_no_budget_set_reports_the_token_count_as_ungoverned(
         self, package_table: RuleTable
@@ -338,7 +352,11 @@ class TestCheckSubjects:
 
         #: Then
         assert reports == (
-            CheckedSubject(GUIDE, diagnostics=(), ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.TOKEN_COUNT)),
+            CheckedSubject(
+                GUIDE,
+                diagnostics=(),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
+            ),
         ), 'no specification sets a budget or a frontmatter schema, which is coverage, not a diagnostic'
 
     def test_check_subjects_with_a_document_in_no_corpus_reports_the_token_count_as_ungoverned(
@@ -362,7 +380,11 @@ class TestCheckSubjects:
 
         #: Then
         assert reports == (
-            CheckedSubject(launch, diagnostics=(), ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.TOKEN_COUNT)),
+            CheckedSubject(
+                launch,
+                diagnostics=(),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
+            ),
         ), 'no specification governs a document in no corpus the model holds, which is coverage, not a diagnostic'
 
     def test_check_subjects_with_an_undecodable_document_reports_it_undecodable(self, package_table: RuleTable) -> None:
@@ -531,9 +553,9 @@ class TestCheckSubjects:
 
         #: Then
         assert reports == (
-            CheckedSubject(GUIDE, diagnostics=(), ungoverned=(InputKind.FRONTMATTER_BLOCK,)),
+            CheckedSubject(GUIDE, diagnostics=(), ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS)),
             CheckedSubject(REVIEW, diagnostics=(), ungoverned=()),
-            CheckedSubject(INTRO, diagnostics=(), ungoverned=(InputKind.FRONTMATTER_BLOCK,)),
+            CheckedSubject(INTRO, diagnostics=(), ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS)),
         ), 'documents and skills share one run, each reported in the order given'
 
     def test_check_subjects_with_no_enabled_rule_over_the_line_count_never_counts_the_lines(self) -> None:
@@ -706,7 +728,11 @@ class TestCheckSubjects:
     def test_check_subjects_with_a_skill_named_otherwise_reports_name_mismatch(self, package_table: RuleTable) -> None:
         #: Given
         database = Database(
-            _snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=b'---\nname: code-review\n---\n')
+            _snapshot(
+                _budget(1000),
+                guide=GUIDE_TEXT.encode(),
+                review=b'---\nname: code-review\ndescription: Review a change.\n---\n',
+            )
         )
 
         #: When
@@ -728,7 +754,11 @@ class TestCheckSubjects:
     def test_check_subjects_with_a_skill_repeating_a_key_reports_duplicate_key(self, package_table: RuleTable) -> None:
         #: Given
         database = Database(
-            _snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=b'---\nname: review\nname: review\n---\n')
+            _snapshot(
+                _budget(1000),
+                guide=GUIDE_TEXT.encode(),
+                review=b'---\nname: review\nname: review\ndescription: Review a change.\n---\n',
+            )
         )
 
         #: When
@@ -748,7 +778,12 @@ class TestCheckSubjects:
         #: Given
         # What a scan records for `.agents/skills/review -> ../../skills/code-review`, whose `name` is the target's.
         shipped = Snapshot.from_tree(
-            {'.agents': {'skills': {}}, 'skills': {'code-review': {'SKILL.md': b'---\nname: code-review\n---\n'}}}
+            {
+                '.agents': {'skills': {}},
+                'skills': {
+                    'code-review': {'SKILL.md': b'---\nname: code-review\ndescription: Review a change.\n---\n'}
+                },
+            }
         )
         records: dict[RootRelativePath, EntryRecord] = dict(shipped.records)
         records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(
@@ -788,10 +823,10 @@ class TestCheckSubjects:
 
         #: Then
         assert database.parsed_frontmatters == [], (
-            'an input no enabled rule reads is never built, so no frontmatter is parsed'
+            'an input no enabled rule reads is never built, so no frontmatter is parsed or held to a schema'
         )
 
-    def test_check_subjects_with_every_package_rule_parses_each_frontmatter_once(
+    def test_check_subjects_with_every_package_rule_asks_for_each_frontmatter_once_per_input(
         self, package_table: RuleTable
     ) -> None:
         #: Given
@@ -802,6 +837,159 @@ class TestCheckSubjects:
         check_subjects(database, (GUIDE, _location(database, REVIEW), INTRO), package_table)
 
         #: Then
-        assert database.parsed_frontmatters == [GUIDE, REVIEW, INTRO], (
-            'the frontmatter of each document and skill is parsed once, however many rules read it'
+        assert database.parsed_frontmatters == [GUIDE, GUIDE, REVIEW, REVIEW, INTRO, INTRO], (
+            'the frontmatter query is asked once per input that reads it, the block and the schema problems, '
+            'however many rules read each input'
+        )
+
+    def test_check_subjects_with_a_document_breaking_its_schema_reports_each_schema_rule(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        guide = b'---\nname: guide\ndescription: [a]\nextra: y\nstatus: Final\n---\n# Guide\n'
+        database = Database(_snapshot(GUIDE_SCHEMA, guide=guide))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), package_table)
+
+        #: Then
+        line_1 = LineNumber.from_int(1)
+        occurrences = (
+            MissingField(
+                spec=CODE_SPEC, line=line_1, problem=MissingFieldProblem('owner', "'owner' is a required property")
+            ),
+        )
+        assert reports == (
+            CheckedSubject(
+                GUIDE,
+                diagnostics=tuple(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR) for occurrence in occurrences),
+                ungoverned=(InputKind.TOKEN_COUNT,),
+            ),
+        ), 'FM006 runs at deny on its own problem, on line 1, naming the specification'
+
+    def test_check_subjects_with_a_skill_breaking_the_agent_skills_schema_reports_each_schema_rule(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        # no description, an empty compatibility, a metadata that is not a mapping, and a key it does not define
+        review = b'---\nname: review\ncompatibility: ""\nmetadata: z\nextra: y\n---\n# Review\n'
+        database = Database(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review))
+
+        #: When
+        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+
+        #: Then
+        line_1 = LineNumber.from_int(1)
+        occurrences = (
+            MissingField(
+                spec=None, line=line_1, problem=MissingFieldProblem('description', '`description` is required')
+            ),
+        )
+        assert reports == (
+            CheckedSubject(
+                REVIEW,
+                diagnostics=tuple(
+                    RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR) for occurrence in occurrences
+                ),
+                ungoverned=(),
+            ),
+        ), 'the schema rules judge a skill against the Agent Skills specification, naming no specification file'
+
+    def test_check_subjects_with_a_document_two_schemas_govern_notes_each_problem_with_its_own_specification(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        namespace_spec = RootRelativePath.parse('docs/__meta__/code-python.structure.json')
+        snapshot = Snapshot.from_tree(
+            {
+                'docs': {
+                    '__meta__': {
+                        'code.md': b'# Code\n',
+                        'code.structure.json': b'{"frontmatter": {"type": "object", "required": ["status"]}}',
+                        'code-python.md': b'# Code Python\n',
+                        'code-python.structure.json': b'{"frontmatter": {"type": "object", "required": ["owner"]}}',
+                    },
+                    'code': {'python-typing.md': b'---\nname: python-typing\n---\n# Typing\n'},
+                }
+            }
+        )
+        database = Database(snapshot)
+        typing = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
+
+        #: When
+        reports = check_subjects(database, (typing,), package_table)
+
+        #: Then
+        line_1 = LineNumber.from_int(1)
+        status = MissingField(
+            spec=CODE_SPEC, line=line_1, problem=MissingFieldProblem('status', "'status' is a required property")
+        )
+        owner = MissingField(
+            spec=namespace_spec, line=line_1, problem=MissingFieldProblem('owner', "'owner' is a required property")
+        )
+        assert reports == (
+            CheckedSubject(
+                typing,
+                diagnostics=(
+                    RuleDiagnostic(typing.path, status, Severity.ERROR),
+                    RuleDiagnostic(typing.path, owner, Severity.ERROR),
+                ),
+                ungoverned=(InputKind.TOKEN_COUNT,),
+            ),
+        ), 'each schema is applied on its own, and each problem names the specification whose schema found it'
+
+    def test_check_subjects_with_no_frontmatter_schema_reports_the_schema_problems_as_ungoverned(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        database = Database(_snapshot(_budget(1000), guide=b'---\nname: [1]\n---\n# Guide\n'))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), package_table)
+
+        #: Then
+        assert reports == (
+            CheckedSubject(GUIDE, diagnostics=(), ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS)),
+        ), 'no specification states a frontmatter schema, which is coverage, not a diagnostic'
+
+    def test_check_subjects_with_a_block_that_is_not_a_mapping_reports_no_schema_rule(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        database = Database(_snapshot(GUIDE_SCHEMA, guide=b'---\n- status\n---\n# Guide\n'))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), package_table)
+
+        #: Then
+        occurrence = NonMappingFrontmatter(spec=CODE_SPEC, line=LineNumber.from_int(1))
+        assert reports == (
+            CheckedSubject(
+                GUIDE,
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                ungoverned=(InputKind.TOKEN_COUNT,),
+            ),
+        ), 'FM003 alone reports a block that is not a mapping: it is held to no schema, so no schema rule fires'
+
+    def test_check_subjects_with_only_the_block_rules_enabled_never_holds_the_frontmatter_to_a_schema(self) -> None:
+        #: Given
+        # both subjects break their schema, but only the frontmatter block rules are enabled
+        database = CountingDatabase(
+            _snapshot(GUIDE_SCHEMA, guide=b'---\nname: guide\n---\n', review=b'---\nname: review\n---\n')
+        )
+        severities: dict[type[Rule], Severity] = {
+            MissingFrontmatter: Severity.ERROR,
+            InvalidYaml: Severity.ERROR,
+            NonMappingFrontmatter: Severity.ERROR,
+            NameMismatch: Severity.ERROR,
+            DuplicateKey: Severity.ERROR,
+        }
+        table = RuleTable(severities)
+
+        #: When
+        check_subjects(database, (GUIDE, _location(database, REVIEW)), table)
+
+        #: Then
+        assert database.parsed_frontmatters == [GUIDE, REVIEW], (
+            'the frontmatter is asked for once per subject, by the block input alone: no schema problems are built'
         )

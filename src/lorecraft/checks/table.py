@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from typing import Self, assert_never
 
 from lorecraft.rules.declaration import EngineCondition, Level, RemovedRule, Rule, Severity
-from lorecraft.rules.inputs import FrontmatterBlockRule, LineCountRule, TokenCountRule
+from lorecraft.rules.inputs import FrontmatterBlockRule, LineCountRule, SchemaProblemsRule, TokenCountRule
 from lorecraft.rules.registry import Registry
 
 
@@ -54,6 +54,7 @@ class RuleTable:
     _token_count_rules: tuple[EnabledRule[TokenCountRule], ...]
     _line_count_rules: tuple[EnabledRule[LineCountRule], ...]
     _frontmatter_block_rules: tuple[EnabledRule[FrontmatterBlockRule], ...]
+    _schema_problems_rules: tuple[EnabledRule[SchemaProblemsRule], ...]
 
     def __init__(self, severities: Mapping[type[Rule], Severity]) -> None:
         """Hold the enabled rules, and partition them by the input each reads.
@@ -68,6 +69,7 @@ class RuleTable:
         token_count_rules: list[EnabledRule[TokenCountRule]] = []
         line_count_rules: list[EnabledRule[LineCountRule]] = []
         frontmatter_block_rules: list[EnabledRule[FrontmatterBlockRule]] = []
+        schema_problems_rules: list[EnabledRule[SchemaProblemsRule]] = []
         for rule_class in sorted(severities, key=_printed_code):
             # The rule hierarchy is open, so the chain cannot close with `assert_never`: a rule over an input with
             # no partition here is a defect, raised before any subject is checked.
@@ -77,11 +79,14 @@ class RuleTable:
                 line_count_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, FrontmatterBlockRule):
                 frontmatter_block_rules.append(EnabledRule(rule_class, severities[rule_class]))
+            elif issubclass(rule_class, SchemaProblemsRule):
+                schema_problems_rules.append(EnabledRule(rule_class, severities[rule_class]))
             else:
                 raise UnknownRuleInputError(rule_class)
         self._token_count_rules = tuple(token_count_rules)
         self._line_count_rules = tuple(line_count_rules)
         self._frontmatter_block_rules = tuple(frontmatter_block_rules)
+        self._schema_problems_rules = tuple(schema_problems_rules)
 
     @classmethod
     def from_registry(cls, registry: Registry) -> Self:
@@ -123,6 +128,11 @@ class RuleTable:
     def frontmatter_block_rules(self) -> tuple[EnabledRule[FrontmatterBlockRule], ...]:
         """Each enabled rule over a frontmatter block, with its severity, in code order; empty when none is."""
         return self._frontmatter_block_rules
+
+    @property
+    def schema_problems_rules(self) -> tuple[EnabledRule[SchemaProblemsRule], ...]:
+        """Each enabled rule over the schema problems, with its severity, in code order; empty when none is."""
+        return self._schema_problems_rules
 
 
 def _default_severity(level: Level) -> Severity | None:

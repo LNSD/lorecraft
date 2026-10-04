@@ -8,12 +8,26 @@ the queries straight away and never returns `Ungoverned`.
 
 A builder takes the decode query's witness, never a bare ref, so an input of a file that does not decode cannot be
 asked for. The runner builds an input only when an enabled rule reads it.
+
+An input that is a shared analysis, such as the problems the frontmatter schemas find, is a judgment rather than a
+query: its builder runs the analysis each time it is called, once per subject per run, and never memoizes it.
 """
 
 from dataclasses import dataclass
 from typing import assert_never
 
 from lorecraft.core.num import UnsignedInt
+from lorecraft.project.schemas import (
+    SKILL_FRONTMATTER_SCHEMA,
+    BlockProblem,
+    FrontmatterProblem,
+    InvalidValueProblem,
+    MissingFieldProblem,
+    NotAStringMappingProblem,
+    NotAStringProblem,
+    UnknownFieldProblem,
+    WrongTypeProblem,
+)
 from lorecraft.project.syntax import (
     Frontmatter,
     FrontmatterNode,
@@ -22,17 +36,22 @@ from lorecraft.project.syntax import (
     MissingFrontmatter,
     NonMappingFrontmatter,
 )
-from lorecraft.rules.frontmatter.__ruleset__ import field_line
+from lorecraft.rules.frontmatter.__ruleset__ import FIRST_LINE, field_line
 from lorecraft.rules.inputs import (
+    AgentSkillsSchema,
     Budget,
     DocumentFrontmatterOwner,
     FrontmatterBlock,
     FrontmatterBlockInput,
     FrontmatterFields,
     LineCountInput,
+    LocatedProblem,
     NameField,
     RepeatedKey,
+    SchemaProblems,
+    SchemaProblemsInput,
     SkillFrontmatterOwner,
+    StructureSpecSchema,
     TokenCountInput,
 )
 from lorecraft.vfs import ResolvedPath
@@ -239,3 +258,135 @@ def _repeated_keys(frontmatter: Frontmatter) -> tuple[RepeatedKey, ...]:
         else:
             repeated.append(RepeatedKey(key=key.name, line=key.line, first_line=first_line))
     return tuple(repeated)
+
+
+def build_document_schema_problems_input(database: Database, source: DocumentText) -> SchemaProblemsInput | Ungoverned:
+    """What each frontmatter schema that governs a document rejects in its frontmatter.
+
+    The schemas are read first, and the frontmatter is read and held to them only when one governs the document.
+
+    Args:
+        database: The revision the document is read from; its model decides which specifications govern it.
+        source: The document's text, as `Database.text` returns it.
+
+    Returns:
+        The input, with one entry per frontmatter schema that governs the document, in the order the schemas apply,
+        each naming the structure specification that states it; no entry when the block is missing, unparseable or
+        not a mapping, which the block's own rules report. `Ungoverned` when no structure specification states a
+        schema for the document, or when it is in no corpus the database's model holds.
+
+    Raises:
+        DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
+        CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
+        StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
+        StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in the
+            dialect's shape.
+        EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
+        RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
+        RepeatedForbiddenSectionError: If the model is not loaded yet and a specification forbids a section twice.
+        ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
+            outline names.
+        AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
+        InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by the
+            meta-schema.
+        FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries `$id`.
+        ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema names
+            another dialect.
+        UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not state
+            an object.
+        DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
+        EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot be
+            inspected, or a link's target read, while looking for where it leaves the repository.
+        SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
+        SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
+        SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
+        SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
+    """
+    governance = database.model().find_governance(source.ref)
+    if governance is None:
+        return Ungoverned()
+    schemas = governance.frontmatter_schemas()
+    if not schemas:
+        return Ungoverned()
+
+    frontmatter = database.frontmatter(source)
+    match frontmatter:
+        case MissingFrontmatter() | InvalidYamlFrontmatter() | NonMappingFrontmatter():
+            # The block is governed, so the document is not ungoverned, but no schema can be applied to it.
+            return SchemaProblemsInput(schemas=())
+        case Frontmatter():
+            pass  # the mapping is held to each schema below
+        case _:
+            assert_never(frontmatter)
+
+    found: list[SchemaProblems] = []
+    for schema in schemas:
+        found.append(
+            SchemaProblems(
+                source=StructureSpecSchema(spec=schema.path),
+                problems=_located_problems(frontmatter, schema.validate(frontmatter.data)),
+            )
+        )
+    return SchemaProblemsInput(schemas=tuple(found))
+
+
+def build_skill_schema_problems_input(database: Database, source: SkillText) -> SchemaProblemsInput:
+    """What the Agent Skills specification rejects in a skill's frontmatter. Raises nothing.
+
+    The package governs it, so every skill whose `SKILL.md` decodes has one.
+
+    Args:
+        database: The revision the skill is read from.
+        source: The skill's `SKILL.md` text, as `Database.skill_text` returns it.
+
+    Returns:
+        The input, with one entry, for the Agent Skills specification; no entry when the block is missing,
+        unparseable or not a mapping, which the block's own rules report.
+    """
+    frontmatter = database.skill_frontmatter(source)
+    match frontmatter:
+        case MissingFrontmatter() | InvalidYamlFrontmatter() | NonMappingFrontmatter():
+            return SchemaProblemsInput(schemas=())
+        case Frontmatter():
+            pass  # the mapping is held to the specification below
+        case _:
+            assert_never(frontmatter)
+
+    problems = _located_problems(frontmatter, SKILL_FRONTMATTER_SCHEMA.validate(frontmatter.data))
+    return SchemaProblemsInput(schemas=(SchemaProblems(source=AgentSkillsSchema(), problems=problems),))
+
+
+def _located_problems(frontmatter: Frontmatter, problems: tuple[FrontmatterProblem, ...]) -> tuple[LocatedProblem, ...]:
+    """Each problem a schema found, with the line it is reported on, in the order given.
+
+    Args:
+        frontmatter: The frontmatter the problems were found in.
+        problems: What the schema rejected in it.
+    """
+    located: list[LocatedProblem] = []
+    for problem in problems:
+        located.append(LocatedProblem(problem=problem, line=_problem_line(frontmatter, problem)))
+    return tuple(located)
+
+
+def _problem_line(frontmatter: Frontmatter, problem: FrontmatterProblem) -> LineNumber:
+    """The line a schema problem is reported on: its field's, or line 1 when it has no written field.
+
+    Args:
+        frontmatter: The frontmatter the problem was found in; searched for the line its field is written on.
+        problem: What the schema rejected; a problem on a written field is placed on that field's line.
+    """
+    match problem:
+        # A missing field is not written, and a block constraint concerns none.
+        case MissingFieldProblem() | BlockProblem():
+            return FIRST_LINE
+        case (
+            UnknownFieldProblem()
+            | NotAStringProblem()
+            | NotAStringMappingProblem()
+            | WrongTypeProblem()
+            | InvalidValueProblem()
+        ):
+            return field_line(frontmatter, problem.field)
+        case _:
+            assert_never(problem)
