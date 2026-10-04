@@ -23,7 +23,6 @@ from lorecraft.checks import (
 )
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.layout import SNAPSHOT_SCOPE
-from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import LineNumber
 from lorecraft.vfs import take_snapshot
 
@@ -49,9 +48,21 @@ def _run_every_skill(database: Database) -> SkillCheckRun:
         database: Database over the snapshot whose skills are checked.
     """
     selections: list[SkillSelection] = []
-    for ref in database.model().skills():
-        selections.append(SkillSelection(ref, SkillScope.WHOLE_SKILL))
+    for location in database.model().skill_locations:
+        selections.append(SkillSelection(location, SkillScope.WHOLE_SKILL))
     return run_skills(database, tuple(selections))
+
+
+def _skill_file_of(database: Database, skill: str) -> SkillSelection:
+    """The `SKILL.md` alone of the skill an agent lists at `skill`, located as the database's model records it.
+
+    Args:
+        database: Database whose model lists the skill.
+        skill: The skill's directory, root-relative, with `/` separators.
+    """
+    location = database.model().find_skill_location(RootRelativePath.parse(skill))
+    assert location is not None, f'the model lists the skill {skill}'
+    return SkillSelection(location, SkillScope.SKILL_FILE)
 
 
 @pytest.fixture(scope='function')
@@ -1660,7 +1671,7 @@ class TestRunSkillsSkillFile:
         _write(tmp_path, f'{skill}/SKILL.md', _REVIEW_FRONTMATTER + b'# Review\n\nSee [/x.md](/x.md).\n')
         _write(tmp_path, f'{skill}/references/a.md', b'# A\n\nSee [/y.md](/y.md).\n')
         database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
-        selection = SkillSelection(SkillRef(RootRelativePath.parse(skill)), SkillScope.SKILL_FILE)
+        selection = _skill_file_of(database, skill)
 
         #: When
         run = run_skills(database, (selection,))
@@ -1692,7 +1703,7 @@ class TestRunSkillsSkillFile:
         )
         _write(tmp_path, f'{skill}/references/a.md', b'# A\n')
         database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
-        selection = SkillSelection(SkillRef(RootRelativePath.parse(skill)), SkillScope.SKILL_FILE)
+        selection = _skill_file_of(database, skill)
 
         #: When
         run = run_skills(database, (selection,))
@@ -1713,7 +1724,7 @@ class TestRunSkillsSkillFile:
         (root / skill / 'references').symlink_to(target)
         (root / '.agents' / 'skills' / 'x').symlink_to(target)
         database = Database(take_snapshot(root, SNAPSHOT_SCOPE))
-        selection = SkillSelection(SkillRef(RootRelativePath.parse(skill)), SkillScope.SKILL_FILE)
+        selection = _skill_file_of(database, skill)
 
         #: When
         run = run_skills(database, (selection,))

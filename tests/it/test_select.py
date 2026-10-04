@@ -35,8 +35,8 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName, InvalidCorpusNameCharacterError
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE, scope_with_named_dirs
-from lorecraft.project.skill import SkillRef
-from lorecraft.vfs import take_snapshot
+from lorecraft.project.skill import SkillLocation, SkillRef
+from lorecraft.vfs import ResolvedPath, take_snapshot
 
 
 def _write(root: Path, relative: str, text: str = '') -> Path:
@@ -367,6 +367,21 @@ SKILLS_REVIEW: Final[SkillRef] = SkillRef(RootRelativePath.parse('skills/review'
 SKILLS_SOLO: Final[SkillRef] = SkillRef(RootRelativePath.parse('skills/solo'))
 
 
+def _selected(selections: tuple[SkillSelection, ...]) -> tuple[tuple[SkillRef, SkillScope], ...]:
+    """Each selection as the skill it selects and how much of it, in order, where that sequence is the fact.
+
+    Where a selected skill's files live is the model's record, pinned by the model's own tests; one test here pins
+    that a selection carries it.
+
+    Args:
+        selections: The selections to read.
+    """
+    selected: list[tuple[SkillRef, SkillScope]] = []
+    for selection in selections:
+        selected.append((selection.ref, selection.scope))
+    return tuple(selected)
+
+
 def _database_naming(root: Path, working_directory: Path, argument: Path) -> Database:
     """A database over a snapshot of `root` that reads the directory `argument` names, as `select_skills` takes one.
 
@@ -417,9 +432,32 @@ class TestSelectSkillsAt:
         selections = select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert selections == (SkillSelection(REVIEW, SkillScope.WHOLE_SKILL),), (
+        assert len(selections) == 1, f'one skill is selected, got {selections}'
+        assert selections[0].ref == REVIEW, (
             'the argument maps onto the ref the model lists, and a directory selects the whole skill'
         )
+        assert selections[0].scope is SkillScope.WHOLE_SKILL, 'the skill is selected whole'
+
+    def test_select_skills_at_with_a_linked_skill_directory_carries_where_its_files_live(
+        self, tmp_path: Path, skills_database: Database
+    ) -> None:
+        #: Given
+        argument = tmp_path / '.agents' / 'skills' / 'review'
+
+        #: When
+        selections = select_skills_at(skills_database, tmp_path, tmp_path, argument)
+
+        #: Then
+        assert selections == (
+            SkillSelection(
+                SkillLocation(
+                    REVIEW,
+                    resolves_to=ResolvedPath(RootRelativePath.parse('skills/review')),
+                    file_resolves_to=ResolvedPath(RootRelativePath.parse('skills/review/SKILL.md')),
+                ),
+                SkillScope.WHOLE_SKILL,
+            ),
+        ), 'the selection carries the location the model records, so the run needs no lookup by ref'
 
     def test_select_skills_at_with_the_directory_two_entries_link_to_selects_it_as_a_skill_of_its_own(
         self, tmp_path: Path, skills_database: Database
@@ -432,9 +470,11 @@ class TestSelectSkillsAt:
         selections = select_skills_at(database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert selections == (SkillSelection(SKILLS_REVIEW, SkillScope.WHOLE_SKILL),), (
+        assert len(selections) == 1, f'one skill is selected, got {selections}'
+        assert selections[0].ref == SKILLS_REVIEW, (
             'a directory with a SKILL.md at its root is one skill, named as spelled, not the entries linked to it'
         )
+        assert selections[0].scope is SkillScope.WHOLE_SKILL, 'the skill is selected whole'
 
     def test_select_skills_at_with_a_skill_file_behind_a_linked_skills_directory_selects_the_file_alone(
         self, tmp_path: Path, skills_database: Database
@@ -446,9 +486,11 @@ class TestSelectSkillsAt:
         selections = select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert selections == (SkillSelection(REVIEW, SkillScope.SKILL_FILE),), (
+        assert len(selections) == 1, f'one skill is selected, got {selections}'
+        assert selections[0].ref == REVIEW, (
             'a skill is named by its SKILL.md, through any link, and that file alone is selected'
         )
+        assert selections[0].scope is SkillScope.SKILL_FILE, 'the SKILL.md alone is selected'
 
     def test_select_skills_at_with_the_entry_another_entry_links_to_returns_its_ref_alone(
         self, tmp_path: Path, skills_database: Database
@@ -460,9 +502,9 @@ class TestSelectSkillsAt:
         selections = select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert selections == (SkillSelection(COMMIT, SkillScope.WHOLE_SKILL),), (
-            'the entry named is the skill selected, not audit, which links to it'
-        )
+        assert len(selections) == 1, f'one skill is selected, got {selections}'
+        assert selections[0].ref == COMMIT, 'the entry named is the skill selected, not audit, which links to it'
+        assert selections[0].scope is SkillScope.WHOLE_SKILL, 'the skill is selected whole'
 
     def test_select_skills_at_with_a_linked_entry_returns_its_ref_alone(
         self, tmp_path: Path, skills_database: Database
@@ -474,9 +516,9 @@ class TestSelectSkillsAt:
         selections = select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert selections == (SkillSelection(AUDIT, SkillScope.WHOLE_SKILL),), (
-            'the linked entry is the skill selected, not commit, where it leads'
-        )
+        assert len(selections) == 1, f'one skill is selected, got {selections}'
+        assert selections[0].ref == AUDIT, 'the linked entry is the skill selected, not commit, where it leads'
+        assert selections[0].scope is SkillScope.WHOLE_SKILL, 'the skill is selected whole'
 
     def test_select_skills_at_with_the_skill_file_of_a_linked_entry_selects_the_file_of_that_entry_alone(
         self, tmp_path: Path, skills_database: Database
@@ -488,9 +530,11 @@ class TestSelectSkillsAt:
         selections = select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert selections == (SkillSelection(AUDIT, SkillScope.SKILL_FILE),), (
+        assert len(selections) == 1, f'one skill is selected, got {selections}'
+        assert selections[0].ref == AUDIT, (
             'the SKILL.md under the linked entry names that entry alone, and that file alone of it'
         )
+        assert selections[0].scope is SkillScope.SKILL_FILE, 'the SKILL.md alone is selected'
 
     def test_select_skills_at_with_a_linked_entry_behind_a_linked_skills_directory_returns_its_ref_alone(
         self, tmp_path: Path, skills_database: Database
@@ -502,9 +546,11 @@ class TestSelectSkillsAt:
         selections = select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert selections == (SkillSelection(AUDIT, SkillScope.WHOLE_SKILL),), (
+        assert len(selections) == 1, f'one skill is selected, got {selections}'
+        assert selections[0].ref == AUDIT, (
             'the linked skills directory is followed to the resolved one, and the entry kept by name'
         )
+        assert selections[0].scope is SkillScope.WHOLE_SKILL, 'the skill is selected whole'
 
     def test_select_skills_at_with_the_file_a_linked_skill_file_leads_to_selects_the_file_alone(
         self, tmp_path: Path, skills_database: Database
@@ -516,9 +562,11 @@ class TestSelectSkillsAt:
         selections = select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert selections == (SkillSelection(LINT, SkillScope.SKILL_FILE),), (
+        assert len(selections) == 1, f'one skill is selected, got {selections}'
+        assert selections[0].ref == LINT, (
             'the file a linked SKILL.md leads to names the skill too, and selects that file alone'
         )
+        assert selections[0].scope is SkillScope.SKILL_FILE, 'the SKILL.md alone is selected'
 
     def test_select_skills_at_with_a_skill_file_that_is_a_link_selects_the_file_alone(
         self, tmp_path: Path, skills_database: Database
@@ -530,9 +578,11 @@ class TestSelectSkillsAt:
         selections = select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert selections == (SkillSelection(LINT, SkillScope.SKILL_FILE),), (
+        assert len(selections) == 1, f'one skill is selected, got {selections}'
+        assert selections[0].ref == LINT, (
             'the linked SKILL.md resolves to the file the model records for the skill, selected alone'
         )
+        assert selections[0].scope is SkillScope.SKILL_FILE, 'the SKILL.md alone is selected'
 
     def test_select_skills_at_with_the_skill_file_of_a_directory_two_entries_link_to_selects_its_file_alone(
         self, tmp_path: Path, skills_database: Database
@@ -545,9 +595,11 @@ class TestSelectSkillsAt:
         selections = select_skills_at(database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert selections == (SkillSelection(SKILLS_REVIEW, SkillScope.SKILL_FILE),), (
+        assert len(selections) == 1, f'one skill is selected, got {selections}'
+        assert selections[0].ref == SKILLS_REVIEW, (
             'the SKILL.md names the skill its directory is, as spelled, and that file alone of it'
         )
+        assert selections[0].scope is SkillScope.SKILL_FILE, 'the SKILL.md alone is selected'
 
     def test_select_skills_at_with_a_path_outside_the_root_raises_not_listed(
         self, tmp_path: Path, skills_database: Database, tmp_path_factory: pytest.TempPathFactory
@@ -574,9 +626,11 @@ class TestSelectSkillsAt:
         selections = select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert selections == (SkillSelection(COMMIT, SkillScope.WHOLE_SKILL),), (
+        assert len(selections) == 1, f'one skill is selected, got {selections}'
+        assert selections[0].ref == COMMIT, (
             'a link above the root is followed on disk, where the snapshot records nothing'
         )
+        assert selections[0].scope is SkillScope.WHOLE_SKILL, 'the skill is selected whole'
 
     def test_select_skills_at_through_a_link_above_the_root_and_one_added_under_it_raises_not_listed(
         self, tmp_path: Path, skills_database: Database, tmp_path_factory: pytest.TempPathFactory
@@ -606,12 +660,12 @@ class TestSelectSkillsAt:
         selections = select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert selections == (
-            SkillSelection(AUDIT, SkillScope.WHOLE_SKILL),
-            SkillSelection(COMMIT, SkillScope.WHOLE_SKILL),
-            SkillSelection(LINT, SkillScope.WHOLE_SKILL),
-            SkillSelection(REVIEW, SkillScope.WHOLE_SKILL),
-            SkillSelection(REVIEWER, SkillScope.WHOLE_SKILL),
+        assert _selected(selections) == (
+            (AUDIT, SkillScope.WHOLE_SKILL),
+            (COMMIT, SkillScope.WHOLE_SKILL),
+            (LINT, SkillScope.WHOLE_SKILL),
+            (REVIEW, SkillScope.WHOLE_SKILL),
+            (REVIEWER, SkillScope.WHOLE_SKILL),
         ), 'every entry of the skills directory, linked or not, each once, in the model order'
 
     def test_select_skills_at_with_a_linked_skills_directory_returns_the_refs_of_the_resolved_one(
@@ -624,12 +678,12 @@ class TestSelectSkillsAt:
         selections = select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert selections == (
-            SkillSelection(AUDIT, SkillScope.WHOLE_SKILL),
-            SkillSelection(COMMIT, SkillScope.WHOLE_SKILL),
-            SkillSelection(LINT, SkillScope.WHOLE_SKILL),
-            SkillSelection(REVIEW, SkillScope.WHOLE_SKILL),
-            SkillSelection(REVIEWER, SkillScope.WHOLE_SKILL),
+        assert _selected(selections) == (
+            (AUDIT, SkillScope.WHOLE_SKILL),
+            (COMMIT, SkillScope.WHOLE_SKILL),
+            (LINT, SkillScope.WHOLE_SKILL),
+            (REVIEW, SkillScope.WHOLE_SKILL),
+            (REVIEWER, SkillScope.WHOLE_SKILL),
         ), 'the link is followed to the resolved skills directory, and its skills keep their refs there'
 
     def test_select_skills_at_with_a_skills_directory_holding_no_skill_returns_empty(self, tmp_path: Path) -> None:
@@ -655,9 +709,9 @@ class TestSelectSkillsAt:
         selections = select_skills_at(database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert selections == (
-            SkillSelection(SKILLS_REVIEW, SkillScope.WHOLE_SKILL),
-            SkillSelection(SKILLS_SOLO, SkillScope.WHOLE_SKILL),
+        assert _selected(selections) == (
+            (SKILLS_REVIEW, SkillScope.WHOLE_SKILL),
+            (SKILLS_SOLO, SkillScope.WHOLE_SKILL),
         ), 'each directory in it holding a SKILL.md is a skill, named under it, solo too, which no entry links to'
 
     def test_select_skills_at_with_a_link_to_a_directory_of_skills_names_each_skill_under_the_link(
@@ -672,9 +726,9 @@ class TestSelectSkillsAt:
         selections = select_skills_at(database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert selections == (
-            SkillSelection(SkillRef(RootRelativePath.parse('bundle/review')), SkillScope.WHOLE_SKILL),
-            SkillSelection(SkillRef(RootRelativePath.parse('bundle/solo')), SkillScope.WHOLE_SKILL),
+        assert _selected(selections) == (
+            (SkillRef(RootRelativePath.parse('bundle/review')), SkillScope.WHOLE_SKILL),
+            (SkillRef(RootRelativePath.parse('bundle/solo')), SkillScope.WHOLE_SKILL),
         ), 'the link is followed to the directory, and each skill keeps the spelling of the path named'
 
     def test_select_skills_at_with_a_directory_holding_a_link_to_a_skill_selects_it_by_the_link(
@@ -690,9 +744,11 @@ class TestSelectSkillsAt:
         selections = select_skills_at(database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert selections == (
-            SkillSelection(SkillRef(RootRelativePath.parse('bundle/solo')), SkillScope.WHOLE_SKILL),
-        ), 'an entry linked to a skill directory is a skill named by the entry'
+        assert len(selections) == 1, f'one skill is selected, got {selections}'
+        assert selections[0].ref == SkillRef(RootRelativePath.parse('bundle/solo')), (
+            'an entry linked to a skill directory is a skill named by the entry'
+        )
+        assert selections[0].scope is SkillScope.WHOLE_SKILL, 'the skill is selected whole'
 
     def test_select_skills_at_with_a_directory_holding_no_skill_raises_not_listed(
         self, tmp_path: Path, skills_database: Database
@@ -789,9 +845,9 @@ class TestSelectSkillsAt:
         selections = select_skills_at(database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert selections == (
-            SkillSelection(SKILLS_REVIEW, SkillScope.WHOLE_SKILL),
-            SkillSelection(SKILLS_SOLO, SkillScope.WHOLE_SKILL),
+        assert _selected(selections) == (
+            (SKILLS_REVIEW, SkillScope.WHOLE_SKILL),
+            (SKILLS_SOLO, SkillScope.WHOLE_SKILL),
         ), 'a trailing slash names the same directory'
 
     def test_select_skills_at_with_the_root_raises_not_listed(self, tmp_path: Path, skills_database: Database) -> None:
@@ -845,9 +901,11 @@ class TestSelectSkillsAt:
         selections = select_skills_at(database, tmp_path, working_directory, argument)
 
         #: Then
-        assert selections == (SkillSelection(SKILLS_REVIEW, SkillScope.WHOLE_SKILL),), (
+        assert len(selections) == 1, f'one skill is selected, got {selections}'
+        assert selections[0].ref == SKILLS_REVIEW, (
             'a relative argument is spelled from the working directory, `..` included'
         )
+        assert selections[0].scope is SkillScope.WHOLE_SKILL, 'the skill is selected whole'
 
     def test_select_skills_at_with_a_link_removed_after_the_snapshot_returns_the_ref_the_snapshot_saw(
         self, tmp_path: Path, skills_database: Database
@@ -860,9 +918,9 @@ class TestSelectSkillsAt:
         selections = select_skills_at(skills_database, tmp_path, tmp_path, argument)
 
         #: Then
-        assert selections == (SkillSelection(REVIEW, SkillScope.WHOLE_SKILL),), (
-            'the argument is resolved through the snapshot, not the disk'
-        )
+        assert len(selections) == 1, f'one skill is selected, got {selections}'
+        assert selections[0].ref == REVIEW, 'the argument is resolved through the snapshot, not the disk'
+        assert selections[0].scope is SkillScope.WHOLE_SKILL, 'the skill is selected whole'
 
     def test_select_skills_at_with_a_link_added_after_the_snapshot_raises_not_listed(
         self, tmp_path: Path, skills_database: Database
@@ -891,9 +949,9 @@ class TestSelectSkills:
         _database, selections = select_skills(tmp_path, paths)
 
         #: Then
-        assert selections == (SkillSelection(COMMIT, SkillScope.WHOLE_SKILL),), (
-            'the skill is selected once, whole, though its SKILL.md was named first'
-        )
+        assert len(selections) == 1, f'one skill is selected, got {selections}'
+        assert selections[0].ref == COMMIT, 'the skill is selected once, whole, though its SKILL.md was named first'
+        assert selections[0].scope is SkillScope.WHOLE_SKILL, 'the skill is selected whole'
 
     def test_select_skills_with_a_skill_file_and_its_skills_directory_selects_every_skill_whole(
         self, tmp_path: Path, skills_database: Database
@@ -905,12 +963,12 @@ class TestSelectSkills:
         _database, selections = select_skills(tmp_path, paths)
 
         #: Then
-        assert selections == (
-            SkillSelection(LINT, SkillScope.WHOLE_SKILL),
-            SkillSelection(AUDIT, SkillScope.WHOLE_SKILL),
-            SkillSelection(COMMIT, SkillScope.WHOLE_SKILL),
-            SkillSelection(REVIEW, SkillScope.WHOLE_SKILL),
-            SkillSelection(REVIEWER, SkillScope.WHOLE_SKILL),
+        assert _selected(selections) == (
+            (LINT, SkillScope.WHOLE_SKILL),
+            (AUDIT, SkillScope.WHOLE_SKILL),
+            (COMMIT, SkillScope.WHOLE_SKILL),
+            (REVIEW, SkillScope.WHOLE_SKILL),
+            (REVIEWER, SkillScope.WHOLE_SKILL),
         ), 'each skill once, in first-named order, whole wherever any path named it whole'
 
     def test_select_skills_with_two_names_of_one_skill_file_selects_the_file_once(
@@ -923,9 +981,9 @@ class TestSelectSkills:
         _database, selections = select_skills(tmp_path, paths)
 
         #: Then
-        assert selections == (SkillSelection(LINT, SkillScope.SKILL_FILE),), (
-            'two names of one SKILL.md select it once, and still the file alone'
-        )
+        assert len(selections) == 1, f'one skill is selected, got {selections}'
+        assert selections[0].ref == LINT, 'two names of one SKILL.md select it once, and still the file alone'
+        assert selections[0].scope is SkillScope.SKILL_FILE, 'the SKILL.md alone is selected'
 
     def test_select_skills_with_an_entry_and_the_directory_it_links_to_selects_two_skills(
         self, tmp_path: Path, skills_database: Database
@@ -937,9 +995,9 @@ class TestSelectSkills:
         _database, selections = select_skills(tmp_path, paths)
 
         #: Then
-        assert selections == (
-            SkillSelection(REVIEW, SkillScope.WHOLE_SKILL),
-            SkillSelection(SKILLS_REVIEW, SkillScope.WHOLE_SKILL),
+        assert _selected(selections) == (
+            (REVIEW, SkillScope.WHOLE_SKILL),
+            (SKILLS_REVIEW, SkillScope.WHOLE_SKILL),
         ), 'each path names the skill by its own spelling, so the one directory is two skills'
 
     def test_select_skills_with_a_directory_of_skills_and_one_skill_in_it_selects_that_skill_once(
@@ -952,9 +1010,9 @@ class TestSelectSkills:
         _database, selections = select_skills(tmp_path, paths)
 
         #: Then
-        assert selections == (
-            SkillSelection(SKILLS_SOLO, SkillScope.WHOLE_SKILL),
-            SkillSelection(SKILLS_REVIEW, SkillScope.WHOLE_SKILL),
+        assert _selected(selections) == (
+            (SKILLS_SOLO, SkillScope.WHOLE_SKILL),
+            (SKILLS_REVIEW, SkillScope.WHOLE_SKILL),
         ), 'the skill both name is one, selected where first named, whole since the directory names it whole'
 
     def test_select_skills_with_a_skill_and_a_skill_nested_in_it_selects_both(
@@ -968,9 +1026,9 @@ class TestSelectSkills:
         _database, selections = select_skills(tmp_path, paths)
 
         #: Then
-        assert selections == (
-            SkillSelection(SkillRef(RootRelativePath.parse('skills/solo/nested')), SkillScope.WHOLE_SKILL),
-            SkillSelection(SKILLS_SOLO, SkillScope.WHOLE_SKILL),
+        assert _selected(selections) == (
+            (SkillRef(RootRelativePath.parse('skills/solo/nested')), SkillScope.WHOLE_SKILL),
+            (SKILLS_SOLO, SkillScope.WHOLE_SKILL),
         ), 'each directory named with a SKILL.md at its root is a skill of its own, the nested one too'
 
     def test_select_skills_with_a_directory_an_agent_skills_directory_links_to_selects_the_agents_skills(
@@ -987,9 +1045,11 @@ class TestSelectSkills:
 
         #: Then
         assert database.model().named_dirs == (), "the directory is an agent's skills directory, read the agents' way"
-        assert selections == (SkillSelection(SKILLS_REVIEW, SkillScope.WHOLE_SKILL),), (
+        assert len(selections) == 1, f'one skill is selected, got {selections}'
+        assert selections[0].ref == SKILLS_REVIEW, (
             'every skill the agent lists there is selected, under the resolved skills directory'
         )
+        assert selections[0].scope is SkillScope.WHOLE_SKILL, 'the skill is selected whole'
 
     def test_select_skills_with_no_path_selects_every_skill_whole(
         self, tmp_path: Path, skills_database: Database
@@ -1001,12 +1061,12 @@ class TestSelectSkills:
         _database, selections = select_skills(tmp_path, paths)
 
         #: Then
-        assert selections == (
-            SkillSelection(AUDIT, SkillScope.WHOLE_SKILL),
-            SkillSelection(COMMIT, SkillScope.WHOLE_SKILL),
-            SkillSelection(LINT, SkillScope.WHOLE_SKILL),
-            SkillSelection(REVIEW, SkillScope.WHOLE_SKILL),
-            SkillSelection(REVIEWER, SkillScope.WHOLE_SKILL),
+        assert _selected(selections) == (
+            (AUDIT, SkillScope.WHOLE_SKILL),
+            (COMMIT, SkillScope.WHOLE_SKILL),
+            (LINT, SkillScope.WHOLE_SKILL),
+            (REVIEW, SkillScope.WHOLE_SKILL),
+            (REVIEWER, SkillScope.WHOLE_SKILL),
         ), 'a run naming no path checks every skill whole'
 
 

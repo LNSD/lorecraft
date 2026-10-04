@@ -48,9 +48,10 @@ result is an immutable value. The queries are layered:
   and a retargeted symlink on the way to a skill does not. A resource listing reads only the listings and symlink
   targets its skill's walk reaches, so a change the walk does not reach leaves it valid.
 - **Decode**: a file's text, one query per kind of file: a document, a `SKILL.md`, a resource. Each is keyed by
-  the file's ref, reads the one file a structure query locates for that ref, the model for a document or a
-  `SKILL.md`, its skill's resource listing for a resource, and returns a witness, the ref and its decoded text, or
-  an undecodable marker, cached like any answer. It is the one place a file's bytes become text.
+  the file's ref and reads the one file a structure query locates: the model locates a document or a `SKILL.md` by
+  its ref, and the resource decode takes the location its skill's resource listing issued. Each returns a witness,
+  the ref and its decoded text, or an undecodable marker, cached like any answer. It is the one place a file's bytes
+  become text.
 - **Per file**: a frontmatter node, a parse tree, a token count, a line count. Each takes the witness its decode
   query returned, never a bare ref, so a fact of an undecodable file cannot be asked for, and is keyed by the
   witness's ref.
