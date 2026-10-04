@@ -15,7 +15,13 @@ import pytest
 from lorecraft.checks import Database, SkillResourceText, Undecodable
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.layout import SNAPSHOT_SCOPE
-from lorecraft.project.skill import SkillRef, SkillRelativePath, SkillResourceLocation, SkillResourceRef
+from lorecraft.project.skill import (
+    SkillLocation,
+    SkillRef,
+    SkillRelativePath,
+    SkillResourceLocation,
+    SkillResourceRef,
+)
 from lorecraft.project.syntax import LineNumber
 from lorecraft.project.syntax import Link as MarkdownLink
 from lorecraft.vfs import (
@@ -45,6 +51,32 @@ def _write(root: Path, relative: str, data: bytes = b'') -> None:
     path.write_bytes(data)
 
 
+def _located_skill(database: Database, skill: str) -> SkillLocation:
+    """The location the database's model records for the skill an agent lists at `skill`.
+
+    Args:
+        database: The database whose model lists the skill.
+        skill: The skill's directory, root-relative, with `/` separators.
+    """
+    location = database.model().find_skill_location(RootRelativePath.parse(skill))
+    assert location is not None, f'the model lists the skill {skill}'
+    return location
+
+
+def _listed_resource(database: Database, ref: SkillResourceRef) -> SkillResourceLocation:
+    """The location the database's listing of the resource's skill records for it.
+
+    Args:
+        database: The database whose listing holds the resource.
+        ref: A resource the test wrote inside a skill an agent lists.
+    """
+    skill = _located_skill(database, str(ref.skill.directory))
+    for location in database.skill_resources(skill).resources:
+        if location.ref == ref:
+            return location
+    pytest.fail(f'the skill lists no resource {ref.path}')
+
+
 def _skill_resource_text(database: Database, ref: SkillResourceRef) -> SkillResourceText:
     """The witness of a resource the test wrote as UTF-8, as the database decodes it.
 
@@ -52,7 +84,7 @@ def _skill_resource_text(database: Database, ref: SkillResourceRef) -> SkillReso
         database: The database the resource is decoded by.
         ref: A resource whose bytes are UTF-8.
     """
-    source = database.skill_resource_text(ref)
+    source = database.skill_resource_text(_listed_resource(database, ref))
     assert isinstance(source, SkillResourceText), f'{ref.path} was written as UTF-8, so it decodes'
     return source
 
@@ -285,9 +317,10 @@ class TestDatabaseSkillResources:
     ) -> None:
         #: Given
         database = Database(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
+        review = _located_skill(database, SKILL)
 
         #: When
-        resources = database.skill_resources(REVIEW).resources
+        resources = database.skill_resources(review).resources
 
         #: Then
         assert resources == (
@@ -309,7 +342,7 @@ class TestDatabaseSkillResources:
         (tmp_path / '.agents' / 'skills').mkdir(parents=True)
         (tmp_path / '.agents' / 'skills' / 'audit').symlink_to('../../skills/audit')
         database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
-        audit = SkillRef(RootRelativePath.parse('.agents/skills/audit'))
+        audit = _located_skill(database, '.agents/skills/audit')
 
         #: When
         resources = database.skill_resources(audit).resources
@@ -317,7 +350,7 @@ class TestDatabaseSkillResources:
         #: Then
         assert resources == (
             SkillResourceLocation(
-                SkillResourceRef(audit, SkillRelativePath.parse('references/a.md')),
+                SkillResourceRef(audit.ref, SkillRelativePath.parse('references/a.md')),
                 resolves_to=ResolvedPath(RootRelativePath.parse('skills/audit/references/a.md')),
             ),
         ), 'the walk starts where the model locates the entry, and names the resource under the entry'
@@ -325,10 +358,11 @@ class TestDatabaseSkillResources:
     def test_skill_resources_called_twice_returns_the_first_answer(self, skill_tree: Path) -> None:
         #: Given
         database = Database(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
-        first = database.skill_resources(REVIEW)
+        review = _located_skill(database, SKILL)
+        first = database.skill_resources(review)
 
         #: When
-        second = database.skill_resources(REVIEW)
+        second = database.skill_resources(review)
 
         #: Then
         assert second is first, "a skill's resources are listed once per database, then shared by every check"
@@ -368,9 +402,10 @@ class TestDatabaseSkillResources:
         _write(tmp_path, f'{SKILL}/references/a.md', b'caf\xe9\n')
         database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
         ref = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
+        location = _listed_resource(database, ref)
 
         #: When
-        source = database.skill_resource_text(ref)
+        source = database.skill_resource_text(location)
 
         #: Then
         assert source == Undecodable(ref), 'a decode failure is an answer naming the resource, not an error'
@@ -383,24 +418,11 @@ class TestDatabaseSkillResources:
         _write(tmp_path, f'{SKILL}/references/a.md', b'caf\xe9\n')
         database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
         ref = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
-        first = database.skill_resource_text(ref)
+        location = _listed_resource(database, ref)
+        first = database.skill_resource_text(location)
 
         #: When
-        second = database.skill_resource_text(ref)
+        second = database.skill_resource_text(location)
 
         #: Then
         assert second is first, 'an undecodable resource is cached like any answer, so it is decoded once'
-
-    def test_skill_resource_text_of_a_resource_the_skill_does_not_hold_raises_value_error(
-        self, skill_tree: Path
-    ) -> None:
-        #: Given
-        database = Database(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
-        ref = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/absent.md'))
-
-        #: When
-        with pytest.raises(ValueError) as exc_info:
-            database.skill_resource_text(ref)
-
-        #: Then
-        assert f'{SKILL}/references/absent.md' in str(exc_info.value), 'the error names the resource the skill lacks'

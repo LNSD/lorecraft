@@ -282,7 +282,7 @@ def select_skills(root: Path | None, paths: list[Path] | None) -> tuple[Database
     root_path = get_root(_working_directory()) if root is None else resolve_root(root)
     if not paths:
         database = Database(take_snapshot(root_path, SNAPSHOT_SCOPE))
-        return database, select_whole(database.model().skills())
+        return database, select_whole(database.model().skill_locations)
     working_directory = _working_directory()
     named_dirs = named_skill_dirs(root_path, working_directory, paths)
     # The snapshot records the scope it was taken of, so the model reads the named directories from it.

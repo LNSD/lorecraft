@@ -240,8 +240,8 @@ class WorkspaceModel:
             link is retargeted even though every ref is the same.
         named_dirs: Every directory a command names to check the skills in, other than an agent's skills
             directory or an entry in one, which `skills_dirs` and `skill_locations` already read, sorted by path.
-            Each holds the locations of its own skills, so `skills()` does not list them and `find_skill` does not
-            find them; `skill_location` does. Empty in a run that names none.
+            Each holds the locations of its own skills, so `skills()` does not list them and `find_skill_location`
+            does not find them; `find_named_dir` hands them out. Empty in a run that names none.
         outside_symlinks: Every skills directory an agent declares, entry in a resolved skills directory or a named
             directory, and `SKILL.md` of such an entry or of a named directory, whose symlink chain leaves the
             repository, sorted by path, each once. None of them is a skills directory or a skill of the model; a
@@ -290,26 +290,8 @@ class WorkspaceModel:
             refs.append(location.ref)
         return tuple(refs)
 
-    def skill_location(self, ref: SkillRef) -> SkillLocation:
-        """Where the files of a skill this model lists live.
-
-        Args:
-            ref: Skill to look up; it must be one of this model's, in an agent's skills directory or a named one.
-
-        Raises:
-            ValueError: If the model lists no skill with this ref (refs from the model never trigger it).
-        """
-        for location in self.skill_locations:
-            if location.ref == ref:
-                return location
-        for named_dir in self.named_dirs:
-            for location in named_dir.skills:
-                if location.ref == ref:
-                    return location
-        raise ValueError(f'skill {ref.directory} is not a skill of this model')
-
-    def find_skill(self, directory: RootRelativePath) -> SkillRef | None:
-        """The ref whose `directory` equals this root-relative path, or None.
+    def find_skill_location(self, directory: RootRelativePath) -> SkillLocation | None:
+        """The location of the skill whose ref's `directory` equals this root-relative path, or None.
 
         Only the agents' skills are looked up, never a named directory's: `find_named_dir` finds those.
 
@@ -319,7 +301,7 @@ class WorkspaceModel:
         """
         for location in self.skill_locations:
             if location.ref.directory == directory:
-                return location.ref
+                return location
         return None
 
     def has_skills_dir(self, resolved_path: ResolvedPath) -> bool:
@@ -334,20 +316,20 @@ class WorkspaceModel:
                 return True
         return False
 
-    def skills_in(self, resolved_path: ResolvedPath) -> tuple[SkillRef, ...]:
-        """The skills listed directly inside this resolved directory.
+    def skill_locations_in(self, resolved_path: ResolvedPath) -> tuple[SkillLocation, ...]:
+        """The locations of the skills listed directly inside this resolved directory.
 
         Args:
             resolved_path: A resolved directory, root-relative, matched against each skill directory's parent.
 
         Returns:
-            Every such skill, in the model's order, or `()` when the directory holds none.
+            Every such skill's location, in the model's order, or `()` when the directory holds none.
         """
-        refs: list[SkillRef] = []
+        locations: list[SkillLocation] = []
         for location in self.skill_locations:
             if location.ref.directory.parent == resolved_path:
-                refs.append(location.ref)
-        return tuple(refs)
+                locations.append(location)
+        return tuple(locations)
 
     def find_named_dir(self, path: RootRelativePath) -> NamedDir | None:
         """The directory a command named as `path`, or `None` when it named none there.
@@ -372,26 +354,29 @@ class WorkspaceModel:
                 return True
         return False
 
-    def locate_skill_files(self, path: ResolvedPath) -> tuple[SkillRef, ...]:
-        """The skills whose `SKILL.md` leads to this resolved file, in an agent's skills directory or a named one.
+    def locate_skill_files(self, path: ResolvedPath) -> tuple[SkillLocation, ...]:
+        """The locations of the skills whose `SKILL.md` leads to this resolved file, an agent's or a named one's.
 
         Args:
             path: A resolved path, root-relative, with no symlink on the way to it.
 
         Returns:
-            Every such skill, each once, the agents' first, then the named directories' in their order, or `()`
-            when none is there. Two skills whose `SKILL.md` links lead to one file are both returned.
+            Every such skill's location, each once, the agents' first, then the named directories' in their order,
+            or `()` when none is there. Two skills whose `SKILL.md` links lead to one file are both returned.
         """
-        refs: list[SkillRef] = []
+        locations: list[SkillLocation] = []
+        located: set[SkillRef] = set()
         for location in self.skill_locations:
             if location.file_resolves_to == path:
-                refs.append(location.ref)
+                locations.append(location)
+                located.add(location.ref)
         for named_dir in self.named_dirs:
             for location in named_dir.skills:
                 # Two named directories may hold one skill, such as `skills` and `skills/review`.
-                if location.file_resolves_to == path and location.ref not in refs:
-                    refs.append(location.ref)
-        return tuple(refs)
+                if location.file_resolves_to == path and location.ref not in located:
+                    locations.append(location)
+                    located.add(location.ref)
+        return tuple(locations)
 
     def skill_agents(self, ref: SkillRef) -> tuple[AgentName, ...]:
         """The agents that read a skill: those with a skills directory that leads to the one holding it.
