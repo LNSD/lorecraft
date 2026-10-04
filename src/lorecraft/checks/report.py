@@ -133,6 +133,7 @@ class CheckedSubject:
     """A subject that decoded, so the enabled rules judged every input it is governed for.
 
     Attributes:
+        ref: The document or skill the rules judged; a skill's diagnostics are reported at its `SKILL.md`.
         diagnostics: Every occurrence the rules found in it, in the order `diagnostic_order` sorts them into,
             whatever order they are given in; empty when it holds to every rule.
         ungoverned: The input kinds an enabled rule reads that no specification governs the subject for, in the
@@ -155,6 +156,9 @@ class UndecodableSubject:
     """A subject whose file is not UTF-8, so no rule judged it; it reports the engine's one diagnostic.
 
     A skill's file is its `SKILL.md`.
+
+    Attributes:
+        ref: The document or skill whose file did not decode, and the path its diagnostic is reported at.
     """
 
     ref: SubjectRef

@@ -339,29 +339,26 @@ def overlong_spans(lines: list[int]) -> list[tuple[int, int]]:
 
 ## 7. `Attributes:` Documents a Record's Contract
 
-A dataclass, config object, or any class whose fields are part of its public surface documents them in an
-`Attributes:` section, in which a field earns a line when the line carries a unit, a
-bound, a default's meaning, or a relationship to another field. A field whose name is the whole story gets no
-line. An error variant is the exception: it lists every field ([error-types](error-types.md)).
-
-A record is read far more often than it is constructed, and its reader has no call site to learn from.
+A dataclass, config object, error variant ([error-types](error-types.md)) or other class with public fields
+lists **every** one under `Attributes:`. Only a field with a leading underscore, a pydantic model's field
+(its docstring sits under it) and a base's class constants are left out. As in `Args:`, a line says
+the field's role and, where they apply, its unit, bound, default's meaning and tie to another field. An
+echo of the name or type fails review: a record's reader has no call site to learn from.
 
 ```python
-# ❌ Bad — every field echoed, so the two constraints that matter are buried among restated types
+# ❌ Bad — fields missing, and each line echoes its name and type
 @dataclass
 class CheckConfig:
     """Check configuration.
 
     Attributes:
         line_budget: An integer, the line budget.
-        max_findings_per_document: An integer, the max findings per document.
         fail_on_warning: A boolean, whether to fail on warning.
-        corpus_root: A string, the corpus root.
     """
 ```
 
 ```python
-# ✅ Good — only the fields with a constraint, a unit, or a dependency on another field
+# ✅ Good — every field, each line a fact its annotation does not carry
 @dataclass(frozen=True, slots=True)
 class CheckConfig:
     """Budgets and reporting limits for a single corpus check.
@@ -371,6 +368,8 @@ class CheckConfig:
             measured but never reported against it.
         max_findings_per_document: Findings reported for one document before the rest are
             summarised as a count. Must be at least 1.
+        fail_on_warning: Whether a warning fails the check; when false it is only reported.
+        corpus_root: Corpus directory, relative to the workspace root.
         spec_path: Structure specification to check against. Resolved relative to
             `corpus_root` when it is not absolute.
     """
@@ -400,7 +399,7 @@ Before committing code, verify:
 - [ ] An unreachable `raise` has a `#` comment saying why, and no `Raises:` entry
 - [ ] Every `Example:` block is `>>>` doctest lines, never the sole statement of an untested contract
 - [ ] No `Example:` block needs a checked-out corpus, a network fetch, or a fixture tree to run
-- [ ] `Attributes:` lists only the fields carrying a unit, bound, default meaning, or cross-field dependency
+- [ ] `Attributes:` has a line for every field, saying what its annotation cannot, never its name echoed
 
 ## References
 
