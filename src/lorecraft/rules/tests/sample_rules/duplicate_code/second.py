@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.rules.rule import Level, Release, RuleCode, rule
+from lorecraft.rules.rule import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.tests.sample_input import SampleLines, SampleLinesRule
 
 from ..groups import SAMPLE
@@ -15,7 +15,7 @@ class SecondRule(SampleLinesRule):
     """A sample rule that never fires."""
 
     CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 1)
-    NAME: ClassVar[str] = 'second-rule'
+    NAME: ClassVar[RuleName] = RuleName('second-rule')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('1.0.0')
 

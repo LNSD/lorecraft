@@ -2,15 +2,20 @@
 
 import pytest
 
+from lorecraft.core.error import Error
 from lorecraft.project.syntax import LineNumber
 
 from ..location import Here, WholeSubject
 from ..rule import (
     AliasCode,
+    DoubledHyphenRuleNameError,
     EmptyAliasLinterError,
     EmptyRuleGroupTitleError,
+    EmptyRuleNameError,
     InvalidAliasCodeError,
     InvalidRuleGroupPrefixError,
+    InvalidRuleNameCharacterError,
+    LeadingHyphenRuleNameError,
     LeadingZeroReleaseError,
     Level,
     MalformedReleaseError,
@@ -18,7 +23,9 @@ from ..rule import (
     Rule,
     RuleCode,
     RuleGroup,
+    RuleName,
     RuleNumberOutOfRangeError,
+    TrailingHyphenRuleNameError,
     declared_rules,
 )
 from .sample_input import SampleEntry, SampleLines
@@ -127,6 +134,152 @@ class TestRelease:
         #: Then
         assert exc_info.value.value == raw, 'the error keeps the release'
         assert exc_info.value.component == '03', 'the error names the component with the leading zero'
+
+
+@pytest.mark.unit
+class TestRuleName:
+    def test_parse_with_words_joined_by_hyphens_returns_the_name(self) -> None:
+        #: Given
+        raw = 'empty-section'
+
+        #: When
+        name = RuleName.parse(raw)
+
+        #: Then
+        assert str(name) == raw, 'a name is kept exactly as spelled'
+
+    def test_parse_with_a_single_letter_returns_the_name(self) -> None:
+        #: Given
+        raw = 'a'
+
+        #: When
+        name = RuleName.parse(raw)
+
+        #: Then
+        assert str(name) == raw, 'one character is the shortest name that is not empty'
+
+    def test_parse_with_digits_returns_the_name(self) -> None:
+        #: Given
+        raw = 'md040-fence2'
+
+        #: When
+        name = RuleName.parse(raw)
+
+        #: Then
+        assert str(name) == raw, 'a word may hold ASCII digits beside its lowercase letters'
+
+    def test_parse_with_several_single_hyphens_returns_the_name(self) -> None:
+        #: Given
+        raw = 'section-out-of-order'
+
+        #: When
+        name = RuleName.parse(raw)
+
+        #: Then
+        assert str(name) == raw, 'any number of words may be joined, each by one hyphen'
+
+    def test_parse_with_an_empty_name_raises_empty_rule_name_error(self) -> None:
+        #: Given
+        raw = ''
+
+        #: When
+        with pytest.raises(EmptyRuleNameError) as exc_info:
+            RuleName.parse(raw)
+
+        #: Then
+        assert type(exc_info.value).__bases__ == (Error,), 'the variant derives from Error directly, not a family'
+        assert str(exc_info.value) == 'rule name cannot be empty', 'the error explains the empty-name case'
+
+    def test_rule_name_constructed_directly_with_an_empty_name_raises_empty_rule_name_error(self) -> None:
+        #: Given
+        raw = ''
+
+        #: When
+        with pytest.raises(EmptyRuleNameError) as exc_info:
+            RuleName(raw)
+
+        #: Then
+        assert str(exc_info.value) == 'rule name cannot be empty', 'direct construction checks the same invariant'
+
+    def test_parse_with_an_uppercase_letter_raises_invalid_rule_name_character_error(self) -> None:
+        #: Given
+        raw = 'empty-Section'
+
+        #: When
+        with pytest.raises(InvalidRuleNameCharacterError) as exc_info:
+            RuleName.parse(raw)
+
+        #: Then
+        assert exc_info.value.value == raw, 'the error keeps the name with an uppercase letter'
+        assert exc_info.value.position == 6, 'the error locates the uppercase letter'
+        assert exc_info.value.character == 'S', 'the error names the uppercase letter'
+
+    def test_parse_with_a_space_raises_invalid_rule_name_character_error(self) -> None:
+        #: Given
+        raw = 'empty section'
+
+        #: When
+        with pytest.raises(InvalidRuleNameCharacterError) as exc_info:
+            RuleName.parse(raw)
+
+        #: Then
+        assert exc_info.value.character == ' ', 'a space does not join two words'
+
+    def test_parse_with_an_underscore_raises_invalid_rule_name_character_error(self) -> None:
+        #: Given
+        raw = 'empty_section'
+
+        #: When
+        with pytest.raises(InvalidRuleNameCharacterError) as exc_info:
+            RuleName.parse(raw)
+
+        #: Then
+        assert exc_info.value.character == '_', 'an underscore does not join two words'
+
+    def test_parse_with_a_non_ascii_letter_raises_invalid_rule_name_character_error(self) -> None:
+        #: Given
+        raw = '\N{LATIN SMALL LETTER E WITH ACUTE}mpty-section'
+
+        #: When
+        with pytest.raises(InvalidRuleNameCharacterError) as exc_info:
+            RuleName.parse(raw)
+
+        #: Then
+        assert exc_info.value.position == 0, 'a lowercase letter outside ASCII is rejected'
+
+    def test_parse_with_a_leading_hyphen_raises_leading_hyphen_rule_name_error(self) -> None:
+        #: Given
+        raw = '-empty-section'
+
+        #: When
+        with pytest.raises(LeadingHyphenRuleNameError) as exc_info:
+            RuleName.parse(raw)
+
+        #: Then
+        assert exc_info.value.value == raw, 'the error keeps the name starting with a hyphen'
+
+    def test_parse_with_a_trailing_hyphen_raises_trailing_hyphen_rule_name_error(self) -> None:
+        #: Given
+        raw = 'empty-section-'
+
+        #: When
+        with pytest.raises(TrailingHyphenRuleNameError) as exc_info:
+            RuleName.parse(raw)
+
+        #: Then
+        assert exc_info.value.value == raw, 'the error keeps the name ending with a hyphen'
+
+    def test_parse_with_two_hyphens_in_a_row_raises_doubled_hyphen_rule_name_error(self) -> None:
+        #: Given
+        raw = 'empty--section'
+
+        #: When
+        with pytest.raises(DoubledHyphenRuleNameError) as exc_info:
+            RuleName.parse(raw)
+
+        #: Then
+        assert exc_info.value.value == raw, 'the error keeps the name with two hyphens in a row'
+        assert exc_info.value.position == 5, 'the error locates the first of the two hyphens'
 
 
 @pytest.mark.unit

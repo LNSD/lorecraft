@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.rules.rule import Level, Release, RemovedRule, RuleCode, rule
+from lorecraft.rules.rule import Level, Release, RemovedRule, RuleCode, RuleName, rule
 from lorecraft.rules.tests.sample_input import SampleLines, SampleLinesRule
 
 from ..groups import SAMPLE
@@ -15,7 +15,7 @@ class InService(SampleLinesRule):
     """A sample rule that never fires."""
 
     CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 1)
-    NAME: ClassVar[str] = 'shared-name'
+    NAME: ClassVar[RuleName] = RuleName('shared-name')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('1.0.0')
 
@@ -38,6 +38,6 @@ class Retired(RemovedRule):
     """A sample removed rule that kept its name for a rule in service."""
 
     CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 2)
-    NAME: ClassVar[str] = 'shared-name'
+    NAME: ClassVar[RuleName] = RuleName('shared-name')
     REMOVED_IN: ClassVar[Release] = Release('1.1.0')
     REPLACED_BY: ClassVar[RuleCode | None] = None
