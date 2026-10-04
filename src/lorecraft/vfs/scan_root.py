@@ -12,6 +12,7 @@ another, and never decide anything from its depth themselves.
 
 from dataclasses import dataclass
 
+from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 
 
@@ -22,8 +23,8 @@ class ScanRoot:
     Attributes:
         directory: Root-relative directory the scan starts at.
         depth: 0 lists `directory` only; 1 also lists each DIRECTORY entry inside it, and so on. `None` lists
-            every directory below `directory`, at any depth. Never negative. Entries beyond the depth are
-            listed by their parent and never entered.
+            every directory below `directory`, at any depth. Entries beyond the depth are listed by their parent
+            and never entered.
         follow_links: When true, a symlink that leads somewhere under the root is followed: one on the way
             to `directory`, and one listed by the scan. A link to a directory costs depth as a DIRECTORY
             entry does, and the directory is listed at its resolved path, wherever under the root that is. A
@@ -35,17 +36,8 @@ class ScanRoot:
     # `None` rather than a large number, so that a root a level down from an unlimited one is equal to it: that
     # equality is what ends a scan, or the scope query's expansion, that a link back to an ancestor brings round
     # again. A large number would fall by one with each pass and never repeat.
-    depth: int | None
+    depth: UnsignedInt | None
     follow_links: bool = False
-
-    def __post_init__(self) -> None:
-        """Reject a negative depth, which would list nothing and read nothing.
-
-        Raises:
-            ValueError: If `depth` is negative.
-        """
-        if self.depth is not None and self.depth < 0:
-            raise ValueError(f'depth must be 0 or more, got {self.depth}')
 
     def is_covering(self, path: RootRelativePath) -> bool:
         """Whether `path` is an entry the scan of this root lists, by its spelling alone.
@@ -62,7 +54,7 @@ class ScanRoot:
             return False
         if self.depth is None:
             return True
-        return self.listing_level(path) <= self.depth
+        return self.listing_level(path) <= self.depth.value
 
     def listing_level(self, path: RootRelativePath) -> int:
         """How many levels below `directory` the directory listing `path` sits; 0 for an entry of `directory`.
@@ -90,10 +82,10 @@ class ScanRoot:
         """
         if self.depth is None:
             return ScanRoot(directory, None, follow_links=self.follow_links)
-        depth_left = self.depth - levels
+        depth_left = self.depth.value - levels
         if depth_left < 0:
             return None
-        return ScanRoot(directory, depth_left, follow_links=self.follow_links)
+        return ScanRoot(directory, UnsignedInt(depth_left), follow_links=self.follow_links)
 
     def is_at_least_as_deep_as(self, other: 'ScanRoot') -> bool:
         """Whether a scan of this root lists at least as many levels below its directory as one of `other`.
@@ -109,4 +101,4 @@ class ScanRoot:
             return True
         if other.depth is None:
             return False
-        return self.depth >= other.depth
+        return self.depth.value >= other.depth.value

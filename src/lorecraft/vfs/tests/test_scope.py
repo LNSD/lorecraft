@@ -16,6 +16,7 @@ from typing import Final
 import pytest
 
 from lorecraft.core.mapping import FrozenMapping
+from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 
 from ..scan_root import ScanRoot
@@ -28,12 +29,12 @@ AGENTS_SKILLS: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills'
 # The shape of the layout's scope: docs/ one level deep, links recorded and not followed, and a skills directory
 # with no depth limit through its links.
 SCOPE: Final[tuple[ScanRoot, ...]] = (
-    ScanRoot(DOCS, depth=1),
+    ScanRoot(DOCS, depth=UnsignedInt(1)),
     ScanRoot(AGENTS_SKILLS, depth=None, follow_links=True),
 )
 
 # The same skills directory one level deep through its links, where a followed link costs the depth it uses up.
-DEPTH_ONE_SCOPE: Final[tuple[ScanRoot, ...]] = (ScanRoot(AGENTS_SKILLS, depth=1, follow_links=True),)
+DEPTH_ONE_SCOPE: Final[tuple[ScanRoot, ...]] = (ScanRoot(AGENTS_SKILLS, depth=UnsignedInt(1), follow_links=True),)
 
 
 def _path(raw: str) -> RootRelativePath:
@@ -285,7 +286,7 @@ class TestScopeIndexIsInScope:
 
     def test_is_in_scope_through_links_chained_within_the_depth_returns_true(self) -> None:
         #: Given
-        scope = (ScanRoot(_path('a'), depth=2, follow_links=True),)
+        scope = (ScanRoot(_path('a'), depth=UnsignedInt(2), follow_links=True),)
         snapshot = _snapshot_of_links({'a/to-b': '../b', 'b/to-c': '../c'}, scope=scope)
         path = _path('c/x.md')
         index = ScopeIndex(snapshot)
@@ -298,7 +299,7 @@ class TestScopeIndexIsInScope:
 
     def test_is_in_scope_under_a_following_root_reached_through_a_link_returns_true(self) -> None:
         #: Given
-        scope = (ScanRoot(_path('.claude/skills'), depth=1, follow_links=True),)
+        scope = (ScanRoot(_path('.claude/skills'), depth=UnsignedInt(1), follow_links=True),)
         snapshot = _snapshot_of_links({'.claude/skills': '../.agents/skills'}, scope=scope)
         path = _path('.agents/skills/x/a.md')
         index = ScopeIndex(snapshot)
@@ -311,7 +312,7 @@ class TestScopeIndexIsInScope:
 
     def test_is_in_scope_under_a_non_following_root_reached_through_a_link_returns_false(self) -> None:
         #: Given
-        scope = (ScanRoot(_path('.claude/skills'), depth=1),)
+        scope = (ScanRoot(_path('.claude/skills'), depth=UnsignedInt(1)),)
         snapshot = _snapshot_of_links({'.claude/skills': '../.agents/skills'}, scope=scope)
         path = _path('.claude/skills/x/a.md')
         index = ScopeIndex(snapshot)

@@ -17,6 +17,7 @@ import pytest
 
 from lorecraft.core.error import Error
 from lorecraft.core.mapping import FrozenMapping
+from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.vfs import (
     Change,
@@ -55,16 +56,16 @@ DOCS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs')
 # A repository-shaped scope, the same shape the project layout passes: docs/ and each directory in it, the
 # skills directories and each skill in them, and `.claude` alone so a probe of `.claude/skills` sees any kind.
 SNAPSHOT_SCOPE: Final[tuple[ScanRoot, ...]] = (
-    ScanRoot(DOCS_DIR, depth=1),
-    ScanRoot(RootRelativePath.parse('.agents/skills'), depth=1),
-    ScanRoot(RootRelativePath.parse('.claude'), depth=0),
-    ScanRoot(RootRelativePath.parse('.claude/skills'), depth=1),
+    ScanRoot(DOCS_DIR, depth=UnsignedInt(1)),
+    ScanRoot(RootRelativePath.parse('.agents/skills'), depth=UnsignedInt(1)),
+    ScanRoot(RootRelativePath.parse('.claude'), depth=UnsignedInt(0)),
+    ScanRoot(RootRelativePath.parse('.claude/skills'), depth=UnsignedInt(1)),
 )
 
 # The skills directories alone, read through their links: what a scope that must see every skill passes.
 FOLLOWING_SCOPE: Final[tuple[ScanRoot, ...]] = (
-    ScanRoot(RootRelativePath.parse('.agents/skills'), depth=1, follow_links=True),
-    ScanRoot(RootRelativePath.parse('.claude/skills'), depth=1, follow_links=True),
+    ScanRoot(RootRelativePath.parse('.agents/skills'), depth=UnsignedInt(1), follow_links=True),
+    ScanRoot(RootRelativePath.parse('.claude/skills'), depth=UnsignedInt(1), follow_links=True),
 )
 
 # The parity tree: every kind of entry the scan records, inside SNAPSHOT_SCOPE. Links stay inside the scope,
@@ -1148,7 +1149,7 @@ class TestTakeSnapshot:
         (tmp_path / 'docs' / 'code' / 'sub').mkdir(parents=True)
         (tmp_path / 'docs' / 'code' / 'sub' / 'x.md').write_bytes(b'# X\n')
         # the shallow root is scanned first, so the deeper one must list docs/code again
-        scope = (ScanRoot(DOCS_DIR, depth=2), ScanRoot(DOCS_DIR / 'code', depth=0))
+        scope = (ScanRoot(DOCS_DIR, depth=UnsignedInt(2)), ScanRoot(DOCS_DIR / 'code', depth=UnsignedInt(0)))
 
         #: When
         snapshot = take_snapshot(tmp_path, scope)
@@ -1168,9 +1169,9 @@ class TestTakeSnapshot:
         #: Given
         (tmp_path / 'docs' / 'code').mkdir(parents=True)
         scope = (
-            ScanRoot(DOCS_DIR / 'code', depth=0),
-            ScanRoot(DOCS_DIR, depth=1),
-            ScanRoot(DOCS_DIR / 'code', depth=0),
+            ScanRoot(DOCS_DIR / 'code', depth=UnsignedInt(0)),
+            ScanRoot(DOCS_DIR, depth=UnsignedInt(1)),
+            ScanRoot(DOCS_DIR / 'code', depth=UnsignedInt(0)),
         )
 
         #: When
@@ -1178,9 +1179,9 @@ class TestTakeSnapshot:
 
         #: Then
         assert snapshot.scope == (
-            ScanRoot(RootRelativePath.parse('docs/code'), depth=0),
-            ScanRoot(RootRelativePath.parse('docs'), depth=1),
-            ScanRoot(RootRelativePath.parse('docs/code'), depth=0),
+            ScanRoot(RootRelativePath.parse('docs/code'), depth=UnsignedInt(0)),
+            ScanRoot(RootRelativePath.parse('docs'), depth=UnsignedInt(1)),
+            ScanRoot(RootRelativePath.parse('docs/code'), depth=UnsignedInt(0)),
         ), 'the scope is recorded in the order given and unmerged, though the scan lists docs/code once'
 
     def test_take_snapshot_following_a_linked_scope_root_lists_the_directory_it_leads_to(self, tmp_path: Path) -> None:
@@ -1189,7 +1190,7 @@ class TestTakeSnapshot:
         (tmp_path / 'skills' / 'review' / 'SKILL.md').write_bytes(b'---\n')
         (tmp_path / '.claude').mkdir()
         (tmp_path / '.claude' / 'skills').symlink_to('../skills')
-        scope = (ScanRoot(RootRelativePath.parse('.claude/skills'), depth=1, follow_links=True),)
+        scope = (ScanRoot(RootRelativePath.parse('.claude/skills'), depth=UnsignedInt(1), follow_links=True),)
 
         #: When
         snapshot = take_snapshot(tmp_path, scope)
@@ -1212,7 +1213,7 @@ class TestTakeSnapshot:
         (tmp_path / 'skills' / 'review' / 'SKILL.md').write_bytes(b'---\n')
         (tmp_path / '.agents' / 'skills').mkdir(parents=True)
         (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
-        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=1, follow_links=True),)
+        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=UnsignedInt(1), follow_links=True),)
 
         #: When
         snapshot = take_snapshot(tmp_path, scope)
@@ -1237,7 +1238,7 @@ class TestTakeSnapshot:
         (tmp_path / 'skills' / 'review' / 'SKILL.md').write_bytes(b'---\n')
         (tmp_path / '.agents' / 'skills').mkdir(parents=True)
         (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
-        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=0, follow_links=True),)
+        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=UnsignedInt(0), follow_links=True),)
 
         #: When
         snapshot = take_snapshot(tmp_path, scope)
@@ -1258,7 +1259,7 @@ class TestTakeSnapshot:
         (tmp_path / 'current').symlink_to('skills')
         (tmp_path / '.claude').mkdir()
         (tmp_path / '.claude' / 'skills').symlink_to('../current')
-        scope = (ScanRoot(RootRelativePath.parse('.claude/skills'), depth=0, follow_links=True),)
+        scope = (ScanRoot(RootRelativePath.parse('.claude/skills'), depth=UnsignedInt(0), follow_links=True),)
 
         #: When
         snapshot = take_snapshot(tmp_path, scope)
@@ -1283,7 +1284,7 @@ class TestTakeSnapshot:
         (outside / 'SKILL.md').write_bytes(b'---\n')
         (tmp_path / '.agents' / 'skills').mkdir(parents=True)
         (tmp_path / '.agents' / 'skills' / 'review').symlink_to(outside)
-        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=1, follow_links=True),)
+        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=UnsignedInt(1), follow_links=True),)
 
         #: When
         snapshot = take_snapshot(tmp_path, scope)
@@ -1303,7 +1304,7 @@ class TestTakeSnapshot:
         #: Given
         (tmp_path / '.agents' / 'skills').mkdir(parents=True)
         (tmp_path / '.agents' / 'skills' / 'loop').symlink_to('loop')
-        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=1, follow_links=True),)
+        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=UnsignedInt(1), follow_links=True),)
 
         #: When
         snapshot = take_snapshot(tmp_path, scope)
@@ -1324,7 +1325,7 @@ class TestTakeSnapshot:
         (tmp_path / 'REVIEW.md').write_bytes(b'---\n')
         (tmp_path / '.agents' / 'skills').mkdir(parents=True)
         (tmp_path / '.agents' / 'skills' / 'SKILL.md').symlink_to('../../REVIEW.md')
-        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=0, follow_links=True),)
+        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=UnsignedInt(0), follow_links=True),)
 
         #: When
         snapshot = take_snapshot(tmp_path, scope)
@@ -1348,7 +1349,7 @@ class TestTakeSnapshot:
         outside.write_bytes(b'---\n')
         (tmp_path / '.agents' / 'skills').mkdir(parents=True)
         (tmp_path / '.agents' / 'skills' / 'SKILL.md').symlink_to(outside)
-        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=0, follow_links=True),)
+        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=UnsignedInt(0), follow_links=True),)
 
         #: When
         snapshot = take_snapshot(tmp_path, scope)
@@ -1371,7 +1372,7 @@ class TestTakeSnapshot:
         (tmp_path / 'skills' / 'tmp').mkdir()
         (tmp_path / '.agents' / 'skills').mkdir(parents=True)
         (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/tmp/../review')
-        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=1, follow_links=True),)
+        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=UnsignedInt(1), follow_links=True),)
 
         #: When
         snapshot = take_snapshot(tmp_path, scope)
@@ -1398,7 +1399,7 @@ class TestTakeSnapshot:
         (tmp_path / 'docs').mkdir()
         (tmp_path / 'docs' / 'shared').symlink_to('../shared')
         # the plain root is scanned first, so the following one must list docs again to follow its link
-        scope = (ScanRoot(DOCS_DIR, depth=1, follow_links=True), ScanRoot(DOCS_DIR, depth=1))
+        scope = (ScanRoot(DOCS_DIR, depth=UnsignedInt(1), follow_links=True), ScanRoot(DOCS_DIR, depth=UnsignedInt(1)))
 
         #: When
         snapshot = take_snapshot(tmp_path, scope)
@@ -1425,9 +1426,9 @@ class TestTakeSnapshot:
         # the roots are scanned last first: the following docs root covers the plain one, which is skipped, and
         # skills, scanned after that skip, must still be listed
         scope = (
-            ScanRoot(RootRelativePath.parse('skills'), depth=0),
-            ScanRoot(DOCS_DIR, depth=0),
-            ScanRoot(DOCS_DIR, depth=1, follow_links=True),
+            ScanRoot(RootRelativePath.parse('skills'), depth=UnsignedInt(0)),
+            ScanRoot(DOCS_DIR, depth=UnsignedInt(0)),
+            ScanRoot(DOCS_DIR, depth=UnsignedInt(1), follow_links=True),
         )
 
         #: When
@@ -1448,9 +1449,9 @@ class TestTakeSnapshot:
         (tmp_path / 'docs' / 'a.md').write_bytes(b'# A\n')
         # as above, with the covering docs root plain too
         scope = (
-            ScanRoot(RootRelativePath.parse('skills'), depth=0),
-            ScanRoot(DOCS_DIR, depth=0),
-            ScanRoot(DOCS_DIR, depth=1),
+            ScanRoot(RootRelativePath.parse('skills'), depth=UnsignedInt(0)),
+            ScanRoot(DOCS_DIR, depth=UnsignedInt(0)),
+            ScanRoot(DOCS_DIR, depth=UnsignedInt(1)),
         )
 
         #: When
@@ -1469,7 +1470,7 @@ class TestTakeSnapshot:
         (tmp_path / 'skills' / 'review' / 'references' / 'guide.md').write_bytes(b'# Guide\n')
         (tmp_path / '.agents' / 'skills').mkdir(parents=True)
         (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
-        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=1, follow_links=True),)
+        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=UnsignedInt(1), follow_links=True),)
 
         #: When
         snapshot = take_snapshot(tmp_path, scope)
@@ -1494,7 +1495,7 @@ class TestTakeSnapshot:
         (tmp_path / 'skills' / 'review' / 'references').symlink_to('../../shared/references')
         (tmp_path / '.agents' / 'skills').mkdir(parents=True)
         (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
-        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=2, follow_links=True),)
+        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=UnsignedInt(2), follow_links=True),)
 
         #: When
         snapshot = take_snapshot(tmp_path, scope)
@@ -1523,7 +1524,7 @@ class TestTakeSnapshot:
         (tmp_path / '.agents' / 'skills').mkdir(parents=True)
         # tmp does not exist, so the operating system fails the lookup at it, before the `..`
         (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../tmp/../skills/review')
-        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=1, follow_links=True),)
+        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=UnsignedInt(1), follow_links=True),)
 
         #: When
         snapshot = take_snapshot(tmp_path, scope)
@@ -1542,7 +1543,7 @@ class TestTakeSnapshot:
         self, tmp_path: Path, chain_of_40_links: str
     ) -> None:
         #: Given
-        scope = (ScanRoot(RootRelativePath.parse(chain_of_40_links), depth=0, follow_links=True),)
+        scope = (ScanRoot(RootRelativePath.parse(chain_of_40_links), depth=UnsignedInt(0), follow_links=True),)
 
         #: When
         snapshot = take_snapshot(tmp_path, scope)
@@ -1679,7 +1680,7 @@ class TestTakeSnapshot:
     ) -> None:
         #: Given
         locked = RootRelativePath.parse(unreadable_dir.name)
-        scope = (ScanRoot(locked, depth=0),)
+        scope = (ScanRoot(locked, depth=UnsignedInt(0)),)
 
         #: When
         with pytest.raises(SnapshotDirListError) as exc_info:
@@ -1713,7 +1714,7 @@ class TestTakeSnapshot:
     ) -> None:
         #: Given
         inside_locked = RootRelativePath.parse(unreadable_dir.name) / 'inner'
-        scope = (ScanRoot(inside_locked, depth=0),)
+        scope = (ScanRoot(inside_locked, depth=UnsignedInt(0)),)
 
         #: When
         with pytest.raises(SnapshotEntryInspectError) as exc_info:
@@ -1731,7 +1732,7 @@ class TestTakeSnapshot:
     ) -> None:
         #: Given
         link = RootRelativePath.parse(unsearchable_dir_with_a_link.relative_to(tmp_path).as_posix()) / 'linked.md'
-        scope = (ScanRoot(link.parent, depth=0),)
+        scope = (ScanRoot(link.parent, depth=UnsignedInt(0)),)
 
         #: When
         with pytest.raises(SnapshotLinkReadError) as exc_info:
@@ -2811,7 +2812,7 @@ class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
         self, tmp_path: Path, chain_of_41_links: str
     ) -> None:
         #: Given
-        scope = (ScanRoot(RootRelativePath.parse(chain_of_41_links), depth=0, follow_links=True),)
+        scope = (ScanRoot(RootRelativePath.parse(chain_of_41_links), depth=UnsignedInt(0), follow_links=True),)
         disk = DiskFileSystem(tmp_path)
         virtual = VirtualFileSystem(take_snapshot(tmp_path, scope))
 
@@ -2825,7 +2826,7 @@ class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
         self, tmp_path: Path, chain_of_40_links: str
     ) -> None:
         #: Given
-        scope = (ScanRoot(RootRelativePath.parse(chain_of_40_links), depth=0, follow_links=True),)
+        scope = (ScanRoot(RootRelativePath.parse(chain_of_40_links), depth=UnsignedInt(0), follow_links=True),)
         disk = DiskFileSystem(tmp_path)
         virtual = VirtualFileSystem(take_snapshot(tmp_path, scope))
         real = RootRelativePath.parse('real')
@@ -2872,7 +2873,7 @@ class TestDiffOfFollowingSnapshots:
 # The layout's shape of scope: docs/ one level deep with links recorded and not followed, and each skills
 # directory with no depth limit through its links.
 LAYOUT_SHAPED_SCOPE: Final[tuple[ScanRoot, ...]] = (
-    ScanRoot(DOCS_DIR, depth=1),
+    ScanRoot(DOCS_DIR, depth=UnsignedInt(1)),
     ScanRoot(RootRelativePath.parse('.agents/skills'), depth=None, follow_links=True),
     ScanRoot(RootRelativePath.parse('.claude/skills'), depth=None, follow_links=True),
 )
@@ -2914,8 +2915,8 @@ def scope_parity_tree(tmp_path: Path) -> Path:
 
 # The scope of the climbing-chain tree: `skills/` one level deep through its links, and `a/` one level deep.
 CLIMBING_CHAIN_SCOPE: Final[tuple[ScanRoot, ...]] = (
-    ScanRoot(RootRelativePath.parse('skills'), depth=1, follow_links=True),
-    ScanRoot(RootRelativePath.parse('a'), depth=1),
+    ScanRoot(RootRelativePath.parse('skills'), depth=UnsignedInt(1), follow_links=True),
+    ScanRoot(RootRelativePath.parse('a'), depth=UnsignedInt(1)),
 )
 
 
@@ -3039,7 +3040,7 @@ class TestVirtualFileSystemMatchesDiskThroughClimbingLinks:
 
 
 # A plain root like the layout's `docs/`: one level deep, its links recorded and not followed.
-PLAIN_DOCS_SCOPE: Final[tuple[ScanRoot, ...]] = (ScanRoot(DOCS_DIR, depth=1),)
+PLAIN_DOCS_SCOPE: Final[tuple[ScanRoot, ...]] = (ScanRoot(DOCS_DIR, depth=UnsignedInt(1)),)
 
 
 @pytest.fixture(scope='function')

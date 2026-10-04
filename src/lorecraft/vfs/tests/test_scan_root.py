@@ -1,4 +1,4 @@
-"""One scan root: what it lists by the spelling of a path alone, the depth it refuses, and how deep it reaches.
+"""One scan root: what it lists by the spelling of a path alone, and how deep it reaches.
 
 Each is seen with a depth and with no depth limit: the root a scan lists a level down, and which of two roots
 reaches deeper, are where the two differ.
@@ -10,6 +10,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 
 from ..scan_root import ScanRoot
@@ -28,21 +29,9 @@ def _path(raw: str) -> RootRelativePath:
 
 @pytest.mark.unit
 class TestScanRoot:
-    def test_construct_with_a_negative_depth_raises_value_error(self) -> None:
-        #: Given
-        depth = -1
-
-        #: When
-        with pytest.raises(ValueError) as exc_info:
-            ScanRoot(DOCS, depth=depth)
-
-        #: Then
-        assert exc_info.type is ValueError, 'a negative depth, which would list nothing, is a value error'
-        assert str(depth) in str(exc_info.value), 'the message names the rejected depth'
-
     def test_is_covering_at_depth_zero_with_an_entry_of_the_directory_returns_true(self) -> None:
         #: Given
-        scan_root = ScanRoot(DOCS, depth=0)
+        scan_root = ScanRoot(DOCS, depth=UnsignedInt(0))
         path = _path('docs/a.md')
 
         #: When
@@ -53,7 +42,7 @@ class TestScanRoot:
 
     def test_is_covering_at_depth_zero_with_an_entry_one_level_below_returns_false(self) -> None:
         #: Given
-        scan_root = ScanRoot(DOCS, depth=0)
+        scan_root = ScanRoot(DOCS, depth=UnsignedInt(0))
         path = _path('docs/feat/a.md')
 
         #: When
@@ -64,7 +53,7 @@ class TestScanRoot:
 
     def test_is_covering_at_depth_one_with_an_entry_one_level_below_returns_true(self) -> None:
         #: Given
-        scan_root = ScanRoot(DOCS, depth=1)
+        scan_root = ScanRoot(DOCS, depth=UnsignedInt(1))
         path = _path('docs/feat/a.md')
 
         #: When
@@ -75,7 +64,7 @@ class TestScanRoot:
 
     def test_is_covering_at_depth_one_with_an_entry_two_levels_below_returns_false(self) -> None:
         #: Given
-        scan_root = ScanRoot(DOCS, depth=1)
+        scan_root = ScanRoot(DOCS, depth=UnsignedInt(1))
         path = _path('docs/feat/deep/a.md')
 
         #: When
@@ -86,7 +75,7 @@ class TestScanRoot:
 
     def test_listing_level_with_an_entry_of_the_directory_returns_zero(self) -> None:
         #: Given
-        scan_root = ScanRoot(DOCS, depth=1)
+        scan_root = ScanRoot(DOCS, depth=UnsignedInt(1))
         path = _path('docs/a.md')
 
         #: When
@@ -97,7 +86,7 @@ class TestScanRoot:
 
     def test_listing_level_with_an_entry_two_levels_below_returns_two(self) -> None:
         #: Given
-        scan_root = ScanRoot(DOCS, depth=1)
+        scan_root = ScanRoot(DOCS, depth=UnsignedInt(1))
         path = _path('docs/feat/deep/a.md')
 
         #: When
@@ -108,7 +97,7 @@ class TestScanRoot:
 
     def test_is_covering_at_depth_one_with_a_directory_one_level_below_returns_true(self) -> None:
         #: Given
-        scan_root = ScanRoot(DOCS, depth=1)
+        scan_root = ScanRoot(DOCS, depth=UnsignedInt(1))
         path = _path('docs/feat/deep')
 
         #: When
@@ -119,7 +108,7 @@ class TestScanRoot:
 
     def test_is_covering_at_depth_two_with_an_entry_two_levels_below_returns_true(self) -> None:
         #: Given
-        scan_root = ScanRoot(DOCS, depth=2)
+        scan_root = ScanRoot(DOCS, depth=UnsignedInt(2))
         path = _path('docs/feat/deep/a.md')
 
         #: When
@@ -130,7 +119,7 @@ class TestScanRoot:
 
     def test_is_covering_with_the_directory_itself_returns_false(self) -> None:
         #: Given
-        scan_root = ScanRoot(DOCS, depth=1)
+        scan_root = ScanRoot(DOCS, depth=UnsignedInt(1))
         path = DOCS
 
         #: When
@@ -141,7 +130,7 @@ class TestScanRoot:
 
     def test_is_covering_with_a_path_outside_the_directory_returns_false(self) -> None:
         #: Given
-        scan_root = ScanRoot(DOCS, depth=1)
+        scan_root = ScanRoot(DOCS, depth=UnsignedInt(1))
         path = _path('src/a.md')
 
         #: When
@@ -152,7 +141,7 @@ class TestScanRoot:
 
     def test_is_covering_with_a_sibling_sharing_the_directory_prefix_returns_false(self) -> None:
         #: Given
-        scan_root = ScanRoot(DOCS, depth=1)
+        scan_root = ScanRoot(DOCS, depth=UnsignedInt(1))
         path = _path('docs-old/a.md')
 
         #: When
@@ -163,7 +152,7 @@ class TestScanRoot:
 
     def test_is_covering_when_following_links_answers_by_spelling_as_without(self) -> None:
         #: Given
-        scan_root = ScanRoot(DOCS, depth=1, follow_links=True)
+        scan_root = ScanRoot(DOCS, depth=UnsignedInt(1), follow_links=True)
         path = _path('docs/feat/deep/a.md')
 
         #: When
@@ -174,7 +163,7 @@ class TestScanRoot:
 
     def test_is_covering_at_the_workspace_root_with_an_entry_of_it_returns_true(self) -> None:
         #: Given
-        scan_root = ScanRoot(_path('.'), depth=0)
+        scan_root = ScanRoot(_path('.'), depth=UnsignedInt(0))
         path = _path('a.md')
 
         #: When
@@ -221,29 +210,31 @@ class TestScanRoot:
 class TestScanRootFindRootBelow:
     def test_find_root_below_with_depth_left_returns_a_root_with_the_levels_taken_off(self) -> None:
         #: Given
-        scan_root = ScanRoot(DOCS, depth=3)
+        scan_root = ScanRoot(DOCS, depth=UnsignedInt(3))
         directory = _path('docs/feat/deep')
 
         #: When
         lowered = scan_root.find_root_below(directory, levels=2)
 
         #: Then
-        assert lowered == ScanRoot(directory, depth=1), 'two levels down from depth 3, one level is left'
+        assert lowered == ScanRoot(directory, depth=UnsignedInt(1)), 'two levels down from depth 3, one level is left'
 
     def test_find_root_below_with_exactly_the_depth_returns_a_root_at_depth_zero(self) -> None:
         #: Given
-        scan_root = ScanRoot(DOCS, depth=1)
+        scan_root = ScanRoot(DOCS, depth=UnsignedInt(1))
         directory = _path('docs/feat')
 
         #: When
         lowered = scan_root.find_root_below(directory, levels=1)
 
         #: Then
-        assert lowered == ScanRoot(directory, depth=0), 'depth 1 enters docs/feat and lists it with none left'
+        assert lowered == ScanRoot(directory, depth=UnsignedInt(0)), (
+            'depth 1 enters docs/feat and lists it with none left'
+        )
 
     def test_find_root_below_past_the_depth_returns_none(self) -> None:
         #: Given
-        scan_root = ScanRoot(DOCS, depth=0)
+        scan_root = ScanRoot(DOCS, depth=UnsignedInt(0))
         directory = _path('docs/feat')
 
         #: When
@@ -280,7 +271,7 @@ class TestScanRootIsAtLeastAsDeepAs:
     def test_is_at_least_as_deep_as_with_no_depth_limit_against_a_depth_returns_true(self) -> None:
         #: Given
         scan_root = ScanRoot(DOCS, depth=None)
-        other = ScanRoot(DOCS, depth=5)
+        other = ScanRoot(DOCS, depth=UnsignedInt(5))
 
         #: When
         at_least_as_deep = scan_root.is_at_least_as_deep_as(other)
@@ -290,7 +281,7 @@ class TestScanRootIsAtLeastAsDeepAs:
 
     def test_is_at_least_as_deep_as_with_a_depth_against_no_depth_limit_returns_false(self) -> None:
         #: Given
-        scan_root = ScanRoot(DOCS, depth=5)
+        scan_root = ScanRoot(DOCS, depth=UnsignedInt(5))
         other = ScanRoot(DOCS, depth=None)
 
         #: When
@@ -314,8 +305,8 @@ class TestScanRootIsAtLeastAsDeepAs:
 
     def test_is_at_least_as_deep_as_with_an_equal_depth_returns_true(self) -> None:
         #: Given
-        scan_root = ScanRoot(DOCS, depth=1)
-        other = ScanRoot(DOCS, depth=1)
+        scan_root = ScanRoot(DOCS, depth=UnsignedInt(1))
+        other = ScanRoot(DOCS, depth=UnsignedInt(1))
 
         #: When
         at_least_as_deep = scan_root.is_at_least_as_deep_as(other)
@@ -325,8 +316,8 @@ class TestScanRootIsAtLeastAsDeepAs:
 
     def test_is_at_least_as_deep_as_with_a_shallower_depth_returns_false(self) -> None:
         #: Given
-        scan_root = ScanRoot(DOCS, depth=1)
-        other = ScanRoot(DOCS, depth=2)
+        scan_root = ScanRoot(DOCS, depth=UnsignedInt(1))
+        other = ScanRoot(DOCS, depth=UnsignedInt(2))
 
         #: When
         at_least_as_deep = scan_root.is_at_least_as_deep_as(other)

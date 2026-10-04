@@ -8,6 +8,7 @@ from typing import Final
 
 from lorecraft.agents import iter_agents
 from lorecraft.core.error import Error
+from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import ROOT, RootRelativePath
 from lorecraft.vfs import EntryKind, FileSystem, ScanRoot
 
@@ -35,7 +36,7 @@ def _skills_scan_roots() -> list[ScanRoot]:  # pragma: no mutate block
     return scan_roots
 
 
-SNAPSHOT_SCOPE: Final[tuple[ScanRoot, ...]] = (ScanRoot(DOCS_DIR, depth=1), *_skills_scan_roots())
+SNAPSHOT_SCOPE: Final[tuple[ScanRoot, ...]] = (ScanRoot(DOCS_DIR, depth=UnsignedInt(1)), *_skills_scan_roots())
 """What a snapshot reads: what the document, schema and skill repositories read at the scan roots.
 
 The document and schema repositories list `docs/` and each corpus and specs directory in it; the skill
