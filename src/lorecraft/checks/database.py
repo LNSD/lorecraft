@@ -269,9 +269,7 @@ class Database:
             path: The entry to ask about, relative to the snapshot root; it need not exist.
         """
         if self._scope_index is None:
-            self._scope_index = ScopeIndex(
-                self._snapshot.scope, self._snapshot.links, self._snapshot.climbed_directories
-            )
+            self._scope_index = ScopeIndex(self._snapshot)
         return self._scope_index.is_in_scope(path)
 
     def text(self, ref: DocumentRef) -> DocumentText | Undecodable:
