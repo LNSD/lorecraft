@@ -19,15 +19,11 @@ from .frontmatter_problem import (
     FrontmatterProblem,
     InvalidValueProblem,
     MissingFieldProblem,
-    NonStringKeyProblem,
     NotAStringMappingProblem,
     NotAStringProblem,
     UnknownFieldProblem,
 )
 from .skill_frontmatter import SkillFrontmatter, find_value_object_message
-
-_KEY_LOCATION: Final[str] = '[key]'
-"""The location pydantic appends when a mapping's key, rather than its value, is at fault."""
 
 
 # It holds nothing, since the specification is fixed. It is an object rather than a function so that it has the
@@ -39,11 +35,11 @@ class SkillFrontmatterSchema:
     ``SKILL_FRONTMATTER_SCHEMA`` is the one instance.
     """
 
-    def validate(self, data: Mapping[object, object]) -> tuple[FrontmatterProblem, ...]:
+    def validate(self, data: Mapping[str, object]) -> tuple[FrontmatterProblem, ...]:
         """Hold one decoded frontmatter to the specification. Pure: raises nothing.
 
         Args:
-            data: The decoded frontmatter mapping. Keys that are not strings are reported, not rejected.
+            data: The decoded frontmatter mapping, every key a string at any depth.
 
         Returns:
             One problem per field at fault, in the order the specification declares its fields, or ``()`` when
@@ -73,12 +69,6 @@ def _frontmatter_problem(detail: ErrorDetails) -> FrontmatterProblem:
     if not location:
         # pydantic locates every problem of a mapping at a key; one that names none concerns the block.
         return BlockProblem('the frontmatter does not satisfy the Agent Skills specification')
-    if detail['type'] == 'invalid_key':
-        # No field is named by such a key, and pydantic reports the decoded value rather than what was written
-        # (`yes` comes back as `1`), so the message names no key.
-        message = 'a key that is not a string is not a field of the Agent Skills specification'
-        return NonStringKeyProblem(message)
-
     field = str(location[0])
     if len(location) > 1:
         return InvalidValueProblem(field, _nested_message(field, detail))
@@ -106,8 +96,6 @@ def _nested_message(field: str, detail: ErrorDetails) -> str:
         field: Top-level field the error sits inside.
         detail: The pydantic error, whose `loc` runs past the field into its value.
     """
-    if _KEY_LOCATION in detail['loc']:
-        return f'`{field}` keys must be strings'
     path = '.'.join(str(part) for part in detail['loc'])
     if detail['type'] == 'string_type':
         return f'`{path}` must be a string'

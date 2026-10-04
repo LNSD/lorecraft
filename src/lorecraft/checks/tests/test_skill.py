@@ -286,7 +286,7 @@ class TestValidateSkill:
             ),
         ), 'a field an agent adds beyond the specification is refused, on its own line'
 
-    def test_validate_skill_with_a_key_that_is_not_a_string_reports_it_unknown_on_line_one(self) -> None:
+    def test_validate_skill_with_a_key_that_is_not_a_string_reports_unparseable_frontmatter_on_its_line(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('---\nname: review\ndescription: Review a change\n123: opus\n---\n')
 
@@ -298,11 +298,11 @@ class TestValidateSkill:
         #: Then
         assert result.violations == (
             Violation(
-                line=LineNumber.from_int(1),
-                rule='skill.unknown-field',
-                message='a key that is not a string is not a field of the Agent Skills specification',
+                line=LineNumber.from_int(4),
+                rule='skill.frontmatter-unparseable',
+                message='frontmatter is not valid YAML: found the key 123, which is not a string',
             ),
-        ), 'a key YAML decodes to a number is no field, and has no recorded line, so it is reported on line 1'
+        ), "a key YAML decodes to a number is refused where the block is decoded, on the key's line"
 
     def test_validate_skill_with_a_non_string_metadata_value_reports_the_metadata_rule(self) -> None:
         #: Given

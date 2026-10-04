@@ -11,7 +11,6 @@ from lorecraft.project.schemas import (
     FrontmatterProblem,
     InvalidValueProblem,
     MissingFieldProblem,
-    NonStringKeyProblem,
     NotAStringMappingProblem,
     NotAStringProblem,
     UnknownFieldProblem,
@@ -34,7 +33,7 @@ def problem_rule(rule_namespace: str, problem: FrontmatterProblem) -> str:
         problem: The schema problem to name a rule for.
     """
     match problem:
-        case UnknownFieldProblem() | NonStringKeyProblem():
+        case UnknownFieldProblem():
             return f'{rule_namespace}.unknown-field'
         case BlockProblem():
             return f'{rule_namespace}.frontmatter'
@@ -58,7 +57,7 @@ def problem_line(frontmatter: Frontmatter, problem: FrontmatterProblem) -> LineN
         problem: What the schema rejected; a problem naming a field is placed on that field's line.
     """
     match problem:
-        case NonStringKeyProblem() | BlockProblem():
+        case BlockProblem():
             return _FIRST_LINE
         case (
             MissingFieldProblem()

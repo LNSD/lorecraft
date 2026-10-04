@@ -66,8 +66,7 @@ key is listed as `<corpus>.ungoverned` with the reason
 
 ## Limitations
 
-- A key repeated inside a nested mapping, or a repeated key that is not a string, is not reported as a
-  duplicate.
+- A key repeated inside a nested mapping is not reported as a duplicate.
 - A field supplied only through a YAML merge (`<<`) has no line of its own, so a finding about it is on line 1.
 - A key written as a YAML alias (`*k`) is placed on the line of the anchor it names, so a finding about it,
   a repeated key included, is on that line rather than the alias's.
@@ -75,7 +74,7 @@ key is listed as `<corpus>.ungoverned` with the reason
 ## Findings
 
 A finding is reported on the line of the key it concerns, on the line the YAML parser stopped at when the block
-does not parse, or on line 1 when the key is absent, is not a string, or the whole block is at fault. A document
+does not parse, or on line 1 when the key is absent or the whole block is at fault. A document
 whose frontmatter is missing, unparseable or undecodable reports that one finding and nothing else. The name is
 compared first, then each schema is applied, then repeated keys are reported; a schema finding keeps the
 validator's own wording, since it names a constraint the specification's authors wrote. The schema rules,
@@ -92,12 +91,12 @@ by a merge is not an occurrence: a written key that overrides a merged one is no
 | Rule | Reported when |
 |------|---------------|
 | `frontmatter.missing` | The document does not open with a `---` delimited block |
-| `frontmatter.unparseable` | The block is not valid YAML, or is not a mapping |
+| `frontmatter.unparseable` | The block is not valid YAML, or is not a mapping, or writes a key, at any depth, that is not a string, such as `1`, `true`, `null` or `2026-10-04`, reported on the key's line and naming it; a quoted key such as `'1'` is a string |
 | `frontmatter.undecodable` | The file is not valid UTF-8 |
 | `frontmatter.name-matches-filename` | `name` is not the filename without `.md` |
 | `frontmatter.duplicate-key` | A top-level key is written again; the message gives the line of the first occurrence |
 | `<corpus>.<field>` | A frontmatter schema rejects that field, or requires it and it is absent; the message names the specification |
-| `<corpus>.unknown-field` | A frontmatter schema does not allow that field, such as `model` under `"additionalProperties": false`, or a key that is not a string, such as `123`, reported on line 1 |
+| `<corpus>.unknown-field` | A frontmatter schema does not allow that field, such as `model` under `"additionalProperties": false` |
 | `<corpus>.frontmatter` | A frontmatter schema rejects the frontmatter as a whole, such as with `minProperties` |
 
 The `<corpus>` prefix is the document's corpus, whichever layer's schema the finding comes from.
