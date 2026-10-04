@@ -7,6 +7,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import PositiveInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.inputs import Budget, TokenCountInput
@@ -25,7 +26,7 @@ NAMESPACE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/
 class TestTooManyTokens:
     def test_check_with_a_document_over_the_budget_reports_it_on_line_1(self) -> None:
         #: Given
-        subject = TokenCountInput(token_count=7, budgets=(Budget(tokens=6, spec=CORPUS_SPEC),))
+        subject = TokenCountInput(token_count=7, budgets=(Budget(tokens=PositiveInt(6), spec=CORPUS_SPEC),))
 
         #: When
         occurrences = TooManyTokens.check(subject)
@@ -37,7 +38,7 @@ class TestTooManyTokens:
 
     def test_check_with_a_document_at_the_budget_reports_nothing(self) -> None:
         #: Given
-        subject = TokenCountInput(token_count=7, budgets=(Budget(tokens=7, spec=CORPUS_SPEC),))
+        subject = TokenCountInput(token_count=7, budgets=(Budget(tokens=PositiveInt(7), spec=CORPUS_SPEC),))
 
         #: When
         occurrences = TooManyTokens.check(subject)
@@ -49,7 +50,10 @@ class TestTooManyTokens:
         #: Given
         subject = TokenCountInput(
             token_count=7,
-            budgets=(Budget(tokens=10, spec=CORPUS_SPEC), Budget(tokens=5, spec=NAMESPACE_SPEC)),
+            budgets=(
+                Budget(tokens=PositiveInt(10), spec=CORPUS_SPEC),
+                Budget(tokens=PositiveInt(5), spec=NAMESPACE_SPEC),
+            ),
         )
 
         #: When
@@ -64,7 +68,10 @@ class TestTooManyTokens:
         #: Given
         subject = TokenCountInput(
             token_count=12,
-            budgets=(Budget(tokens=10, spec=CORPUS_SPEC), Budget(tokens=5, spec=NAMESPACE_SPEC)),
+            budgets=(
+                Budget(tokens=PositiveInt(10), spec=CORPUS_SPEC),
+                Budget(tokens=PositiveInt(5), spec=NAMESPACE_SPEC),
+            ),
         )
 
         #: When
