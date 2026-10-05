@@ -556,7 +556,7 @@ class TestCheckFrontmatterCommand:
             'docs/__meta__/code.structure.json',
             '{"frontmatter": {"type": "object", "patternProperties": {"^x-": {"type": "string"}}}}',
         )
-        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n2026-10-04: launch\n---\n')
+        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n2026: launch\n---\n')
         app = build_app()
 
         #: When
@@ -566,7 +566,7 @@ class TestCheckFrontmatterCommand:
         assert result.exit_code == 1, result.output
         assert result.stdout == (
             'docs/code/guide.md:3: [frontmatter.unparseable] frontmatter is not valid YAML: '
-            'found the key 2026-10-04, which is not a string\n'
+            'found the key 2026, which is not a string\n'
         ), 'a key a pattern cannot be matched against is refused as unparseable on its line, not a failure of the run'
 
     def test_check_frontmatter_without_a_root_finds_the_nearest_parent_with_docs_meta(
@@ -926,7 +926,7 @@ class TestCheckFrontmatterCommand:
             'docs/__meta__/code.structure.json',
             '{"frontmatter": {"type": "object", "patternProperties": {"^x-": {"type": "string"}}}}',
         )
-        _write(tmp_path, 'docs/code/guide.md', '---\nname: guide\nmeta:\n  2026-10-04: launch\n---\n')
+        _write(tmp_path, 'docs/code/guide.md', '---\nname: guide\nmeta:\n  2026: launch\n---\n')
         app = build_app()
 
         #: When
@@ -941,7 +941,7 @@ class TestCheckFrontmatterCommand:
                     'file': 'docs/code/guide.md',
                     'line': 4,
                     'rule': 'frontmatter.unparseable',
-                    'message': 'frontmatter is not valid YAML: found the key 2026-10-04, which is not a string',
+                    'message': 'frontmatter is not valid YAML: found the key 2026, which is not a string',
                     'spec': None,
                     'notes': [],
                 }

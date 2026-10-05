@@ -1,1 +1,1 @@
-docs/code/guide.md:3: [frontmatter.unparseable] frontmatter is not valid YAML: found the key 2026-10-04, which is not a string
+docs/code/guide.md:3: [frontmatter.unparseable] frontmatter is not valid YAML: found the key 2026, which is not a string

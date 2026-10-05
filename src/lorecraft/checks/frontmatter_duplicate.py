@@ -4,10 +4,9 @@ YAML lets a mapping repeat a key, and the decoder keeps the value of its last oc
 field can be written twice and read as whichever was written second. That is a finding whether the two values
 are equal or differ: one of the two lines says nothing the document means.
 
-The frontmatter check and the skill check read the same ``Frontmatter`` value, so both report a repeated key the
-same way; only the rule differs, ``frontmatter.duplicate-key`` or ``skill.duplicate-key``. Only top-level keys
-written as strings are compared, the keys ``Frontmatter.keys`` lists, so a key a ``<<`` merge supplies is never
-a repetition of one the mapping writes.
+The frontmatter check and the skill check read the same `Frontmatter` value, so both report a repeated key the
+same way; only the rule differs, `frontmatter.duplicate-key` or `skill.duplicate-key`. Only top-level keys
+written as strings are compared, the keys `Frontmatter.keys` lists.
 """
 
 from lorecraft.project.syntax import Frontmatter, LineNumber

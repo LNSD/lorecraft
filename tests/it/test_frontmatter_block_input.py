@@ -240,17 +240,6 @@ class TestBuildDocumentFrontmatterBlockInput:
             '`name` is the last value, at the last line'
         )
 
-    def test_build_document_frontmatter_block_input_with_a_name_only_a_merge_supplies_locates_it_on_line_1(
-        self,
-    ) -> None:
-        #: When
-        subject = _governed_input('---\n<<: {name: python-typing}\n---\n')
-
-        #: Then
-        assert subject.frontmatter == FrontmatterFields(
-            name=NameField(value='python-typing', line=LineNumber.from_int(1)), repeated_keys=()
-        ), 'a field the mapping does not write itself is located on line 1'
-
     def test_build_document_frontmatter_block_input_with_no_name_holds_none(self) -> None:
         #: When
         subject = _governed_input('---\ntitle: Typing\n---\n')
