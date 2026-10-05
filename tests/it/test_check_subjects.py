@@ -52,6 +52,7 @@ from lorecraft.rules.frontmatter.wrong_type import WrongType
 from lorecraft.rules.inputs import InputKind, TokenCountInput, TokenCountRule
 from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
+from lorecraft.rules.length.too_many_words import TooManyWords
 from lorecraft.rules.outline.empty_section import EmptySection
 from lorecraft.rules.outline.extra_title import ExtraTitle
 from lorecraft.rules.outline.forbidden_section import ForbiddenSection
@@ -1192,6 +1193,26 @@ class TestCheckSubjects:
                 ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
             ),
         ), 'OUT005 runs at deny over a document whose specification forbids a section, at the forbidden heading'
+
+    def test_check_subjects_with_a_section_over_its_word_cap_reports_too_many_words(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        guide = b'# Guide\n\n## Run\n\nRun it once, then again.\n'
+        database = Database(_snapshot(b'{"outline": [{"section": "Run", "words": 3}]}', guide=guide))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), package_table)
+
+        #: Then
+        occurrence = TooManyWords(spec=CODE_SPEC, line=LineNumber.from_int(3), word_count=5, cap=3)
+        assert reports == (
+            CheckedSubject(
+                GUIDE,
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
+            ),
+        ), 'LEN003 runs at deny over a document whose specification caps a section, at the section over its cap'
 
     def test_check_subjects_with_no_enabled_rule_over_the_headings_never_parses_the_document(self) -> None:
         #: Given
