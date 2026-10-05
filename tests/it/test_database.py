@@ -418,6 +418,18 @@ class TestDatabase:
         #: Then
         assert tokens == expected, f'frontmatter and code count too, got {tokens}'
 
+    def test_document_lines_of_a_listed_document_counts_its_whole_file(self) -> None:
+        #: Given
+        # three lines of frontmatter and two of body, the last one ending in a newline
+        database = Database(_snapshot(b'---\nname: "guide"\n---\n# Guide\n\n'))
+        source = _document_text(database, GUIDE)
+
+        #: When
+        lines = database.document_lines(source)
+
+        #: Then
+        assert lines == 5, f'the frontmatter counts too, and the final newline adds no line, got {lines}'
+
     def test_skill_text_of_a_utf8_skill_returns_its_witness(self) -> None:
         #: Given
         database = Database(_skill_snapshot(b'---\nname: review\n---\n'))

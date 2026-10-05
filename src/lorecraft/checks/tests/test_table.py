@@ -20,6 +20,7 @@ from lorecraft.rules.length.too_many_words import TooManyWords
 from lorecraft.rules.outline.empty_section import EmptySection
 from lorecraft.rules.outline.extra_title import ExtraTitle
 from lorecraft.rules.outline.forbidden_section import ForbiddenSection
+from lorecraft.rules.outline.missing_section import MissingSection
 from lorecraft.rules.outline.missing_title import MissingTitle
 from lorecraft.rules.outline.title_not_first import TitleNotFirst
 from lorecraft.rules.registry import Registry
@@ -173,6 +174,18 @@ class TestRuleTableFromRegistry:
             EnabledRule(ForbiddenSection, Severity.ERROR),
         ), "the package's headings rules are enabled by default as errors, in code order"
 
+    def test_from_registry_with_the_package_registry_enables_the_outline_divergence_rules(self) -> None:
+        #: Given
+        registry = Registry.load(rules)
+
+        #: When
+        table = RuleTable.from_registry(registry)
+
+        #: Then
+        assert table.outline_divergence_rules == (EnabledRule(MissingSection, Severity.ERROR),), (
+            "the package's outline divergence rules are enabled by default as errors"
+        )
+
 
 @pytest.mark.unit
 class TestRuleTable:
@@ -280,5 +293,27 @@ class TestRuleTable:
 
         #: Then
         assert table.headings_rules == (EnabledRule(MissingTitle, Severity.WARNING),), (
+            'a rule joins the partition of the input it reads, and no other'
+        )
+
+    def test_rule_table_with_no_rules_has_an_empty_outline_divergence_partition(self) -> None:
+        #: Given
+        severities: dict[type[Rule], Severity] = {}
+
+        #: When
+        table = RuleTable(severities)
+
+        #: Then
+        assert table.outline_divergence_rules == (), 'no enabled rule reads where a document diverges from its outline'
+
+    def test_rule_table_with_a_rule_over_the_outline_divergences_partitions_it_with_its_severity(self) -> None:
+        #: Given
+        severities: dict[type[Rule], Severity] = {MissingSection: Severity.WARNING, MissingTitle: Severity.ERROR}
+
+        #: When
+        table = RuleTable(severities)
+
+        #: Then
+        assert table.outline_divergence_rules == (EnabledRule(MissingSection, Severity.WARNING),), (
             'a rule joins the partition of the input it reads, and no other'
         )
