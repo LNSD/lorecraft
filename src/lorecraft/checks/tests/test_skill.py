@@ -106,26 +106,6 @@ class TestValidateSkill:
             'frontmatter that is not YAML is one violation, and no field is judged'
         )
 
-    def test_validate_skill_with_a_tagged_value_its_tag_cannot_construct_reports_it_unparseable(self) -> None:
-        #: Given
-        frontmatter = parse_frontmatter('---\nname: review\ndescription: !!bool maybe\n---\n')
-
-        #: When
-        result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
-        )
-
-        #: Then
-        assert result.violations == (
-            Violation(
-                line=LineNumber.from_int(3),
-                rule='skill.frontmatter-unparseable',
-                message=(
-                    "frontmatter is not valid YAML: could not construct a value for the tag 'tag:yaml.org,2002:bool'"
-                ),
-            ),
-        ), 'a scalar its tag cannot construct is one violation on its line, and no field is judged'
-
     def test_validate_skill_with_a_non_mapping_block_reports_it_unparseable(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('---\n- review\n---\n')
@@ -519,20 +499,6 @@ class TestValidateSkill:
             ),
         ), 'an unknown key written twice is reported once, on its last line, before the repetition'
 
-    def test_validate_skill_with_a_merge_overriding_a_written_key_reports_no_repetition(self) -> None:
-        #: Given
-        frontmatter = parse_frontmatter(
-            '---\nname: review\ndescription: Review a change\n<<: {name: other, license: MIT}\n---\n'
-        )
-
-        #: When
-        result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
-        )
-
-        #: Then
-        assert result.violations == (), 'a key a merge supplies is not written twice, and the written name wins'
-
     def test_validate_skill_with_a_repeated_lone_surrogate_key_reports_it_escaped(self) -> None:
         #: Given
         frontmatter = parse_frontmatter(
@@ -582,19 +548,3 @@ class TestValidateSkill:
                 message="'a\\nb' is already written on line 4",
             ),
         ), 'a newline in the key is printed as its escape, so the repetition stays on one line'
-
-    def test_validate_skill_with_a_field_only_a_merge_supplies_reports_it_on_line_1(self) -> None:
-        #: Given
-        frontmatter = parse_frontmatter('---\nname: review\n<<: {description: ""}\n---\n')
-
-        #: When
-        result = validate_skill(
-            SKILL_FRONTMATTER_SCHEMA, frontmatter=frontmatter, directory_name='review', link_target=None
-        )
-
-        #: Then
-        assert result.violations == (
-            Violation(
-                line=LineNumber.from_int(1), rule='skill.description', message='skill description cannot be empty'
-            ),
-        ), 'a field written only inside a merged mapping has no top-level line, so it is reported on line 1'

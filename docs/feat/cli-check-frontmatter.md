@@ -28,6 +28,10 @@ and checks that the frontmatter `name` equals the filename. It is also one of th
 ## Key Concepts
 
 - **Frontmatter**: The YAML mapping between two `---` lines that opens a document.
+- **Basic YAML**: The YAML a frontmatter is read as, which decodes to JSON's values: mappings with string keys,
+  sequences and scalars. A plain scalar YAML 1.2's core schema reads as null, a boolean or a number is one (`~`,
+  `true`, `12`, `1.5`); any other scalar is a string, `yes` and `2026-10-04` included. An anchor, an alias, a tag
+  (`!!str`), a second document or a key that is not a string (`1`, `true`) makes the block unparseable.
 - **Frontmatter schema**: The `frontmatter` key of a `<name>.structure.json` file; a JSON Schema the
   frontmatter must satisfy, as [spec-structure-frontmatter](spec-structure-frontmatter.md) describes.
 - **Layer**: Each frontmatter schema that applies to a document; every one is applied on its own, so a
@@ -67,31 +71,28 @@ key is listed as `<corpus>.ungoverned` with the reason
 ## Limitations
 
 - A key repeated inside a nested mapping is not reported as a duplicate.
-- A field supplied only through a YAML merge (`<<`) has no line of its own, so a finding about it is on line 1.
-- A key written as a YAML alias (`*k`) is placed on the line of the anchor it names, so a finding about it,
-  a repeated key included, is on that line rather than the alias's.
 
 ## Findings
 
-A finding is reported on the line of the key it concerns, on the line the YAML parser stopped at when the block
-does not parse, or on line 1 when the key is absent or the whole block is at fault. A document
-whose frontmatter is missing, unparseable or undecodable reports that one finding and nothing else. The name is
-compared first, then each schema is applied, then repeated keys are reported; a schema finding keeps the
-validator's own wording, since it names a constraint the specification's authors wrote. The schema rules,
-`<corpus>.<field>`, `<corpus>.unknown-field` and `<corpus>.frontmatter`, mirror the
+A finding is reported on the line of the key it concerns, on the line the YAML parser stopped at when the block does
+not parse, on the line of an anchor, alias, tag, second document or non-string key the block uses, or on line 1 when the
+key is absent or the whole block is at fault. A document whose frontmatter is missing, unparseable or undecodable
+reports that one finding and nothing else. The name is compared first, then each schema is applied, then repeated
+keys are reported; a schema finding keeps the validator's own wording, since it names a constraint the
+specification's authors wrote. The schema rules, `<corpus>.<field>`, `<corpus>.unknown-field` and
+`<corpus>.frontmatter`, mirror the
 [skill check](cli-check-skills.md#findings)'s, under the corpus instead of `skill`; the rest are `frontmatter.*`.
 
 A top-level key written again is a finding of its own, on the line of each occurrence after the first, whether
 the values are equal or differ. The message is `'<key>' is already written on line <N>`, where N is the line of
 the first occurrence and the key is quoted with its escapes, as in `'a\nb'`, so it always prints on one line. The
 finding suppresses none of the others. The YAML decoder keeps the value of the last
-occurrence, so any other finding about that key is reported on the line of its last occurrence. A key brought in
-by a merge is not an occurrence: a written key that overrides a merged one is not a duplicate.
+occurrence, so any other finding about that key is reported on the line of its last occurrence.
 
 | Rule | Reported when |
 |------|---------------|
 | `frontmatter.missing` | The document does not open with a `---` delimited block |
-| `frontmatter.unparseable` | The block is not valid YAML, or is not a mapping, or writes a key, at any depth, that is not a string, such as `1`, `true`, `null` or `2026-10-04`, reported on the key's line and naming it; a quoted key such as `'1'` is a string |
+| `frontmatter.unparseable` | The block is not valid YAML, uses YAML beyond [basic YAML](#key-concepts), or is not a mapping; the message names what was refused |
 | `frontmatter.undecodable` | The file is not valid UTF-8 |
 | `frontmatter.name-matches-filename` | `name` is not the filename without `.md` |
 | `frontmatter.duplicate-key` | A top-level key is written again; the message gives the line of the first occurrence |
