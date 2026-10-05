@@ -5,6 +5,7 @@ import pytest
 from lorecraft import rules
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
+from lorecraft.rules.frontmatter.invalid_value import InvalidValue
 from lorecraft.rules.frontmatter.invalid_yaml import InvalidYaml
 from lorecraft.rules.frontmatter.missing_field import MissingField
 from lorecraft.rules.frontmatter.missing_frontmatter import MissingFrontmatter
@@ -360,6 +361,7 @@ class TestPackageRegistry:
             MissingField,
             UnknownField,
             WrongType,
+            InvalidValue,
             InvalidUtf8,
             TooManyTokens,
             TooManyLines,
