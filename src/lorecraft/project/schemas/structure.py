@@ -13,7 +13,6 @@ structure specification is not JSON Schema. It is this small dialect, whose fiel
     {
       "$schema": "../schemas/structure.spec.json",
       "description": "what this file governs, for whoever opens it",
-      "title": {"count": 1, "first": true},
       "empty_sections": "forbidden",
       "tokens": 5000,
       "frontmatter": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string"}}},
@@ -37,7 +36,6 @@ finding quotes it.
   `structure_file`; it is not kept. That schema states the shape only: the rules `StructureSpec` refuses
   below it cannot state.
 - `description` is read by people only, and is not kept.
-- `title` states how many H1 titles a document carries, and whether one opens it ahead of every section.
 - `empty_sections`, whose one value is `"forbidden"`, reports a section left without content.
 - `tokens` is the token budget: the most tokens the whole file may hold, frontmatter, code and tables
   included, since that is what loading it costs an agent. The count is `o200k_base`, the same whichever agent
@@ -56,6 +54,9 @@ finding quotes it.
   section holds and its `examples` are Markdown samples of its body; when a document lacks the section, the
   structure check reports the description and the first example as notes, and leaves the rest to a reader.
 - `forbidden` names sections that must not appear at all.
+
+No key states the title: a document a structure specification governs always carries exactly one H1 title, and it
+opens the document.
 
 A section name, in an outline entry or in `forbidden`, is a `SectionName`: one line of heading text with no
 whitespace at either end, since a heading's text never has any.
@@ -97,7 +98,6 @@ from .structure_file import (
     StructureFile,
     StructureFileAny,
     StructureFileSection,
-    StructureFileTitle,
 )
 
 # The text of a structure specification file as read, not yet known to be JSON, the dialect's shape or usable
@@ -274,19 +274,6 @@ class UntypedFrontmatterSchemaError(Error):
     def __init__(self, path: RootRelativePath) -> None:
         self.path = path
         super().__init__(f'invalid structure schema {path}: frontmatter schema root must state "type": "object"')
-
-
-@dataclass(frozen=True, slots=True)
-class TitleRule:
-    """How many H1 titles a document carries, and whether one opens it.
-
-    Attributes:
-        count: The number of H1 titles.
-        first: True when an H1 title must come before any other heading.
-    """
-
-    count: NonZeroUnsignedInt
-    first: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -557,7 +544,6 @@ class StructureSpec:
     Attributes:
         file: The JSON file, `<name>.structure.json`, at its parsed specification filename; the prose it is the
             machine-checkable half of is `<name>.md` beside it, which `authority` names.
-        title: The title rule, or None when the specification states none.
         forbid_empty_sections: True when every section must hold content.
         outline: The section order, matched against a document's sections left to right; may be empty.
         forbidden: Sections that must not appear at all, each named once.
@@ -568,7 +554,6 @@ class StructureSpec:
     """
 
     file: StructureSpecFile
-    title: TitleRule | None
     forbid_empty_sections: bool
     outline: tuple[OutlineEntry, ...]
     forbidden: tuple[SectionName, ...]
@@ -581,7 +566,7 @@ class StructureSpec:
         A rule is not usable when it checks nothing, or when it contradicts itself.
 
         A frontmatter schema is checked when it is built, before the structure specification is, and so is a
-        count, a cap or a budget: each is a `NonZeroUnsignedInt`, at least 1. So is a section name: each is a
+        cap or a budget: each is a `NonZeroUnsignedInt`, at least 1. So is a section name: each is a
         `SectionName`, one line with no whitespace at either end.
 
         Raises:
@@ -592,8 +577,7 @@ class StructureSpec:
             AdjacentAnyRunsError: If its outline places two `any` runs side by side.
         """
         states_no_rule = (
-            self.title is None
-            and not self.forbid_empty_sections
+            not self.forbid_empty_sections
             and self.tokens is None
             and self.frontmatter is None
             and not self.outline
@@ -692,24 +676,12 @@ class StructureSpec:
 
         return cls(
             file=file,
-            title=_title_rule(structure_file.title),
             forbid_empty_sections=structure_file.empty_sections == 'forbidden',
             outline=tuple(outline),
             forbidden=structure_file.forbidden,
             tokens=structure_file.tokens,
             frontmatter=_frontmatter_schema(file.path, structure_file.frontmatter),
         )
-
-
-def _title_rule(title: StructureFileTitle | None) -> TitleRule | None:
-    """The title rule a file's `title` field states, or None when the file states none.
-
-    Args:
-        title: The file's `title` field, as read; `None` when the file leaves it out.
-    """
-    if title is None:
-        return None
-    return TitleRule(count=title.count, first=title.first)
 
 
 def _frontmatter_schema(path: RootRelativePath, schema: dict[str, JsonValue] | None) -> FrontmatterSchema | None:

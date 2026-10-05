@@ -139,36 +139,6 @@
       ],
       "title": "Named section",
       "type": "object"
-    },
-    "StructureFileTitle": {
-      "additionalProperties": false,
-      "description": "How many H1 titles a document carries, and whether one opens it.",
-      "examples": [
-        {
-          "count": 1,
-          "first": true
-        }
-      ],
-      "properties": {
-        "count": {
-          "description": "The number of H1 titles a document carries.",
-          "examples": [
-            1
-          ],
-          "minimum": 1,
-          "type": "integer"
-        },
-        "first": {
-          "description": "True when an H1 title must come before any other heading.",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "count",
-        "first"
-      ],
-      "title": "Title rule",
-      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -211,10 +181,6 @@
           "section": "External References"
         }
       ],
-      "title": {
-        "count": 1,
-        "first": true
-      },
       "tokens": 5000
     }
   ],
@@ -238,18 +204,6 @@
         "Section structure, word caps and token budget for a rule document in docs/code/."
       ],
       "type": "string"
-    },
-    "title": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/StructureFileTitle"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "How many H1 titles a document carries, and whether one opens it; no title rule when absent."
     },
     "tokens": {
       "anyOf": [

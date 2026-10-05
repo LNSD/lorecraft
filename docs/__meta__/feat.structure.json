@@ -40,7 +40,6 @@
       }
     }
   },
-  "title": { "count": 1, "first": true },
   "empty_sections": "forbidden",
   "tokens": 4000,
   "outline": [
@@ -73,7 +72,7 @@
       "optional": true,
       "words": 300,
       "description": "Options, their defaults and where they are read from, usually as a table.",
-      "examples": ["| Key | Value | Meaning |\n|-----|-------|---------|\n| `title` | `{\"count\": <n>, \"first\": <bool>}` | How many H1 titles a document holds, and whether one comes before any section |\n| `empty_sections` | `\"forbidden\"` | Every heading must have content under it |\n| `outline` | list of entries | `{\"section\": \"<name>\"}`, with `\"optional\": true` when it may be left out, or `{\"any\": true}` |\n| `forbidden` | list of names | Sections that must not appear anywhere |\n\nEvery key is optional."]
+      "examples": ["| Key | Value | Meaning |\n|-----|-------|---------|\n| `empty_sections` | `\"forbidden\"` | Every heading must have content under it |\n| `outline` | list of entries | `{\"section\": \"<name>\"}`, with `\"optional\": true` when it may be left out, or `{\"any\": true}` |\n| `forbidden` | list of names | Sections that must not appear anywhere |\n\nEvery key is optional."]
     },
     {
       "section": "Usage",

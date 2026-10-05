@@ -58,7 +58,6 @@ def spec_structure(faker: Faker) -> dict[str, object]:
                 'description': {'type': 'string'},
             },
         },
-        'title': {'count': 1, 'first': True},
         'empty_sections': 'forbidden',
         'outline': [
             {'section': 'Summary', 'words': 350},

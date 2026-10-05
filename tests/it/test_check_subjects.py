@@ -1071,14 +1071,14 @@ class TestCheckSubjects:
         self, package_table: RuleTable
     ) -> None:
         #: Given
-        title_rule = b'{"title": {"count": 1, "first": true}}'
-        database = Database(_snapshot(title_rule, guide=b'## Install\n\nRun it once.\n'))
+        structure_spec = b'{"empty_sections": "forbidden"}'
+        database = Database(_snapshot(structure_spec, guide=b'## Install\n\nRun it once.\n'))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = MissingTitle(spec=CODE_SPEC, line=LineNumber.from_int(1), found=0, count=1)
+        occurrence = MissingTitle(spec=CODE_SPEC, line=LineNumber.from_int(1))
         assert reports == (
             CheckedSubject(
                 GUIDE,
@@ -1089,8 +1089,8 @@ class TestCheckSubjects:
 
     def test_check_subjects_with_a_document_carrying_its_title_reports_it_clean(self, package_table: RuleTable) -> None:
         #: Given
-        title_rule = b'{"title": {"count": 1, "first": true}}'
-        database = Database(_snapshot(title_rule, guide=GUIDE_TEXT.encode()))
+        structure_spec = b'{"empty_sections": "forbidden"}'
+        database = Database(_snapshot(structure_spec, guide=GUIDE_TEXT.encode()))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -1102,11 +1102,11 @@ class TestCheckSubjects:
                 diagnostics=(),
                 ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
             ),
-        ), 'a document carrying the title its specification requires is governed for its headings, and clean'
+        ), 'a document carrying its title is governed for its headings, and clean'
 
     def test_check_subjects_with_no_enabled_rule_over_the_headings_never_parses_the_document(self) -> None:
         #: Given
-        database = CountingDatabase(_snapshot(b'{"title": {"count": 1, "first": true}}', guide=GUIDE_TEXT.encode()))
+        database = CountingDatabase(_snapshot(b'{"empty_sections": "forbidden"}', guide=GUIDE_TEXT.encode()))
         severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
         table = RuleTable(severities)
 
