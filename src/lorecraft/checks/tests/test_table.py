@@ -4,6 +4,7 @@ import pytest
 
 from lorecraft import rules
 from lorecraft.rules.declaration import Rule, Severity
+from lorecraft.rules.frontmatter.block_constraint import BlockConstraint
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
 from lorecraft.rules.frontmatter.invalid_value import InvalidValue
 from lorecraft.rules.frontmatter.invalid_yaml import InvalidYaml
@@ -146,6 +147,7 @@ class TestRuleTableFromRegistry:
             EnabledRule(UnknownField, Severity.WARNING),
             EnabledRule(WrongType, Severity.ERROR),
             EnabledRule(InvalidValue, Severity.ERROR),
+            EnabledRule(BlockConstraint, Severity.ERROR),
         ), "the package's schema rules are enabled by default at their own level, in code order"
 
 
