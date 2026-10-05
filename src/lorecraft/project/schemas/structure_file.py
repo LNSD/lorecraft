@@ -14,14 +14,14 @@ What the schema shows an editor is declared here too: each field's docstring is 
 its examples and bounds, and each model's config names it and gives a whole example. Only the shape is stated
 here; what a shape cannot state, such as an outline naming a section twice, is refused by `StructureSpec`.
 
-A word cap or the token budget is a `NonZeroUnsignedInt`, which states its own bound: it is
-built while the file is decoded, and a number it refuses is a validation error carrying its own message. A section
-name, in an outline entry or in `forbidden`, is a `SectionName` the same way, which states its own rule.
+A word cap, on a section or on the title, or the token budget is a `NonZeroUnsignedInt`, which states its own
+bound: it is built while the file is decoded, and a number it refuses is a validation error carrying its own message.
+A section name, in an outline entry or in `forbidden`, is a `SectionName` the same way, which states its own rule.
 """
 
-from typing import Annotated, Final, Literal
+from typing import Annotated, Final, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, WithJsonSchema, field_validator
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, WithJsonSchema, field_validator, model_validator
 
 from lorecraft.core.num import NonZeroUnsignedInt
 
@@ -94,6 +94,30 @@ class _StructureFileModel(BaseModel):
     """The settings every model of the file shares; each model's own config is merged over them."""
 
     model_config = ConfigDict(extra='forbid', frozen=True, strict=True, use_attribute_docstrings=True)
+
+
+class StructureFileTitle(_StructureFileModel):
+    """The checks a document's H1 title is held to beyond being there, once, opening the document.
+
+    Each check is optional, but the key holds at least one: a `title` stating none would check nothing.
+    """
+
+    # `minProperties` is for the editor only: pydantic does not apply it, and `_refuse_no_check` refuses the same.
+    model_config = ConfigDict(title='Title checks', json_schema_extra={'minProperties': 1, 'examples': [{'words': 8}]})
+
+    words: NonZeroUnsignedInt | None = Field(default=None, examples=[8])
+    """The most words the title's text may hold, counted as a section's prose words are; no cap when absent."""
+
+    @model_validator(mode='after')
+    def _refuse_no_check(self) -> Self:
+        """Refuse a `title` that states no check, as the editor's schema does, so the two agree on it.
+
+        Raises:
+            ValueError: If the key states no check; pydantic reports it as a validation error.
+        """
+        if self.words is None:
+            raise ValueError('states no check; leave the key out for no title check')
+        return self
 
 
 class StructureFileSection(_StructureFileModel):
@@ -181,6 +205,9 @@ class StructureFile(_StructureFileModel):
         default='', examples=['Section structure, word caps and token budget for a rule document in docs/code/.']
     )
     """What this file governs and why, for whoever opens it; not read by the check."""
+    title: StructureFileTitle | None = None
+    """The checks a document's H1 title is held to: `words` caps its words. No title check when absent; the title is
+    there, once, opening the document, either way."""
     tokens: NonZeroUnsignedInt | None = Field(default=None, examples=[5000])
     """The token budget: the most tokens the whole file may cost an agent that loads it, frontmatter, code and
     tables included; no budget when absent. Counted with OpenAI's `o200k_base` encoding, the same whichever agent

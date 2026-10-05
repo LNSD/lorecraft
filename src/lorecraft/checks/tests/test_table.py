@@ -14,6 +14,7 @@ from lorecraft.rules.frontmatter.name_mismatch import NameMismatch
 from lorecraft.rules.frontmatter.non_mapping_frontmatter import NonMappingFrontmatter
 from lorecraft.rules.frontmatter.unknown_field import UnknownField
 from lorecraft.rules.frontmatter.wrong_type import WrongType
+from lorecraft.rules.length.title_too_many_words import TitleTooManyWords
 from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.length.too_many_words import TooManyWords
@@ -169,6 +170,7 @@ class TestRuleTableFromRegistry:
         #: Then
         assert table.headings_rules == (
             EnabledRule(TooManyWords, Severity.ERROR),
+            EnabledRule(TitleTooManyWords, Severity.ERROR),
             EnabledRule(MissingTitle, Severity.ERROR),
             EnabledRule(ExtraTitle, Severity.ERROR),
             EnabledRule(TitleNotFirst, Severity.ERROR),

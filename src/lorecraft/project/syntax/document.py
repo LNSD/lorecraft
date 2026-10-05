@@ -28,6 +28,7 @@ from .frontmatter import FrontmatterNode
 from .heading import Heading, HeadingLevel
 from .link import Link
 from .markdown import ContentBlock, HeadingBlock, parse_markdown, parse_markdown_frontmatter
+from .words import count_words
 
 
 @dataclass(frozen=True, slots=True)
@@ -209,5 +210,5 @@ def _source_words(source: str) -> int:
         # skipped here: a table is a reference, not prose.
         if line.strip().startswith('|'):
             continue
-        words += len(line.split())
+        words += count_words(line)
     return words
