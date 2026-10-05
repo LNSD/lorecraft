@@ -2,8 +2,8 @@
 
 The runner decodes each document and skill, builds each input an enabled rule reads, and runs the rules of a table
 built from a registry. The package's own registry runs the frontmatter block rules over documents and skills, the
-token budget over documents and the line budget over skills; a registry of sample rules over the token count,
-declared in this module, runs through the same runner, with no edit to it.
+token budget and the headings rules over documents and the line budget over skills; a registry of sample rules
+over the token count, declared in this module, runs through the same runner, with no edit to it.
 """
 
 from dataclasses import dataclass
@@ -34,6 +34,7 @@ from lorecraft.project.syntax import (
     FrontmatterNode,
     InvalidYamlFrontmatter,
     LineNumber,
+    ParsedDocument,
     count_tokens,
     parse_frontmatter,
 )
@@ -51,6 +52,7 @@ from lorecraft.rules.frontmatter.wrong_type import WrongType
 from lorecraft.rules.inputs import InputKind, TokenCountInput, TokenCountRule
 from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
+from lorecraft.rules.outline.missing_title import MissingTitle
 from lorecraft.rules.registry import Registry
 from lorecraft.vfs import EntryRecord, ResolvedPath, Snapshot, SymlinkRecord
 
@@ -186,7 +188,7 @@ class AnyTokens(TokenCountRule):
 
 
 class CountingDatabase(Database):
-    """A database that records each document and skill whose tokens, lines or frontmatter it is asked for."""
+    """A database that records each document and skill whose tokens, lines, frontmatter or parse it is asked for."""
 
     def __init__(self, snapshot: Snapshot) -> None:
         """Open the database on the snapshot, with nothing counted yet.
@@ -198,6 +200,7 @@ class CountingDatabase(Database):
         self.counted_tokens: list[DocumentRef] = []
         self.counted_lines: list[SkillRef] = []
         self.parsed_frontmatters: list[DocumentRef | SkillRef] = []
+        self.parsed_documents: list[DocumentRef] = []
 
     def tokens(self, source: DocumentText) -> int:
         """Record the document, then count its tokens.
@@ -225,6 +228,15 @@ class CountingDatabase(Database):
         """
         self.parsed_frontmatters.append(source.ref)
         return super().frontmatter(source)
+
+    def parse(self, source: DocumentText) -> ParsedDocument:
+        """Record the document, then parse it.
+
+        Args:
+            source: The decoded document that is parsed, recorded by its ref first.
+        """
+        self.parsed_documents.append(source.ref)
+        return super().parse(source)
 
     def skill_frontmatter(self, source: SkillText) -> FrontmatterNode:
         """Record the skill, then parse the frontmatter of its `SKILL.md`.
@@ -391,7 +403,12 @@ class TestCheckSubjects:
             CheckedSubject(
                 launch,
                 diagnostics=(),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
+                ungoverned=(
+                    InputKind.FRONTMATTER_BLOCK,
+                    InputKind.SCHEMA_PROBLEMS,
+                    InputKind.TOKEN_COUNT,
+                    InputKind.HEADINGS,
+                ),
             ),
         ), 'no specification governs a document in no corpus the model holds, which is coverage, not a diagnostic'
 
@@ -1048,4 +1065,55 @@ class TestCheckSubjects:
         #: Then
         assert database.parsed_frontmatters == [GUIDE, REVIEW], (
             'the frontmatter is asked for once per subject, by the block input alone: no schema problems are built'
+        )
+
+    def test_check_subjects_with_a_document_without_its_title_reports_missing_title(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        title_rule = b'{"title": {"count": 1, "first": true}}'
+        database = Database(_snapshot(title_rule, guide=b'## Install\n\nRun it once.\n'))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), package_table)
+
+        #: Then
+        occurrence = MissingTitle(spec=CODE_SPEC, line=LineNumber.from_int(1), found=0, count=1)
+        assert reports == (
+            CheckedSubject(
+                GUIDE,
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
+            ),
+        ), 'OUT001 runs at deny over a document a structure specification governs, under that specification'
+
+    def test_check_subjects_with_a_document_carrying_its_title_reports_it_clean(self, package_table: RuleTable) -> None:
+        #: Given
+        title_rule = b'{"title": {"count": 1, "first": true}}'
+        database = Database(_snapshot(title_rule, guide=GUIDE_TEXT.encode()))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), package_table)
+
+        #: Then
+        assert reports == (
+            CheckedSubject(
+                GUIDE,
+                diagnostics=(),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
+            ),
+        ), 'a document carrying the title its specification requires is governed for its headings, and clean'
+
+    def test_check_subjects_with_no_enabled_rule_over_the_headings_never_parses_the_document(self) -> None:
+        #: Given
+        database = CountingDatabase(_snapshot(b'{"title": {"count": 1, "first": true}}', guide=GUIDE_TEXT.encode()))
+        severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
+        table = RuleTable(severities)
+
+        #: When
+        check_subjects(database, (GUIDE,), table)
+
+        #: Then
+        assert database.parsed_documents == [], (
+            'an input no enabled rule reads is never built, so its query is never asked'
         )

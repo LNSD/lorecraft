@@ -34,7 +34,7 @@ shorter still: the checker reports errors and warnings, and they act on them.
 |---|---|
 | **Rule** | What a user reads about and configures: a code, a name, a default level and a rulebook page. In the code it is one class, its declaration and its check |
 | **Occurrence** | One instance of a rule: where it fired, with the data of that place; names no subject |
-| **Rule code**, **rule name** | `OUT002` and `empty-section`. A code is a rule group's prefix and a number |
+| **Rule code**, **rule name** | `OUT004` and `empty-section`. A code is a rule group's prefix and a number |
 | **Rule group** | The rules one mechanism states, under one prefix and title |
 | **Rulebook** | The reference manual of the engine's rules, one page per code in `docs/rulebook/`, generated from the rules' classes |
 | **Alias code** | An upstream linter's code for a rule Lorecraft absorbed, such as `MD040`. A rule's code is always Lorecraft's; an alias code only points to it |
@@ -82,7 +82,7 @@ class EmptySection(HeadingsRule):
     ## Use instead
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(OUTLINE, 2)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 4)
     NAME: ClassVar[RuleName] = RuleName('empty-section')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
@@ -94,11 +94,13 @@ class EmptySection(HeadingsRule):
 
     @classmethod
     def check(cls, subject: HeadingsInput) -> tuple[Self, ...]:
-        return tuple(
-            cls(line=heading.line, spec=subject.spec, section=heading.text)
-            for heading in subject.headings
-            if heading.is_empty
-        )
+        occurrences: list[Self] = []
+        for headings_spec in subject.specs:
+            if headings_spec.forbid_empty_sections:
+                for heading in subject.headings:
+                    if heading.empty:
+                        occurrences.append(cls(line=heading.line, spec=headings_spec.spec, section=heading.text))
+        return tuple(occurrences)
 ```
 
 - **`Rule`** carries what every occurrence has: the specification file that states the rule (or none, for a
@@ -132,7 +134,7 @@ instance is one occurrence of it.
 
 ### Codes, Groups and Life Cycle
 
-- **A code is a group and a number** (FR-009). `RuleCode(OUTLINE, 2)` prints as the group's prefix followed by
+- **A code is a group and a number** (FR-009). `RuleCode(GROUP_ID, 4)` prints as the group's prefix followed by
   zero-padded digits. A group is declared once, with its prefix and title, in its directory's package. A code
   whose prefix disagrees with its group cannot be written.
 - **A name is a `RuleName`** (FR-009), a value object by [pattern-value-object](../code/pattern-value-object.md):
@@ -198,7 +200,7 @@ every module, and collects the rule classes and removed rules `@rule` registered
 ### The Rulebook
 
 The rulebook is the reference manual of the engine's rules: the page a user reads when the checker prints
-`error[OUT003]` and they want to know what it means and how to fix it. It lives in this repository alone, never in
+`error[OUT006]` and they want to know what it means and how to fix it. It lives in this repository alone, never in
 a repository that uses Lorecraft, and every word of it is generated from the rules' classes.
 
 One function renders a rule's page from its class: the code, the name, the prefix, the default level, the
@@ -210,12 +212,12 @@ rule's page states the release that removed it and its replacement.
 docs/rulebook/
 ├── FM001-missing-frontmatter.md
 ├── …
-├── OUT003-missing-section.md
+├── OUT006-missing-section.md
 └── LEN001-too-many-tokens.md
 ```
 
 - **`docs/rulebook/` is a flat corpus**, one page per code, removed rules included (FR-028). A page is named
-  `<code>-<name>.md`, as in `OUT003-missing-section.md`: the code first, the identity a diagnostic prints, so the
+  `<code>-<name>.md`, as in `OUT006-missing-section.md`: the code first, the identity a diagnostic prints, so the
   listing sorts in code order, then the rule's kebab-case name, so the file says what the rule is. The page's
   frontmatter `name` is the same `<code>-<name>`, as the corpus convention that `name` matches the filename
   asks. An alias code has no page: the rule's page lists it, and the lookup resolves it.

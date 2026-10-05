@@ -72,19 +72,19 @@ in `lorecraft.checks`, so a rule has nothing to read but the input it is handed.
 # ❌ Bad — the rule asks the database for the headings itself: it imports the layer above, which the import
 # contract refuses, and a test of one heading rule now needs a whole revision
 @rule
-class EmptySection(OutlineRule):
+class EmptySection(HeadingsRule):
     @classmethod
     def check(cls, database: Database, ref: DocumentRef) -> tuple[Self, ...]:
-        return tuple(cls(line=h.line) for h in database.parse(ref).headings if not h.body)
+        return tuple(cls(line=heading.line) for heading in database.parse(ref).headings if heading.empty)
 ```
 
 ```python
 # ✅ Good — the rule judges the input its base class fixes; the run built that input once from the queries
 @rule
-class EmptySection(OutlineRule):
+class EmptySection(HeadingsRule):
     @classmethod
-    def check(cls, subject: OutlineInput) -> tuple[Self, ...]:
-        return tuple(cls(line=h.line) for h in subject.headings if not h.body)
+    def check(cls, subject: HeadingsInput) -> tuple[Self, ...]:
+        return tuple(cls(line=heading.line) for heading in subject.headings if heading.empty)
 ```
 
 ## Naming a Rule
