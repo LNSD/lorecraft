@@ -16,6 +16,7 @@ from lorecraft.rules.frontmatter.unknown_field import UnknownField
 from lorecraft.rules.frontmatter.wrong_type import WrongType
 from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
+from lorecraft.rules.length.too_many_words import TooManyWords
 from lorecraft.rules.outline.empty_section import EmptySection
 from lorecraft.rules.outline.extra_title import ExtraTitle
 from lorecraft.rules.outline.forbidden_section import ForbiddenSection
@@ -164,6 +165,7 @@ class TestRuleTableFromRegistry:
 
         #: Then
         assert table.headings_rules == (
+            EnabledRule(TooManyWords, Severity.ERROR),
             EnabledRule(MissingTitle, Severity.ERROR),
             EnabledRule(ExtraTitle, Severity.ERROR),
             EnabledRule(TitleNotFirst, Severity.ERROR),
