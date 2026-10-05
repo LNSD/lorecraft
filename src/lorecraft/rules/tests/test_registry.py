@@ -16,6 +16,7 @@ from lorecraft.rules.frontmatter.unknown_field import UnknownField
 from lorecraft.rules.frontmatter.wrong_type import WrongType
 from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
+from lorecraft.rules.outline.extra_title import ExtraTitle
 from lorecraft.rules.outline.missing_title import MissingTitle
 
 from ..declaration import RuleName
@@ -369,6 +370,7 @@ class TestPackageRegistry:
             TooManyTokens,
             TooManyLines,
             MissingTitle,
+            ExtraTitle,
         ), 'the registry holds every rule and engine condition `lorecraft.rules` declares, in code order'
 
     def test_find_with_the_package_rules_and_the_undecodable_condition_code_returns_it(self) -> None:

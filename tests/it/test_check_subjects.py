@@ -52,6 +52,7 @@ from lorecraft.rules.frontmatter.wrong_type import WrongType
 from lorecraft.rules.inputs import InputKind, TokenCountInput, TokenCountRule
 from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
+from lorecraft.rules.outline.extra_title import ExtraTitle
 from lorecraft.rules.outline.missing_title import MissingTitle
 from lorecraft.rules.registry import Registry
 from lorecraft.vfs import EntryRecord, ResolvedPath, Snapshot, SymlinkRecord
@@ -1086,6 +1087,26 @@ class TestCheckSubjects:
                 ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
             ),
         ), 'OUT001 runs at deny over a document a structure specification governs, under that specification'
+
+    def test_check_subjects_with_a_document_carrying_a_second_title_reports_extra_title(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        structure_spec = b'{"empty_sections": "forbidden"}'
+        database = Database(_snapshot(structure_spec, guide=b'# Guide\n\nRun it once.\n\n# Again\n\nRun it twice.\n'))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), package_table)
+
+        #: Then
+        occurrence = ExtraTitle(spec=CODE_SPEC, line=LineNumber.from_int(5), first_line=LineNumber.from_int(1))
+        assert reports == (
+            CheckedSubject(
+                GUIDE,
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
+            ),
+        ), 'OUT002 runs at deny over a document a structure specification governs, at the title after the first'
 
     def test_check_subjects_with_a_document_carrying_its_title_reports_it_clean(self, package_table: RuleTable) -> None:
         #: Given
