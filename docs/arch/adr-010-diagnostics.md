@@ -48,7 +48,7 @@ A diagnostic tells the writer what is wrong, where, why, and how to fix this occ
 established compilers' and linters' diagnostics:
 
 ```text
-error[OUT003]: missing required section `Usage`
+error[OUT006]: missing required section `Usage`
   --> docs/feat/cli-check.md:12
    │
 12 │ ## Options
@@ -73,7 +73,7 @@ diagnostic from those fields:
 class MissingSection(OutlineRule):
     """..."""
 
-    CODE: ClassVar[RuleCode] = RuleCode(OUTLINE, 3)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 6)
     ...
     section: str
     before: Heading | None            # the section it should precede, if the outline names one
