@@ -5,6 +5,8 @@ Each way a decoded frontmatter falls short of it is one problem, in Lorecraft's 
 
 import pytest
 
+from lorecraft.core.mapping import FrozenMapping
+
 from ..frontmatter_problem import (
     InvalidValueProblem,
     MissingFieldProblem,
@@ -29,7 +31,7 @@ class TestSkillFrontmatterSchemaValidate:
         }
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
 
         #: Then
         assert problems == (), 'a frontmatter with every field, each valid, conforms'
@@ -39,7 +41,7 @@ class TestSkillFrontmatterSchemaValidate:
         data: dict[str, object] = {}
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
 
         #: Then
         assert problems == (
@@ -52,7 +54,7 @@ class TestSkillFrontmatterSchemaValidate:
         data: dict[str, object] = {'name': 'review', 'description': 'Review code.', 'model': 'opus'}
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
 
         #: Then
         assert problems == (
@@ -67,7 +69,7 @@ class TestSkillFrontmatterSchemaValidate:
         data: dict[str, object] = {'name': None, 'description': 'Review code.'}
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
 
         #: Then
         assert problems == (NotAStringProblem('name'),), (
@@ -79,7 +81,7 @@ class TestSkillFrontmatterSchemaValidate:
         data: dict[str, object] = {'name': 'review', 'description': 'Review code.', 'metadata': 'author'}
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
 
         #: Then
         assert problems == (NotAStringMappingProblem('metadata'),), 'metadata is a mapping, not a string'
@@ -89,7 +91,7 @@ class TestSkillFrontmatterSchemaValidate:
         data: dict[str, object] = {'name': 'review', 'description': 'Review code.', 'metadata': {'version': 1.0}}
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
 
         #: Then
         assert problems == (InvalidValueProblem('metadata', '`metadata.version` must be a string'),), (
@@ -101,7 +103,7 @@ class TestSkillFrontmatterSchemaValidate:
         data: dict[str, object] = {'name': '', 'description': 'Review code.'}
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
 
         #: Then
         assert problems == (InvalidValueProblem('name', 'skill name cannot be empty'),), (
@@ -114,7 +116,7 @@ class TestSkillFrontmatterSchemaValidate:
         data: dict[str, object] = {'name': name, 'description': 'Review code.'}
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
 
         #: Then
         assert problems == (
@@ -129,7 +131,7 @@ class TestSkillFrontmatterSchemaValidate:
         data: dict[str, object] = {'name': 'PDF', 'description': 'Review code.'}
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
 
         #: Then
         assert problems == (
@@ -145,7 +147,7 @@ class TestSkillFrontmatterSchemaValidate:
         data: dict[str, object] = {'name': '{reason}', 'description': 'Review code.'}
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
 
         #: Then
         assert problems == (
@@ -161,7 +163,7 @@ class TestSkillFrontmatterSchemaValidate:
         data: dict[str, object] = {'name': 'review', 'description': 'x' * 1025}
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
 
         #: Then
         assert problems == (
@@ -176,7 +178,7 @@ class TestSkillFrontmatterSchemaValidate:
         data: dict[str, object] = {'name': 'review', 'description': 'Review code.', 'compatibility': ' '}
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
 
         #: Then
         assert problems == (
@@ -191,7 +193,7 @@ class TestSkillFrontmatterSchemaValidate:
         data: dict[str, object] = {'name': 'review', 'description': 'Review code.', 'allowed_tools': 'Read'}
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(data)
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
 
         #: Then
         assert problems == (

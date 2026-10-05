@@ -8,6 +8,8 @@ import sys
 
 import pytest
 
+from lorecraft.core.mapping import FrozenMapping
+
 from ..frontmatter import (
     Frontmatter,
     FrontmatterKey,
@@ -29,7 +31,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
-        assert node.data == {'name': 'guide', 'type': 'rule'}, 'the data is the decoded mapping'
+        assert node.data == FrozenMapping({'name': 'guide', 'type': 'rule'}), 'the data is the decoded mapping'
 
     def test_decode_frontmatter_with_a_mapping_returns_each_key_on_its_document_line(self) -> None:
         #: Given
@@ -130,7 +132,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == Frontmatter(
-            data={'name': 'guide', '2026-10-04': 'launch'},
+            data=FrozenMapping({'name': 'guide', '2026-10-04': 'launch'}),
             keys=(
                 FrontmatterKey('name', LineNumber.from_int(2)),
                 FrontmatterKey('2026-10-04', LineNumber.from_int(3)),
@@ -182,7 +184,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == Frontmatter(
-            data={'name': 'guide', '1': 'one'},
+            data=FrozenMapping({'name': 'guide', '1': 'one'}),
             keys=(FrontmatterKey('name', LineNumber.from_int(2)), FrontmatterKey('1', LineNumber.from_int(3))),
         ), 'a quoted key is a string whatever its text, so it is a field like any other'
 
@@ -210,7 +212,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == Frontmatter(
-            data={'name': 'other', 'type': 'rule'},
+            data=FrozenMapping({'name': 'other', 'type': 'rule'}),
             keys=(
                 FrontmatterKey('name', LineNumber.from_int(2)),
                 FrontmatterKey('type', LineNumber.from_int(3)),
@@ -227,7 +229,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == Frontmatter(
-            data={'name': 'guide', '=': 1},
+            data=FrozenMapping({'name': 'guide', '=': 1}),
             keys=(
                 FrontmatterKey('name', LineNumber.from_int(2)),
                 FrontmatterKey('=', LineNumber.from_int(3)),
@@ -243,7 +245,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == Frontmatter(
-            data={'name': 'review', '<<': {'license': 'MIT'}},
+            data=FrozenMapping({'name': 'review', '<<': FrozenMapping({'license': 'MIT'})}),
             keys=(
                 FrontmatterKey('name', LineNumber.from_int(2)),
                 FrontmatterKey('<<', LineNumber.from_int(3)),
@@ -543,7 +545,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
-        assert node.data == {'name': 'guide', 'count': digits}, (
+        assert node.data == FrozenMapping({'name': 'guide', 'count': digits}), (
             'an integer with more digits than Python converts stays its text, rather than failing the block'
         )
 
@@ -556,7 +558,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
-        assert node.data == {'name': 'guide', 'weight': '1e999'}, (
+        assert node.data == FrozenMapping({'name': 'guide', 'weight': '1e999'}), (
             'a float past what Python holds would be infinity, which JSON has no number for, so it stays its text'
         )
 
@@ -569,20 +571,22 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
-        assert node.data == {
-            'a': None,
-            'b': None,
-            'c': None,
-            'd': True,
-            'e': False,
-            'f': 12,
-            'g': -12,
-            'h': 10,
-            'i': 31,
-            'j': -1.5,
-            'k': 1000.0,
-            'l': 0.5,
-        }, 'a plain scalar the core schema reads as null, a bool, an int or a float decodes to that value'
+        assert node.data == FrozenMapping(
+            {
+                'a': None,
+                'b': None,
+                'c': None,
+                'd': True,
+                'e': False,
+                'f': 12,
+                'g': -12,
+                'h': 10,
+                'i': 31,
+                'j': -1.5,
+                'k': 1000.0,
+                'l': 0.5,
+            }
+        ), 'a plain scalar the core schema reads as null, a bool, an int or a float decodes to that value'
 
     def test_decode_frontmatter_with_scalars_only_yaml_1_1_resolves_returns_them_as_strings(self) -> None:
         #: Given
@@ -593,16 +597,18 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
-        assert node.data == {
-            'a': 'yes',
-            'b': 'on',
-            'c': '2026-10-05',
-            'd': '1:30',
-            'e': '0b101',
-            'f': '1_000',
-            'g': '.inf',
-            'h': '.nan',
-        }, 'a plain scalar the core schema does not read as null, a bool or a JSON number is a string'
+        assert node.data == FrozenMapping(
+            {
+                'a': 'yes',
+                'b': 'on',
+                'c': '2026-10-05',
+                'd': '1:30',
+                'e': '0b101',
+                'f': '1_000',
+                'g': '.inf',
+                'h': '.nan',
+            }
+        ), 'a plain scalar the core schema does not read as null, a bool or a JSON number is a string'
 
     def test_decode_frontmatter_with_quoted_and_block_scalars_returns_them_as_strings(self) -> None:
         #: Given
@@ -613,7 +619,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
-        assert node.data == {'a': '12', 'b': 'true', 'c': '12\n', 'd': 'null\n'}, (
+        assert node.data == FrozenMapping({'a': '12', 'b': 'true', 'c': '12\n', 'd': 'null\n'}), (
             'only a plain scalar is resolved; a quoted or block scalar is its text, whatever it reads like'
         )
 
@@ -650,12 +656,43 @@ class TestDecodeFrontmatter:
         #: Then
         assert node == NonMappingFrontmatter(), f'an empty block decodes to nothing, not a mapping, got {node!r}'
 
+    def test_decode_frontmatter_with_nested_collections_freezes_them_all_the_way_down(self) -> None:
+        #: Given
+        block = 'tags: [a, b]\nmeta: {owner: me, see: [{x: 1}]}\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
+        assert node.data == FrozenMapping(
+            {
+                'tags': ('a', 'b'),
+                'meta': FrozenMapping({'owner': 'me', 'see': (FrozenMapping({'x': 1}),)}),
+            }
+        ), 'every mapping is a frozen mapping and every list a tuple, at any depth'
+
+    def test_hash_with_two_equal_nested_frontmatters_returns_the_same_hash(self) -> None:
+        #: Given
+        block = 'name: guide\nmeta: {see: [a, b]}\n'
+        first = decode_frontmatter(block)
+        second = decode_frontmatter(block)
+
+        #: When
+        hashed_alike = hash(first) == hash(second)
+
+        #: Then
+        assert first == second, 'one block decodes to equal frontmatter each time'
+        assert hashed_alike, 'equal frontmatter, nested collections included, hashes alike'
+
 
 @pytest.mark.unit
 class TestFrontmatterFindKeyLine:
     def test_find_key_line_with_a_present_key_returns_its_line(self) -> None:
         #: Given
-        frontmatter = Frontmatter(data={'type': 'rule'}, keys=(FrontmatterKey('type', LineNumber.from_int(3)),))
+        frontmatter = Frontmatter(
+            data=FrozenMapping({'type': 'rule'}), keys=(FrontmatterKey('type', LineNumber.from_int(3)),)
+        )
 
         #: When
         line = frontmatter.find_key_line('type')
@@ -666,7 +703,7 @@ class TestFrontmatterFindKeyLine:
     def test_find_key_line_with_a_repeated_key_returns_the_line_of_its_last_occurrence(self) -> None:
         #: Given
         frontmatter = Frontmatter(
-            data={'name': 'other'},
+            data=FrozenMapping({'name': 'other'}),
             keys=(FrontmatterKey('name', LineNumber.from_int(2)), FrontmatterKey('name', LineNumber.from_int(5))),
         )
 
@@ -678,7 +715,9 @@ class TestFrontmatterFindKeyLine:
 
     def test_find_key_line_with_an_absent_key_returns_none(self) -> None:
         #: Given
-        frontmatter = Frontmatter(data={'type': 'rule'}, keys=(FrontmatterKey('type', LineNumber.from_int(3)),))
+        frontmatter = Frontmatter(
+            data=FrozenMapping({'type': 'rule'}), keys=(FrontmatterKey('type', LineNumber.from_int(3)),)
+        )
 
         #: When
         line = frontmatter.find_key_line('name')
