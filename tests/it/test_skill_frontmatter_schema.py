@@ -54,7 +54,8 @@ class TestSkillFrontmatterSchema:
         assert all(isinstance(node, Frontmatter) for node in frontmatters.values()), (
             f'every skill opens with a mapping: {frontmatters}'
         )
-        data = {name: node.data for name, node in frontmatters.items() if isinstance(node, Frontmatter)}
+        # `jsonschema` reads a mapping only as a `dict`, so each frozen frontmatter is handed to it as plain data.
+        data = {name: node.data.to_plain() for name, node in frontmatters.items() if isinstance(node, Frontmatter)}
 
         #: When
         schema_errors = {

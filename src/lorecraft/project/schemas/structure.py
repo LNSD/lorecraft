@@ -76,6 +76,7 @@ from pydantic import JsonValue, ValidationError
 from referencing.jsonschema import DRAFT202012
 
 from lorecraft.core.error import Error
+from lorecraft.core.mapping import Frozen, FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 
@@ -329,25 +330,21 @@ type OutlineEntry = SectionEntry | AnySections
 
 @dataclass(frozen=True, slots=True)
 class FrontmatterSchema:
-    """A structure specification's ``frontmatter`` key: a Draft 2020-12 JSON Schema describing an object.
+    """A structure specification's `frontmatter` key: a Draft 2020-12 JSON Schema describing an object.
 
-    Construction checks the schema, so an instance is proof of it: no code holding a ``FrontmatterSchema`` checks
+    Construction checks the schema, so an instance is proof of it: no code holding a `FrontmatterSchema` checks
     it again. A malformed schema is refused with an error naming the specification file,
     like every other rule of that file.
-
-    Frozen for equality only: ``schema`` holds a dict, so instances are not hashable and must not be put in a set or
-    used as a key.
 
     Attributes:
         path: Root-relative path of the structure specification the schema is written in, quoted verbatim in
             every violation it yields.
-        schema: The decoded schema. Values are ``object`` because a JSON Schema is recursive and JSON decodes each
-            value to its own Python type. A ``Mapping``, not a ``dict``, so no holder can write to the schema
-            the construction checked.
+        schema: The decoded schema, frozen all the way down: every object in it is a `FrozenMapping` and every
+            array a tuple, so no holder can write to the schema the construction checked, at any depth.
     """
 
     path: RootRelativePath
-    schema: Mapping[str, object]
+    schema: FrozenMapping[str, Frozen]
 
     def __post_init__(self) -> None:
         """Refuse a schema a structure specification cannot hold a document's frontmatter to.
@@ -362,8 +359,10 @@ class FrontmatterSchema:
                 `$schema`.
             UntypedFrontmatterSchemaError: If its root does not say `"type": "object"`.
         """
+        # `jsonschema` takes a JSON object only as a `dict` and an array only as a `list`, so every schema and
+        # frontmatter it reads is handed to it as plain data, copied from the frozen value.
         try:
-            Draft202012Validator.check_schema(self.schema)
+            Draft202012Validator.check_schema(self.schema.to_plain())
         except SchemaError as exc:
             raise InvalidFrontmatterSchemaError(self.path, exc.message, source=exc) from exc
         for subschema in _schemas_within(self.schema):
@@ -381,7 +380,7 @@ class FrontmatterSchema:
         if self.schema.get('type') != 'object':
             raise UntypedFrontmatterSchemaError(self.path)
 
-    def validate(self, data: Mapping[str, object]) -> tuple[FrontmatterProblem, ...]:
+    def validate(self, data: FrozenMapping[str, Frozen]) -> tuple[FrontmatterProblem, ...]:
         """Hold one decoded frontmatter to the schema. Pure: raises nothing.
 
         The messages are `jsonschema`'s own, unlike `SkillFrontmatterSchema`'s: the schema is the
@@ -390,17 +389,19 @@ class FrontmatterSchema:
         field the schema does not allow, get a problem of their own, on that field.
 
         Args:
-            data: The decoded frontmatter mapping, every key a string at any depth, as JSON names keys.
+            data: The decoded frontmatter mapping, frozen all the way down, every key a string at any depth, as JSON
+                names keys.
 
         Returns:
-            One problem per field at fault, ordered by the field and then the message, or ``()`` when the
+            One problem per field at fault, ordered by the field and then the message, or `()` when the
             frontmatter conforms.
         """
-        validator = Draft202012Validator(self.schema)
+        # Plain data, as `__post_init__` hands `jsonschema` the schema: it reads only a `dict` as a JSON object.
+        validator = Draft202012Validator(self.schema.to_plain())
         # Sorted, unlike the skill schema's problems: `jsonschema` reports errors in the order it walks the
         # schema's keywords, which says nothing about the fields.
         errors = sorted(
-            validator.iter_errors(data),
+            validator.iter_errors(data.to_plain()),
             key=lambda error: (tuple(str(part) for part in error.path), error.message),
         )
         problems: list[FrontmatterProblem] = []
@@ -508,8 +509,6 @@ class StructureSpec:
 
     Construction checks the rules, so an instance is proof of them: no code holding a `StructureSpec`
     checks them again.
-
-    Not hashable when it states a frontmatter schema, since `FrontmatterSchema` holds a dict.
 
     Attributes:
         file: The JSON file, `<name>.structure.json`, at its parsed specification filename; the prose it is the
@@ -684,7 +683,7 @@ def _frontmatter_schema(path: RootRelativePath, schema: dict[str, JsonValue] | N
     """
     if schema is None:
         return None
-    return FrontmatterSchema(path=path, schema=schema)
+    return FrontmatterSchema(path=path, schema=FrozenMapping.from_plain(schema))
 
 
 def _problems(error: ValidationError) -> tuple[str, ...]:

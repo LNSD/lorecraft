@@ -11,6 +11,7 @@ from typing import Final
 import pytest
 
 from lorecraft.agents import AgentName
+from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
@@ -95,7 +96,7 @@ def _spec_files(
         path = SPECS_DIR / spec_filename(spec_name, SpecFileType.STRUCTURE)
         frontmatter_schema: FrontmatterSchema | None = None
         if frontmatter:
-            frontmatter_schema = FrontmatterSchema(path=path, schema={'type': 'object'})
+            frontmatter_schema = FrontmatterSchema(path=path, schema=FrozenMapping({'type': 'object'}))
         structure_spec = StructureSpec(
             file=StructureSpecFile(path=path, name=spec_name),
             title=None,

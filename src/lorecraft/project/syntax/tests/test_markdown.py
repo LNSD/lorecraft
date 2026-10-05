@@ -9,6 +9,8 @@ from typing import cast
 
 import pytest
 
+from lorecraft.core.mapping import FrozenMapping
+
 from ..frontmatter import Frontmatter, FrontmatterKey, MissingFrontmatter
 from ..heading import HeadingLevel
 from ..link import Link
@@ -168,7 +170,7 @@ class TestParseMarkdownFrontmatter:
 
         #: Then
         assert frontmatter == Frontmatter(
-            data={'name': 'guide'},
+            data=FrozenMapping({'name': 'guide'}),
             keys=(FrontmatterKey('name', LineNumber.from_int(2)),),
         ), 'the block between the delimiters is decoded, each key on its document line'
 

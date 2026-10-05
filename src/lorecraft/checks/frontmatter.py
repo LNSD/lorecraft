@@ -94,11 +94,13 @@ def validate_frontmatter(
     expected_name = str(filename)
     name = frontmatter.data.get('name')
     if name != expected_name:
+        # Quoted as plain data, so a `name` written as a list reads as one, not as the tuple it is frozen into.
+        written = frontmatter.data.to_plain().get('name')
         violations.append(
             Violation(
                 line=field_line(frontmatter, 'name'),
                 rule='frontmatter.name-matches-filename',
-                message=f"`name` is {name!r}; expected {expected_name!r}, the document's filename",
+                message=f"`name` is {written!r}; expected {expected_name!r}, the document's filename",
             )
         )
 
