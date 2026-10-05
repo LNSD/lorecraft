@@ -11,6 +11,8 @@ from textwrap import dedent
 
 import pytest
 
+from lorecraft.core.mapping import FrozenMapping
+
 from ..anchor import Anchor
 from ..document import parse_document, parse_frontmatter
 from ..frontmatter import Frontmatter, FrontmatterKey, InvalidYamlFrontmatter, MissingFrontmatter
@@ -53,7 +55,7 @@ class TestParseFrontmatter:
 
         #: Then
         assert frontmatter == Frontmatter(
-            data={'name': 'guide', 'type': 'rule'},
+            data=FrozenMapping({'name': 'guide', 'type': 'rule'}),
             keys=(FrontmatterKey('name', LineNumber.from_int(2)), FrontmatterKey('type', LineNumber.from_int(3))),
         ), 'the block between the delimiters is decoded, each key on its document line'
 
