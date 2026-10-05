@@ -17,6 +17,9 @@ use and kept for as long as the database lives (pattern-memoization):
   building its full syntax tree. It reads the text of the witness `text(ref)` returned and nothing else.
 - `parse(source)`: one document's parse tree, like the IDE's syntax tree of a file or a per-file index entry. It
   reads the text of the witness and nothing else.
+- `document_lines(source)`: how many lines one document's whole file holds, like `tokens(source)`: counted from the
+  raw text, frontmatter included, without a parse. It reads the text of the witness `text(ref)` returned and nothing
+  else.
 - `skill_text(ref)`: one skill's `SKILL.md` decoded, the same document text: a `SkillText` witness, or an
   `Undecodable` marker. It reads that skill's bytes and nothing else.
 - `skill_frontmatter(source)`: one skill's frontmatter node, the same stub for a `SKILL.md`. It reads the text of
@@ -156,6 +159,7 @@ class Database:
         self._frontmatters: dict[DocumentRef, FrontmatterNode] = {}
         self._parses: dict[DocumentRef, ParsedDocument] = {}
         self._token_counts: dict[DocumentRef, int] = {}
+        self._line_counts: dict[DocumentRef, int] = {}
         self._skill_texts: dict[SkillRef, SkillText | Undecodable] = {}
         self._skill_frontmatters: dict[SkillRef, FrontmatterNode] = {}
         self._skill_parses: dict[SkillRef, ParsedDocument] = {}
@@ -349,6 +353,24 @@ class Database:
         if count is None:
             count = count_tokens(source.text)
             self._token_counts[source.ref] = count
+        return count
+
+    def document_lines(self, source: DocumentText) -> int:
+        """The lines in one document's whole file, counted on the first call for its ref. Raises nothing.
+
+        Cached apart from `parse(source)` and never read from it, as `tokens(source)` is: the count needs the raw
+        text, frontmatter included, not the tree.
+
+        Carry-over: kept for the next revision whenever `text(source.ref)` is.
+
+        Args:
+            source: The document's text, as `text(ref)` returns it; its ref is the cache key, so one ref is counted
+                once.
+        """
+        count = self._line_counts.get(source.ref)
+        if count is None:
+            count = count_lines(source.text)
+            self._line_counts[source.ref] = count
         return count
 
     def skill_text(self, ref: SkillRef) -> SkillText | Undecodable:

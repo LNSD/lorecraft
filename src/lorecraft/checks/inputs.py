@@ -42,8 +42,10 @@ from lorecraft.project.syntax import (
 from lorecraft.rules.frontmatter.__ruleset__ import FIRST_LINE, field_line
 from lorecraft.rules.inputs import (
     SECTION_LEVEL,
+    AbsentSection,
     AgentSkillsSchema,
     Budget,
+    DocumentEnd,
     DocumentFrontmatterOwner,
     FrontmatterBlock,
     FrontmatterBlockInput,
@@ -52,7 +54,11 @@ from lorecraft.rules.inputs import (
     HeadingsSpec,
     LineCountInput,
     LocatedProblem,
+    MisplacedSection,
     NameField,
+    OutlineDivergence,
+    OutlineDivergenceInput,
+    OutlineDivergenceSpec,
     RepeatedKey,
     SchemaProblems,
     SchemaProblemsInput,
@@ -60,6 +66,7 @@ from lorecraft.rules.inputs import (
     SkillFrontmatterOwner,
     StructureSpecSchema,
     TokenCountInput,
+    UnlistedSection,
 )
 from lorecraft.vfs import ResolvedPath
 
@@ -531,3 +538,143 @@ def _find_run_cap(outline: tuple[OutlineEntry, ...], after: int) -> NonZeroUnsig
             case _:
                 assert_never(entry)
     return None
+
+
+def build_outline_divergence_input(database: Database, source: DocumentText) -> OutlineDivergenceInput | Ungoverned:
+    """Where a document's sections first stop matching each outline that governs them.
+
+    The structure specifications are read first, and the document is parsed, and its lines counted, only when one of
+    them states an outline.
+
+    Args:
+        database: The revision the document is read from; its model decides which specifications govern it.
+        source: The document's text, as `Database.text` returns it.
+
+    Returns:
+        The input, with one entry per structure specification that governs the document and states an outline, in
+        the order the specifications apply; or `Ungoverned` when none states one, or when the document is in no
+        corpus the database's model holds.
+
+    Raises:
+        DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
+        CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
+        StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
+        StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in the
+            dialect's shape.
+        EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
+        RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
+        RepeatedForbiddenSectionError: If the model is not loaded yet and a specification forbids a section twice.
+        ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
+            outline names.
+        AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
+        InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by the
+            meta-schema.
+        FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries `$id`.
+        ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema names
+            another dialect.
+        UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not state
+            an object.
+        DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
+        EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot be
+            inspected, or a link's target read, while looking for where it leaves the repository.
+        SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
+        SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
+        SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
+        SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
+    """
+    governance = database.model().find_governance(source.ref)
+    if governance is None:
+        return Ungoverned()
+    outlined_specs: list[StructureSpec] = []
+    for structure_spec in governance.structure_specs():
+        if structure_spec.outline:
+            outlined_specs.append(structure_spec)
+    if not outlined_specs:
+        return Ungoverned()
+
+    sections = tuple(heading for heading in database.parse(source).headings if heading.level == SECTION_LEVEL)
+    # An empty document has no line at all, so its end is reported on line 1. A count is never negative, so
+    # `from_int` cannot raise here.
+    document_end = DocumentEnd(last_line=LineNumber.from_int(max(database.document_lines(source), 1)))
+    specs: list[OutlineDivergenceSpec] = []
+    for structure_spec in outlined_specs:
+        divergence = _first_divergence(structure_spec, sections, document_end)
+        specs.append(OutlineDivergenceSpec(spec=structure_spec.path, divergence=divergence))
+    return OutlineDivergenceInput(specs=tuple(specs))
+
+
+def _first_divergence(
+    structure_spec: StructureSpec, sections: tuple[Heading, ...], document_end: DocumentEnd
+) -> OutlineDivergence | None:
+    """Match the outline against the document's sections, left to right, and return where they first diverge.
+
+    One divergence at most: past the first, every later entry is measured against sections it was never meant to
+    match, and what that cascade finds says nothing. Raises nothing.
+
+    Args:
+        structure_spec: The structure specification whose `outline` is matched; it states one.
+        sections: The document's H2 headings, in document order.
+        document_end: Where a section expected after every section of the document should be written.
+
+    Returns:
+        The first divergence, or `None` when the sections match the outline.
+    """
+    named = {name.value for name in structure_spec.section_names()}
+    at = 0  # the first section not yet accounted for
+
+    for entry in structure_spec.outline:
+        match entry:
+            case AnySections():
+                # The run stops at a section the outline names: that section belongs to the entry naming it,
+                # wherever in the outline that entry falls.
+                while at < len(sections) and sections[at].text not in named:
+                    at += 1
+            case SectionEntry():
+                if at < len(sections) and sections[at].text == entry.name.value:
+                    at += 1
+                    continue
+                if entry.optional:
+                    continue
+                return _divergence_at_entry(entry, sections, at, named, document_end)
+            case _:
+                assert_never(entry)
+
+    if at < len(sections):
+        # A leftover the outline names is a section written out of turn; one it does not name is a section written
+        # past the point where the document should have ended.
+        left = sections[at]
+        if left.text in named:
+            return MisplacedSection(section=left, expected=None)
+        return UnlistedSection(section=left, expected=None)
+    return None
+
+
+def _divergence_at_entry(
+    entry: SectionEntry, sections: tuple[Heading, ...], at: int, named: set[str], document_end: DocumentEnd
+) -> OutlineDivergence:
+    """The divergence found where a required outline entry does not match the next section. Raises nothing.
+
+    When the document holds the expected section nowhere, it is missing, and should come before the section found
+    in its place, or at the end of the document. When it holds it later, the section found in its place is the one
+    that diverges: out of order if the outline names it, unexpected if not.
+
+    Args:
+        entry: The required outline entry the next section does not match.
+        sections: The document's H2 headings, in document order.
+        at: The index of the first section not yet accounted for; `len(sections)` when every one is.
+        named: The heading text of every section the outline names.
+        document_end: Where a section expected after every section of the document should be written.
+    """
+    # Every section before `at` was matched by its own entry or skipped by an `any` run, which skips no named
+    # section, so searching the whole document finds the expected section only at `at` or later.
+    held = any(section.text == entry.name.value for section in sections)
+    if not held:
+        before = sections[at] if at < len(sections) else document_end
+        example = entry.examples[0] if entry.examples else None
+        return AbsentSection(name=entry.name, description=entry.description, example=example, before=before)
+
+    # The expected section is held later, so a section stands in its place.
+    found = sections[at]
+    if found.text in named:
+        return MisplacedSection(section=found, expected=entry.name)
+    return UnlistedSection(section=found, expected=entry.name)

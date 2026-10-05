@@ -40,6 +40,8 @@ class InputKind(Enum):
     """What each frontmatter schema that governs a document or a skill rejects: `SchemaProblemsInput`."""
     HEADINGS = 'headings'
     """A document's headings, with what each structure specification that governs it states: `HeadingsInput`."""
+    OUTLINE_DIVERGENCE = 'outline-divergence'
+    """Where a document's sections first stop matching each outline that governs it: `OutlineDivergenceInput`."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -389,4 +391,111 @@ class HeadingsRule(ContentRule):
 
         Args:
             subject: The headings judged, with what each governing structure specification states over them.
+        """
+
+
+@dataclass(frozen=True, slots=True)
+class DocumentEnd:
+    """The end of a document, where a section the outline expects last would be written.
+
+    Attributes:
+        last_line: The document's last line, or line 1 for an empty document.
+    """
+
+    last_line: LineNumber
+
+
+@dataclass(frozen=True, slots=True)
+class AbsentSection:
+    """A required section the outline expects next, which the document holds nowhere.
+
+    Attributes:
+        name: The section's heading text, as the outline entry names it.
+        description: What the section holds, as the outline entry states it, or `None` when it states none.
+        example: The first sample of the section's body the outline entry gives, without its heading, or `None`
+            when it gives none.
+        before: The section found where the missing one was expected, which it should come before; or the end of
+            the document, when every section was matched before the outline expected it.
+    """
+
+    name: SectionName
+    description: str | None
+    example: str | None
+    before: Heading | DocumentEnd
+
+
+@dataclass(frozen=True, slots=True)
+class MisplacedSection:
+    """A section the outline names, written where the outline places a different section.
+
+    Attributes:
+        section: The section's H2 heading.
+        expected: The section the outline places there instead, which the document holds later; or `None` when
+            the section is left over once the outline is used up.
+    """
+
+    section: Heading
+    expected: SectionName | None
+
+
+@dataclass(frozen=True, slots=True)
+class UnlistedSection:
+    """A section the outline does not name, in a place no `any` run of the outline covers.
+
+    Attributes:
+        section: The section's H2 heading.
+        expected: The section the outline places there instead, which the document holds later; or `None` when
+            the section comes after the outline's end.
+    """
+
+    section: Heading
+    expected: SectionName | None
+
+
+# The first place a document's sections stop matching an outline: a required section absent from the document, a
+# named section out of its place, or a section the outline does not name. Matching stops there, since every later
+# entry would be compared with sections it was never meant to match.
+type OutlineDivergence = AbsentSection | MisplacedSection | UnlistedSection
+
+
+@dataclass(frozen=True, slots=True)
+class OutlineDivergenceSpec:
+    """Where a document's sections first stop matching one structure specification's outline.
+
+    Attributes:
+        spec: The structure specification file whose outline the sections are matched against.
+        divergence: The first divergence, or `None` when the sections match the outline.
+    """
+
+    spec: RootRelativePath
+    divergence: OutlineDivergence | None
+
+
+@dataclass(frozen=True, slots=True)
+class OutlineDivergenceInput:
+    """Where a document's sections first stop matching each outline that governs them.
+
+    Each specification applies on its own: a document governed by a corpus and a namespace specification that both
+    state an outline has two entries and must match both. A specification with no outline is not among them, and a
+    document no outline governs gets no input at all.
+
+    Attributes:
+        specs: One per structure specification that governs the document and states an outline, in the order the
+            specifications apply.
+    """
+
+    specs: tuple[OutlineDivergenceSpec, ...]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class OutlineDivergenceRule(ContentRule):
+    """The base of every rule over where a document's sections stop matching their outlines."""
+
+    @classmethod
+    @abstractmethod
+    def check(cls, subject: OutlineDivergenceInput) -> tuple[Self, ...]:
+        """Every occurrence of the rule's condition among the divergences the outlines found.
+
+        Args:
+            subject: The first divergence from each governing outline, if any.
         """
