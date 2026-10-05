@@ -23,8 +23,6 @@ from lorecraft.project.schemas import (
     FrontmatterProblem,
     InvalidValueProblem,
     MissingFieldProblem,
-    NotAStringMappingProblem,
-    NotAStringProblem,
     UnknownFieldProblem,
     WrongTypeProblem,
 )
@@ -380,13 +378,7 @@ def _problem_line(frontmatter: Frontmatter, problem: FrontmatterProblem) -> Line
         # A missing field is not written, and a block constraint concerns none.
         case MissingFieldProblem() | BlockProblem():
             return FIRST_LINE
-        case (
-            UnknownFieldProblem()
-            | NotAStringProblem()
-            | NotAStringMappingProblem()
-            | WrongTypeProblem()
-            | InvalidValueProblem()
-        ):
+        case UnknownFieldProblem() | WrongTypeProblem() | InvalidValueProblem():
             return field_line(frontmatter, problem.field)
         case _:
             assert_never(problem)

@@ -7,8 +7,6 @@ from lorecraft.project.schemas import (
     BlockProblem,
     InvalidValueProblem,
     MissingFieldProblem,
-    NotAStringMappingProblem,
-    NotAStringProblem,
     UnknownFieldProblem,
     WrongTypeProblem,
 )
@@ -112,14 +110,7 @@ class UnknownField(SchemaProblemsRule):
                 match problem:
                     case UnknownFieldProblem():
                         occurrences.append(cls(spec=schema_spec(schema.source), line=located.line, problem=problem))
-                    case (
-                        MissingFieldProblem()
-                        | NotAStringProblem()
-                        | NotAStringMappingProblem()
-                        | WrongTypeProblem()
-                        | InvalidValueProblem()
-                        | BlockProblem()
-                    ):
+                    case MissingFieldProblem() | WrongTypeProblem() | InvalidValueProblem() | BlockProblem():
                         pass  # another rule's condition
                     case _:
                         assert_never(problem)
