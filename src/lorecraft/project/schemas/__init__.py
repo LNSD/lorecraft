@@ -10,8 +10,6 @@ from .frontmatter_problem import (
     FrontmatterProblem,
     InvalidValueProblem,
     MissingFieldProblem,
-    NotAStringMappingProblem,
-    NotAStringProblem,
     UnknownFieldProblem,
     WrongTypeProblem,
 )
@@ -126,8 +124,6 @@ __all__: list[str] = [
     'FrontmatterProblem',
     'MissingFieldProblem',
     'UnknownFieldProblem',
-    'NotAStringProblem',
-    'NotAStringMappingProblem',
     'WrongTypeProblem',
     'InvalidValueProblem',
     'BlockProblem',
