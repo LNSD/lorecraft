@@ -16,6 +16,7 @@ from lorecraft.rules.frontmatter.unknown_field import UnknownField
 from lorecraft.rules.frontmatter.wrong_type import WrongType
 from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
+from lorecraft.rules.outline.extra_title import ExtraTitle
 from lorecraft.rules.outline.missing_title import MissingTitle
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.tests.sample_rules import token_count
@@ -159,9 +160,10 @@ class TestRuleTableFromRegistry:
         table = RuleTable.from_registry(registry)
 
         #: Then
-        assert table.headings_rules == (EnabledRule(MissingTitle, Severity.ERROR),), (
-            "the package's headings rules are enabled by default as errors"
-        )
+        assert table.headings_rules == (
+            EnabledRule(MissingTitle, Severity.ERROR),
+            EnabledRule(ExtraTitle, Severity.ERROR),
+        ), "the package's headings rules are enabled by default as errors, in code order"
 
 
 @pytest.mark.unit
