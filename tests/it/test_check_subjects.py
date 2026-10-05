@@ -23,6 +23,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import (
+    BlockProblem,
     InvalidValueProblem,
     MissingFieldProblem,
     UnknownFieldProblem,
@@ -37,6 +38,7 @@ from lorecraft.project.syntax import (
     parse_frontmatter,
 )
 from lorecraft.rules.declaration import Level, Release, Rule, RuleCode, RuleGroup, RuleName, Severity
+from lorecraft.rules.frontmatter.block_constraint import BlockConstraint
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
 from lorecraft.rules.frontmatter.invalid_value import InvalidValue
 from lorecraft.rules.frontmatter.invalid_yaml import InvalidYaml
@@ -878,6 +880,14 @@ class TestCheckSubjects:
             line=LineNumber.from_int(5),
             problem=InvalidValueProblem('status', "'Final' does not match '^(draft|stable)$'"),
         )
+        block_constraint = BlockConstraint(
+            spec=CODE_SPEC,
+            line=line_1,
+            problem=BlockProblem(
+                "{'name': 'guide', 'description': ['a'], 'extra': 'y', 'status': 'Final'} "
+                'does not have enough properties'
+            ),
+        )
         assert reports == (
             CheckedSubject(
                 GUIDE,
@@ -886,12 +896,13 @@ class TestCheckSubjects:
                     RuleDiagnostic(GUIDE.path, unknown_field, Severity.WARNING),
                     RuleDiagnostic(GUIDE.path, wrong_type, Severity.ERROR),
                     RuleDiagnostic(GUIDE.path, invalid_value, Severity.ERROR),
+                    RuleDiagnostic(GUIDE.path, block_constraint, Severity.ERROR),
                 ),
                 ungoverned=(InputKind.TOKEN_COUNT,),
             ),
         ), (
-            'FM006, FM008 and FM009 run at deny and FM007 at warn, each on its own problem, on its field line or line '
-            '1, naming the specification'
+            'FM006 and FM008 to FM010 run at deny and FM007 at warn, each on its own problem, on its field line or '
+            'line 1, naming the specification'
         )
 
     def test_check_subjects_with_a_skill_breaking_the_agent_skills_schema_reports_each_schema_rule(
