@@ -10,9 +10,8 @@ from lorecraft.core.mapping import FrozenMapping
 from ..frontmatter_problem import (
     InvalidValueProblem,
     MissingFieldProblem,
-    NotAStringMappingProblem,
-    NotAStringProblem,
     UnknownFieldProblem,
+    WrongTypeProblem,
 )
 from ..skill import SKILL_FRONTMATTER_SCHEMA
 
@@ -64,7 +63,7 @@ class TestSkillFrontmatterSchemaValidate:
             ),
         ), 'a field the specification does not define is named'
 
-    def test_validate_with_a_name_that_is_not_a_string_returns_a_not_a_string_problem(self) -> None:
+    def test_validate_with_a_name_that_is_not_a_string_returns_a_wrong_type_problem(self) -> None:
         #: Given
         data: dict[str, object] = {'name': None, 'description': 'Review code.'}
 
@@ -72,11 +71,11 @@ class TestSkillFrontmatterSchemaValidate:
         problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
 
         #: Then
-        assert problems == (NotAStringProblem('name'),), (
+        assert problems == (WrongTypeProblem('name', '`name` must be a string'),), (
             'a field written with no value is null, which a required string field does not accept'
         )
 
-    def test_validate_with_metadata_that_is_not_a_mapping_returns_a_not_a_string_mapping_problem(self) -> None:
+    def test_validate_with_metadata_that_is_not_a_mapping_returns_a_wrong_type_problem(self) -> None:
         #: Given
         data: dict[str, object] = {'name': 'review', 'description': 'Review code.', 'metadata': 'author'}
 
@@ -84,7 +83,9 @@ class TestSkillFrontmatterSchemaValidate:
         problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
 
         #: Then
-        assert problems == (NotAStringMappingProblem('metadata'),), 'metadata is a mapping, not a string'
+        assert problems == (WrongTypeProblem('metadata', '`metadata` must be a mapping of strings to strings'),), (
+            'metadata is a mapping, not a string'
+        )
 
     def test_validate_with_an_unquoted_metadata_number_returns_an_invalid_value_problem(self) -> None:
         #: Given

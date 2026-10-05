@@ -20,9 +20,8 @@ from .frontmatter_problem import (
     FrontmatterProblem,
     InvalidValueProblem,
     MissingFieldProblem,
-    NotAStringMappingProblem,
-    NotAStringProblem,
     UnknownFieldProblem,
+    WrongTypeProblem,
 )
 from .skill_frontmatter import SkillFrontmatter, find_value_object_message
 
@@ -85,9 +84,9 @@ def _frontmatter_problem(detail: ErrorDetails) -> FrontmatterProblem:
             message = f'`{field}` is not a field of the Agent Skills specification'
             return UnknownFieldProblem(field, message)
         case 'string_type':
-            return NotAStringProblem(field)
+            return WrongTypeProblem(field, f'`{field}` must be a string')
         case 'dict_type':
-            return NotAStringMappingProblem(field)
+            return WrongTypeProblem(field, f'`{field}` must be a mapping of strings to strings')
         case _:
             return InvalidValueProblem(field, _unspecified_message(field))
 

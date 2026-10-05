@@ -11,8 +11,6 @@ from lorecraft.project.schemas import (
     FrontmatterProblem,
     InvalidValueProblem,
     MissingFieldProblem,
-    NotAStringMappingProblem,
-    NotAStringProblem,
     UnknownFieldProblem,
     WrongTypeProblem,
 )
@@ -37,13 +35,7 @@ def problem_rule(rule_namespace: str, problem: FrontmatterProblem) -> str:
             return f'{rule_namespace}.unknown-field'
         case BlockProblem():
             return f'{rule_namespace}.frontmatter'
-        case (
-            MissingFieldProblem()
-            | NotAStringProblem()
-            | NotAStringMappingProblem()
-            | WrongTypeProblem()
-            | InvalidValueProblem()
-        ):
+        case MissingFieldProblem() | WrongTypeProblem() | InvalidValueProblem():
             return f'{rule_namespace}.{problem.field}'
         case _:
             assert_never(problem)
@@ -59,14 +51,7 @@ def problem_line(frontmatter: Frontmatter, problem: FrontmatterProblem) -> LineN
     match problem:
         case BlockProblem():
             return _FIRST_LINE
-        case (
-            MissingFieldProblem()
-            | UnknownFieldProblem()
-            | NotAStringProblem()
-            | NotAStringMappingProblem()
-            | WrongTypeProblem()
-            | InvalidValueProblem()
-        ):
+        case MissingFieldProblem() | UnknownFieldProblem() | WrongTypeProblem() | InvalidValueProblem():
             return field_line(frontmatter, problem.field)
         case _:
             assert_never(problem)
