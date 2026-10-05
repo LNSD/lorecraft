@@ -53,9 +53,7 @@ def spec_note(spec: RootRelativePath | None) -> Note:
 
 
 def field_line(frontmatter: Frontmatter, field: str) -> LineNumber:
-    """The line a top-level field is written on, or line 1 when the mapping does not write it.
-
-    A field only a `<<` merge supplies is not written by the mapping, so it is reported on line 1.
+    """The line a top-level field is written on, or line 1 when the mapping does not hold it.
 
     Args:
         frontmatter: The decoded frontmatter, whose top-level keys carry the line each is written on.

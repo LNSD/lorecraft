@@ -104,25 +104,6 @@ class TestValidateFrontmatter:
             'the violation sits on the line the parser stopped at'
         )
 
-    def test_validate_frontmatter_with_a_tagged_value_its_tag_cannot_construct_reports_unparseable(self) -> None:
-        #: Given
-        frontmatter = parse_frontmatter('---\nname: guide\ncount: !!int many\n---\n')
-        schemas = (_code_frontmatter({'type': 'object'}),)
-
-        #: When
-        result = validate_frontmatter(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
-
-        #: Then
-        assert result.violations == (
-            Violation(
-                line=LineNumber.from_int(3),
-                rule='frontmatter.unparseable',
-                message=(
-                    "frontmatter is not valid YAML: could not construct a value for the tag 'tag:yaml.org,2002:int'"
-                ),
-            ),
-        ), 'a scalar its tag cannot construct is one unparseable violation on its line, not a crash'
-
     def test_validate_frontmatter_with_non_mapping_yaml_reports_unparseable(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('---\n- guide\n---\n')
@@ -357,17 +338,6 @@ class TestValidateFrontmatter:
             ),
         ), 'an unknown key written twice is reported once, on its last line, before the repetition'
 
-    def test_validate_frontmatter_with_a_merge_overriding_a_written_key_reports_no_repetition(self) -> None:
-        #: Given
-        frontmatter = parse_frontmatter('---\nname: guide\ntype: rule\n<<: {name: other}\n---\n')
-        schemas = (_code_frontmatter({'type': 'object'}),)
-
-        #: When
-        result = validate_frontmatter(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
-
-        #: Then
-        assert result.violations == (), 'a key a merge supplies is not written twice, and the written name wins'
-
     def test_validate_frontmatter_with_a_repeated_lone_surrogate_key_reports_it_escaped(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('---\nname: guide\n"\\ud83d": a\n"\\ud83d": b\n---\n')
@@ -401,24 +371,6 @@ class TestValidateFrontmatter:
                 message="'a\\nb' is already written on line 3",
             ),
         ), 'a newline in the key is printed as its escape, so the finding stays on one line'
-
-    def test_validate_frontmatter_with_a_field_only_a_merge_supplies_reports_it_on_line_1(self) -> None:
-        #: Given
-        frontmatter = parse_frontmatter('---\nname: guide\nbase: &b\n  type: bad\n<<: *b\n---\n')
-        schemas = (_code_frontmatter({'type': 'object', 'properties': {'type': {'enum': ['rule', 'pattern']}}}),)
-
-        #: When
-        result = validate_frontmatter(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
-
-        #: Then
-        assert result.violations == (
-            Violation(
-                line=LineNumber.from_int(1),
-                rule='code.type',
-                message="'bad' is not one of ['rule', 'pattern'] (per docs/__meta__/code.structure.json)",
-                spec=SPECS_DIR / 'code.structure.json',
-            ),
-        ), 'a field written only inside a merged mapping has no top-level line, so it is reported on line 1'
 
     def test_validate_frontmatter_with_an_unknown_equals_key_reports_it_on_its_own_line(self) -> None:
         #: Given
@@ -465,65 +417,6 @@ class TestValidateFrontmatter:
                 spec=SPECS_DIR / 'code.structure.json',
             ),
         ), 'a problem with the frontmatter as a whole concerns no field, so it is the corpus frontmatter rule on line 1'
-
-    def test_validate_frontmatter_with_a_key_written_as_an_alias_reports_it_on_the_anchor_line(self) -> None:
-        #: Given
-        # `*k` on line 4 is the key `type`, through the anchor `&k` on the value of `label` on line 3
-        frontmatter = parse_frontmatter(
-            dedent(
-                """\
-                ---
-                name: guide
-                label: &k type
-                *k : bad
-                ---
-                """
-            )
-        )
-        schemas = (_code_frontmatter({'type': 'object', 'properties': {'type': {'enum': ['rule', 'pattern']}}}),)
-
-        #: When
-        result = validate_frontmatter(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
-
-        #: Then
-        assert result.violations == (
-            Violation(
-                line=LineNumber.from_int(3),
-                rule='code.type',
-                message="'bad' is not one of ['rule', 'pattern'] (per docs/__meta__/code.structure.json)",
-                spec=SPECS_DIR / 'code.structure.json',
-            ),
-        ), 'a key written as an alias is placed on the line of its anchor, not on the line of the alias'
-
-    def test_validate_frontmatter_with_a_key_repeated_as_an_alias_reports_the_repetition_on_the_anchor_line(
-        self,
-    ) -> None:
-        #: Given
-        # `*k` on line 4 writes `type` again, through the anchor `&k` on the key `type` on line 2
-        frontmatter = parse_frontmatter(
-            dedent(
-                """\
-                ---
-                &k type: rule
-                name: guide
-                *k : pattern
-                ---
-                """
-            )
-        )
-        schemas = (_code_frontmatter({'type': 'object'}),)
-
-        #: When
-        result = validate_frontmatter(schemas, frontmatter=frontmatter, filename=GUIDE, corpus=CODE)
-
-        #: Then
-        assert result.violations == (
-            Violation(
-                line=LineNumber.from_int(2),
-                rule='frontmatter.duplicate-key',
-                message="'type' is already written on line 2",
-            ),
-        ), 'the repetition written as an alias is placed on the line of its anchor, which is the first occurrence'
 
     def test_validate_frontmatter_with_a_key_repeated_inside_a_nested_mapping_reports_no_repetition(self) -> None:
         #: Given

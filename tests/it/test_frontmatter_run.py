@@ -206,33 +206,6 @@ class TestRunFrontmatter:
             )
         ], 'the decoder kept the right name, so the overwritten wrong one is reported only as a repetition'
 
-    def test_run_frontmatter_with_a_scalar_its_tag_cannot_construct_reports_it_and_checks_the_rest(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.md', b'# Code\n')
-        _write(tmp_path, 'docs/__meta__/code.structure.json', DESCRIPTION_STRUCTURE_SPEC.encode())
-        _write(tmp_path, 'docs/code/clean.md', b'---\nname: "clean"\ndescription: "A clean document"\n---\n')
-        _write(tmp_path, 'docs/code/guide.md', b'---\nname: "guide"\ndescription: !!int many\n---\n')
-        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
-
-        #: When
-        run = _run_every_document(database)
-
-        #: Then
-        assert [report.violations for report in run.reports if isinstance(report, GovernedDocumentReport)] == [
-            (),
-            (
-                Violation(
-                    line=LineNumber.from_int(3),
-                    rule='frontmatter.unparseable',
-                    message=(
-                        "frontmatter is not valid YAML: could not construct a value for the tag 'tag:yaml.org,2002:int'"
-                    ),
-                ),
-            ),
-        ], 'the scalar is one finding on its line, and the run goes on to check the other document'
-
     def test_run_frontmatter_with_a_key_that_is_not_a_string_under_pattern_properties_reports_it_unparseable(
         self, tmp_path: Path
     ) -> None:
@@ -257,6 +230,29 @@ class TestRunFrontmatter:
                 ),
             ),
         ], 'the first key that is not a string is refused on its line, the run goes on, and no schema meets it'
+
+    def test_run_frontmatter_with_an_alias_reports_it_unparseable_and_checks_the_rest(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.md', b'# Code\n')
+        _write(tmp_path, 'docs/__meta__/code.structure.json', DESCRIPTION_STRUCTURE_SPEC.encode())
+        _write(tmp_path, 'docs/code/clean.md', b'---\nname: "clean"\ndescription: "A clean document"\n---\n')
+        _write(tmp_path, 'docs/code/guide.md', b'---\nname: "guide"\ndescription: *name\n---\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        run = _run_every_document(database)
+
+        #: Then
+        assert [report.violations for report in run.reports if isinstance(report, GovernedDocumentReport)] == [
+            (),
+            (
+                Violation(
+                    line=LineNumber.from_int(3),
+                    rule='frontmatter.unparseable',
+                    message='frontmatter is not valid YAML: found the alias *name, which frontmatter does not allow',
+                ),
+            ),
+        ], 'frontmatter is basic YAML, so an alias is one finding on its line, and the run checks the other document'
 
     def test_run_frontmatter_with_collections_nested_too_deeply_reports_it_and_checks_the_rest(
         self, tmp_path: Path

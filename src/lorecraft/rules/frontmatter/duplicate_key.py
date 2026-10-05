@@ -22,8 +22,7 @@ class DuplicateKey(FrontmatterBlockRule):
     frontmatter writes a top-level key again. Each later occurrence is reported on its own line, pointing back at
     the first, whether the values are equal or differ.
 
-    A key a `<<` merge supplies is not one the block writes, so it never repeats one. A document no `frontmatter`
-    schema governs is not checked.
+    A document no `frontmatter` schema governs is not checked.
 
     ## Why is this bad?
 

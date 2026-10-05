@@ -40,8 +40,8 @@ where agents list them, so it checks a linked skill once, through its entry.
 
 ## 2. Frontmatter
 
-`SKILL.md` opens with YAML frontmatter between `---` lines. It must parse as YAML: a value containing `: `
-must be quoted, and a value containing `"` is quoted with `'`.
+`SKILL.md` opens with YAML frontmatter between `---` lines. It must parse as basic YAML, with string keys and no
+anchors, aliases or tags: a value containing `: ` must be quoted, and a value containing `"` is quoted with `'`.
 
 | Field | Required | Rule |
 |---|---|---|

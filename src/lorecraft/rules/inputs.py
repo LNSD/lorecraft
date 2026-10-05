@@ -148,7 +148,7 @@ class NameField:
 
     Attributes:
         value: The value as YAML decoded it, of whatever type it was written as.
-        line: The line the `name` key is written on, or line 1 when only a `<<` merge supplies it.
+        line: The line the `name` key is written on.
     """
 
     value: object
@@ -177,7 +177,6 @@ class FrontmatterFields:
     Attributes:
         name: The `name` the mapping holds, or `None` when it holds none.
         repeated_keys: Every top-level key written again, one per occurrence after the first, in document order.
-            A key only a `<<` merge supplies is never among them.
     """
 
     name: NameField | None
