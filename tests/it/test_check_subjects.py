@@ -54,6 +54,7 @@ from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.outline.empty_section import EmptySection
 from lorecraft.rules.outline.extra_title import ExtraTitle
+from lorecraft.rules.outline.forbidden_section import ForbiddenSection
 from lorecraft.rules.outline.missing_title import MissingTitle
 from lorecraft.rules.outline.title_not_first import TitleNotFirst
 from lorecraft.rules.registry import Registry
@@ -1173,6 +1174,24 @@ class TestCheckSubjects:
                 ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
             ),
         ), 'OUT004 runs at deny over a document whose specification forbids empty sections, at the empty heading'
+
+    def test_check_subjects_with_a_forbidden_section_reports_forbidden_section(self, package_table: RuleTable) -> None:
+        #: Given
+        guide = b'# Guide\n\n## Run\n\nRun it once.\n\n## Changelog\n\nAdded the run step.\n'
+        database = Database(_snapshot(b'{"forbidden": ["Changelog"]}', guide=guide))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), package_table)
+
+        #: Then
+        occurrence = ForbiddenSection(spec=CODE_SPEC, line=LineNumber.from_int(7), section='Changelog')
+        assert reports == (
+            CheckedSubject(
+                GUIDE,
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
+            ),
+        ), 'OUT005 runs at deny over a document whose specification forbids a section, at the forbidden heading'
 
     def test_check_subjects_with_no_enabled_rule_over_the_headings_never_parses_the_document(self) -> None:
         #: Given

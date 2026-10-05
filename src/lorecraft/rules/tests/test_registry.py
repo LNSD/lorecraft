@@ -18,6 +18,7 @@ from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.outline.empty_section import EmptySection
 from lorecraft.rules.outline.extra_title import ExtraTitle
+from lorecraft.rules.outline.forbidden_section import ForbiddenSection
 from lorecraft.rules.outline.missing_title import MissingTitle
 from lorecraft.rules.outline.title_not_first import TitleNotFirst
 
@@ -375,6 +376,7 @@ class TestPackageRegistry:
             ExtraTitle,
             TitleNotFirst,
             EmptySection,
+            ForbiddenSection,
         ), 'the registry holds every rule and engine condition `lorecraft.rules` declares, in code order'
 
     def test_find_with_the_package_rules_and_the_undecodable_condition_code_returns_it(self) -> None:
