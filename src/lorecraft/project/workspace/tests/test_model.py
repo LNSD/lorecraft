@@ -99,7 +99,6 @@ def _spec_files(
             frontmatter_schema = FrontmatterSchema(path=path, schema=FrozenMapping({'type': 'object'}))
         structure_spec = StructureSpec(
             file=StructureSpecFile(path=path, name=spec_name),
-            title=None,
             forbid_empty_sections=structure,
             outline=(),
             forbidden=(),

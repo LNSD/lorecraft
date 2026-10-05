@@ -18,7 +18,6 @@ from lorecraft.project.schemas import (
     SpecFileType,
     StructureSpec,
     StructureSpecFile,
-    TitleRule,
     parse_spec_name,
     spec_filename,
 )
@@ -74,7 +73,6 @@ BUDGET_USAGE: Final[str] = (
 
 def _structure_spec(
     *,
-    title: TitleRule | None = None,
     forbid_empty_sections: bool = False,
     outline: tuple[OutlineEntry, ...] = (),
     forbidden: tuple[SectionName, ...] = (),
@@ -83,7 +81,6 @@ def _structure_spec(
     """A structure specification at `docs/__meta__/<spec_name>.structure.json`, whose authority is `<spec_name>.md`.
 
     Args:
-        title: The H1 title rule; `None` states none.
         forbid_empty_sections: Whether a heading with an empty section is a violation.
         outline: The sections the document must follow, in order; empty states no outline.
         forbidden: Section names the document may not have.
@@ -92,7 +89,6 @@ def _structure_spec(
     name = parse_spec_name(spec_name)
     return StructureSpec(
         file=StructureSpecFile(path=SPECS_DIR / spec_filename(name, SpecFileType.STRUCTURE), name=name),
-        title=title,
         forbid_empty_sections=forbid_empty_sections,
         outline=outline,
         forbidden=forbidden,
@@ -109,7 +105,6 @@ class TestValidateStructure:
         document = parse_document(text)
         structure_specs = (
             _structure_spec(
-                title=TitleRule(count=NonZeroUnsignedInt(1), first=True),
                 forbid_empty_sections=True,
                 outline=RULE_OUTLINE,
             ),
@@ -137,7 +132,7 @@ class TestValidateStructure:
         #: Given
         text = '# Guide\n\ntext\n\n# Again\n\ntext\n'
         document = parse_document(text)
-        structure_specs = (_structure_spec(title=TitleRule(count=NonZeroUnsignedInt(1), first=True)),)
+        structure_specs = (_structure_spec(forbid_empty_sections=True),)
 
         #: When
         result = validate_structure(structure_specs, headings=document.headings)
@@ -154,20 +149,34 @@ class TestValidateStructure:
         #: Given
         text = '## Rule\n\ntext\n\n# Guide\n\ntext\n'
         document = parse_document(text)
-        structure_specs = (_structure_spec(title=TitleRule(count=NonZeroUnsignedInt(1), first=True)),)
+        structure_specs = (_structure_spec(forbid_empty_sections=True),)
 
         #: When
         result = validate_structure(structure_specs, headings=document.headings)
 
         #: Then
-        assert len(result.violations) == 1, (
-            f'the title must open the document when the rule says it comes first, got {result.violations}'
-        )
+        assert len(result.violations) == 1, f'a title rule puts the title before any section, got {result.violations}'
         assert result.violations[0].line == LineNumber.from_int(1), 'the misplaced title is reported on the first line'
         assert result.violations[0].rule == 'structure.title', 'a section ahead of the H1 breaks the title rule'
         assert result.violations[0].message == 'the H1 title comes before any section (per code.md)', (
             'the message says the title belongs before any section'
         )
+
+    def test_validate_structure_with_two_layers_reports_a_missing_title_once_under_the_corpus(self) -> None:
+        #: Given
+        text = '## Rule\n\ntext\n'
+        document = parse_document(text)
+        corpus = _structure_spec(forbid_empty_sections=True)
+        namespace = _structure_spec(forbid_empty_sections=True, spec_name='code-python')
+
+        #: When
+        result = validate_structure((corpus, namespace), headings=document.headings)
+
+        #: Then
+        assert [violation.message for violation in result.violations] == [
+            'expected 1 H1 title, found 0 (per code.md)',
+            'the H1 title comes before any section (per code.md)',
+        ], 'no specification states the title, so it is checked once, under the corpus specification'
 
     def test_validate_structure_with_an_empty_section_reports_it_on_its_line(self) -> None:
         #: Given
@@ -193,7 +202,7 @@ class TestValidateStructure:
 
     def test_validate_structure_with_a_forbidden_section_reports_it_on_its_line(self) -> None:
         #: Given
-        text = '## Rule\n\ntext\n\n## Changelog\n\ntext\n'
+        text = '# Guide\n\n## Rule\n\ntext\n\n## Changelog\n\ntext\n'
         document = parse_document(text)
         structure_specs = (_structure_spec(forbidden=(SectionName('Changelog'),)),)
 
@@ -204,7 +213,7 @@ class TestValidateStructure:
         assert len(result.violations) == 1, (
             f'a forbidden section is reported where it is written, got {result.violations}'
         )
-        assert result.violations[0].line == LineNumber.from_int(5), (
+        assert result.violations[0].line == LineNumber.from_int(7), (
             'the forbidden section is reported on the line of its heading'
         )
         assert result.violations[0].rule == 'structure.forbidden', (
@@ -216,7 +225,7 @@ class TestValidateStructure:
 
     def test_validate_structure_without_a_required_section_reports_it_missing(self) -> None:
         #: Given
-        text = '## Rule\n\ntext\n'
+        text = '# Guide\n\n## Rule\n\ntext\n'
         document = parse_document(text)
         structure_specs = (_structure_spec(outline=RULE_OUTLINE),)
 
@@ -232,7 +241,7 @@ class TestValidateStructure:
         self,
     ) -> None:
         #: Given
-        text = '## Summary\n\ntext\n\n## Rule\n\ntext\n'
+        text = '# Guide\n\n## Summary\n\ntext\n\n## Rule\n\ntext\n'
         document = parse_document(text)
         structure_specs = (
             _structure_spec(
@@ -251,7 +260,7 @@ class TestValidateStructure:
             'the divergence is reported on the section that sits where the required one belongs, '
             f'got {result.violations}'
         )
-        assert result.violations[0].line == LineNumber.from_int(5), (
+        assert result.violations[0].line == LineNumber.from_int(7), (
             'the divergence is on the line of the section that took the place of the required one'
         )
         assert result.violations[0].rule == 'structure.outline', (
@@ -263,7 +272,7 @@ class TestValidateStructure:
 
     def test_validate_structure_with_an_optional_section_left_out_matches_the_entries_after_it(self) -> None:
         #: Given
-        text = '## Summary\n\ntext\n\n## Checklist\n\ntext\n'
+        text = '# Guide\n\n## Summary\n\ntext\n\n## Checklist\n\ntext\n'
         document = parse_document(text)
         structure_specs = (
             _structure_spec(
@@ -283,7 +292,7 @@ class TestValidateStructure:
 
     def test_validate_structure_with_named_sections_swapped_reports_one_outline_finding(self) -> None:
         #: Given
-        text = '## Rule\n\ntext\n\n## References\n\ntext\n\n## Checklist\n\ntext\n'
+        text = '# Guide\n\n## Rule\n\ntext\n\n## References\n\ntext\n\n## Checklist\n\ntext\n'
         document = parse_document(text)
         structure_specs = (_structure_spec(outline=RULE_OUTLINE),)
 
@@ -294,7 +303,7 @@ class TestValidateStructure:
         assert len(result.violations) == 1, (
             f'only the first divergence is reported, never the cascade after it, got {result.violations}'
         )
-        assert result.violations[0].line == LineNumber.from_int(5), (
+        assert result.violations[0].line == LineNumber.from_int(7), (
             'the first divergence is on the line of the swapped section'
         )
         assert result.violations[0].rule == 'structure.outline', 'swapped sections break the outline rule'
@@ -306,7 +315,7 @@ class TestValidateStructure:
         self,
     ) -> None:
         #: Given
-        text = '## Checklist\n\ntext\n\n## References\n\ntext\n\n## Checklist\n\ntext\n'
+        text = '# Guide\n\n## Checklist\n\ntext\n\n## References\n\ntext\n\n## Checklist\n\ntext\n'
         document = parse_document(text)
         structure_specs = (_structure_spec(outline=RULE_OUTLINE),)
 
@@ -317,7 +326,7 @@ class TestValidateStructure:
         assert len(result.violations) == 1, (
             f'a named section left over once the outline ends was written out of turn, got {result.violations}'
         )
-        assert result.violations[0].line == LineNumber.from_int(9), (
+        assert result.violations[0].line == LineNumber.from_int(11), (
             'the repeated section is reported on the line of its second heading'
         )
         assert result.violations[0].message == 'section `Checklist` is out of order (per code.md)', (
@@ -328,7 +337,7 @@ class TestValidateStructure:
         self,
     ) -> None:
         #: Given
-        text = '## Checklist\n\ntext\n\n## Appendix\n\ntext\n'
+        text = '# Guide\n\n## Checklist\n\ntext\n\n## Appendix\n\ntext\n'
         document = parse_document(text)
         structure_specs = (_structure_spec(outline=RULE_OUTLINE),)
 
@@ -339,7 +348,7 @@ class TestValidateStructure:
         assert len(result.violations) == 1, (
             f'an unnamed section past the last entry is written past the end of the document, got {result.violations}'
         )
-        assert result.violations[0].line == LineNumber.from_int(5), (
+        assert result.violations[0].line == LineNumber.from_int(7), (
             'the unexpected section is reported on the line of its heading'
         )
         assert result.violations[0].message == (
@@ -348,7 +357,7 @@ class TestValidateStructure:
 
     def test_validate_structure_with_a_subsection_ignores_it_in_the_outline(self) -> None:
         #: Given
-        text = '## Rule\n\n### Detail\n\ntext\n\n## Checklist\n\ntext\n'
+        text = '# Guide\n\n## Rule\n\n### Detail\n\ntext\n\n## Checklist\n\ntext\n'
         document = parse_document(text)
         structure_specs = (_structure_spec(outline=RULE_OUTLINE),)
 
@@ -360,7 +369,7 @@ class TestValidateStructure:
 
     def test_validate_structure_with_two_layers_applies_each_and_quotes_its_own_authority(self) -> None:
         #: Given
-        text = '## Rule\n\ntext\n\n## Checklist\n\ntext\n'
+        text = '# Guide\n\n## Rule\n\ntext\n\n## Checklist\n\ntext\n'
         document = parse_document(text)
         corpus = _structure_spec(outline=RULE_OUTLINE)
         namespace = _structure_spec(
@@ -395,12 +404,14 @@ class TestValidateStructure:
         assert [(violation.line.number, violation.rule) for violation in result.violations] == [
             (1, 'structure.forbidden'),
             (1, 'structure.outline'),
+            (1, 'structure.title'),
+            (1, 'structure.title'),
             (5, 'structure.empty'),
         ], 'violations are ordered by line, then by rule'
 
     def test_validate_structure_with_a_named_section_over_its_cap_reports_it_on_its_line(self) -> None:
         #: Given
-        text = '## Rule\n\ntext\n\n## Checklist\n\none two three\n'
+        text = '# Guide\n\n## Rule\n\ntext\n\n## Checklist\n\none two three\n'
         document = parse_document(text)
         outline = (AnySections(), SectionEntry(name=SectionName('Checklist'), words=NonZeroUnsignedInt(2)))
         structure_specs = (_structure_spec(outline=outline),)
@@ -412,7 +423,7 @@ class TestValidateStructure:
         assert len(result.violations) == 1, (
             f'a named section takes the cap of the entry naming it, got {result.violations}'
         )
-        assert result.violations[0].line == LineNumber.from_int(5), (
+        assert result.violations[0].line == LineNumber.from_int(7), (
             'the section over its cap is reported on the line of its heading'
         )
         assert result.violations[0].rule == 'structure.words.section', (
@@ -424,7 +435,7 @@ class TestValidateStructure:
 
     def test_validate_structure_with_an_unnamed_section_over_the_any_cap_reports_it(self) -> None:
         #: Given
-        text = '## Rule\n\none two three\n\n## Checklist\n\ntext\n'
+        text = '# Guide\n\n## Rule\n\none two three\n\n## Checklist\n\ntext\n'
         document = parse_document(text)
         outline = (AnySections(words=NonZeroUnsignedInt(2)), SectionEntry(name=SectionName('Checklist')))
         structure_specs = (_structure_spec(outline=outline),)
@@ -436,7 +447,7 @@ class TestValidateStructure:
         assert len(result.violations) == 1, (
             f'a section the outline does not name takes the cap of the `any` run it falls in, got {result.violations}'
         )
-        assert result.violations[0].line == LineNumber.from_int(1), (
+        assert result.violations[0].line == LineNumber.from_int(3), (
             'the unnamed section over the cap is reported on the line of its heading'
         )
         assert result.violations[0].message == 'section `Rule` is 3 prose words; the cap is 2 (per code.md)', (
@@ -445,7 +456,7 @@ class TestValidateStructure:
 
     def test_validate_structure_with_an_uncapped_named_entry_does_not_apply_the_any_cap(self) -> None:
         #: Given
-        text = '## Rule\n\none\n\n## Checklist\n\none two three\n'
+        text = '# Guide\n\n## Rule\n\none\n\n## Checklist\n\none two three\n'
         document = parse_document(text)
         outline = (AnySections(words=NonZeroUnsignedInt(1)), SectionEntry(name=SectionName('Checklist')))
         structure_specs = (_structure_spec(outline=outline),)
@@ -458,7 +469,7 @@ class TestValidateStructure:
 
     def test_validate_structure_with_two_any_runs_applies_each_run_its_own_cap(self) -> None:
         #: Given
-        text = '## Intro\n\none\n\n## Middle\n\ntext\n\n## Detail\n\none two three\n'
+        text = '# Guide\n\n## Intro\n\none\n\n## Middle\n\ntext\n\n## Detail\n\none two three\n'
         document = parse_document(text)
         outline = (
             AnySections(words=NonZeroUnsignedInt(1)),
@@ -475,7 +486,7 @@ class TestValidateStructure:
 
     def test_validate_structure_with_a_subsection_counts_its_words_into_its_section(self) -> None:
         #: Given
-        text = '## Rule\n\none two\n\n### Detail\n\nthree four\n\n## Checklist\n\ntext\n'
+        text = '# Guide\n\n## Rule\n\none two\n\n### Detail\n\nthree four\n\n## Checklist\n\ntext\n'
         document = parse_document(text)
         outline = (AnySections(words=NonZeroUnsignedInt(3)), SectionEntry(name=SectionName('Checklist')))
         structure_specs = (_structure_spec(outline=outline),)
@@ -487,7 +498,7 @@ class TestValidateStructure:
         assert len(result.violations) == 1, (
             f'an H3 is part of the section above it, so its words count against that section, got {result.violations}'
         )
-        assert result.violations[0].line == LineNumber.from_int(1), (
+        assert result.violations[0].line == LineNumber.from_int(3), (
             'the overflow is reported on the H2 section, not on its H3'
         )
         assert result.violations[0].message == 'section `Rule` is 4 prose words; the cap is 3 (per code.md)', (
@@ -496,7 +507,7 @@ class TestValidateStructure:
 
     def test_validate_structure_with_two_layers_applies_each_layer_its_own_caps(self) -> None:
         #: Given
-        text = '## Rule\n\none two three\n\n## Checklist\n\ntext\n'
+        text = '# Guide\n\n## Rule\n\none two three\n\n## Checklist\n\ntext\n'
         document = parse_document(text)
         corpus = _structure_spec(
             outline=(AnySections(words=NonZeroUnsignedInt(5)), SectionEntry(name=SectionName('Checklist')))
@@ -516,7 +527,7 @@ class TestValidateStructure:
 class TestValidateStructureOutlineNotes:
     def test_validate_structure_without_a_described_section_reports_its_description_and_example(self) -> None:
         #: Given
-        text = '## Rule\n\ntext\n'
+        text = '# Guide\n\n## Rule\n\ntext\n'
         document = parse_document(text)
         checklist = SectionEntry(
             name=SectionName('Checklist'), description=CHECKLIST_DESCRIPTION, examples=(LOGGING_CHECKLIST,)
@@ -536,7 +547,7 @@ class TestValidateStructureOutlineNotes:
 
     def test_validate_structure_without_a_section_stating_several_examples_reports_only_the_first(self) -> None:
         #: Given
-        text = '## Rule\n\ntext\n'
+        text = '# Guide\n\n## Rule\n\ntext\n'
         document = parse_document(text)
         checklist = SectionEntry(name=SectionName('Checklist'), examples=(LOGGING_CHECKLIST, DOCSTRINGS_CHECKLIST))
         structure_specs = (_structure_spec(outline=(AnySections(), checklist)),)
@@ -553,7 +564,7 @@ class TestValidateStructureOutlineNotes:
         self,
     ) -> None:
         #: Given
-        text = '## Summary\n\ntext\n\n## Rule\n\ntext\n'
+        text = '# Guide\n\n## Summary\n\ntext\n\n## Rule\n\ntext\n'
         document = parse_document(text)
         usage = SectionEntry(name=SectionName('Usage'), description=USAGE_DESCRIPTION, examples=(BUDGET_USAGE,))
         structure_specs = (_structure_spec(outline=(SectionEntry(name=SectionName('Summary')), usage)),)
@@ -576,7 +587,7 @@ class TestValidateStructureOutlineNotes:
 
     def test_validate_structure_without_a_section_stating_only_a_description_reports_only_help(self) -> None:
         #: Given
-        text = '## Rule\n\ntext\n'
+        text = '# Guide\n\n## Rule\n\ntext\n'
         document = parse_document(text)
         checklist = SectionEntry(name=SectionName('Checklist'), description=CHECKLIST_DESCRIPTION)
         structure_specs = (_structure_spec(outline=(AnySections(), checklist)),)
@@ -591,7 +602,7 @@ class TestValidateStructureOutlineNotes:
 
     def test_validate_structure_without_a_section_stating_only_an_example_reports_only_the_example(self) -> None:
         #: Given
-        text = '## Rule\n\ntext\n'
+        text = '# Guide\n\n## Rule\n\ntext\n'
         document = parse_document(text)
         checklist = SectionEntry(name=SectionName('Checklist'), examples=(LOGGING_CHECKLIST,))
         structure_specs = (_structure_spec(outline=(AnySections(), checklist)),)
@@ -606,7 +617,7 @@ class TestValidateStructureOutlineNotes:
 
     def test_validate_structure_without_a_section_stating_neither_reports_no_notes(self) -> None:
         #: Given
-        text = '## Rule\n\ntext\n'
+        text = '# Guide\n\n## Rule\n\ntext\n'
         document = parse_document(text)
         structure_specs = (_structure_spec(outline=RULE_OUTLINE),)
 

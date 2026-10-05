@@ -1036,7 +1036,7 @@ class TestCheckStructureCommand:
     def test_check_structure_with_a_clean_corpus_exits_zero_and_counts_the_documents(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_STRUCTURE_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '## Rule\n\ntext\n\n## Checklist\n\n- [ ] item\n')
+        _write(tmp_path, 'docs/code/guide.md', '# Guide\n\n## Rule\n\ntext\n\n## Checklist\n\n- [ ] item\n')
         app = build_app()
 
         #: When
@@ -1050,7 +1050,7 @@ class TestCheckStructureCommand:
     def test_check_structure_with_a_missing_section_exits_one_and_prints_the_finding(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_STRUCTURE_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '## Rule\n\ntext\n')
+        _write(tmp_path, 'docs/code/guide.md', '# Guide\n\n## Rule\n\ntext\n')
         app = build_app()
 
         #: When
@@ -1097,7 +1097,7 @@ class TestCheckStructureCommand:
     ) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_STRUCTURE_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '## Checklist\n\n- [ ] item\n\n## Appendix\n\ntext\n')
+        _write(tmp_path, 'docs/code/guide.md', '# Guide\n\n## Checklist\n\n- [ ] item\n\n## Appendix\n\ntext\n')
         app = build_app()
 
         #: When
@@ -1108,7 +1108,7 @@ class TestCheckStructureCommand:
         assert json.loads(result.stdout)['findings'] == [
             {
                 'file': 'docs/code/guide.md',
-                'line': 5,
+                'line': 7,
                 'rule': 'structure.outline',
                 'message': 'unexpected section `Appendix`; the outline ends before it (per code.md)',
                 'spec': 'docs/__meta__/code.structure.json',
@@ -1122,7 +1122,7 @@ class TestCheckStructureCommand:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
         _write(tmp_path, 'docs/__meta__/code.structure.json', DESCRIBED_CHECKLIST_STRUCTURE_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '## Rule\n\ntext\n')
+        _write(tmp_path, 'docs/code/guide.md', '# Guide\n\n## Rule\n\ntext\n')
         app = build_app()
 
         #: When
@@ -1137,7 +1137,7 @@ class TestCheckStructureCommand:
     ) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', DESCRIBED_CHECKLIST_STRUCTURE_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '## Rule\n\ntext\n')
+        _write(tmp_path, 'docs/code/guide.md', '# Guide\n\n## Rule\n\ntext\n')
         app = build_app()
 
         #: When
@@ -2461,7 +2461,7 @@ class TestCheckAllCommand:
     def test_check_with_a_clean_corpus_exits_zero_and_counts_the_documents_and_checks(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n## Checklist\n\n- [ ] item\n')
+        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n# Guide\n\n## Checklist\n\n- [ ] item\n')
         app = build_app()
 
         #: When
@@ -2496,7 +2496,7 @@ class TestCheckAllCommand:
     def test_check_with_an_ungoverned_document_prints_it_as_unvalidated(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n')
+        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n# Guide\n')
         app = build_app()
 
         #: When
@@ -2514,7 +2514,7 @@ class TestCheckAllCommand:
     def test_check_with_a_broken_skill_prints_its_finding_after_the_document_checks(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n## Checklist\n\n- [ ] item\n')
+        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n# Guide\n\n## Checklist\n\n- [ ] item\n')
         _write(tmp_path, '.agents/skills/review/SKILL.md', '---\nname: review\n---\n')
         app = build_app()
 
@@ -2533,7 +2533,7 @@ class TestCheckAllCommand:
     def test_check_with_json_format_reports_each_check_under_its_name(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n')
+        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n# Guide\n')
         app = build_app()
 
         #: When
@@ -2553,7 +2553,7 @@ class TestCheckAllCommand:
     def test_check_with_json_format_over_a_broken_skill_reports_it_under_the_skills_check(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n')
+        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n# Guide\n')
         _write(tmp_path, '.agents/skills/review/SKILL.md', '---\nname: review\n---\n')
         app = build_app()
 

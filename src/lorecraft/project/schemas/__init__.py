@@ -61,7 +61,6 @@ from .structure import (
     StructureSchema,
     StructureSpec,
     StructureSpecDecodeError,
-    TitleRule,
     UntypedFrontmatterSchemaError,
 )
 from .structure_file import StructureFile
@@ -85,7 +84,6 @@ __all__: list[str] = [
     'StructureSchema',
     'StructureSpec',
     'FrontmatterSchema',
-    'TitleRule',
     'StructureFile',
     'OutlineEntry',
     'SectionEntry',

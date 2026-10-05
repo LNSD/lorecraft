@@ -103,8 +103,10 @@ A rule is named for what is wrong, as the established linters name theirs, so th
 - **`message()` states the condition in lowercase, without a trailing period**, with the value found against the
   limit in parentheses where there is one: `too many tokens (5200 > 4000)`. It names no path and no specification.
 - **`children()` points a `Note` at the specification** that states the rule, at `Elsewhere(spec)`, so two
-  occurrences from two specifications read apart. A rule the package itself states has `spec` `None`: its `Note`
-  names the external specification that sets the limit in its text, with no `at`.
+  occurrences from two specifications read apart. A rule every governed document is held to, with no key stating
+  it, points its `Note` at the corpus's structure specification that governs the document. A rule the package
+  itself states has `spec` `None`: its `Note` names the external specification that sets the limit in its text,
+  with no `at`.
 - **A `Help` gives the fix for this occurrence** when its fields make it concrete, such as how many tokens to cut.
   The general fix is the docstring's, but a rule the package states may add a `Help` with the fix the external
   specification itself prescribes.
@@ -117,13 +119,14 @@ of this package.
 
 - **The summary line states the condition**, about the user's subject.
 - **What it does** opens with "Checks for" and the subjects the rule reports, then names the specification key
-  that sets the limit or states the rule; a rule the package states names the external specification and its
-  figure instead. It adds each case a user would not guess: what counts, what does not, how several
+  that sets the limit or states the rule; a rule every governed document is held to says that no key states it,
+  and a rule the package states names the external specification and its figure instead. It adds each case a user would not guess: what counts, what does not, how several
   specifications combine.
 - **Why is this bad?** is one or two sentences on what the condition costs the agent that loads the subject, never
   only that a specification forbids it.
 - **Example** is the input that breaks the rule, under invented paths, in fenced blocks in each file's language:
-  the specification excerpt, then the subject; for a rule the package states, the subject alone. A subject whose
+  the specification excerpt, then the subject. For a rule every governed document is held to, the excerpt is of a
+  governing specification that states some other rule; for a rule the package states, the subject alone. A subject whose
   length is the point is cut short with a comment, such as `<!-- ... 1800 more tokens -->`.
 - **Use instead** is the same subject fixed, in a fenced block, after at most one sentence naming the change. It
   never shows raising the limit.
@@ -167,10 +170,11 @@ Before committing code, verify:
 - [ ] Decoding, building an input, running the rules, applying a level and rendering stay out of the package
 - [ ] A new rule's name states the condition it reports, and its class and module spell that name
 - [ ] A new rule's `message()` is lowercase with the value found against the limit, and `children()` points a
-      `Note` at the specification that states the rule, or, when the package states it, names the external
-      specification in the `Note`'s text with no `at`
+      `Note` at the specification that states the rule, at the corpus's structure specification when no key states
+      it, or, when the package states it, names the external specification in the `Note`'s text with no `at`
 - [ ] A new rule's docstring opens *What it does* with "Checks for", shows the broken and the fixed input under
-      *Example* and *Use instead*, and names nothing of the implementation; a rule the package states names the
+      *Example* and *Use instead*, and names nothing of the implementation; a rule no key states says so, and its
+      *Example* shows a governing specification's excerpt, then the subject; a rule the package states names the
       external specification and its figure, and its *Example* shows the subject alone
 
 ## References
