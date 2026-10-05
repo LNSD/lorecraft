@@ -38,7 +38,6 @@ from ..structure import (
     StructureSchema,
     StructureSpec,
     StructureSpecDecodeError,
-    TitleRule,
     UntypedFrontmatterSchemaError,
 )
 
@@ -80,7 +79,6 @@ class TestStructureSpecParse:
                 """
                 {
                   "description": "read by people only",
-                  "title": {"count": 1, "first": true},
                   "empty_sections": "forbidden",
                   "tokens": 5000,
                   "frontmatter": {"type": "object", "required": ["name"]},
@@ -101,7 +99,6 @@ class TestStructureSpecParse:
         #: Then
         assert structure_spec == StructureSpec(
             file=SPEC_FILE,
-            title=TitleRule(count=NonZeroUnsignedInt(1), first=True),
             forbid_empty_sections=True,
             outline=(
                 AnySections(words=NonZeroUnsignedInt(350)),
@@ -480,7 +477,6 @@ class TestStructureSpecParse:
         #: Then
         assert structure_spec == StructureSpec(
             file=SPEC_FILE,
-            title=None,
             forbid_empty_sections=False,
             outline=(),
             forbidden=(SectionName('Changelog'),),
@@ -526,13 +522,14 @@ class TestStructureSpecParse:
         assert exc_info.value.path == SPEC_PATH, 'text that is not JSON is refused at the edge, naming the file'
         assert exc_info.value.source is exc_info.value.__cause__, 'the validation error is kept as the cause'
 
-    def test_parse_with_a_title_count_below_one_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_a_title_raises_structure_spec_decode_error(self) -> None:
         #: Given
         schema = StructureSchema(
             dedent(
                 """
                 {
-                  "title": {"count": 0, "first": true}
+                  "title": {},
+                  "empty_sections": "forbidden"
                 }
                 """
             )
@@ -543,9 +540,10 @@ class TestStructureSpecParse:
             StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'no document satisfies a count of 0'
-        assert exc_info.value.problems == ('title.count: must be at least 1, got 0',), (
-            f'the problem names the field and reads with the count rejection, got {exc_info.value.problems}'
+        assert exc_info.value.path == SPEC_PATH, 'every governed document carries one title, so no key states it'
+        assert len(exc_info.value.problems) == 1, f'one problem is reported, got {exc_info.value.problems}'
+        assert exc_info.value.problems[0].startswith('title: '), (
+            f'the problem names the key, refused as any unknown key is, got {exc_info.value.problems}'
         )
 
     def test_parse_with_a_string_for_a_boolean_raises_structure_spec_decode_error(self) -> None:
@@ -619,32 +617,9 @@ class TestStructureSpecParse:
         #: Then
         assert exc_info.value.path == SPEC_PATH, '"forbidden" is the only value `empty_sections` takes'
 
-    def test_parse_with_a_boolean_title_count_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_two_wrong_fields_lists_one_problem_each_in_the_message(self) -> None:
         #: Given
-        schema = StructureSchema(
-            dedent(
-                """
-                {
-                  "title": {"count": true, "first": true}
-                }
-                """
-            )
-        )
-
-        #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
-
-        #: Then
-        assert exc_info.value.path == SPEC_PATH, 'a JSON boolean is not a count, though Python treats it as one'
-        assert len(exc_info.value.problems) == 1, f'one field is wrong, got {exc_info.value.problems}'
-        assert exc_info.value.problems[0].startswith('title.count: '), (
-            f'the problem opens with the dotted path of the field at fault, got {exc_info.value.problems[0]!r}'
-        )
-
-    def test_parse_with_two_wrong_title_fields_lists_one_problem_each_in_the_message(self) -> None:
-        #: Given
-        schema = StructureSchema('{"title": {"count": 0, "first": "yes"}}')
+        schema = StructureSchema('{"tokens": 0, "empty_sections": "allowed"}')
 
         #: When
         with pytest.raises(StructureSpecDecodeError) as exc_info:
@@ -652,10 +627,10 @@ class TestStructureSpecParse:
 
         #: Then
         assert len(exc_info.value.problems) == 2, f'each wrong field is its own problem, got {exc_info.value.problems}'
-        assert exc_info.value.problems[0].startswith('title.count: '), (
-            f'the first problem names its field, got {exc_info.value.problems[0]!r}'
+        assert exc_info.value.problems[0].startswith('tokens: '), (
+            f'the first problem opens with the dotted path of its field, got {exc_info.value.problems[0]!r}'
         )
-        assert exc_info.value.problems[1].startswith('title.first: '), (
+        assert exc_info.value.problems[1].startswith('empty_sections: '), (
             f'the second problem names its field, got {exc_info.value.problems[1]!r}'
         )
         assert '; '.join(exc_info.value.problems) in str(exc_info.value), (
@@ -766,7 +741,6 @@ class TestStructureSpecConstruction:
         with pytest.raises(EmptyStructureSpecError) as exc_info:
             StructureSpec(
                 file=file,
-                title=None,
                 forbid_empty_sections=False,
                 outline=(),
                 forbidden=(),
@@ -788,7 +762,6 @@ class TestStructureSpecConstruction:
         with pytest.raises(RepeatedOutlineSectionError) as exc_info:
             StructureSpec(
                 file=SPEC_FILE,
-                title=None,
                 forbid_empty_sections=False,
                 outline=outline,
                 forbidden=(),
@@ -811,7 +784,6 @@ class TestStructureSpecConstruction:
         with pytest.raises(RepeatedForbiddenSectionError) as exc_info:
             StructureSpec(
                 file=SPEC_FILE,
-                title=None,
                 forbid_empty_sections=False,
                 outline=(),
                 forbidden=forbidden,
@@ -834,7 +806,6 @@ class TestStructureSpecConstruction:
         with pytest.raises(ForbiddenOutlineSectionError) as exc_info:
             StructureSpec(
                 file=SPEC_FILE,
-                title=None,
                 forbid_empty_sections=False,
                 outline=outline,
                 forbidden=(SectionName('Checklist'),),
@@ -861,7 +832,6 @@ class TestStructureSpecConstruction:
         with pytest.raises(AdjacentAnyRunsError) as exc_info:
             StructureSpec(
                 file=SPEC_FILE,
-                title=None,
                 forbid_empty_sections=False,
                 outline=outline,
                 forbidden=(),
@@ -884,7 +854,6 @@ class TestStructureSpecAuthority:
         #: When
         structure_spec = StructureSpec(
             file=file,
-            title=None,
             forbid_empty_sections=False,
             outline=(),
             forbidden=(SectionName('Changelog'),),

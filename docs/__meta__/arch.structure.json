@@ -1,7 +1,6 @@
 {
   "$schema": "../schemas/structure.spec.json",
   "description": "The machine-checkable half of docs/__meta__/arch.md: the frontmatter every document in docs/arch/ carries, one H1 title first, no empty section, and References closing the document. It is the base layer; a namespace layer per document kind is applied on its own beside it and can only add to it. No section has a word cap and the file has no token budget.",
-  "title": { "count": 1, "first": true },
   "empty_sections": "forbidden",
   "frontmatter": {
     "type": "object",

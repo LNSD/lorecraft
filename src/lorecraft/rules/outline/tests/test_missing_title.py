@@ -8,9 +8,7 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.schemas import TitleRule
 from lorecraft.project.syntax import Heading, LineNumber
 from lorecraft.rules.inputs import HeadingsInput, HeadingsSpec
 from lorecraft.rules.location import Elsewhere, Note
@@ -30,101 +28,84 @@ INSTALL: Final[Heading] = Heading(level=2, text='Install', line=LineNumber.from_
 """An H2 section on line 3."""
 
 
-def _spec(spec: RootRelativePath, title: TitleRule | None) -> HeadingsSpec:
-    """What a specification states over the headings: its title rule alone.
+def _spec(spec: RootRelativePath) -> HeadingsSpec:
+    """What a specification states over the headings: nothing a title rule reads.
 
     Args:
         spec: The structure specification file.
-        title: Its title rule, or `None` when it states none.
     """
-    return HeadingsSpec(spec=spec, title=title, forbid_empty_sections=False, forbidden=(), section_caps=())
+    return HeadingsSpec(spec=spec, forbid_empty_sections=False, forbidden=(), section_caps=())
 
 
 @pytest.mark.unit
 class TestMissingTitle:
     def test_check_with_a_document_without_a_title_reports_it_on_line_1(self) -> None:
         #: Given
-        title = TitleRule(count=NonZeroUnsignedInt(1), first=True)
-        subject = HeadingsInput(headings=(INSTALL,), specs=(_spec(CORPUS_SPEC, title),))
+        subject = HeadingsInput(headings=(INSTALL,), corpus=_spec(CORPUS_SPEC), namespaces=())
 
         #: When
         occurrences = MissingTitle.check(subject)
 
         #: Then
-        assert occurrences == (MissingTitle(spec=CORPUS_SPEC, line=LineNumber.from_int(1), found=0, count=1),), (
-            'a document with no H1 is one occurrence, on line 1, naming the specification that requires the title'
+        assert occurrences == (MissingTitle(spec=CORPUS_SPEC, line=LineNumber.from_int(1)),), (
+            'a document with no H1 is one occurrence, on line 1, naming the corpus structure specification'
         )
 
     def test_check_with_a_document_carrying_its_title_reports_nothing(self) -> None:
         #: Given
-        title = TitleRule(count=NonZeroUnsignedInt(1), first=True)
-        subject = HeadingsInput(headings=(TITLE, INSTALL), specs=(_spec(CORPUS_SPEC, title),))
+        subject = HeadingsInput(headings=(TITLE, INSTALL), corpus=_spec(CORPUS_SPEC), namespaces=())
 
         #: When
         occurrences = MissingTitle.check(subject)
 
         #: Then
-        assert occurrences == (), 'a document carrying as many titles as required is not missing one'
+        assert occurrences == (), 'a document carrying its title is not missing one'
 
-    def test_check_with_more_titles_than_required_reports_nothing(self) -> None:
+    def test_check_with_more_than_one_title_reports_nothing(self) -> None:
         #: Given
-        title = TitleRule(count=NonZeroUnsignedInt(1), first=False)
         second = Heading(level=1, text='Again', line=LineNumber.from_int(5), empty=False, words=0)
-        subject = HeadingsInput(headings=(TITLE, INSTALL, second), specs=(_spec(CORPUS_SPEC, title),))
+        subject = HeadingsInput(headings=(TITLE, INSTALL, second), corpus=_spec(CORPUS_SPEC), namespaces=())
 
         #: When
         occurrences = MissingTitle.check(subject)
 
         #: Then
-        assert occurrences == (), 'a title past the count is an extra title, never a missing one'
+        assert occurrences == (), 'a title after the first is an extra title, never a missing one'
 
-    def test_check_with_no_title_rule_reports_nothing(self) -> None:
-        #: Given
-        subject = HeadingsInput(headings=(INSTALL,), specs=(_spec(CORPUS_SPEC, None),))
-
-        #: When
-        occurrences = MissingTitle.check(subject)
-
-        #: Then
-        assert occurrences == (), 'a specification that states no title rule requires no title'
-
-    def test_check_with_a_document_short_of_both_specifications_reports_each_in_order(self) -> None:
+    def test_check_with_two_specifications_reports_once_under_the_corpus_specification(self) -> None:
         #: Given
         subject = HeadingsInput(
-            headings=(TITLE, INSTALL),
-            specs=(
-                _spec(CORPUS_SPEC, TitleRule(count=NonZeroUnsignedInt(2), first=False)),
-                _spec(NAMESPACE_SPEC, TitleRule(count=NonZeroUnsignedInt(3), first=False)),
-            ),
+            headings=(INSTALL,),
+            corpus=_spec(CORPUS_SPEC),
+            namespaces=(_spec(NAMESPACE_SPEC),),
         )
 
         #: When
         occurrences = MissingTitle.check(subject)
 
         #: Then
-        assert occurrences == (
-            MissingTitle(spec=CORPUS_SPEC, line=LineNumber.from_int(1), found=1, count=2),
-            MissingTitle(spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), found=1, count=3),
-        ), 'each specification applies on its own, so the document is reported once for each, in order'
+        assert occurrences == (MissingTitle(spec=CORPUS_SPEC, line=LineNumber.from_int(1)),), (
+            'every specification agrees on one title, so the document is reported once, under its corpus'
+        )
 
-    def test_message_with_an_occurrence_names_the_titles_found_and_required(self) -> None:
+    def test_message_with_an_occurrence_states_the_missing_title(self) -> None:
         #: Given
-        occurrence = MissingTitle(spec=CORPUS_SPEC, line=LineNumber.from_int(1), found=0, count=1)
+        occurrence = MissingTitle(spec=CORPUS_SPEC, line=LineNumber.from_int(1))
 
         #: When
         message = occurrence.message()
 
         #: Then
-        assert message == 'missing H1 title (0 < 1)', 'the message sets the titles found against the titles required'
+        assert message == 'missing H1 title', 'the message states that the title is missing'
 
     def test_children_with_an_occurrence_point_at_the_specification(self) -> None:
         #: Given
-        occurrence = MissingTitle(spec=CORPUS_SPEC, line=LineNumber.from_int(1), found=0, count=1)
+        occurrence = MissingTitle(spec=CORPUS_SPEC, line=LineNumber.from_int(1))
 
         #: When
         children = occurrence.children()
 
         #: Then
         assert children == (Note('the document structure is set here', at=Elsewhere(CORPUS_SPEC)),), (
-            'a note points at the structure specification that requires the title'
+            'a note points at the corpus structure specification that governs the document'
         )

@@ -9,14 +9,16 @@ stays with review. A section the outline expects but the document lacks is repor
 states: help with its description, and a note with its first example.
 
 Each structure specification is applied on its own. A namespace specification states only what it adds to the
-corpus one, so a document governed by both must pass both, and neither can relax the other.
+corpus one, so a document governed by both must pass both, and neither can relax the other. The title is the
+exception: no specification states it, since every governed document carries exactly one H1 title that opens it, so
+it is checked once, under the corpus's structure specification.
 """
 
 from dataclasses import dataclass
 from typing import Final, assert_never
 
 from lorecraft.core.num import NonZeroUnsignedInt
-from lorecraft.project.schemas import AnySections, OutlineEntry, SectionEntry, StructureSpec
+from lorecraft.project.schemas import AnySections, CorpusSpecName, OutlineEntry, SectionEntry, StructureSpec
 from lorecraft.project.syntax import Heading, LineNumber
 
 from .reporting import Note, NoteKind, Violation
@@ -54,13 +56,14 @@ def validate_structure(
     sections = tuple(heading for heading in headings if heading.level == _SECTION_LEVEL)
     violations: list[Violation] = []
     for structure_spec in structure_specs:
-        spec_violations = [
-            *_check_title(structure_spec, headings),
-            *_check_empty(structure_spec, headings),
-            *_check_forbidden(structure_spec, sections),
-            *_check_outline(structure_spec, sections),
-            *_check_section_words(structure_spec, sections),
-        ]
+        spec_violations: list[Violation] = []
+        # The title is checked once per document, under the corpus's structure specification alone.
+        if isinstance(structure_spec.file.name, CorpusSpecName):
+            spec_violations.extend(_check_title(headings))
+        spec_violations.extend(_check_empty(structure_spec, headings))
+        spec_violations.extend(_check_forbidden(structure_spec, sections))
+        spec_violations.extend(_check_outline(structure_spec, sections))
+        spec_violations.extend(_check_section_words(structure_spec, sections))
         for violation in spec_violations:
             message = f'{violation.message} (per {structure_spec.authority})'
             violations.append(
@@ -76,25 +79,17 @@ def validate_structure(
     return StructureCheckResult(violations=tuple(violations))
 
 
-def _check_title(structure_spec: StructureSpec, headings: tuple[Heading, ...]) -> list[Violation]:
-    """Check the number of H1 titles, and that one opens the document when the structure specification requires it.
+def _check_title(headings: tuple[Heading, ...]) -> list[Violation]:
+    """Check that the document carries exactly one H1 title, and that it opens the document.
 
     Args:
-        structure_spec: The structure specification whose `title` rule applies; one without a `title` yields no
-            violation.
         headings: Every heading of the document, in document order, of any level.
     """
-    if structure_spec.title is None:
-        return []
     violations: list[Violation] = []
     titles = [heading for heading in headings if heading.level == 1]
-    if len(titles) != structure_spec.title.count.value:
-        violations.append(
-            Violation(
-                _FIRST_LINE, 'structure.title', f'expected {structure_spec.title.count} H1 title, found {len(titles)}'
-            )
-        )
-    if structure_spec.title.first and not (headings and headings[0].level == 1):
+    if len(titles) != 1:
+        violations.append(Violation(_FIRST_LINE, 'structure.title', f'expected 1 H1 title, found {len(titles)}'))
+    if not (headings and headings[0].level == 1):
         violations.append(Violation(_FIRST_LINE, 'structure.title', 'the H1 title comes before any section'))
     return violations
 

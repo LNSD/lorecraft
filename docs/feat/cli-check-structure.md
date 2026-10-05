@@ -35,6 +35,8 @@ left empty or forbidden, and the prose words each section holds. It is also one 
   rows and heading text.
 - **Layer**: Each structure specification that applies to a document; every one is applied on its own, so a
   document must pass the corpus specification and each namespace specification alike.
+- **Title**: The one H1 heading that opens a document. No key states it: every document a structure
+  specification governs must carry one, and it is checked once, under the corpus specification.
 
 ## Configuration
 
@@ -111,7 +113,7 @@ A document's findings are reported by line, then by rule identifier.
 
 | Rule | Reported when |
 |------|---------------|
-| `structure.title` | The document has a different number of H1 titles than the specification requires, or a required H1 does not come first |
+| `structure.title` | The document does not hold exactly one H1 title, or its H1 title does not come first; quotes the corpus specification |
 | `structure.empty` | A heading has no content under it, where empty sections are forbidden |
 | `structure.forbidden` | A section the specification forbids appears |
 | `structure.outline` | A required section is missing, a section is out of order, or a section follows where the outline ends |

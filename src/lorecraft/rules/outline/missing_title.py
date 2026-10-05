@@ -1,4 +1,4 @@
-"""`OUT001`: a document carries fewer H1 titles than its structure specification requires."""
+"""`OUT001`: a document a structure specification governs carries no H1 title."""
 
 from dataclasses import dataclass
 from typing import ClassVar, Final, Self
@@ -18,15 +18,16 @@ _FIRST_LINE: Final[LineNumber] = LineNumber.from_int(1)
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
 class MissingTitle(HeadingsRule):
-    """A document carries fewer H1 titles than its structure specification requires.
+    """A document a structure specification governs carries no H1 title.
 
     ## What it does
 
-    Checks for documents with fewer `#` H1 headings than the `count` their structure specification sets under its
-    `title` key. Only a heading at the top level of the document counts: one inside a list or a blockquote does not.
+    Checks for documents with no `#` H1 heading. Every document a structure specification governs is held to it,
+    with no key to state it: the specification need not mention the title at all. Only a heading at the top level
+    of the document counts: one inside a list or a blockquote does not.
 
-    A document that more than one specification governs, such as a corpus and a namespace, must carry the titles
-    each of them requires, and is reported once for each specification it falls short of.
+    A document that more than one specification governs, such as a corpus and a namespace, is reported once, under
+    its corpus's structure specification.
 
     ## Why is this bad?
 
@@ -39,10 +40,7 @@ class MissingTitle(HeadingsRule):
 
     ```json
     {
-      "title": {
-        "count": 1,
-        "first": true
-      }
+      "empty_sections": "forbidden"
     }
     ```
 
@@ -67,9 +65,7 @@ class MissingTitle(HeadingsRule):
     ```
 
     Attributes:
-        spec: The structure specification whose title rule the document falls short of.
-        found: The H1 titles the document carries.
-        count: The H1 titles the specification requires.
+        spec: The corpus's structure specification, which governs the document.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 1)
@@ -78,31 +74,23 @@ class MissingTitle(HeadingsRule):
     SINCE: ClassVar[Release] = Release('0.3.0')
 
     spec: RootRelativePath
-    found: int
-    count: int
 
     def message(self) -> str:
-        """Name the titles found against the titles required."""
-        return f'missing H1 title ({self.found} < {self.count})'
+        """State that the title is missing."""
+        return 'missing H1 title'
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the specification that requires the titles."""
+        """Point at the corpus's structure specification."""
         return (spec_note(self.spec),)
 
     @classmethod
     def check(cls, subject: HeadingsInput) -> tuple[Self, ...]:
-        """One occurrence, on line 1, for each specification whose title count the document falls short of.
+        """One occurrence, on line 1, under the corpus's structure specification, when the document has no H1 title.
 
         Args:
-            subject: The document's headings, with what each governing structure specification states over them.
+            subject: The document's headings, with the corpus's structure specification that governs them.
         """
-        found = 0
         for heading in subject.headings:
             if heading.level == 1:
-                found += 1
-        occurrences: list[Self] = []
-        for headings_spec in subject.specs:
-            title = headings_spec.title
-            if title is not None and found < title.count.value:
-                occurrences.append(cls(spec=headings_spec.spec, line=_FIRST_LINE, found=found, count=title.count.value))
-        return tuple(occurrences)
+                return ()
+        return (cls(spec=subject.corpus.spec, line=_FIRST_LINE),)
