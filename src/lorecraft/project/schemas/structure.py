@@ -70,8 +70,10 @@ from itertools import pairwise
 from typing import NewType, Self, assert_never
 
 from jsonschema import Draft202012Validator
-from jsonschema.exceptions import SchemaError
+from jsonschema._utils import find_evaluated_property_keys_by_schema
+from jsonschema.exceptions import SchemaError, best_match
 from jsonschema.exceptions import ValidationError as SchemaValidationError
+from jsonschema.protocols import Validator
 from pydantic import JsonValue, ValidationError
 from referencing.jsonschema import DRAFT202012
 
@@ -384,9 +386,10 @@ class FrontmatterSchema:
         """Hold one decoded frontmatter to the schema. Pure: raises nothing.
 
         The messages are `jsonschema`'s own, unlike `SkillFrontmatterSchema`'s: the schema is the
-        repository's, so the validator's wording names constraints its authors wrote. Two errors `jsonschema`
-        reports on the whole block are split instead, in its own wording: an absent required field, and each
-        field the schema does not allow, get a problem of their own, on that field.
+        repository's, so the validator's wording names constraints its authors wrote. Three errors `jsonschema`
+        reports on the whole block are split instead, in its own wording: an absent required field, each field
+        `additionalProperties` does not allow, and each field `unevaluatedProperties` rejects get a problem of
+        their own, on that field.
 
         Args:
             data: The decoded frontmatter mapping, frozen all the way down, every key a string at any depth, as JSON
@@ -398,15 +401,16 @@ class FrontmatterSchema:
         """
         # Plain data, as `__post_init__` hands `jsonschema` the schema: it reads only a `dict` as a JSON object.
         validator = Draft202012Validator(self.schema.to_plain())
+        plain = data.to_plain()
         # Sorted, unlike the skill schema's problems: `jsonschema` reports errors in the order it walks the
         # schema's keywords, which says nothing about the fields.
         errors = sorted(
-            validator.iter_errors(data.to_plain()),
+            validator.iter_errors(plain),
             key=lambda error: (tuple(str(part) for part in error.path), error.message),
         )
         problems: list[FrontmatterProblem] = []
         for error in errors:
-            for problem in _frontmatter_problems(error, data):
+            for problem in _frontmatter_problems(validator, error, plain):
                 # One `required` error names one absent field, but its record lists all the schema requires, so
                 # every such error below would report every absent field again.
                 if problem not in problems:
@@ -414,12 +418,15 @@ class FrontmatterSchema:
         return tuple(problems)
 
 
-def _frontmatter_problems(error: SchemaValidationError, data: Mapping[str, object]) -> list[FrontmatterProblem]:
+def _frontmatter_problems(
+    validator: Validator, error: SchemaValidationError, data: Mapping[str, object]
+) -> list[FrontmatterProblem]:
     """The problems one `jsonschema` error in `data` reports, each on the top-level field it concerns.
 
     Args:
+        validator: The validator that reported the error, holding the whole schema.
         error: One error from validating `data` against the schema; its path and validator pick the problems.
-        data: The frontmatter that was validated, read to tell which required fields are absent.
+        data: The frontmatter that was validated, as plain data, read to tell which fields are at fault.
     """
     if error.path:
         # Anything wrong below the top-level field, such as a key its value lacks, is that field's value at fault.
@@ -448,6 +455,8 @@ def _frontmatter_problems(error: SchemaValidationError, data: Mapping[str, objec
             message = f'Additional properties are not allowed ({key!r} was unexpected)'
             problems.append(UnknownFieldProblem(key, message))
         return problems
+    if error.validator == 'unevaluatedProperties':
+        return _unevaluated_problems(validator, _schema_object(error.schema), data)
     # A rule over the whole block, such as `minProperties`, concerns no field.
     return [BlockProblem(error.message)]
 
@@ -470,6 +479,41 @@ def _additional_keys(schema: Mapping[str, object], instance: Mapping[str, object
             continue
         keys.append(key)
     return keys
+
+
+def _unevaluated_problems(
+    validator: Validator, schema: Mapping[str, object], data: Mapping[str, object]
+) -> list[FrontmatterProblem]:
+    """One problem per field the `unevaluatedProperties` rule of `schema` rejects.
+
+    A field no keyword evaluated is unknown when the rule is `false`, and its value invalid when the rule is a
+    schema the value breaks.
+
+    Args:
+        validator: The validator that reported the rule's error, holding the whole schema.
+        schema: The object schema whose `unevaluatedProperties` rule fired.
+        data: The frontmatter that was validated, as plain data.
+    """
+    # `jsonschema` names the rejected fields only in its message, and which fields are evaluated depends on every
+    # `allOf`, `$ref` and `if` the schema composes, so they are found the way the keyword itself finds them, with
+    # a helper `jsonschema` keeps private. Its major version is pinned, and the tests over a composed schema
+    # fail if the helper changes.
+    evaluated = find_evaluated_property_keys_by_schema(validator, data, schema)
+    rule = schema['unevaluatedProperties']
+    problems: list[FrontmatterProblem] = []
+    for key in data:
+        if key in evaluated:
+            continue
+        if rule is False:
+            # `jsonschema`'s wording for one unexpected key.
+            message = f'Unevaluated properties are not allowed ({key!r} was unexpected)'
+            problems.append(UnknownFieldProblem(key, message))
+        elif isinstance(rule, Mapping):
+            reason = best_match(validator.evolve(schema=rule).iter_errors(data[key]))
+            if reason is not None:
+                problems.append(InvalidValueProblem(key, reason.message))
+        # A rule of `true` accepts every value, so it never fires.
+    return problems
 
 
 def _schema_object(value: object) -> Mapping[str, object]:
