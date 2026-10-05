@@ -26,8 +26,9 @@ class UnknownField(SchemaProblemsRule):
 
     Checks for documents whose frontmatter holds a field their structure specification's `frontmatter` schema
     neither names in `properties` nor matches in `patternProperties`, when the schema sets `additionalProperties`
-    to `false`; and for skills whose frontmatter holds a field the Agent Skills specification does not define. A
-    document that several specifications govern is reported once for each schema that does not define the field.
+    to `false`, or that no keyword of the schema evaluates, when it sets `unevaluatedProperties` to `false`; and
+    for skills whose frontmatter holds a field the Agent Skills specification does not define. A document that
+    several specifications govern is reported once for each schema that does not define the field.
 
     ## Why is this bad?
 
