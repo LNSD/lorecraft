@@ -103,10 +103,17 @@ class StructureFileTitle(_StructureFileModel):
     """
 
     # `minProperties` is for the editor only: pydantic does not apply it, and `_refuse_no_check` refuses the same.
-    model_config = ConfigDict(title='Title checks', json_schema_extra={'minProperties': 1, 'examples': [{'words': 8}]})
+    model_config = ConfigDict(
+        title='Title checks',
+        json_schema_extra={'minProperties': 1, 'examples': [{'words': 8}, {'pattern': '^[A-Z]'}]},
+    )
 
     words: NonZeroUnsignedInt | None = Field(default=None, examples=[8])
     """The most words the title's text may hold, counted as a section's prose words are; no cap when absent."""
+    pattern: str | None = Field(default=None, min_length=1, examples=['^[A-Z]', '^[^:]+$'])
+    """A regular expression the title's text must match, searched for anywhere in it as JSON Schema's `pattern` is;
+    any text when absent. An empty one, which every title matches, and one that does not compile are refused when
+    the file loads."""
 
     @model_validator(mode='after')
     def _refuse_no_check(self) -> Self:
@@ -115,7 +122,7 @@ class StructureFileTitle(_StructureFileModel):
         Raises:
             ValueError: If the key states no check; pydantic reports it as a validation error.
         """
-        if self.words is None:
+        if self.words is None and self.pattern is None:
             raise ValueError('states no check; leave the key out for no title check')
         return self
 
@@ -206,8 +213,8 @@ class StructureFile(_StructureFileModel):
     )
     """What this file governs and why, for whoever opens it; not read by the check."""
     title: StructureFileTitle | None = None
-    """The checks a document's H1 title is held to: `words` caps its words. No title check when absent; the title is
-    there, once, opening the document, either way."""
+    """The checks a document's H1 title is held to: `words` caps its words, and `pattern` holds its text to a regular
+    expression. No title check when absent; the title is there, once, opening the document, either way."""
     tokens: NonZeroUnsignedInt | None = Field(default=None, examples=[5000])
     """The token budget: the most tokens the whole file may cost an agent that loads it, frontmatter, code and
     tables included; no budget when absent. Counted with OpenAI's `o200k_base` encoding, the same whichever agent

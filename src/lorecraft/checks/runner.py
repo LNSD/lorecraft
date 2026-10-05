@@ -77,6 +77,7 @@ def check_subjects(database: Database, subjects: Iterable[Subject], table: RuleT
         ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
             outline names.
         AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
+        InvalidTitlePatternError: If the model is not loaded yet and a title's pattern does not compile.
         InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by the
             meta-schema.
         FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries `$id`.
@@ -125,6 +126,7 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
         ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
             outline names.
         AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
+        InvalidTitlePatternError: If the model is not loaded yet and a title's pattern does not compile.
         InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by the
             meta-schema.
         FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries `$id`.
@@ -170,6 +172,7 @@ def _check_document_text(database: Database, source: DocumentText, table: RuleTa
         ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
             outline names.
         AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
+        InvalidTitlePatternError: If the model is not loaded yet and a title's pattern does not compile.
         InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by the
             meta-schema.
         FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries `$id`.

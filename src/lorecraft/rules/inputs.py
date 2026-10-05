@@ -346,6 +346,20 @@ class TitleCap:
 
 
 @dataclass(frozen=True, slots=True)
+class TitleMismatch:
+    """A document's title whose text does not match the pattern one structure specification holds it to.
+
+    Attributes:
+        title: The document's first H1 heading, its title; a later H1 is not its title, so no pattern applies to it.
+        pattern: The pattern the title's text does not match, exactly as written; the input has already matched it, so
+            a rule reads it only to give it.
+    """
+
+    title: Heading
+    pattern: str
+
+
+@dataclass(frozen=True, slots=True)
 class HeadingsSpec:
     """What one structure specification states over a document's headings.
 
@@ -353,6 +367,8 @@ class HeadingsSpec:
         spec: The structure specification file that states it.
         title_cap: The cap on the title's words, measured against the document's title; or `None` when the
             specification sets no cap, or when the document has no title.
+        title_mismatch: The title and the pattern its text does not match; or `None` when it matches, when the
+            specification sets no pattern, or when the document has no title.
         forbid_empty_sections: True when every section must hold content.
         forbidden: The sections that must not appear at all, each named once, matched against the document's
             H2 headings alone: a deeper heading of the same text is a subsection, not a forbidden section.
@@ -362,6 +378,7 @@ class HeadingsSpec:
 
     spec: RootRelativePath
     title_cap: TitleCap | None
+    title_mismatch: TitleMismatch | None
     forbid_empty_sections: bool
     forbidden: tuple[SectionName, ...]
     section_caps: tuple[SectionCap, ...]
@@ -377,8 +394,8 @@ class HeadingsInput:
 
     The title is the exception: no specification states it, since every governed document carries exactly one H1
     title that opens it. So a title rule judges the document once, under its corpus's structure specification,
-    rather than once per specification. A check a specification adds on the title, such as a cap on its words, is
-    that specification's own, and applies once per specification that states it.
+    rather than once per specification. A check a specification adds on the title, a cap on its words or a pattern
+    its text must match, is that specification's own, and applies once per specification that states it.
 
     The corpus's specification is held apart from the namespaces' so that a title rule finds it by name: a document
     governed by a namespace specification alone is ungoverned, so the corpus's is always there.
