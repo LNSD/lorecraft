@@ -1140,6 +1140,54 @@ class TestFrontmatterSchema:
             ),
         ), 'each field neither properties nor patternProperties names is its own problem'
 
+    def test_validate_with_fields_no_keyword_evaluates_returns_one_unknown_field_problem_each(self) -> None:
+        #: Given
+        # `name` and `description` are evaluated only through `allOf`, which `additionalProperties` would not see
+        schema: dict[str, object] = {
+            'type': 'object',
+            'allOf': [{'$ref': '#/$defs/base'}],
+            'properties': {'status': {}},
+            'unevaluatedProperties': False,
+            '$defs': {'base': {'properties': {'name': {}, 'description': {}}}},
+        }
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
+        data: dict[str, object] = {
+            'name': 'guide',
+            'description': 'A guide.',
+            'status': 'draft',
+            'desc': 'x',
+            'tier': 1,
+        }
+
+        #: When
+        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+
+        #: Then
+        assert problems == (
+            UnknownFieldProblem('desc', "Unevaluated properties are not allowed ('desc' was unexpected)"),
+            UnknownFieldProblem('tier', "Unevaluated properties are not allowed ('tier' was unexpected)"),
+        ), 'each field no keyword of the composed schema evaluates is its own problem, on that field'
+
+    def test_validate_with_unevaluated_fields_breaking_the_rule_schema_returns_an_invalid_value_problem_each(
+        self,
+    ) -> None:
+        #: Given
+        schema: dict[str, object] = {
+            'type': 'object',
+            'allOf': [{'properties': {'name': {}}}],
+            'unevaluatedProperties': {'type': 'string'},
+        }
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
+        data: dict[str, object] = {'name': 3, 'owner': 'me', 'tier': 1}
+
+        #: When
+        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+
+        #: Then
+        assert problems == (InvalidValueProblem('tier', "1 is not of type 'string'"),), (
+            'an unevaluated field is held to the rule schema, and only one breaking it is a problem, on that field'
+        )
+
     def test_validate_with_a_value_of_the_wrong_type_returns_a_wrong_type_problem(self) -> None:
         #: Given
         schema: dict[str, object] = {'type': 'object', 'properties': {'name': {'type': 'string'}}}

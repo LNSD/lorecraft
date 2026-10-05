@@ -97,7 +97,7 @@ occurrence, so any other finding about that key is reported on the line of its l
 | `frontmatter.name-matches-filename` | `name` is not the filename without `.md` |
 | `frontmatter.duplicate-key` | A top-level key is written again; the message gives the line of the first occurrence |
 | `<corpus>.<field>` | A frontmatter schema rejects that field, or requires it and it is absent; the message names the specification |
-| `<corpus>.unknown-field` | A frontmatter schema does not allow that field, such as `model` under `"additionalProperties": false` |
+| `<corpus>.unknown-field` | A frontmatter schema does not allow that field, such as `model` under `"additionalProperties": false` or `"unevaluatedProperties": false` |
 | `<corpus>.frontmatter` | A frontmatter schema rejects the frontmatter as a whole, such as with `minProperties` |
 
 The `<corpus>` prefix is the document's corpus, whichever layer's schema the finding comes from.
