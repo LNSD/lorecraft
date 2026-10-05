@@ -34,7 +34,7 @@ def _spec(spec: RootRelativePath) -> HeadingsSpec:
     Args:
         spec: The structure specification file.
     """
-    return HeadingsSpec(spec=spec, forbid_empty_sections=False, forbidden=(), section_caps=())
+    return HeadingsSpec(spec=spec, title_cap=None, forbid_empty_sections=False, forbidden=(), section_caps=())
 
 
 @pytest.mark.unit

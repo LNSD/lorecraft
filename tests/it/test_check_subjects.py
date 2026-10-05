@@ -52,6 +52,7 @@ from lorecraft.rules.frontmatter.non_mapping_frontmatter import NonMappingFrontm
 from lorecraft.rules.frontmatter.unknown_field import UnknownField
 from lorecraft.rules.frontmatter.wrong_type import WrongType
 from lorecraft.rules.inputs import InputKind, TokenCountInput, TokenCountRule
+from lorecraft.rules.length.title_too_many_words import TitleTooManyWords
 from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.length.too_many_words import TooManyWords
@@ -1270,6 +1271,31 @@ class TestCheckSubjects:
                 ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
             ),
         ), 'LEN003 runs at deny over a document whose specification caps a section, at the section over its cap'
+
+    def test_check_subjects_with_a_title_over_its_word_cap_reports_title_too_many_words(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        guide = b'# Setting up the guide\n\nRun it once, then again.\n'
+        database = Database(_snapshot(b'{"title": {"words": 3}}', guide=guide))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), package_table)
+
+        #: Then
+        occurrence = TitleTooManyWords(spec=CODE_SPEC, line=LineNumber.from_int(1), word_count=4, cap=3)
+        assert reports == (
+            CheckedSubject(
+                GUIDE,
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                ungoverned=(
+                    InputKind.FRONTMATTER_BLOCK,
+                    InputKind.SCHEMA_PROBLEMS,
+                    InputKind.TOKEN_COUNT,
+                    InputKind.OUTLINE_DIVERGENCE,
+                ),
+            ),
+        ), 'LEN004 runs at deny over a document whose specification caps the title, at the title over its cap'
 
     def test_check_subjects_with_no_enabled_rule_over_the_headings_never_parses_the_document(self) -> None:
         #: Given

@@ -1,6 +1,6 @@
 ---
 name: "spec-structure-outline"
-description: "The outline keys of a structure specification: the one H1 title every governed document carries, the outline of H2 sections with required, optional and any entries, empty_sections and forbidden sections, how a namespace outline adds to the corpus outline, and which outlines are refused on load. Load when writing or changing a section outline, requiring, ordering or forbidding a section, or an outline is reported invalid"
+description: "The outline keys of a structure specification: the one H1 title every governed document carries and the cap a title key sets on its words, the outline of H2 sections with required, optional and any entries, empty_sections and forbidden sections, how a namespace outline adds to the corpus outline, and which outlines are refused on load. Load when writing or changing a section outline, requiring, ordering or forbidding a section, or an outline is reported invalid"
 type: "feature"
 status: "experimental"
 components: "module:lorecraft.project,module:lorecraft.checks,spec:feat,spec:code"
@@ -11,8 +11,8 @@ components: "module:lorecraft.project,module:lorecraft.checks,spec:feat,spec:cod
 ## Summary
 
 The `outline`, `empty_sections` and `forbidden` keys of a `<name>.structure.json` file state which H2 sections
-the documents its name governs hold, in which order, and which must hold content or must not appear. No key states
-the title: every governed document carries exactly one H1 title that opens it. An order over a sequence of any
+the documents its name governs hold, in which order, and which must hold content or must not appear. Every governed
+document carries exactly one H1 title that opens it; `title` only caps its words. An order over a sequence of any
 length is no JSON Schema, so the file is a dialect of its own. `lorecraft check structure` applies the keys and
 the title.
 
@@ -38,12 +38,18 @@ the title.
 
 | Key | Value | Meaning |
 |-----|-------|---------|
+| `title` | `{"words": N}` | The title's text holds at most `N` words |
 | `empty_sections` | `"forbidden"` | Every heading must have content under it |
 | `outline` | list of entries | `{"section": "<name>"}`, with `"optional": true` when it may be left out, or `{"any": true}` |
 | `forbidden` | list of names | Sections that must not appear anywhere |
 
 Every key is optional. An outline entry may also cap its section's words, as
 [spec-structure-budget](spec-structure-budget.md) describes.
+
+The `title` key's `words` is a positive integer, counted as prose words are: each whitespace-delimited token of
+the H1's text is one. Only the first H1 is measured, and a document with no title is reported as missing one,
+never as over the cap. A title over it is `LEN004 title-too-many-words`, at its heading, once per specification that sets
+a cap: a corpus and a namespace cap each apply on their own.
 
 A named entry may carry two more optional keys, which `any` entries never take:
 
@@ -118,7 +124,7 @@ and leaves where it sits to the corpus outline by surrounding it with `any` runs
 
 Beyond what [spec-structure](spec-structure.md#refused-on-load) refuses for any file, these keys are refused
 when the outline names a section twice or places two `any` runs side by side, or when `forbidden` names a section
-twice or one the outline names. A `title` key is refused as any unknown key is, since no key states the title. A
+twice or one the outline names. A `title` stating no check, `{}`, is refused, since it would check nothing. A
 section name, in the outline or in `forbidden`, is refused when it is empty, has whitespace at either end, or spans
 two lines: no heading's text could match it.
 
@@ -126,6 +132,8 @@ two lines: no heading's text could match it.
 
 - The outline names H2 sections only; H3 subsections are never required, ordered or forbidden.
 - A section is matched on its exact heading text, without its `#` markers or inline markup.
+- `lorecraft check structure` does not apply the title's `words` cap yet: `LEN004` belongs to the rules engine,
+  which the command line does not run yet.
 
 ## References
 
@@ -139,3 +147,4 @@ two lines: no heading's text could match it.
 - `src/lorecraft/project/schemas/section_name.py` - The section name an outline entry and `forbidden` hold
 - `src/lorecraft/project/schemas/structure.py` - Turns the keys into rules, and refuses an unusable outline
 - `src/lorecraft/checks/structure.py` - Applies the title, outline, empty and forbidden rules to a document
+- `src/lorecraft/rules/length/title_too_many_words.py` - Reports a title over its word cap as `LEN004`

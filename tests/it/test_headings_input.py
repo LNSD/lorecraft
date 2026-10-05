@@ -2,7 +2,8 @@
 
 The structure specifications come from the model's governance and the headings from the `parse` query, so the
 input is tested over a database opened on an in-memory snapshot: governed by a corpus and a namespace
-specification, governed by an outline whose caps each section resolves, and ungoverned.
+specification, governed by an outline whose caps each section resolves, governed by caps on the title's words, and
+ungoverned.
 """
 
 from typing import Final
@@ -18,7 +19,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import SectionName
 from lorecraft.project.syntax import Heading, ParsedDocument, parse_document
-from lorecraft.rules.inputs import HeadingsInput, HeadingsSpec, SectionCap
+from lorecraft.rules.inputs import HeadingsInput, HeadingsSpec, SectionCap, TitleCap
 from lorecraft.vfs import Snapshot
 
 TYPING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
@@ -73,19 +74,20 @@ class ParsingDatabase(Database):
         return super().parse(source)
 
 
-def _snapshot(corpus_spec: bytes | None, namespace_spec: bytes | None) -> Snapshot:
+def _snapshot(corpus_spec: bytes | None, namespace_spec: bytes | None, *, typing_text: str = TYPING_TEXT) -> Snapshot:
     """A snapshot of corpus `code`, with a `python` namespace, holding the one document `TYPING`.
 
     Args:
         corpus_spec: Bytes of the corpus structure specification, or `None` for a corpus that has none.
         namespace_spec: Bytes of the `python` namespace structure specification, or `None` for none.
+        typing_text: The text of `TYPING`; `TYPING_TEXT` unless a test needs other headings.
     """
     meta: dict[str, bytes] = {'code.md': b'# Code\n', 'code-python.md': b'# Code Python\n'}
     if corpus_spec is not None:
         meta['code.structure.json'] = corpus_spec
     if namespace_spec is not None:
         meta['code-python.structure.json'] = namespace_spec
-    return Snapshot.from_tree({'docs': {'__meta__': meta, 'code': {'python-typing.md': TYPING_TEXT.encode()}}})
+    return Snapshot.from_tree({'docs': {'__meta__': meta, 'code': {'python-typing.md': typing_text.encode()}}})
 
 
 def _document_text(database: Database, ref: DocumentRef) -> DocumentText:
@@ -129,6 +131,7 @@ class TestBuildHeadingsInput:
             headings=TYPING_HEADINGS,
             corpus=HeadingsSpec(
                 spec=CORPUS_SPEC,
+                title_cap=None,
                 forbid_empty_sections=True,
                 forbidden=(),
                 section_caps=(),
@@ -136,6 +139,7 @@ class TestBuildHeadingsInput:
             namespaces=(
                 HeadingsSpec(
                     spec=NAMESPACE_SPEC,
+                    title_cap=None,
                     forbid_empty_sections=False,
                     forbidden=(SectionName.parse('Notes'), SectionName.parse('Todo')),
                     section_caps=(),
@@ -163,6 +167,7 @@ class TestBuildHeadingsInput:
             headings=TYPING_HEADINGS,
             corpus=HeadingsSpec(
                 spec=CORPUS_SPEC,
+                title_cap=None,
                 forbid_empty_sections=False,
                 forbidden=(),
                 section_caps=(
@@ -172,6 +177,50 @@ class TestBuildHeadingsInput:
             ),
             namespaces=(),
         ), 'a named section takes its entry cap, an unnamed one its run cap, and a section with no cap is left out'
+
+    def test_build_headings_input_with_title_word_caps_holds_each_against_the_first_title(self) -> None:
+        #: Given
+        typing_text = '# Typing in Python\n\nAnnotate every signature.\n\n# Typing again\n'
+        database = Database(_snapshot(b'{"title": {"words": 2}}', b'{"title": {"words": 5}}', typing_text=typing_text))
+        source = _document_text(database, TYPING)
+
+        #: When
+        subject = build_headings_input(database, source)
+
+        #: Then
+        headings = parse_document(typing_text).headings
+        assert subject == HeadingsInput(
+            headings=headings,
+            corpus=HeadingsSpec(
+                spec=CORPUS_SPEC,
+                title_cap=TitleCap(title=headings[0], title_words=3, words=NonZeroUnsignedInt(2)),
+                forbid_empty_sections=False,
+                forbidden=(),
+                section_caps=(),
+            ),
+            namespaces=(
+                HeadingsSpec(
+                    spec=NAMESPACE_SPEC,
+                    title_cap=TitleCap(title=headings[0], title_words=3, words=NonZeroUnsignedInt(5)),
+                    forbid_empty_sections=False,
+                    forbidden=(),
+                    section_caps=(),
+                ),
+            ),
+        ), 'each specification holds its own cap against the first H1 alone, with the words of its own text'
+
+    def test_build_headings_input_with_a_title_word_cap_and_no_title_holds_no_title_cap(self) -> None:
+        #: Given
+        typing_text = '## Rule\n\nAnnotate every signature.\n'
+        database = Database(_snapshot(b'{"title": {"words": 2}}', None, typing_text=typing_text))
+        source = _document_text(database, TYPING)
+
+        #: When
+        subject = build_headings_input(database, source)
+
+        #: Then
+        assert isinstance(subject, HeadingsInput), 'a structure specification governs the document'
+        assert subject.corpus.title_cap is None, 'a document with no title has no title to hold to a cap'
 
     def test_build_headings_input_with_no_structure_specification_returns_ungoverned(self) -> None:
         #: Given

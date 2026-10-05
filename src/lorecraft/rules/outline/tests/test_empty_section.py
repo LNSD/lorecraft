@@ -38,7 +38,9 @@ def _spec(spec: RootRelativePath, *, forbid_empty_sections: bool) -> HeadingsSpe
         spec: The structure specification file.
         forbid_empty_sections: True when it forbids empty sections.
     """
-    return HeadingsSpec(spec=spec, forbid_empty_sections=forbid_empty_sections, forbidden=(), section_caps=())
+    return HeadingsSpec(
+        spec=spec, title_cap=None, forbid_empty_sections=forbid_empty_sections, forbidden=(), section_caps=()
+    )
 
 
 @pytest.mark.unit
