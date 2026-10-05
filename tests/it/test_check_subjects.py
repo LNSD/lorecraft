@@ -23,6 +23,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import (
+    InvalidValueProblem,
     MissingFieldProblem,
     UnknownFieldProblem,
     WrongTypeProblem,
@@ -37,6 +38,7 @@ from lorecraft.project.syntax import (
 )
 from lorecraft.rules.declaration import Level, Release, Rule, RuleCode, RuleGroup, RuleName, Severity
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
+from lorecraft.rules.frontmatter.invalid_value import InvalidValue
 from lorecraft.rules.frontmatter.invalid_yaml import InvalidYaml
 from lorecraft.rules.frontmatter.missing_field import MissingField
 from lorecraft.rules.frontmatter.missing_frontmatter import MissingFrontmatter
@@ -871,6 +873,11 @@ class TestCheckSubjects:
             line=LineNumber.from_int(3),
             problem=WrongTypeProblem('description', "['a'] is not of type 'string'"),
         )
+        invalid_value = InvalidValue(
+            spec=CODE_SPEC,
+            line=LineNumber.from_int(5),
+            problem=InvalidValueProblem('status', "'Final' does not match '^(draft|stable)$'"),
+        )
         assert reports == (
             CheckedSubject(
                 GUIDE,
@@ -878,12 +885,13 @@ class TestCheckSubjects:
                     RuleDiagnostic(GUIDE.path, missing_field, Severity.ERROR),
                     RuleDiagnostic(GUIDE.path, unknown_field, Severity.WARNING),
                     RuleDiagnostic(GUIDE.path, wrong_type, Severity.ERROR),
+                    RuleDiagnostic(GUIDE.path, invalid_value, Severity.ERROR),
                 ),
                 ungoverned=(InputKind.TOKEN_COUNT,),
             ),
         ), (
-            'FM006 and FM008 run at deny and FM007 at warn, each on its own problem, on its field line or line 1, '
-            'naming the specification'
+            'FM006, FM008 and FM009 run at deny and FM007 at warn, each on its own problem, on its field line or line '
+            '1, naming the specification'
         )
 
     def test_check_subjects_with_a_skill_breaking_the_agent_skills_schema_reports_each_schema_rule(
@@ -912,6 +920,13 @@ class TestCheckSubjects:
             line=LineNumber.from_int(4),
             problem=WrongTypeProblem('metadata', '`metadata` must be a mapping of strings to strings'),
         )
+        invalid_value = InvalidValue(
+            spec=None,
+            line=LineNumber.from_int(3),
+            problem=InvalidValueProblem(
+                'compatibility', 'skill compatibility cannot be empty; leave the field out instead'
+            ),
+        )
         assert reports == (
             CheckedSubject(
                 REVIEW,
@@ -919,6 +934,7 @@ class TestCheckSubjects:
                     RuleDiagnostic(REVIEW_FILE, missing_field, Severity.ERROR),
                     RuleDiagnostic(REVIEW_FILE, unknown_field, Severity.WARNING),
                     RuleDiagnostic(REVIEW_FILE, wrong_type, Severity.ERROR),
+                    RuleDiagnostic(REVIEW_FILE, invalid_value, Severity.ERROR),
                 ),
                 ungoverned=(),
             ),
