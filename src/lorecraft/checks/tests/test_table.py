@@ -24,6 +24,7 @@ from lorecraft.rules.outline.missing_section import MissingSection
 from lorecraft.rules.outline.missing_title import MissingTitle
 from lorecraft.rules.outline.section_out_of_order import SectionOutOfOrder
 from lorecraft.rules.outline.title_not_first import TitleNotFirst
+from lorecraft.rules.outline.unexpected_section import UnexpectedSection
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.tests.sample_rules import token_count
 from lorecraft.rules.tests.sample_rules import valid as valid_rules
@@ -186,6 +187,7 @@ class TestRuleTableFromRegistry:
         assert table.outline_divergence_rules == (
             EnabledRule(MissingSection, Severity.ERROR),
             EnabledRule(SectionOutOfOrder, Severity.ERROR),
+            EnabledRule(UnexpectedSection, Severity.ERROR),
         ), "the package's outline divergence rules are enabled by default as errors"
 
 
