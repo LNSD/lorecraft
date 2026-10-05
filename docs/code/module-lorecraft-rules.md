@@ -75,7 +75,13 @@ in `lorecraft.checks`, so a rule has nothing to read but the input it is handed.
 class EmptySection(HeadingsRule):
     @classmethod
     def check(cls, database: Database, ref: DocumentRef) -> tuple[Self, ...]:
-        return tuple(cls(line=heading.line) for heading in database.parse(ref).headings if heading.empty)
+        occurrences: list[Self] = []
+        for headings_spec in database.headings_specs(ref):
+            if headings_spec.forbid_empty_sections:
+                for heading in database.parse(ref).headings:
+                    if heading.empty:
+                        occurrences.append(cls(spec=headings_spec.spec, line=heading.line, section=heading.text))
+        return tuple(occurrences)
 ```
 
 ```python
@@ -84,7 +90,13 @@ class EmptySection(HeadingsRule):
 class EmptySection(HeadingsRule):
     @classmethod
     def check(cls, subject: HeadingsInput) -> tuple[Self, ...]:
-        return tuple(cls(line=heading.line) for heading in subject.headings if heading.empty)
+        occurrences: list[Self] = []
+        for headings_spec in subject.specs:
+            if headings_spec.forbid_empty_sections:
+                for heading in subject.headings:
+                    if heading.empty:
+                        occurrences.append(cls(spec=headings_spec.spec, line=heading.line, section=heading.text))
+        return tuple(occurrences)
 ```
 
 ## Naming a Rule

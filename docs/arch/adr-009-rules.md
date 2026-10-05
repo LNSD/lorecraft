@@ -74,7 +74,7 @@ shorter still: the checker reports errors and warnings, and they act on them.
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
 class EmptySection(HeadingsRule):
-    """A section holds no content, under a specification that forbids empty sections.
+    """A section holds no content, under a structure specification that forbids empty sections.
 
     ## What it does
     ## Why is this bad?
@@ -87,10 +87,14 @@ class EmptySection(HeadingsRule):
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
 
+    spec: RootRelativePath
     section: str
 
     def message(self) -> str:
         return f'section `{self.section}` is empty'
+
+    def children(self) -> tuple[Subdiagnostic, ...]:
+        return (spec_note(self.spec), Help('omit the section rather than leave it empty'))
 
     @classmethod
     def check(cls, subject: HeadingsInput) -> tuple[Self, ...]:
@@ -99,7 +103,7 @@ class EmptySection(HeadingsRule):
             if headings_spec.forbid_empty_sections:
                 for heading in subject.headings:
                     if heading.empty:
-                        occurrences.append(cls(line=heading.line, spec=headings_spec.spec, section=heading.text))
+                        occurrences.append(cls(spec=headings_spec.spec, line=heading.line, section=heading.text))
         return tuple(occurrences)
 ```
 
