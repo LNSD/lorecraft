@@ -97,7 +97,7 @@ The set is closed. Each kind is one dataclass and one rule base class whose `che
 | Frontmatter block | document, skill | the frontmatter query | a frontmatter schema; for a skill, the package, after the Agent Skills specification |
 | Schema problems | document, skill | the same query, and each governing schema | a frontmatter schema |
 | Headings | document | the parse query | a structure specification |
-| Outline divergence | document | the parse query, and each specification's outline | a structure specification |
+| Outline divergence | document | the parse and line-count queries, and each specification's outline | a structure specification that states an outline |
 | Token count | document | the tokens query | a specification that sets a budget |
 | Line count | skill | the line-count query | the package |
 | Links | skill, skill resource | the parse query, the link-target query, the skill's `metadata` | the package |

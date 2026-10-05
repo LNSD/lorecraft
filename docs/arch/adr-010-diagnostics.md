@@ -52,11 +52,11 @@ error[OUT006]: missing required section `Usage`
   --> docs/feat/cli-check.md:12
    │
 12 │ ## Options
-   │ ────────── expected `Usage` before this section
+   │ ────────── expected `Usage` before `Options`
    │
   ::: docs/__meta__/feat.structure.json
    │
-   = note: required by the outline
+   = note: the document structure is set here
    = help: describe how to invoke the command
    = note: for example:
            ## Usage
@@ -70,13 +70,14 @@ diagnostic from those fields:
 ```python
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class MissingSection(OutlineRule):
+class MissingSection(OutlineDivergenceRule):
     """..."""
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 6)
     ...
-    section: str
-    before: Heading | None            # the section it should precede, if the outline names one
+    spec: RootRelativePath
+    section: SectionName
+    before: str | None                # the heading it should precede; None at the end, reported at the last line
     description: str | None           # the specification's guidance, through the input
     example: str | None
 
@@ -85,11 +86,11 @@ class MissingSection(OutlineRule):
 
     def labels(self) -> tuple[Label, ...]:
         if self.before is None:
-            return (Label(Here(self.line), 'the outline ends here'),)
-        return (Label(Here(self.before.line), f'expected `{self.section}` before this section'),)
+            return (Label(Here(self.line), f'expected `{self.section}` before the end of the document'),)
+        return (Label(Here(self.line), f'expected `{self.section}` before `{self.before}`'),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        parts: list[Subdiagnostic] = [Note('required by the outline', at=Elsewhere(self.spec))]
+        parts: list[Subdiagnostic] = [spec_note(self.spec)]  # Note('the document structure is set here', at=...)
         if self.description is not None:
             parts.append(Help(self.description))
         if self.example is not None:

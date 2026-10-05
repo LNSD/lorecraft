@@ -23,7 +23,14 @@ from typing import assert_never
 
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.skill import SkillLocation
-from lorecraft.rules.inputs import FrontmatterBlockInput, HeadingsInput, InputKind, SchemaProblemsInput, TokenCountInput
+from lorecraft.rules.inputs import (
+    FrontmatterBlockInput,
+    HeadingsInput,
+    InputKind,
+    OutlineDivergenceInput,
+    SchemaProblemsInput,
+    TokenCountInput,
+)
 from lorecraft.vfs import ResolvedPath
 
 from .database import Database
@@ -33,6 +40,7 @@ from .inputs import (
     build_document_schema_problems_input,
     build_headings_input,
     build_line_count_input,
+    build_outline_divergence_input,
     build_skill_frontmatter_block_input,
     build_skill_schema_problems_input,
     build_token_count_input,
@@ -231,6 +239,19 @@ def _check_document_text(database: Database, source: DocumentText, table: RuleTa
                         diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
             case _:
                 assert_never(headings_input)
+
+    # The document is never matched against its outlines when no enabled rule reads where it diverges.
+    if table.outline_divergence_rules:
+        outline_divergence_input = build_outline_divergence_input(database, source)
+        match outline_divergence_input:
+            case Ungoverned():
+                ungoverned.append(InputKind.OUTLINE_DIVERGENCE)
+            case OutlineDivergenceInput():
+                for enabled in table.outline_divergence_rules:
+                    for occurrence in enabled.rule.check(outline_divergence_input):
+                        diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
+            case _:
+                assert_never(outline_divergence_input)
 
     return CheckedSubject(source.ref, diagnostics=tuple(diagnostics), ungoverned=tuple(ungoverned))
 
