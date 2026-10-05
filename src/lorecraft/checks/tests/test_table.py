@@ -18,6 +18,7 @@ from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.outline.extra_title import ExtraTitle
 from lorecraft.rules.outline.missing_title import MissingTitle
+from lorecraft.rules.outline.title_not_first import TitleNotFirst
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.tests.sample_rules import token_count
 from lorecraft.rules.tests.sample_rules import valid as valid_rules
@@ -163,6 +164,7 @@ class TestRuleTableFromRegistry:
         assert table.headings_rules == (
             EnabledRule(MissingTitle, Severity.ERROR),
             EnabledRule(ExtraTitle, Severity.ERROR),
+            EnabledRule(TitleNotFirst, Severity.ERROR),
         ), "the package's headings rules are enabled by default as errors, in code order"
 
 
