@@ -16,19 +16,23 @@ query: its builder runs the analysis each time it is called, once per subject pe
 from dataclasses import dataclass
 from typing import assert_never
 
-from lorecraft.core.num import UnsignedInt
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.project.schemas import (
     SKILL_FRONTMATTER_SCHEMA,
+    AnySections,
     BlockProblem,
     FrontmatterProblem,
     InvalidValueProblem,
     MissingFieldProblem,
+    OutlineEntry,
+    SectionEntry,
     UnknownFieldProblem,
     WrongTypeProblem,
 )
 from lorecraft.project.syntax import (
     Frontmatter,
     FrontmatterNode,
+    Heading,
     InvalidYamlFrontmatter,
     LineNumber,
     MissingFrontmatter,
@@ -36,18 +40,22 @@ from lorecraft.project.syntax import (
 )
 from lorecraft.rules.frontmatter.__ruleset__ import FIRST_LINE, field_line
 from lorecraft.rules.inputs import (
+    SECTION_LEVEL,
     AgentSkillsSchema,
     Budget,
     DocumentFrontmatterOwner,
     FrontmatterBlock,
     FrontmatterBlockInput,
     FrontmatterFields,
+    HeadingsInput,
+    HeadingsSpec,
     LineCountInput,
     LocatedProblem,
     NameField,
     RepeatedKey,
     SchemaProblems,
     SchemaProblemsInput,
+    SectionCap,
     SkillFrontmatterOwner,
     StructureSpecSchema,
     TokenCountInput,
@@ -382,3 +390,131 @@ def _problem_line(frontmatter: Frontmatter, problem: FrontmatterProblem) -> Line
             return field_line(frontmatter, problem.field)
         case _:
             assert_never(problem)
+
+
+def build_headings_input(database: Database, source: DocumentText) -> HeadingsInput | Ungoverned:
+    """A document's headings, with what each structure specification that governs it states over them.
+
+    The structure specifications are read first, and the document is parsed only when one governs it. Each section's
+    word cap is worked out here, from the outline, so a rule over the caps only compares numbers.
+
+    Args:
+        database: The revision the document is read from; its model decides which specifications govern it.
+        source: The document's text, as `Database.text` returns it.
+
+    Returns:
+        The input, with one entry per structure specification that governs the document, in the order the
+        specifications apply; or `Ungoverned` when no structure specification governs the document, or when it is
+        in no corpus the database's model holds.
+
+    Raises:
+        DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
+        CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
+        StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
+        StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in the
+            dialect's shape.
+        EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
+        RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
+        RepeatedForbiddenSectionError: If the model is not loaded yet and a specification forbids a section twice.
+        ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
+            outline names.
+        AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
+        InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by the
+            meta-schema.
+        FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries `$id`.
+        ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema names
+            another dialect.
+        UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not state
+            an object.
+        DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
+        EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot be
+            inspected, or a link's target read, while looking for where it leaves the repository.
+        SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
+        SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
+        SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
+        SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
+    """
+    governance = database.model().find_governance(source.ref)
+    if governance is None:
+        return Ungoverned()
+    structure_specs = governance.structure_specs()
+    if not structure_specs:
+        return Ungoverned()
+
+    headings = database.parse(source).headings
+    sections = tuple(heading for heading in headings if heading.level == SECTION_LEVEL)
+    specs: list[HeadingsSpec] = []
+    for structure_spec in structure_specs:
+        specs.append(
+            HeadingsSpec(
+                spec=structure_spec.path,
+                title=structure_spec.title,
+                forbid_empty_sections=structure_spec.forbid_empty_sections,
+                forbidden=structure_spec.forbidden,
+                section_caps=_section_caps(structure_spec.outline, sections),
+            )
+        )
+    return HeadingsInput(headings=headings, specs=tuple(specs))
+
+
+def _section_caps(outline: tuple[OutlineEntry, ...], sections: tuple[Heading, ...]) -> tuple[SectionCap, ...]:
+    """The word cap each section of a document is held to under one outline, in document order. Raises nothing.
+
+    A section the outline names takes the cap of the entry naming it, which may be none. Any other section takes
+    the cap of the `any` run it falls in: the first `any` entry after the entry naming the last named section
+    before it. In a document that follows the outline, that is the run which matches it. A section no cap applies
+    to is left out.
+
+    Args:
+        outline: The entries of the structure specification's outline, which carry the caps; may be empty.
+        sections: The document's H2 headings, in document order, each with its prose word count.
+    """
+    caps: list[SectionCap] = []
+    last_named_at = -1  # the outline index of the last named section passed; -1 before any
+    for section in sections:
+        entry_at = _find_entry_index(outline, section.text)
+        if entry_at is None:
+            cap = _find_run_cap(outline, last_named_at)
+        else:
+            last_named_at = entry_at
+            cap = outline[entry_at].words
+        if cap is not None:
+            caps.append(SectionCap(section=section, words=cap))
+    return tuple(caps)
+
+
+def _find_entry_index(outline: tuple[OutlineEntry, ...], name: str) -> int | None:
+    """Where in the outline the section entry naming `name` sits, or `None` when no entry names it. Raises nothing.
+
+    Args:
+        outline: The entries to search, in outline order.
+        name: Heading text of the section to find.
+    """
+    for index, entry in enumerate(outline):
+        match entry:
+            case SectionEntry():
+                if entry.name.value == name:
+                    return index
+            case AnySections():
+                pass  # a run names no section
+            case _:
+                assert_never(entry)
+    return None
+
+
+def _find_run_cap(outline: tuple[OutlineEntry, ...], after: int) -> NonZeroUnsignedInt | None:
+    """The cap of the first `any` entry past outline index `after`, or `None` when there is none. Raises nothing.
+
+    Args:
+        outline: The entries to search, in outline order.
+        after: Outline index of the last named section passed, exclusive; -1 searches from the start.
+    """
+    for entry in outline[after + 1 :]:
+        match entry:
+            case AnySections():
+                return entry.words
+            case SectionEntry():
+                pass  # a section entry caps only its own section
+            case _:
+                assert_never(entry)
+    return None

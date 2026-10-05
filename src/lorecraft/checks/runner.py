@@ -23,7 +23,7 @@ from typing import assert_never
 
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.skill import SkillLocation
-from lorecraft.rules.inputs import FrontmatterBlockInput, InputKind, SchemaProblemsInput, TokenCountInput
+from lorecraft.rules.inputs import FrontmatterBlockInput, HeadingsInput, InputKind, SchemaProblemsInput, TokenCountInput
 from lorecraft.vfs import ResolvedPath
 
 from .database import Database
@@ -31,6 +31,7 @@ from .inputs import (
     Ungoverned,
     build_document_frontmatter_block_input,
     build_document_schema_problems_input,
+    build_headings_input,
     build_line_count_input,
     build_skill_frontmatter_block_input,
     build_skill_schema_problems_input,
@@ -217,6 +218,19 @@ def _check_document_text(database: Database, source: DocumentText, table: RuleTa
                         diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
             case _:
                 assert_never(token_count_input)
+
+    # The document is never parsed when no enabled rule reads its headings.
+    if table.headings_rules:
+        headings_input = build_headings_input(database, source)
+        match headings_input:
+            case Ungoverned():
+                ungoverned.append(InputKind.HEADINGS)
+            case HeadingsInput():
+                for enabled in table.headings_rules:
+                    for occurrence in enabled.rule.check(headings_input):
+                        diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
+            case _:
+                assert_never(headings_input)
 
     return CheckedSubject(source.ref, diagnostics=tuple(diagnostics), ungoverned=tuple(ungoverned))
 
