@@ -24,6 +24,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import (
     MissingFieldProblem,
+    UnknownFieldProblem,
 )
 from lorecraft.project.skill import SkillLocation, SkillRef
 from lorecraft.project.syntax import (
@@ -40,6 +41,7 @@ from lorecraft.rules.frontmatter.missing_field import MissingField
 from lorecraft.rules.frontmatter.missing_frontmatter import MissingFrontmatter
 from lorecraft.rules.frontmatter.name_mismatch import DirectoryNameExpected, FilenameExpected, NameMismatch
 from lorecraft.rules.frontmatter.non_mapping_frontmatter import NonMappingFrontmatter
+from lorecraft.rules.frontmatter.unknown_field import UnknownField
 from lorecraft.rules.inputs import InputKind, TokenCountInput, TokenCountRule
 from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
@@ -854,18 +856,27 @@ class TestCheckSubjects:
 
         #: Then
         line_1 = LineNumber.from_int(1)
-        occurrences = (
-            MissingField(
-                spec=CODE_SPEC, line=line_1, problem=MissingFieldProblem('owner', "'owner' is a required property")
-            ),
+        missing_field = MissingField(
+            spec=CODE_SPEC, line=line_1, problem=MissingFieldProblem('owner', "'owner' is a required property")
+        )
+        unknown_field = UnknownField(
+            spec=CODE_SPEC,
+            line=LineNumber.from_int(4),
+            problem=UnknownFieldProblem('extra', "Additional properties are not allowed ('extra' was unexpected)"),
         )
         assert reports == (
             CheckedSubject(
                 GUIDE,
-                diagnostics=tuple(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR) for occurrence in occurrences),
+                diagnostics=(
+                    RuleDiagnostic(GUIDE.path, missing_field, Severity.ERROR),
+                    RuleDiagnostic(GUIDE.path, unknown_field, Severity.WARNING),
+                ),
                 ungoverned=(InputKind.TOKEN_COUNT,),
             ),
-        ), 'FM006 runs at deny on its own problem, on line 1, naming the specification'
+        ), (
+            'FM006 runs at deny and FM007 at warn, each on its own problem, on its field line or line 1, naming the '
+            'specification'
+        )
 
     def test_check_subjects_with_a_skill_breaking_the_agent_skills_schema_reports_each_schema_rule(
         self, package_table: RuleTable
@@ -880,16 +891,20 @@ class TestCheckSubjects:
 
         #: Then
         line_1 = LineNumber.from_int(1)
-        occurrences = (
-            MissingField(
-                spec=None, line=line_1, problem=MissingFieldProblem('description', '`description` is required')
-            ),
+        missing_field = MissingField(
+            spec=None, line=line_1, problem=MissingFieldProblem('description', '`description` is required')
+        )
+        unknown_field = UnknownField(
+            spec=None,
+            line=LineNumber.from_int(5),
+            problem=UnknownFieldProblem('extra', '`extra` is not a field of the Agent Skills specification'),
         )
         assert reports == (
             CheckedSubject(
                 REVIEW,
-                diagnostics=tuple(
-                    RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR) for occurrence in occurrences
+                diagnostics=(
+                    RuleDiagnostic(REVIEW_FILE, missing_field, Severity.ERROR),
+                    RuleDiagnostic(REVIEW_FILE, unknown_field, Severity.WARNING),
                 ),
                 ungoverned=(),
             ),
