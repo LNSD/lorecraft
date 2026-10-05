@@ -10,13 +10,19 @@ Building an input from the queries is the run's job, in `lorecraft.checks`, neve
 from abc import abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Self
+from typing import Final, Self
 
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.schemas import FrontmatterProblem
-from lorecraft.project.syntax import InvalidYamlFrontmatter, LineNumber, MissingFrontmatter, NonMappingFrontmatter
+from lorecraft.project.schemas import FrontmatterProblem, SectionName, TitleRule
+from lorecraft.project.syntax import (
+    Heading,
+    InvalidYamlFrontmatter,
+    LineNumber,
+    MissingFrontmatter,
+    NonMappingFrontmatter,
+)
 from lorecraft.rules.declaration import ContentRule
 from lorecraft.vfs import ResolvedPath
 
@@ -32,6 +38,8 @@ class InputKind(Enum):
     """A document's or a skill's frontmatter block, with the name it must carry: `FrontmatterBlockInput`."""
     SCHEMA_PROBLEMS = 'schema-problems'
     """What each frontmatter schema that governs a document or a skill rejects: `SchemaProblemsInput`."""
+    HEADINGS = 'headings'
+    """A document's headings, with what each structure specification that governs it states: `HeadingsInput`."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -298,4 +306,75 @@ class SchemaProblemsRule(ContentRule):
 
         Args:
             subject: The problems each governing schema found, each with its line.
+        """
+
+
+SECTION_LEVEL: Final[int] = 2
+"""The heading level of a section: H1 is the title, and anything deeper is a subsection."""
+
+
+@dataclass(frozen=True, slots=True)
+class SectionCap:
+    """The most prose words one section of a document may hold, under one structure specification.
+
+    Attributes:
+        section: The section's H2 heading, with the prose words the section holds, its subsections included.
+        words: The cap: that of the outline entry naming the section, or, for a section the outline does not name,
+            that of the `any` run it falls in.
+    """
+
+    section: Heading
+    words: NonZeroUnsignedInt
+
+
+@dataclass(frozen=True, slots=True)
+class HeadingsSpec:
+    """What one structure specification states over a document's headings.
+
+    Attributes:
+        spec: The structure specification file that states it.
+        title: How many H1 titles the document carries and whether one opens it, or `None` when the specification
+            states no title rule.
+        forbid_empty_sections: True when every section must hold content.
+        forbidden: The sections that must not appear at all, each named once, matched against the document's
+            H2 headings alone: a deeper heading of the same text is a subsection, not a forbidden section.
+        section_caps: One per H2 section of the document a word cap applies to, in document order; a section no
+            cap applies to is not among them.
+    """
+
+    spec: RootRelativePath
+    title: TitleRule | None
+    forbid_empty_sections: bool
+    forbidden: tuple[SectionName, ...]
+    section_caps: tuple[SectionCap, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class HeadingsInput:
+    """A document's headings, with what each structure specification that governs it states over them.
+
+    Each specification applies on its own: a document governed by a corpus and a namespace specification has two
+    entries and must pass both, since neither can relax the other. A document no structure specification governs
+    gets no input at all.
+
+    Attributes:
+        headings: The document's top-level headings, of every level, in document order.
+        specs: One per structure specification that governs the document, in the order the specifications apply.
+    """
+
+    headings: tuple[Heading, ...]
+    specs: tuple[HeadingsSpec, ...]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class HeadingsRule(ContentRule):
+    """The base of every rule over a document's headings."""
+
+    @classmethod
+    @abstractmethod
+    def check(cls, subject: HeadingsInput) -> tuple[Self, ...]:
+        """Every occurrence of the rule's condition in the document's headings.
+
+        Args:
+            subject: The headings judged, with what each governing structure specification states over them.
         """
