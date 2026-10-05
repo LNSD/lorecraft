@@ -23,15 +23,17 @@ from typing import assert_never
 
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.skill import SkillLocation
-from lorecraft.rules.inputs import FrontmatterBlockInput, InputKind, TokenCountInput
+from lorecraft.rules.inputs import FrontmatterBlockInput, InputKind, SchemaProblemsInput, TokenCountInput
 from lorecraft.vfs import ResolvedPath
 
 from .database import Database
 from .inputs import (
     Ungoverned,
     build_document_frontmatter_block_input,
+    build_document_schema_problems_input,
     build_line_count_input,
     build_skill_frontmatter_block_input,
+    build_skill_schema_problems_input,
     build_token_count_input,
 )
 from .report import CheckedSubject, Diagnostic, RuleDiagnostic, SubjectReport, UndecodableSubject
@@ -190,6 +192,19 @@ def _check_document_text(database: Database, source: DocumentText, table: RuleTa
             case _:
                 assert_never(frontmatter_block_input)
 
+    # The frontmatter is never held to its schemas when no enabled rule reads what they reject.
+    if table.schema_problems_rules:
+        schema_problems_input = build_document_schema_problems_input(database, source)
+        match schema_problems_input:
+            case Ungoverned():
+                ungoverned.append(InputKind.SCHEMA_PROBLEMS)
+            case SchemaProblemsInput():
+                for enabled in table.schema_problems_rules:
+                    for occurrence in enabled.rule.check(schema_problems_input):
+                        diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
+            case _:
+                assert_never(schema_problems_input)
+
     # The token count is never asked for when no enabled rule reads it.
     if table.token_count_rules:
         token_count_input = build_token_count_input(database, source)
@@ -247,6 +262,13 @@ def _check_skill_text(
         frontmatter_block_input = build_skill_frontmatter_block_input(database, source, link_target)
         for enabled in table.frontmatter_block_rules:
             for occurrence in enabled.rule.check(frontmatter_block_input):
+                diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
+
+    # The frontmatter is never held to the Agent Skills specification when no enabled rule reads what it rejects.
+    if table.schema_problems_rules:
+        schema_problems_input = build_skill_schema_problems_input(database, source)
+        for enabled in table.schema_problems_rules:
+            for occurrence in enabled.rule.check(schema_problems_input):
                 diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
 
     # The line count is never asked for when no enabled rule reads it.

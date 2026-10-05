@@ -15,6 +15,7 @@ from typing import Self
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.schemas import FrontmatterProblem
 from lorecraft.project.syntax import InvalidYamlFrontmatter, LineNumber, MissingFrontmatter, NonMappingFrontmatter
 from lorecraft.rules.declaration import ContentRule
 from lorecraft.vfs import ResolvedPath
@@ -29,6 +30,8 @@ class InputKind(Enum):
     """A skill's whole-`SKILL.md` line count: `LineCountInput`."""
     FRONTMATTER_BLOCK = 'frontmatter-block'
     """A document's or a skill's frontmatter block, with the name it must carry: `FrontmatterBlockInput`."""
+    SCHEMA_PROBLEMS = 'schema-problems'
+    """What each frontmatter schema that governs a document or a skill rejects: `SchemaProblemsInput`."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -218,4 +221,81 @@ class FrontmatterBlockRule(ContentRule):
 
         Args:
             subject: The frontmatter block judged, with the name its subject must carry.
+        """
+
+
+@dataclass(frozen=True, slots=True)
+class StructureSpecSchema:
+    """A frontmatter schema a structure specification states under its `frontmatter` key.
+
+    Attributes:
+        spec: The structure specification file that states the schema.
+    """
+
+    spec: RootRelativePath
+
+
+@dataclass(frozen=True, slots=True)
+class AgentSkillsSchema:
+    """The Agent Skills specification's frontmatter schema: the package states it, and no repository file sets it."""
+
+
+# The schema a set of problems was found against: one a structure specification file states, for a document, or
+# the Agent Skills specification's, for a skill.
+type SchemaSource = StructureSpecSchema | AgentSkillsSchema
+
+
+@dataclass(frozen=True, slots=True)
+class LocatedProblem:
+    """One thing a frontmatter schema rejects, with the line it is reported on.
+
+    Attributes:
+        problem: What the schema rejects.
+        line: The line of the field it concerns, or line 1 when it concerns no field or a field not written.
+    """
+
+    problem: FrontmatterProblem
+    line: LineNumber
+
+
+@dataclass(frozen=True, slots=True)
+class SchemaProblems:
+    """Every problem one frontmatter schema found in a frontmatter.
+
+    Attributes:
+        source: The schema the problems were found against.
+        problems: In the order the schema reports them; empty when the frontmatter conforms to it.
+    """
+
+    source: SchemaSource
+    problems: tuple[LocatedProblem, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class SchemaProblemsInput:
+    """What each frontmatter schema that governs a document or a skill rejects in its frontmatter.
+
+    Every schema is applied on its own: a document governed by a corpus and a namespace schema has two entries and
+    must conform to both. A skill has one entry, the Agent Skills specification's. A frontmatter block that is
+    missing, unparseable or not a mapping is held to no schema, so its input has no entry: the block's own rules
+    report it.
+
+    Attributes:
+        schemas: One per governing schema, in the order the schemas apply; empty when the block is not a mapping.
+    """
+
+    schemas: tuple[SchemaProblems, ...]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class SchemaProblemsRule(ContentRule):
+    """The base of every rule over what the frontmatter schemas reject."""
+
+    @classmethod
+    @abstractmethod
+    def check(cls, subject: SchemaProblemsInput) -> tuple[Self, ...]:
+        """Every occurrence of the rule's condition among the problems the schemas found.
+
+        Args:
+            subject: The problems each governing schema found, each with its line.
         """
