@@ -27,6 +27,7 @@ from lorecraft.project.schemas import (
     OutlineEntry,
     SectionEntry,
     StructureSpec,
+    TitleChecks,
     UnknownFieldProblem,
     WrongTypeProblem,
 )
@@ -38,6 +39,7 @@ from lorecraft.project.syntax import (
     LineNumber,
     MissingFrontmatter,
     NonMappingFrontmatter,
+    count_words,
 )
 from lorecraft.rules.frontmatter.__ruleset__ import FIRST_LINE, field_line
 from lorecraft.rules.inputs import (
@@ -65,6 +67,7 @@ from lorecraft.rules.inputs import (
     SectionCap,
     SkillFrontmatterOwner,
     StructureSpecSchema,
+    TitleCap,
     TokenCountInput,
     UnlistedSection,
 )
@@ -405,7 +408,8 @@ def build_headings_input(database: Database, source: DocumentText) -> HeadingsIn
     """A document's headings, with what each structure specification that governs it states over them.
 
     The structure specifications are read first, and the document is parsed only when one governs it. Each section's
-    word cap is worked out here, from the outline, so a rule over the caps only compares numbers.
+    word cap is worked out here, from the outline, and so is the title's, with the words of the title's text, so a
+    rule over the caps only compares numbers.
 
     Args:
         database: The revision the document is read from; its model decides which specifications govern it.
@@ -452,29 +456,62 @@ def build_headings_input(database: Database, source: DocumentText) -> HeadingsIn
         return Ungoverned()
 
     headings = database.parse(source).headings
+    title = _find_title(headings)
     sections = tuple(heading for heading in headings if heading.level == SECTION_LEVEL)
     namespaces: list[HeadingsSpec] = []
     for namespace_spec in governance.namespace_specs:
         if namespace_spec.structure is not None:
-            namespaces.append(_headings_spec(namespace_spec.structure, sections))
+            namespaces.append(_headings_spec(namespace_spec.structure, title, sections))
     return HeadingsInput(
-        headings=headings, corpus=_headings_spec(corpus_structure, sections), namespaces=tuple(namespaces)
+        headings=headings, corpus=_headings_spec(corpus_structure, title, sections), namespaces=tuple(namespaces)
     )
 
 
-def _headings_spec(structure_spec: StructureSpec, sections: tuple[Heading, ...]) -> HeadingsSpec:
+def _find_title(headings: tuple[Heading, ...]) -> Heading | None:
+    """A document's title: its first H1 heading, or `None` when it has none. Raises nothing.
+
+    A later H1 is a second title, which is a finding of its own, so no check on the title is held against it.
+
+    Args:
+        headings: The document's top-level headings, in document order.
+    """
+    for heading in headings:
+        if heading.level == 1:
+            return heading
+    return None
+
+
+def _headings_spec(structure_spec: StructureSpec, title: Heading | None, sections: tuple[Heading, ...]) -> HeadingsSpec:
     """What one structure specification states over a document's headings, its caps resolved. Raises nothing.
 
     Args:
         structure_spec: The structure specification that governs the document.
+        title: The document's title, its first H1 heading, or `None` when it has none.
         sections: The document's H2 headings, in document order, each with its prose word count.
     """
     return HeadingsSpec(
         spec=structure_spec.path,
+        title_cap=_title_cap(structure_spec.title, title),
         forbid_empty_sections=structure_spec.forbid_empty_sections,
         forbidden=structure_spec.forbidden,
         section_caps=_section_caps(structure_spec.outline, sections),
     )
+
+
+def _title_cap(title_checks: TitleChecks | None, title: Heading | None) -> TitleCap | None:
+    """The cap on a document's title words under one specification, measured against its title. Raises nothing.
+
+    Args:
+        title_checks: The checks the specification's `title` states, or `None` when it states none.
+        title: The document's title, its first H1 heading, or `None` when it has none.
+
+    Returns:
+        The cap with the title it applies to and the words of the title's text; or `None` when the specification
+        sets no cap, or when the document has no title.
+    """
+    if title_checks is None or title_checks.words is None or title is None:
+        return None
+    return TitleCap(title=title, title_words=count_words(title.text), words=title_checks.words)
 
 
 def _section_caps(outline: tuple[OutlineEntry, ...], sections: tuple[Heading, ...]) -> tuple[SectionCap, ...]:

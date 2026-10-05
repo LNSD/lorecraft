@@ -139,6 +139,36 @@
       ],
       "title": "Named section",
       "type": "object"
+    },
+    "StructureFileTitle": {
+      "additionalProperties": false,
+      "description": "The checks a document's H1 title is held to beyond being there, once, opening the document.\n\nEach check is optional, but the key holds at least one: a `title` stating none would check nothing.",
+      "examples": [
+        {
+          "words": 8
+        }
+      ],
+      "minProperties": 1,
+      "properties": {
+        "words": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The most words the title's text may hold, counted as a section's prose words are; no cap when absent.",
+          "examples": [
+            8
+          ]
+        }
+      },
+      "title": "Title checks",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -204,6 +234,18 @@
         "Section structure, word caps and token budget for a rule document in docs/code/."
       ],
       "type": "string"
+    },
+    "title": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/StructureFileTitle"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The checks a document's H1 title is held to: `words` caps its words. No title check when absent; the title is there, once, opening the document, either way."
     },
     "tokens": {
       "anyOf": [

@@ -13,6 +13,7 @@ structure specification is not JSON Schema. It is this small dialect, whose fiel
     {
       "$schema": "../schemas/structure.spec.json",
       "description": "what this file governs, for whoever opens it",
+      "title": {"words": 8},
       "empty_sections": "forbidden",
       "tokens": 5000,
       "frontmatter": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string"}}},
@@ -36,6 +37,8 @@ finding quotes it.
   `structure_file`; it is not kept. That schema states the shape only: the rules `StructureSpec` refuses
   below it cannot state.
 - `description` is read by people only, and is not kept.
+- `title` holds the checks a document's H1 title is held to: `words` caps the title's own words, counted as a
+  section's prose words are. It states at least one check, since an empty `title` would check nothing.
 - `empty_sections`, whose one value is `"forbidden"`, reports a section left without content.
 - `tokens` is the token budget: the most tokens the whole file may hold, frontmatter, code and tables
   included, since that is what loading it costs an agent. The count is `o200k_base`, the same whichever agent
@@ -55,8 +58,8 @@ finding quotes it.
   structure check reports the description and the first example as notes, and leaves the rest to a reader.
 - `forbidden` names sections that must not appear at all.
 
-No key states the title: a document a structure specification governs always carries exactly one H1 title, and it
-opens the document.
+No key states that the title is there: a document a structure specification governs always carries exactly one H1
+title, and it opens the document. `title` only adds checks on it.
 
 A section name, in an outline entry or in `forbidden`, is a `SectionName`: one line of heading text with no
 whitespace at either end, since a heading's text never has any.
@@ -98,6 +101,7 @@ from .structure_file import (
     StructureFile,
     StructureFileAny,
     StructureFileSection,
+    StructureFileTitle,
 )
 
 # The text of a structure specification file as read, not yet known to be JSON, the dialect's shape or usable
@@ -274,6 +278,17 @@ class UntypedFrontmatterSchemaError(Error):
     def __init__(self, path: RootRelativePath) -> None:
         self.path = path
         super().__init__(f'invalid structure schema {path}: frontmatter schema root must state "type": "object"')
+
+
+@dataclass(frozen=True, slots=True)
+class TitleChecks:
+    """The checks a structure specification holds a document's H1 title to, beyond its being there.
+
+    Attributes:
+        words: The most words the title's text may hold, or None for no cap.
+    """
+
+    words: NonZeroUnsignedInt | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -544,6 +559,7 @@ class StructureSpec:
     Attributes:
         file: The JSON file, `<name>.structure.json`, at its parsed specification filename; the prose it is the
             machine-checkable half of is `<name>.md` beside it, which `authority` names.
+        title: The checks the document's title is held to, or None when the specification states none.
         forbid_empty_sections: True when every section must hold content.
         outline: The section order, matched against a document's sections left to right; may be empty.
         forbidden: Sections that must not appear at all, each named once.
@@ -554,6 +570,7 @@ class StructureSpec:
     """
 
     file: StructureSpecFile
+    title: TitleChecks | None
     forbid_empty_sections: bool
     outline: tuple[OutlineEntry, ...]
     forbidden: tuple[SectionName, ...]
@@ -576,8 +593,12 @@ class StructureSpec:
             ForbiddenOutlineSectionError: If it forbids a section its own outline names.
             AdjacentAnyRunsError: If its outline places two `any` runs side by side.
         """
+        # The title is held to one H1 opening the document whatever the specification states, so `title` states a
+        # rule of its own only through a check it holds.
+        states_no_title_check = self.title is None or self.title.words is None
         states_no_rule = (
-            not self.forbid_empty_sections
+            states_no_title_check
+            and not self.forbid_empty_sections
             and self.tokens is None
             and self.frontmatter is None
             and not self.outline
@@ -676,12 +697,24 @@ class StructureSpec:
 
         return cls(
             file=file,
+            title=_title_checks(structure_file.title),
             forbid_empty_sections=structure_file.empty_sections == 'forbidden',
             outline=tuple(outline),
             forbidden=structure_file.forbidden,
             tokens=structure_file.tokens,
             frontmatter=_frontmatter_schema(file.path, structure_file.frontmatter),
         )
+
+
+def _title_checks(title: StructureFileTitle | None) -> TitleChecks | None:
+    """The checks a file's `title` key states on the title, or None when the file leaves the key out.
+
+    Args:
+        title: The file's `title` key, as read; `None` when the file leaves it out.
+    """
+    if title is None:
+        return None
+    return TitleChecks(words=title.words)
 
 
 def _frontmatter_schema(path: RootRelativePath, schema: dict[str, JsonValue] | None) -> FrontmatterSchema | None:

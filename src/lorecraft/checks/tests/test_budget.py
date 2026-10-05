@@ -33,6 +33,7 @@ def _structure_spec(tokens: NonZeroUnsignedInt | None, spec_name: str = 'code') 
     name = parse_spec_name(spec_name)
     return StructureSpec(
         file=StructureSpecFile(path=SPECS_DIR / spec_filename(name, SpecFileType.STRUCTURE), name=name),
+        title=None,
         forbid_empty_sections=True,
         outline=(),
         forbidden=(),

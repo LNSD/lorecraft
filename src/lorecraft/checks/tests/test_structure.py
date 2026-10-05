@@ -89,6 +89,7 @@ def _structure_spec(
     name = parse_spec_name(spec_name)
     return StructureSpec(
         file=StructureSpecFile(path=SPECS_DIR / spec_filename(name, SpecFileType.STRUCTURE), name=name),
+        title=None,
         forbid_empty_sections=forbid_empty_sections,
         outline=outline,
         forbidden=forbidden,
