@@ -17,7 +17,7 @@ from .frontmatter import (
     MissingFrontmatter,
     NonMappingFrontmatter,
 )
-from .heading import Heading
+from .heading import Heading, HeadingLevel
 from .lines import count_lines
 from .link import Link
 from .position import LineNumber
@@ -34,6 +34,7 @@ __all__: list[str] = [
     'InvalidYamlFrontmatter',
     'NonMappingFrontmatter',
     'Heading',
+    'HeadingLevel',
     'Link',
     'Anchor',
     'InvalidAnchorError',
