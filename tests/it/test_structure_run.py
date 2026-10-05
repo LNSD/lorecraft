@@ -18,12 +18,11 @@ from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.vfs import take_snapshot
 
-# A rule document: one title first, no empty section, the Checklist after the document's own sections, and at most
+# A rule document: no empty section, the Checklist after the document's own sections, and at most
 # 6 prose words in the Checklist, where `- [ ] item` is 4.
 CODE_STRUCTURE_SPEC: Final[str] = dedent(
     """
     {
-      "title": {"count": 1, "first": true},
       "empty_sections": "forbidden",
       "outline": [
         {"any": true},

@@ -90,12 +90,13 @@ Copy the shapes in [spec-structure-frontmatter](references/spec-structure-frontm
 
 ## 4. The structure specification
 
-`<name>.structure.json` states the H1 `title` rule, `empty_sections`, an `outline` of H2 sections — each
+`<name>.structure.json` states `empty_sections`, an `outline` of H2 sections — each
 `{"section": …}`, optionally `"optional": true`, a `description` of what it holds and a non-empty list of
 `examples` of its body, each trimmed from a real document of the corpus (the description and the first example are
 shown as notes when the section is missing), or an `{"any": true}` run — with a `words` cap on any entry,
 `forbidden` sections, a whole-file `tokens` budget, and the `frontmatter` schema of §3. Every key is optional,
-but a file states at least one rule. A namespace file usually wraps its additions in `any` runs so the corpus outline still decides the rest.
+but a file states at least one rule. No key states the title: every governed document carries one H1 title
+that opens it. A namespace file usually wraps its additions in `any` runs so the corpus outline still decides the rest.
 [spec-structure-outline](references/spec-structure-outline.md) and
 [spec-structure-budget](references/spec-structure-budget.md) have the keys, examples, and what is refused on load;
 [spec-structure](references/spec-structure.md) covers the file as a whole.

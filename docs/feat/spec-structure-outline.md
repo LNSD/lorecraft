@@ -1,6 +1,6 @@
 ---
 name: "spec-structure-outline"
-description: "The outline keys of a structure specification: the title rule for H1 headings, the outline of H2 sections with required, optional and any entries, empty_sections and forbidden sections, how a namespace outline adds to the corpus outline, and which outlines are refused on load. Load when writing or changing a section outline, requiring, ordering or forbidding a section, or an outline is reported invalid"
+description: "The outline keys of a structure specification: the one H1 title every governed document carries, the outline of H2 sections with required, optional and any entries, empty_sections and forbidden sections, how a namespace outline adds to the corpus outline, and which outlines are refused on load. Load when writing or changing a section outline, requiring, ordering or forbidding a section, or an outline is reported invalid"
 type: "feature"
 status: "experimental"
 components: "module:lorecraft.project,module:lorecraft.checks,spec:feat,spec:code"
@@ -10,10 +10,11 @@ components: "module:lorecraft.project,module:lorecraft.checks,spec:feat,spec:cod
 
 ## Summary
 
-The `title`, `outline`, `empty_sections` and `forbidden` keys of a `<name>.structure.json` file state how the
-documents its name governs are laid out: how many H1 titles they hold, which H2 sections in which order, and
-which sections must hold content or must not appear. An order over a sequence of any length cannot be said in
-JSON Schema, which is why the file is a dialect of its own. `lorecraft check structure` applies these keys.
+The `outline`, `empty_sections` and `forbidden` keys of a `<name>.structure.json` file state which H2 sections
+the documents its name governs hold, in which order, and which must hold content or must not appear. No key states
+the title: every governed document carries exactly one H1 title that opens it. An order over a sequence of any
+length is no JSON Schema, so the file is a dialect of its own. `lorecraft check structure` applies the keys and
+the title.
 
 ## Table of Contents
 
@@ -37,7 +38,6 @@ JSON Schema, which is why the file is a dialect of its own. `lorecraft check str
 
 | Key | Value | Meaning |
 |-----|-------|---------|
-| `title` | `{"count": <n>, "first": <bool>}` | How many H1 titles a document holds, and whether one comes before any section |
 | `empty_sections` | `"forbidden"` | Every heading must have content under it |
 | `outline` | list of entries | `{"section": "<name>"}`, with `"optional": true` when it may be left out, or `{"any": true}` |
 | `forbidden` | list of names | Sections that must not appear anywhere |
@@ -66,7 +66,6 @@ and nothing after it:
 ```json
 {
   "$schema": "../schemas/structure.spec.json",
-  "title": { "count": 1, "first": true },
   "empty_sections": "forbidden",
   "outline": [
     { "any": true },
@@ -118,10 +117,10 @@ and leaves where it sits to the corpus outline by surrounding it with `any` runs
 ### Refused on Load
 
 Beyond what [spec-structure](spec-structure.md#refused-on-load) refuses for any file, these keys are refused
-when `title` sets a `count` below `1`, when the outline names a section twice or places two `any` runs side by
-side, or when `forbidden` names a section twice or one the outline names. A section name, in the outline or in
-`forbidden`, is refused when it is empty, has whitespace at either end, or spans two lines: no heading's text
-could match it.
+when the outline names a section twice or places two `any` runs side by side, or when `forbidden` names a section
+twice or one the outline names. A `title` key is refused as any unknown key is, since no key states the title. A
+section name, in the outline or in `forbidden`, is refused when it is empty, has whitespace at either end, or spans
+two lines: no heading's text could match it.
 
 ## Limitations
 
@@ -137,7 +136,6 @@ could match it.
 ## Code References
 
 - `src/lorecraft/project/schemas/structure_file.py` - The shape of the outline keys
-- `src/lorecraft/core/num.py` - The non-zero unsigned integer the title `count` holds, which refuses a value below `1`
 - `src/lorecraft/project/schemas/section_name.py` - The section name an outline entry and `forbidden` hold
 - `src/lorecraft/project/schemas/structure.py` - Turns the keys into rules, and refuses an unusable outline
 - `src/lorecraft/checks/structure.py` - Applies the title, outline, empty and forbidden rules to a document

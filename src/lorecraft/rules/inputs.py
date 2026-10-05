@@ -15,7 +15,7 @@ from typing import Final, Self
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.schemas import FrontmatterProblem, SectionName, TitleRule
+from lorecraft.project.schemas import FrontmatterProblem, SectionName
 from lorecraft.project.syntax import (
     Heading,
     InvalidYamlFrontmatter,
@@ -333,8 +333,6 @@ class HeadingsSpec:
 
     Attributes:
         spec: The structure specification file that states it.
-        title: How many H1 titles the document carries and whether one opens it, or `None` when the specification
-            states no title rule.
         forbid_empty_sections: True when every section must hold content.
         forbidden: The sections that must not appear at all, each named once, matched against the document's
             H2 headings alone: a deeper heading of the same text is a subsection, not a forbidden section.
@@ -343,7 +341,6 @@ class HeadingsSpec:
     """
 
     spec: RootRelativePath
-    title: TitleRule | None
     forbid_empty_sections: bool
     forbidden: tuple[SectionName, ...]
     section_caps: tuple[SectionCap, ...]
@@ -357,13 +354,28 @@ class HeadingsInput:
     entries and must pass both, since neither can relax the other. A document no structure specification governs
     gets no input at all.
 
+    The title is the exception: no specification states it, since every governed document carries exactly one H1
+    title that opens it. So a title rule judges the document once, under its corpus's structure specification,
+    rather than once per specification.
+
+    The corpus's specification is held apart from the namespaces' so that a title rule finds it by name: a document
+    governed by a namespace specification alone is ungoverned, so the corpus's is always there.
+
     Attributes:
         headings: The document's top-level headings, of every level, in document order.
-        specs: One per structure specification that governs the document, in the order the specifications apply.
+        corpus: What the corpus's structure specification states, which the title rules report under.
+        namespaces: What each matching namespace's structure specification states, broad to narrow; empty when no
+            namespace specification governs the document.
     """
 
     headings: tuple[Heading, ...]
-    specs: tuple[HeadingsSpec, ...]
+    corpus: HeadingsSpec
+    namespaces: tuple[HeadingsSpec, ...]
+
+    @property
+    def specs(self) -> tuple[HeadingsSpec, ...]:
+        """Every governing specification's entry, in the order the specifications apply: the corpus's first."""
+        return (self.corpus, *self.namespaces)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

@@ -16,7 +16,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.schemas import SectionName, TitleRule
+from lorecraft.project.schemas import SectionName
 from lorecraft.project.syntax import Heading, ParsedDocument, parse_document
 from lorecraft.rules.inputs import HeadingsInput, HeadingsSpec, SectionCap
 from lorecraft.vfs import Snapshot
@@ -116,7 +116,7 @@ def _section(text: str) -> Heading:
 class TestBuildHeadingsInput:
     def test_build_headings_input_with_two_specifications_holds_each_in_the_order_they_apply(self) -> None:
         #: Given
-        corpus_spec = b'{"title": {"count": 1, "first": true}, "empty_sections": "forbidden"}'
+        corpus_spec = b'{"empty_sections": "forbidden"}'
         namespace_spec = b'{"forbidden": ["Notes", "Todo"]}'
         database = Database(_snapshot(corpus_spec, namespace_spec))
         source = _document_text(database, TYPING)
@@ -127,23 +127,24 @@ class TestBuildHeadingsInput:
         #: Then
         assert subject == HeadingsInput(
             headings=TYPING_HEADINGS,
-            specs=(
-                HeadingsSpec(
-                    spec=CORPUS_SPEC,
-                    title=TitleRule(count=NonZeroUnsignedInt(1), first=True),
-                    forbid_empty_sections=True,
-                    forbidden=(),
-                    section_caps=(),
-                ),
+            corpus=HeadingsSpec(
+                spec=CORPUS_SPEC,
+                forbid_empty_sections=True,
+                forbidden=(),
+                section_caps=(),
+            ),
+            namespaces=(
                 HeadingsSpec(
                     spec=NAMESPACE_SPEC,
-                    title=None,
                     forbid_empty_sections=False,
                     forbidden=(SectionName.parse('Notes'), SectionName.parse('Todo')),
                     section_caps=(),
                 ),
             ),
-        ), 'the corpus specification comes first, then the namespace one, each with what it states on its own'
+        ), (
+            'the corpus specification is held apart for the title rules and comes first, then the namespace one, '
+            'each with what it states on its own'
+        )
 
     def test_build_headings_input_with_an_outline_resolves_each_section_cap(self) -> None:
         #: Given
@@ -160,18 +161,16 @@ class TestBuildHeadingsInput:
         #: Then
         assert subject == HeadingsInput(
             headings=TYPING_HEADINGS,
-            specs=(
-                HeadingsSpec(
-                    spec=CORPUS_SPEC,
-                    title=None,
-                    forbid_empty_sections=False,
-                    forbidden=(),
-                    section_caps=(
-                        SectionCap(section=_section('Rule'), words=NonZeroUnsignedInt(40)),
-                        SectionCap(section=_section('Aside'), words=NonZeroUnsignedInt(25)),
-                    ),
+            corpus=HeadingsSpec(
+                spec=CORPUS_SPEC,
+                forbid_empty_sections=False,
+                forbidden=(),
+                section_caps=(
+                    SectionCap(section=_section('Rule'), words=NonZeroUnsignedInt(40)),
+                    SectionCap(section=_section('Aside'), words=NonZeroUnsignedInt(25)),
                 ),
             ),
+            namespaces=(),
         ), 'a named section takes its entry cap, an unnamed one its run cap, and a section with no cap is left out'
 
     def test_build_headings_input_with_no_structure_specification_returns_ungoverned(self) -> None:

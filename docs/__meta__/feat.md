@@ -300,7 +300,7 @@ spec                              # Meta: the specification files under docs/__m
 └── spec-structure                # The structure specification file, its layers and its editor schema
     ├── spec-structure-budget       # Its word caps and token budget
     ├── spec-structure-frontmatter  # Its frontmatter key, JSON Schema
-    └── spec-structure-outline      # Its title rule, section outline and forbidden sections
+    └── spec-structure-outline      # Its section outline, forbidden sections and the one H1 title
 ```
 
 A domain with a namespace layer takes its naming from that layer, which may tie the segments after the domain

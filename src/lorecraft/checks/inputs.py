@@ -26,6 +26,7 @@ from lorecraft.project.schemas import (
     MissingFieldProblem,
     OutlineEntry,
     SectionEntry,
+    StructureSpec,
     UnknownFieldProblem,
     WrongTypeProblem,
 )
@@ -190,6 +191,7 @@ def build_document_frontmatter_block_input(
         return Ungoverned()
     # A schema governs a document only through its corpus's structure specification, which a namespace's schema
     # merely narrows; so that specification exists here, and it states every rule over the block.
+    # Without the corpus's structure specification a namespace one governs nothing, as `structure_specs` states.
     corpus_structure = governance.corpus_spec.structure
     if corpus_structure is None:
         # Unreachable: `frontmatter_schemas` is empty whenever the corpus has no structure specification.
@@ -437,24 +439,35 @@ def build_headings_input(database: Database, source: DocumentText) -> HeadingsIn
     governance = database.model().find_governance(source.ref)
     if governance is None:
         return Ungoverned()
-    structure_specs = governance.structure_specs()
-    if not structure_specs:
+    # Without the corpus's structure specification a namespace one governs nothing, as `structure_specs` states.
+    corpus_structure = governance.corpus_spec.structure
+    if corpus_structure is None:
         return Ungoverned()
 
     headings = database.parse(source).headings
     sections = tuple(heading for heading in headings if heading.level == SECTION_LEVEL)
-    specs: list[HeadingsSpec] = []
-    for structure_spec in structure_specs:
-        specs.append(
-            HeadingsSpec(
-                spec=structure_spec.path,
-                title=structure_spec.title,
-                forbid_empty_sections=structure_spec.forbid_empty_sections,
-                forbidden=structure_spec.forbidden,
-                section_caps=_section_caps(structure_spec.outline, sections),
-            )
-        )
-    return HeadingsInput(headings=headings, specs=tuple(specs))
+    namespaces: list[HeadingsSpec] = []
+    for namespace_spec in governance.namespace_specs:
+        if namespace_spec.structure is not None:
+            namespaces.append(_headings_spec(namespace_spec.structure, sections))
+    return HeadingsInput(
+        headings=headings, corpus=_headings_spec(corpus_structure, sections), namespaces=tuple(namespaces)
+    )
+
+
+def _headings_spec(structure_spec: StructureSpec, sections: tuple[Heading, ...]) -> HeadingsSpec:
+    """What one structure specification states over a document's headings, its caps resolved. Raises nothing.
+
+    Args:
+        structure_spec: The structure specification that governs the document.
+        sections: The document's H2 headings, in document order, each with its prose word count.
+    """
+    return HeadingsSpec(
+        spec=structure_spec.path,
+        forbid_empty_sections=structure_spec.forbid_empty_sections,
+        forbidden=structure_spec.forbidden,
+        section_caps=_section_caps(structure_spec.outline, sections),
+    )
 
 
 def _section_caps(outline: tuple[OutlineEntry, ...], sections: tuple[Heading, ...]) -> tuple[SectionCap, ...]:
