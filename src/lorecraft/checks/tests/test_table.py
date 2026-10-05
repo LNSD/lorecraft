@@ -6,6 +6,7 @@ from lorecraft import rules
 from lorecraft.rules.declaration import Rule, Severity
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
 from lorecraft.rules.frontmatter.invalid_yaml import InvalidYaml
+from lorecraft.rules.frontmatter.missing_field import MissingField
 from lorecraft.rules.frontmatter.missing_frontmatter import MissingFrontmatter
 from lorecraft.rules.frontmatter.name_mismatch import NameMismatch
 from lorecraft.rules.frontmatter.non_mapping_frontmatter import NonMappingFrontmatter
@@ -129,6 +130,18 @@ class TestRuleTableFromRegistry:
             EnabledRule(DuplicateKey, Severity.ERROR),
         ), "the package's frontmatter block rules are enabled by default as errors, in code order"
 
+    def test_from_registry_with_the_package_registry_enables_the_schema_rules(self) -> None:
+        #: Given
+        registry = Registry.load(rules)
+
+        #: When
+        table = RuleTable.from_registry(registry)
+
+        #: Then
+        assert table.schema_problems_rules == (EnabledRule(MissingField, Severity.ERROR),), (
+            "the package's schema rules are enabled by default as errors, in code order"
+        )
+
 
 @pytest.mark.unit
 class TestRuleTable:
@@ -196,3 +209,23 @@ class TestRuleTable:
 
         #: Then
         assert table.token_count_rules == (), 'a rule joins the partition of the input it reads, and no other'
+
+    def test_rule_table_with_no_rules_has_an_empty_schema_problems_partition(self) -> None:
+        #: Given
+        severities: dict[type[Rule], Severity] = {}
+
+        #: When
+        table = RuleTable(severities)
+
+        #: Then
+        assert table.schema_problems_rules == (), 'no enabled rule reads what the frontmatter schemas reject'
+
+    def test_rule_table_with_a_rule_over_the_schema_problems_leaves_it_out_of_the_line_count_partition(self) -> None:
+        #: Given
+        severities: dict[type[Rule], Severity] = {MissingField: Severity.ERROR}
+
+        #: When
+        table = RuleTable(severities)
+
+        #: Then
+        assert table.line_count_rules == (), 'a rule joins the partition of the input it reads, and no other'

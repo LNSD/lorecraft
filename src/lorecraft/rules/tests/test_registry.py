@@ -6,6 +6,7 @@ from lorecraft import rules
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
 from lorecraft.rules.frontmatter.invalid_yaml import InvalidYaml
+from lorecraft.rules.frontmatter.missing_field import MissingField
 from lorecraft.rules.frontmatter.missing_frontmatter import MissingFrontmatter
 from lorecraft.rules.frontmatter.name_mismatch import NameMismatch
 from lorecraft.rules.frontmatter.non_mapping_frontmatter import NonMappingFrontmatter
@@ -354,6 +355,7 @@ class TestPackageRegistry:
             NonMappingFrontmatter,
             NameMismatch,
             DuplicateKey,
+            MissingField,
             InvalidUtf8,
             TooManyTokens,
             TooManyLines,
