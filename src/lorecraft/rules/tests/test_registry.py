@@ -24,6 +24,7 @@ from lorecraft.rules.outline.missing_section import MissingSection
 from lorecraft.rules.outline.missing_title import MissingTitle
 from lorecraft.rules.outline.section_out_of_order import SectionOutOfOrder
 from lorecraft.rules.outline.title_not_first import TitleNotFirst
+from lorecraft.rules.outline.unexpected_section import UnexpectedSection
 
 from ..declaration import RuleName
 from ..registry import (
@@ -383,6 +384,7 @@ class TestPackageRegistry:
             ForbiddenSection,
             MissingSection,
             SectionOutOfOrder,
+            UnexpectedSection,
         ), 'the registry holds every rule and engine condition `lorecraft.rules` declares, in code order'
 
     def test_find_with_the_package_rules_and_the_undecodable_condition_code_returns_it(self) -> None:
