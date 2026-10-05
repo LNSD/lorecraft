@@ -54,6 +54,7 @@ from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.outline.extra_title import ExtraTitle
 from lorecraft.rules.outline.missing_title import MissingTitle
+from lorecraft.rules.outline.title_not_first import TitleNotFirst
 from lorecraft.rules.registry import Registry
 from lorecraft.vfs import EntryRecord, ResolvedPath, Snapshot, SymlinkRecord
 
@@ -1079,14 +1080,21 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = MissingTitle(spec=CODE_SPEC, line=LineNumber.from_int(1))
+        missing = MissingTitle(spec=CODE_SPEC, line=LineNumber.from_int(1))
+        not_first = TitleNotFirst(spec=CODE_SPEC, line=LineNumber.from_int(1), level=2)
         assert reports == (
             CheckedSubject(
                 GUIDE,
-                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                diagnostics=(
+                    RuleDiagnostic(GUIDE.path, missing, Severity.ERROR),
+                    RuleDiagnostic(GUIDE.path, not_first, Severity.ERROR),
+                ),
                 ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
             ),
-        ), 'OUT001 runs at deny over a document a structure specification governs, under that specification'
+        ), (
+            'OUT001 runs at deny over a document a structure specification governs, under that specification, and '
+            'OUT003 reports the section the untitled document opens with'
+        )
 
     def test_check_subjects_with_a_document_carrying_a_second_title_reports_extra_title(
         self, package_table: RuleTable
@@ -1107,6 +1115,28 @@ class TestCheckSubjects:
                 ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
             ),
         ), 'OUT002 runs at deny over a document a structure specification governs, at the title after the first'
+
+    def test_check_subjects_with_a_document_opening_with_a_section_reports_title_not_first(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        structure_spec = b'{"empty_sections": "forbidden"}'
+        database = Database(
+            _snapshot(structure_spec, guide=b'## Install\n\nRun it once.\n\n# Guide\n\nWhat the guide covers.\n')
+        )
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), package_table)
+
+        #: Then
+        occurrence = TitleNotFirst(spec=CODE_SPEC, line=LineNumber.from_int(1), level=2)
+        assert reports == (
+            CheckedSubject(
+                GUIDE,
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
+            ),
+        ), 'OUT003 runs at deny over a document a structure specification governs, at the heading opening it'
 
     def test_check_subjects_with_a_document_carrying_its_title_reports_it_clean(self, package_table: RuleTable) -> None:
         #: Given
