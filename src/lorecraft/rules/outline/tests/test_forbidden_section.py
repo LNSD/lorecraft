@@ -44,7 +44,7 @@ def _spec(spec: RootRelativePath, *, forbidden: tuple[SectionName, ...]) -> Head
         spec: The structure specification file.
         forbidden: The sections it forbids.
     """
-    return HeadingsSpec(spec=spec, forbid_empty_sections=False, forbidden=forbidden, section_caps=())
+    return HeadingsSpec(spec=spec, title_cap=None, forbid_empty_sections=False, forbidden=forbidden, section_caps=())
 
 
 @pytest.mark.unit
