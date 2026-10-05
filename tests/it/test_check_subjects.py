@@ -60,6 +60,7 @@ from lorecraft.rules.outline.extra_title import ExtraTitle
 from lorecraft.rules.outline.forbidden_section import ForbiddenSection
 from lorecraft.rules.outline.missing_section import MissingSection
 from lorecraft.rules.outline.missing_title import MissingTitle
+from lorecraft.rules.outline.section_out_of_order import SectionOutOfOrder
 from lorecraft.rules.outline.title_not_first import TitleNotFirst
 from lorecraft.rules.registry import Registry
 from lorecraft.vfs import EntryRecord, ResolvedPath, Snapshot, SymlinkRecord
@@ -1309,6 +1310,29 @@ class TestCheckSubjects:
                 ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
             ),
         ), 'OUT006 runs at deny over a document lacking a section its outline requires, at its last line'
+
+    def test_check_subjects_with_a_document_writing_a_section_out_of_order_reports_section_out_of_order(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        outline = b'{"outline": [{"section": "Install"}, {"section": "Usage"}]}'
+        guide = b'# Guide\n\n## Usage\n\nRun it.\n\n## Install\n\nRun it once.\n'
+        database = Database(_snapshot(outline, guide=guide))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), package_table)
+
+        #: Then
+        occurrence = SectionOutOfOrder(
+            spec=CODE_SPEC, line=LineNumber.from_int(3), section='Usage', expected=SectionName.parse('Install')
+        )
+        assert reports == (
+            CheckedSubject(
+                GUIDE,
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
+            ),
+        ), 'OUT007 runs at deny over a document writing a section where its outline places another, at its heading'
 
     def test_check_subjects_with_a_document_following_its_outline_reports_it_clean(
         self, package_table: RuleTable
