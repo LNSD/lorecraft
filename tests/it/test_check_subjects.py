@@ -2,8 +2,9 @@
 
 The runner decodes each document and skill, builds each input an enabled rule reads, and runs the rules of a table
 built from a registry. The package's own registry runs the frontmatter block rules over documents and skills, the
-token budget and the headings rules over documents and the line budget over skills; a registry of sample rules
-over the token count, declared in this module, runs through the same runner, with no edit to it.
+token budget, the headings rules and the outline divergence rules over documents and the line budget over skills;
+a registry of sample rules over the token count, declared in this module, runs through the same runner, with no
+edit to it.
 """
 
 from dataclasses import dataclass
@@ -26,6 +27,7 @@ from lorecraft.project.schemas import (
     BlockProblem,
     InvalidValueProblem,
     MissingFieldProblem,
+    SectionName,
     UnknownFieldProblem,
     WrongTypeProblem,
 )
@@ -56,6 +58,7 @@ from lorecraft.rules.length.too_many_words import TooManyWords
 from lorecraft.rules.outline.empty_section import EmptySection
 from lorecraft.rules.outline.extra_title import ExtraTitle
 from lorecraft.rules.outline.forbidden_section import ForbiddenSection
+from lorecraft.rules.outline.missing_section import MissingSection
 from lorecraft.rules.outline.missing_title import MissingTitle
 from lorecraft.rules.outline.title_not_first import TitleNotFirst
 from lorecraft.rules.registry import Registry
@@ -350,7 +353,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.OUTLINE_DIVERGENCE),
             ),
         ), 'LEN001 runs at deny, so a document over its budget carries its occurrence as an error'
 
@@ -363,7 +366,11 @@ class TestCheckSubjects:
 
         #: Then
         assert reports == (
-            CheckedSubject(GUIDE, diagnostics=(), ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS)),
+            CheckedSubject(
+                GUIDE,
+                diagnostics=(),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.OUTLINE_DIVERGENCE),
+            ),
         ), 'a document within its budget has no diagnostic, and no frontmatter schema governs it'
 
     def test_check_subjects_with_no_budget_set_reports_the_token_count_as_ungoverned(
@@ -380,7 +387,12 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
+                ungoverned=(
+                    InputKind.FRONTMATTER_BLOCK,
+                    InputKind.SCHEMA_PROBLEMS,
+                    InputKind.TOKEN_COUNT,
+                    InputKind.OUTLINE_DIVERGENCE,
+                ),
             ),
         ), 'no specification sets a budget or a frontmatter schema, which is coverage, not a diagnostic'
 
@@ -413,6 +425,7 @@ class TestCheckSubjects:
                     InputKind.SCHEMA_PROBLEMS,
                     InputKind.TOKEN_COUNT,
                     InputKind.HEADINGS,
+                    InputKind.OUTLINE_DIVERGENCE,
                 ),
             ),
         ), 'no specification governs a document in no corpus the model holds, which is coverage, not a diagnostic'
@@ -583,9 +596,17 @@ class TestCheckSubjects:
 
         #: Then
         assert reports == (
-            CheckedSubject(GUIDE, diagnostics=(), ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS)),
+            CheckedSubject(
+                GUIDE,
+                diagnostics=(),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.OUTLINE_DIVERGENCE),
+            ),
             CheckedSubject(REVIEW, diagnostics=(), ungoverned=()),
-            CheckedSubject(INTRO, diagnostics=(), ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS)),
+            CheckedSubject(
+                INTRO,
+                diagnostics=(),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.OUTLINE_DIVERGENCE),
+            ),
         ), 'documents and skills share one run, each reported in the order given'
 
     def test_check_subjects_with_no_enabled_rule_over_the_line_count_never_counts_the_lines(self) -> None:
@@ -618,7 +639,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.TOKEN_COUNT,),
+                ungoverned=(InputKind.TOKEN_COUNT, InputKind.OUTLINE_DIVERGENCE),
             ),
         ), 'FM001 runs at deny over a document a frontmatter schema governs, under its corpus specification'
 
@@ -638,7 +659,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.TOKEN_COUNT,),
+                ungoverned=(InputKind.TOKEN_COUNT, InputKind.OUTLINE_DIVERGENCE),
             ),
         ), 'FM002 runs at deny, at the line the YAML parser stopped on'
 
@@ -657,7 +678,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.TOKEN_COUNT,),
+                ungoverned=(InputKind.TOKEN_COUNT, InputKind.OUTLINE_DIVERGENCE),
             ),
         ), 'FM003 runs at deny over a block that reads as YAML but is not a mapping'
 
@@ -678,7 +699,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.TOKEN_COUNT,),
+                ungoverned=(InputKind.TOKEN_COUNT, InputKind.OUTLINE_DIVERGENCE),
             ),
         ), 'FM004 runs at deny over a document whose `name` is not its filename'
 
@@ -699,7 +720,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.TOKEN_COUNT,),
+                ungoverned=(InputKind.TOKEN_COUNT, InputKind.OUTLINE_DIVERGENCE),
             ),
         ), 'FM005 runs at deny over a key written again, at the later occurrence'
 
@@ -920,7 +941,7 @@ class TestCheckSubjects:
                     RuleDiagnostic(GUIDE.path, invalid_value, Severity.ERROR),
                     RuleDiagnostic(GUIDE.path, block_constraint, Severity.ERROR),
                 ),
-                ungoverned=(InputKind.TOKEN_COUNT,),
+                ungoverned=(InputKind.TOKEN_COUNT, InputKind.OUTLINE_DIVERGENCE),
             ),
         ), (
             'FM006 and FM008 to FM010 run at deny and FM007 at warn, each on its own problem, on its field line or '
@@ -1012,7 +1033,7 @@ class TestCheckSubjects:
                     RuleDiagnostic(typing.path, status, Severity.ERROR),
                     RuleDiagnostic(typing.path, owner, Severity.ERROR),
                 ),
-                ungoverned=(InputKind.TOKEN_COUNT,),
+                ungoverned=(InputKind.TOKEN_COUNT, InputKind.OUTLINE_DIVERGENCE),
             ),
         ), 'each schema is applied on its own, and each problem names the specification whose schema found it'
 
@@ -1027,7 +1048,11 @@ class TestCheckSubjects:
 
         #: Then
         assert reports == (
-            CheckedSubject(GUIDE, diagnostics=(), ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS)),
+            CheckedSubject(
+                GUIDE,
+                diagnostics=(),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.OUTLINE_DIVERGENCE),
+            ),
         ), 'no specification states a frontmatter schema, which is coverage, not a diagnostic'
 
     def test_check_subjects_with_a_block_that_is_not_a_mapping_reports_no_schema_rule(
@@ -1045,7 +1070,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.TOKEN_COUNT,),
+                ungoverned=(InputKind.TOKEN_COUNT, InputKind.OUTLINE_DIVERGENCE),
             ),
         ), 'FM003 alone reports a block that is not a mapping: it is held to no schema, so no schema rule fires'
 
@@ -1092,7 +1117,12 @@ class TestCheckSubjects:
                     RuleDiagnostic(GUIDE.path, missing, Severity.ERROR),
                     RuleDiagnostic(GUIDE.path, not_first, Severity.ERROR),
                 ),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
+                ungoverned=(
+                    InputKind.FRONTMATTER_BLOCK,
+                    InputKind.SCHEMA_PROBLEMS,
+                    InputKind.TOKEN_COUNT,
+                    InputKind.OUTLINE_DIVERGENCE,
+                ),
             ),
         ), (
             'OUT001 runs at deny over a document a structure specification governs, under that specification, and '
@@ -1115,7 +1145,12 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
+                ungoverned=(
+                    InputKind.FRONTMATTER_BLOCK,
+                    InputKind.SCHEMA_PROBLEMS,
+                    InputKind.TOKEN_COUNT,
+                    InputKind.OUTLINE_DIVERGENCE,
+                ),
             ),
         ), 'OUT002 runs at deny over a document a structure specification governs, at the title after the first'
 
@@ -1137,7 +1172,12 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
+                ungoverned=(
+                    InputKind.FRONTMATTER_BLOCK,
+                    InputKind.SCHEMA_PROBLEMS,
+                    InputKind.TOKEN_COUNT,
+                    InputKind.OUTLINE_DIVERGENCE,
+                ),
             ),
         ), 'OUT003 runs at deny over a document a structure specification governs, at the heading opening it'
 
@@ -1154,7 +1194,12 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
+                ungoverned=(
+                    InputKind.FRONTMATTER_BLOCK,
+                    InputKind.SCHEMA_PROBLEMS,
+                    InputKind.TOKEN_COUNT,
+                    InputKind.OUTLINE_DIVERGENCE,
+                ),
             ),
         ), 'a document carrying its title is governed for its headings, and clean'
 
@@ -1172,7 +1217,12 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
+                ungoverned=(
+                    InputKind.FRONTMATTER_BLOCK,
+                    InputKind.SCHEMA_PROBLEMS,
+                    InputKind.TOKEN_COUNT,
+                    InputKind.OUTLINE_DIVERGENCE,
+                ),
             ),
         ), 'OUT004 runs at deny over a document whose specification forbids empty sections, at the empty heading'
 
@@ -1190,7 +1240,12 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
+                ungoverned=(
+                    InputKind.FRONTMATTER_BLOCK,
+                    InputKind.SCHEMA_PROBLEMS,
+                    InputKind.TOKEN_COUNT,
+                    InputKind.OUTLINE_DIVERGENCE,
+                ),
             ),
         ), 'OUT005 runs at deny over a document whose specification forbids a section, at the forbidden heading'
 
@@ -1217,6 +1272,66 @@ class TestCheckSubjects:
     def test_check_subjects_with_no_enabled_rule_over_the_headings_never_parses_the_document(self) -> None:
         #: Given
         database = CountingDatabase(_snapshot(b'{"empty_sections": "forbidden"}', guide=GUIDE_TEXT.encode()))
+        severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
+        table = RuleTable(severities)
+
+        #: When
+        check_subjects(database, (GUIDE,), table)
+
+        #: Then
+        assert database.parsed_documents == [], (
+            'an input no enabled rule reads is never built, so its query is never asked'
+        )
+
+    def test_check_subjects_with_a_document_lacking_a_section_reports_missing_section(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        outline = b'{"outline": [{"section": "Install"}, {"section": "Usage", "description": "How to run it."}]}'
+        database = Database(_snapshot(outline, guide=b'# Guide\n\n## Install\n\nRun it once.\n'))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), package_table)
+
+        #: Then
+        occurrence = MissingSection(
+            spec=CODE_SPEC,
+            line=LineNumber.from_int(5),
+            section=SectionName.parse('Usage'),
+            before=None,
+            description='How to run it.',
+            example=None,
+        )
+        assert reports == (
+            CheckedSubject(
+                GUIDE,
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
+            ),
+        ), 'OUT006 runs at deny over a document lacking a section its outline requires, at its last line'
+
+    def test_check_subjects_with_a_document_following_its_outline_reports_it_clean(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        outline = b'{"outline": [{"section": "Install"}]}'
+        database = Database(_snapshot(outline, guide=b'# Guide\n\n## Install\n\nRun it once.\n'))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), package_table)
+
+        #: Then
+        assert reports == (
+            CheckedSubject(
+                GUIDE,
+                diagnostics=(),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
+            ),
+        ), 'a document whose sections match its outline is governed for its outline, and clean'
+
+    def test_check_subjects_with_no_enabled_rule_over_the_outline_never_parses_the_document(self) -> None:
+        #: Given
+        database = CountingDatabase(_snapshot(b'{"outline": [{"section": "Install"}]}', guide=GUIDE_TEXT.encode()))
         severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
         table = RuleTable(severities)
 

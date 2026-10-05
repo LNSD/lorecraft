@@ -18,6 +18,7 @@ from lorecraft.rules.inputs import (
     FrontmatterBlockRule,
     HeadingsRule,
     LineCountRule,
+    OutlineDivergenceRule,
     SchemaProblemsRule,
     TokenCountRule,
 )
@@ -62,6 +63,7 @@ class RuleTable:
     _frontmatter_block_rules: tuple[EnabledRule[FrontmatterBlockRule], ...]
     _schema_problems_rules: tuple[EnabledRule[SchemaProblemsRule], ...]
     _headings_rules: tuple[EnabledRule[HeadingsRule], ...]
+    _outline_divergence_rules: tuple[EnabledRule[OutlineDivergenceRule], ...]
 
     def __init__(self, severities: Mapping[type[Rule], Severity]) -> None:
         """Hold the enabled rules, and partition them by the input each reads.
@@ -78,6 +80,7 @@ class RuleTable:
         frontmatter_block_rules: list[EnabledRule[FrontmatterBlockRule]] = []
         schema_problems_rules: list[EnabledRule[SchemaProblemsRule]] = []
         headings_rules: list[EnabledRule[HeadingsRule]] = []
+        outline_divergence_rules: list[EnabledRule[OutlineDivergenceRule]] = []
         for rule_class in sorted(severities, key=_printed_code):
             # The rule hierarchy is open, so the chain cannot close with `assert_never`: a rule over an input with
             # no partition here is a defect, raised before any subject is checked.
@@ -91,6 +94,8 @@ class RuleTable:
                 schema_problems_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, HeadingsRule):
                 headings_rules.append(EnabledRule(rule_class, severities[rule_class]))
+            elif issubclass(rule_class, OutlineDivergenceRule):
+                outline_divergence_rules.append(EnabledRule(rule_class, severities[rule_class]))
             else:
                 raise UnknownRuleInputError(rule_class)
         self._token_count_rules = tuple(token_count_rules)
@@ -98,6 +103,7 @@ class RuleTable:
         self._frontmatter_block_rules = tuple(frontmatter_block_rules)
         self._schema_problems_rules = tuple(schema_problems_rules)
         self._headings_rules = tuple(headings_rules)
+        self._outline_divergence_rules = tuple(outline_divergence_rules)
 
     @classmethod
     def from_registry(cls, registry: Registry) -> Self:
@@ -149,6 +155,11 @@ class RuleTable:
     def headings_rules(self) -> tuple[EnabledRule[HeadingsRule], ...]:
         """Each enabled rule over a document's headings, with its severity, in code order; empty when none is."""
         return self._headings_rules
+
+    @property
+    def outline_divergence_rules(self) -> tuple[EnabledRule[OutlineDivergenceRule], ...]:
+        """Each enabled rule over the outline divergences, with its severity, in code order; empty when none is."""
+        return self._outline_divergence_rules
 
 
 def _default_severity(level: Level) -> Severity | None:
