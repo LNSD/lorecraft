@@ -277,24 +277,24 @@ coverage gap for that tier even when it exists. Note it as one.
 
 ## Example Verification Sessions
 
-### Example 1: Frontmatter Check Feature (Function-focused)
+### Example 1: Check Command Feature (Rule-focused)
 
-**Scenario**: Verify `docs/feat/cli-check-frontmatter.md`
+**Scenario**: Verify `docs/feat/cli-check.md`
 
 1. **Parse doc** - Extract documented capabilities:
-   - `validate_frontmatter(schemas, *, frontmatter, filename, corpus)` function signature
-   - Returns a result whose violations carry `line`, `rule` and `message`
-   - Enforces the required keys, the closed field set, and `name` matching the filename
+   - The rule codes its Findings table lists, each with its name, such as `FM001` missing-frontmatter
+   - `FM007` reported as a warning, every other rule as an error
+   - The exit statuses: 0 with warnings alone, 1 on any error, 2 when the run cannot start
 
 2. **Verify implementation** - Read files from the Code References section:
-   - Verify the function exists with the correct signature
-   - Verify the finding type matches the documented fields
-   - Verify each of the three documented rules is actually enforced
-   - Run `just typecheck` to catch a documented signature the code no longer has
+   - Verify each listed code is declared with `@rule` in its group's subpackage under `src/lorecraft/rules/`
+   - Verify each rule's default level matches the severity the doc states
+   - Verify the command chooses the exit status the doc states
+   - Run `just typecheck` to catch a documented name the code no longer has
 
 3. **Search for tests** - Check coverage:
-   - Grep the unit `tests/` subpackages under `src/` for the function and finding names
-   - Check which documented rules have a fixture-backed test
+   - Grep the unit `tests/` subpackages under `src/lorecraft/rules/` for each rule class
+   - Check `tests/it/test_cli.py` for a test of each exit status
    - Run `just test-unit` to confirm those tests pass
 
 4. **Generate report** with findings

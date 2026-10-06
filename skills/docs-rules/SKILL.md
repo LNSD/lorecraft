@@ -67,22 +67,19 @@ If it needs a corpus that does not exist yet, that is a new specification: use `
    `frontmatter` key of each `<name>.structure.json` states the fields exactly, and `name`, where a schema governs, matches the
    filename without `.md`.
 4. **Write the body** from the specification's template or outline, keeping its sections in order.
-5. **Run the checks** on the files you wrote, the frontmatter as soon as it exists:
+5. **Run the checks** as soon as the frontmatter exists, and again before handing the change over:
 
    ```bash
-   lorecraft check frontmatter <files>
-   lorecraft check structure <files>
-   lorecraft check budget <files>
+   lorecraft check
    ```
 
-   A missing-section finding may carry `= help:` and `= note:` lines describing the section and showing an
-   example; follow them.
+   It checks the whole workspace, so a new document that breaks a neighbour shows too. Read the diagnostics
+   for the files you wrote. A missing-section diagnostic (`OUT006`) carries `= help:` and `= note:` lines
+   describing the section and showing an example; follow them.
 
    A section over its word cap or a document over its token budget is moved or cut, not compressed: the
    specification's content guidelines say where each kind of overflow belongs.
-6. **Run `lorecraft check`** with no paths before handing the change over. A new document can break a
-   neighbour, and the per-file runs will not see that.
-7. **Check the whole document** with `/docs-rules-check`, which covers what the checks cannot decide.
+6. **Check the whole document** with `/docs-rules-check`, which covers what the checks cannot decide.
 
 Work findings back through the specification rather than patching them one at a time. A finding usually
 means a specification was not read, not that a line was mistyped.

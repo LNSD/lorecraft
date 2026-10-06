@@ -14,7 +14,7 @@ its exit codes change.
 
 ## Role
 
-**Composition.** A command establishes the workspace root, takes a snapshot, maps its arguments onto the model,
+**Composition.** A command establishes the workspace root, takes a snapshot, selects the subjects of the model,
 hands the selection to an analysis run, and writes what comes back. It is the only package that touches the
 process: the arguments, the working directory, standard output and the exit code.
 
@@ -23,9 +23,9 @@ process: the arguments, the working directory, standard output and the exit code
 - Finding the workspace root, from an option or from the working directory.
 - Taking each snapshot, and building the revision every check of a report reads.
 - Choosing where the store of persisted results lives, and handing it to the database.
-- Mapping a path argument onto a document or a skill of the model, and refusing one that does not map.
-- Registering commands and checks so a new one is a new module.
-- Rendering findings and the model as text or JSON, and choosing the exit code.
+- Selecting the subjects a run checks from the model, and building the rule table it runs.
+- Registering commands so a new one is a new module.
+- Rendering diagnostics and the model as text or JSON, and choosing the exit code.
 - The output formats and the exit statuses every command shares, in `output.py`.
 - Writing out a failure chain, and the version.
 
@@ -33,14 +33,14 @@ process: the arguments, the working directory, standard output and the exit code
 
 | Code that… | Belongs in |
 |---|---|
-| Decides whether a document or a skill breaks a rule | `lorecraft.checks` |
+| Decides whether a document or a skill breaks a rule | `lorecraft.rules`, run by `lorecraft.checks` |
 | Memoizes anything derived from the snapshot | `lorecraft.project` |
 | Parses a document, or decides which specification governs it | `lorecraft.project` |
 | Reads a file or lists a directory under the workspace root | `lorecraft.vfs` |
 
 ## Invariants
 
-- Each report a command writes describes one revision. A bare `lorecraft check` runs every check over that
+- Each report a command writes describes one revision. `lorecraft check` runs every enabled rule over that
   revision.
 - The disk is asked only to establish the root, and where an argument leads above it. Below the root, an argument
   is followed through the snapshot.
@@ -71,7 +71,7 @@ def check_all(root: Path) -> int:
 
 ```python
 # ❌ Bad — the command re-reads the argument from disk after the snapshot: it sees text the checks never saw,
-# and a rule enforced here is invisible to a bare `lorecraft check`
+# and a rule enforced here is invisible to every other command
 def check_one(root: Path, argument: Path) -> int:
     db = AnalysisDb(capture(root, SCAN_SCOPE))
     if not argument.read_text(encoding='utf-8').startswith('---'):
@@ -80,8 +80,8 @@ def check_one(root: Path, argument: Path) -> int:
 ```
 
 ```python
-# ✅ Good — the argument is mapped through the snapshot, and the frontmatter rule stays in the check, where a
-# bare `lorecraft check` applies it too
+# ✅ Good — the argument is mapped through the snapshot, and the frontmatter rule stays in the check, where
+# every command that runs it applies it too
 def check_one(root: Path, argument: Path) -> int:
     db = AnalysisDb(capture(root, SCAN_SCOPE))
     return _report(check_frontmatter(db, _select(db, argument)))
@@ -94,7 +94,7 @@ Before committing code, verify:
 - [ ] Every check behind one report reads one revision: one snapshot, one database
 - [ ] The disk answers only where the root is and where an argument leads above it; below, the snapshot does
 - [ ] Nothing below the root is handed down as a `Path`
-- [ ] A new rule lives in a check, not in a command handler
+- [ ] A new rule lives in `lorecraft.rules`, not in a command handler
 - [ ] A new output format renders values a run returned, and reads nothing itself
 - [ ] A command's `--format` is typed `OutputFormat`, and its exit codes are `ExitStatus` members from `output.py`
 

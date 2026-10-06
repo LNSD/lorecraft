@@ -100,8 +100,8 @@ Write from the seat of whoever the change reaches: a repository author running `
 agent following a skill, a contributor reading a rule document. Their vocabulary is the message's
 vocabulary.
 
-- **Visible names are fine; internal names are not the story.** A command, an option, a rule id such as
-  `skill.name-matches-directory`, a finding's text, a path in the user's repository, a document name: the
+- **Visible names are fine; internal names are not the story.** A command, an option, a rule code such as
+  `FM004`, a diagnostic's text, a path in the user's repository, a document name: the
   user sees these, so they make a bullet concrete. A function, a class, a module or a test file the user
   never sees belongs in the message only when the mechanism is the point, and then with what it buys.
 - **Concrete over abstract.** A summary is right when a reader who never saw the issue could reproduce
@@ -161,7 +161,7 @@ says what it now does for them.
 | `pyproject.toml`, `skill_link.py`, `parse_frontmatter`, `include`, `## Checklist` | Fail |
 | six jobs, 17 documents, three call sites | Fail |
 | what a malformed document does, what the sdist contains, what CI refuses to merge | Pass |
-| which skills `check skills .agents/skills/beta` checks | Pass |
+| what `lorecraft check` reports for a skill entry linked to another | Pass |
 
 A closed list of verbs almost always drags an artifact into the object slot: *add*, *remove*, *move*,
 *rename*, *extract*, *split*, *update*, *refactor*, *rewrite*, *create*, *change*. Seeing one is not

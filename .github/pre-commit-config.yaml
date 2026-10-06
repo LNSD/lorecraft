@@ -42,17 +42,9 @@ repos:
     require_serial: true
   ## Document hooks
   - id: check-docs
-    name: Check the document corpus
+    name: Check the documents and the skills
     language: system
     entry: just check-docs
-    types_or: [markdown]
-    files: ^docs/
-    stages: [pre-push, manual]
-    pass_filenames: false
-  - id: check-skills
-    name: Check the skills against the Agent Skills specification
-    language: system
-    entry: just check-skills
-    files: ^(\.agents/)?skills/
+    files: ^(docs/|(\.agents/)?skills/)
     stages: [pre-push, manual]
     pass_filenames: false

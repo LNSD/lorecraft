@@ -13,9 +13,7 @@ from typing import Final
 import pytest
 
 from lorecraft import rules
-from lorecraft.checks.report import CheckedLayoutEntry, CheckedSubject, RuleDiagnostic
-from lorecraft.checks.runner import Subject, check_subjects
-from lorecraft.checks.table import RuleTable
+from lorecraft.checks import CheckedLayoutEntry, CheckedSubject, RuleDiagnostic, RuleTable, Subject, check_subjects
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.database import Database
 from lorecraft.project.layout import SNAPSHOT_SCOPE

@@ -993,7 +993,7 @@ class TestLoadModel:
 
 
 def _load_naming(root: Path, *named: str) -> WorkspaceModel:
-    """The model of a snapshot of `root` that reads the directories a command names, as `check skills` takes one.
+    """The model of a snapshot of `root` that also reads the directories `named`, in the scope they add.
 
     Args:
         root: The repository root the snapshot is taken of.

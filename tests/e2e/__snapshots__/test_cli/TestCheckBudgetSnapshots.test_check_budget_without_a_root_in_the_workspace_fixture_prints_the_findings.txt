@@ -1,1 +1,0 @@
-docs/code/python-typing.md:1: [budget.tokens] 4 tokens; the budget is 3 (per code-python.structure.json)

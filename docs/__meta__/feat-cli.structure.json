@@ -17,7 +17,7 @@
       "section": "Configuration",
       "words": 150,
       "description": "The command's arguments and options as one table, in the order its --help prints them, leaving out --help itself. Add an Env var column only when the command reads an environment variable, and state precedence below the table; a subcommand lists every argument and option it takes.",
-      "examples": ["| Argument or option | Default | Description |\n|--------------------|---------|-------------|\n| `PATHS...`         | every document | The documents to check, relative to the working directory, as [Document Selection](cli-check.md#document-selection) describes |\n| `--root <path>`    | nearest parent holding `docs/__meta__/` | The repository root, as [cli-check](cli-check.md#root-discovery) describes |\n| `--format <text\\|json>` | `text` | The output format, as [cli-check](cli-check.md#output) describes |"]
+      "examples": ["| Argument or option | Default | Description |\n|--------------------|---------|-------------|\n| `--root <path>`    | nearest parent holding `docs/__meta__/` | The repository root, as [Root Discovery](#root-discovery) describes |\n| `--format <text\\|json>` | `text` | The output format, as [Output](#output) describes |"]
     },
     { "any": true }
   ]

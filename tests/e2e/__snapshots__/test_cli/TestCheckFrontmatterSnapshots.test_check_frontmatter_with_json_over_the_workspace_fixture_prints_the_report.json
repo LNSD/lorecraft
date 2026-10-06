@@ -1,1 +1,0 @@
-{"checked": 2, "findings": [{"file": "docs/code/logging.md", "line": 1, "rule": "frontmatter.missing", "message": "no `---` delimited frontmatter block", "spec": null, "notes": []}, {"file": "docs/code/python-typing.md", "line": 1, "rule": "frontmatter.missing", "message": "no `---` delimited frontmatter block", "spec": null, "notes": []}], "ungoverned": []}

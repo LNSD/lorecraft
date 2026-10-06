@@ -72,14 +72,12 @@ line is refused with a reason, since it was asked for.
 
 A command reads `docs/` and the directories directly in it once, at start, and works from that copy: one moment
 of the tree, even while files change. It reads each agent's skills directory, such as `.agents/skills/`, each skill
-directory in it, and every file and directory inside a skill, at any depth, and a directory named to
-[check skills](cli-check-skills.md) alike. That is the scope, and it is declared: a directory it names is in it even
-when absent, so a file missing there is missing. Under `docs/` a symlink is recorded, not followed: a path through
+directory in it, and every file and directory inside a skill, at any depth. That is the scope, and it is declared: a
+directory it names is in it even when absent, so a file missing there is missing. Under `docs/` a symlink is recorded, not followed: a path through
 one is in the scope only when it leads where the scope reads anyway. Under a skills directory, and inside a skill, a
 symlink into the repository is followed, to a directory at any depth and to a file for its contents; one leading
-outside the repository is not, and [check skills](cli-check-skills.md) reports it. The model records where each
-skill's directory and `SKILL.md` lead, so a command resolves a skill path in the snapshot and asks the model the
-rest.
+outside the repository is not, and [check](cli-check.md) reports it. The model records where each skill's
+directory and `SKILL.md` lead.
 
 `docs/` and `docs/__meta__/` themselves must be real directories. Behind a symlink the snapshot would hold no
 specification, so a command stops with an error naming the linked directory rather than read an empty model.
@@ -87,9 +85,9 @@ specification, so a command stops with an error naming the linked directory rath
 ## Limitations
 
 - The layout is fixed: `docs/` and `docs/__meta__/` cannot be renamed or moved, and a corpus cannot nest.
-- The snapshot reads the whole of a skill, but [check skills](cli-check-skills.md) checks only its Markdown
-  files: the `SKILL.md`'s frontmatter and length, and the links in every Markdown file of the skill. Its other
-  files are read, not checked.
+- The snapshot reads the whole of a skill, but [check](cli-check.md) checks only its Markdown files: the
+  `SKILL.md`'s frontmatter and length, and the links in every Markdown file of the skill. Its other files are
+  read, not checked.
 - A link inside a skill to an ancestor directory, or to a large directory, makes the snapshot read that whole
   subtree; a directory is never read twice, so the read is finite. A directory in it that cannot be read stops
   the command. A link into `docs/` reads that part of `docs/` as a skill is read, its symlinks followed.

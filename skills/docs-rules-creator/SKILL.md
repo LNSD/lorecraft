@@ -29,9 +29,8 @@ Every command below calls `lorecraft` directly. Where it is not on `PATH`, run `
 
 ```text
 docs/__meta__/<name>.md               the prose: the authority, written for a reader
-docs/__meta__/<name>.structure.json   the section rules and word caps, read by lorecraft check structure;
-                                      the tokens budget, read by lorecraft check budget;
-                                      the frontmatter schema, read by lorecraft check frontmatter
+docs/__meta__/<name>.structure.json   the section rules, word caps, tokens budget and frontmatter
+                                      schema, read by lorecraft check
 ```
 
 What a file is comes from its **file type**, which a file name **pattern** claims: `*.md` claims the prose and
