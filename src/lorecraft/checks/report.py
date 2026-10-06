@@ -11,10 +11,11 @@ The order is an output contract, total over one revision, so one revision always
 the same order: by path, then primary location, then severity, then code, then message. `DiagnosticOrder` states
 that order as the fields it compares, and `diagnostic_order` builds it as the sort key.
 
-Each subject the runner checks, a document or a skill, gets one report, and either kind of report gives its
-diagnostics as `diagnostics`. A `CheckedSubject` decoded, and holds its diagnostics, in their output order however
-it is built, and the facets and inputs no specification governs it for. An `UndecodableSubject` did not, so no rule
-judged it: it holds only its ref, and its one diagnostic, the engine's, is built from that ref, at the subject's path.
+Each subject the runner checks, a document, a skill or a skill's resource, gets one report, and either kind of
+report gives its diagnostics as `diagnostics`. A `CheckedSubject` decoded, and holds its diagnostics, in their output
+order however it is built, and the facets and inputs no specification governs it for. An `UndecodableSubject` did
+not, so no rule judged it: it holds only its ref, and its one diagnostic, the engine's, is built from that ref, at the
+subject's path.
 
 This module is the rules engine's report. `reporting` beside it is the per-check pipeline's, whose `Violation` and
 `Finding` the `Diagnostic` here replaces; it stays until the command line runs the rules engine.
@@ -25,7 +26,7 @@ from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.skill import SkillRef
+from lorecraft.project.skill import SkillRef, SkillResourceRef
 from lorecraft.rules.declaration import EngineCondition, Rule, Severity
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.rules.inputs import InputKind
@@ -125,8 +126,9 @@ def diagnostic_order(diagnostic: Diagnostic) -> DiagnosticOrder:
     )
 
 
-# A subject the runner checks: a document, or a skill, whose report path is its `SKILL.md`.
-type SubjectRef = DocumentRef | SkillRef
+# A subject the runner checks: a document, a skill, whose report path is its `SKILL.md`, or a skill's resource, whose
+# report path is where an agent reaches it.
+type SubjectRef = DocumentRef | SkillRef | SkillResourceRef
 
 # What a subject can be ungoverned for: the facet a rule over a document declares, or the input kind of a rule that
 # still reads an input. Transitional: once the last rules read a context, the input kinds go and this is `Facet`.
@@ -138,7 +140,8 @@ class CheckedSubject:
     """A subject that decoded, so the enabled rules judged everything it is governed for.
 
     Attributes:
-        ref: The document or skill the rules judged; a skill's diagnostics are reported at its `SKILL.md`.
+        ref: The document, skill or resource the rules judged; a skill's diagnostics are reported at its `SKILL.md`,
+            and a resource's where an agent reaches it.
         diagnostics: Every occurrence the rules found in it, in the order `diagnostic_order` sorts them into,
             whatever order they are given in; empty when it holds to every rule.
         ungoverned: The facets and the input kinds an enabled rule reads that no specification governs the subject
@@ -160,10 +163,10 @@ class CheckedSubject:
 class UndecodableSubject:
     """A subject whose file is not UTF-8, so no rule judged it; it reports the engine's one diagnostic.
 
-    A skill's file is its `SKILL.md`.
+    A skill's file is its `SKILL.md`, and a resource's is reported where an agent reaches it.
 
     Attributes:
-        ref: The document or skill whose file did not decode, and the path its diagnostic is reported at.
+        ref: The document, skill or resource whose file did not decode, and the path its diagnostic is reported at.
     """
 
     ref: SubjectRef

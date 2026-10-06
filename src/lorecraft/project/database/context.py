@@ -1,10 +1,10 @@
 """The contexts of `lorecraft.project.context`, answered by the database's queries for one decoded subject.
 
-`DatabaseDocumentContext` and `DatabaseSkillContext` implement `DocumentContext` and `SkillContext`. Each holds the
-database, the decode query's witness and what the model says about the subject, and nothing it computed: every fact
-is the matching memoized query of the database, so a fact nobody asks for is never computed, and one asked for twice
-is computed once. An identity value, such as a document's filename or a skill's directory name, is read from the
-subject's ref or its location.
+`DatabaseDocumentContext`, `DatabaseSkillContext` and `DatabaseSkillResourceContext` implement `DocumentContext`,
+`SkillContext` and `SkillResourceContext`. Each holds the database, the decode query's witness and, for a document or
+a skill, what the model says about it, and nothing it computed: every fact is the matching memoized query of the
+database, so a fact nobody asks for is never computed, and one asked for twice is computed once. An identity value,
+such as a document's filename or a skill's directory name, is read from the subject's ref or its location.
 
 A context is built only from a witness, so no fact of a file that does not decode can be asked for, and a document's
 context only for a document whose corpus states a structure specification, with the specifications that govern it: no
@@ -21,7 +21,7 @@ from lorecraft.project.workspace import Governance
 from lorecraft.vfs import ResolvedPath
 
 from .database import Database
-from .text import DocumentText, SkillText
+from .text import DocumentText, SkillResourceText, SkillText
 
 
 class DatabaseDocumentContext:
@@ -134,3 +134,22 @@ class DatabaseSkillContext:
         """The lines in the skill's whole `SKILL.md`, from the `skill_lines` query."""
         # A count is never negative, so building the `UnsignedInt` cannot raise `NegativeIntError` here.
         return UnsignedInt(self._database.skill_lines(self._source))
+
+
+class DatabaseSkillResourceContext:
+    """One resource of a skill whose file decoded, as the database answers for it; a `SkillResourceContext`."""
+
+    def __init__(self, database: Database, source: SkillResourceText) -> None:
+        """Bind the context to one decoded resource.
+
+        Args:
+            database: The revision the resource is read from.
+            source: The resource's text, as `Database.skill_resource_text` returns it: the witness every per-file
+                query takes.
+        """
+        self._database = database
+        self._source = source
+
+    def parse(self) -> ParsedDocument:
+        """The resource's parse tree, from the `skill_resource_parse` query."""
+        return self._database.skill_resource_parse(self._source)

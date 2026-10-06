@@ -1,10 +1,11 @@
 """The rules engine's runner over a database opened on an in-memory snapshot.
 
-The runner decodes each document and skill, hands each rule over a document or a skill the subject's context or
-builds each input an enabled rule still reads, and runs the rules of a table built from a registry. The package's own
-registry runs the frontmatter block rules over documents and skills, the token budget, the headings rules and the
-outline divergence rules over documents and the line budget over skills; a registry of sample rules over a
-document's token count, declared in this module, runs through the same runner, with no edit to it.
+The runner decodes each document, skill and resource, hands each rule over a document, a skill or a Markdown file the
+subject's context or builds each input an enabled rule still reads, and runs the rules of a table built from a
+registry. The package's own registry runs the frontmatter block rules over documents and skills, the token budget,
+the headings rules and the outline divergence rules over documents, the line budget over skills, and the absolute
+link rule over every Markdown file; a registry of sample rules over a document's token count, declared in this
+module, runs through the same runner, with no edit to it.
 """
 
 from dataclasses import dataclass
@@ -32,7 +33,13 @@ from lorecraft.project.schemas import (
     UnknownFieldProblem,
     WrongTypeProblem,
 )
-from lorecraft.project.skill import SkillLocation, SkillRef
+from lorecraft.project.skill import (
+    SkillLocation,
+    SkillRef,
+    SkillRelativePath,
+    SkillResourceLocation,
+    SkillResourceRef,
+)
 from lorecraft.project.syntax import (
     FrontmatterNode,
     InvalidYamlFrontmatter,
@@ -58,6 +65,7 @@ from lorecraft.rules.length.title_too_many_words import TitleTooManyWords
 from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.length.too_many_words import TooManyWords
+from lorecraft.rules.link.absolute_link import AbsoluteLink
 from lorecraft.rules.outline.empty_section import EmptySection
 from lorecraft.rules.outline.extra_title import ExtraTitle
 from lorecraft.rules.outline.forbidden_section import ForbiddenSection
@@ -313,6 +321,16 @@ def _location(database: Database, ref: SkillRef) -> SkillLocation:
     return location
 
 
+def _resources(database: Database, ref: SkillRef) -> tuple[SkillResourceLocation, ...]:
+    """The resources of a skill the test wrote, each located as the database's listing of the skill gives it.
+
+    Args:
+        database: The database whose model lists the skill, and which lists its resources.
+        ref: A skill the snapshot holds in an agent's skills directory.
+    """
+    return database.skill_resources(_location(database, ref)).resources
+
+
 def _invalid_yaml_problem(text: str) -> str:
     """What the YAML parser finds wrong with the frontmatter of a text whose block is not YAML.
 
@@ -476,6 +494,7 @@ class TestCheckSubjects:
                 ungoverned=(
                     InputKind.FRONTMATTER_BLOCK,
                     InputKind.SCHEMA_PROBLEMS,
+                    Facet.STRUCTURE,
                     Facet.BUDGET,
                     InputKind.HEADINGS,
                     InputKind.OUTLINE_DIVERGENCE,
@@ -1561,4 +1580,149 @@ class TestCheckSubjects:
         #: Then
         assert database.parsed_documents == [], (
             'an input no enabled rule reads is never built, so its query is never asked'
+        )
+
+    def test_check_subjects_with_an_absolute_link_in_a_document_reports_absolute_link_on_its_line(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        guide = b'# Guide\n\nRead [the setup](/docs/code/setup.md).\n'
+        database = Database(_snapshot(_budget(1000), guide=guide))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), package_table)
+
+        #: Then
+        occurrence = AbsoluteLink(line=LineNumber.from_int(3), url='/docs/code/setup.md')
+        assert reports == (
+            CheckedSubject(
+                GUIDE,
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.OUTLINE_DIVERGENCE),
+            ),
+        ), 'LINK001 runs at deny over a document its structure specification governs, on the line of the link'
+
+    def test_check_subjects_with_an_absolute_link_in_a_skill_file_reports_absolute_link_at_its_skill_file(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        review = REVIEW_FRONTMATTER + b'# Review\n\nRead [the diff](/tmp/diff.md).\n'
+        database = Database(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review))
+
+        #: When
+        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+
+        #: Then
+        occurrence = AbsoluteLink(line=LineNumber.from_int(7), url='/tmp/diff.md')
+        assert reports == (
+            CheckedSubject(
+                REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),), ungoverned=()
+            ),
+        ), "LINK001 runs at deny over a skill's SKILL.md, on the line of the link, counted from the file's first line"
+
+    def test_check_subjects_with_an_absolute_link_in_a_nested_resource_reports_it_where_an_agent_reaches_it(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        resource = b'# Deep\n\nSee [the diagram](/assets/flow.png).\n'
+        snapshot = Snapshot.from_tree(
+            {
+                '.agents': {
+                    'skills': {
+                        'review': {
+                            'SKILL.md': REVIEW_FRONTMATTER,
+                            'references': {'deep': {'guide.md': resource}},
+                        }
+                    }
+                }
+            }
+        )
+        database = Database(snapshot)
+        guide = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/deep/guide.md'))
+
+        #: When
+        reports = check_subjects(database, _resources(database, REVIEW), package_table)
+
+        #: Then
+        occurrence = AbsoluteLink(line=LineNumber.from_int(3), url='/assets/flow.png')
+        resource_path = RootRelativePath.parse('.agents/skills/review/references/deep/guide.md')
+        assert reports == (
+            CheckedSubject(
+                guide, diagnostics=(RuleDiagnostic(resource_path, occurrence, Severity.ERROR),), ungoverned=()
+            ),
+        ), 'LINK001 runs at deny over a resource, reported at the path an agent reaches it by, on the line of the link'
+
+    def test_check_subjects_with_a_skill_and_its_resources_reports_each_as_its_own_subject(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        snapshot = Snapshot.from_tree(
+            {
+                '.agents': {
+                    'skills': {
+                        'review': {
+                            'SKILL.md': REVIEW_FRONTMATTER,
+                            'references': {'a.md': b'Read [x](/x.md).\n', 'b.md': b'Read [y](y.md).\n'},
+                        }
+                    }
+                }
+            }
+        )
+        database = Database(snapshot)
+        first = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
+        second = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/b.md'))
+
+        #: When
+        reports = check_subjects(database, (_location(database, REVIEW), *_resources(database, REVIEW)), package_table)
+
+        #: Then
+        occurrence = AbsoluteLink(line=LineNumber.from_int(1), url='/x.md')
+        first_path = RootRelativePath.parse('.agents/skills/review/references/a.md')
+        assert reports == (
+            CheckedSubject(REVIEW, diagnostics=(), ungoverned=()),
+            CheckedSubject(first, diagnostics=(RuleDiagnostic(first_path, occurrence, Severity.ERROR),), ungoverned=()),
+            CheckedSubject(second, diagnostics=(), ungoverned=()),
+        ), 'a skill judges its SKILL.md alone, and each resource is reported on its own, in the order given'
+
+    def test_check_subjects_with_an_undecodable_resource_reports_it_undecodable(self, package_table: RuleTable) -> None:
+        #: Given
+        snapshot = Snapshot.from_tree(
+            {
+                '.agents': {
+                    'skills': {'review': {'SKILL.md': REVIEW_FRONTMATTER, 'references': {'cafe.md': b'# Caf\xe9\n'}}}
+                }
+            }
+        )
+        database = Database(snapshot)
+        cafe = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/cafe.md'))
+
+        #: When
+        reports = check_subjects(database, _resources(database, REVIEW), package_table)
+
+        #: Then
+        assert reports == (UndecodableSubject(cafe),), 'a resource that is not UTF-8 is judged by no rule'
+
+    def test_check_subjects_with_a_markdown_rule_over_a_corpus_stating_no_structure_specification_reports_it_ungoverned(
+        self,
+    ) -> None:
+        #: Given
+        # the corpus states no structure specification, so no facet governs its documents
+        snapshot = Snapshot.from_tree(
+            {
+                'docs': {
+                    '__meta__': {'code.md': b'# Code\n'},
+                    'code': {'guide.md': b'# Guide\n\nRead [the setup](/setup.md).\n'},
+                }
+            }
+        )
+        database = Database(snapshot)
+        severities: dict[type[Rule], Severity] = {AbsoluteLink: Severity.ERROR}
+        table = RuleTable(severities)
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), table)
+
+        #: Then
+        assert reports == (CheckedSubject(GUIDE, diagnostics=(), ungoverned=(Facet.STRUCTURE,)),), (
+            'a rule over a Markdown file judges a document only under its structure, which is coverage when ungoverned'
         )
