@@ -9,6 +9,10 @@ such as a document's filename or a skill's directory name, is read from the subj
 A context is built only from a witness, so no fact of a file that does not decode can be asked for, and a document's
 context only for a document whose corpus states a structure specification, with the specifications that govern it: no
 facet governs a document whose corpus states none. The model is loaded by then, so no method raises.
+
+`DatabaseLayoutContext` implements `LayoutContext`. A layout entry has no text, so it has no witness and no per-file
+query: the context holds the `OutsideSymlink` record the model's `outside_symlinks` or a skill's `skill_resources`
+listing returned, the memoized query value itself, and reads every fact from it.
 """
 
 from collections.abc import Mapping
@@ -19,10 +23,10 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.link_target import DocumentDirectory, PathLookup, SkillRoot
 from lorecraft.project.schemas import OutlineDivergenceSpec, SchemaProblems, StructureSpec
-from lorecraft.project.skill import SkillLocation
+from lorecraft.project.skill import OutsideSymlink, SkillLocation
 from lorecraft.project.syntax import FrontmatterNode, ParsedDocument
 from lorecraft.project.workspace import Governance
-from lorecraft.vfs import ResolvedPath
+from lorecraft.vfs import ResolvedPath, RootExit
 
 from .database import Database
 from .text import DocumentText, SkillResourceText, SkillText
@@ -181,3 +185,19 @@ class DatabaseSkillResourceContext:
     def link_targets(self) -> Mapping[PurePosixPath, PathLookup]:
         """What the snapshot holds at the target of each relative link, from `skill_resource_link_targets`."""
         return self._database.skill_resource_link_targets(self._source)
+
+
+class DatabaseLayoutContext:
+    """One symlink of the skill layout whose chain leaves the repository, as recorded; a `LayoutContext`."""
+
+    def __init__(self, outside: OutsideSymlink) -> None:
+        """Bind the context to one symlink whose chain leaves the repository.
+
+        Args:
+            outside: The symlink, as the model's `outside_symlinks` or a skill's resource listing holds it.
+        """
+        self._outside = outside
+
+    def leaves_at(self) -> RootExit:
+        """The link the chain leaves the repository through, and its target, read from the record."""
+        return self._outside.leaves_at

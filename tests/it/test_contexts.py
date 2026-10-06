@@ -1,10 +1,10 @@
 """The database-backed contexts, held to the protocols of `lorecraft.project` they implement.
 
-Each method of `DocumentContext`, `SkillContext` and `SkillResourceContext` is asked through a value typed as the
-protocol, over a database opened on an in-memory snapshot, and compared with what the database's matching query
-returns; a fact the database memoizes is the very value the query keeps, so a context computes nothing of its own.
-The static hold of each class to its protocol is in `lorecraft.project.database.tests.test_context`, where the
-type-checking gate reaches it.
+Each method of `DocumentContext`, `SkillContext`, `SkillResourceContext` and `LayoutContext` is asked through a
+value typed as the protocol, over a database opened on an in-memory snapshot, and compared with what the database's
+matching query returns; a fact the database memoizes is the very value the query keeps, so a context computes nothing
+of its own. The static hold of each class to its protocol is in `lorecraft.project.database.tests.test_context`,
+where the type-checking gate reaches it.
 """
 
 from pathlib import Path, PurePosixPath
@@ -19,6 +19,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import (
     DocumentContext,
     DocumentFrontmatterOwner,
+    LayoutContext,
     SkillContext,
     SkillFrontmatterOwner,
     SkillResourceContext,
@@ -27,6 +28,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import (
     Database,
     DatabaseDocumentContext,
+    DatabaseLayoutContext,
     DatabaseSkillContext,
     DatabaseSkillResourceContext,
     DocumentText,
@@ -36,9 +38,9 @@ from lorecraft.project.database import (
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentDirectory, PathLookup, SkillRoot
-from lorecraft.project.skill import SkillLocation, SkillRef
+from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef
 from lorecraft.project.syntax import count_lines, count_tokens
-from lorecraft.vfs import EntryRecord, FileTree, Snapshot, SymlinkRecord, take_snapshot
+from lorecraft.vfs import EntryRecord, FileTree, RootExit, Snapshot, SymlinkRecord, take_snapshot
 
 TYPING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
 """A document of corpus `code` its `python` namespace governs too."""
@@ -519,3 +521,46 @@ class TestDatabaseSkillResourceContext:
             PurePosixPath('SKILL.md'): PathLookup.PRESENT,
             PurePosixPath('gone.md'): PathLookup.MISSING,
         }, "a resource's links are read from the skill root, so `SKILL.md` names the skill's own"
+
+
+def _outside_symlink(database: Database) -> OutsideSymlink:
+    """The one symlink of the skill layout whose chain leaves the repository, as the database's model records it.
+
+    Args:
+        database: The database over a snapshot whose skills directory holds one entry linked outside the repository.
+    """
+    outside_symlinks = database.model().outside_symlinks
+    assert len(outside_symlinks) == 1, 'the snapshot holds one entry linked outside the repository'
+    return outside_symlinks[0]
+
+
+def _layout_context(database: Database) -> LayoutContext:
+    """The context of the entry linked outside the repository, typed as the protocol, so the type checker holds it.
+
+    Args:
+        database: The database whose model records the entry.
+    """
+    return DatabaseLayoutContext(_outside_symlink(database))
+
+
+@pytest.mark.it
+class TestDatabaseLayoutContext:
+    def test_leaves_at_with_an_entry_linked_outside_returns_where_the_model_records_it_leaving(self) -> None:
+        #: Given
+        # What a scan records for `.agents/skills/x -> /elsewhere/x`: the link alone, since nothing outside the root
+        # is read.
+        records: dict[RootRelativePath, EntryRecord] = dict(_snapshot().records)
+        records[RootRelativePath.parse('.agents/skills/x')] = SymlinkRecord(PurePosixPath('/elsewhere/x'))
+        database = Database(Snapshot(FrozenMapping(records)))
+        context = _layout_context(database)
+
+        #: When
+        leaves_at = context.leaves_at()
+
+        #: Then
+        assert leaves_at is _outside_symlink(database).leaves_at, (
+            'where the chain leaves is the record the model query keeps, not one the context looked up again'
+        )
+        assert leaves_at == RootExit(RootRelativePath.parse('.agents/skills/x'), PurePosixPath('/elsewhere/x')), (
+            'the entry links straight out, so it is the link the chain leaves through, with its target as recorded'
+        )
