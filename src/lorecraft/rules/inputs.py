@@ -3,13 +3,13 @@
 An input holds the facts the database's queries returned about one subject, the subject's identity values a rule
 compares them with, such as a document's filename or the directory a skill is listed under, and the specifications
 that govern them, in types of `lorecraft.project` and the layers below it; an input the package governs, such as a
-skill's line count, holds no specification. A rule picks its input by deriving from that input's base, and receives
-the input and nothing else. Building an input from the queries is the run's job, in `lorecraft.checks`, never this
-package's.
+skill's frontmatter block, holds no specification. A rule picks its input by deriving from that input's base, and
+receives the input and nothing else. Building an input from the queries is the run's job, in `lorecraft.checks`, never
+this package's.
 
-The inputs are on their way out: a rule over a document or a skill may read its subject through a context instead,
-from the bases in `subject`. Every rule here still reads an input; later changes move them onto those bases, which
-remove this module.
+The inputs are on their way out: the token and line budgets, `LEN001` and `LEN002`, read their subject through a
+context, from the bases in `subject`. The frontmatter, outline and other length rules still read an input here, and
+move onto a context in later changes, which remove this module.
 """
 
 from abc import abstractmethod
@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Self
 
-from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import FrontmatterOwner
 from lorecraft.project.schemas import OutlineDivergenceSpec, SchemaProblems, SectionName
@@ -34,10 +34,6 @@ from lorecraft.rules.declaration import ContentRule
 class InputKind(Enum):
     """The kind of input a rule reads: each member names one input type, which one rule base's `check` takes."""
 
-    TOKEN_COUNT = 'token-count'
-    """A document's whole-file token count, with the budgets that govern it: `TokenCountInput`."""
-    LINE_COUNT = 'line-count'
-    """A skill's whole-`SKILL.md` line count: `LineCountInput`."""
     FRONTMATTER_BLOCK = 'frontmatter-block'
     """A document's or a skill's frontmatter block, with the name it must carry: `FrontmatterBlockInput`."""
     SCHEMA_PROBLEMS = 'schema-problems'
@@ -46,79 +42,6 @@ class InputKind(Enum):
     """A document's headings, with what each structure specification that governs it states: `HeadingsInput`."""
     OUTLINE_DIVERGENCE = 'outline-divergence'
     """Where a document's sections first stop matching each outline that governs it: `OutlineDivergenceInput`."""
-
-
-@dataclass(frozen=True, slots=True)
-class Budget:
-    """A token budget a structure specification sets.
-
-    Attributes:
-        tokens: The most tokens the whole file may cost an agent that loads it.
-        spec: The structure specification file that sets the budget.
-    """
-
-    tokens: NonZeroUnsignedInt
-    spec: RootRelativePath
-
-
-@dataclass(frozen=True, slots=True)
-class TokenCountInput:
-    """A document's whole-file token count, with every token budget that governs it.
-
-    Each budget applies on its own: a document governed by a corpus and a namespace specification has two budgets
-    and must fit both. A specification that sets no budget is not among them, and a document no budget governs
-    gets no input at all.
-
-    Attributes:
-        token_count: The `o200k_base` tokens in the document's whole file, frontmatter, code and tables included.
-        budgets: One per structure specification that governs the document and sets a budget, in the order the
-            specifications apply.
-    """
-
-    token_count: UnsignedInt
-    budgets: tuple[Budget, ...]
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class TokenCountRule(ContentRule):
-    """The base of every rule over a document's token count."""
-
-    @classmethod
-    @abstractmethod
-    def check(cls, subject: TokenCountInput) -> tuple[Self, ...]:
-        """Every occurrence of the rule's condition in the document's token count.
-
-        Args:
-            subject: The token count judged, with the budgets that govern it.
-        """
-
-
-@dataclass(frozen=True, slots=True)
-class LineCountInput:
-    """A skill's whole-`SKILL.md` line count.
-
-    The package governs it, so every skill whose `SKILL.md` decodes has one. The budget it is held to is the Agent
-    Skills specification's, stated by the rule that reads it, not one a specification in the repository sets.
-
-    Attributes:
-        line_count: The lines in the skill's whole `SKILL.md`, frontmatter, code and blank lines included.
-    """
-
-    line_count: UnsignedInt
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class LineCountRule(ContentRule):
-    """The base of every rule over a skill's line count."""
-
-    @classmethod
-    @abstractmethod
-    def check(cls, subject: LineCountInput) -> tuple[Self, ...]:
-        """Every occurrence of the rule's condition in the skill's line count.
-
-        Args:
-            subject: The line count judged.
-        """
 
 
 @dataclass(frozen=True, slots=True)

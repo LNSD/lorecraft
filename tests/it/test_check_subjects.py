@@ -20,7 +20,7 @@ from lorecraft.checks.table import RuleTable
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.context import DocumentContext, SkillContext
+from lorecraft.project.context import DocumentContext
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, DocumentText, SkillText
 from lorecraft.project.document import DocumentRef
@@ -68,7 +68,7 @@ from lorecraft.rules.outline.section_out_of_order import SectionOutOfOrder
 from lorecraft.rules.outline.title_not_first import TitleNotFirst
 from lorecraft.rules.outline.unexpected_section import UnexpectedSection
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.subject import DocumentRule, Facet, SkillRule
+from lorecraft.rules.subject import DocumentRule, Facet
 from lorecraft.vfs import EntryRecord, ResolvedPath, Snapshot, SymlinkRecord
 
 GUIDE: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('guide'))
@@ -207,35 +207,6 @@ class AnyTokens(DocumentRule):
             subject: The document, governed by a budget.
         """
         return (cls(spec=None, line=LineNumber.from_int(1), token_count=subject.tokens().value),)
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class AnyLines(SkillRule):
-    """A sample rule at `deny` that fires once on every skill, whatever its line count.
-
-    Attributes:
-        line_count: The lines in the skill's whole `SKILL.md`.
-    """
-
-    CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 4)
-    NAME: ClassVar[RuleName] = RuleName('any-lines')
-    LEVEL: ClassVar[Level] = Level.DENY
-    SINCE: ClassVar[Release] = Release('1.0.0')
-
-    line_count: int
-
-    def message(self) -> str:
-        """Name the condition and the count."""
-        return f'skill counted ({self.line_count} lines)'
-
-    @classmethod
-    def check(cls, subject: SkillContext) -> tuple[Self, ...]:
-        """One occurrence at line 1, whatever the count.
-
-        Args:
-            subject: The skill judged.
-        """
-        return (cls(spec=None, line=LineNumber.from_int(1), line_count=subject.lines().value),)
 
 
 class CountingDatabase(Database):
@@ -400,6 +371,47 @@ class TestCheckSubjects:
             ),
         ), 'LEN001 runs at deny, so a document over its budget carries its occurrence as an error'
 
+    def test_check_subjects_with_a_document_over_a_corpus_and_a_namespace_budget_reports_both(self) -> None:
+        #: Given
+        namespace_spec = RootRelativePath.parse('docs/__meta__/code-python.structure.json')
+        typing_text = '# Typing\n\nAnnotate every signature, and keep the checker clean before a change is done.\n'
+        snapshot = Snapshot.from_tree(
+            {
+                'docs': {
+                    '__meta__': {
+                        'code.md': b'# Code\n',
+                        'code.structure.json': _budget(5),
+                        'code-python.md': b'# Code Python\n',
+                        'code-python.structure.json': _budget(3),
+                    },
+                    'code': {'python-typing.md': typing_text.encode()},
+                }
+            }
+        )
+        typing = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
+        severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
+        table = RuleTable(severities)
+
+        #: When
+        reports = check_subjects(Database(snapshot), (typing,), table)
+
+        #: Then
+        token_count = count_tokens(typing_text)
+        corpus_budget = TooManyTokens(spec=CODE_SPEC, line=LineNumber.from_int(1), token_count=token_count, budget=5)
+        namespace_budget = TooManyTokens(
+            spec=namespace_spec, line=LineNumber.from_int(1), token_count=token_count, budget=3
+        )
+        assert reports == (
+            CheckedSubject(
+                typing,
+                diagnostics=(
+                    RuleDiagnostic(typing.path, corpus_budget, Severity.ERROR),
+                    RuleDiagnostic(typing.path, namespace_budget, Severity.ERROR),
+                ),
+                ungoverned=(),
+            ),
+        ), 'a namespace budget does not replace the corpus one, so the document is held to both, each naming its own'
+
     def test_check_subjects_with_a_document_within_its_budget_reports_it_clean(self, package_table: RuleTable) -> None:
         #: Given
         database = Database(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode()))
@@ -416,9 +428,7 @@ class TestCheckSubjects:
             ),
         ), 'a document within its budget has no diagnostic, and no frontmatter schema governs it'
 
-    def test_check_subjects_with_no_budget_set_reports_the_token_count_as_ungoverned(
-        self, package_table: RuleTable
-    ) -> None:
+    def test_check_subjects_with_no_budget_set_reports_the_budget_as_ungoverned(self, package_table: RuleTable) -> None:
         #: Given
         database = Database(_snapshot(b'{"empty_sections": "forbidden"}', guide=GUIDE_TEXT.encode()))
 
@@ -433,13 +443,13 @@ class TestCheckSubjects:
                 ungoverned=(
                     InputKind.FRONTMATTER_BLOCK,
                     InputKind.SCHEMA_PROBLEMS,
-                    InputKind.TOKEN_COUNT,
+                    Facet.BUDGET,
                     InputKind.OUTLINE_DIVERGENCE,
                 ),
             ),
         ), 'no specification sets a budget or a frontmatter schema, which is coverage, not a diagnostic'
 
-    def test_check_subjects_with_a_document_in_no_corpus_reports_the_token_count_as_ungoverned(
+    def test_check_subjects_with_a_document_in_no_corpus_reports_the_budget_as_ungoverned(
         self, package_table: RuleTable
     ) -> None:
         #: Given
@@ -466,12 +476,48 @@ class TestCheckSubjects:
                 ungoverned=(
                     InputKind.FRONTMATTER_BLOCK,
                     InputKind.SCHEMA_PROBLEMS,
-                    InputKind.TOKEN_COUNT,
+                    Facet.BUDGET,
                     InputKind.HEADINGS,
                     InputKind.OUTLINE_DIVERGENCE,
                 ),
             ),
         ), 'no specification governs a document in no corpus the model holds, which is coverage, not a diagnostic'
+
+    def test_check_subjects_with_a_corpus_stating_no_structure_specification_reports_the_budget_as_ungoverned(
+        self,
+    ) -> None:
+        #: Given
+        # the code corpus states only its prose specification, so no structure specification governs its documents
+        snapshot = Snapshot.from_tree(
+            {'docs': {'__meta__': {'code.md': b'# Code\n'}, 'code': {'guide.md': GUIDE_TEXT.encode()}}}
+        )
+        database = Database(snapshot)
+        severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
+        table = RuleTable(severities)
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), table)
+
+        #: Then
+        assert reports == (CheckedSubject(GUIDE, diagnostics=(), ungoverned=(Facet.BUDGET,)),), (
+            'a document whose corpus states no structure specification is governed for no facet'
+        )
+
+    def test_check_subjects_with_a_corpus_stating_no_structure_specification_never_counts_the_tokens(self) -> None:
+        #: Given
+        # the code corpus states only its prose specification, so no structure specification governs its documents
+        snapshot = Snapshot.from_tree(
+            {'docs': {'__meta__': {'code.md': b'# Code\n'}, 'code': {'guide.md': GUIDE_TEXT.encode()}}}
+        )
+        database = CountingDatabase(snapshot)
+        severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
+        table = RuleTable(severities)
+
+        #: When
+        check_subjects(database, (GUIDE,), table)
+
+        #: Then
+        assert database.counted_tokens == [], 'no context is built for it, so its tokens are never counted'
 
     def test_check_subjects_with_an_undecodable_document_reports_it_undecodable(self, package_table: RuleTable) -> None:
         #: Given
@@ -519,8 +565,18 @@ class TestCheckSubjects:
         check_subjects(database, (GUIDE,), table)
 
         #: Then
+        assert database.counted_tokens == [], 'no enabled rule reads the token count, so its query is never asked'
+
+    def test_check_subjects_with_no_budget_set_never_counts_the_tokens(self, package_table: RuleTable) -> None:
+        #: Given
+        database = CountingDatabase(_snapshot(b'{"empty_sections": "forbidden"}', guide=GUIDE_TEXT.encode()))
+
+        #: When
+        check_subjects(database, (GUIDE,), package_table)
+
+        #: Then
         assert database.counted_tokens == [], (
-            'an input no enabled rule reads is never built, so its query is never asked'
+            'governance is read before a rule over the budget runs, so an ungoverned document never pays for the count'
         )
 
     def test_check_subjects_with_sample_rules_reports_each_at_its_level(self, sample_table: RuleTable) -> None:
@@ -564,125 +620,6 @@ class TestCheckSubjects:
         assert reports == (
             CheckedSubject(GUIDE, diagnostics=(RuleDiagnostic(GUIDE.path, any_tokens, Severity.ERROR),), ungoverned=()),
         ), 'a rule at allow is not in the table, so only the enabled rules report'
-
-    def test_check_subjects_with_a_document_over_a_corpus_and_a_namespace_budget_reports_both(self) -> None:
-        #: Given
-        namespace_spec = RootRelativePath.parse('docs/__meta__/code-python.structure.json')
-        typing_text = '# Typing\n\nAnnotate every signature, and keep the checker clean before a change is done.\n'
-        snapshot = Snapshot.from_tree(
-            {
-                'docs': {
-                    '__meta__': {
-                        'code.md': b'# Code\n',
-                        'code.structure.json': _budget(5),
-                        'code-python.md': b'# Code Python\n',
-                        'code-python.structure.json': _budget(3),
-                    },
-                    'code': {'python-typing.md': typing_text.encode()},
-                }
-            }
-        )
-        typing = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
-        severities: dict[type[Rule], Severity] = {OverHalfBudget: Severity.WARNING}
-        table = RuleTable(severities)
-
-        #: When
-        reports = check_subjects(Database(snapshot), (typing,), table)
-
-        #: Then
-        token_count = count_tokens(typing_text)
-        corpus_budget = OverHalfBudget(spec=CODE_SPEC, line=LineNumber.from_int(1), token_count=token_count, budget=5)
-        namespace_budget = OverHalfBudget(
-            spec=namespace_spec, line=LineNumber.from_int(1), token_count=token_count, budget=3
-        )
-        assert reports == (
-            CheckedSubject(
-                typing,
-                diagnostics=(
-                    RuleDiagnostic(typing.path, corpus_budget, Severity.WARNING),
-                    RuleDiagnostic(typing.path, namespace_budget, Severity.WARNING),
-                ),
-                ungoverned=(),
-            ),
-        ), 'the context holds every specification that governs the document, so a rule reads both budgets'
-
-    def test_check_subjects_with_sample_rules_and_no_budget_set_reports_the_budget_as_ungoverned(
-        self, sample_table: RuleTable
-    ) -> None:
-        #: Given
-        database = Database(_snapshot(b'{"empty_sections": "forbidden"}', guide=GUIDE_TEXT.encode()))
-
-        #: When
-        reports = check_subjects(database, (GUIDE,), sample_table)
-
-        #: Then
-        assert reports == (CheckedSubject(GUIDE, diagnostics=(), ungoverned=(Facet.BUDGET,)),), (
-            'no specification sets a budget, so the facet the sample rules read is coverage, not a diagnostic'
-        )
-
-    def test_check_subjects_with_sample_rules_and_no_budget_set_never_counts_the_tokens(
-        self, sample_table: RuleTable
-    ) -> None:
-        #: Given
-        database = CountingDatabase(_snapshot(b'{"empty_sections": "forbidden"}', guide=GUIDE_TEXT.encode()))
-
-        #: When
-        check_subjects(database, (GUIDE,), sample_table)
-
-        #: Then
-        assert database.counted_tokens == [], (
-            'governance is read before a rule over the budget runs, so an ungoverned document never pays for the count'
-        )
-
-    def test_check_subjects_with_a_corpus_stating_no_structure_specification_reports_the_budget_as_ungoverned(
-        self, sample_table: RuleTable
-    ) -> None:
-        #: Given
-        # the code corpus states only its prose specification, so no structure specification governs its documents
-        snapshot = Snapshot.from_tree(
-            {'docs': {'__meta__': {'code.md': b'# Code\n'}, 'code': {'guide.md': GUIDE_TEXT.encode()}}}
-        )
-
-        #: When
-        reports = check_subjects(Database(snapshot), (GUIDE,), sample_table)
-
-        #: Then
-        assert reports == (CheckedSubject(GUIDE, diagnostics=(), ungoverned=(Facet.BUDGET,)),), (
-            'a document whose corpus states no structure specification is governed for no facet'
-        )
-
-    def test_check_subjects_with_a_corpus_stating_no_structure_specification_never_counts_the_tokens(
-        self, sample_table: RuleTable
-    ) -> None:
-        #: Given
-        # the code corpus states only its prose specification, so no structure specification governs its documents
-        snapshot = Snapshot.from_tree(
-            {'docs': {'__meta__': {'code.md': b'# Code\n'}, 'code': {'guide.md': GUIDE_TEXT.encode()}}}
-        )
-        database = CountingDatabase(snapshot)
-
-        #: When
-        check_subjects(database, (GUIDE,), sample_table)
-
-        #: Then
-        assert database.counted_tokens == [], 'no context is built for it, so its tokens are never counted'
-
-    def test_check_subjects_with_a_sample_rule_over_a_skill_runs_it_through_its_context(self) -> None:
-        #: Given
-        database = Database(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=_skill_of(7)))
-        severities: dict[type[Rule], Severity] = {AnyLines: Severity.ERROR}
-        table = RuleTable(severities)
-
-        #: When
-        reports = check_subjects(database, (_location(database, REVIEW),), table)
-
-        #: Then
-        occurrence = AnyLines(spec=None, line=LineNumber.from_int(1), line_count=7)
-        assert reports == (
-            CheckedSubject(
-                REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),), ungoverned=()
-            ),
-        ), 'a rule over a skill reads the line count through its context, and the package governs every skill'
 
     def test_check_subjects_with_a_skill_over_the_line_budget_reports_the_line_budget_as_an_error(
         self, package_table: RuleTable
@@ -782,9 +719,7 @@ class TestCheckSubjects:
         check_subjects(database, (_location(database, REVIEW),), table)
 
         #: Then
-        assert database.counted_lines == [], (
-            'an input no enabled rule reads is never built, so its query is never asked'
-        )
+        assert database.counted_lines == [], 'no enabled rule reads the line count, so its query is never asked'
 
     def test_check_subjects_with_a_document_without_a_block_reports_missing_frontmatter(
         self, package_table: RuleTable
@@ -801,7 +736,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.TOKEN_COUNT, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.BUDGET, InputKind.OUTLINE_DIVERGENCE),
             ),
         ), 'FM001 runs at deny over a document a frontmatter schema governs, under its corpus specification'
 
@@ -821,7 +756,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.TOKEN_COUNT, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.BUDGET, InputKind.OUTLINE_DIVERGENCE),
             ),
         ), 'FM002 runs at deny, at the line the YAML parser stopped on'
 
@@ -840,7 +775,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.TOKEN_COUNT, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.BUDGET, InputKind.OUTLINE_DIVERGENCE),
             ),
         ), 'FM003 runs at deny over a block that reads as YAML but is not a mapping'
 
@@ -861,7 +796,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.TOKEN_COUNT, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.BUDGET, InputKind.OUTLINE_DIVERGENCE),
             ),
         ), 'FM004 runs at deny over a document whose `name` is not its filename'
 
@@ -882,7 +817,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.TOKEN_COUNT, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.BUDGET, InputKind.OUTLINE_DIVERGENCE),
             ),
         ), 'FM005 runs at deny over a key written again, at the later occurrence'
 
@@ -1103,7 +1038,7 @@ class TestCheckSubjects:
                     RuleDiagnostic(GUIDE.path, invalid_value, Severity.ERROR),
                     RuleDiagnostic(GUIDE.path, block_constraint, Severity.ERROR),
                 ),
-                ungoverned=(InputKind.TOKEN_COUNT, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.BUDGET, InputKind.OUTLINE_DIVERGENCE),
             ),
         ), (
             'FM006 and FM008 to FM010 run at deny and FM007 at warn, each on its own problem, on its field line or '
@@ -1195,7 +1130,7 @@ class TestCheckSubjects:
                     RuleDiagnostic(typing.path, status, Severity.ERROR),
                     RuleDiagnostic(typing.path, owner, Severity.ERROR),
                 ),
-                ungoverned=(InputKind.TOKEN_COUNT, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.BUDGET, InputKind.OUTLINE_DIVERGENCE),
             ),
         ), 'each schema is applied on its own, and each problem names the specification whose schema found it'
 
@@ -1232,7 +1167,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.TOKEN_COUNT, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.BUDGET, InputKind.OUTLINE_DIVERGENCE),
             ),
         ), 'FM003 alone reports a block that is not a mapping: it is held to no schema, so no schema rule fires'
 
@@ -1282,7 +1217,7 @@ class TestCheckSubjects:
                 ungoverned=(
                     InputKind.FRONTMATTER_BLOCK,
                     InputKind.SCHEMA_PROBLEMS,
-                    InputKind.TOKEN_COUNT,
+                    Facet.BUDGET,
                     InputKind.OUTLINE_DIVERGENCE,
                 ),
             ),
@@ -1310,7 +1245,7 @@ class TestCheckSubjects:
                 ungoverned=(
                     InputKind.FRONTMATTER_BLOCK,
                     InputKind.SCHEMA_PROBLEMS,
-                    InputKind.TOKEN_COUNT,
+                    Facet.BUDGET,
                     InputKind.OUTLINE_DIVERGENCE,
                 ),
             ),
@@ -1337,7 +1272,7 @@ class TestCheckSubjects:
                 ungoverned=(
                     InputKind.FRONTMATTER_BLOCK,
                     InputKind.SCHEMA_PROBLEMS,
-                    InputKind.TOKEN_COUNT,
+                    Facet.BUDGET,
                     InputKind.OUTLINE_DIVERGENCE,
                 ),
             ),
@@ -1359,7 +1294,7 @@ class TestCheckSubjects:
                 ungoverned=(
                     InputKind.FRONTMATTER_BLOCK,
                     InputKind.SCHEMA_PROBLEMS,
-                    InputKind.TOKEN_COUNT,
+                    Facet.BUDGET,
                     InputKind.OUTLINE_DIVERGENCE,
                 ),
             ),
@@ -1382,7 +1317,7 @@ class TestCheckSubjects:
                 ungoverned=(
                     InputKind.FRONTMATTER_BLOCK,
                     InputKind.SCHEMA_PROBLEMS,
-                    InputKind.TOKEN_COUNT,
+                    Facet.BUDGET,
                     InputKind.OUTLINE_DIVERGENCE,
                 ),
             ),
@@ -1405,7 +1340,7 @@ class TestCheckSubjects:
                 ungoverned=(
                     InputKind.FRONTMATTER_BLOCK,
                     InputKind.SCHEMA_PROBLEMS,
-                    InputKind.TOKEN_COUNT,
+                    Facet.BUDGET,
                     InputKind.OUTLINE_DIVERGENCE,
                 ),
             ),
@@ -1427,7 +1362,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, Facet.BUDGET),
             ),
         ), 'LEN003 runs at deny over a document whose specification caps a section, at the section over its cap'
 
@@ -1450,7 +1385,7 @@ class TestCheckSubjects:
                 ungoverned=(
                     InputKind.FRONTMATTER_BLOCK,
                     InputKind.SCHEMA_PROBLEMS,
-                    InputKind.TOKEN_COUNT,
+                    Facet.BUDGET,
                     InputKind.OUTLINE_DIVERGENCE,
                 ),
             ),
@@ -1475,7 +1410,7 @@ class TestCheckSubjects:
                 ungoverned=(
                     InputKind.FRONTMATTER_BLOCK,
                     InputKind.SCHEMA_PROBLEMS,
-                    InputKind.TOKEN_COUNT,
+                    Facet.BUDGET,
                     InputKind.OUTLINE_DIVERGENCE,
                 ),
             ),
@@ -1502,7 +1437,7 @@ class TestCheckSubjects:
                 ungoverned=(
                     InputKind.FRONTMATTER_BLOCK,
                     InputKind.SCHEMA_PROBLEMS,
-                    InputKind.TOKEN_COUNT,
+                    Facet.BUDGET,
                     InputKind.OUTLINE_DIVERGENCE,
                 ),
             ),
@@ -1545,7 +1480,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, Facet.BUDGET),
             ),
         ), 'OUT006 runs at deny over a document lacking a section its outline requires, at its last line'
 
@@ -1568,7 +1503,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, Facet.BUDGET),
             ),
         ), 'OUT007 runs at deny over a document writing a section where its outline places another, at its heading'
 
@@ -1591,7 +1526,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, Facet.BUDGET),
             ),
         ), 'OUT008 runs at deny over a document writing a section its outline does not name, at its heading'
 
@@ -1610,7 +1545,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.TOKEN_COUNT),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, Facet.BUDGET),
             ),
         ), 'a document whose sections match its outline is governed for its outline, and clean'
 

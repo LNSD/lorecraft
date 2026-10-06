@@ -4,10 +4,11 @@ from dataclasses import dataclass
 from typing import ClassVar, Final, Self
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.context import DocumentContext
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.inputs import TokenCountInput, TokenCountRule
 from lorecraft.rules.location import Elsewhere, Note, Subdiagnostic
+from lorecraft.rules.subject import DocumentRule, Facet
 
 from .__ruleset__ import GROUP_ID
 
@@ -19,7 +20,7 @@ _FIRST_LINE: Final[LineNumber] = LineNumber.from_int(1)
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class TooManyTokens(TokenCountRule):
+class TooManyTokens(DocumentRule):
     """A document is longer than its token budget allows.
 
     ## What it does
@@ -84,6 +85,7 @@ class TooManyTokens(TokenCountRule):
     NAME: ClassVar[RuleName] = RuleName('too-many-tokens')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    GOVERNED_BY: ClassVar[Facet] = Facet.BUDGET
 
     spec: RootRelativePath
     token_count: int
@@ -98,14 +100,24 @@ class TooManyTokens(TokenCountRule):
         return (Note('the budget is set here', at=Elsewhere(self.spec)),)
 
     @classmethod
-    def check(cls, subject: TokenCountInput) -> tuple[Self, ...]:
-        """One occurrence for each budget the document exceeds, in the order the budgets are given.
+    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
+        """One occurrence for each budget the document exceeds, in the order the specifications apply.
+
+        A specification that sets no budget holds the document to none.
 
         Args:
-            subject: The document's token count, with the budgets that govern it.
+            subject: The document, governed by at least one budget.
         """
-        return tuple(
-            cls(spec=budget.spec, line=_FIRST_LINE, token_count=subject.token_count.value, budget=budget.tokens.value)
-            for budget in subject.budgets
-            if subject.token_count.value > budget.tokens.value
-        )
+        budgeted_specs = [spec for spec in subject.specifications().structure_specs() if spec.tokens is not None]
+        if not budgeted_specs:
+            # Counting tokens is the costly step, so a document no budget governs is never counted.
+            return ()
+        token_count = subject.tokens().value
+        occurrences: list[Self] = []
+        for structure_spec in budgeted_specs:
+            budget = structure_spec.tokens
+            if budget is not None and token_count > budget.value:
+                occurrences.append(
+                    cls(spec=structure_spec.path, line=_FIRST_LINE, token_count=token_count, budget=budget.value)
+                )
+        return tuple(occurrences)

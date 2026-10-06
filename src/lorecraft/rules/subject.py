@@ -9,8 +9,8 @@ A document is judged only for what a specification governs, so a rule over a doc
 `GOVERNED_BY`, and the runner hands it the document only when the specifications govern that facet. The package
 governs every skill, so a rule over a skill declares none.
 
-No shipped rule derives from these bases yet: every one still reads an input of `inputs`, until later changes move
-each group onto a context.
+The token and line budgets, `LEN001` and `LEN002`, derive from these bases. Until every group reads a context, the
+frontmatter, outline and other length rules still read the inputs of `inputs`.
 """
 
 from abc import abstractmethod
