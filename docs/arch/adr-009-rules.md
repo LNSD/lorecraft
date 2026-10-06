@@ -117,13 +117,15 @@ class EmptySection(HeadingsRule):
 - **The base class names the subject kind.** Each subject kind has one base, `DocumentRule` for a document and
   `SkillRule` for a skill, whose abstract `check` takes the subject's context, a `Protocol` of `lorecraft.project`.
   A rule over what any Markdown file has derives from `MarkdownRule`, whose `check` takes a `MarkdownContext`, and
-  judges a document, a skill's `SKILL.md` and a skill's resource alike. A rule picks its subject by picking its base,
-  and asks the context for what it reads. A rule over a document declares the facet it reads in `GOVERNED_BY`, and
-  the registry rejects one that declares none; the package governs every skill and resource, so a rule over a skill
-  declares none. A rule over a Markdown file declares none either: its base judges a document under its structure,
-  the facet under which a document has a context at all. The length rules over a whole file, `LEN001` and `LEN002`,
-  and the `LINK` rules read a context; the rules not yet moved still pick an input by their base, such as
-  `HeadingsRule` above, until they are.
+  judges a document, a skill's `SKILL.md` and a skill's resource alike. A rule over what holds of a skill's files
+  and not of a document, such as a link read from the skill root, derives from `SkillFileRule`, whose `check` takes
+  a `SkillFileContext`, and judges a skill's `SKILL.md` and its resources. A rule picks its subject by picking its
+  base, and asks the context for what it reads. A rule over a document declares the facet it reads in `GOVERNED_BY`,
+  and the registry rejects one that declares none; the package governs every skill and resource, so a rule over a
+  skill or one of its files declares none. A rule over a Markdown file declares none either: its base judges a
+  document under its structure, the facet under which a document has a context at all. The length rules over a whole
+  file, `LEN001` and `LEN002`, and the `LINK` rules read a context; the rules not yet moved still pick an input by
+  their base, such as `HeadingsRule` above, until they are.
 - **`check` returns `tuple[Self, ...]`**, so a rule can only report its own occurrence, and the type checker
   rejects one that reports another's. That needs no type parameter anywhere in the engine.
 - **The message is rendered from the fields.** The corpus, the field and the section travel as data, not as
