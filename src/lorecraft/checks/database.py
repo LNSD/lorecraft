@@ -197,6 +197,7 @@ class Database:
             RepeatedForbiddenSectionError: If a specification forbids a section twice.
             ForbiddenOutlineSectionError: If a specification forbids a section its outline names.
             AdjacentAnyRunsError: If an outline places two `any` runs side by side.
+            InvalidTitlePatternError: If a title's pattern does not compile.
             InvalidFrontmatterSchemaError: If a frontmatter schema is rejected by the meta-schema.
             FrontmatterSchemaIdError: If a schema in a frontmatter schema carries `$id`.
             ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.

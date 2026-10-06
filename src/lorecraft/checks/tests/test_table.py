@@ -21,6 +21,7 @@ from lorecraft.rules.length.too_many_words import TooManyWords
 from lorecraft.rules.outline.empty_section import EmptySection
 from lorecraft.rules.outline.extra_title import ExtraTitle
 from lorecraft.rules.outline.forbidden_section import ForbiddenSection
+from lorecraft.rules.outline.invalid_title import InvalidTitle
 from lorecraft.rules.outline.missing_section import MissingSection
 from lorecraft.rules.outline.missing_title import MissingTitle
 from lorecraft.rules.outline.section_out_of_order import SectionOutOfOrder
@@ -176,6 +177,7 @@ class TestRuleTableFromRegistry:
             EnabledRule(TitleNotFirst, Severity.ERROR),
             EnabledRule(EmptySection, Severity.ERROR),
             EnabledRule(ForbiddenSection, Severity.ERROR),
+            EnabledRule(InvalidTitle, Severity.ERROR),
         ), "the package's headings rules are enabled by default as errors, in code order"
 
     def test_from_registry_with_the_package_registry_enables_the_outline_divergence_rules(self) -> None:
