@@ -8,7 +8,7 @@ import pytest
 from syrupy.assertion import SnapshotAssertion
 
 from lib.snapshot import TextSnapshotExtension
-from lorecraft.checks.report import (
+from lorecraft.checks import (
     CheckedLayoutEntry,
     CheckedSubject,
     RuleDiagnostic,

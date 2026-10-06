@@ -11,7 +11,7 @@ components: "module:lorecraft.project"
 ## Summary
 
 A repository declares the rules for its documents as specification files in `docs/__meta__/`. Nothing
-registers them: a file's name says which documents it governs and which check reads it, and a document's own
+registers them: a file's name says which documents it governs and which rules read it, and a document's own
 path says which files govern it. Every command that reads a repository loads these files the same way.
 
 ## Table of Contents
@@ -31,10 +31,10 @@ path says which files govern it. Every command that reads a repository loads the
 - **Specification name**: A specification filename with its pattern's suffix stripped: `<corpus>` or
   `<corpus>-<namespace>`.
 - **Structure specification**: `<name>.structure.json`, the part of a specification a check can decide: the
-  section rules, the word caps, the token budget and the frontmatter schema, each read by its own check.
+  section rules, the word caps, the token budget and the frontmatter schema, each read by its own rules.
 - **Prose**: `<name>.md`, the specification written for a reader. It is the authority; the JSON beside it is
   the same rules in a form a check applies.
-- **Base**: The document an extension adds to: `cli-check.md` is the base of `cli-check-frontmatter.md`, and the
+- **Base**: The document an extension adds to: `spec-structure.md` is the base of `spec-structure-outline.md`, and the
   corpus specification `feat.md` is the base of `feat-cli.md`.
 - **Extension**: A document that adds to its base, which its name alone identifies.
 
@@ -63,23 +63,23 @@ the file.
 
 ### Governed or Not
 
-Each check decides on its own whether a document is governed. A namespace specification never stands in for its
-corpus specification: with no corpus structure file, a document is ungoverned for every check. With one, the
-structure check governs it whatever keys the files state, the budget check when a structure file that applies
-sets `tokens`, and the frontmatter check only when the corpus file itself states `frontmatter`. An ungoverned
-document is listed, never failed.
+Each part of a document a rule reads is governed on its own. A namespace specification never stands in for its
+corpus specification: with no corpus structure file, a document is ungoverned for every part. With one, its structure is
+governed whatever keys the files state, its outline or its budget when a structure file that applies states an
+outline or sets `tokens`, and its frontmatter only when the corpus file itself states `frontmatter`. No rule over an
+ungoverned part runs: the part is reported as [coverage](cli-check.md#output), never failed.
 
 ## Limitations
 
-- The structure specification is the only machine-checkable file type; a second needs a new pattern, a new
-  check and a new dialect in the package.
+- The structure specification is the only machine-checkable file type; a second needs a new pattern, new
+  rules and a new dialect in the package.
 - A rule stated in prose that no structure specification holds is not checked: the prose and the JSON can drift,
   and nothing detects it.
 
 ## Base and Extension
 
 Within a corpus, **a name's base is the longest existing name it continues with a hyphen**, and the name
-extends it: `cli-check-frontmatter.md` extends `cli-check.md`, which extends `cli.md`.
+extends it: `spec-structure-outline.md` extends `spec-structure.md`, which extends `spec.md`.
 
 A specification name is not read that way from its first character. Its corpus is the name of a directory
 under `docs/`, not a shorter name the specification name continues, so the corpus is set aside first. The
@@ -92,7 +92,7 @@ follows the rule above: `feat-cli` governs `cli` and would be extended by a `fea
 |------|------------|---------|
 | `feat` | `feat-cli` | `feat` is the corpus `docs/feat/` |
 | `feat-cli` | `feat-cli-check`, were it added | Namespace `cli-check` continues `cli` |
-| `cli-check.md` | `cli-check-frontmatter.md`, `cli-check-structure.md` | The names continue `cli-check` |
+| `spec-structure.md` | `spec-structure-outline.md`, `spec-structure-budget.md` | The names continue `spec-structure` |
 
 A document is governed by its corpus specification, then by each namespace specification whose namespace equals
 its filename or is a hyphen-delimited prefix of it, broad to narrow: `feat-cli` governs `cli.md` and
@@ -102,7 +102,7 @@ its base.
 ### References Point to the Base
 
 An extension names its base; a base never names its extensions, neither in its references nor inline.
-`feat-cli.md` links to `feat.md` and `cli-check-frontmatter.md` to `cli-check.md`; neither base links back. For a
+`feat-cli.md` links to `feat.md` and `spec-structure-outline.md` to `spec-structure.md`; neither base links back. For a
 specification this covers its JSON files too: a base's `description` names no extension, and `feat.md` does
 not point at any `feat-cli.*.json`. A base is written without knowing what extends it, so adding, renaming or
 removing an extension never edits the base, and the base carries no list of extensions to go stale.

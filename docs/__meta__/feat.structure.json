@@ -47,7 +47,7 @@
       "section": "Summary",
       "words": 80,
       "description": "Two to four sentences expanding on the frontmatter description: what the feature does, why it exists and its primary use.",
-      "examples": ["`lorecraft check budget` counts the tokens in each document's whole file and compares the count with the\n`tokens` budget of every structure specification that applies to the document. The count is what loading the\ndocument costs an agent, so it includes the frontmatter, code blocks and tables that word caps leave out. It is\nalso one of the checks a bare `lorecraft check` runs."]
+      "examples": ["`lorecraft check` checks the whole workspace in one run: every document under `docs/` against the specifications\nin `docs/__meta__/`, and every agent skill against the Agent Skills specification. Each rule has a code, such as\n`FM001`, in a group named by its prefix. It prints a diagnostic per rule broken, and exits `1` when any is an error."]
     },
     {
       "section": "Table of Contents",
@@ -65,7 +65,7 @@
       "optional": true,
       "words": 400,
       "description": "How the feature fits together: data flow and component interaction. Included only when the flow is not obvious from the usage examples.",
-      "examples": ["### Root Discovery\n\nWithout `--root`, the root is the nearest of the working directory and its parents that holds a\n`docs/__meta__/` directory. With `--root`, the given directory is the root, and it must exist. Either way it is\nresolved with symlinks followed, and every path printed is relative to it.\n\n### One Run, One Snapshot\n\nEvery check in a run reads the same snapshot. Every specification is loaded and validated before any check\nruns, so one malformed specification file stops the whole run rather than one document."]
+      "examples": ["### Root Discovery\n\nWithout `--root`, the root is the nearest of the working directory and its parents that holds a\n`docs/__meta__/` directory. With `--root`, the given directory is the root, and it must exist. Either way it is\nresolved with symlinks followed, and every path printed is relative to it.\n\n### One Run, One Snapshot\n\nEvery rule reads the same snapshot, through one database, so a file is read and parsed once however many rules\nread it. Every specification is loaded and validated before any subject is checked, so one malformed\nspecification stops the whole run."]
     },
     {
       "section": "Configuration",
@@ -80,7 +80,7 @@
       "words": 400,
       "description": "How to invoke the feature, with working examples in fenced blocks: the command a reader types and what it prints. Required for a feature document, forbidden for a meta document.",
       "examples": [
-        "```bash\n# Check the token budget of every document\nlorecraft check budget\n\n# Check one document just written\nlorecraft check budget docs/feat/cli-check-budget.md\n```\n\nA document over budget reports one finding on line 1 for each specification whose budget it exceeds, naming\nthe count, the budget and the specification file. With a `feat` budget of 100:\n\n```text\ndocs/feat/cli-check-budget.md:1: [budget.tokens] 1001 tokens; the budget is 100 (per feat.structure.json)\nchecked 1 file(s), 1 finding(s)\n```",
+        "```bash\n# Every rule over the workspace around the working directory\nlorecraft check\n\n# Another repository, as JSON\nlorecraft check --root ../other-repo --format json\n```\n\nA document with no frontmatter, under a corpus whose structure specification states a frontmatter schema:\n\n```text\ndocs/code/guide.md:1: error[FM001]: no `---` delimited frontmatter block\n  = note: the frontmatter schema is set here (docs/__meta__/code.structure.json)\nchecked 1 subject(s): 1 error(s), 0 warning(s)\n```",
         "### Caps and a Budget\n\n```json\n{\n  \"$schema\": \"../schemas/structure.spec.json\",\n  \"tokens\": 5000,\n  \"outline\": [\n    { \"any\": true, \"words\": 350 },\n    { \"section\": \"Checklist\", \"words\": 250 },\n    { \"section\": \"References\", \"optional\": true }\n  ]\n}\n```\n\nEach section a document names for itself holds at most 350 words, `Checklist` at most 250, and `References`\nis not capped. The whole file holds at most 5000 tokens."
       ]
     },
@@ -89,20 +89,20 @@
       "optional": true,
       "words": 200,
       "description": "The feature's known constraints, as a short list.",
-      "examples": ["- The outline is matched on H2 headings only; H3 subsections are counted in their section's words but never\n  required, ordered or forbidden.\n- The outline reports its first divergence and stops, since every later section would be measured against an\n  entry it was never meant to match. Fix it and run again to see the next.\n- The `tokens` budget a structure specification may set is not read here; `lorecraft check budget` applies it."]
+      "examples": ["- The command takes no paths, and no option selects or ignores a rule: every rule runs at its default level.\n- A repository with skills and no `docs/__meta__/` needs `--root`.\n- A check covers what a machine can decide. Whether a section says what it should stays with review."]
     },
     { "any": true, "words": 300 },
     {
       "section": "References",
       "optional": true,
       "description": "Cross-references to other feature documents, one per line with the relationship named first (Dependency, Alternative, Related, Extended by or Base), linking up to the base and never down to an extension.",
-      "examples": ["- [cli-check](cli-check.md) - Base: root discovery, document selection, output and exit status\n- [spec-structure-budget](spec-structure-budget.md) - Dependency: the `tokens` key this check reads\n- [cli-check-structure](cli-check-structure.md) - Related: the per-section word caps from the same specification"]
+      "examples": ["- [cli](cli.md) - Base: the command line and the options every command shares\n- [workspace](workspace.md) - Dependency: the documents, skills and snapshot the command reads\n- [spec](spec.md) - Dependency: the specification files the rules read"]
     },
     {
       "section": "Code References",
       "optional": true,
       "description": "The source files behind the feature, one entry per line and never wrapped, each naming a file and how it relates to the feature without explaining its logic. Required for a component document, forbidden for a meta document.",
-      "examples": ["- `src/lorecraft/cli/commands/check/budget.py` - Declares the command and registers the check with the group\n- `src/lorecraft/checks/budget.py` - The check of one document's token count\n- `src/lorecraft/project/syntax/tokens.py` - Counts tokens, with the vocabulary shipped in the package"]
+      "examples": ["- `src/lorecraft/cli/commands/check.py` - Declares the command, runs the rules and chooses the exit status\n- `src/lorecraft/cli/root.py` - Root discovery\n- `src/lorecraft/checks/runner.py` - Runs every enabled rule over each subject"]
     }
   ]
 }

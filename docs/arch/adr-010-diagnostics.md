@@ -9,7 +9,7 @@ status: "proposed"
 
 > [!NOTE]
 > Proposed to supersede [adr-007-findings](adr-007-findings.md): its identifiers, notes, report types and order.
-> adr-007 stays binding until this record is accepted.
+> The command line now reports as this record states; the record stays proposed until the engine is complete.
 
 This record is one of three that state how the structured checks of [prd-008](prd-008-structured-checks.md) are
 built: [adr-009](adr-009-rules.md) how a rule is declared and identified, [adr-010](adr-010-diagnostics.md) what a

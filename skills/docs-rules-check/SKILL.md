@@ -44,10 +44,9 @@ Each document is followed by the names of the specifications governing it, broad
 prose at `docs/__meta__/<name>.md`.
 [cli-inspect](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-inspect.md) describes the output. Read every
 specification listed for a document **before** the document, so its checklist is in hand while reading. A document can
-be governed by one check and not another;
-[check](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-check.md#key-concepts) says what governs it for
-each. Report a document a check does not govern as unvalidated for that check, rather than borrowing another corpus's
-rules.
+be governed for one part and not another;
+[check](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-check.md#key-concepts) says what governs each part.
+Report a document as unvalidated for a part nothing governs, rather than borrowing another corpus's rules.
 
 ## 3. Run the checks
 
@@ -56,28 +55,23 @@ patterns, `name` against the filename, the title, section order, empty and forbi
 token budget. Do not check those by hand.
 
 ```bash
-lorecraft check                              # every check over every document and skill, one read of the tree
-lorecraft check frontmatter <files>          # frontmatter, the structure spec's frontmatter key
-lorecraft check structure <files>            # sections and word caps, against <name>.structure.json
-lorecraft check budget <files>               # the whole-file token budget, the structure spec's tokens key
+lorecraft check                              # every rule over every document and skill, one read of the tree
 lorecraft check --format json                # machine-readable
 ```
 
-Findings print as `path:line: [rule] message`, and may be followed by `= help:` and `= note:` lines, or a `notes` list
-in JSON; for a missing section they say what it holds and show a sample, so read them before fixing it. Exit `0` means
-no findings, `1` findings, and `2` that the run could not happen: a rejected path, or a specification that cannot be
-loaded — §6 covers that one. A `<corpus>.ungoverned` line is not a failure; report the corpus as unvalidated for that
-check. Each check's rule identifiers are explained in its guide:
-[check](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-check.md),
-[frontmatter](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-check-frontmatter.md),
-[structure](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-check-structure.md),
-[budget](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-check-budget.md).
+The run covers the whole workspace; read the diagnostics for the documents the change touches. A diagnostic prints as
+`path:line: severity[CODE]: message`, and may be followed by `-->`, `= help:` and `= note:` lines, or `labels` and
+`children` in JSON; for a missing section they say what it holds and show a sample, so read them before fixing it.
+Exit `0` means no error, warnings included, `1` at least one error, and `2` that the run could not happen: a
+specification that cannot be loaded — §6 covers that one. A `<path>: ungoverned for <parts>` line on stderr is not a
+failure; report the document as unvalidated for those parts. The rule groups and their codes, `FM` frontmatter, `OUT`
+outline, `LEN` length, `LINK` links, are listed in
+[check](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-check.md#findings).
 
-A bare run checks every agent skill too. A `skill.*` finding is about a skill, not a document, and falls outside this
-review; [check skills](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-check-skills.md#findings) explains
-each.
+The run checks every agent skill too. A diagnostic at a skill's path, or a `LAY` one, is about a skill, not a
+document, and falls outside this review.
 
-A word cap or budget finding on a section the change added to blocks, like any other finding. One on a section
+A word cap or budget diagnostic on a section the change added to blocks, like any other error. One on a section
 the change did not touch is pre-existing: report it as such. The fix for an overage is to move or cut, never to
 compress.
 
@@ -127,7 +121,7 @@ is refused for their keys.
   with a hyphen: `code-python` governs `python-typing.md`, not `pythonic.md`.
 - A namespace specification matches at least one document. One that matches none still loads and governs nothing,
   usually after a rename.
-- For each check the corpus means to run, the documents meant are governed, as
+- For each part the corpus means to govern, the documents meant are governed, as
   [check](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-check.md#key-concepts) defines it. A namespace
   file never governs alone: its rules apply only once the corpus specification has a structure file, and its
   `frontmatter` only once that file states the key.
@@ -169,7 +163,7 @@ Findings, per document or specification, most severe first, one per line, with t
 
 ## Setting the checks up in CI
 
-`lorecraft check` with no arguments is the whole gate: it runs every check over every document and every
-skill, and exits non-zero on a finding or a specification that cannot load. Run it in CI and in a pre-commit
+`lorecraft check` is the whole gate: it runs every rule over every document and every skill, and exits
+non-zero on an error or a specification that cannot load. Run it in CI and in a pre-commit
 hook as is; do not narrow it to changed files, since a change to one document or specification can break
 another.

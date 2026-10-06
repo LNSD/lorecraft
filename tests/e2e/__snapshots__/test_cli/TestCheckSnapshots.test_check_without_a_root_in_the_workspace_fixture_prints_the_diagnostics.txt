@@ -1,0 +1,52 @@
+.agents/skills/beta/SKILL.md:2: error[FM004]: `name` is 'alpha', expected 'beta'
+  = note: the Agent Skills specification requires `name` to match the skill directory name
+  = note: 'beta' is a link to '.agents/skills/alpha'
+  = help: set `name` to 'beta'
+
+docs/code/logging.md:1: error[FM001]: no `---` delimited frontmatter block
+  = note: the frontmatter schema is set here (docs/__meta__/code.structure.json)
+
+docs/code/logging.md:1: error[OUT004]: section `Logging` is empty
+  = note: the document structure is set here (docs/__meta__/code.structure.json)
+  = help: omit the section rather than leave it empty
+
+docs/code/logging.md:1: error[OUT006]: missing required section `Checklist`
+  --> docs/code/logging.md:1: expected `Checklist` before the end of the document
+  = note: the document structure is set here (docs/__meta__/code.structure.json)
+  = help: The items a reviewer verifies before committing a change the rule document governs.
+  = note: for example:
+          ## Checklist
+
+          Before committing code, verify:
+
+          - [ ] Every module that logs has exactly one `logger = logging.getLogger(__name__)` after its imports
+          - [ ] No logger is stored as `self.logger` or any other instance or class attribute
+          - [ ] Every log call inside an `except` block uses `logger.exception(...)`
+
+docs/code/python-typing.md:1: error[FM001]: no `---` delimited frontmatter block
+  = note: the frontmatter schema is set here (docs/__meta__/code.structure.json)
+
+docs/code/python-typing.md:1: error[LEN001]: too many tokens (4 > 3)
+  = note: the budget is set here (docs/__meta__/code-python.structure.json)
+
+docs/code/python-typing.md:1: error[OUT004]: section `Python typing` is empty
+  = note: the document structure is set here (docs/__meta__/code.structure.json)
+  = help: omit the section rather than leave it empty
+
+docs/code/python-typing.md:1: error[OUT006]: missing required section `Checklist`
+  --> docs/code/python-typing.md:1: expected `Checklist` before the end of the document
+  = note: the document structure is set here (docs/__meta__/code.structure.json)
+  = help: The items a reviewer verifies before committing a change the rule document governs.
+  = note: for example:
+          ## Checklist
+
+          Before committing code, verify:
+
+          - [ ] Every module that logs has exactly one `logger = logging.getLogger(__name__)` after its imports
+          - [ ] No logger is stored as `self.logger` or any other instance or class attribute
+          - [ ] Every log call inside an `except` block uses `logger.exception(...)`
+
+docs/code/python-typing.md:1: error[OUT006]: missing required section `References`
+  --> docs/code/python-typing.md:1: expected `References` before the end of the document
+  = note: the document structure is set here (docs/__meta__/code-python.structure.json)
+  = help: Links to the documents this one builds on.

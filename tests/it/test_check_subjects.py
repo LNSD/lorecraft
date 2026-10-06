@@ -18,9 +18,7 @@ from typing import ClassVar, Final, Self
 import pytest
 
 from lorecraft import rules
-from lorecraft.checks.report import CheckedSubject, RuleDiagnostic, UndecodableSubject
-from lorecraft.checks.runner import check_subjects
-from lorecraft.checks.table import RuleTable
+from lorecraft.checks import CheckedSubject, RuleDiagnostic, RuleTable, UndecodableSubject, check_subjects
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename

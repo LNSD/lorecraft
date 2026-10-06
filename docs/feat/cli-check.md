@@ -1,20 +1,18 @@
 ---
 name: "cli-check"
-description: "The lorecraft check command group and a bare lorecraft check: repository root discovery, document selection, the text and JSON output every check prints, and the 0/1/2 exit status. Load when running the documentation or skill checks, wiring them into CI or a pre-commit hook, or parsing their output"
+description: "The lorecraft check command: every rule over every document and skill of the workspace, root discovery, the rule groups and their codes, the text and JSON output, and the 0/1/2 exit status. Load when running the documentation and skill checks, wiring them into CI or a pre-commit hook, matching on a rule code, or parsing their output"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft.cli,module:lorecraft.checks"
+components: "module:lorecraft.cli,module:lorecraft.checks,module:lorecraft.rules"
 ---
 
 # `lorecraft check`
 
 ## Summary
 
-`lorecraft check` validates the documents under a repository's `docs/` against the specifications in its
-`docs/__meta__/`, and its agent skills against the Agent Skills specification. Named with a check, such as
-`lorecraft check frontmatter`, it runs that one check; bare, it runs every check the command line carries, the
-document checks over the same documents and [the skill check](cli-check-skills.md) over every skill, and prints
-their findings together. Every check shares the root discovery, output formats and exit status documented here.
+`lorecraft check` checks the whole workspace in one run: every document under `docs/` against the specifications
+in `docs/__meta__/`, and every agent skill against the Agent Skills specification. Each rule has a code, such as
+`FM001`, in a group named by its prefix. It prints a diagnostic per rule broken, and exits `1` when any is an error.
 
 ## Table of Contents
 
@@ -23,55 +21,48 @@ their findings together. Every check shares the root discovery, output formats a
 3. [Configuration](#configuration)
 4. [Usage](#usage)
 5. [Limitations](#limitations)
-6. [References](#references)
-7. [Code References](#code-references)
+6. [Findings](#findings)
+7. [References](#references)
+8. [Code References](#code-references)
 
 ## Key Concepts
 
-- **Check**: One subcommand of the group. A document check validates one part of a document against the
-  `<name>.structure.json` structure specifications its path selects; the skill check holds each skill to the
-  Agent Skills specification.
-- **Finding**: One broken rule, located: a root-relative path, a line, a rule identifier and a message, and optionally
-  notes that help fix it.
-- **Governed**: A document is governed by a check when its corpus specification has a structure file and at
-  least one structure file that applies to it states what the check reads. The structure check reads any
-  file, so one stating only `tokens` or `frontmatter` governs the outline with no rule to hold it to. The
-  frontmatter check asks more: the corpus file must state `frontmatter` itself. An ungoverned document is
-  listed, never failed.
-- **Workspace**: The root, its corpora and their documents, read once from one snapshot, as
-  [workspace](workspace.md) lays out.
+- **Subject**: What a rule judges: a document, a skill by its `SKILL.md`, a resource of a skill (any other
+  Markdown file inside it), or a symlink of the skill layout leading outside the repository.
+- **Rule**: One judgment of a subject, with a code, `<prefix><digits>`, and a kebab-case name, such as `FM001`
+  `missing-frontmatter`. A rule is on at its default level, `deny` for an error or `warn` for a warning.
+- **Diagnostic**: One occurrence of a rule: a path, a line when it has one, a severity, the code, a message, and
+  labels, help and notes.
+- **Governed**: A document's `structure` is governed when its corpus has a structure file, its `frontmatter` when
+  that file states a schema, its `outline` or `budget` when an applying file states an outline or `tokens`. A rule
+  over an ungoverned part does not run; the part is reported as coverage, not a diagnostic.
+- **Basic YAML**: The YAML a frontmatter is read as, decoding to JSON's values; an anchor, an alias, a tag, a
+  second document or a key that is not a string makes the block invalid.
 
 ## Architecture
 
 ### Root Discovery
 
 Without `--root`, the root is the nearest of the working directory and its parents that holds a
-`docs/__meta__/` directory, as the [workspace layout](workspace.md#the-layout) places it. With `--root`, the given directory is the root, and it must exist. Either way it is
-resolved with symlinks followed, and every path printed is relative to it.
+`docs/__meta__/` directory, as the [workspace layout](workspace.md#the-layout) places it. With `--root`, the
+given directory is the root, and it must exist. Either way it is resolved with symlinks followed, and every path
+printed is relative to it. Under the root, `docs/` and `docs/__meta__/` must be
+[real directories](workspace.md#one-snapshot): a root where either is a symlink is refused, however it was found.
 
-Under the root, `docs/` and `docs/__meta__/` must be
-[real directories](workspace.md#one-snapshot): a root where either is a symlink is refused by every run that
-reads documents, however it was found.
+### The Subjects
 
-### Document Selection
-
-A bare `lorecraft check` checks every document of the [workspace](workspace.md#documents), and every skill. A
-named document check does the same when given no paths. Given paths, it checks exactly those, each document once
-in the order first named (two paths that lead to one document in the snapshot name it once), and refuses the run
-when a path is not such a document: a path outside `docs/` or inside `docs/__meta__/`, a file directly in `docs/`,
-a directory, a file that is not Markdown, one in a directory whose name is no corpus name or that no specification
-names, one in a subdirectory of a corpus, one the workspace does not list as a document, or a path the snapshot
-holds nothing at. Paths are relative to the working directory, not to the root.
-
-Under the root a path is resolved in the [snapshot](workspace.md#one-snapshot), not on disk, so it names what
-the run reads: a link the snapshot recorded is followed to its target, and a link it never read is judged by its
-spelling. Above the root a link is followed on disk, so the root may be reached through one.
+A run checks every subject of the [workspace](workspace.md): every document it lists, every skill in the agents'
+skills directories, each once however many agents read it, every resource of each skill, and every symlink of the
+skill layout whose chain leaves the repository, a skills directory, an entry, a `SKILL.md` or a path inside a
+skill. The subjects and the diagnostics are ordered by path, compared by code point, so one revision always prints
+the same output.
 
 ### One Run, One Snapshot
 
-Every check in a run reads the same [snapshot](workspace.md#one-snapshot). Every specification is loaded and
-validated before any check runs, so one malformed specification file stops the whole run rather than one
-document.
+Every rule reads the same [snapshot](workspace.md#one-snapshot), through one database, so a file is read and
+parsed once however many rules read it. Every specification is loaded and validated before any subject is checked,
+so one malformed specification stops the whole run. A file that is not UTF-8 is reported as `LC001`, and no rule
+judges it.
 
 ## Configuration
 
@@ -80,101 +71,90 @@ document.
 | `--root <path>`    | nearest parent holding `docs/__meta__/` | The repository root, as [Root Discovery](#root-discovery) describes |
 | `--format <text\|json>` | `text` | The output format, as [Output](#output) describes |
 
-Both options belong to the command that runs: `lorecraft check --root . frontmatter` is a usage error, and
-`lorecraft check frontmatter --root .` is what is meant. Each check also takes paths to what it checks,
-documents or skills, which its own document's Configuration table describes.
+The command takes no paths: it always checks the whole workspace.
 
 ## Usage
 
 ```bash
-# Every check over every document
+# Every rule over the workspace around the working directory
 lorecraft check
 
-# One check, over two documents, as JSON
-lorecraft check structure docs/feat/cli.md docs/feat/cli-check.md --format json
-
-# Check another repository
-lorecraft check --root ../other-repo
+# Another repository, as JSON
+lorecraft check --root ../other-repo --format json
 ```
 
 ### Output
 
-In `text` format each finding is one line on stdout, `<path>:<line>: [<rule>] <message>`, and a summary goes to
-stderr. A document no specification governs for the check is listed as `<path>:1: [<corpus>.ungoverned]
-<reason>`, which is not a finding.
+In `text` format each diagnostic goes to stdout, an empty line between two. Its first line is
+`<path>:<line>: <severity>[<code>]: <message>`, with no `:<line>` when it concerns the whole file. Each label
+follows as `  --> <path>:<line>: <text>`, then each help or note as `  = help: <text>` or `  = note: <text>`, a
+multi-line text aligned under its first line. On stderr, a line per subject with an ungoverned part, then a
+summary:
 
 ```text
-docs/feat/spec-demo.md:3: [feat.description] 'A demo' does not match 'Load when' (per docs/__meta__/feat.structure.json)
-docs/feat/spec-demo.md:15: [structure.empty] section `Key Concepts` is empty; omit it rather than leaving it empty (per feat.md)
-docs/feat/spec-demo.md:15: [structure.outline] expected section `Table of Contents`, found `Key Concepts` (per feat.md)
-  = help: Links to the sections below it, one numbered entry per section, starting at Key Concepts.
-  = note: for example:
-          ## Table of Contents
+docs/code/guide.md:1: error[FM001]: no `---` delimited frontmatter block
+  = note: the frontmatter schema is set here (docs/__meta__/code.structure.json)
 
-          1. [Key Concepts](#key-concepts)
-          2. [Configuration](#configuration)
-          3. [Usage](#usage)
-          4. [Limitations](#limitations)
-          5. [Findings](#findings)
-          6. [References](#references)
-          7. [Code References](#code-references)
-checked 1 file(s) and 16 skill(s) with 4 check(s), 3 finding(s)
+docs/code/guide.md:1: error[OUT006]: missing required section `Checklist`
+  --> docs/code/guide.md:1: expected `Checklist` before the end of the document
+  = note: the document structure is set here (docs/__meta__/code.structure.json)
+docs/notes/todo.md: ungoverned for outline, budget
+checked 2 subject(s): 2 error(s), 0 warning(s)
 ```
 
-A check may attach notes to a finding, each a `help` or a `note`. In text they follow the finding line, indented
-as `  = help: <text>` or `  = note: <text>`, with a multi-line text aligned under its first line. A note is not
-part of the message.
-
-```text
-docs/feat/spec-demo.md:1: [structure.outline] missing required section `Key Concepts` (per feat.md)
-  = help: The terms the document uses, defined once, in one line each; a term the whole toolkit uses is linked to the glossary instead of defined again.
-  = note: for example:
-          ## Key Concepts
-
-          - **Root**: The directory that holds `docs/__meta__/`; every path lorecraft prints is relative to it.
-          - **Corpus**: A directory directly under `docs/` whose documents specifications govern, named by the
-            directory.
-          - **Document**: A Markdown file directly inside a corpus directory.
-          - **Workspace model**: The corpora, their specifications and their documents, as found in one snapshot.
-```
-
-A named check counts only what it checks: `checked 1 file(s), 1 finding(s)`, or `checked 16 skill(s), 0
-finding(s)` for the skill check.
-
-In `json` format stdout is one JSON object and stderr is empty. A named check prints its report; a bare run
-prints every report under `checks`, keyed by check name, the skill check's among them. `spec` is the root-relative specification file
-stating the rule, or `null` for a rule the check holds itself. `notes` lists the finding's notes as `{"kind",
-"text"}` objects, and is empty when there are none. `lorecraft check frontmatter --format json`:
+In `json` format stdout is one JSON object and stderr is empty. `diagnostics` holds each diagnostic in the text
+order, its `line` `null` for a whole file, `labels` as `{"path", "line", "text"}` and `children` as
+`{"kind", "text", "path", "line"}`, `kind` being `help` or `note`. `summary` counts the subjects, errors and
+warnings, and `coverage` lists each subject with an ungoverned part:
 
 ```json
-{"checked": 1, "findings": [{"file": "docs/feat/spec-demo.md", "line": 3, "rule": "feat.description", "message": "'A demo' does not match 'Load when' (per docs/__meta__/feat.structure.json)", "spec": "docs/__meta__/feat.structure.json", "notes": []}], "ungoverned": []}
+{"diagnostics": [{"path": "docs/notes/broken.md", "line": null, "severity": "error", "code": "LC001", "name": "invalid-utf8", "message": "file is not valid UTF-8", "labels": [], "children": []}], "summary": {"subjects": 3, "errors": 1, "warnings": 0}, "coverage": [{"path": "docs/notes/todo.md", "ungoverned": ["outline", "budget"]}]}
 ```
 
 ### Exit Status
 
 | Code | Meaning |
 |------|---------|
-| `0`  | No check reported a finding; ungoverned documents do not count |
-| `1`  | At least one finding |
-| `2`  | The run could not start: no root, a symlinked `docs/` or `docs/__meta__/`, a rejected path, an unreadable file, an entry that changed kind while read, a malformed specification, or a usage error. Only the error is printed, on stderr: a usage error after the usage, and any other prefixed `error:` and followed by its causes, as [cli](cli.md) describes |
+| `0`  | No diagnostic is an error; warnings and ungoverned parts do not count |
+| `1`  | At least one diagnostic is an error, `LC001` included |
+| `2`  | The run could not start: no root, a symlinked `docs/` or `docs/__meta__/`, an unreadable file, an entry that changed kind while read, a malformed specification, or a usage error. Only the error is printed, on stderr, as [cli](cli.md) describes |
 
 ## Limitations
 
-- A bare `lorecraft check` takes no paths: it always checks every document and every skill.
+- The command takes no paths, and no option selects or ignores a rule: every rule runs at its default level.
+- A warning does not fail the run: a skill frontmatter field outside the six, `FM007`, exits 0.
+- A repository with skills and no `docs/__meta__/` needs `--root`.
+- A key repeated inside a nested frontmatter mapping is not reported as repeated.
+- A fragment after a path, such as `guide.md#usage`, is not checked against the file it names.
 - A check covers what a machine can decide. Whether a section says what it should stays with review.
+
+## Findings
+
+Each group is one area of the specifications. What each rule reports, and why, belongs to the generated rule
+reference, not to this document.
+
+| Rule | Reported when |
+|------|---------------|
+| `FM` | Frontmatter checks: a document's frontmatter against its schemas, a skill's against the Agent Skills specification. `FM001` missing-frontmatter, `FM002` invalid-yaml, `FM003` non-mapping-frontmatter, `FM004` name-mismatch, `FM005` duplicate-key, `FM006` missing-field, `FM007` unknown-field (a warning), `FM008` wrong-type, `FM009` invalid-value, `FM010` block-constraint |
+| `OUT` | Outline checks: a document's H1 title and sections against its structure specifications. `OUT001` missing-title, `OUT002` extra-title, `OUT003` title-not-first, `OUT004` empty-section, `OUT005` forbidden-section, `OUT006` missing-section, `OUT007` section-out-of-order, `OUT008` unexpected-section, `OUT009` invalid-title |
+| `LEN` | Length limits: a document's tokens, a section's or its title's words or characters, a `SKILL.md`'s lines. `LEN001` too-many-tokens, `LEN002` too-many-lines, `LEN003` too-many-words, `LEN004` title-too-many-words, `LEN005` title-too-long |
+| `LINK` | Links in Markdown files: a document governed for its structure, a `SKILL.md` and each resource, a skill's relative link read from the skill root. `LINK001` absolute-link, `LINK002` missing-fragment, `LINK003` broken-link, `LINK004` escaping-link |
+| `LAY` | Skill layout checks: `LAY001` outside-symlink, a symlink an agent reaches whose chain leaves the repository |
+| `LC` | Engine conditions, which no configuration turns off: `LC001` invalid-utf8, a file that is not UTF-8 |
 
 ## References
 
 - [cli](cli.md) - Base: the command line and the options every command shares
-- [workspace](workspace.md) - Dependency: the corpora and documents the checks select
-- [spec](spec.md) - Dependency: the specification files the checks read
-- [cli-check-skills](cli-check-skills.md) - Related: the check over agent skills, which a bare run includes
+- [workspace](workspace.md) - Dependency: the documents, skills and snapshot the command reads
+- [spec](spec.md) - Dependency: the specification files the rules read
+- [cli-inspect](cli-inspect.md) - Related: shows the subjects this command checks
 
 ## Code References
 
-- `src/lorecraft/cli/commands/check/__init__.py` - The group and the bare run
-- `src/lorecraft/cli/check_run.py` - Check registration, selection, and printing a run in either output format
-- `src/lorecraft/cli/output.py` - The output formats and the exit statuses every command shares
+- `src/lorecraft/cli/commands/check.py` - Declares the command, runs the rules and chooses the exit status
 - `src/lorecraft/cli/root.py` - Root discovery
-- `src/lorecraft/cli/select.py` - The rules a path argument is refused by
-- `src/lorecraft/checks/run.py` - A check's run over the selected documents, or skills
+- `src/lorecraft/cli/select.py` - Selects every subject of the workspace, in path order
+- `src/lorecraft/cli/diagnostics.py` - Renders the diagnostics, the coverage and the summary as text or JSON
+- `src/lorecraft/checks/runner.py` - Runs every enabled rule over each subject
+- `src/lorecraft/checks/table.py` - The rules a run enables, each with its severity
+- `src/lorecraft/rules/` - The rules, one module each, in a package per group

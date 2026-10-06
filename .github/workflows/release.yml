@@ -67,7 +67,7 @@ jobs:
 
       # A tag can point at a commit CI never ran on.
       - name: Run the gates
-        run: just fmt-check && just check && just typecheck && just test && just check-docs && just check-skills
+        run: just fmt-check && just check && just typecheck && just test && just check-docs
 
       - name: Build
         run: just clean && just build

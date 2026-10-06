@@ -1,0 +1,8 @@
+.agents/skills/review/references/guide.md:3: error[LINK003]: `references/missing.md` names nothing in the skill
+  = help: link a file or a directory the skill holds, relative to the skill root
+
+.agents/skills/review/shared: error[LAY001]: symlink leads outside the repository
+  = note: leaves the repository at .agents/skills/review/shared -> ../../../../shared
+  = help: keep every file a skill loads inside the repository
+
+docs/code/broken.md: error[LC001]: file is not valid UTF-8

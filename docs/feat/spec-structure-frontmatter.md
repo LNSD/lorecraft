@@ -13,8 +13,7 @@ components: "module:lorecraft.project,module:lorecraft.checks,spec:feat,spec:cod
 The `frontmatter` key of a `<name>.structure.json` file states the frontmatter rules of the documents its name
 governs, as a JSON Schema the frontmatter mapping must satisfy. Unlike the rest of the structure dialect, its
 value is JSON Schema Draft 2020-12 itself, so any editor and any JSON Schema tool reads it.
-`lorecraft check frontmatter` applies it, as `lorecraft check budget` applies the `tokens` key of the same
-file.
+`lorecraft check` applies it with the `FM` rules, as it applies the `tokens` key of the same file.
 
 ## Table of Contents
 
@@ -83,16 +82,16 @@ both `lorecraft check` and `lorecraft inspect` exit `2`.
 ## Limitations
 
 - The schema sees the parsed YAML, so how a value is written, such as whether it is quoted, is invisible to it.
-- That `name` matches the filename is a rule of the check, not of any schema, and holds wherever a frontmatter
-  schema governs.
+- That `name` matches the filename is a rule of its own, `FM004`, not of any schema, and holds wherever a
+  frontmatter schema governs.
 
 ## References
 
 - [spec-structure](spec-structure.md) - Base: the file this key belongs to, its layers and its editor schema
-- [cli-check-frontmatter](cli-check-frontmatter.md) - Related: the check that applies this schema
+- [cli-check](cli-check.md) - Related: the command that applies this schema
 
 ## Code References
 
 - `src/lorecraft/project/schemas/structure.py` - The frontmatter schema and its checks on load
 - `src/lorecraft/project/schemas/structure_file.py` - The key's shape in the published editor schema
-- `src/lorecraft/checks/frontmatter.py` - Applies the schemas to a document's frontmatter
+- `src/lorecraft/rules/frontmatter/` - The `FM` rules that apply the schemas to a document's frontmatter

@@ -1,0 +1,2 @@
+docs/code/guide.md:3: error[FM002]: frontmatter is not valid YAML (found the key 2026, which is not a string)
+  = note: the frontmatter schema is set here (docs/__meta__/code.structure.json)
