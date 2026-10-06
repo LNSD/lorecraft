@@ -84,8 +84,9 @@ per run            configuration (a query of the revision) ──▶ levels
   the headings partition holds `type[HeadingsRule]`, so `rule.check(input)` checks against `HeadingsInput`.
 - **Configuration and selection never reach a rule.** They shape the table and nothing else.
 - **Subjects arrive chosen.** The command line resolves the paths into subjects; the runner receives a document's
-  ref or a skill's location as the model issued it, or a resource's location as its skill's resource listing issued
-  it, the database and the table, and nothing else.
+  ref or a skill's location as the model issued it, a resource's location as its skill's resource listing issued
+  it, or a layout entry's record as the model or that listing issued it, the database and the table, and nothing
+  else.
 
 ### Inputs
 
@@ -102,7 +103,6 @@ The set is closed. Each kind is one dataclass and one rule base class whose `che
 | Schema problems | document, skill | the schema-problems query, a skill's against the Agent Skills specification | a frontmatter schema |
 | Headings | document | the parse query | a structure specification |
 | Outline divergence | document | the outline-divergences query, over the parse and line-count queries | a structure specification that states an outline |
-| Layout | layout entry, skill | the model, the skill's resource listing | the package |
 
 Three rules follow from the table.
 
@@ -143,17 +143,27 @@ whose corpus states a structure specification, since no facet governs one whose 
 
 **A rule may read its subject's context.** `lorecraft.rules` gives each subject kind a rule base whose `check` takes
 the context: `DocumentRule` over a document, `SkillRule` over a skill, `MarkdownRule` over any one Markdown file,
-and `SkillFileRule` over one of a skill's files, its `SKILL.md` or a resource, never a document. A rule over a
-document declares the facet it reads in `GOVERNED_BY`, one of `Facet.FRONTMATTER` (a frontmatter schema governs it),
-`STRUCTURE` (its corpus states a structure specification), `OUTLINE` (a specification states an outline) and
-`BUDGET` (a specification sets a token budget). A rule over a Markdown file declares none: it judges a document
-governed for `STRUCTURE`, the facet under which a document has a context at all, and every skill's `SKILL.md` and
-every resource, which the package governs; a rule over a skill's file declares none either. The token budget,
-`LEN001`, is a document rule governed by `BUDGET`, and the line budget, `LEN002`, a skill rule, so the token and line
-counts are no longer inputs; the links rules read a context too, `LINK001`, `LINK002` and `LINK003` deriving from
-`MarkdownRule` and `LINK004` from `SkillFileRule`. The other rules still read the inputs above until they move onto a
-context. A `FrontmatterRule` base over a `FrontmatterContext`, for a rule that reads a document's or a skill's
-frontmatter alike, arrives with the frontmatter rules.
+`SkillFileRule` over one of a skill's files, its `SKILL.md` or a resource, never a document, and `LayoutEntryRule`
+over a layout entry. A rule over a document declares the facet it reads in `GOVERNED_BY`, one of `Facet.FRONTMATTER`
+(a frontmatter schema governs it), `STRUCTURE` (its corpus states a structure specification), `OUTLINE` (a
+specification states an outline) and `BUDGET` (a specification sets a token budget). A rule over a Markdown file
+declares none: it judges a document governed for `STRUCTURE`, the facet under which a document has a context at
+all, and every skill's `SKILL.md` and every resource, which the package governs; a rule over a skill's file or a
+layout entry declares none either. The token budget, `LEN001`, is a document rule governed by `BUDGET`, and the line
+budget, `LEN002`, a skill rule, so the token and line counts are no longer inputs; the links and layout rules read a
+context too, `LINK001`, `LINK002` and `LINK003` deriving from `MarkdownRule`, `LINK004` from `SkillFileRule` and
+`LAY001` from `LayoutEntryRule`. The other rules still read the inputs above until they move onto a context. A
+`FrontmatterRule` base over a `FrontmatterContext`, for a rule that reads a document's or a skill's frontmatter
+alike, arrives with the frontmatter rules.
+
+**A layout entry is read through a context alone**, since no input ever stood for it. One layout entry is one
+symlink of the skill layout whose chain leaves the repository: a skills directory, an entry in one or an entry's
+`SKILL.md`, from the model's outside symlinks, or a symlink inside a skill, from that skill's resource listing. The
+loader and the resource walk decide that a chain leaves, from the link targets the scan recorded, so a symlink that
+stays or dangles inside is no entry. `LayoutContext` states where the chain leaves, a fact and never a verdict, and
+`DatabaseLayoutContext` reads it from the record those queries returned. A rule over an entry derives from
+`LayoutEntryRule` and only words the finding, at the path an agent reaches the symlink by. A symlink has no text, so
+it is never decoded, and the package governs the layout, so it is never ungoverned.
 
 ### A Subject's Status Comes Before Any Rule
 
@@ -197,7 +207,9 @@ always has one. For a document, the runner builds one context, then for each fac
 declares, runs those rules over the context or records the facet as ungoverned; the Markdown rules run beside the
 `STRUCTURE` rules. For a skill, it builds one context and runs every skill rule, every Markdown rule and every
 skill-file rule over it. For a resource, it builds one context and runs every Markdown rule and every skill-file rule
-over it. The input branches below stay beside these until the last rule reads a context.
+over it. For a layout entry, it builds the context from the entry's record and runs every layout rule over it, in a
+report that holds the entry's path and its diagnostics. The input branches below stay beside these until the last
+rule reads a context.
 
 ```python
 def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> SubjectReport:

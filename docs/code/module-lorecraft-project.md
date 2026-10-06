@@ -30,10 +30,10 @@ from a snapshot, and one that never outlives its snapshot. The layout it derives
   outline. It finds the facts several rules read; whether one is reported, and how, is a rule's.
 - A document's, a skill's or a skill resource's identity, kept apart from its content and from where its symlinks
   lead.
-- Turning a Markdown link's destination into a root-relative path, relative to the document that holds it, or to the
-  skill root for a file of a skill, and what the snapshot holds at that path.
+- Turning a Markdown link's destination into a root-relative path, from its document's directory or its skill's
+  root, and what the snapshot holds there.
 - The contexts: a `Protocol` per subject kind stating what can be asked of one decoded document, skill or skill
-  resource, the ones several kinds share, such as what any Markdown file has, and the owner types they return.
+  resource, or of one layout entry, the ones several kinds share, and the owner types they return.
 - The database of one revision: each query over it, such as the model, a file's decoded text, a parse tree, a count
   or a shared analysis, memoized on first use, and each question answered fresh from the snapshot, such as where a
   symlink leads.
@@ -41,7 +41,7 @@ from a snapshot, and one that never outlives its snapshot. The layout it derives
 - The carry-over rule: which change to a revision's inputs invalidates which query; and what a persisted result is
   keyed by, and its validation before the database keeps it.
 - A context implemented over the database: each fact of one decoded subject answered by its memoized query, each
-  identity value read from the subject's ref or location.
+  identity value read from the subject's ref or location, and a layout entry's facts read from its record.
 
 ## Belongs Elsewhere
 

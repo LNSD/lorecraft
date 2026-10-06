@@ -12,9 +12,13 @@ A document is judged only for what a specification governs, so a rule over a doc
 Markdown file declares none: the base fixes the one facet it judges a document under, as its docstring states. The
 package governs every skill and every resource, so a rule over a skill or one of its files declares none either.
 
-The token and line budgets, `LEN001` and `LEN002`, derive from these bases, and the link rules from `MarkdownRule`
-and `SkillFileRule`. Until every group reads a context, the frontmatter, outline and other length rules still read the
-inputs of `inputs`.
+`LayoutEntryRule` is the base over a layout entry, one symlink of the skill layout whose chain leaves the repository.
+A symlink has no lines, so the base derives from `LayoutRule` rather than `ContentRule`, and an occurrence points at
+the entry itself. The package governs the skill layout, so a rule over it declares no facet either.
+
+The token and line budgets, `LEN001` and `LEN002`, derive from these bases, the link rules from `MarkdownRule` and
+`SkillFileRule`, and `LAY001` from `LayoutEntryRule`. Until every group reads a context, the frontmatter, outline and
+other length rules still read the inputs of `inputs`.
 """
 
 from abc import abstractmethod
@@ -22,9 +26,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import ClassVar, Self
 
-from lorecraft.project.context import DocumentContext, MarkdownContext, SkillContext, SkillFileContext
+from lorecraft.project.context import DocumentContext, LayoutContext, MarkdownContext, SkillContext, SkillFileContext
 
-from .declaration import ContentRule
+from .declaration import ContentRule, LayoutRule
 
 
 class Facet(Enum):
@@ -116,4 +120,18 @@ class SkillFileRule(ContentRule):
 
         Args:
             subject: The file judged: a skill's `SKILL.md` or one of its resources.
+        """
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class LayoutEntryRule(LayoutRule):
+    """The base of every rule over a layout entry; the package governs the skill layout, so it declares no facet."""
+
+    @classmethod
+    @abstractmethod
+    def check(cls, subject: LayoutContext) -> tuple[Self, ...]:
+        """Every occurrence of the rule's condition at the layout entry.
+
+        Args:
+            subject: The layout entry judged.
         """
