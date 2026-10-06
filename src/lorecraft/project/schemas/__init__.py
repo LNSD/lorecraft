@@ -54,6 +54,7 @@ from .structure import (
     FrontmatterSchema,
     FrontmatterSchemaIdError,
     InvalidFrontmatterSchemaError,
+    InvalidTitlePatternError,
     OutlineEntry,
     RepeatedForbiddenSectionError,
     RepeatedOutlineSectionError,
@@ -62,6 +63,7 @@ from .structure import (
     StructureSpec,
     StructureSpecDecodeError,
     TitleChecks,
+    TitlePattern,
     UntypedFrontmatterSchemaError,
 )
 from .structure_file import StructureFile
@@ -87,6 +89,7 @@ __all__: list[str] = [
     'FrontmatterSchema',
     'StructureFile',
     'TitleChecks',
+    'TitlePattern',
     'OutlineEntry',
     'SectionEntry',
     'SectionName',
@@ -100,6 +103,7 @@ __all__: list[str] = [
     'RepeatedForbiddenSectionError',
     'ForbiddenOutlineSectionError',
     'AdjacentAnyRunsError',
+    'InvalidTitlePatternError',
     'InvalidFrontmatterSchemaError',
     'FrontmatterSchemaIdError',
     'ForeignFrontmatterDialectError',

@@ -41,7 +41,14 @@ def _spec(spec: RootRelativePath, *, section_caps: tuple[SectionCap, ...]) -> He
         spec: The structure specification file.
         section_caps: The cap that applies to each capped section, in document order.
     """
-    return HeadingsSpec(spec=spec, title_cap=None, forbid_empty_sections=False, forbidden=(), section_caps=section_caps)
+    return HeadingsSpec(
+        spec=spec,
+        title_cap=None,
+        title_mismatch=None,
+        forbid_empty_sections=False,
+        forbidden=(),
+        section_caps=section_caps,
+    )
 
 
 def _cap(section: Heading, words: int) -> SectionCap:

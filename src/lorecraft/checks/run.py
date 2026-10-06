@@ -259,6 +259,7 @@ def run_frontmatter(database: Database, refs: tuple[DocumentRef, ...]) -> CheckR
         ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
             outline names.
         AdjacentAnyRunsError: If the model is not loaded yet and an outline places two ``any`` runs side by side.
+        InvalidTitlePatternError: If the model is not loaded yet and a title's pattern does not compile.
         InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by the
             meta-schema.
         FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries
@@ -322,6 +323,7 @@ def run_structure(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun
         ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
             outline names.
         AdjacentAnyRunsError: If the model is not loaded yet and an outline places two ``any`` runs side by side.
+        InvalidTitlePatternError: If the model is not loaded yet and a title's pattern does not compile.
         InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by the
             meta-schema.
         FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries
@@ -385,6 +387,7 @@ def run_budget(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
         ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
             outline names.
         AdjacentAnyRunsError: If the model is not loaded yet and an outline places two ``any`` runs side by side.
+        InvalidTitlePatternError: If the model is not loaded yet and a title's pattern does not compile.
         InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by the
             meta-schema.
         FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries

@@ -4,6 +4,7 @@
 """
 
 import json
+import re
 from textwrap import dedent
 from typing import Final
 
@@ -32,6 +33,7 @@ from ..structure import (
     FrontmatterSchema,
     FrontmatterSchemaIdError,
     InvalidFrontmatterSchemaError,
+    InvalidTitlePatternError,
     RepeatedForbiddenSectionError,
     RepeatedOutlineSectionError,
     SectionEntry,
@@ -39,6 +41,7 @@ from ..structure import (
     StructureSpec,
     StructureSpecDecodeError,
     TitleChecks,
+    TitlePattern,
     UntypedFrontmatterSchemaError,
 )
 
@@ -101,7 +104,7 @@ class TestStructureSpecParse:
         #: Then
         assert structure_spec == StructureSpec(
             file=SPEC_FILE,
-            title=TitleChecks(words=NonZeroUnsignedInt(8)),
+            title=TitleChecks(words=NonZeroUnsignedInt(8), pattern=None),
             forbid_empty_sections=True,
             outline=(
                 AnySections(words=NonZeroUnsignedInt(350)),
@@ -534,7 +537,7 @@ class TestStructureSpecParse:
         structure_spec = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert structure_spec.title == TitleChecks(words=NonZeroUnsignedInt(8)), (
+        assert structure_spec.title == TitleChecks(words=NonZeroUnsignedInt(8), pattern=None), (
             'a cap on the title is a rule, so a file stating only it is usable'
         )
 
@@ -604,6 +607,76 @@ class TestStructureSpecParse:
         assert exc_info.value.problems == (
             'title: Value error, states no check; leave the key out for no title check',
         ), f'the problem names the key and says how to state no title check, got {exc_info.value.problems}'
+
+    def test_parse_with_only_a_title_pattern_returns_a_structure_spec_with_that_pattern_compiled(self) -> None:
+        #: Given
+        schema = StructureSchema('{"title": {"pattern": "^[A-Z]"}}')
+
+        #: When
+        structure_spec = StructureSpec.parse(SPEC_FILE, schema)
+
+        #: Then
+        assert structure_spec.title == TitleChecks(words=None, pattern=TitlePattern(re.compile('^[A-Z]'))), (
+            'a pattern on the title is a rule, so a file stating only it is usable, and it is held compiled'
+        )
+
+    def test_parse_with_a_title_word_cap_and_pattern_returns_a_structure_spec_with_both(self) -> None:
+        #: Given
+        schema = StructureSchema('{"title": {"words": 8, "pattern": "^[A-Z]"}}')
+
+        #: When
+        structure_spec = StructureSpec.parse(SPEC_FILE, schema)
+
+        #: Then
+        assert structure_spec.title == TitleChecks(
+            words=NonZeroUnsignedInt(8), pattern=TitlePattern(re.compile('^[A-Z]'))
+        ), 'a cap and a pattern are independent, and the title carries both'
+
+    def test_parse_with_a_title_pattern_that_does_not_compile_raises_invalid_title_pattern_error(self) -> None:
+        #: Given
+        schema = StructureSchema('{"title": {"pattern": "^(unclosed"}}')
+
+        #: When
+        with pytest.raises(InvalidTitlePatternError) as exc_info:
+            StructureSpec.parse(SPEC_FILE, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'a pattern that does not compile is refused, naming the file'
+        assert exc_info.value.pattern == '^(unclosed', 'the error carries the pattern exactly as written'
+        assert exc_info.value.problem == 'missing ), unterminated subpattern', (
+            f'the error carries what the compiler rejected as a field, got {exc_info.value.problem!r}'
+        )
+        assert str(exc_info.value) == (
+            f"invalid structure schema {SPEC_PATH}: title pattern '^(unclosed' is not a valid regular expression"
+        ), f'the message names the file and the pattern, and leaves the reason to its cause, got {exc_info.value}'
+
+    def test_parse_with_a_non_string_title_pattern_raises_structure_spec_decode_error(self) -> None:
+        #: Given
+        schema = StructureSchema('{"title": {"pattern": 3}}')
+
+        #: When
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
+            StructureSpec.parse(SPEC_FILE, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'a JSON number is not a pattern'
+        assert exc_info.value.problems == ('title.pattern: Input should be a valid string',), (
+            f'the problem names the pattern with the type rejection, got {exc_info.value.problems}'
+        )
+
+    def test_parse_with_an_empty_title_pattern_raises_structure_spec_decode_error(self) -> None:
+        #: Given
+        schema = StructureSchema('{"title": {"pattern": ""}}')
+
+        #: When
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
+            StructureSpec.parse(SPEC_FILE, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'an empty pattern matches every title, so it would check nothing'
+        assert exc_info.value.problems == ('title.pattern: String should have at least 1 character',), (
+            f'the problem names the pattern with the length rejection, got {exc_info.value.problems}'
+        )
 
     def test_parse_with_an_unknown_key_in_the_title_raises_structure_spec_decode_error(self) -> None:
         #: Given
@@ -834,7 +907,7 @@ class TestStructureSpecConstruction:
         with pytest.raises(EmptyStructureSpecError) as exc_info:
             StructureSpec(
                 file=file,
-                title=TitleChecks(words=None),
+                title=TitleChecks(words=None, pattern=None),
                 forbid_empty_sections=False,
                 outline=(),
                 forbidden=(),
@@ -942,6 +1015,62 @@ class TestStructureSpecConstruction:
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'two runs side by side match as one, so the outline misleads'
         assert str(SPEC_PATH) in str(exc_info.value), f'the message names the file, got {exc_info.value}'
+
+
+@pytest.mark.unit
+class TestTitlePattern:
+    def test_parse_with_a_pattern_that_compiles_returns_it_compiled(self) -> None:
+        #: Given
+        text = '^[A-Z]'
+
+        #: When
+        pattern = TitlePattern.parse(text, path=SPEC_PATH)
+
+        #: Then
+        assert pattern == TitlePattern(re.compile(text)), f'the pattern is held compiled, got {pattern!r}'
+
+    def test_parse_with_a_pattern_that_does_not_compile_raises_invalid_title_pattern_error(self) -> None:
+        #: Given
+        text = '^(unclosed'
+
+        #: When
+        with pytest.raises(InvalidTitlePatternError) as exc_info:
+            TitlePattern.parse(text, path=SPEC_PATH)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'a pattern that does not compile is refused, naming the file'
+        assert exc_info.value.pattern == text, 'the error carries the pattern exactly as written'
+        assert isinstance(exc_info.value.__cause__, re.error), "the compiler's error is kept as the cause"
+
+    def test_is_found_in_with_text_holding_the_pattern_inside_it_returns_true(self) -> None:
+        #: Given
+        pattern = TitlePattern(re.compile('Guide'))
+
+        #: When
+        is_found = pattern.is_found_in('The Guide to Setup')
+
+        #: Then
+        assert is_found, "an unanchored pattern is searched for anywhere in the text, as JSON Schema's `pattern` is"
+
+    def test_is_found_in_with_an_anchored_pattern_found_only_inside_the_text_returns_false(self) -> None:
+        #: Given
+        pattern = TitlePattern(re.compile('^Guide$'))
+
+        #: When
+        is_found = pattern.is_found_in('The Guide to Setup')
+
+        #: Then
+        assert not is_found, 'a pattern anchored at both ends must hold the whole text'
+
+    def test_str_with_a_pattern_returns_it_as_written(self) -> None:
+        #: Given
+        pattern = TitlePattern(re.compile('^[A-Z][^:]*$'))
+
+        #: When
+        text = str(pattern)
+
+        #: Then
+        assert text == '^[A-Z][^:]*$', f'the pattern reads back exactly as written, got {text!r}'
 
 
 @pytest.mark.unit

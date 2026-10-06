@@ -42,9 +42,13 @@ def _spec(spec: RootRelativePath, cap: int | None) -> HeadingsSpec:
         cap: The most words the title may hold, or `None` for a specification that sets no cap.
     """
     if cap is None:
-        return HeadingsSpec(spec=spec, title_cap=None, forbid_empty_sections=False, forbidden=(), section_caps=())
+        return HeadingsSpec(
+            spec=spec, title_cap=None, title_mismatch=None, forbid_empty_sections=False, forbidden=(), section_caps=()
+        )
     title_cap = TitleCap(title=TITLE, title_words=TITLE_WORDS, words=NonZeroUnsignedInt(cap))
-    return HeadingsSpec(spec=spec, title_cap=title_cap, forbid_empty_sections=False, forbidden=(), section_caps=())
+    return HeadingsSpec(
+        spec=spec, title_cap=title_cap, title_mismatch=None, forbid_empty_sections=False, forbidden=(), section_caps=()
+    )
 
 
 @pytest.mark.unit

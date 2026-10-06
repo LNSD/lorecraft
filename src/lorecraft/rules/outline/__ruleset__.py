@@ -6,7 +6,9 @@ the group says which specification an occurrence breaks through `spec_note`, so 
 specifications read apart.
 
 The title is the exception: no specification states it, since every governed document carries exactly one H1 title
-that opens it. A title rule reports a document once, under `HeadingsInput.corpus`.
+that opens it. A rule over its being there reports a document once, under `HeadingsInput.corpus`. A pattern a
+specification sets on the title is that specification's own, so a title failing it is reported once per
+specification setting it, as a section is.
 """
 
 from typing import Final
