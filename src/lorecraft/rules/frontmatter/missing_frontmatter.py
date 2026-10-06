@@ -5,11 +5,12 @@ from typing import ClassVar, Self, assert_never
 
 # The module, not its classes: this rule's own name is the syntax's `MissingFrontmatter`.
 from lorecraft.project import syntax
+from lorecraft.project.schemas import FIRST_LINE
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.inputs import FrontmatterBlockInput, FrontmatterBlockRule, FrontmatterFields
 from lorecraft.rules.location import Subdiagnostic
 
-from .__ruleset__ import FIRST_LINE, GROUP_ID, owner_spec, spec_note
+from .__ruleset__ import GROUP_ID, owner_spec, spec_note
 
 
 @rule

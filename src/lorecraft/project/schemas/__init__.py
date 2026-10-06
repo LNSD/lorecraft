@@ -2,7 +2,7 @@
 
 That is the specification filenames and names, the structure specification with the frontmatter schema, the
 counts and the section names it carries, the repository that reads them, the skill frontmatter schema, and the
-problems both frontmatter schemas report.
+problems both frontmatter schemas report, each placed on the line it is reported on.
 """
 
 from .frontmatter_problem import (
@@ -15,6 +15,17 @@ from .frontmatter_problem import (
 )
 from .name import CorpusSpecName, NamespaceSpecName, SpecName, parse_spec_name
 from .repo import Repository, StructureSchemaReadError
+from .schema_problems import (
+    FIRST_LINE,
+    AgentSkillsSchema,
+    LocatedProblem,
+    SchemaProblems,
+    SchemaSource,
+    StructureSpecSchema,
+    field_line,
+    locate_schema_problems,
+    locate_skill_schema_problems,
+)
 from .section_name import EmptySectionNameError, MultilineSectionNameError, PaddedSectionNameError, SectionName
 from .skill import SKILL_FRONTMATTER_SCHEMA, SkillFrontmatterSchema
 from .skill_frontmatter import (
@@ -131,4 +142,13 @@ __all__: list[str] = [
     'WrongTypeProblem',
     'InvalidValueProblem',
     'BlockProblem',
+    'FIRST_LINE',
+    'field_line',
+    'SchemaSource',
+    'StructureSpecSchema',
+    'AgentSkillsSchema',
+    'LocatedProblem',
+    'SchemaProblems',
+    'locate_schema_problems',
+    'locate_skill_schema_problems',
 ]

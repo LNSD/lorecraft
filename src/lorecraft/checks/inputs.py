@@ -9,8 +9,8 @@ the queries straight away and never returns `Ungoverned`.
 A builder takes the decode query's witness, never a bare ref, so an input of a file that does not decode cannot be
 asked for. The runner builds an input only when an enabled rule reads it.
 
-An input that is a shared analysis, such as the problems the frontmatter schemas find, is a judgment rather than a
-query: its builder runs the analysis each time it is called, once per subject per run, and never memoizes it.
+An input that holds a shared analysis, such as the problems the frontmatter schemas find, reads it from the query
+that memoizes it, so the analysis is computed once per subject however many inputs and rules read it.
 """
 
 from dataclasses import dataclass
@@ -18,18 +18,12 @@ from typing import assert_never
 
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.project.schemas import (
-    SKILL_FRONTMATTER_SCHEMA,
     AnySections,
-    BlockProblem,
-    FrontmatterProblem,
-    InvalidValueProblem,
-    MissingFieldProblem,
     OutlineEntry,
     SectionEntry,
     StructureSpec,
     TitleChecks,
-    UnknownFieldProblem,
-    WrongTypeProblem,
+    field_line,
 )
 from lorecraft.project.syntax import (
     Frontmatter,
@@ -41,11 +35,9 @@ from lorecraft.project.syntax import (
     NonMappingFrontmatter,
     count_words,
 )
-from lorecraft.rules.frontmatter.__ruleset__ import FIRST_LINE, field_line
 from lorecraft.rules.inputs import (
     SECTION_LEVEL,
     AbsentSection,
-    AgentSkillsSchema,
     Budget,
     DocumentEnd,
     DocumentFrontmatterOwner,
@@ -55,18 +47,15 @@ from lorecraft.rules.inputs import (
     HeadingsInput,
     HeadingsSpec,
     LineCountInput,
-    LocatedProblem,
     MisplacedSection,
     NameField,
     OutlineDivergence,
     OutlineDivergenceInput,
     OutlineDivergenceSpec,
     RepeatedKey,
-    SchemaProblems,
     SchemaProblemsInput,
     SectionCap,
     SkillFrontmatterOwner,
-    StructureSpecSchema,
     TitleCap,
     TitleCharCap,
     TitleMismatch,
@@ -285,7 +274,7 @@ def _repeated_keys(frontmatter: Frontmatter) -> tuple[RepeatedKey, ...]:
 def build_document_schema_problems_input(database: Database, source: DocumentText) -> SchemaProblemsInput | Ungoverned:
     """What each frontmatter schema that governs a document rejects in its frontmatter.
 
-    The schemas are read first, and the frontmatter is read and held to them only when one governs the document.
+    The schemas are read first, and the problems the schemas find are asked for only when one governs the document.
 
     Args:
         database: The revision the document is read from; its model decides which specifications govern it.
@@ -328,29 +317,11 @@ def build_document_schema_problems_input(database: Database, source: DocumentTex
     governance = database.model().find_governance(source.ref)
     if governance is None:
         return Ungoverned()
-    schemas = governance.frontmatter_schemas()
-    if not schemas:
+    if not governance.frontmatter_schemas():
         return Ungoverned()
-
-    frontmatter = database.frontmatter(source)
-    match frontmatter:
-        case MissingFrontmatter() | InvalidYamlFrontmatter() | NonMappingFrontmatter():
-            # The block is governed, so the document is not ungoverned, but no schema can be applied to it.
-            return SchemaProblemsInput(schemas=())
-        case Frontmatter():
-            pass  # the mapping is held to each schema below
-        case _:
-            assert_never(frontmatter)
-
-    found: list[SchemaProblems] = []
-    for schema in schemas:
-        found.append(
-            SchemaProblems(
-                source=StructureSpecSchema(spec=schema.path),
-                problems=_located_problems(frontmatter, schema.validate(frontmatter.data)),
-            )
-        )
-    return SchemaProblemsInput(schemas=tuple(found))
+    # A block that is missing, not YAML or not a mapping is still governed, so the document is not ungoverned, but
+    # no schema can be applied to it, and the query holds no entry.
+    return SchemaProblemsInput(schemas=database.schema_problems(source))
 
 
 def build_skill_schema_problems_input(database: Database, source: SkillText) -> SchemaProblemsInput:
@@ -366,47 +337,7 @@ def build_skill_schema_problems_input(database: Database, source: SkillText) -> 
         The input, with one entry, for the Agent Skills specification; no entry when the block is missing,
         unparseable or not a mapping, which the block's own rules report.
     """
-    frontmatter = database.skill_frontmatter(source)
-    match frontmatter:
-        case MissingFrontmatter() | InvalidYamlFrontmatter() | NonMappingFrontmatter():
-            return SchemaProblemsInput(schemas=())
-        case Frontmatter():
-            pass  # the mapping is held to the specification below
-        case _:
-            assert_never(frontmatter)
-
-    problems = _located_problems(frontmatter, SKILL_FRONTMATTER_SCHEMA.validate(frontmatter.data))
-    return SchemaProblemsInput(schemas=(SchemaProblems(source=AgentSkillsSchema(), problems=problems),))
-
-
-def _located_problems(frontmatter: Frontmatter, problems: tuple[FrontmatterProblem, ...]) -> tuple[LocatedProblem, ...]:
-    """Each problem a schema found, with the line it is reported on, in the order given.
-
-    Args:
-        frontmatter: The frontmatter the problems were found in.
-        problems: What the schema rejected in it.
-    """
-    located: list[LocatedProblem] = []
-    for problem in problems:
-        located.append(LocatedProblem(problem=problem, line=_problem_line(frontmatter, problem)))
-    return tuple(located)
-
-
-def _problem_line(frontmatter: Frontmatter, problem: FrontmatterProblem) -> LineNumber:
-    """The line a schema problem is reported on: its field's, or line 1 when it has no written field.
-
-    Args:
-        frontmatter: The frontmatter the problem was found in; searched for the line its field is written on.
-        problem: What the schema rejected; a problem on a written field is placed on that field's line.
-    """
-    match problem:
-        # A missing field is not written, and a block constraint concerns none.
-        case MissingFieldProblem() | BlockProblem():
-            return FIRST_LINE
-        case UnknownFieldProblem() | WrongTypeProblem() | InvalidValueProblem():
-            return field_line(frontmatter, problem.field)
-        case _:
-            assert_never(problem)
+    return SchemaProblemsInput(schemas=database.skill_schema_problems(source))
 
 
 def build_headings_input(database: Database, source: DocumentText) -> HeadingsInput | Ungoverned:
