@@ -54,3 +54,17 @@ class Heading:
                 pass
             case _:
                 assert_never(self.level)
+
+
+def find_title(headings: tuple[Heading, ...]) -> Heading | None:
+    """A document's title: its first H1 heading, or `None` when it has none. Raises nothing.
+
+    A later H1 is a second title, which is a finding of its own, so no check on the title is held against it.
+
+    Args:
+        headings: The document's top-level headings, in document order.
+    """
+    for heading in headings:
+        if heading.level == 1:
+            return heading
+    return None

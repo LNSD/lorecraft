@@ -1,73 +1,47 @@
 """`LEN004`, `title-too-many-words`, over the word cap of a document's title.
 
-The rule is pure, so every case here is a document's headings and the title cap each specification resolved,
-written as literals; no document is read.
+Every case is a document written as text, read through a fake context that parses it as the real parser does, under
+structure specifications decoded from JSON; no document is read from disk.
 """
 
 from typing import Final
 
 import pytest
 
-from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.syntax import Heading, LineNumber
-from lorecraft.rules.inputs import HeadingsInput, HeadingsSpec, TitleCap
+from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Note
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
 
 from ..title_too_many_words import TitleTooManyWords
 
-CORPUS_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/guide.structure.json')
-"""A corpus structure specification."""
+CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
+"""The corpus structure specification."""
 
-NAMESPACE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/guide-cli.structure.json')
+NAMESPACE_SPEC: Final[RootRelativePath] = structure_spec_path('guide-cli')
 """A namespace structure specification under the same corpus, which sets a title cap of its own."""
 
-TITLE: Final[Heading] = Heading(
-    level=1, text='Setting up the toolkit on a new machine', line=LineNumber.from_int(1), empty=False, words=6
-)
-"""An H1 title on line 1, of eight words, opening a section of six prose words."""
+TEXT: Final[str] = '# Setting up the toolkit on a new machine\n\n## Run\n\nRun the toolkit over the repository.\n'
+"""A document whose H1 title, on line 1, is of eight words, followed by one section."""
 
-TITLE_WORDS: Final[int] = 8
-"""The words of `TITLE`'s text."""
-
-RUN: Final[Heading] = Heading(level=2, text='Run', line=LineNumber.from_int(3), empty=False, words=6)
-"""An H2 section on line 3, of six prose words."""
+NO_CAP: Final[str] = '{"empty_sections": "forbidden"}'
+"""A structure specification that sets no cap on the title."""
 
 
-def _spec(spec: RootRelativePath, cap: int | None) -> HeadingsSpec:
-    """What a specification states over the headings: the cap it sets on `TITLE`'s words, alone.
+def _title_cap(words: int) -> str:
+    """A structure specification that caps the title's words and states nothing else.
 
     Args:
-        spec: The structure specification file.
-        cap: The most words the title may hold, or `None` for a specification that sets no cap.
+        words: The most words the title may hold; at least 1.
     """
-    if cap is None:
-        return HeadingsSpec(
-            spec=spec,
-            title_cap=None,
-            title_char_cap=None,
-            title_mismatch=None,
-            forbid_empty_sections=False,
-            forbidden=(),
-            section_caps=(),
-        )
-    title_cap = TitleCap(title=TITLE, title_words=TITLE_WORDS, words=NonZeroUnsignedInt(cap))
-    return HeadingsSpec(
-        spec=spec,
-        title_cap=title_cap,
-        title_char_cap=None,
-        title_mismatch=None,
-        forbid_empty_sections=False,
-        forbidden=(),
-        section_caps=(),
-    )
+    return f'{{"title": {{"words": {words}}}}}'
 
 
 @pytest.mark.unit
 class TestTitleTooManyWords:
     def test_check_with_a_title_over_its_cap_reports_it_at_its_heading(self) -> None:
         #: Given
-        subject = HeadingsInput(headings=(TITLE, RUN), corpus=_spec(CORPUS_SPEC, 5), namespaces=())
+        subject = FakeDocumentContext(TEXT, corpus='guide', structure=_title_cap(5))
 
         #: When
         occurrences = TitleTooManyWords.check(subject)
@@ -79,7 +53,7 @@ class TestTitleTooManyWords:
 
     def test_check_with_a_title_at_its_cap_reports_nothing(self) -> None:
         #: Given
-        subject = HeadingsInput(headings=(TITLE, RUN), corpus=_spec(CORPUS_SPEC, 8), namespaces=())
+        subject = FakeDocumentContext(TEXT, corpus='guide', structure=_title_cap(8))
 
         #: When
         occurrences = TitleTooManyWords.check(subject)
@@ -89,7 +63,7 @@ class TestTitleTooManyWords:
 
     def test_check_with_a_specification_setting_no_cap_reports_nothing(self) -> None:
         #: Given
-        subject = HeadingsInput(headings=(TITLE, RUN), corpus=_spec(CORPUS_SPEC, None), namespaces=())
+        subject = FakeDocumentContext(TEXT, corpus='guide', structure=NO_CAP)
 
         #: When
         occurrences = TitleTooManyWords.check(subject)
@@ -99,8 +73,9 @@ class TestTitleTooManyWords:
 
     def test_check_with_a_document_without_a_title_reports_nothing(self) -> None:
         #: Given
-        # the builder holds no title cap for a document with no title, though the specification sets one
-        subject = HeadingsInput(headings=(RUN,), corpus=_spec(CORPUS_SPEC, None), namespaces=())
+        subject = FakeDocumentContext(
+            '## Run\n\nRun the toolkit over the repository.\n', corpus='guide', structure=_title_cap(1)
+        )
 
         #: When
         occurrences = TitleTooManyWords.check(subject)
@@ -108,10 +83,21 @@ class TestTitleTooManyWords:
         #: Then
         assert occurrences == (), 'a missing title is reported as missing alone, not as a title over its cap'
 
+    def test_check_with_a_later_h1_over_the_cap_reports_nothing(self) -> None:
+        #: Given
+        text = '# Setup\n\nRun the toolkit over the repository.\n\n' + TEXT
+        subject = FakeDocumentContext(text, corpus='guide', structure=_title_cap(5))
+
+        #: When
+        occurrences = TitleTooManyWords.check(subject)
+
+        #: Then
+        assert occurrences == (), 'only the first H1 is the title, so a later one over the cap is not held to it'
+
     def test_check_with_a_cap_set_by_the_namespace_alone_reports_it_under_the_namespace(self) -> None:
         #: Given
-        subject = HeadingsInput(
-            headings=(TITLE, RUN), corpus=_spec(CORPUS_SPEC, None), namespaces=(_spec(NAMESPACE_SPEC, 6),)
+        subject = FakeDocumentContext(
+            TEXT, corpus='guide', structure=NO_CAP, namespaces=(namespace_spec('guide', 'cli', _title_cap(6)),)
         )
 
         #: When
@@ -124,8 +110,11 @@ class TestTitleTooManyWords:
 
     def test_check_with_a_title_over_only_the_namespace_cap_reports_that_cap(self) -> None:
         #: Given
-        subject = HeadingsInput(
-            headings=(TITLE, RUN), corpus=_spec(CORPUS_SPEC, 10), namespaces=(_spec(NAMESPACE_SPEC, 6),)
+        subject = FakeDocumentContext(
+            TEXT,
+            corpus='guide',
+            structure=_title_cap(10),
+            namespaces=(namespace_spec('guide', 'cli', _title_cap(6)),),
         )
 
         #: When
@@ -138,8 +127,11 @@ class TestTitleTooManyWords:
 
     def test_check_with_a_title_over_both_caps_reports_each_in_order(self) -> None:
         #: Given
-        subject = HeadingsInput(
-            headings=(TITLE, RUN), corpus=_spec(CORPUS_SPEC, 7), namespaces=(_spec(NAMESPACE_SPEC, 5),)
+        subject = FakeDocumentContext(
+            TEXT,
+            corpus='guide',
+            structure=_title_cap(7),
+            namespaces=(namespace_spec('guide', 'cli', _title_cap(5)),),
         )
 
         #: When

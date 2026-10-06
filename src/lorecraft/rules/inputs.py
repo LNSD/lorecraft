@@ -7,9 +7,9 @@ skill's frontmatter block, holds no specification. A rule picks its input by der
 receives the input and nothing else. Building an input from the queries is the run's job, in `lorecraft.checks`, never
 this package's.
 
-The inputs are on their way out: the token and line budgets, `LEN001` and `LEN002`, read their subject through a
-context, from the bases in `subject`. The frontmatter, outline and other length rules still read an input here, and
-move onto a context in later changes, which remove this module.
+The inputs are on their way out: the length rules, `LEN001` to `LEN005`, read their subject through a context, from
+the bases in `subject`. The frontmatter and outline rules still read an input here, and move onto a context in later
+changes, which remove this module.
 """
 
 from abc import abstractmethod
@@ -17,7 +17,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Self
 
-from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import FrontmatterOwner
 from lorecraft.project.schemas import OutlineDivergenceSpec, SchemaProblems, SectionName
@@ -156,53 +155,6 @@ class SchemaProblemsRule(ContentRule):
 
 
 @dataclass(frozen=True, slots=True)
-class SectionCap:
-    """The most prose words one section of a document may hold, under one structure specification.
-
-    Attributes:
-        section: The section's H2 heading, with the prose words the section holds, its subsections included.
-        words: The cap: that of the outline entry naming the section, or, for a section the outline does not name,
-            that of the `any` run it falls in.
-    """
-
-    section: Heading
-    words: NonZeroUnsignedInt
-
-
-@dataclass(frozen=True, slots=True)
-class TitleCap:
-    """The most words a document's title may hold, under one structure specification, against the words it holds.
-
-    Attributes:
-        title: The document's first H1 heading, its title; a later H1 is not its title, so no cap applies to it.
-        title_words: The words of the title's own text, counted as a section's prose words are.
-        words: The cap the specification's `title` sets.
-    """
-
-    title: Heading
-    # Not range-checked: only the headings builder makes a cap, from `count_words`, so the value is never below 0.
-    title_words: int
-    words: NonZeroUnsignedInt
-
-
-@dataclass(frozen=True, slots=True)
-class TitleCharCap:
-    """The most characters a document's title may hold, under one structure specification, against those it holds.
-
-    Attributes:
-        title: The document's first H1 heading, its title; a later H1 is not its title, so no cap applies to it.
-        title_chars: The characters of the title's own text, inline markup stripped, counted as code points.
-        chars: The cap the specification's `title` sets.
-    """
-
-    title: Heading
-    # Not range-checked: only the headings builder makes a cap, from the length of a string, so the value is never
-    # below 0.
-    title_chars: int
-    chars: NonZeroUnsignedInt
-
-
-@dataclass(frozen=True, slots=True)
 class TitleMismatch:
     """A document's title whose text does not match the pattern one structure specification holds it to.
 
@@ -222,26 +174,17 @@ class HeadingsSpec:
 
     Attributes:
         spec: The structure specification file that states it.
-        title_cap: The cap on the title's words, measured against the document's title; or `None` when the
-            specification sets no cap, or when the document has no title.
-        title_char_cap: The cap on the title's characters, measured against the document's title; or `None` when
-            the specification sets no cap, or when the document has no title.
         title_mismatch: The title and the pattern its text does not match; or `None` when it matches, when the
             specification sets no pattern, or when the document has no title.
         forbid_empty_sections: True when every section must hold content.
         forbidden: The sections that must not appear at all, each named once, matched against the document's
             H2 headings alone: a deeper heading of the same text is a subsection, not a forbidden section.
-        section_caps: One per H2 section of the document a word cap applies to, in document order; a section no
-            cap applies to is not among them.
     """
 
     spec: RootRelativePath
-    title_cap: TitleCap | None
-    title_char_cap: TitleCharCap | None
     title_mismatch: TitleMismatch | None
     forbid_empty_sections: bool
     forbidden: tuple[SectionName, ...]
-    section_caps: tuple[SectionCap, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -254,9 +197,8 @@ class HeadingsInput:
 
     The title is the exception: no specification states it, since every governed document carries exactly one H1
     title that opens it. So a title rule judges the document once, under its corpus's structure specification,
-    rather than once per specification. A check a specification adds on the title, a cap on its words or its
-    characters or a pattern its text must match, is that specification's own, and applies once per specification
-    that states it.
+    rather than once per specification. A pattern a specification holds the title's text to is that specification's
+    own, and applies once per specification that states it.
 
     The corpus's specification is held apart from the namespaces' so that a title rule finds it by name: a document
     governed by a namespace specification alone is ungoverned, so the corpus's is always there.

@@ -1,10 +1,10 @@
-"""The top-level headings of a document's parse tree."""
+"""The top-level headings of a document's parse tree, and finding its title among them."""
 
 from typing import cast
 
 import pytest
 
-from ..heading import Heading, HeadingLevel
+from ..heading import Heading, HeadingLevel, find_title
 from ..position import LineNumber
 
 
@@ -53,3 +53,38 @@ class TestHeading:
 
         #: Then
         assert heading.level == accepted, 'the deepest heading keeps level 6'
+
+
+def _heading(level: HeadingLevel, text: str, line: int) -> Heading:
+    """A heading with content and no prose words, at a line.
+
+    Args:
+        level: The heading depth.
+        text: The heading's text.
+        line: The line it starts on.
+    """
+    return Heading(level=level, text=text, line=LineNumber.from_int(line), empty=False, words=0)
+
+
+@pytest.mark.unit
+class TestFindTitle:
+    def test_find_title_with_two_h1_headings_returns_the_first(self) -> None:
+        #: Given
+        first = _heading(1, 'Setup', 3)
+        headings = (_heading(2, 'Before', 1), first, _heading(1, 'Setup again', 5))
+
+        #: When
+        title = find_title(headings)
+
+        #: Then
+        assert title == first, 'the title is the first H1, wherever it falls, and a later H1 is not'
+
+    def test_find_title_with_no_h1_heading_returns_none(self) -> None:
+        #: Given
+        headings = (_heading(2, 'Run', 1), _heading(3, 'Options', 3))
+
+        #: When
+        title = find_title(headings)
+
+        #: Then
+        assert title is None, 'a document with no H1 has no title'

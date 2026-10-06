@@ -46,12 +46,9 @@ def _spec(spec: RootRelativePath, *, forbidden: tuple[SectionName, ...]) -> Head
     """
     return HeadingsSpec(
         spec=spec,
-        title_cap=None,
-        title_char_cap=None,
         title_mismatch=None,
         forbid_empty_sections=False,
         forbidden=forbidden,
-        section_caps=(),
     )
 
 
