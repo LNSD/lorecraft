@@ -19,6 +19,7 @@ from lorecraft.rules.length.title_too_many_words import TitleTooManyWords
 from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.length.too_many_words import TooManyWords
+from lorecraft.rules.link.absolute_link import AbsoluteLink
 from lorecraft.rules.outline.empty_section import EmptySection
 from lorecraft.rules.outline.extra_title import ExtraTitle
 from lorecraft.rules.outline.forbidden_section import ForbiddenSection
@@ -396,6 +397,7 @@ class TestPackageRegistry:
             TooManyWords,
             TitleTooManyWords,
             TitleTooLong,
+            AbsoluteLink,
             MissingTitle,
             ExtraTitle,
             TitleNotFirst,

@@ -84,7 +84,8 @@ per run            configuration (a query of the revision) ──▶ levels
   the headings partition holds `type[HeadingsRule]`, so `rule.check(input)` checks against `HeadingsInput`.
 - **Configuration and selection never reach a rule.** They shape the table and nothing else.
 - **Subjects arrive chosen.** The command line resolves the paths into subjects; the runner receives a document's
-  ref or a skill's location as the model issued it, the database and the table, and nothing else.
+  ref or a skill's location as the model issued it, or a resource's location as its skill's resource listing issued
+  it, the database and the table, and nothing else.
 
 ### Inputs
 
@@ -101,7 +102,6 @@ The set is closed. Each kind is one dataclass and one rule base class whose `che
 | Schema problems | document, skill | the schema-problems query, a skill's against the Agent Skills specification | a frontmatter schema |
 | Headings | document | the parse query | a structure specification |
 | Outline divergence | document | the outline-divergences query, over the parse and line-count queries | a structure specification that states an outline |
-| Links | skill, skill resource | the parse query, the link-target query | the package |
 | Layout | layout entry, skill | the model, the skill's resource listing | the package |
 
 Three rules follow from the table.
@@ -129,19 +129,24 @@ carry-over rule names every path it looked up, an absent target included, since 
 remove its diagnostic. Nothing a rule reads is left outside a query contract.
 
 **A subject's facts are also stated as a context.** `lorecraft.project` declares, as a `Protocol` per subject kind,
-what can be asked of one decoded subject: `DocumentContext` and `SkillContext`, both extending
-`FrontmatterContext`. `lorecraft.project.database` implements them over the database, bound to the decode witness: each fact
+what can be asked of one decoded subject: `DocumentContext`, `SkillContext` and `SkillResourceContext`. The first two
+extend `FrontmatterContext`, and all three extend `MarkdownContext`, what any one Markdown file has, starting with its
+parse tree; a skill's Markdown file is its `SKILL.md` alone. `lorecraft.project.database` implements them over the
+database, bound to the decode witness: each fact
 one memoized query, each identity value read from the subject's ref or location. A document context is built only for
 a document whose corpus states a structure specification, since no facet governs one whose corpus does not.
 
 **A rule may read its subject's context.** `lorecraft.rules` gives each subject kind a rule base whose `check`
-takes the context: `DocumentRule` over a document, `SkillRule` over a skill. A rule over a document declares the
-facet it reads in `GOVERNED_BY`, one of `Facet.FRONTMATTER` (a frontmatter schema governs it), `STRUCTURE` (its
-corpus states a structure specification), `OUTLINE` (a specification states an outline) and `BUDGET` (a
-specification sets a token budget). The token budget, `LEN001`, is a document rule governed by `BUDGET`, and the
-line budget, `LEN002`, a skill rule, so the token and line counts are no longer inputs. The other rules still read
-the inputs above until they move onto a context. A `FrontmatterRule` base over a `FrontmatterContext`, for a rule
-that reads a document's or a skill's frontmatter alike, arrives with the frontmatter rules.
+takes the context: `DocumentRule` over a document, `SkillRule` over a skill, and `MarkdownRule` over any one
+Markdown file. A rule over a document declares the facet it reads in `GOVERNED_BY`, one of `Facet.FRONTMATTER` (a
+frontmatter schema governs it), `STRUCTURE` (its corpus states a structure specification), `OUTLINE` (a
+specification states an outline) and `BUDGET` (a specification sets a token budget). A rule over a Markdown file
+declares none: it judges a document governed for `STRUCTURE`, the facet under which a document has a context at
+all, and every skill's `SKILL.md` and every resource, which the package governs. The token budget, `LEN001`, is a
+document rule governed by `BUDGET`, and the line budget, `LEN002`, a skill rule, so the token and line counts are no
+longer inputs; the links rules read a context too, `LINK001` deriving from `MarkdownRule`. The other rules still
+read the inputs above until they move onto a context. A `FrontmatterRule` base over a `FrontmatterContext`, for a
+rule that reads a document's or a skill's frontmatter alike, arrives with the frontmatter rules.
 
 ### A Subject's Status Comes Before Any Rule
 
@@ -151,8 +156,8 @@ that reads a document's or a skill's frontmatter alike, arrives with the frontma
 - **Governed or ungoverned, per facet.** Governance comes from the model, which computes it once. A document can be
   governed for its frontmatter and ungoverned for its outline. The runner runs a rule over a document only when the
   document is governed for the rule's facet, and records each facet an enabled rule reads that it is not governed
-  for; a rule still on an input records that input kind instead. A skill is governed by the package for every
-  facet, so it is never ungoverned.
+  for; a rule still on an input records that input kind instead. A skill and a resource are governed by the
+  package for every facet, so neither is ever ungoverned.
 - **Undecodable is an engine diagnostic**, not a rule (FR-020). It has a fixed code under the engine's prefix
   and a rulebook page, and no level. It always fails the run, and a configuration that names its code fails.
 - **Ungoverned is coverage**, not a diagnostic (FR-019). It describes the specifications, not the subject.
@@ -182,8 +187,9 @@ The runner takes the database, the selected subjects and a rule table. The table
 registry and the resolved levels: the enabled rules, partitioned by subject kind, or by input kind for a rule still on
 an input, in code order. Each partition holds every enabled rule beside its severity, so a rule the runner holds
 always has one. For a document, the runner builds one context, then for each facet an enabled document rule
-declares, runs those rules over the context or records the facet as ungoverned. For a skill, it builds one context
-and runs every skill rule over it. The input branches below stay beside these until the last rule reads a context.
+declares, runs those rules over the context or records the facet as ungoverned; the Markdown rules run beside the
+`STRUCTURE` rules. For a skill, it builds one context and runs every skill rule and every Markdown rule over it. For a
+resource, it builds one context and runs every Markdown rule over it. The input branches below stay beside these until the last rule reads a context.
 
 ```python
 def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> SubjectReport:

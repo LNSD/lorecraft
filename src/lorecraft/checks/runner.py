@@ -9,20 +9,24 @@ A subject's status comes before any rule. Each subject is decoded once: one that
 `UndecodableSubject`, whatever the table enables, and no rule sees it. A decoded document is then judged facet by
 facet: for each facet an enabled rule over a document declares, the runner reads whether the specifications govern
 the document for it, runs those rules over the document's context if they do, and records the facet as ungoverned
-rather than a diagnostic if they do not. A document in no corpus, or in one that states no structure specification,
-is governed for no facet, and no context is built for it. The package governs every skill, so a skill is never
-ungoverned. A context asks the database only for what a rule reads, so a fact no enabled rule reads is never
-computed.
+rather than a diagnostic if they do not. A rule over a Markdown file judges a document under `Facet.STRUCTURE`, beside
+the rules over a document that declare it. A document in no corpus, or in one that states no structure
+specification, is governed for no facet, and no context is built for it. The package governs every skill and every
+resource, so neither is ever ungoverned. A context asks the database only for what a rule reads, so a fact no
+enabled rule reads is never computed.
 
 The frontmatter, outline and other length rules still read an input each. For each input kind an enabled one of
 them reads, the input is built once from the queries, and a subject no specification governs for it records that input
 kind as ungoverned. Later changes move those rules onto a context and remove these branches.
 
-The subjects are documents and skills, each matched to its own function, so a subject kind without one is a type
-error. A document is handed over as its ref, and a skill as the `SkillLocation` the model hands out for it, since a
-rule over a skill may read where its directory leads. A skill is its `SKILL.md`, decoded and reported at that path,
-under its ref; its resources are not subjects yet. The command
-line does not run this yet, and the per-check pipelines in `run` serve it until then.
+The subjects are documents, skills and skills' resources, each matched to its own function, so a subject kind
+without one is a type error. A document is handed over as its ref, and a skill as the `SkillLocation` the model hands
+out for it, since a rule over a skill may read where its directory leads. A skill is its `SKILL.md`, decoded and
+reported at that path, under its ref. A resource is a subject of its own, handed over as the `SkillResourceLocation`
+its skill's resource listing gives, since only that listing locates its file: it is decoded at the file it leads to,
+and reported under its ref, at the path an agent reaches it by. The runner never lists a skill's resources itself, so
+a skill handed over judges its `SKILL.md` alone. The command line does not run this yet, and the per-check pipelines
+in `run` serve it until then.
 """
 
 from collections.abc import Iterable
@@ -32,12 +36,14 @@ from lorecraft.project.database import (
     Database,
     DatabaseDocumentContext,
     DatabaseSkillContext,
+    DatabaseSkillResourceContext,
     DocumentText,
+    SkillResourceText,
     SkillText,
     Undecodable,
 )
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.skill import SkillLocation
+from lorecraft.project.skill import SkillLocation, SkillResourceLocation
 from lorecraft.project.workspace import Governance
 from lorecraft.rules.inputs import (
     FrontmatterBlockInput,
@@ -46,7 +52,7 @@ from lorecraft.rules.inputs import (
     OutlineDivergenceInput,
     SchemaProblemsInput,
 )
-from lorecraft.rules.subject import Facet
+from lorecraft.rules.subject import Facet, MarkdownRule
 
 from .inputs import (
     Ungoverned,
@@ -58,25 +64,27 @@ from .inputs import (
     build_skill_schema_problems_input,
 )
 from .report import CheckedSubject, Coverage, Diagnostic, RuleDiagnostic, SubjectReport, UndecodableSubject
-from .table import RuleTable
+from .table import EnabledRule, RuleTable
 
-# A subject the runner checks: a document, by its ref, or a skill, by the location the model hands out for it. Its
-# report holds its ref either way: a `SkillLocation` carries the skill's ref.
-type Subject = DocumentRef | SkillLocation
+# A subject the runner checks: a document, by its ref, a skill, by the location the model hands out for it, or a
+# skill's resource, by the location its skill's resource listing gives. Its report holds its ref either way: each
+# location carries its subject's ref.
+type Subject = DocumentRef | SkillLocation | SkillResourceLocation
 
 
 def check_subjects(database: Database, subjects: Iterable[Subject], table: RuleTable) -> tuple[SubjectReport, ...]:
-    """Run the table's rules over each document and skill, and report each in the order given.
+    """Run the table's rules over each document, skill and resource, and report each in the order given.
 
     Args:
         database: The revision the subjects are read from; its model decides which specifications govern each.
-        subjects: The documents and skills to check; a document in no corpus the database's model holds is
+        subjects: The documents, skills and resources to check; a document in no corpus the database's model holds is
             ungoverned for every facet and input a specification governs.
         table: The rules the run enables, each with its severity.
 
     Raises:
         DocumentReadError: If a document is missing from the snapshot; a decode failure is a diagnostic.
         SkillReadError: If a skill's `SKILL.md` is missing from the snapshot; a decode failure is a diagnostic.
+        SkillResourceReadError: If a resource is missing from the snapshot; a decode failure is a diagnostic.
         DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
         CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
         StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
@@ -111,6 +119,8 @@ def check_subjects(database: Database, subjects: Iterable[Subject], table: RuleT
                 reports.append(_check_document(database, subject, table))
             case SkillLocation():
                 reports.append(_check_skill(database, subject, table))
+            case SkillResourceLocation():
+                reports.append(_check_skill_resource(database, subject, table))
             case _:
                 assert_never(subject)
     return tuple(reports)
@@ -232,19 +242,27 @@ def _check_document_text(database: Database, source: DocumentText, table: RuleTa
                 assert_never(schema_problems_input)
 
     # Each rule over the document reads it through its context, and only when the specifications govern the facet the
-    # rule declares. Governance is never read when no rule over a document is enabled. The ungoverned facets and input
-    # kinds are recorded in the order the runner reaches them.
-    if table.document_rules:
+    # rule declares; a rule over a Markdown file reads it under `Facet.STRUCTURE`, as its base states. Governance is
+    # never read when no rule over a document and no rule over a Markdown file is enabled. The ungoverned facets and
+    # input kinds are recorded in the order the runner reaches them.
+    if table.document_rules or table.markdown_rules:
         context = _find_document_context(database, source)
         for facet in Facet:
             facet_rules = table.document_rules_governed_by(facet)
+            # The rules over a Markdown file join the rules over a document that declare the structure facet.
+            markdown_rules: tuple[EnabledRule[MarkdownRule], ...] = ()
+            if facet is Facet.STRUCTURE:
+                markdown_rules = table.markdown_rules
             # A facet no enabled rule reads is never looked at, so it is never reported as ungoverned either.
-            if not facet_rules:
+            if not facet_rules and not markdown_rules:
                 continue
             if context is None or not _is_governed_for(context.specifications(), facet):
                 ungoverned.append(facet)
                 continue
             for enabled in facet_rules:
+                for occurrence in enabled.rule.check(context):
+                    diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
+            for enabled in markdown_rules:
                 for occurrence in enabled.rule.check(context):
                     diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
 
@@ -338,7 +356,55 @@ def _check_skill_text(
         for occurrence in enabled.rule.check(context):
             diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
 
+    # A skill's Markdown file is its `SKILL.md`, so each rule over a Markdown file judges it through the same context.
+    for enabled in table.markdown_rules:
+        for occurrence in enabled.rule.check(context):
+            diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
+
     # The package governs a skill for every facet and every input, so it is never ungoverned.
+    return CheckedSubject(source.ref, diagnostics=tuple(diagnostics), ungoverned=())
+
+
+def _check_skill_resource(database: Database, location: SkillResourceLocation, table: RuleTable) -> SubjectReport:
+    """Decode one resource of a skill, then run the table's rules over it if it decoded.
+
+    Args:
+        database: The revision the resource is read from.
+        location: The resource to check, and the file it leads to, as its skill's resource listing gives it.
+        table: The rules the run enables.
+
+    Raises:
+        SkillResourceReadError: If the resource is missing from the snapshot; a decode failure is a diagnostic.
+    """
+    source = database.skill_resource_text(location)
+    match source:
+        case Undecodable():
+            return UndecodableSubject(location.ref)
+        case SkillResourceText():
+            return _check_skill_resource_text(database, source, table)
+        case _:
+            assert_never(source)
+
+
+def _check_skill_resource_text(database: Database, source: SkillResourceText, table: RuleTable) -> CheckedSubject:
+    """Run the enabled rules over a decoded resource of a skill. Raises nothing.
+
+    Only a rule over a Markdown file judges a resource: no rule over a document or a skill, and no input, reads one.
+
+    Args:
+        database: The revision the resource is read from.
+        source: The resource's text, the witness every per-file query takes.
+        table: The rules the run enables.
+    """
+    diagnostics: list[Diagnostic] = []
+
+    # Building the context asks nothing of the database; each rule asks it only for what it reads.
+    context = DatabaseSkillResourceContext(database, source)
+    for enabled in table.markdown_rules:
+        for occurrence in enabled.rule.check(context):
+            diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
+
+    # The package governs every resource, after the Agent Skills specification, so it is never ungoverned.
     return CheckedSubject(source.ref, diagnostics=tuple(diagnostics), ungoverned=())
 
 

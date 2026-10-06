@@ -14,8 +14,8 @@ skill's, or the resource's, which locates them as findings. Nothing here prints:
 and the exit codes.
 
 The rules engine that replaces these pipelines sits beside them, not yet run by the command line: `runner` judges
-each document and skill by the rules of `lorecraft.rules` a `RuleTable` enables, building each input a rule reads
-once, in `inputs`, or handing it the subject context `lorecraft.project.database` answers from the queries, and
+each document, skill and resource by the rules of `lorecraft.rules` a `RuleTable` enables, building each input a rule
+reads once, in `inputs`, or handing it the subject context `lorecraft.project.database` answers from the queries, and
 reports each subject as `report` states. Until the command line runs it, nothing of it is exported here: a caller
 imports it from its module.
 """
