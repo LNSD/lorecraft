@@ -27,7 +27,14 @@ query builds a witness or fails to read, and each states its own carry-over rule
   `Undecodable` marker. It reads that resource's bytes, and where its skill's listing locates it, and nothing else.
 - The `ScopeIndex` behind `is_in_scope(path)`: the scope the snapshot records it was taken of, expanded once
   through the links it recorded, like the IDE's index of a project's content roots. It reads the snapshot's
-  scope, links and climbed directories and nothing else, and no caller reaches it but `is_in_scope`.
+  scope, links and climbed directories and nothing else, and no caller reaches it but `is_in_scope` and the
+  link-target queries.
+- `link_targets(source)`, `skill_link_targets(source)` and `skill_resource_link_targets(source)`: what the snapshot
+  holds at the target of each relative link of one document, `SKILL.md` or resource, like the IDE's index of a file's
+  references resolved against the virtual file system. Each hands the file's parse, where its links are read from,
+  the snapshot's view and the scope index to `find_link_targets`, which reads, for each path a link names, the
+  snapshot's records on the way to it, so each is an input query: it is kept only when its parse is kept and every
+  path it looked up, an absent target included, still resolves to the same place and is in the same scope state.
 
 Derived queries read the results of other queries and never the snapshot. Each hands what it read to one function
 of this package that computes the value, so its arguments are its read set, and it carries over whenever every query
@@ -112,6 +119,9 @@ frontmatter, or parse and line count, and the model, a skill's schema problems o
 each skill's resource listing read no document, and the scope index reads only the scope, the links and the climbed
 directories, so keep them that way: data drawn from several documents belongs in a new cache with its own rule.
 
+The link targets of a Markdown file are such a cache: each reads where every path its links name leads, so each
+carries over only as its own docstring states.
+
 A change names a resolved path, while a ref may name a path through a link: a skill's `SKILL.md` under a linked
 skill entry changes at the path the link leads to, not at the ref's. A snapshot maps a linked path to its resolved one
 and not back, so the model records each skill's `SkillLocation`, the resolved `SKILL.md` its ref leads to, and
@@ -124,10 +134,14 @@ only when the two databases' `skill_resources` locate its ref at the same resolv
 change.
 """
 
+from collections.abc import Mapping
+from pathlib import PurePosixPath
+
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.document import DocumentDecodeError, DocumentRef
 from lorecraft.project.document import Repository as DocumentRepository
 from lorecraft.project.layout import named_dirs_of_scope, reject_linked_layout
+from lorecraft.project.link_target import DocumentDirectory, PathLookup, SkillRoot, find_link_targets
 from lorecraft.project.schemas import (
     OutlineDivergenceSpec,
     SchemaProblems,
@@ -165,7 +179,8 @@ class Database:
     That is the workspace model, the decoded text, the frontmatter, the parse trees, the token counts, the line
     counts, the schema problems and the outline divergences of the documents, the decoded text, the frontmatter, the
     parse trees, the line counts and the schema problems of the skills, the resources of each skill with their decoded
-    text and their parse trees, and the scope index `is_in_scope` answers from.
+    text and their parse trees, the link targets of every one of those Markdown files, and the scope index
+    `is_in_scope` answers from.
     """
 
     def __init__(self, snapshot: Snapshot) -> None:
@@ -185,6 +200,7 @@ class Database:
         self._texts: dict[DocumentRef, DocumentText | Undecodable] = {}
         self._frontmatters: dict[DocumentRef, FrontmatterNode] = {}
         self._parses: dict[DocumentRef, ParsedDocument] = {}
+        self._link_targets: dict[DocumentRef, Mapping[PurePosixPath, PathLookup]] = {}
         self._token_counts: dict[DocumentRef, int] = {}
         self._line_counts: dict[DocumentRef, int] = {}
         self._schema_problems: dict[DocumentRef, tuple[SchemaProblems, ...]] = {}
@@ -192,11 +208,13 @@ class Database:
         self._skill_texts: dict[SkillRef, SkillText | Undecodable] = {}
         self._skill_frontmatters: dict[SkillRef, FrontmatterNode] = {}
         self._skill_parses: dict[SkillRef, ParsedDocument] = {}
+        self._skill_link_targets: dict[SkillRef, Mapping[PurePosixPath, PathLookup]] = {}
         self._skill_line_counts: dict[SkillRef, int] = {}
         self._skill_schema_problems: dict[SkillRef, tuple[SchemaProblems, ...]] = {}
         self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
         self._skill_resource_texts: dict[SkillResourceRef, SkillResourceText | Undecodable] = {}
         self._skill_resource_parses: dict[SkillResourceRef, ParsedDocument] = {}
+        self._skill_resource_link_targets: dict[SkillResourceRef, Mapping[PurePosixPath, PathLookup]] = {}
 
     def model(self) -> WorkspaceModel:
         """The workspace model the snapshot declares, loaded on the first call.
@@ -302,9 +320,13 @@ class Database:
         Args:
             path: The entry to ask about, relative to the snapshot root; it need not exist.
         """
+        return self._built_scope_index().is_in_scope(path)
+
+    def _built_scope_index(self) -> ScopeIndex:
+        """The scope index `is_in_scope` and the link-target queries answer from, built on the first call."""
         if self._scope_index is None:
             self._scope_index = ScopeIndex(self._snapshot)
-        return self._scope_index.is_in_scope(path)
+        return self._scope_index
 
     def text(self, ref: DocumentRef) -> DocumentText | Undecodable:
         """One document's bytes decoded as UTF-8, read from the snapshot on the first call for its ref.
@@ -367,6 +389,27 @@ class Database:
             parsed = parse_document(source.text)
             self._parses[source.ref] = parsed
         return parsed
+
+    def link_targets(self, source: DocumentText) -> Mapping[PurePosixPath, PathLookup]:
+        """What the snapshot holds at the target of each relative link of one document, found on the first call.
+
+        Each link is read from the document's own directory, as `find_link_targets` states, and looked up through the
+        snapshot's view and scope. Raises nothing.
+
+        Carry-over: kept for the next revision only when `parse(source)` is kept and every path the query looked up,
+        an absent target included, still resolves to the same place and is in the same scope state: creating a
+        missing target, deleting a present one or retargeting a symlink on the way to one must change its entry.
+
+        Args:
+            source: The file's text, the witness every per-file query takes; its ref is the cache key, so one ref is
+                looked up once.
+        """
+        targets = self._link_targets.get(source.ref)
+        if targets is None:
+            base = DocumentDirectory(source.ref.path.parent)
+            targets = find_link_targets(self.parse(source).links, base, self._fs, self._built_scope_index())
+            self._link_targets[source.ref] = targets
+        return targets
 
     def tokens(self, source: DocumentText) -> int:
         """The tokens in one document's whole file, counted on the first call for its ref. Raises nothing.
@@ -583,6 +626,28 @@ class Database:
             self._skill_parses[source.ref] = parsed
         return parsed
 
+    def skill_link_targets(self, source: SkillText) -> Mapping[PurePosixPath, PathLookup]:
+        """What the snapshot holds at each relative link's target in a skill's `SKILL.md`, on the first call.
+
+        Each link is read from the skill root, the skill directory where an agent reaches it, as `find_link_targets`
+        states, and looked up through the snapshot's view and scope. Raises nothing.
+
+        Carry-over: kept for the next revision only when `skill_parse(source)` is kept and every path the query
+        looked up, an absent target included, still resolves to the same place and is in the same scope state:
+        creating a missing target, deleting a present one or retargeting a symlink on the way to one must change its
+        entry.
+
+        Args:
+            source: The file's text, the witness every per-file query takes; its ref is the cache key, so one ref is
+                looked up once.
+        """
+        targets = self._skill_link_targets.get(source.ref)
+        if targets is None:
+            base = SkillRoot(source.ref.directory)
+            targets = find_link_targets(self.skill_parse(source).links, base, self._fs, self._built_scope_index())
+            self._skill_link_targets[source.ref] = targets
+        return targets
+
     def skill_lines(self, source: SkillText) -> int:
         """The lines in one skill's whole `SKILL.md`, counted on the first call for its ref. Raises nothing.
 
@@ -710,3 +775,27 @@ class Database:
             parsed = parse_document(source.text)
             self._skill_resource_parses[source.ref] = parsed
         return parsed
+
+    def skill_resource_link_targets(self, source: SkillResourceText) -> Mapping[PurePosixPath, PathLookup]:
+        """What the snapshot holds at each relative link's target in a resource of a skill, on the first call.
+
+        Each link is read from the root of the resource's skill, where an agent reaches it, as `find_link_targets`
+        states, and looked up through the snapshot's view and scope. Raises nothing.
+
+        Carry-over: kept for the next revision only when `skill_resource_parse(source)` is kept and every path the query
+        looked up, an absent target included, still resolves to the same place and is in the same scope state:
+        creating a missing target, deleting a present one or retargeting a symlink on the way to one must change its
+        entry.
+
+        Args:
+            source: The file's text, the witness every per-file query takes; its ref is the cache key, so one ref is
+                looked up once.
+        """
+        targets = self._skill_resource_link_targets.get(source.ref)
+        if targets is None:
+            base = SkillRoot(source.ref.skill.directory)
+            targets = find_link_targets(
+                self.skill_resource_parse(source).links, base, self._fs, self._built_scope_index()
+            )
+            self._skill_resource_link_targets[source.ref] = targets
+        return targets
