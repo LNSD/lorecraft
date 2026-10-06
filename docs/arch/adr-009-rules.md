@@ -42,7 +42,6 @@ shorter still: the checker reports errors and warnings, and they act on them.
 | **Subject** | What is checked: a document, a skill, a skill resource or a layout entry |
 | **Context** | The read-only view of one decoded subject a rule asks for the facts it reads, each a query of the database |
 | **Facet** | What part of a document a specification governs, which a rule over a document or the frontmatter is gated on |
-| **Input** | The one frozen value a rule not yet moved onto a context reads about a subject, built from the database's queries |
 | **Diagnostic** | An occurrence located at a subject's path, with a severity |
 | **Level** | `allow`, `warn` or `deny`: how a rule is configured |
 | **Severity** | `error` or `warning`: what a diagnostic carries, and what a user acts on |
@@ -50,13 +49,13 @@ shorter still: the checker reports errors and warnings, and they act on them.
 | **Help**, **note** | A sub-diagnostic: help says how to fix this occurrence, a note gives the context that explains it. Either may point at a location |
 | **Location** | A line in the subject, the whole subject when it has no lines, or a place in another file, such as the specification. The runner supplies the subject's path |
 | **Engine diagnostic** | A diagnostic no rule produced: an undecodable file, an error; an alias code in the configuration, a warning |
-| **Coverage** | Which facets of a subject no specification governs, and which input kinds while rules still read inputs. Never a diagnostic |
+| **Coverage** | Which facets of a subject no specification governs. Never a diagnostic |
 | **Failure** | What stops a run before any subject is checked: raised, and exit code 2 |
 
 ## Decision
 
 1. **A rule is one class.** The class is the declaration and the check: its code, name, default level,
-   documentation, and the classmethod that judges its input. One rule has one code, one class and one file. A
+   documentation, and the classmethod that judges its subject. One rule has one code, one class and one file. A
    removed rule is a type of its own, which can never be reported.
 2. **One registry**, discovered by a package walk, is the only list of rules. The runner, the rulebook and the
    tests read it.
@@ -75,7 +74,7 @@ shorter still: the checker reports errors and warnings, and they act on them.
 ```python
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class EmptySection(HeadingsRule):
+class EmptySection(DocumentRule):
     """A section holds no content, under a structure specification that forbids empty sections.
 
     ## What it does
@@ -88,6 +87,7 @@ class EmptySection(HeadingsRule):
     NAME: ClassVar[RuleName] = RuleName('empty-section')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
 
     spec: RootRelativePath
     section: str
@@ -99,13 +99,14 @@ class EmptySection(HeadingsRule):
         return (spec_note(self.spec), Help('omit the section rather than leave it empty'))
 
     @classmethod
-    def check(cls, subject: HeadingsInput) -> tuple[Self, ...]:
+    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
+        headings = subject.parse().headings
         occurrences: list[Self] = []
-        for headings_spec in subject.specs:
-            if headings_spec.forbid_empty_sections:
-                for heading in subject.headings:
+        for structure_spec in subject.specifications().structure_specs():
+            if structure_spec.forbid_empty_sections:
+                for heading in headings:
                     if heading.empty:
-                        occurrences.append(cls(spec=headings_spec.spec, line=heading.line, section=heading.text))
+                        occurrences.append(cls(spec=structure_spec.path, line=heading.line, section=heading.text))
         return tuple(occurrences)
 ```
 
@@ -126,9 +127,8 @@ class EmptySection(HeadingsRule):
   that declares none; a rule over the frontmatter inherits `Facet.FRONTMATTER` from its base, and the package governs
   every skill and resource, so a rule over a skill or one of its files declares none. A rule over a Markdown file
   declares none either: its base judges a document under its structure, the facet under which a document has a
-  context at all. The length rules, `LEN001` to `LEN005`, the frontmatter rules, `FM001` to `FM010`, the `LINK` rules
-  and `LAY001` read a context; the rules not yet moved still pick an input by their base, such as `HeadingsRule`
-  above, until they are.
+  context at all. Every rule reads a context: `EmptySection` above derives from `DocumentRule` and is governed by
+  the structure facet.
 - **A layout entry has a base of its own.** `LayoutEntryRule` derives from `LayoutRule`, since a symlink has no
   lines, and its `check` takes a `LayoutContext`: one symlink of the skill layout whose chain leaves the repository,
   and where it leaves. The package governs the skill layout, so a rule over it declares no facet.
@@ -187,7 +187,7 @@ instance is one occurrence of it.
   decided rule by rule, outside this design.
 - **Documents and skills share the frontmatter codes.** A skill's frontmatter is judged against the Agent Skills
   schema and a document's against its corpus schemas. The governing schema and the name the subject is found
-  under are data of the input, so one rule serves both and a later specifications corpus for skills retires no
+  under are data of the context, so one rule serves both and a later specifications corpus for skills retires no
   code. A `name` that differs from a document's filename and one that differs from a skill's directory are one
   code.
 - **The set of codes is fixed by the package** (FR-011). A schema field never creates a code.

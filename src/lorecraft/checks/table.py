@@ -12,9 +12,6 @@ resource alike, and the rules over a layout entry. The rules over a document and
 grouped by the facet each declares, since the runner runs them over a document facet by facet. Each partition pairs
 every rule in it with its severity, as an `EnabledRule`, so a rule the runner finds in a partition always has a
 severity to report at.
-
-The outline rules still read an input each, so the table also keeps one partition per input kind they read; a later
-change moves those rules onto a context and removes these partitions.
 """
 
 from collections.abc import Mapping
@@ -22,7 +19,6 @@ from dataclasses import dataclass
 from typing import Self, assert_never
 
 from lorecraft.rules.declaration import EngineCondition, Level, RemovedRule, Rule, Severity
-from lorecraft.rules.inputs import HeadingsRule, OutlineDivergenceRule
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.subject import (
     DocumentRule,
@@ -35,7 +31,7 @@ from lorecraft.rules.subject import (
 )
 
 
-class UnknownRuleInputError(TypeError):
+class UnknownRuleBaseError(TypeError):
     """A rule derives from no base the table knows, so no partition holds it and it would never run.
 
     The rule hierarchy is open, so no type closes the set of bases a rule may derive from; the table rejects such a
@@ -49,7 +45,7 @@ class UnknownRuleInputError(TypeError):
 
     def __init__(self, rule: type[Rule]) -> None:
         self.rule = rule
-        super().__init__(f'rule {rule.__qualname__} ({rule.CODE}) reads no input the rule table knows')
+        super().__init__(f'rule {rule.__qualname__} ({rule.CODE}) derives from no base the rule table knows')
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,7 +53,7 @@ class EnabledRule[R: Rule]:
     """A rule a run enables, with the severity its occurrences are reported at.
 
     Attributes:
-        rule: The rule class, whose `check` the runner calls on the context or the input its partition reads.
+        rule: The rule class, whose `check` the runner calls on the context its partition reads.
         severity: The severity each of the rule's occurrences is reported at.
     """
 
@@ -76,9 +72,6 @@ class RuleTable:
     _layout_rules: tuple[EnabledRule[LayoutEntryRule], ...]
     _frontmatter_rules: tuple[EnabledRule[FrontmatterRule], ...]
     _frontmatter_rules_by_facet: dict[Facet, tuple[EnabledRule[FrontmatterRule], ...]]
-    # One partition per input kind, until the rules that read one read a context.
-    _headings_rules: tuple[EnabledRule[HeadingsRule], ...]
-    _outline_divergence_rules: tuple[EnabledRule[OutlineDivergenceRule], ...]
 
     def __init__(self, severities: Mapping[type[Rule], Severity]) -> None:
         """Hold the enabled rules, and partition them by the base each derives from.
@@ -88,7 +81,7 @@ class RuleTable:
                 from it does not run.
 
         Raises:
-            UnknownRuleInputError: If a rule derives from no base the table partitions by.
+            UnknownRuleBaseError: If a rule derives from no base the table partitions by.
         """
         document_rules: list[EnabledRule[DocumentRule]] = []
         skill_rules: list[EnabledRule[SkillRule]] = []
@@ -96,8 +89,6 @@ class RuleTable:
         skill_file_rules: list[EnabledRule[SkillFileRule]] = []
         layout_rules: list[EnabledRule[LayoutEntryRule]] = []
         frontmatter_rules: list[EnabledRule[FrontmatterRule]] = []
-        headings_rules: list[EnabledRule[HeadingsRule]] = []
-        outline_divergence_rules: list[EnabledRule[OutlineDivergenceRule]] = []
         for rule_class in sorted(severities, key=_printed_code):
             # The rule hierarchy is open, so the chain cannot close with `assert_never`: a rule over a base with no
             # partition here is a defect, raised before any subject is checked.
@@ -113,12 +104,8 @@ class RuleTable:
                 layout_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, FrontmatterRule):
                 frontmatter_rules.append(EnabledRule(rule_class, severities[rule_class]))
-            elif issubclass(rule_class, HeadingsRule):
-                headings_rules.append(EnabledRule(rule_class, severities[rule_class]))
-            elif issubclass(rule_class, OutlineDivergenceRule):
-                outline_divergence_rules.append(EnabledRule(rule_class, severities[rule_class]))
             else:
-                raise UnknownRuleInputError(rule_class)
+                raise UnknownRuleBaseError(rule_class)
         self._document_rules = tuple(document_rules)
         self._document_rules_by_facet = {}
         for facet in Facet:
@@ -135,8 +122,6 @@ class RuleTable:
             self._frontmatter_rules_by_facet[facet] = tuple(
                 enabled for enabled in frontmatter_rules if enabled.rule.GOVERNED_BY is facet
             )
-        self._headings_rules = tuple(headings_rules)
-        self._outline_divergence_rules = tuple(outline_divergence_rules)
 
     @classmethod
     def from_registry(cls, registry: Registry) -> Self:
@@ -146,7 +131,7 @@ class RuleTable:
             registry: The rules the run may enable; its removed rules and engine conditions are left out.
 
         Raises:
-            UnknownRuleInputError: If an enabled rule derives from no base the table partitions by.
+            UnknownRuleBaseError: If an enabled rule derives from no base the table partitions by.
         """
         severities: dict[type[Rule], Severity] = {}
         for declaration in registry.rules:
@@ -209,16 +194,6 @@ class RuleTable:
             facet: The facet the rules declare in `GOVERNED_BY`; the result is empty when no enabled rule reads it.
         """
         return self._frontmatter_rules_by_facet[facet]
-
-    @property
-    def headings_rules(self) -> tuple[EnabledRule[HeadingsRule], ...]:
-        """Each enabled rule over a document's headings, with its severity, in code order; empty when none is."""
-        return self._headings_rules
-
-    @property
-    def outline_divergence_rules(self) -> tuple[EnabledRule[OutlineDivergenceRule], ...]:
-        """Each enabled rule over the outline divergences, with its severity, in code order; empty when none is."""
-        return self._outline_divergence_rules
 
 
 def _default_severity(level: Level) -> Severity | None:

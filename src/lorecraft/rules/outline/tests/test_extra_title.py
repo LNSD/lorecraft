@@ -1,7 +1,7 @@
 """`OUT002`, `extra-title`, over a document's headings.
 
-The rule is pure, so every case here is a document's headings and what each specification states, written as
-literals; no document is read.
+Every case is a document written as text, read through a fake context that parses it as the real parser does, under
+structure specifications decoded from JSON; no document is read from disk.
 """
 
 from typing import Final
@@ -9,50 +9,30 @@ from typing import Final
 import pytest
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.syntax import Heading, LineNumber
-from lorecraft.rules.inputs import HeadingsInput, HeadingsSpec
+from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Here, Label, Note
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
 
 from ..extra_title import ExtraTitle
 
-CORPUS_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/guide.structure.json')
-"""A corpus structure specification."""
+CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
+"""The corpus structure specification."""
 
-NAMESPACE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/guide-cli.structure.json')
-"""A namespace structure specification under the same corpus."""
+STRUCTURE: Final[str] = '{"forbidden": ["Changelog"]}'
+"""A structure specification that states a rule other than the title, which no key states."""
 
-TITLE: Final[Heading] = Heading(level=1, text='Setup', line=LineNumber.from_int(1), empty=False, words=0)
-"""An H1 title on line 1."""
+ONE_TITLE: Final[str] = '# Setup\n\n## Install\n\nInstall the toolkit, then run it once over the repository.\n'
+"""A document of five lines: its H1 title on line 1, then one section."""
 
-INSTALL: Final[Heading] = Heading(level=2, text='Install', line=LineNumber.from_int(3), empty=False, words=9)
-"""An H2 section on line 3."""
-
-SECOND_TITLE: Final[Heading] = Heading(level=1, text='Usage', line=LineNumber.from_int(7), empty=False, words=6)
-"""A second H1 title on line 7."""
-
-THIRD_TITLE: Final[Heading] = Heading(level=1, text='Reference', line=LineNumber.from_int(11), empty=False, words=4)
-"""A third H1 title on line 11."""
-
-
-def _spec(spec: RootRelativePath) -> HeadingsSpec:
-    """What a specification states over the headings: nothing a title rule reads.
-
-    Args:
-        spec: The structure specification file.
-    """
-    return HeadingsSpec(
-        spec=spec,
-        title_mismatch=None,
-        forbid_empty_sections=False,
-        forbidden=(),
-    )
+SECOND_TITLE: Final[str] = ONE_TITLE + '\n# Usage\n\nRun it over the repository.\n'
+"""`ONE_TITLE`, followed by a second H1 title on line 7."""
 
 
 @pytest.mark.unit
 class TestExtraTitle:
     def test_check_with_a_second_title_reports_it_at_its_heading(self) -> None:
         #: Given
-        subject = HeadingsInput(headings=(TITLE, INSTALL, SECOND_TITLE), corpus=_spec(CORPUS_SPEC), namespaces=())
+        subject = FakeDocumentContext(SECOND_TITLE, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = ExtraTitle.check(subject)
@@ -64,9 +44,7 @@ class TestExtraTitle:
 
     def test_check_with_two_titles_after_the_first_reports_each(self) -> None:
         #: Given
-        subject = HeadingsInput(
-            headings=(TITLE, INSTALL, SECOND_TITLE, THIRD_TITLE), corpus=_spec(CORPUS_SPEC), namespaces=()
-        )
+        subject = FakeDocumentContext(SECOND_TITLE + '\n# Reference\n', corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = ExtraTitle.check(subject)
@@ -79,7 +57,7 @@ class TestExtraTitle:
 
     def test_check_with_one_title_reports_nothing(self) -> None:
         #: Given
-        subject = HeadingsInput(headings=(TITLE, INSTALL), corpus=_spec(CORPUS_SPEC), namespaces=())
+        subject = FakeDocumentContext(ONE_TITLE, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = ExtraTitle.check(subject)
@@ -89,7 +67,7 @@ class TestExtraTitle:
 
     def test_check_with_no_title_reports_nothing(self) -> None:
         #: Given
-        subject = HeadingsInput(headings=(INSTALL,), corpus=_spec(CORPUS_SPEC), namespaces=())
+        subject = FakeDocumentContext('## Install\n\nInstall the toolkit.\n', corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = ExtraTitle.check(subject)
@@ -99,10 +77,8 @@ class TestExtraTitle:
 
     def test_check_with_two_specifications_reports_once_under_the_corpus_specification(self) -> None:
         #: Given
-        subject = HeadingsInput(
-            headings=(TITLE, INSTALL, SECOND_TITLE),
-            corpus=_spec(CORPUS_SPEC),
-            namespaces=(_spec(NAMESPACE_SPEC),),
+        subject = FakeDocumentContext(
+            SECOND_TITLE, corpus='guide', structure=STRUCTURE, namespaces=(namespace_spec('guide', 'cli', STRUCTURE),)
         )
 
         #: When

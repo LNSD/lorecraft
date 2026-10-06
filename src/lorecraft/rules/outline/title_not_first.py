@@ -4,17 +4,18 @@ from dataclasses import dataclass
 from typing import ClassVar, Self
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.context import DocumentContext
 from lorecraft.project.syntax import HeadingLevel
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.inputs import HeadingsInput, HeadingsRule
 from lorecraft.rules.location import Subdiagnostic
+from lorecraft.rules.subject import DocumentRule, Facet
 
 from .__ruleset__ import GROUP_ID, spec_note
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class TitleNotFirst(HeadingsRule):
+class TitleNotFirst(DocumentRule):
     """A document a structure specification governs opens with a heading that is not its H1 title.
 
     ## What it does
@@ -75,6 +76,7 @@ class TitleNotFirst(HeadingsRule):
     NAME: ClassVar[RuleName] = RuleName('title-not-first')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
 
     spec: RootRelativePath
     level: HeadingLevel
@@ -88,15 +90,16 @@ class TitleNotFirst(HeadingsRule):
         return (spec_note(self.spec),)
 
     @classmethod
-    def check(cls, subject: HeadingsInput) -> tuple[Self, ...]:
+    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
         """One occurrence, at the first heading, under the corpus's structure specification, when it is not an H1.
 
         Args:
-            subject: The document's headings, with the corpus's structure specification that governs them.
+            subject: The document, governed by its corpus's structure specification.
         """
-        if not subject.headings:
+        headings = subject.parse().headings
+        if not headings:
             return ()
-        first = subject.headings[0]
+        first = headings[0]
         if first.level == 1:
             return ()
-        return (cls(spec=subject.corpus.spec, line=first.line, level=first.level),)
+        return (cls(spec=subject.corpus_structure().path, line=first.line, level=first.level),)

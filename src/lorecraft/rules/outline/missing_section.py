@@ -4,18 +4,19 @@ from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.context import DocumentContext
 from lorecraft.project.schemas import AbsentSection, DocumentEnd, MisplacedSection, SectionName, UnlistedSection
 from lorecraft.project.syntax import Heading
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.inputs import OutlineDivergenceInput, OutlineDivergenceRule
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
+from lorecraft.rules.subject import DocumentRule, Facet
 
 from .__ruleset__ import GROUP_ID, spec_note
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class MissingSection(OutlineDivergenceRule):
+class MissingSection(DocumentRule):
     """A document lacks a section its outline requires.
 
     ## What it does
@@ -88,6 +89,7 @@ class MissingSection(OutlineDivergenceRule):
     NAME: ClassVar[RuleName] = RuleName('missing-section')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    GOVERNED_BY: ClassVar[Facet] = Facet.OUTLINE
 
     spec: RootRelativePath
     section: SectionName
@@ -118,17 +120,17 @@ class MissingSection(OutlineDivergenceRule):
         return tuple(parts)
 
     @classmethod
-    def check(cls, subject: OutlineDivergenceInput) -> tuple[Self, ...]:
+    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
         """One occurrence for each outline whose first divergence is a required section the document lacks.
 
         An occurrence has a line of the document as its primary location, so one expected at the end of the
         document is reported at its last line, the nearest line to where the section would be written.
 
         Args:
-            subject: The first divergence from each governing outline, if any.
+            subject: The document, governed by at least one outline.
         """
         occurrences: list[Self] = []
-        for outline_spec in subject.specs:
+        for outline_spec in subject.outline_divergences():
             divergence = outline_spec.divergence
             match divergence:
                 case AbsentSection():
