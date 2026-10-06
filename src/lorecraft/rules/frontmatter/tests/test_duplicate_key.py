@@ -97,6 +97,32 @@ class TestDuplicateKey:
             'the message names the key as its repr, and the line of its first occurrence'
         )
 
+    def test_message_with_a_key_holding_a_newline_prints_it_on_one_line(self) -> None:
+        #: Given
+        occurrence = DuplicateKey(spec=SPEC, line=LineNumber.from_int(4), key='a\nb', first_line=LineNumber.from_int(3))
+
+        #: When
+        message = occurrence.message()
+
+        #: Then
+        assert message == "duplicate key 'a\\nb', already written on line 3", (
+            'a newline in the key is printed as its escape, so the message stays on one line'
+        )
+
+    def test_message_with_a_lone_surrogate_key_prints_it_escaped(self) -> None:
+        #: Given
+        occurrence = DuplicateKey(
+            spec=SPEC, line=LineNumber.from_int(4), key='\ud83d', first_line=LineNumber.from_int(3)
+        )
+
+        #: When
+        message = occurrence.message()
+
+        #: Then
+        assert message == "duplicate key '\\ud83d', already written on line 3", (
+            'a key no terminal can print is named by its escape, so the message can be written out'
+        )
+
     def test_labels_with_an_occurrence_point_at_the_first_occurrence(self) -> None:
         #: Given
         occurrence = DuplicateKey(

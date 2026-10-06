@@ -57,14 +57,14 @@ def skill_at(model: WorkspaceModel, path: RootRelativePath) -> SkillRef | None: 
 ```python
 # ❌ Bad — the same steps in a different order under different names; a fix to the unparseable-block guard
 # landed in one and was missed in the other for two releases.
-def check_guide(schema: GuideSchema, *, header: FrontmatterNode) -> list[Violation]:
+def check_guide(schema: GuideSchema, *, header: FrontmatterNode) -> list[Occurrence]:
     if isinstance(header, MissingFrontmatter):
         return [missing('guide')]
-    found = [violation_for(error) for error in schema.errors_in(header.data)]
+    found = [occurrence_for(error) for error in schema.errors_in(header.data)]
     ...
 
-def check_prompt(header: FrontmatterNode, schema: PromptSchema) -> list[Violation]:
-    issues = [to_violation(problem) for problem in schema.problems(header.data)]
+def check_prompt(header: FrontmatterNode, schema: PromptSchema) -> list[Occurrence]:
+    issues = [to_occurrence(problem) for problem in schema.problems(header.data)]
     if isinstance(header, (MissingFrontmatter, InvalidYamlFrontmatter)):
         return [missing('prompt')]
     ...
@@ -72,15 +72,15 @@ def check_prompt(header: FrontmatterNode, schema: PromptSchema) -> list[Violatio
 
 ```python
 # ✅ Good — identical skeleton; the two lines that differ are the two that must.
-def check_guide(schema: GuideSchema, *, frontmatter: FrontmatterNode) -> list[Violation]:
+def check_guide(schema: GuideSchema, *, frontmatter: FrontmatterNode) -> list[Occurrence]:
     if isinstance(frontmatter, MissingFrontmatter):
         return [missing('guide')]
-    return [violation_for('guide', problem) for problem in schema.validate(frontmatter.data)]
+    return [occurrence_for('guide', problem) for problem in schema.validate(frontmatter.data)]
 
-def check_prompt(schema: PromptSchema, *, frontmatter: FrontmatterNode) -> list[Violation]:
+def check_prompt(schema: PromptSchema, *, frontmatter: FrontmatterNode) -> list[Occurrence]:
     if isinstance(frontmatter, MissingFrontmatter):
         return [missing('prompt')]
-    return [violation_for('prompt', problem) for problem in schema.validate(frontmatter.data)]
+    return [occurrence_for('prompt', problem) for problem in schema.validate(frontmatter.data)]
 ```
 
 3. **One altitude, comparable branches**

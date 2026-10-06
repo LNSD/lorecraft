@@ -25,7 +25,7 @@ from ..failure import report_failure
 from ..output import ExitStatus, OutputFormat
 from ..registry import register
 from ..root import establish_root
-from ..select import select_workspace
+from ..subjects import select_workspace
 
 
 @register('check')

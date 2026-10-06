@@ -53,16 +53,22 @@ read from a specification directory. A skill is never ungoverned.
 ```python
 # ❌ Bad — the check finds its own specification by path: a namespace specification that narrows the corpus one
 # is never applied, and a malformed file surfaces as a crash halfway through the run
-def validate_budget(doc: DocRef, count: int) -> tuple[Violation, ...]:
-    rules = json.loads(Path(f'docs/__meta__/{doc.corpus}.structure.json').read_text(encoding='utf-8'))
-    return _over_budget(count, rules['tokens'])
+@classmethod
+def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
+    structure = json.loads(Path('docs/__meta__/code.structure.json').read_text(encoding='utf-8'))
+    return cls._over_budget(subject.tokens().value, structure['tokens'])
 ```
 
 ```python
 # ✅ Good — the model decided governance and proved every structure specification usable; the check applies each
-# one on its own
-def validate_budget(structure_specs: tuple[BudgetRules, ...], *, count: int) -> tuple[Violation, ...]:
-    return tuple(v for structure_spec in structure_specs for v in _over_budget(count, structure_spec.tokens))
+# one its context hands it on its own
+@classmethod
+def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
+    count = subject.tokens().value
+    occurrences: list[Self] = []
+    for structure_spec in subject.specifications().structure_specs():
+        occurrences.extend(cls._over_budget(count, structure_spec.tokens))
+    return tuple(occurrences)
 ```
 
 ## Consequences

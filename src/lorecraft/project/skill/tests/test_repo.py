@@ -32,7 +32,6 @@ from ..repo import (
     SkillResourceDecodeError,
     SkillResourceListing,
     SkillResourceReadError,
-    SkillsListing,
 )
 
 SKILL: Final[str] = '.agents/skills/review'
@@ -436,110 +435,6 @@ class TestRepositoryListSkillResources:
                 resolves_to=ResolvedPath(RootRelativePath.parse('skills/audit/references/a.md')),
             ),
         ), 'the skills directory holds the entry the skill is named by, so the review skill is never counted'
-
-
-def _skill_at(directory: str, resolves_to: str | None = None) -> SkillLocation:
-    """The location of a skill named at `directory`, whose `SKILL.md` is no symlink.
-
-    Args:
-        directory: Where the skill is named, root-relative.
-        resolves_to: The resolved directory it leads to; `directory` itself when omitted.
-    """
-    resolved = directory if resolves_to is None else resolves_to
-    return SkillLocation(
-        SkillRef(RootRelativePath.parse(directory)),
-        resolves_to=ResolvedPath(RootRelativePath.parse(resolved)),
-        file_resolves_to=ResolvedPath(RootRelativePath.parse(f'{resolved}/SKILL.md')),
-    )
-
-
-@pytest.mark.unit
-class TestRepositoryListNamedSkills:
-    def test_list_named_skills_with_a_skill_file_at_its_root_lists_the_directory_alone(self) -> None:
-        #: Given
-        repository = _repository({'skills/review/SKILL.md': b'', 'skills/review/nested/SKILL.md': b''}, {})
-        directory = RootRelativePath.parse('skills/review')
-
-        #: When
-        listing = repository.list_named_skills(directory, ResolvedPath(directory))
-
-        #: Then
-        assert listing == SkillsListing(skills=(_skill_at('skills/review'),), outside_symlinks=()), (
-            'a directory with a SKILL.md at its root is one skill, whatever it holds below'
-        )
-
-    def test_list_named_skills_without_a_skill_file_at_its_root_lists_each_skill_directly_inside(self) -> None:
-        #: Given
-        repository = _repository(
-            {'skills/review/SKILL.md': b'', 'skills/lint/SKILL.md': b'', 'skills/README.md': b''}, {}
-        )
-        directory = RootRelativePath.parse('skills')
-
-        #: When
-        listing = repository.list_named_skills(directory, ResolvedPath(directory))
-
-        #: Then
-        assert listing == SkillsListing(
-            skills=(_skill_at('skills/lint'), _skill_at('skills/review')), outside_symlinks=()
-        ), 'a directory with no SKILL.md at its root is read as a skills directory, its skills in name order'
-
-    def test_list_named_skills_through_a_link_names_each_skill_under_the_link(self) -> None:
-        #: Given
-        repository = _repository({'skills/review/SKILL.md': b''}, {'bundle': 'skills'})
-        directory = RootRelativePath.parse('bundle')
-
-        #: When
-        listing = repository.list_named_skills(directory, ResolvedPath(RootRelativePath.parse('skills')))
-
-        #: Then
-        assert listing == SkillsListing(skills=(_skill_at('bundle/review', 'skills/review'),), outside_symlinks=()), (
-            'the skill is named under the directory as spelled, and located where its files really are'
-        )
-
-    def test_list_named_skills_with_an_entry_linked_to_a_skill_names_it_by_the_entry(self) -> None:
-        #: Given
-        repository = _repository(
-            {'skills/review/SKILL.md': b'', 'bundle/README.md': b''}, {'bundle/review': '../skills/review'}
-        )
-        directory = RootRelativePath.parse('bundle')
-
-        #: When
-        listing = repository.list_named_skills(directory, ResolvedPath(directory))
-
-        #: Then
-        assert listing == SkillsListing(skills=(_skill_at('bundle/review', 'skills/review'),), outside_symlinks=()), (
-            "an entry linked to a skill directory is a skill named by the entry, as in an agent's skills directory"
-        )
-
-    def test_list_named_skills_with_a_skill_file_at_its_root_linked_outside_records_it_as_no_skill(self) -> None:
-        #: Given
-        repository = _repository(
-            {'skills/review/notes.md': b'', 'skills/review/nested/SKILL.md': b''},
-            {'skills/review/SKILL.md': '/srv/review.md'},
-        )
-        directory = RootRelativePath.parse('skills/review')
-
-        #: When
-        listing = repository.list_named_skills(directory, ResolvedPath(directory))
-
-        #: Then
-        assert listing == SkillsListing(
-            skills=(),
-            outside_symlinks=(_outside('skills/review/SKILL.md', 'skills/review/SKILL.md', '/srv/review.md'),),
-        ), 'the SKILL.md at the root makes the directory one skill, and its link leaving the root makes it none'
-
-    def test_list_named_skills_with_neither_a_skill_file_nor_a_skill_inside_lists_nothing(self) -> None:
-        #: Given
-        repository = _repository({'docs/code/logging.md': b'', 'docs/glossary.md': b''}, {})
-        directory = RootRelativePath.parse('docs')
-
-        #: When
-        listing = repository.list_named_skills(directory, ResolvedPath(directory))
-
-        #: Then
-        assert listing == SkillsListing(skills=(), outside_symlinks=()), (
-            'a directory holding no SKILL.md holds no skill'
-        )
 
 
 @pytest.mark.unit

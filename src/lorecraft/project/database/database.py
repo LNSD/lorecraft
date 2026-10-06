@@ -9,11 +9,9 @@ Input queries read the snapshot. Each is the one place its part of the snapshot 
 query builds a witness or fails to read, and each states its own carry-over rule against the change set:
 
 - `model()`: the workspace model, like the IDE's project model. It reads the structure of the snapshot, the
-  specifications, the corpus directories, the skills directories, the directories a command named to check the
-  skills in, as the snapshot's scope records them, and the listing of each skill's directory, nothing deeper inside
-  a skill, and no document's contents.
-  Among that structure it records each skills directory, skill entry and `SKILL.md` whose symlink chain leaves the
-  repository.
+  specifications, the corpus directories, the skills directories and the listing of each skill's directory, nothing
+  deeper inside a skill, and no document's contents. Among that structure it records each skills directory, skill
+  entry and `SKILL.md` whose symlink chain leaves the repository.
 - `text(ref)`: one document's bytes decoded as UTF-8, like the IDE's document text for a file: a `DocumentText`
   witness, or an `Undecodable` marker when the bytes are not UTF-8. It is the one place a document's bytes become
   text, and it reads that document's bytes and nothing else.
@@ -68,11 +66,11 @@ it read does:
 - `skill_resource_parse(source)`: one resource's parse tree, the same syntax tree again. It reads the text of the
   witness `skill_resource_text(resource)` returned and nothing else.
 
-Three questions are asked of the snapshot's records directly and their answers are never cached, since an answer
-for one path is cheap:
+Two questions are asked of the snapshot's records directly and their answers are never cached, since an answer for
+one path is cheap:
 
-- `find_path(path)` and `find_file(path)`: where a path leads in the snapshot, like a lookup in the IDE's virtual
-  file system. They read the snapshot's records and nothing else and build nothing worth keeping.
+- `find_file(path)`: where a path leads in the snapshot, like a lookup in the IDE's virtual file system. It reads the
+  snapshot's records and nothing else and builds nothing worth keeping.
 - `is_in_scope(path)`: whether the scan reads the directory a path sits in, like the IDE asking whether a file
   is in the project's content roots. It is configuration, not content: answered from the `ScopeIndex` cached
   above, built on the first call, with the path walked through the snapshot's recorded links to tell where it
@@ -83,11 +81,11 @@ Every query about one file's content takes the witness its decode query returned
 file that is not UTF-8 cannot be asked for: a reader matches the decode once and no later reader carries a branch for
 it. Each still caches by the witness's ref.
 
-Checks are pure functions of the values a run reads for them through the database, like an inspection run over one
-file: the run matches each file's decode once and hands a check only the part it judges. It asks for the cheapest
-query that holds what a check reads, so a check that needs only the frontmatter never pays for the full
-parse, and every check reading the same query shares one computation of it. Their results are not cached; a
-check runs again every time.
+Rules are pure functions of the values a subject's context reads for them through the database, like an inspection
+run over one file: the runner matches each file's decode once and hands a rule the context of the part it judges. A
+context asks for the cheapest query that holds what a rule reads, so a rule that needs only the frontmatter never pays
+for the full parse, and every rule reading the same query shares one computation of it. Their results are not cached;
+a rule runs again every time.
 
 Nothing here records what a cached value read, so no dependency is tracked. Invalidation is written by hand instead, the
 way the IDE drops per-file index entries on a file change event and resets structural caches on a project model change.
@@ -105,19 +103,17 @@ that changed its target on the chain of a skills directory an agent declares, of
 an entry's `SKILL.md`, a chain leaving the repository included, since the model records the link each such chain leaves
 through and its target. So does a directory added or deleted that a `..` on such a chain climbs out of: deleting `tmp`
 leaves `x -> tmp/../alpha` leading nowhere, and the change set shows `tmp` go, since the snapshot records each climbed
-directory and the next scan, stopping at the missing `tmp`, no longer records it. The directories a command named are
-read from the snapshot's scope, so a scope that adds or drops one invalidates the model too, and each counts as a skills
-directory for every rule above, a `SKILL.md` at its root as an entry's. Any other change leaves the model valid, an
-entry added or deleted anywhere else inside a skill included: the model lists nothing below a skill's directory, and
-reads nothing there but the way to its `SKILL.md`. The scope index carries over unless the two snapshots' scopes, links
-or climbed directories differ, compared as recorded rather than through the change set, which holds no scope. A change
-of scope invalidates nothing else but the model, when it adds or drops a named directory: what the new scope adds or
-drops reaches the model and each skill's resources as entries in the change set. That rule holds only while the decoded
-text reads its own document, skill or resource, the frontmatter, the parse, the token count and the line count each read
-only the decoded text of their own, the schema problems and the outline divergences read only their own document's
-frontmatter, or parse and line count, and the model, a skill's schema problems only its own frontmatter, the model and
-each skill's resource listing read no document, and the scope index reads only the scope, the links and the climbed
-directories, so keep them that way: data drawn from several documents belongs in a new cache with its own rule.
+directory and the next scan, stopping at the missing `tmp`, no longer records it. Any other change leaves the model
+valid, an entry added or deleted anywhere else inside a skill included: the model lists nothing below a skill's
+directory, and reads nothing there but the way to its `SKILL.md`. The scope index carries over unless the two snapshots'
+scopes, links or climbed directories differ, compared as recorded rather than through the change set, which holds no
+scope. A change of scope invalidates nothing else: what the new scope adds or drops reaches the model and each skill's
+resources as entries in the change set. That rule holds only while the decoded text reads its own document, skill or
+resource, the frontmatter, the parse, the token count and the line count each read only the decoded text of their own,
+the schema problems and the outline divergences read only their own document's frontmatter, or parse and line count, and
+the model, a skill's schema problems only its own frontmatter, the model and each skill's resource listing read no
+document, and the scope index reads only the scope, the links and the climbed directories, so keep them that way: data
+drawn from several documents belongs in a new cache with its own rule.
 
 The link targets of a Markdown file are such a cache: each reads where every path its links name leads, so each
 carries over only as its own docstring states.
@@ -140,7 +136,7 @@ from pathlib import PurePosixPath
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.document import DocumentDecodeError, DocumentRef
 from lorecraft.project.document import Repository as DocumentRepository
-from lorecraft.project.layout import named_dirs_of_scope, reject_linked_layout
+from lorecraft.project.layout import reject_linked_layout
 from lorecraft.project.link_target import DocumentDirectory, PathLookup, SkillRoot, find_link_targets
 from lorecraft.project.schemas import (
     OutlineDivergenceSpec,
@@ -223,19 +219,14 @@ class Database:
     def model(self) -> WorkspaceModel:
         """The workspace model the snapshot declares, loaded on the first call.
 
-        The directories a command named to check the skills in are read from the scope the snapshot records, the
-        roots beyond `SNAPSHOT_SCOPE`'s, so the model is a function of the snapshot alone.
-
         Carry-over: kept for the next revision unless one of these changed, as the module docstring details:
 
         - An entry added or deleted under `docs/`, or a changed specification.
-        - An entry added or deleted in a skills directory or a named directory, in a skill's directory, or at or
-          on the way to the resolved path a skill's linked `SKILL.md` leads to.
+        - An entry added or deleted in a skills directory, in a skill's directory, or at or on the way to the
+          resolved path a skill's linked `SKILL.md` leads to.
         - A link that changed its target on the way to a skill or its `SKILL.md`, or on the chain of a skills
-          directory an agent declares, a named directory, an entry of either, or such an entry's `SKILL.md`, a
-          chain leaving the repository included; and a directory added or deleted that a `..` on such a chain
-          climbs out of.
-        - The scope, where a named directory was added or dropped.
+          directory an agent declares, an entry of one, or such an entry's `SKILL.md`, a chain leaving the
+          repository included; and a directory added or deleted that a `..` on such a chain climbs out of.
 
         A load that fails is not cached, so each call raises the same error again.
 
@@ -254,7 +245,7 @@ class Database:
             FrontmatterSchemaIdError: If a schema in a frontmatter schema carries `$id`.
             ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
             UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
-            DirResolveError: If a skills directory or a named directory cannot be resolved.
+            DirResolveError: If a skills directory cannot be resolved.
             EntryInspectError: If an entry on the way to a skills directory cannot be inspected, or a link's
                 target read, while looking for where it leaves the repository.
             SkillsDirListError: If a skills directory cannot be listed.
@@ -263,7 +254,7 @@ class Database:
             SkillFileResolveError: If a symlinked SKILL.md cannot be resolved.
         """
         if self._model is None:
-            self._model = load_model(self._fs, named_dirs=named_dirs_of_scope(self._snapshot.scope))
+            self._model = load_model(self._fs)
         return self._model
 
     def text(self, ref: DocumentRef) -> DocumentText | Undecodable:
@@ -582,8 +573,7 @@ class Database:
                 names another dialect.
             UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not
                 state an object.
-            DirResolveError: If the model is not loaded yet and a skills directory or a named directory cannot be
-                resolved.
+            DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
             EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot
                 be inspected, or a link's target read, while looking for where it leaves the repository.
             SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
@@ -640,8 +630,7 @@ class Database:
                 names another dialect.
             UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not
                 state an object.
-            DirResolveError: If the model is not loaded yet and a skills directory or a named directory cannot be
-                resolved.
+            DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
             EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot
                 be inspected, or a link's target read, while looking for where it leaves the repository.
             SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
@@ -759,24 +748,6 @@ class Database:
             LinkedLayoutError: If ``docs/`` is a symlink, or else if ``docs/__meta__/`` is one.
         """
         reject_linked_layout(self._fs)
-
-    def find_path(self, path: RootRelativePath) -> ResolvedPath | None:
-        """Where `path` leads in the snapshot, every recorded link on the way followed; never cached.
-
-        Like the IDE's lookup of a path in its virtual file system: a path handed in from outside, such as a
-        command line argument, is interpreted in the same frozen tree every check reads, not on the live disk.
-
-        Args:
-            path: The path to look up, relative to the snapshot root; it may name a directory or a file.
-
-        Returns:
-            The resolved directory or the resolved file, root-relative, or `None` when the snapshot holds
-            neither there.
-        """
-        directory = self._fs.find_dir(path)
-        if directory is not None:
-            return directory
-        return self._fs.find_file(path)
 
     def find_file(self, path: RootRelativePath) -> ResolvedPath | None:
         """The file `path` leads to in the snapshot, every recorded link on the way followed; never cached.
