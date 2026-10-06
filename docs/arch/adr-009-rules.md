@@ -122,8 +122,8 @@ class EmptySection(HeadingsRule):
   the registry rejects one that declares none; the package governs every skill and resource, so a rule over a skill
   declares none. A rule over a Markdown file declares none either: its base judges a document under its structure,
   the facet under which a document has a context at all. The length rules over a whole file, `LEN001` and `LEN002`,
-  and `LINK001` read a context; the rules not yet moved still pick an input by their base, such as `HeadingsRule`
-  above, until they are.
+  and the `LINK` rules read a context; the rules not yet moved still pick an input by their base, such as
+  `HeadingsRule` above, until they are.
 - **`check` returns `tuple[Self, ...]`**, so a rule can only report its own occurrence, and the type checker
   rejects one that reports another's. That needs no type parameter anywhere in the engine.
 - **The message is rendered from the fields.** The corpus, the field and the section travel as data, not as

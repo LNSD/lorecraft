@@ -144,9 +144,10 @@ specification states an outline) and `BUDGET` (a specification sets a token budg
 declares none: it judges a document governed for `STRUCTURE`, the facet under which a document has a context at
 all, and every skill's `SKILL.md` and every resource, which the package governs. The token budget, `LEN001`, is a
 document rule governed by `BUDGET`, and the line budget, `LEN002`, a skill rule, so the token and line counts are no
-longer inputs; the links rules read a context too, `LINK001` deriving from `MarkdownRule`. The other rules still
-read the inputs above until they move onto a context. A `FrontmatterRule` base over a `FrontmatterContext`, for a
-rule that reads a document's or a skill's frontmatter alike, arrives with the frontmatter rules.
+longer inputs; the links rules read a context too, `LINK001` and `LINK002` deriving from `MarkdownRule`. The other
+rules still read the inputs above until they move onto a context. A `FrontmatterRule` base over a
+`FrontmatterContext`, for a rule that reads a document's or a skill's frontmatter alike, arrives with the frontmatter
+rules.
 
 ### A Subject's Status Comes Before Any Rule
 
