@@ -24,6 +24,6 @@ class ExitStatus(IntEnum):
     """
 
     FINDINGS = 1
-    """The command ran and found something, such as a check reporting a finding."""
+    """The command ran and found something, such as `check` reporting a diagnostic at error severity."""
     FAILURE = 2
     """The command could not start or could not finish: only the error is printed."""

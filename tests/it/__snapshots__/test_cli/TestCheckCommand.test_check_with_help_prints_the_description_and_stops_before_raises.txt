@@ -1,16 +1,17 @@
                                                                                 
- Usage: lorecraft check frontmatter [OPTIONS] [paths]...                        
+ Usage: lorecraft check [OPTIONS]                                               
                                                                                 
- Check frontmatter against the `frontmatter` schemas in the target repository's 
- structure specifications.                                                      
+ Check every document and skill of the workspace: frontmatter, outline, length, 
+ links and layout.                                                              
                                                                                 
- Exit 0 when clean, 1 when findings exist, and 2 for invalid input or schemas.  
+ As text, the diagnostics go to stdout, and the ungoverned subjects and a       
+ summary to stderr.                                                             
                                                                                 
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│   paths      <path>  Markdown files to check, relative to the current        │
-│                      directory. Defaults to every Markdown file directly     │
-│                      inside a corpus directory under ROOT/docs.              │
-╰──────────────────────────────────────────────────────────────────────────────╯
+ As JSON, one document goes to stdout.                                          
+                                                                                
+ Exit 0 when no diagnostic is an error, 1 when any is, and 2 for invalid input  
+ or specifications.                                                             
+                                                                                
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --root          <path>       Repository root. Defaults to the nearest parent │
 │                              containing docs/__meta__.                       │

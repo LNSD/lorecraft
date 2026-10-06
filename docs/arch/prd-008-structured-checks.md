@@ -37,6 +37,9 @@ identified, configured and documented the same way, and cheap to add.
 - Automatic fixes and inline suppression: a diagnostic leaves room for both, and neither ships here.
 - An IDE-like, long-lived mode: re-checking on each change, unsaved content, rejecting a superseded revision's
   results and ranged locations need a runtime a single run cannot exercise, and are deferred until it exists.
+- Selection by path in v0.3.0: the command checks the whole workspace (FR-002), and checking a file or a directory,
+  FR-003 to FR-007, is deferred to v0.4.0
+  ([#442](https://github.com/LNSD/lorecraft/issues/442)).
 
 ## User Stories
 
@@ -46,6 +49,9 @@ As a writer, I want one command that checks whatever path I give it, so that I d
 of file.
 
 **Independent test:** Check a file, a directory and the workspace, each holding a known violation.
+
+v0.3.0 delivers the one command over the whole workspace; checking a file or a directory, and both scenarios
+below, are deferred to v0.4.0 ([#442](https://github.com/LNSD/lorecraft/issues/442)).
 
 ```gherkin
 Scenario: A single file

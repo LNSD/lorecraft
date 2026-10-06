@@ -2,7 +2,7 @@
 name: "release"
 description: "Cut a release of the package: tag the commit, build the source distribution and the wheel from that tag, and verify what the artifacts actually contain. Use when preparing a release, bumping the version, building distributions, or checking that packaging metadata is correct"
 compatibility: "Requires the just task runner, uv, a working GPG signing key because every tag and commit is signed, and git with the repository's full history: hatch-vcs reads the version from `git describe`, so a shallow or tagless checkout builds a version that is not the release. Publishing is the release workflow's job, on a published GitHub release; this skill ends at a local tag and a verified artifact."
-allowed-tools: Bash(just build *) Bash(just clean *) Bash(just fmt-check *) Bash(just check *) Bash(just typecheck *) Bash(just test *) Bash(just check-docs *) Bash(just check-skills *) Bash(git status *) Bash(git log *) Bash(git tag *) Bash(git describe *) Bash(uv venv dist/verify *) Bash(uv pip install --python dist/verify *) Bash(dist/verify/bin/lorecraft *)
+allowed-tools: Bash(just build *) Bash(just clean *) Bash(just fmt-check *) Bash(just check *) Bash(just typecheck *) Bash(just test *) Bash(just check-docs *) Bash(git status *) Bash(git log *) Bash(git tag *) Bash(git describe *) Bash(uv venv dist/verify *) Bash(uv pip install --python dist/verify *) Bash(dist/verify/bin/lorecraft *)
 ---
 
 # Release Skill
@@ -25,7 +25,7 @@ at build time, so building before tagging produces an artifact labelled with a d
 checks CI runs, in the same order:
 
 ```bash
-just fmt-check && just check && just typecheck && just test && just check-docs && just check-skills
+just fmt-check && just check && just typecheck && just test && just check-docs
 ```
 
 If any of them fails, go back to the skill that owns it: `/code-format`, `/code-check`, `/code-test`,

@@ -26,11 +26,13 @@ machine, such as the `git` it runs, passes the whole environment as `env=` rathe
 
 ## 2. Pin What the Command Prints with a Snapshot
 
-What the command prints for a reader, and the machine-readable document it prints with `--format json`, are each
-compared whole to a snapshot: one file per case under `__snapshots__/`, stored as the command printed it, so a
-review diff reads like the terminal. `TextSnapshotExtension` stores text and `JsonTextSnapshotExtension` stores
-JSON, unparsed. The test binds `expected = snapshot.use_extension(...)` under `#: Given`, guards the exit status
-first, and then compares the stream the case is about, with a message that names what the snapshot pins.
+What the command prints for a reader is compared whole to a snapshot: one file per case under `__snapshots__/`,
+stored as the command printed it, so a review diff reads like the terminal. The machine-readable document it prints
+with `--format json` is compared whole too, either to a snapshot or, where reading the expected document in the
+test is clearer, by one assertion on everything `json.loads` returns. `TextSnapshotExtension` stores text and
+`JsonTextSnapshotExtension` stores JSON, unparsed. The test binds `expected = snapshot.use_extension(...)` under
+`#: Given`, guards the exit status first, and then compares the stream the case is about, with a message that names
+what the snapshot pins.
 
 A value that differs per build, checkout or machine, such as the version or the absolute root, is swapped for a
 placeholder naming it before the comparison, and nothing else is: a placeholder over something the case is
@@ -73,14 +75,14 @@ skill_directory.mkdir(parents=True)
 expected = snapshot.use_extension(TextSnapshotExtension)
 workspace = Workspace(skills=[Skill('review', body='# Review\n\nRead [the steps](/steps.md).\n')])
 root = workspace.write(tmp_path, faker)
-arguments = ('check', 'skills', '--root', str(root))
+arguments = ('check', '--root', str(root))
 
 #: When
 result = run_cli(*arguments)
 
 #: Then
 assert result.returncode == 1, result.stderr
-assert result.stdout == expected, 'the link-absolute finding matches the reviewed snapshot'
+assert result.stdout == expected, 'the absolute link diagnostic matches the reviewed snapshot'
 ```
 
 ## Checklist
@@ -88,7 +90,8 @@ assert result.stdout == expected, 'the link-absolute finding matches the reviewe
 Before committing code, verify:
 
 - [ ] Every end-to-end test runs the command through `run_cli` or `run_alias`
-- [ ] Every printed output a case is about, text or JSON, is compared whole to a snapshot of its own
+- [ ] Every text output a case is about is compared whole to a snapshot of its own, and every JSON document whole,
+      to a snapshot or after `json.loads`
 - [ ] Only what differs per build, checkout or machine is redacted, each to a placeholder naming it
 - [ ] Every snapshot that changed is reviewed and committed with the output change that moved it
 - [ ] Every repository root a test writes, and any tree beside it, comes from a `Workspace` in one call

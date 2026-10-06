@@ -1,3 +1,0 @@
-.agents/skills/review/references/guide.md:3: [skill.link-absolute] `/docs/guide.md` is absolute
-  = help: link relative to the skill root
-.agents/skills/review/references/guide.md:5: [skill.link-fragment] `#usage` names a heading this file does not have

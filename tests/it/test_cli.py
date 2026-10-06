@@ -1,9 +1,9 @@
 """The CLI assembled: the root application, its global options, and the registry that mounts onto it.
 
 These run the command line in process through Typer's `CliRunner`, so they cross module boundaries —
-root application, registry, command module, version strings, the scan and the model load behind `inspect`,
-the checks behind `check frontmatter`, `check structure` and `check budget` — without needing the console script
-that `tests/e2e/` exercises. `inspect` and the checks read a real tree under `tmp_path`.
+root application, registry, command module, version strings, the scan and the model load behind `inspect`, the
+rules engine behind `check` — without needing the console script that `tests/e2e/` exercises. `inspect` and `check`
+read a real tree under `tmp_path`.
 """
 
 import json
@@ -15,16 +15,14 @@ from textwrap import dedent
 from typing import Final
 
 import pytest
-import typer
 from syrupy.assertion import SnapshotAssertion
 from typer.testing import CliRunner
 
 from lib.snapshot import TextSnapshotExtension
 from lorecraft import __version__
 from lorecraft.cli import build_app
-from lorecraft.cli.commands.check import app as check_app
 from lorecraft.cli.commands.version import version as version_handler
-from lorecraft.cli.registry import DuplicateCommandError, register, register_group
+from lorecraft.cli.registry import DuplicateCommandError, register
 
 runner = CliRunner()
 
@@ -32,18 +30,8 @@ runner = CliRunner()
 # cases below turn on the tree, not the schema.
 ACCEPT_ANY_FRONTMATTER_SPEC: Final[str] = '{"frontmatter": {"type": "object"}}'
 
-# A structure specification requiring a Checklist after the document's own sections, with a token budget every
-# document below fits.
-CHECKLIST_STRUCTURE_SPEC: Final[str] = dedent(
-    """
-    {
-      "tokens": 1000,
-      "outline": [{"any": true}, {"section": "Checklist"}]
-    }
-    """
-)
-
-# The Checklist specification above, with a frontmatter schema that accepts any frontmatter as well.
+# A structure specification requiring a Checklist after the document's own sections, with a frontmatter schema that
+# accepts any frontmatter and a token budget every document below fits.
 CHECKLIST_AND_FRONTMATTER_SPEC: Final[str] = dedent(
     """
     {
@@ -58,42 +46,8 @@ CHECKLIST_AND_FRONTMATTER_SPEC: Final[str] = dedent(
 # it wraps at the width it finds. A dumb terminal 80 columns wide draws the same plain text on every machine.
 PLAIN_TERMINAL: Final[dict[str, str | None]] = {'TERM': 'dumb', 'COLUMNS': '80'}
 
-# What a rule document's Checklist holds, as the outline entry naming it states it.
-CHECKLIST_DESCRIPTION: Final[str] = (
-    'The items a reviewer verifies before committing a change the rule document governs.'
-)
-
-# The body of the Checklist of docs/code/logging.md, trimmed: an example of a rule document's Checklist.
-LOGGING_CHECKLIST: Final[str] = (
-    'Before committing code, verify:\n'
-    '\n'
-    '- [ ] Every module that logs has exactly one `logger = logging.getLogger(__name__)` after its imports\n'
-    '- [ ] No logger is stored as `self.logger` or any other instance or class attribute\n'
-    '- [ ] No log call sits in a per-line loop, whatever its level'
-)
-
-# The body of the Checklist of docs/code/python-docstrings.md, trimmed: a second example of the same section.
-DOCSTRINGS_CHECKLIST: Final[str] = (
-    'Before committing code, verify:\n'
-    '\n'
-    '- [ ] Every new class and public function has a docstring whose first line is a one-line summary\n'
-    '- [ ] No `Returns:` section restates the return annotation\n'
-    '- [ ] A generator documents `Yields:`, never `Returns:`'
-)
-
-# The Checklist specification above, with the Checklist entry stating what the section holds and two examples of it.
-DESCRIBED_CHECKLIST_STRUCTURE_SPEC: Final[str] = json.dumps(
-    {
-        'outline': [
-            {'any': True},
-            {
-                'section': 'Checklist',
-                'description': CHECKLIST_DESCRIPTION,
-                'examples': [LOGGING_CHECKLIST, DOCSTRINGS_CHECKLIST],
-            },
-        ]
-    }
-)
+# A `SKILL.md` holding a field the Agent Skills specification does not define, which is a warning and nothing else.
+UNKNOWN_FIELD_SKILL_MD: Final[str] = '---\nname: review\ndescription: Review a change\nversion: 2\n---\n# Review\n'
 
 # A structure specification whose token budget a two-section document exceeds.
 TIGHT_BUDGET_STRUCTURE_SPEC: Final[str] = '{"tokens": 5}'
@@ -516,1837 +470,8 @@ class TestInspectCommand:
 
 
 @pytest.mark.it
-class TestCheckFrontmatterCommand:
-    def test_check_frontmatter_with_help_prints_the_description_and_stops_before_raises(
-        self, snapshot: SnapshotAssertion
-    ) -> None:
-        #: Given
-        app = build_app()
-        expected = snapshot.use_extension(TextSnapshotExtension)
-
-        #: When
-        result = runner.invoke(app, ['check', 'frontmatter', '--help'], env=PLAIN_TERMINAL)
-
-        #: Then
-        assert result.exit_code == 0, result.output
-        assert result.stdout == expected, (
-            'the check frontmatter help matches the reviewed snapshot, with no docstring section'
-        )
-
-    def test_check_frontmatter_with_a_clean_corpus_exits_zero_and_counts_the_documents(self, tmp_path: Path) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path)])
-
-        #: Then
-        assert result.exit_code == 0, result.output
-        assert result.stdout == '', 'a clean run prints no finding lines'
-        assert result.stderr == 'checked 1 file(s), 0 finding(s)\n', 'the summary goes to stderr'
-
-    def test_check_frontmatter_with_a_non_string_key_under_pattern_properties_reports_it_unparseable_and_exits_one(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(
-            tmp_path,
-            'docs/__meta__/code.structure.json',
-            '{"frontmatter": {"type": "object", "patternProperties": {"^x-": {"type": "string"}}}}',
-        )
-        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n2026: launch\n---\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path)])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert result.stdout == (
-            'docs/code/guide.md:3: [frontmatter.unparseable] frontmatter is not valid YAML: '
-            'found the key 2026, which is not a string\n'
-        ), 'a key a pattern cannot be matched against is refused as unparseable on its line, not a failure of the run'
-
-    def test_check_frontmatter_without_a_root_finds_the_nearest_parent_with_docs_meta(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
-        nested = tmp_path / 'src' / 'nested'
-        nested.mkdir(parents=True)
-        monkeypatch.chdir(nested)
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'frontmatter'])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert result.stdout == 'docs/code/guide.md:1: [frontmatter.missing] no `---` delimited frontmatter block\n', (
-            'the root is discovered upward from the working directory, and findings print root-relative'
-        )
-
-    def test_check_frontmatter_with_a_corpus_without_a_frontmatter_schema_reports_it_ungoverned(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/feat.md', '# Feat\n')
-        _write(tmp_path, 'docs/feat/overview.md', '# No frontmatter\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path)])
-
-        #: Then
-        assert result.exit_code == 0, result.output
-        assert result.stdout == (
-            'docs/feat/overview.md:1: [feat.ungoverned] '
-            'no frontmatter schema for this corpus; frontmatter unvalidated\n'
-        ), 'an ungoverned document is reported as unvalidated, not as a finding'
-
-    def test_check_frontmatter_with_a_named_document_checks_that_document_alone(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
-        _write(tmp_path, 'docs/code/broken.md', '# No frontmatter\n')
-        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n')
-        monkeypatch.chdir(tmp_path)
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), 'docs/code/guide.md'])
-
-        #: Then
-        assert result.exit_code == 0, result.output
-        assert result.stdout == '', 'the broken document beside the named one is not checked'
-        assert result.stderr == 'checked 1 file(s), 0 finding(s)\n', 'the named document is the one checked'
-
-    def test_check_frontmatter_with_one_document_named_by_three_spellings_checks_it_once(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
-        _write(tmp_path, 'docs/code/broken.md', '# No frontmatter\n')
-        (tmp_path / 'docs' / 'code' / 'alias.md').symlink_to('broken.md')
-        monkeypatch.chdir(tmp_path)
-        paths = ['docs/code/broken.md', './docs/code/broken.md', 'docs/code/alias.md']
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), *paths])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert result.stdout == 'docs/code/broken.md:1: [frontmatter.missing] no `---` delimited frontmatter block\n', (
-            'the document the three paths lead to is reported once'
-        )
-        assert result.stderr == 'checked 1 file(s), 1 finding(s)\n', 'the document named three times is checked once'
-
-    def test_check_frontmatter_with_one_document_named_twice_and_json_format_checks_it_once(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
-        _write(tmp_path, 'docs/code/broken.md', '# No frontmatter\n')
-        monkeypatch.chdir(tmp_path)
-        paths = ['docs/code/broken.md', 'docs/code/broken.md']
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), '--format', 'json', *paths])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 1,
-            'findings': [
-                {
-                    'file': 'docs/code/broken.md',
-                    'line': 1,
-                    'rule': 'frontmatter.missing',
-                    'message': 'no `---` delimited frontmatter block',
-                    'spec': None,
-                    'notes': [],
-                }
-            ],
-            'ungoverned': [],
-        }, f'the document named twice is checked and reported once, got {result.stdout!r}'
-
-    def test_check_frontmatter_with_a_missing_named_document_exits_as_invalid_input(self, tmp_path: Path) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n')
-        argument = tmp_path / 'docs' / 'code' / 'missing.md'
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), str(argument)])
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert result.stderr == f'error: {argument}: no such file\n', 'the error quotes the argument as typed'
-
-    def test_check_frontmatter_with_a_named_directory_exits_as_invalid_input(self, tmp_path: Path) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n')
-        argument = tmp_path / 'docs' / 'code'
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), str(argument)])
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert result.stderr == f'error: {argument}: expected a readable Markdown file\n', (
-            'a directory is refused as no document'
-        )
-
-    def test_check_frontmatter_with_a_named_non_markdown_file_exits_as_invalid_input(self, tmp_path: Path) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
-        argument = _write(tmp_path, 'docs/code/notes.txt', 'notes\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), str(argument)])
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert result.stderr == f'error: {argument}: expected a .md file\n', 'only a .md file is a document'
-
-    def test_check_frontmatter_with_a_named_file_outside_docs_exits_as_invalid_input(self, tmp_path: Path) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
-        argument = _write(tmp_path, 'README.md', '# Readme\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), str(argument)])
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert result.stderr == f'error: {argument}: file must be inside docs/ and outside docs/__meta__/\n', (
-            'a file outside docs/ is refused for where it sits'
-        )
-
-    def test_check_frontmatter_with_a_named_file_directly_under_docs_exits_as_invalid_input(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
-        argument = _write(tmp_path, 'docs/architecture.md', '# Architecture\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), str(argument)])
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert result.stderr == f'error: {argument}: file must be inside a corpus directory under docs/\n', (
-            'a file in no corpus directory is refused for where it sits'
-        )
-
-    def test_check_frontmatter_with_a_named_file_the_model_does_not_list_exits_as_invalid_input(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
-        argument = _write(tmp_path, 'docs/code/README.md', '# Readme\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), str(argument)])
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert result.stderr == f'error: {argument}: not a document the workspace lists\n', (
-            'a Markdown file in a corpus that the model leaves out is refused as unlisted'
-        )
-
-    def test_check_frontmatter_with_invalid_corpus_name_exits_as_invalid_input(self, tmp_path: Path) -> None:
-        #: Given
-        document = _write(tmp_path, 'docs/bad-name/guide.md', '---\nname: "guide"\n---\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), str(document)])
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert result.stderr == (
-            f"error: {document}: invalid corpus name\n  caused by: invalid character '-' in corpus name 'bad-name'\n"
-        ), 'the CLI reports the invalid name, then the character the parser refused'
-
-    def test_check_frontmatter_with_a_path_in_a_corpus_subdirectory_exits_as_invalid_input(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.md')
-        document = _write(tmp_path, 'docs/code/sub/guide.md', '---\nname: "guide"\n---\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), str(document)])
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert 'corpora are flat' in result.output, 'the CLI reports that a nested file is not a document'
-
-    def test_check_frontmatter_with_a_path_in_a_directory_without_a_spec_exits_as_invalid_input(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.md')
-        document = _write(tmp_path, 'docs/blog/post.md', '---\nname: "post"\n---\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), str(document)])
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert 'not a corpus' in result.output, 'the CLI reports that the directory has no specification'
-
-    def test_check_frontmatter_with_a_malformed_frontmatter_schema_exits_as_invalid_input(
-        self, malformed_schema_workspace: Path
-    ) -> None:
-        #: Given
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(malformed_schema_workspace)])
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert 'invalid structure schema docs/__meta__/code.structure.json' in result.stderr, (
-            'the failure names the specification the load rejected'
-        )
-
-    def test_check_frontmatter_with_a_non_utf8_governed_document_exits_with_an_undecodable_finding(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
-        document = tmp_path / 'docs' / 'code' / 'guide.md'
-        document.parent.mkdir(parents=True)
-        document.write_bytes(b'---\nname: "gu\xffide"\n---\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path)])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert 'docs/code/guide.md:1: [frontmatter.undecodable]' in result.stdout, (
-            'a document that is not UTF-8 is a finding, not an invalid-input failure'
-        )
-
-    def test_check_frontmatter_with_a_spec_less_directory_beside_a_corpus_reports_only_the_corpus(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n')
-        _write(tmp_path, 'docs/blog/post.md', '---\nname: "post"\n---\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 0, result.output
-        report = json.loads(result.stdout)
-        assert report == {'checked': 1, 'findings': [], 'ungoverned': []}, (
-            'only the corpus named in docs/__meta__/ is checked; the spec-less directory is not mentioned'
-        )
-
-    def test_check_frontmatter_with_a_finding_and_json_format_reports_the_file_as_text_and_the_line_as_a_number(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout)['findings'] == [
-            {
-                'file': 'docs/code/guide.md',
-                'line': 1,
-                'rule': 'frontmatter.missing',
-                'message': 'no `---` delimited frontmatter block',
-                'spec': None,
-                'notes': [],
-            }
-        ], f'a finding serialises as the root-relative path and the line number, got {result.stdout!r}'
-
-    def test_check_frontmatter_with_a_key_written_twice_and_json_format_reports_the_duplicate_key(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '---\nname: guide\ntype: rule\ntype: pattern\n---\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 1,
-            'findings': [
-                {
-                    'file': 'docs/code/guide.md',
-                    'line': 4,
-                    'rule': 'frontmatter.duplicate-key',
-                    'message': "'type' is already written on line 3",
-                    'spec': None,
-                    'notes': [],
-                }
-            ],
-            'ungoverned': [],
-        }, 'the repetition is reported on its own line, naming the line of the first occurrence'
-
-    def test_check_frontmatter_with_a_nested_non_string_key_and_json_format_reports_it_unparseable(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(
-            tmp_path,
-            'docs/__meta__/code.structure.json',
-            '{"frontmatter": {"type": "object", "patternProperties": {"^x-": {"type": "string"}}}}',
-        )
-        _write(tmp_path, 'docs/code/guide.md', '---\nname: guide\nmeta:\n  2026: launch\n---\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'frontmatter', '--root', str(tmp_path), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 1,
-            'findings': [
-                {
-                    'file': 'docs/code/guide.md',
-                    'line': 4,
-                    'rule': 'frontmatter.unparseable',
-                    'message': 'frontmatter is not valid YAML: found the key 2026, which is not a string',
-                    'spec': None,
-                    'notes': [],
-                }
-            ],
-            'ungoverned': [],
-        }, 'a nested key is refused on its own line, and names no specification, since no schema is applied'
-
-    def test_check_frontmatter_from_a_deleted_working_directory_exits_with_a_working_directory_error(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        #: Given
-        deleted = tmp_path / 'deleted'
-        deleted.mkdir()
-        monkeypatch.chdir(deleted)
-        deleted.rmdir()
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'frontmatter'])
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert result.stderr.startswith('error: cannot read the current directory:'), (
-            f'an unreadable working directory is the reported failure, got {result.stderr!r}'
-        )
-
-
-@pytest.mark.it
-class TestCheckHeaderAlias:
-    def test_check_header_with_a_clean_corpus_behaves_as_check_frontmatter(self, tmp_path: Path) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'header', '--root', str(tmp_path)])
-
-        #: Then
-        assert result.exit_code == 0, result.output
-        assert result.stderr == 'checked 1 file(s), 0 finding(s)\n', 'the alias runs the frontmatter check'
-
-    def test_check_header_with_a_finding_prints_and_exits_as_check_frontmatter(self, tmp_path: Path) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'header', '--root', str(tmp_path)])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert result.stdout == 'docs/code/guide.md:1: [frontmatter.missing] no `---` delimited frontmatter block\n', (
-            'the alias prints the finding the frontmatter check prints'
-        )
-
-    def test_check_header_with_a_malformed_frontmatter_schema_exits_as_invalid_input(
-        self, malformed_schema_workspace: Path
-    ) -> None:
-        #: Given
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'header', '--root', str(malformed_schema_workspace)])
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert 'invalid structure schema docs/__meta__/code.structure.json' in result.stderr, (
-            'the alias reports a rejected specification as the frontmatter check does'
-        )
-
-
-@pytest.mark.it
-class TestCheckStructureCommand:
-    def test_check_structure_with_help_prints_the_description_and_stops_before_raises(
-        self, snapshot: SnapshotAssertion
-    ) -> None:
-        #: Given
-        app = build_app()
-        expected = snapshot.use_extension(TextSnapshotExtension)
-
-        #: When
-        result = runner.invoke(app, ['check', 'structure', '--help'], env=PLAIN_TERMINAL)
-
-        #: Then
-        assert result.exit_code == 0, result.output
-        assert result.stdout == expected, (
-            'the check structure help matches the reviewed snapshot, with no docstring section'
-        )
-
-    def test_check_structure_with_a_clean_corpus_exits_zero_and_counts_the_documents(self, tmp_path: Path) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_STRUCTURE_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '# Guide\n\n## Rule\n\ntext\n\n## Checklist\n\n- [ ] item\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'structure', '--root', str(tmp_path)])
-
-        #: Then
-        assert result.exit_code == 0, result.output
-        assert result.stdout == '', 'a clean run prints no finding lines'
-        assert result.stderr == 'checked 1 file(s), 0 finding(s)\n', 'the summary goes to stderr'
-
-    def test_check_structure_with_a_missing_section_exits_one_and_prints_the_finding(self, tmp_path: Path) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_STRUCTURE_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '# Guide\n\n## Rule\n\ntext\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'structure', '--root', str(tmp_path)])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert result.stdout == (
-            'docs/code/guide.md:1: [structure.outline] missing required section `Checklist` (per code.md)\n'
-        ), 'the finding prints root-relative, quoting the prose the specification checks'
-
-    def test_check_structure_with_a_corpus_without_a_structure_spec_reports_it_ungoverned(self, tmp_path: Path) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/feat.md', '# Feat\n')
-        _write(tmp_path, 'docs/feat/overview.md', '## Empty\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'structure', '--root', str(tmp_path)])
-
-        #: Then
-        assert result.exit_code == 0, result.output
-        assert result.stdout == (
-            'docs/feat/overview.md:1: [feat.ungoverned] no structure spec for this corpus; structure unvalidated\n'
-        ), 'an ungoverned document is reported as unvalidated, not as a finding'
-
-    def test_check_structure_with_a_malformed_structure_spec_exits_as_invalid_input(self, tmp_path: Path) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', '{}')
-        _write(tmp_path, 'docs/code/guide.md', '## Rule\n\ntext\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'structure', '--root', str(tmp_path)])
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert 'invalid structure schema docs/__meta__/code.structure.json' in result.stderr, (
-            'the failure names the specification the load rejected'
-        )
-
-    def test_check_structure_with_a_finding_and_json_format_reports_the_file_as_text_and_the_line_as_a_number(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_STRUCTURE_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '# Guide\n\n## Checklist\n\n- [ ] item\n\n## Appendix\n\ntext\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'structure', '--root', str(tmp_path), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout)['findings'] == [
-            {
-                'file': 'docs/code/guide.md',
-                'line': 7,
-                'rule': 'structure.outline',
-                'message': 'unexpected section `Appendix`; the outline ends before it (per code.md)',
-                'spec': 'docs/__meta__/code.structure.json',
-                'notes': [],
-            }
-        ], f'a finding serialises as the root-relative path and the line number, got {result.stdout!r}'
-
-    def test_check_structure_without_a_described_section_prints_its_help_and_first_example_under_the_finding(
-        self, tmp_path: Path, snapshot: SnapshotAssertion
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        _write(tmp_path, 'docs/__meta__/code.structure.json', DESCRIBED_CHECKLIST_STRUCTURE_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '# Guide\n\n## Rule\n\ntext\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'structure', '--root', str(tmp_path)])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert result.stdout == expected, 'the finding and its notes match the reviewed snapshot'
-
-    def test_check_structure_without_a_described_section_and_json_format_reports_its_notes(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', DESCRIBED_CHECKLIST_STRUCTURE_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '# Guide\n\n## Rule\n\ntext\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'structure', '--root', str(tmp_path), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 1,
-            'findings': [
-                {
-                    'file': 'docs/code/guide.md',
-                    'line': 1,
-                    'rule': 'structure.outline',
-                    'message': 'missing required section `Checklist` (per code.md)',
-                    'spec': 'docs/__meta__/code.structure.json',
-                    'notes': [
-                        {'kind': 'help', 'text': CHECKLIST_DESCRIPTION},
-                        {'kind': 'note', 'text': f'for example:\n## Checklist\n\n{LOGGING_CHECKLIST}'},
-                    ],
-                }
-            ],
-            'ungoverned': [],
-        }, (
-            'each note serialises as its kind and its text, in the order it prints, and only the first example is '
-            f'reported, got {result.stdout!r}'
-        )
-
-
-@pytest.mark.it
-class TestCheckBudgetCommand:
-    def test_check_budget_with_help_prints_the_description_and_stops_before_raises(
-        self, snapshot: SnapshotAssertion
-    ) -> None:
-        #: Given
-        app = build_app()
-        expected = snapshot.use_extension(TextSnapshotExtension)
-
-        #: When
-        result = runner.invoke(app, ['check', 'budget', '--help'], env=PLAIN_TERMINAL)
-
-        #: Then
-        assert result.exit_code == 0, result.output
-        assert result.stdout == expected, (
-            'the check budget help matches the reviewed snapshot, with no docstring section'
-        )
-
-    def test_check_budget_with_a_clean_corpus_exits_zero_and_counts_the_documents(self, tmp_path: Path) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_STRUCTURE_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '## Rule\n\ntext\n\n## Checklist\n\n- [ ] item\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'budget', '--root', str(tmp_path)])
-
-        #: Then
-        assert result.exit_code == 0, result.output
-        assert result.stdout == '', 'a clean run prints no finding lines'
-        assert result.stderr == 'checked 1 file(s), 0 finding(s)\n', 'the summary goes to stderr'
-
-    def test_check_budget_with_a_file_over_its_budget_exits_one_and_prints_the_finding(self, tmp_path: Path) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', TIGHT_BUDGET_STRUCTURE_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '## Rule\n\ntext\n\n## Checklist\n\n- [ ] item\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'budget', '--root', str(tmp_path)])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert result.stdout == (
-            'docs/code/guide.md:1: [budget.tokens] 13 tokens; the budget is 5 (per code.structure.json)\n'
-        ), 'the finding prints root-relative, quoting the prose the specification checks'
-
-    def test_check_budget_with_a_finding_and_json_format_names_the_spec_from_the_root(self, tmp_path: Path) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', TIGHT_BUDGET_STRUCTURE_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '## Rule\n\ntext\n\n## Checklist\n\n- [ ] item\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'budget', '--root', str(tmp_path), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout)['findings'] == [
-            {
-                'file': 'docs/code/guide.md',
-                'line': 1,
-                'rule': 'budget.tokens',
-                'message': '13 tokens; the budget is 5 (per code.structure.json)',
-                'spec': 'docs/__meta__/code.structure.json',
-                'notes': [],
-            }
-        ], f'the spec that sets the budget serialises root-relative, apart from the message, got {result.stdout!r}'
-
-    def test_check_budget_with_a_structure_spec_without_tokens_reports_it_ungoverned(self, tmp_path: Path) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', '{"empty_sections": "forbidden"}')
-        _write(tmp_path, 'docs/code/guide.md', '## Rule\n\ntext\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'budget', '--root', str(tmp_path)])
-
-        #: Then
-        assert result.exit_code == 0, result.output
-        assert result.stdout == (
-            'docs/code/guide.md:1: [code.ungoverned] no token budget for this corpus; tokens unvalidated\n'
-        ), 'a structure spec that sets no `tokens` leaves the document unvalidated, not failed'
-
-    def test_check_budget_with_a_linked_specs_directory_exits_as_invalid_input(
-        self, linked_specs_workspace: Path
-    ) -> None:
-        #: Given
-        app = build_app()
-        arguments = ['check', 'budget', '--root', str(linked_specs_workspace), '--format', 'json']
-
-        #: When
-        result = runner.invoke(app, arguments)
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert result.stdout == '', 'no report is printed for a run that could not start'
-        assert result.stderr == (
-            'error: docs/__meta__ is a symlink, which lorecraft does not follow: '
-            'docs/__meta__/ must be a real directory\n'
-        ), 'a named check refuses the linked directory instead of reporting zero documents checked'
-
-
-@pytest.mark.it
-class TestCheckSkillsCommand:
-    def test_check_skills_with_help_prints_the_description_and_stops_before_raises(
-        self, snapshot: SnapshotAssertion
-    ) -> None:
-        #: Given
-        app = build_app()
-        expected = snapshot.use_extension(TextSnapshotExtension)
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills', '--help'], env=PLAIN_TERMINAL)
-
-        #: Then
-        assert result.exit_code == 0, result.output
-        assert result.stdout == expected, (
-            'the check skills help matches the reviewed snapshot, with no docstring section'
-        )
-
-    def test_check_skills_with_json_format_over_clean_skills_reports_them_checked(self, tmp_path: Path) -> None:
-        #: Given
-        _write(tmp_path, '.agents/skills/commit/SKILL.md', '---\nname: commit\ndescription: Write a commit\n---\n')
-        _write(tmp_path, '.agents/skills/review/SKILL.md', '---\nname: review\ndescription: Review a change\n---\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 0, result.output
-        assert json.loads(result.stdout) == {'checked': 2, 'findings': [], 'ungoverned': []}, (
-            'every skill is checked, none is ungoverned, and a clean run has no finding'
-        )
-
-    def test_check_skills_with_json_format_over_broken_skills_reports_each_finding(self, tmp_path: Path) -> None:
-        #: Given
-        _write(tmp_path, '.agents/skills/bare/SKILL.md', '# No frontmatter\n')
-        _write(tmp_path, '.agents/skills/review/SKILL.md', '---\ndescription: Review\nname: audit\nmodel: opus\n---\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 2,
-            'findings': [
-                {
-                    'file': '.agents/skills/bare/SKILL.md',
-                    'line': 1,
-                    'rule': 'skill.frontmatter-missing',
-                    'message': 'no `---` delimited frontmatter block',
-                    'spec': None,
-                    'notes': [],
-                },
-                {
-                    'file': '.agents/skills/review/SKILL.md',
-                    'line': 3,
-                    'rule': 'skill.name-matches-directory',
-                    'message': "`name` is 'audit'; expected 'review', the name of the skill directory",
-                    'spec': None,
-                    'notes': [],
-                },
-                {
-                    'file': '.agents/skills/review/SKILL.md',
-                    'line': 4,
-                    'rule': 'skill.unknown-field',
-                    'message': '`model` is not a field of the Agent Skills specification',
-                    'spec': None,
-                    'notes': [],
-                },
-            ],
-            'ungoverned': [],
-        }, 'each finding names its SKILL.md from the root, its line as a number and its rule'
-
-    def test_check_skills_with_json_format_over_a_skill_writing_a_key_twice_reports_the_duplicate_key(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(
-            tmp_path,
-            '.agents/skills/review/SKILL.md',
-            '---\nname: review\ndescription: Review a change\ndescription: Audit a change\n---\n',
-        )
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 1,
-            'findings': [
-                {
-                    'file': '.agents/skills/review/SKILL.md',
-                    'line': 4,
-                    'rule': 'skill.duplicate-key',
-                    'message': "'description' is already written on line 3",
-                    'spec': None,
-                    'notes': [],
-                }
-            ],
-            'ungoverned': [],
-        }, 'the repetition is reported on its own line, naming the line of the first occurrence'
-
-    def test_check_skills_with_json_format_over_a_skill_with_an_absolute_link_reports_the_link(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(
-            tmp_path,
-            '.agents/skills/review/SKILL.md',
-            '---\nname: review\ndescription: Review a change\n---\n# Review\n\nRead [the guide](/docs/guide.md).\n',
-        )
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 1,
-            'findings': [
-                {
-                    'file': '.agents/skills/review/SKILL.md',
-                    'line': 7,
-                    'rule': 'skill.link-absolute',
-                    'message': '`/docs/guide.md` is absolute',
-                    'spec': None,
-                    'notes': [{'kind': 'help', 'text': 'link relative to the skill root'}],
-                }
-            ],
-            'ungoverned': [],
-        }, 'the absolute link is reported on its own line, naming its destination'
-
-    def test_check_skills_with_json_format_over_a_skill_with_a_link_to_a_missing_heading_reports_the_link(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(
-            tmp_path,
-            '.agents/skills/review/SKILL.md',
-            '---\nname: review\ndescription: Review a change\n---\n# Review\n\nSee [the checklist](#checklist).\n',
-        )
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 1,
-            'findings': [
-                {
-                    'file': '.agents/skills/review/SKILL.md',
-                    'line': 7,
-                    'rule': 'skill.link-fragment',
-                    'message': '`#checklist` names a heading this file does not have',
-                    'spec': None,
-                    'notes': [],
-                }
-            ],
-            'ungoverned': [],
-        }, 'the link to a missing heading is reported on its own line, naming its fragment'
-
-    def test_check_skills_with_json_format_over_a_skill_with_an_escaping_link_in_a_resource_reports_it_there(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(tmp_path, '.agents/skills/review/SKILL.md', '---\nname: review\ndescription: Review a change\n---\n')
-        _write(tmp_path, '.agents/skills/review/references/guide.md', '# Guide\n\nBack to [the skill](../SKILL.md).\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 1,
-            'findings': [
-                {
-                    'file': '.agents/skills/review/references/guide.md',
-                    'line': 3,
-                    'rule': 'skill.link-escapes',
-                    'message': '`../SKILL.md` leaves the skill directory',
-                    'spec': None,
-                    'notes': [{'kind': 'help', 'text': 'link a file inside the skill, relative to the skill root'}],
-                }
-            ],
-            'ungoverned': [],
-        }, 'the escaping link is reported in the resource holding it, and the skill is counted once'
-
-    def test_check_skills_with_json_format_naming_a_skill_md_reports_the_findings_of_that_file_alone(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(
-            tmp_path,
-            '.agents/skills/review/SKILL.md',
-            '---\nname: review\ndescription: Review a change\n---\n# Review\n\nRead [the guide](/docs/guide.md).\n',
-        )
-        _write(tmp_path, '.agents/skills/review/references/guide.md', '# Guide\n\nBack to [the skill](../SKILL.md).\n')
-        skill_md = tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md'
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills', str(skill_md), '--root', str(tmp_path), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 1,
-            'findings': [
-                {
-                    'file': '.agents/skills/review/SKILL.md',
-                    'line': 7,
-                    'rule': 'skill.link-absolute',
-                    'message': '`/docs/guide.md` is absolute',
-                    'spec': None,
-                    'notes': [{'kind': 'help', 'text': 'link relative to the skill root'}],
-                }
-            ],
-            'ungoverned': [],
-        }, 'the SKILL.md named is checked and counted as its skill, and the escaping link in its resource is not read'
-
-    def test_check_skills_with_json_format_over_a_skill_with_absolute_and_fragment_links_in_a_resource_reports_both(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(
-            tmp_path,
-            '.agents/skills/review/SKILL.md',
-            '---\nname: review\ndescription: Review a change\n---\n# Review\n\n## Usage\n',
-        )
-        _write(
-            tmp_path,
-            '.agents/skills/review/references/guide.md',
-            '# Guide\n\nRead [the docs](/docs/guide.md).\n\nSee [the usage](#usage), not [the guide](#guide).\n',
-        )
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 1,
-            'findings': [
-                {
-                    'file': '.agents/skills/review/references/guide.md',
-                    'line': 3,
-                    'rule': 'skill.link-absolute',
-                    'message': '`/docs/guide.md` is absolute',
-                    'spec': None,
-                    'notes': [{'kind': 'help', 'text': 'link relative to the skill root'}],
-                },
-                {
-                    'file': '.agents/skills/review/references/guide.md',
-                    'line': 5,
-                    'rule': 'skill.link-fragment',
-                    'message': '`#usage` names a heading this file does not have',
-                    'spec': None,
-                    'notes': [],
-                },
-            ],
-            'ungoverned': [],
-        }, "each link is reported in the resource holding it, its fragment checked against the resource's own headings"
-
-    def test_check_skills_with_json_format_over_a_skill_with_broken_links_reports_each_in_its_file(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(
-            tmp_path,
-            '.agents/skills/review/SKILL.md',
-            '---\nname: review\ndescription: Review a change\n---\n# Review\n\n'
-            'Read [the steps](references/steps.md).\n',
-        )
-        _write(
-            tmp_path,
-            '.agents/skills/review/references/guide.md',
-            '# Guide\n\nBack to [the skill](SKILL.md), then [the flow](assets/flow%20chart.png#top).\n',
-        )
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 1,
-            'findings': [
-                {
-                    'file': '.agents/skills/review/SKILL.md',
-                    'line': 7,
-                    'rule': 'skill.link-broken',
-                    'message': '`references/steps.md` names nothing in the skill',
-                    'spec': None,
-                    'notes': [
-                        {
-                            'kind': 'help',
-                            'text': 'link a file or a directory the skill holds, relative to the skill root',
-                        }
-                    ],
-                },
-                {
-                    'file': '.agents/skills/review/references/guide.md',
-                    'line': 3,
-                    'rule': 'skill.link-broken',
-                    'message': '`assets/flow chart.png#top` names nothing in the skill',
-                    'spec': None,
-                    'notes': [
-                        {
-                            'kind': 'help',
-                            'text': 'link a file or a directory the skill holds, relative to the skill root',
-                        }
-                    ],
-                },
-            ],
-            'ungoverned': [],
-        }, 'each broken link is reported in the file holding it, decoded, and the link to the SKILL.md is not'
-
-    def test_check_skills_with_json_format_over_a_skill_md_over_500_lines_reports_the_budget_with_help(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        # four lines of frontmatter and 497 of body: 501 in all
-        _write(
-            tmp_path,
-            '.agents/skills/review/SKILL.md',
-            '---\nname: review\ndescription: Review a change\n---\n' + 'Body.\n' * 497,
-        )
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 1,
-            'findings': [
-                {
-                    'file': '.agents/skills/review/SKILL.md',
-                    'line': 1,
-                    'rule': 'skill.lines-budget',
-                    'message': '501 lines; the budget is 500',
-                    'spec': None,
-                    'notes': [
-                        {
-                            'kind': 'help',
-                            'text': (
-                                'move detail most activations do not need into files under references/, and say in '
-                                'SKILL.md when to read each'
-                            ),
-                        }
-                    ],
-                },
-            ],
-            'ungoverned': [],
-        }, 'the SKILL.md over the budget, its frontmatter counted, is one finding on line 1, with its help note'
-
-    def test_check_skills_with_json_format_over_a_skill_linked_outside_the_skills_directories_checks_it(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(tmp_path, 'skills/review/SKILL.md', '---\nname: audit\ndescription: Review a change\n---\n')
-        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
-        (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 1,
-            'findings': [
-                {
-                    'file': '.agents/skills/review/SKILL.md',
-                    'line': 2,
-                    'rule': 'skill.name-matches-directory',
-                    'message': "`name` is 'audit'; expected 'review', the name of the skill directory",
-                    'spec': None,
-                    'notes': [],
-                }
-            ],
-            'ungoverned': [],
-        }, 'the skill is read through its link and reported where an agent finds it'
-
-    def test_check_skills_with_json_format_over_a_skill_entry_linked_outside_reports_it_without_counting_a_skill(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        root = tmp_path / 'repository'
-        _write(root, '.agents/skills/review/SKILL.md', '---\nname: review\ndescription: Review a change\n---\n')
-        _write(tmp_path, 'elsewhere/x/SKILL.md', '---\nname: x\ndescription: Kept outside\n---\n')
-        (root / '.agents' / 'skills' / 'x').symlink_to(tmp_path / 'elsewhere' / 'x')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills', '--root', str(root), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 1,
-            'findings': [
-                {
-                    'file': '.agents/skills/x',
-                    'line': 1,
-                    'rule': 'skill.symlink-outside',
-                    'message': 'symlink leads outside the repository',
-                    'spec': None,
-                    'notes': [
-                        {
-                            'kind': 'note',
-                            'text': f'leaves the repository at .agents/skills/x -> {tmp_path / "elsewhere" / "x"}',
-                        },
-                        {'kind': 'help', 'text': 'keep every file a skill loads inside the repository'},
-                    ],
-                }
-            ],
-            'ungoverned': [],
-        }, 'the entry is reported where an agent lists it, and only the skill inside the repository is counted'
-
-    def test_check_skills_with_json_format_over_a_skill_entry_climbing_out_of_a_directory_it_steps_into_checks_it(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(tmp_path, 'shared/x/SKILL.md', '---\nname: audit\ndescription: Review a change\n---\n')
-        (tmp_path / 'shared' / 'tmp').mkdir()
-        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
-        (tmp_path / '.agents' / 'skills' / 'x').symlink_to('../../shared/tmp/../x')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 1,
-            'findings': [
-                {
-                    'file': '.agents/skills/x/SKILL.md',
-                    'line': 2,
-                    'rule': 'skill.name-matches-directory',
-                    'message': "`name` is 'audit'; expected 'x', the name of the skill directory",
-                    'spec': None,
-                    'notes': [],
-                }
-            ],
-            'ungoverned': [],
-        }, 'the `..` after shared/tmp is shared, so the entry is the skill at shared/x, as an agent loads it'
-
-    def test_check_skills_with_json_format_over_a_skill_entry_climbing_above_the_root_through_a_directory_reports_it(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(tmp_path, '.agents/skills/review/SKILL.md', '---\nname: review\ndescription: Review a change\n---\n')
-        (tmp_path / 'shared' / 'tmp').mkdir(parents=True)
-        (tmp_path / '.agents' / 'skills' / 'refused').symlink_to('../../shared/tmp/../../..')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 1,
-            'findings': [
-                {
-                    'file': '.agents/skills/refused',
-                    'line': 1,
-                    'rule': 'skill.symlink-outside',
-                    'message': 'symlink leads outside the repository',
-                    'spec': None,
-                    'notes': [
-                        {
-                            'kind': 'note',
-                            'text': 'leaves the repository at .agents/skills/refused -> ../../shared/tmp/../../..',
-                        },
-                        {'kind': 'help', 'text': 'keep every file a skill loads inside the repository'},
-                    ],
-                }
-            ],
-            'ungoverned': [],
-        }, 'the chain steps into shared/tmp, climbs back out and then above the root, so the entry leaves'
-
-    def test_check_skills_with_json_format_over_a_skill_named_after_where_its_link_leads_reports_the_listed_name(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(tmp_path, 'skills/foo/SKILL.md', '---\nname: foo\ndescription: Review a change\n---\n')
-        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
-        (tmp_path / '.agents' / 'skills' / 'bar').symlink_to('../../skills/foo')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 1,
-            'findings': [
-                {
-                    'file': '.agents/skills/bar/SKILL.md',
-                    'line': 2,
-                    'rule': 'skill.name-matches-directory',
-                    'message': "`name` is 'foo'; expected 'bar', the name of the skill directory",
-                    'spec': None,
-                    'notes': [{'kind': 'note', 'text': "'bar' is a link to 'skills/foo'"}],
-                }
-            ],
-            'ungoverned': [],
-        }, 'a skill named after where its link leads is held to the entry listed, with a note naming where it leads'
-
-    def test_check_skills_with_json_format_and_a_named_skill_checks_that_skill_alone(self, tmp_path: Path) -> None:
-        #: Given
-        _write(tmp_path, '.agents/skills/bare/SKILL.md', '# No frontmatter\n')
-        named = _write(tmp_path, '.agents/skills/review/SKILL.md', '---\nname: review\ndescription: Review\n---\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills', str(named), '--root', str(tmp_path), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 0, result.output
-        assert json.loads(result.stdout) == {'checked': 1, 'findings': [], 'ungoverned': []}, (
-            'only the named skill is checked, so the broken one beside it is not reported'
-        )
-
-    def test_check_skills_with_json_format_and_a_linked_skill_file_named_checks_that_skill(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(tmp_path, 'shared/REVIEW.md', '---\nname: review\ndescription: Review\n---\n')
-        (tmp_path / '.agents' / 'skills' / 'review').mkdir(parents=True)
-        named = tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md'
-        named.symlink_to('../../../shared/REVIEW.md')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills', str(named), '--root', str(tmp_path), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 0, result.output
-        assert json.loads(result.stdout) == {'checked': 1, 'findings': [], 'ungoverned': []}, (
-            'a SKILL.md that is a link to its text names its skill, as the skill directory does'
-        )
-
-    def test_check_skills_with_a_non_utf8_skill_exits_with_an_undecodable_finding(self, tmp_path: Path) -> None:
-        #: Given
-        skill_file = tmp_path / '.agents' / 'skills' / 'latin' / 'SKILL.md'
-        skill_file.parent.mkdir(parents=True)
-        skill_file.write_bytes(b'---\nname: caf\xe9\n---\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path)])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert result.stdout == '.agents/skills/latin/SKILL.md:1: [skill.undecodable] SKILL.md is not valid UTF-8\n', (
-            'a skill that is not UTF-8 is a finding that names the file as a skill, not a document'
-        )
-        assert result.stderr == 'checked 1 skill(s), 1 finding(s)\n', 'the summary counts skills, not files'
-
-    def test_check_skills_without_a_root_finds_the_nearest_parent_with_docs_meta(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        #: Given
-        (tmp_path / 'docs' / '__meta__').mkdir(parents=True)
-        _write(tmp_path, '.agents/skills/review/SKILL.md', '---\nname: review\n---\n')
-        nested = tmp_path / 'src' / 'nested'
-        nested.mkdir(parents=True)
-        monkeypatch.chdir(nested)
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills'])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert result.stdout == '.agents/skills/review/SKILL.md:1: [skill.description] `description` is required\n', (
-            'the root is discovered upward from the working directory, and findings print root-relative'
-        )
-
-    def test_check_skills_with_one_skill_named_twice_checks_it_once(self, tmp_path: Path) -> None:
-        #: Given
-        skill_file = _write(tmp_path, '.agents/skills/review/SKILL.md', '---\nname: review\n---\n')
-        arguments = ['check', 'skills', str(skill_file.parent), str(skill_file), '--root', str(tmp_path)]
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, arguments)
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert result.stdout == '.agents/skills/review/SKILL.md:1: [skill.description] `description` is required\n', (
-            'the skill named by its directory and by its SKILL.md is reported once'
-        )
-        assert result.stderr == 'checked 1 skill(s), 1 finding(s)\n', 'the skill named twice is checked once'
-
-    def test_check_skills_with_a_skills_directory_and_one_of_its_entries_checks_each_skill_once(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        skill_file = _write(tmp_path, '.agents/skills/review/SKILL.md', '---\nname: review\n---\n')
-        _write(tmp_path, '.agents/skills/lint/SKILL.md', '---\nname: lint\n---\n')
-        skills_dir = tmp_path / '.agents' / 'skills'
-        arguments = ['check', 'skills', str(skills_dir), str(skill_file.parent), '--root', str(tmp_path)]
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, arguments)
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert result.stdout == (
-            '.agents/skills/lint/SKILL.md:1: [skill.description] `description` is required\n'
-            '.agents/skills/review/SKILL.md:1: [skill.description] `description` is required\n'
-        ), 'each skill of the directory is reported once, the one named again included'
-        assert result.stderr == 'checked 2 skill(s), 2 finding(s)\n', 'the skill named twice is checked once'
-
-    def test_check_skills_with_a_skills_directory_holding_no_skill_checks_none(self, tmp_path: Path) -> None:
-        #: Given
-        skills_dir = tmp_path / '.agents' / 'skills'
-        skills_dir.mkdir(parents=True)
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills', str(skills_dir), '--root', str(tmp_path)])
-
-        #: Then
-        assert result.exit_code == 0, result.output
-        assert result.stdout == '', 'no skill is checked, so nothing is reported'
-        assert result.stderr == 'checked 0 skill(s), 0 finding(s)\n', (
-            'an empty skills directory is a selection of no skill, not a refusal'
-        )
-
-    def test_check_skills_with_a_linked_specs_directory_checks_the_skills(self, linked_specs_workspace: Path) -> None:
-        #: Given
-        _write(
-            linked_specs_workspace, '.agents/skills/review/SKILL.md', '---\nname: review\ndescription: Review\n---\n'
-        )
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills', '--root', str(linked_specs_workspace), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 0, result.output
-        assert json.loads(result.stdout) == {'checked': 1, 'findings': [], 'ungoverned': []}, (
-            'the skill check reads no document, so a linked docs/__meta__ does not stop it'
-        )
-
-    def test_check_skills_with_json_format_over_a_root_without_skills_reports_none_checked(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills', '--root', str(tmp_path), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 0, result.output
-        assert json.loads(result.stdout) == {'checked': 0, 'findings': [], 'ungoverned': []}, (
-            'a root with no skills directory has no skill to check, which is clean'
-        )
-
-    def test_check_skills_with_a_path_that_is_no_skill_exits_as_invalid_input(self, tmp_path: Path) -> None:
-        #: Given
-        not_a_skill = _write(tmp_path, '.agents/skills/drafts/README.md', '# Drafts\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills', str(not_a_skill.parent), '--root', str(tmp_path)])
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert result.stdout == '', 'after an error nothing is printed but the error'
-        assert result.stderr == (
-            f'error: {not_a_skill.parent}: no skill there; '
-            'name a skill directory, a directory of skills, or a SKILL.md\n'
-        ), 'the error quotes the argument as typed and says what a skill argument names'
-
-    def test_check_skills_with_json_format_and_a_directory_of_skills_no_agent_reads_reports_each_under_it(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(tmp_path, 'skills/review/SKILL.md', '---\nname: audit\ndescription: Review a change\n---\n')
-        _write(tmp_path, 'skills/lint/SKILL.md', '---\nname: lint\ndescription: Lint a change\n---\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(
-            app, ['check', 'skills', str(tmp_path / 'skills'), '--root', str(tmp_path), '--format', 'json']
-        )
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 2,
-            'findings': [
-                {
-                    'file': 'skills/review/SKILL.md',
-                    'line': 2,
-                    'rule': 'skill.name-matches-directory',
-                    'message': "`name` is 'audit'; expected 'review', the name of the skill directory",
-                    'spec': None,
-                    'notes': [],
-                }
-            ],
-            'ungoverned': [],
-        }, 'each skill in the directory named is checked, and reported under the path as spelled'
-
-    def test_check_skills_with_json_format_and_a_link_to_a_skill_holds_its_name_to_the_link(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        _write(tmp_path, 'skills/review/SKILL.md', '---\nname: review\ndescription: Review a change\n---\n')
-        (tmp_path / 'reviewer').symlink_to('skills/review')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(
-            app, ['check', 'skills', str(tmp_path / 'reviewer'), '--root', str(tmp_path), '--format', 'json']
-        )
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 1,
-            'findings': [
-                {
-                    'file': 'reviewer/SKILL.md',
-                    'line': 2,
-                    'rule': 'skill.name-matches-directory',
-                    'message': "`name` is 'review'; expected 'reviewer', the name of the skill directory",
-                    'spec': None,
-                    'notes': [{'kind': 'note', 'text': "'reviewer' is a link to 'skills/review'"}],
-                }
-            ],
-            'ungoverned': [],
-        }, 'the skill is named by the path as spelled, the link, and its name is held to that'
-
-    def test_check_skills_with_json_format_and_a_link_named_leading_outside_reports_it(self, tmp_path: Path) -> None:
-        #: Given
-        root = tmp_path / 'repository'
-        root.mkdir()
-        _write(tmp_path, 'elsewhere/x/SKILL.md', '---\nname: x\ndescription: Kept outside\n---\n')
-        (root / 'elsewhere').symlink_to(tmp_path / 'elsewhere')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(
-            app, ['check', 'skills', str(root / 'elsewhere'), '--root', str(root), '--format', 'json']
-        )
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 0,
-            'findings': [
-                {
-                    'file': 'elsewhere',
-                    'line': 1,
-                    'rule': 'skill.symlink-outside',
-                    'message': 'symlink leads outside the repository',
-                    'spec': None,
-                    'notes': [
-                        {'kind': 'note', 'text': f'leaves the repository at elsewhere -> {tmp_path / "elsewhere"}'},
-                        {'kind': 'help', 'text': 'keep every file a skill loads inside the repository'},
-                    ],
-                }
-            ],
-            'ungoverned': [],
-        }, 'the path named is a symlink leading outside: reported as a finding, never followed nor refused'
-
-    def test_check_skills_with_json_format_and_an_agent_entry_named_leading_outside_reports_it(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        root = tmp_path / 'repository'
-        _write(root, '.agents/skills/review/SKILL.md', '---\nname: review\ndescription: Review a change\n---\n')
-        _write(tmp_path, 'elsewhere/x/SKILL.md', '---\nname: x\ndescription: Kept outside\n---\n')
-        (root / '.agents' / 'skills' / 'x').symlink_to(tmp_path / 'elsewhere' / 'x')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(
-            app, ['check', 'skills', str(root / '.agents' / 'skills' / 'x'), '--root', str(root), '--format', 'json']
-        )
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 0,
-            'findings': [
-                {
-                    'file': '.agents/skills/x',
-                    'line': 1,
-                    'rule': 'skill.symlink-outside',
-                    'message': 'symlink leads outside the repository',
-                    'spec': None,
-                    'notes': [
-                        {
-                            'kind': 'note',
-                            'text': f'leaves the repository at .agents/skills/x -> {tmp_path / "elsewhere" / "x"}',
-                        },
-                        {'kind': 'help', 'text': 'keep every file a skill loads inside the repository'},
-                    ],
-                }
-            ],
-            'ungoverned': [],
-        }, "the agent's entry named leads outside: reported as a named directory is, and no other skill is checked"
-
-    def test_check_skills_with_json_format_and_the_skill_file_of_an_agent_entry_leading_outside_reports_the_entry(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        root = tmp_path / 'repository'
-        _write(root, '.agents/skills/review/SKILL.md', '---\nname: review\ndescription: Review a change\n---\n')
-        _write(tmp_path, 'elsewhere/x/SKILL.md', '---\nname: x\ndescription: Kept outside\n---\n')
-        (root / '.agents' / 'skills' / 'x').symlink_to(tmp_path / 'elsewhere' / 'x')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(
-            app,
-            [
-                'check',
-                'skills',
-                str(root / '.agents' / 'skills' / 'x' / 'SKILL.md'),
-                '--root',
-                str(root),
-                '--format',
-                'json',
-            ],
-        )
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 0,
-            'findings': [
-                {
-                    'file': '.agents/skills/x',
-                    'line': 1,
-                    'rule': 'skill.symlink-outside',
-                    'message': 'symlink leads outside the repository',
-                    'spec': None,
-                    'notes': [
-                        {
-                            'kind': 'note',
-                            'text': f'leaves the repository at .agents/skills/x -> {tmp_path / "elsewhere" / "x"}',
-                        },
-                        {'kind': 'help', 'text': 'keep every file a skill loads inside the repository'},
-                    ],
-                }
-            ],
-            'ungoverned': [],
-        }, 'the SKILL.md named sits behind an entry leading outside: the entry is reported, and no skill is checked'
-
-    def test_check_skills_with_json_format_and_an_agent_entry_named_whose_skill_file_leads_outside_reports_it(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        root = tmp_path / 'repository'
-        _write(root, '.agents/skills/review/SKILL.md', '---\nname: review\ndescription: Review a change\n---\n')
-        (root / '.agents' / 'skills' / 'x').mkdir()
-        _write(tmp_path, 'x.md', '---\nname: x\ndescription: Kept outside\n---\n')
-        (root / '.agents' / 'skills' / 'x' / 'SKILL.md').symlink_to(tmp_path / 'x.md')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(
-            app, ['check', 'skills', str(root / '.agents' / 'skills' / 'x'), '--root', str(root), '--format', 'json']
-        )
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 0,
-            'findings': [
-                {
-                    'file': '.agents/skills/x/SKILL.md',
-                    'line': 1,
-                    'rule': 'skill.symlink-outside',
-                    'message': 'symlink leads outside the repository',
-                    'spec': None,
-                    'notes': [
-                        {
-                            'kind': 'note',
-                            'text': f'leaves the repository at .agents/skills/x/SKILL.md -> {tmp_path / "x.md"}',
-                        },
-                        {'kind': 'help', 'text': 'keep every file a skill loads inside the repository'},
-                    ],
-                }
-            ],
-            'ungoverned': [],
-        }, "the agent's entry named has a SKILL.md leading outside: that is reported, and no skill is checked"
-
-    def test_check_skills_with_json_format_and_an_agent_skill_file_named_leading_outside_reports_it(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        root = tmp_path / 'repository'
-        _write(root, '.agents/skills/review/SKILL.md', '---\nname: review\ndescription: Review a change\n---\n')
-        (root / '.agents' / 'skills' / 'x').mkdir()
-        _write(tmp_path, 'x.md', '---\nname: x\ndescription: Kept outside\n---\n')
-        (root / '.agents' / 'skills' / 'x' / 'SKILL.md').symlink_to(tmp_path / 'x.md')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(
-            app,
-            [
-                'check',
-                'skills',
-                str(root / '.agents' / 'skills' / 'x' / 'SKILL.md'),
-                '--root',
-                str(root),
-                '--format',
-                'json',
-            ],
-        )
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 0,
-            'findings': [
-                {
-                    'file': '.agents/skills/x/SKILL.md',
-                    'line': 1,
-                    'rule': 'skill.symlink-outside',
-                    'message': 'symlink leads outside the repository',
-                    'spec': None,
-                    'notes': [
-                        {
-                            'kind': 'note',
-                            'text': f'leaves the repository at .agents/skills/x/SKILL.md -> {tmp_path / "x.md"}',
-                        },
-                        {'kind': 'help', 'text': 'keep every file a skill loads inside the repository'},
-                    ],
-                }
-            ],
-            'ungoverned': [],
-        }, "the SKILL.md of an agent's entry named leads outside: it is reported, and no skill is checked"
-
-    def test_check_skills_with_json_format_and_a_skill_named_whose_skill_file_leads_outside_reports_it(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        root = tmp_path / 'repository'
-        (root / 'skills' / 'review').mkdir(parents=True)
-        _write(tmp_path, 'review.md', '---\nname: review\ndescription: Kept outside\n---\n')
-        (root / 'skills' / 'review' / 'SKILL.md').symlink_to(tmp_path / 'review.md')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(
-            app, ['check', 'skills', str(root / 'skills' / 'review'), '--root', str(root), '--format', 'json']
-        )
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 0,
-            'findings': [
-                {
-                    'file': 'skills/review/SKILL.md',
-                    'line': 1,
-                    'rule': 'skill.symlink-outside',
-                    'message': 'symlink leads outside the repository',
-                    'spec': None,
-                    'notes': [
-                        {
-                            'kind': 'note',
-                            'text': f'leaves the repository at skills/review/SKILL.md -> {tmp_path / "review.md"}',
-                        },
-                        {'kind': 'help', 'text': 'keep every file a skill loads inside the repository'},
-                    ],
-                }
-            ],
-            'ungoverned': [],
-        }, 'the SKILL.md at the root of the directory named leads outside, so it is reported and no skill is checked'
-
-    def test_check_skills_with_json_format_and_a_directory_holding_only_a_link_outside_reports_it(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        root = tmp_path / 'repository'
-        (root / 'onlyout').mkdir(parents=True)
-        _write(tmp_path, 'elsewhere/x/SKILL.md', '---\nname: x\ndescription: Kept outside\n---\n')
-        (root / 'onlyout' / 'x').symlink_to(tmp_path / 'elsewhere' / 'x')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills', str(root / 'onlyout'), '--root', str(root), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 0,
-            'findings': [
-                {
-                    'file': 'onlyout/x',
-                    'line': 1,
-                    'rule': 'skill.symlink-outside',
-                    'message': 'symlink leads outside the repository',
-                    'spec': None,
-                    'notes': [
-                        {
-                            'kind': 'note',
-                            'text': f'leaves the repository at onlyout/x -> {tmp_path / "elsewhere" / "x"}',
-                        },
-                        {'kind': 'help', 'text': 'keep every file a skill loads inside the repository'},
-                    ],
-                }
-            ],
-            'ungoverned': [],
-        }, "a directory holding only a link leading outside reports it, as an agent's skills directory does"
-
-    def test_check_skills_with_json_format_and_a_directory_of_skills_holding_a_link_outside_reports_it(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        root = tmp_path / 'repository'
-        _write(root, 'skills/review/SKILL.md', '---\nname: review\ndescription: Review a change\n---\n')
-        _write(tmp_path, 'elsewhere/x/SKILL.md', '---\nname: x\ndescription: Kept outside\n---\n')
-        (root / 'skills' / 'x').symlink_to(tmp_path / 'elsewhere' / 'x')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', 'skills', str(root / 'skills'), '--root', str(root), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout) == {
-            'checked': 1,
-            'findings': [
-                {
-                    'file': 'skills/x',
-                    'line': 1,
-                    'rule': 'skill.symlink-outside',
-                    'message': 'symlink leads outside the repository',
-                    'spec': None,
-                    'notes': [
-                        {
-                            'kind': 'note',
-                            'text': f'leaves the repository at skills/x -> {tmp_path / "elsewhere" / "x"}',
-                        },
-                        {'kind': 'help', 'text': 'keep every file a skill loads inside the repository'},
-                    ],
-                }
-            ],
-            'ungoverned': [],
-        }, 'the entry leading outside is reported under the directory named, and only the skill inside is counted'
-
-
-@pytest.mark.it
-class TestCheckAllCommand:
-    def test_check_with_help_prints_the_options_and_every_check(self, snapshot: SnapshotAssertion) -> None:
+class TestCheckCommand:
+    def test_check_with_help_prints_the_description_and_stops_before_raises(self, snapshot: SnapshotAssertion) -> None:
         #: Given
         app = build_app()
         expected = snapshot.use_extension(TextSnapshotExtension)
@@ -2358,7 +483,7 @@ class TestCheckAllCommand:
         assert result.exit_code == 0, result.output
         assert result.stdout == expected, 'the check help matches the reviewed snapshot, with no docstring section'
 
-    def test_check_with_a_clean_corpus_exits_zero_and_counts_the_documents_and_checks(self, tmp_path: Path) -> None:
+    def test_check_with_a_clean_corpus_exits_zero_and_prints_only_the_summary(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n# Guide\n\n## Checklist\n\n- [ ] item\n')
@@ -2369,120 +494,240 @@ class TestCheckAllCommand:
 
         #: Then
         assert result.exit_code == 0, result.output
-        assert result.stdout == '', 'a clean run prints no finding lines'
-        assert result.stderr == 'checked 1 file(s) and 0 skill(s) with 4 check(s), 0 finding(s)\n', (
-            'one summary line covers every check the run made'
-        )
+        assert result.stdout == '', 'a clean run prints no diagnostic'
+        assert result.stderr == 'checked 1 subject(s): 0 error(s), 0 warning(s)\n', 'one summary line counts the run'
 
-    def test_check_with_findings_from_two_checks_exits_one_and_prints_them_check_by_check(self, tmp_path: Path) -> None:
+    def test_check_with_errors_from_two_groups_exits_one_and_prints_each_diagnostic(
+        self, tmp_path: Path, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
+        app = build_app()
+        expected = snapshot.use_extension(TextSnapshotExtension)
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(tmp_path)])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert result.stdout == expected, 'the frontmatter and outline diagnostics match the reviewed snapshot'
+        assert result.stderr == 'checked 1 subject(s): 2 error(s), 0 warning(s)\n', 'the summary counts both errors'
+
+    def test_check_with_only_a_warning_exits_zero_and_prints_it(
+        self, tmp_path: Path, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.md', '# Code\n')
+        _write(tmp_path, '.agents/skills/review/SKILL.md', UNKNOWN_FIELD_SKILL_MD)
+        app = build_app()
+        expected = snapshot.use_extension(TextSnapshotExtension)
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(tmp_path)])
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stdout == expected, 'the unknown-field warning matches the reviewed snapshot'
+        assert result.stderr == 'checked 1 subject(s): 0 error(s), 1 warning(s)\n', 'a warning is counted apart'
+
+    def test_check_with_an_ungoverned_document_prints_its_coverage_on_stderr(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n# Guide\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(tmp_path)])
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stdout == '', 'a facet no specification governs is no diagnostic'
+        assert result.stderr == (
+            'docs/code/guide.md: ungoverned for outline, budget\nchecked 1 subject(s): 0 error(s), 0 warning(s)\n'
+        ), 'the coverage line precedes the summary on stderr'
+
+    def test_check_with_an_undecodable_document_exits_one_and_prints_the_engine_error(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        (tmp_path / 'docs' / 'code').mkdir()
+        (tmp_path / 'docs' / 'code' / 'guide.md').write_bytes(b'\xff\xfe\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(tmp_path)])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert result.stdout == 'docs/code/guide.md: error[LC001]: file is not valid UTF-8\n', (
+            'a file that does not decode is reported at its path, with no line'
+        )
+        assert result.stderr == 'checked 1 subject(s): 1 error(s), 0 warning(s)\n', 'the engine error is counted'
+
+    def test_check_with_json_format_prints_one_document_and_nothing_on_stderr(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n# Guide\n')
+        (tmp_path / 'docs' / 'code' / 'broken.md').write_bytes(b'\xff\xfe\n')
+        _write(tmp_path, '.agents/skills/review/SKILL.md', UNKNOWN_FIELD_SKILL_MD)
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert result.stderr == '', 'the JSON run writes nothing beside its document'
+        assert json.loads(result.stdout) == {
+            'diagnostics': [
+                {
+                    'path': '.agents/skills/review/SKILL.md',
+                    'line': 4,
+                    'severity': 'warning',
+                    'code': 'FM007',
+                    'name': 'unknown-field',
+                    'message': 'unknown field `version`',
+                    'labels': [],
+                    'children': [
+                        {
+                            'kind': 'note',
+                            'text': "the Agent Skills specification states a SKILL.md's frontmatter schema",
+                            'path': None,
+                            'line': None,
+                        },
+                        {
+                            'kind': 'help',
+                            'text': 'remove `version`, or respell it as a field the schema defines',
+                            'path': None,
+                            'line': None,
+                        },
+                    ],
+                },
+                {
+                    'path': 'docs/code/broken.md',
+                    'line': None,
+                    'severity': 'error',
+                    'code': 'LC001',
+                    'name': 'invalid-utf8',
+                    'message': 'file is not valid UTF-8',
+                    'labels': [],
+                    'children': [],
+                },
+            ],
+            'summary': {'subjects': 3, 'errors': 1, 'warnings': 1},
+            'coverage': [{'path': 'docs/code/guide.md', 'ungoverned': ['outline', 'budget']}],
+        }, f'the document holds every diagnostic, the summary and the coverage, got {result.stdout!r}'
+
+    def test_check_with_json_format_and_errors_from_two_groups_reports_their_labels_and_notes(
+        self, tmp_path: Path
+    ) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
         app = build_app()
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(tmp_path)])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert result.stdout == (
-            'docs/code/guide.md:1: [frontmatter.missing] no `---` delimited frontmatter block\n'
-            'docs/code/guide.md:1: [structure.outline] missing required section `Checklist` (per code.md)\n'
-        ), "the bare run prints each check's findings as the check itself would, in check name order"
-        assert result.stderr == 'checked 1 file(s) and 0 skill(s) with 4 check(s), 2 finding(s)\n', (
-            'the summary counts the findings of every check together'
-        )
-
-    def test_check_with_an_ungoverned_document_prints_it_as_unvalidated(self, tmp_path: Path) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n# Guide\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', '--root', str(tmp_path)])
-
-        #: Then
-        assert result.exit_code == 0, result.output
-        assert result.stdout == (
-            'docs/code/guide.md:1: [code.ungoverned] no token budget for this corpus; tokens unvalidated\n'
-        ), 'the document a check does not govern is printed under that check, not counted as a finding'
-        assert result.stderr == 'checked 1 file(s) and 0 skill(s) with 4 check(s), 0 finding(s)\n', (
-            'an ungoverned document is not a finding'
-        )
-
-    def test_check_with_a_broken_skill_prints_its_finding_after_the_document_checks(self, tmp_path: Path) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n# Guide\n\n## Checklist\n\n- [ ] item\n')
-        _write(tmp_path, '.agents/skills/review/SKILL.md', '---\nname: review\n---\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', '--root', str(tmp_path)])
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert result.stdout == '.agents/skills/review/SKILL.md:1: [skill.description] `description` is required\n', (
-            'the skill finding prints as the skills check itself would'
-        )
-        assert result.stderr == 'checked 1 file(s) and 1 skill(s) with 4 check(s), 1 finding(s)\n', (
-            'the summary counts the documents and the skills apart, and the skill finding with the rest'
-        )
-
-    def test_check_with_json_format_reports_each_check_under_its_name(self, tmp_path: Path) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n# Guide\n')
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', '--root', str(tmp_path), '--format', 'json'])
-
-        #: Then
-        assert result.exit_code == 0, result.output
-        assert json.loads(result.stdout) == {
-            'checks': {
-                'budget': {'checked': 1, 'findings': [], 'ungoverned': ['docs/code/guide.md']},
-                'frontmatter': {'checked': 1, 'findings': [], 'ungoverned': []},
-                'skills': {'checked': 0, 'findings': [], 'ungoverned': []},
-                'structure': {'checked': 1, 'findings': [], 'ungoverned': []},
-            },
-        }, f'each check keeps the report its own subcommand prints, got {result.stdout!r}'
-
-    def test_check_with_json_format_over_a_broken_skill_reports_it_under_the_skills_check(self, tmp_path: Path) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
-        _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n# Guide\n')
-        _write(tmp_path, '.agents/skills/review/SKILL.md', '---\nname: review\n---\n')
-        app = build_app()
-
-        #: When
         result = runner.invoke(app, ['check', '--root', str(tmp_path), '--format', 'json'])
 
         #: Then
         assert result.exit_code == 1, result.output
         assert json.loads(result.stdout) == {
-            'checks': {
-                'budget': {'checked': 1, 'findings': [], 'ungoverned': ['docs/code/guide.md']},
-                'frontmatter': {'checked': 1, 'findings': [], 'ungoverned': []},
-                'skills': {
-                    'checked': 1,
-                    'findings': [
+            'diagnostics': [
+                {
+                    'path': 'docs/code/guide.md',
+                    'line': 1,
+                    'severity': 'error',
+                    'code': 'FM001',
+                    'name': 'missing-frontmatter',
+                    'message': 'no `---` delimited frontmatter block',
+                    'labels': [],
+                    'children': [
                         {
-                            'file': '.agents/skills/review/SKILL.md',
-                            'line': 1,
-                            'rule': 'skill.description',
-                            'message': '`description` is required',
-                            'spec': None,
-                            'notes': [],
+                            'kind': 'note',
+                            'text': 'the frontmatter schema is set here',
+                            'path': 'docs/__meta__/code.structure.json',
+                            'line': None,
                         }
                     ],
-                    'ungoverned': [],
                 },
-                'structure': {'checked': 1, 'findings': [], 'ungoverned': []},
-            },
-        }, 'a skill finding alone fails the bare run, and sits under the skills check beside the document checks'
+                {
+                    'path': 'docs/code/guide.md',
+                    'line': 1,
+                    'severity': 'error',
+                    'code': 'OUT006',
+                    'name': 'missing-section',
+                    'message': 'missing required section `Checklist`',
+                    'labels': [
+                        {
+                            'path': 'docs/code/guide.md',
+                            'line': 1,
+                            'text': 'expected `Checklist` before the end of the document',
+                        }
+                    ],
+                    'children': [
+                        {
+                            'kind': 'note',
+                            'text': 'the document structure is set here',
+                            'path': 'docs/__meta__/code.structure.json',
+                            'line': None,
+                        }
+                    ],
+                },
+            ],
+            'summary': {'subjects': 1, 'errors': 2, 'warnings': 0},
+            'coverage': [],
+        }, f'each diagnostic carries its label and its note pointing at the specification, got {result.stdout!r}'
+
+    def test_check_with_a_root_option_checks_that_root_from_another_working_directory(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        #: Given
+        root = tmp_path / 'repository'
+        _write(root, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
+        _write(root, 'docs/code/guide.md', '---\nname: "guide"\n---\n# Guide\n\n## Checklist\n\n- [ ] item\n')
+        elsewhere = tmp_path / 'elsewhere'
+        elsewhere.mkdir()
+        monkeypatch.chdir(elsewhere)
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(root)])
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stderr == 'checked 1 subject(s): 0 error(s), 0 warning(s)\n', (
+            'the root given is checked, not the working directory'
+        )
+
+    def test_check_without_a_root_finds_the_nearest_parent_with_docs_meta(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
+        monkeypatch.chdir(tmp_path / 'docs' / 'code')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert result.stderr == 'checked 1 subject(s): 2 error(s), 0 warning(s)\n', (
+            'the root found above the working directory is checked whole'
+        )
+
+    def test_check_with_a_path_argument_exits_with_a_usage_error(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(tmp_path), 'docs'])
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stdout == '', 'a usage error checks nothing'
 
     def test_check_with_a_malformed_frontmatter_schema_exits_as_invalid_input(
         self, malformed_schema_workspace: Path
@@ -2496,6 +741,10 @@ class TestCheckAllCommand:
         #: Then
         assert result.exit_code == 2, result.output
         assert result.stdout == '', 'after an error nothing is printed but the error'
+        assert result.stderr == (
+            'error: invalid structure schema docs/__meta__/code.structure.json: frontmatter is not a valid JSON '
+            'Schema: 5 is not valid under any of the given schemas\n'
+        ), 'the specification that cannot be used is reported, naming it'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores file permissions')
     def test_check_with_an_unreadable_document_exits_as_invalid_input_and_names_it(self, workspace: Path) -> None:
@@ -2592,7 +841,7 @@ class TestCheckAllCommand:
 
         #: Then
         assert result.exit_code == 0, result.output
-        assert result.stderr == 'checked 0 file(s) and 0 skill(s) with 4 check(s), 0 finding(s)\n', (
+        assert result.stderr == 'checked 0 subject(s): 0 error(s), 0 warning(s)\n', (
             'an explicit root that declares no specification has nothing to check, which is not an error'
         )
 
@@ -2611,6 +860,25 @@ class TestCheckAllCommand:
         assert result.exit_code == 2, result.output
         assert result.stderr == 'error: cannot find repository root: no parent contains docs/__meta__/\n', (
             'a working directory under no docs/__meta__/ has no root to discover'
+        )
+
+    def test_check_without_a_root_from_a_deleted_working_directory_exits_as_invalid_input(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        #: Given
+        deleted = tmp_path / 'deleted'
+        deleted.mkdir()
+        monkeypatch.chdir(deleted)
+        deleted.rmdir()
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check'])
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stderr == 'error: cannot read the current directory: no such file or directory\n', (
+            'a working directory the operating system cannot report has no root to search from'
         )
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
@@ -2669,20 +937,6 @@ class TestCheckAllCommand:
             'a root that does not exist is refused, naming the resolved root'
         )
 
-    def test_check_with_an_option_before_a_named_check_exits_as_a_usage_error(self, tmp_path: Path) -> None:
-        #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', '--root', str(tmp_path), 'frontmatter'])
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert 'give it after the check name' in result.output, (
-            'an option the named check would never see is refused, not silently dropped'
-        )
-
 
 @pytest.mark.it
 class TestCommandRouting:
@@ -2707,53 +961,7 @@ class TestCommandRouting:
 
         #: Then
         assert exc_info.value.name == name, 'the error names the subcommand that was already registered'
-
-    def test_register_with_a_group_name_raises_duplicate_command_error(self) -> None:
-        #: Given
-        build_app()
-        name = 'check'
-
-        #: When
-        with pytest.raises(DuplicateCommandError) as exc_info:
-            register(name)(_unused_handler)
-
-        #: Then
-        assert exc_info.value.name == name, 'a command cannot take the name a command group holds'
-
-    def test_register_group_with_a_command_name_raises_duplicate_command_error(self) -> None:
-        #: Given
-        build_app()
-        group = typer.Typer()
-
-        #: When
-        with pytest.raises(DuplicateCommandError) as exc_info:
-            register_group('version', group)
-
-        #: Then
-        assert exc_info.value.name == 'version', 'a group cannot take the name a plain command holds'
-
-    def test_build_app_when_called_mounts_the_check_group_with_its_frontmatter_command(self) -> None:
-        #: Given
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', '--help'])
-
-        #: Then
-        assert result.exit_code == 0, result.output
-        assert 'frontmatter' in result.output, 'the check group lists the frontmatter check discovered beside it'
-        assert 'header' not in result.output, 'the header alias of the frontmatter check is hidden from the help'
-
-    def test_build_app_when_called_mounts_the_check_group_with_its_structure_command(self) -> None:
-        #: Given
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['check', '--help'])
-
-        #: Then
-        assert result.exit_code == 0, result.output
-        assert 'structure' in result.output, 'the check group lists the structure check discovered beside it'
+        assert name in str(exc_info.value), 'the message names the contested subcommand'
 
     def test_register_with_the_registered_handler_again_returns_it_unchanged(self) -> None:
         #: Given
@@ -2764,27 +972,3 @@ class TestCommandRouting:
 
         #: Then
         assert returned is version_handler, 'registering the same handler again is a no-op, not a duplicate'
-
-    def test_register_group_with_a_different_group_under_a_taken_name_raises_duplicate_command_error(self) -> None:
-        #: Given
-        rival = typer.Typer()
-
-        #: When
-        with pytest.raises(DuplicateCommandError) as exc_info:
-            register_group('check', rival)
-
-        #: Then
-        assert exc_info.value.name == 'check', 'a group cannot take the name another group holds'
-        assert 'check' in str(exc_info.value), 'the message names the contested subcommand'
-
-    def test_register_group_with_the_registered_group_again_keeps_it_mounted_once(self) -> None:
-        #: Given
-        name = 'check'
-
-        #: When
-        register_group(name, check_app)
-
-        #: Then
-        mounted = build_app().registered_groups
-        assert len(mounted) == 1, f'registering the same group again is a no-op, got {len(mounted)} groups'
-        assert mounted[0].typer_instance is check_app, 'the group mounted is still the one registered'

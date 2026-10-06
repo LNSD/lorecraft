@@ -107,7 +107,7 @@ Skills live in two places, and the difference is who loads them:
   frontmatter holds to the six fields the specification defines. A project skill uses neither.
 - A workspace skill names a repository file as a path in backticks. A project skill links a document of this
   repository by its published URL instead, as `/skills-check` describes.
-- `just check-skills` is the gate. It checks every skill an agent reads, so each project skill is checked once,
+- `just check-docs` is the gate. It checks every skill an agent reads, so each project skill is checked once,
   through its symlink.
 - When a skill restates a feature doc and the doc disagrees with the code, that is `/feat-validate`'s finding.
 
@@ -161,7 +161,7 @@ run it and the rules for its output.
      case: code that does not fit its package usually belongs in another one, not in a rewritten rule.
 5. Format and lint with `just fmt` then `just check`; fix every finding, never a bare `# noqa`.
 6. Run the relevant tests: `just test-unit` always, and the tier the change reaches — `just test-it` for a module seam, `just test-e2e` for packaging or the console script.
-7. Run `just check-docs` and `just check-skills` when the change touches `docs/`, `.agents/skills/` or `skills/`.
+7. Run `just check-docs` when the change touches `docs/`, `.agents/skills/` or `skills/`.
 8. Close by stating what was skipped and any residual risk.
 
 A plan is grounded in what the repository actually contains, and that holds equally when the user asks for one:
@@ -172,8 +172,7 @@ document this repository does not have is invalid — restate it against the rea
 ## Validation Gates
 
 Run `just sync` first, so `ruff`, `ty` and `pytest` are present in the project environment. CI runs the same
-list, and `check-docs` and `check-skills` are in the `docs` group rather than `check`, so a group-based
-selection misses them.
+list, and `check-docs` is in the `docs` group rather than `check`, so a group-based selection misses it.
 
 | Gate | Requirement |
 |---|---|
@@ -181,8 +180,7 @@ selection misses them.
 | Lint | `just check`, which also runs the import-layering contract; every finding fixed, none silenced with a bare `# noqa`. `just check-fix` first |
 | Types | `just typecheck`; clean, with no finding silenced by widening an annotation to `Any` |
 | Tests | `just test-unit` after lint is clean, then the tier the change touches — `just test-it`, `just test-e2e` — and `just test` when it earns the whole suite |
-| Documents | `just check-docs`; every document under `docs/` passes the frontmatter, structure and budget checks, and every skill the skill check |
-| Skills | `just check-skills`; every skill passes the Agent Skills specification: `lorecraft check skills` for the frontmatter, the line budget and the links |
+| Documents and skills | `just check-docs`; `lorecraft check` reports no error over any document under `docs/` or any skill: the frontmatter, outline, length, link and layout rules |
 | Codegen | `just gen` after changing a generator or what it models; it must leave the tree unchanged in CI |
 
 Do not run tests before lint is clean, do not treat a type error as a lint preference — it is a failed gate —

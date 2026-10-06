@@ -94,7 +94,7 @@ specification as it is written. It states the shape only; a rule that no shape c
 ## References
 
 - [spec](spec.md) - Base: specification names, file types and how layers apply
-- [cli-check](cli-check.md) - Related: the checks that read a structure specification
+- [cli-check](cli-check.md) - Related: the command whose rules read a structure specification
 
 ## Code References
 

@@ -1,4 +1,0 @@
-.agents/skills/review/SKILL.md:7: [skill.link-escapes] `../../../docs/guide.md` leaves the skill directory
-  = help: link a file inside the skill, relative to the skill root
-.agents/skills/review/references/steps.md:3: [skill.link-escapes] `../SKILL.md` leaves the skill directory
-  = help: link a file inside the skill, relative to the skill root

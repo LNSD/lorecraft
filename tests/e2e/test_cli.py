@@ -4,23 +4,19 @@
 at all. This suite runs from the checkout, so the verbose command must report its Git description as
 well as the installed version and environment; run from a copy of the package outside the checkout, or with a
 `PATH` holding no git, a git that fails or one that hangs, it must leave the commit line out. Every version
-output, and `inspect`, `check`, `check frontmatter`, `check structure`, `check budget` and `check skills` over a
-checked-in workspace fixture, is compared to a reviewed snapshot file under `__snapshots__/`. So is what `check` and
-`inspect` print for a root whose `docs/` or `docs/__meta__/` is a symlink into that fixture, what `check frontmatter`
-and `check skills` print for a root whose frontmatter writes a key twice, what `check skills` prints for the fixture's
-skills named one at a time (an entry another entry links to, a linked entry, and the directory no agent reads that a
-linked entry leads to) and named by their skills directory (the resolved one, the one linked to it, and `skills/`,
-which no agent reads), how it refuses a directory holding no skill, and what it prints for a skill linking to an
-absolute path, for one linking to a heading it does not have, for one whose `SKILL.md` and a resource link outside the
-skill, for one whose `SKILL.md` and a resource link a file the skill does not hold, for one whose resource links to an
-absolute path and to a heading it does not have, for one whose `SKILL.md` and a resource link to an absolute path,
-named by its directory and by its `SKILL.md`, which checks that file alone, and for one holding a symlink that leads
-outside the repository. A root written from `lib.workspace` holding one skill whose every
-field but its name is generated must pass `check skills` with no finding, and one holding a specification and a
-document under it, every field generated but their names, must pass `check` with no finding, since every test
-writing such a root sets only the fields its case turns on.
+output, `inspect` over a checked-in workspace fixture, and the diagnostics `check` prints over that fixture are
+compared to a reviewed snapshot file under `__snapshots__/`. So are the diagnostics `check` prints for a root holding
+a subject of each kind the fixture lacks (a resource of a skill, a symlink leading outside the repository, a file
+that is not UTF-8, and a document no budget governs, whose coverage goes to stderr), for a root whose frontmatter
+writes a key twice or a key that is not a string, and for a skill and a resource each linking to an absolute path;
+and what `check` and `inspect` print for a root whose `docs/` or `docs/__meta__/` is a symlink into that fixture.
+The JSON document `check` prints is asserted whole, once parsed. A root written from `lib.workspace` holding one
+skill whose every field but its name is generated must pass `check` with no diagnostic, and so must one holding a
+specification and a document under it, every field generated but their names, since every test writing such a root
+sets only the fields its case turns on.
 """
 
+import json
 import os
 import shutil
 from pathlib import Path
@@ -34,7 +30,7 @@ from syrupy.assertion import SnapshotAssertion
 import lorecraft
 from lib.cli import run_alias, run_cli
 from lib.snapshot import JsonTextSnapshotExtension, TextSnapshotExtension
-from lib.workspace import Document, File, Link, RawFrontmatter, Skill, Spec, Workspace
+from lib.workspace import Document, File, Link, RawDocument, RawFrontmatter, Skill, Spec, Workspace
 from lorecraft import __version__
 
 # The labelled lines of `version --verbose` whose values differ per checkout, interpreter, machine and install.
@@ -376,8 +372,7 @@ def non_string_key_root(tmp_path: Path, faker: Faker) -> Path:
 def skill_and_resource_absolute_link_root(tmp_path: Path, faker: Faker) -> Path:
     """A root holding one skill whose `SKILL.md` and whose resource each link to a file from the filesystem root.
 
-    A run over the whole skill prints two link-absolute findings, one per file, and a run over its `SKILL.md` alone
-    prints the one in the `SKILL.md`.
+    A run prints two `LINK001` diagnostics, one in the `SKILL.md` and one in the resource.
 
     Args:
         tmp_path: Directory the skill is written into, as the repository root.
@@ -392,480 +387,230 @@ def skill_and_resource_absolute_link_root(tmp_path: Path, faker: Faker) -> Path:
     return workspace.write(tmp_path, faker)
 
 
-@pytest.mark.e2e
-class TestCheckFrontmatterSnapshots:
-    # Every finding prints root-relative, so the output is the same in every checkout and nothing is redacted.
-    # The fixture's documents carry no frontmatter, so each run reports findings and exits 1.
+@pytest.fixture(scope='function')
+def mixed_root(tmp_path: Path, faker: Faker) -> Path:
+    """A root holding one subject of each kind the fixture lacks, each with something to report.
 
-    def test_check_frontmatter_without_a_root_in_the_workspace_fixture_prints_the_findings(
+    A document in a corpus whose specification states only a frontmatter schema is ungoverned for its outline and
+    its budget, and one is not UTF-8. A skill's resource links to a file the skill does not hold, and the skill holds
+    a symlink leading out of the repository, to `tmp_path/shared`.
+
+    Args:
+        tmp_path: Directory the repository, `tmp_path/repository`, and the directory outside it are written into.
+        faker: The test's seeded generator, which fills what each part leaves unset.
+    """
+    outside = Workspace(files=[File('shared/guide.md', '# Guide\n')])
+    outside.write(tmp_path, faker)
+    # The link climbs from the skill's directory out of `tmp_path/repository` to `tmp_path/shared`. Its target is
+    # relative, so the note printing it is the same on every machine.
+    skill = Skill(
+        'review',
+        references={'guide.md': '# Guide\n\nRead [the steps](references/missing.md).\n'},
+        links={'shared': '../../../../shared'},
+    )
+    workspace = Workspace(
+        specs=[Spec('code'), Spec('notes', structure={'frontmatter': {'type': 'object'}})],
+        documents=[RawDocument('code', 'broken', b'\xff\xfe\n'), Document('notes', 'todo')],
+        skills=[skill],
+    )
+    return workspace.write(tmp_path / 'repository', faker)
+
+
+@pytest.mark.e2e
+class TestCheckSnapshots:
+    # Every diagnostic prints root-relative, so the output is the same in every checkout and nothing is redacted.
+    # The fixture's documents carry no frontmatter and its `beta` skill is a link to `alpha` named `alpha`, so a run
+    # over it reports errors and exits 1.
+
+    def test_check_without_a_root_in_the_workspace_fixture_prints_the_diagnostics(
         self, snapshot: SnapshotAssertion
     ) -> None:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'frontmatter')
+        arguments = ('check',)
 
         #: When
         result = run_cli(*arguments, cwd=WORKSPACE_FIXTURE)
 
         #: Then
         assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the findings found from the working directory match the reviewed snapshot'
+        assert result.stdout == expected, 'the diagnostics found from the working directory match the snapshot'
+        assert result.stderr == 'checked 5 subject(s): 9 error(s), 0 warning(s)\n', (
+            'every document and skill of the fixture is checked, and each is governed'
+        )
 
-    def test_check_frontmatter_with_json_over_the_workspace_fixture_prints_the_report(
-        self, snapshot: SnapshotAssertion
+    def test_check_without_a_root_in_a_subdirectory_of_the_workspace_fixture_checks_the_whole_workspace(self) -> None:
+        #: Given
+        from_the_root = run_cli('check', cwd=WORKSPACE_FIXTURE)
+        arguments = ('check',)
+
+        #: When
+        result = run_cli(*arguments, cwd=WORKSPACE_FIXTURE / 'docs' / 'code')
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == from_the_root.stdout, 'the root found upward is checked whole, not the subdirectory'
+        assert result.stderr == from_the_root.stderr, 'the run counts every subject of the workspace'
+
+    def test_check_with_a_root_over_subjects_of_every_kind_prints_each_diagnostic_and_the_coverage(
+        self, snapshot: SnapshotAssertion, mixed_root: Path
     ) -> None:
         #: Given
-        expected = snapshot.use_extension(JsonTextSnapshotExtension)
-        arguments = ('check', 'frontmatter', '--root', str(WORKSPACE_FIXTURE), '--format', 'json')
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('check', '--root', str(mixed_root))
 
         #: When
         result = run_cli(*arguments)
 
         #: Then
         assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the JSON report matches the reviewed snapshot'
+        assert result.stdout == expected, 'the undecodable file, the broken link and the symlink match the snapshot'
+        assert result.stderr == (
+            'docs/notes/todo.md: ungoverned for outline, budget\nchecked 5 subject(s): 3 error(s), 0 warning(s)\n'
+        ), 'the coverage line and the summary go to stderr'
 
-    def test_check_frontmatter_with_a_key_written_twice_prints_the_duplicate_key_finding(
+    def test_check_with_json_over_subjects_of_every_kind_prints_one_document(self, mixed_root: Path) -> None:
+        #: Given
+        arguments = ('check', '--root', str(mixed_root), '--format', 'json')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stderr == '', 'the JSON run writes nothing beside its document'
+        assert json.loads(result.stdout) == {
+            'diagnostics': [
+                {
+                    'path': '.agents/skills/review/references/guide.md',
+                    'line': 3,
+                    'severity': 'error',
+                    'code': 'LINK003',
+                    'name': 'broken-link',
+                    'message': '`references/missing.md` names nothing in the skill',
+                    'labels': [],
+                    'children': [
+                        {
+                            'kind': 'help',
+                            'text': 'link a file or a directory the skill holds, relative to the skill root',
+                            'path': None,
+                            'line': None,
+                        }
+                    ],
+                },
+                {
+                    'path': '.agents/skills/review/shared',
+                    'line': None,
+                    'severity': 'error',
+                    'code': 'LAY001',
+                    'name': 'outside-symlink',
+                    'message': 'symlink leads outside the repository',
+                    'labels': [],
+                    'children': [
+                        {
+                            'kind': 'note',
+                            'text': 'leaves the repository at .agents/skills/review/shared -> ../../../../shared',
+                            'path': None,
+                            'line': None,
+                        },
+                        {
+                            'kind': 'help',
+                            'text': 'keep every file a skill loads inside the repository',
+                            'path': None,
+                            'line': None,
+                        },
+                    ],
+                },
+                {
+                    'path': 'docs/code/broken.md',
+                    'line': None,
+                    'severity': 'error',
+                    'code': 'LC001',
+                    'name': 'invalid-utf8',
+                    'message': 'file is not valid UTF-8',
+                    'labels': [],
+                    'children': [],
+                },
+            ],
+            'summary': {'subjects': 5, 'errors': 3, 'warnings': 0},
+            'coverage': [{'path': 'docs/notes/todo.md', 'ungoverned': ['outline', 'budget']}],
+        }, f'the document holds every diagnostic, the summary and the coverage, got {result.stdout!r}'
+
+    def test_check_with_a_key_written_twice_prints_the_duplicate_key_diagnostics(
         self, snapshot: SnapshotAssertion, duplicate_key_root: Path
     ) -> None:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'frontmatter', '--root', str(duplicate_key_root))
+        arguments = ('check', '--root', str(duplicate_key_root))
 
         #: When
         result = run_cli(*arguments)
 
         #: Then
         assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the duplicate-key finding matches the reviewed snapshot'
+        assert result.stdout == expected, "the document's and the skill's duplicate key match the reviewed snapshot"
 
-    def test_check_frontmatter_with_a_non_string_key_prints_the_unparseable_finding(
+    def test_check_with_a_non_string_key_prints_the_diagnostic_on_its_line(
         self, snapshot: SnapshotAssertion, non_string_key_root: Path
     ) -> None:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'frontmatter', '--root', str(non_string_key_root))
+        arguments = ('check', '--root', str(non_string_key_root))
 
         #: When
         result = run_cli(*arguments)
 
         #: Then
         assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, "the unparseable finding on the key's line matches the reviewed snapshot"
+        assert result.stdout == expected, "the diagnostic on the key's line matches the reviewed snapshot"
 
-
-@pytest.mark.e2e
-class TestCheckStructureSnapshots:
-    # Every finding prints root-relative, so the output is the same in every checkout and nothing is redacted.
-    # The fixture's documents are a bare title, so each run reports findings, from both layers, and exits 1.
-    # The corpus layer describes its Checklist and gives an example of it, and the python layer describes its
-    # References alone, so each missing section prints the notes its entry states.
-
-    def test_check_structure_without_a_root_in_the_workspace_fixture_prints_the_findings(
-        self, snapshot: SnapshotAssertion
+    def test_check_with_absolute_links_in_a_skill_and_its_resource_prints_each_in_its_file(
+        self, snapshot: SnapshotAssertion, skill_and_resource_absolute_link_root: Path
     ) -> None:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'structure')
-
-        #: When
-        result = run_cli(*arguments, cwd=WORKSPACE_FIXTURE)
-
-        #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the findings found from the working directory match the reviewed snapshot'
-
-    def test_check_structure_with_json_over_the_workspace_fixture_prints_the_report(
-        self, snapshot: SnapshotAssertion
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(JsonTextSnapshotExtension)
-        arguments = ('check', 'structure', '--root', str(WORKSPACE_FIXTURE), '--format', 'json')
+        arguments = ('check', '--root', str(skill_and_resource_absolute_link_root))
 
         #: When
         result = run_cli(*arguments)
 
         #: Then
         assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the JSON report matches the reviewed snapshot'
+        assert result.stdout == expected, 'the absolute link in the SKILL.md and in the resource match the snapshot'
 
-
-@pytest.mark.e2e
-class TestCheckBudgetSnapshots:
-    # The python layer's budget is tighter than its document, so each run reports one finding and exits 1.
-
-    def test_check_budget_without_a_root_in_the_workspace_fixture_prints_the_findings(
-        self, snapshot: SnapshotAssertion
+    def test_check_with_an_invalid_specification_prints_the_error_and_exits_two(
+        self, tmp_path: Path, faker: Faker
     ) -> None:
         #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'budget')
-
-        #: When
-        result = run_cli(*arguments, cwd=WORKSPACE_FIXTURE)
-
-        #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the findings found from the working directory match the reviewed snapshot'
-
-    def test_check_budget_with_json_over_the_workspace_fixture_prints_the_report(
-        self, snapshot: SnapshotAssertion
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(JsonTextSnapshotExtension)
-        arguments = ('check', 'budget', '--root', str(WORKSPACE_FIXTURE), '--format', 'json')
-
-        #: When
-        result = run_cli(*arguments)
-
-        #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the JSON report matches the reviewed snapshot'
-
-
-@pytest.mark.e2e
-class TestCheckSkillsSnapshots:
-    # Every finding prints root-relative, so the output is the same in every checkout and nothing is redacted.
-    # The fixture's `beta` skill is a link to `alpha` and is named `alpha`, not the `beta` an agent lists it by:
-    # each run that checks `beta` reports that finding, with a note naming where the link leads, and exits 1.
-
-    def test_check_skills_without_a_root_in_the_workspace_fixture_prints_the_findings(
-        self, snapshot: SnapshotAssertion
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'skills')
-
-        #: When
-        result = run_cli(*arguments, cwd=WORKSPACE_FIXTURE)
-
-        #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the findings found from the working directory match the reviewed snapshot'
-
-    def test_check_skills_with_json_over_the_workspace_fixture_prints_the_report(
-        self, snapshot: SnapshotAssertion
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(JsonTextSnapshotExtension)
-        arguments = ('check', 'skills', '--root', str(WORKSPACE_FIXTURE), '--format', 'json')
-
-        #: When
-        result = run_cli(*arguments)
-
-        #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the JSON report matches the reviewed snapshot'
-
-    def test_check_skills_with_the_entry_another_entry_links_to_checks_that_skill_alone(
-        self, snapshot: SnapshotAssertion
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'skills', '.agents/skills/alpha')
-
-        #: When
-        result = run_cli(*arguments, cwd=WORKSPACE_FIXTURE)
-
-        #: Then
-        assert result.returncode == 0, result.stderr
-        assert result.stdout == expected, 'alpha is clean, and beta, which links to it, is not checked'
-        assert result.stderr == 'checked 1 skill(s), 0 finding(s)\n', 'the entry named is the one skill checked'
-
-    def test_check_skills_with_a_linked_entry_checks_that_skill_alone(self, snapshot: SnapshotAssertion) -> None:
-        #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'skills', '.agents/skills/beta')
-
-        #: When
-        result = run_cli(*arguments, cwd=WORKSPACE_FIXTURE)
-
-        #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the name-matches-directory finding of beta alone matches the snapshot'
-        assert result.stderr == 'checked 1 skill(s), 1 finding(s)\n', (
-            'the entry named is the one skill checked, not alpha, the directory it links to'
+        # The model validates a specification when it loads, but only for a corpus whose directory exists, so the
+        # corpus holds a document.
+        workspace = Workspace(
+            specs=[Spec('code', structure={'frontmatter': {'type': 5}})], documents=[Document('code', 'guide')]
         )
-
-    def test_check_skills_with_a_skill_directory_no_agent_reads_checks_it_under_that_path(
-        self, snapshot: SnapshotAssertion
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'skills', 'skills/gamma')
+        root = workspace.write(tmp_path, faker)
+        arguments = ('check', '--root', str(root))
 
         #: When
-        result = run_cli(*arguments, cwd=WORKSPACE_FIXTURE)
-
-        #: Then
-        assert result.returncode == 0, result.stderr
-        assert result.stdout == expected, 'gamma, named skills/gamma, matches the name of that directory and is clean'
-        assert result.stderr == 'checked 1 skill(s), 0 finding(s)\n', (
-            'the directory named is the one skill checked, not the entry linked to it'
-        )
-
-    def test_check_skills_with_a_skills_directory_checks_every_skill_listed_in_it(
-        self, snapshot: SnapshotAssertion
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'skills', '.agents/skills')
-
-        #: When
-        result = run_cli(*arguments, cwd=WORKSPACE_FIXTURE)
-
-        #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the findings of every skill in the directory match the snapshot'
-        assert result.stderr == 'checked 3 skill(s), 1 finding(s)\n', 'alpha, beta and gamma are each checked once'
-
-    def test_check_skills_with_a_linked_skills_directory_reports_under_the_real_one(
-        self, snapshot: SnapshotAssertion
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'skills', '.claude/skills')
-
-        #: When
-        result = run_cli(*arguments, cwd=WORKSPACE_FIXTURE)
-
-        #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, (
-            'the findings are reported under .agents/skills, as a run naming no path reports them'
-        )
-        assert result.stderr == 'checked 3 skill(s), 1 finding(s)\n', 'each skill the link leads to is checked once'
-
-    def test_check_skills_with_a_directory_of_skills_no_agent_reads_checks_each_skill_in_it(
-        self, snapshot: SnapshotAssertion
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'skills', 'skills')
-
-        #: When
-        result = run_cli(*arguments, cwd=WORKSPACE_FIXTURE)
-
-        #: Then
-        assert result.returncode == 0, result.stderr
-        assert result.stdout == expected, 'gamma, the one skill in skills/, is clean under skills/gamma'
-        assert result.stderr == 'checked 1 skill(s), 0 finding(s)\n', 'each skill directly in the directory is checked'
-
-    def test_check_skills_with_a_directory_holding_no_skill_prints_the_error_and_exits_two(self) -> None:
-        #: Given
-        arguments = ('check', 'skills', 'docs/code')
-
-        #: When
-        result = run_cli(*arguments, cwd=WORKSPACE_FIXTURE)
+        result = run_cli(*arguments)
 
         #: Then
         assert result.returncode == 2, result.stderr
         assert result.stdout == '', 'a run that could not start prints nothing on stdout'
         assert result.stderr == (
-            'error: docs/code: no skill there; name a skill directory, a directory of skills, or a SKILL.md\n'
-        ), 'no SKILL.md is at the root of docs/code or in a directory directly in it, so the argument is refused'
-
-    def test_check_skills_with_a_key_written_twice_prints_the_duplicate_key_finding(
-        self, snapshot: SnapshotAssertion, duplicate_key_root: Path
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', 'skills', '--root', str(duplicate_key_root))
-
-        #: When
-        result = run_cli(*arguments)
-
-        #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the duplicate-key finding matches the reviewed snapshot'
-
-    def test_check_skills_with_an_absolute_link_prints_the_link_absolute_finding(
-        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        workspace = Workspace(skills=[Skill('review', body='# Review\n\nRead [the guide](/docs/guide.md).\n')])
-        root = workspace.write(tmp_path, faker)
-        arguments = ('check', 'skills', '--root', str(root))
-
-        #: When
-        result = run_cli(*arguments)
-
-        #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the link-absolute finding matches the reviewed snapshot'
-
-    def test_check_skills_with_a_link_to_a_missing_heading_prints_the_link_fragment_finding(
-        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        workspace = Workspace(skills=[Skill('review', body='# Review\n\nSee [the checklist](#checklist).\n')])
-        root = workspace.write(tmp_path, faker)
-        arguments = ('check', 'skills', '--root', str(root))
-
-        #: When
-        result = run_cli(*arguments)
-
-        #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the link-fragment finding matches the reviewed snapshot'
-
-    def test_check_skills_with_escaping_links_prints_each_link_escapes_finding_in_its_file(
-        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        # The resource links its own skill as `../SKILL.md`, which, read from the skill root, leaves the skill.
-        skill = Skill(
-            'review',
-            body='# Review\n\nRead [the guide](../../../docs/guide.md).\n',
-            references={'steps.md': '# Steps\n\nBack to [the skill](../SKILL.md).\n'},
-        )
-        workspace = Workspace(skills=[skill])
-        root = workspace.write(tmp_path, faker)
-        arguments = ('check', 'skills', '--root', str(root))
-
-        #: When
-        result = run_cli(*arguments)
-
-        #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the link-escapes findings, one in the resource, match the reviewed snapshot'
-
-    def test_check_skills_with_broken_links_prints_each_link_broken_finding_in_its_file(
-        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        # The resource links `steps.md` beside it, which, read from the skill root, names nothing; its link to
-        # `references/steps.md` resolves.
-        skill = Skill(
-            'review',
-            body='# Review\n\nFollow [the steps](references/steps.md) and [the checklist](references/checklist.md).\n',
-            references={
-                'guide.md': '# Guide\n\nSee [the steps](references/steps.md), not [the steps](steps.md).\n',
-                'steps.md': '# Steps\n',
-            },
-        )
-        workspace = Workspace(skills=[skill])
-        root = workspace.write(tmp_path, faker)
-        arguments = ('check', 'skills', '--root', str(root))
-
-        #: When
-        result = run_cli(*arguments)
-
-        #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the link-broken findings, one in the resource, match the reviewed snapshot'
-
-    def test_check_skills_with_absolute_and_fragment_links_in_a_resource_prints_both_findings_there(
-        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        # The resource links `#usage`, a heading of the `SKILL.md` but not of the resource, and `#guide`, its own.
-        skill = Skill(
-            'review',
-            body='# Review\n\n## Usage\n',
-            references={
-                'guide.md': (
-                    '# Guide\n\nRead [the docs](/docs/guide.md).\n\nSee [the usage](#usage), not [the guide](#guide).\n'
-                ),
-            },
-        )
-        workspace = Workspace(skills=[skill])
-        root = workspace.write(tmp_path, faker)
-        arguments = ('check', 'skills', '--root', str(root))
-
-        #: When
-        result = run_cli(*arguments)
-
-        #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'both link findings, in the resource, match the reviewed snapshot'
-
-    def test_check_skills_with_a_skill_directory_prints_the_findings_of_its_skill_md_and_its_resources(
-        self, snapshot: SnapshotAssertion, skill_and_resource_absolute_link_root: Path
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        root = skill_and_resource_absolute_link_root
-        arguments = ('check', 'skills', '--root', str(root), '.agents/skills/review')
-
-        #: When
-        result = run_cli(*arguments, cwd=root)
-
-        #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the link-absolute findings of both files match the reviewed snapshot'
-        assert result.stderr == 'checked 1 skill(s), 2 finding(s)\n', 'the whole skill is checked'
-
-    def test_check_skills_with_a_skill_md_prints_the_findings_of_that_file_alone(
-        self, snapshot: SnapshotAssertion, skill_and_resource_absolute_link_root: Path
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        root = skill_and_resource_absolute_link_root
-        arguments = ('check', 'skills', '--root', str(root), '.agents/skills/review/SKILL.md')
-
-        #: When
-        result = run_cli(*arguments, cwd=root)
-
-        #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the link-absolute finding of the SKILL.md alone matches the snapshot'
-        assert result.stderr == 'checked 1 skill(s), 1 finding(s)\n', (
-            'the skill is checked by its SKILL.md alone, and its resource is not read'
-        )
-
-    def test_check_skills_with_a_skill_md_over_500_lines_prints_the_lines_budget_finding(
-        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        # 497 lines below the four of the frontmatter: 501 in all, one over the budget.
-        workspace = Workspace(skills=[Skill('review', body='Body.\n' * 497)])
-        root = workspace.write(tmp_path, faker)
-        arguments = ('check', 'skills', '--root', str(root))
-
-        #: When
-        result = run_cli(*arguments)
-
-        #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the lines-budget finding and its help note match the reviewed snapshot'
-
-    def test_check_skills_with_a_directory_linked_outside_the_repository_prints_the_symlink_outside_finding(
-        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        outside = Workspace(files=[File('shared/refs/guide.md', '# Guide\n')])
-        outside.write(tmp_path, faker)
-        # The link climbs from the skill's directory out of `tmp_path/repository` to `tmp_path/shared/refs`. Its
-        # target is relative, so the note printing it is the same on every machine.
-        repository = Workspace(skills=[Skill('review', links={'references': '../../../../shared/refs'})])
-        root = repository.write(tmp_path / 'repository', faker)
-        arguments = ('check', 'skills', '--root', str(root))
-
-        #: When
-        result = run_cli(*arguments)
-
-        #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the symlink-outside finding and its note match the reviewed snapshot'
+            'error: invalid structure schema docs/__meta__/code.structure.json: frontmatter is not a valid JSON '
+            'Schema: 5 is not valid under any of the given schemas\n'
+        ), 'the specification that cannot be used is reported, naming it'
 
 
 @pytest.mark.e2e
 class TestWorkspaceDefaults:
     # Every test that writes a workspace sets only the fields its case turns on, and relies on the rest being clean.
 
-    def test_check_skills_with_a_default_skill_reports_no_finding(self, tmp_path: Path, faker: Faker) -> None:
+    def test_check_with_a_default_skill_reports_no_diagnostic(self, tmp_path: Path, faker: Faker) -> None:
         #: Given
         workspace = Workspace(skills=[Skill('review')])
         root = workspace.write(tmp_path, faker)
-        arguments = ('check', 'skills', '--root', str(root))
+        arguments = ('check', '--root', str(root))
 
         #: When
         result = run_cli(*arguments)
@@ -873,9 +618,11 @@ class TestWorkspaceDefaults:
         #: Then
         assert result.returncode == 0, result.stdout
         assert result.stdout == '', 'a skill whose every field but its name is generated has nothing to report'
-        assert result.stderr == 'checked 1 skill(s), 0 finding(s)\n', 'the one skill written is the one checked'
+        assert result.stderr == 'checked 1 subject(s): 0 error(s), 0 warning(s)\n', (
+            'the one skill written is the one checked'
+        )
 
-    def test_check_with_a_default_spec_and_document_reports_no_finding(self, tmp_path: Path, faker: Faker) -> None:
+    def test_check_with_a_default_spec_and_document_reports_no_diagnostic(self, tmp_path: Path, faker: Faker) -> None:
         #: Given
         workspace = Workspace(specs=[Spec('code')], documents=[Document('code', 'guide')])
         root = workspace.write(tmp_path, faker)
@@ -890,42 +637,9 @@ class TestWorkspaceDefaults:
             'a document whose every field but its corpus and name is generated has nothing to report under a '
             'specification whose every field but its name is generated'
         )
-        assert result.stderr == 'checked 1 file(s) and 0 skill(s) with 4 check(s), 0 finding(s)\n', (
-            'the one document written is the one checked, by every check'
+        assert result.stderr == 'checked 1 subject(s): 0 error(s), 0 warning(s)\n', (
+            'the one document written is the one checked, governed for every facet'
         )
-
-
-@pytest.mark.e2e
-class TestCheckAllSnapshots:
-    # A bare `check` runs every registered check over the fixture, so its output grows by one block per check.
-
-    def test_check_without_a_root_in_the_workspace_fixture_prints_every_check_findings(
-        self, snapshot: SnapshotAssertion
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check',)
-
-        #: When
-        result = run_cli(*arguments, cwd=WORKSPACE_FIXTURE)
-
-        #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'every check finding from the working directory matches the snapshot'
-
-    def test_check_with_json_over_the_workspace_fixture_prints_each_check_report(
-        self, snapshot: SnapshotAssertion
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(JsonTextSnapshotExtension)
-        arguments = ('check', '--root', str(WORKSPACE_FIXTURE), '--format', 'json')
-
-        #: When
-        result = run_cli(*arguments)
-
-        #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the JSON report of every check matches the reviewed snapshot'
 
 
 @pytest.fixture(scope='function')

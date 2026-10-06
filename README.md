@@ -96,7 +96,7 @@ lorecraft inspect  # which specifications govern which rule document
 lorecraft check    # check every rule document against them, and every agent skill
 ```
 
-`lorecraft check` exits 0 when it finds nothing, 1 when it reports findings, and 2 when it could not run, so it
+`lorecraft check` exits 0 when it reports no error, 1 when it reports one, and 2 when it could not run, so it
 can gate a CI job as it is. Both commands take `--format json` for a script to read.
 
 Then let your agent use them, through the [skills](#skills): `/code-rules` loads the rules that apply before it writes code, and
@@ -114,7 +114,7 @@ The [`skills/`](https://github.com/lnsd/lorecraft/tree/main/skills) directory ho
 - **When authoring the rules**, `docs-rules-creator` helps the agent write the specifications that
   govern your documents.
 - **When writing agent skills**, `skills-check` guides the agent through the Agent Skills specification and
-  checks your skills against it with `lorecraft check skills`.
+  checks your skills against it with `lorecraft check`.
 
 Install the skills with Vercel's [`skills`](https://github.com/vercel-labs/skills) CLI:
 

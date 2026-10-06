@@ -22,8 +22,8 @@ model hands out for it, since a rule over a skill may read where its directory l
 decoded and reported at that path, under its ref. A resource is a subject of its own, handed over as the
 `SkillResourceLocation` its skill's resource listing gives, since only that listing locates its file: it is decoded at
 the file it leads to, and reported under its ref, at the path an agent reaches it by. The runner never lists a skill's
-resources itself, so a skill handed over judges its `SKILL.md` alone. The command line does not run this yet, and the
-per-check pipelines in `run` serve it until then.
+resources itself, so a skill handed over judges its `SKILL.md` alone. The `check` command runs this, and the
+per-check pipelines in `run` stay only until they are deleted.
 
 A layout entry is one symlink of the skill layout whose chain leaves the repository, handed over as the
 `OutsideSymlink` record the model or a skill's resource listing holds for it. Whether a chain leaves the repository is

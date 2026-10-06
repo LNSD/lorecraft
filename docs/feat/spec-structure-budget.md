@@ -12,8 +12,8 @@ components: "module:lorecraft.project,module:lorecraft.checks,spec:feat,spec:cod
 
 A `<name>.structure.json` file limits the length of the documents its name governs in two ways. A `words` cap
 on an outline entry keeps a section's prose concise for the person reading it, and the `tokens` key budgets the
-whole file, which is what loading the document costs an agent. `lorecraft check structure` applies the caps and
-`lorecraft check budget` the budget.
+whole file, which is what loading the document costs an agent. `lorecraft check` applies the caps as `LEN003` and
+the budget as `LEN001`.
 
 ## Table of Contents
 
@@ -97,13 +97,12 @@ value below `1` is refused.
 
 - [spec-structure](spec-structure.md) - Base: the file these keys belong to, its layers and its editor schema
 - [spec-structure-outline](spec-structure-outline.md) - Related: the outline entries a word cap is set on
-- [cli-check-structure](cli-check-structure.md) - Related: the check that applies the word caps
-- [cli-check-budget](cli-check-budget.md) - Related: the check that applies the token budget
+- [cli-check](cli-check.md) - Related: the command that applies the word caps and the token budget
 
 ## Code References
 
 - `src/lorecraft/project/schemas/structure_file.py` - The shape of the `words` and `tokens` keys
 - `src/lorecraft/core/num.py` - The non-zero unsigned integer each key holds, which refuses a value below `1`
 - `src/lorecraft/project/schemas/structure.py` - Turns the keys into rules
-- `src/lorecraft/checks/structure.py` - Applies the word caps to a document's sections
-- `src/lorecraft/checks/budget.py` - Applies the token budget to a document's token count
+- `src/lorecraft/rules/length/too_many_words.py` - Reports a section over its word cap as `LEN003`
+- `src/lorecraft/rules/length/too_many_tokens.py` - Reports a document over its token budget as `LEN001`

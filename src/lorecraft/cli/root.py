@@ -1,9 +1,9 @@
-"""Establish the workspace root: the directory whose ``docs/__meta__/`` the checks read.
+"""Establish the workspace root: the directory whose `docs/__meta__/` the checks read.
 
-Two ways in. An explicit ``--root`` is resolved and required to be a directory; without one, the nearest of
-the working directory and its parents holding ``docs/__meta__/`` is the root. Either way the result is an
-absolute path with symlinks followed, and it is the only ``Path`` a command keeps: everything below reads
-root-relative through ``FileSystem``, and the root itself is handed only to ``select_document``.
+Two ways in. An explicit `--root` is resolved and required to be a directory; without one, the nearest of
+the working directory and its parents holding `docs/__meta__/` is the root. `establish_root` takes either.
+Either way the result is an absolute path with symlinks followed, and it is the only `Path` a command keeps:
+everything below reads root-relative through `FileSystem`.
 """
 
 from pathlib import Path
@@ -13,8 +13,28 @@ from lorecraft.project.layout import SPECS_DIR
 from lorecraft.vfs import OsRefusal, disk_location
 
 
+class WorkingDirectoryReadError(Error):
+    """The current working directory cannot be read, so no root can be searched for from it.
+
+    That happens, for one, after the directory was deleted.
+
+    Attributes:
+        refusal: Why the operating system refused to report it.
+        source: The operating system's failure.
+    """
+
+    refusal: OsRefusal
+    source: OSError
+
+    def __init__(self, refusal: OsRefusal, *, source: OSError) -> None:
+        self.refusal = refusal
+        self.source = source
+        super().__init__(f'cannot read the current directory: {refusal.value}')
+        self.__cause__ = source
+
+
 class RootNotFoundError(Error):
-    """Neither ``start`` nor any of its parents holds ``docs/__meta__/``.
+    """Neither `start` nor any of its parents holds `docs/__meta__/`.
 
     Attributes:
         start: The directory the search began at, as given.
@@ -28,10 +48,10 @@ class RootNotFoundError(Error):
 
 
 class RootCandidateInspectError(Error):
-    """A directory on the way up from the start cannot be inspected for ``docs/__meta__/``.
+    """A directory on the way up from the start cannot be inspected for `docs/__meta__/`.
 
     Attributes:
-        candidate: The directory whose ``docs/__meta__/`` could not be inspected.
+        candidate: The directory whose `docs/__meta__/` could not be inspected.
         refusal: Why the operating system refused the inspection.
         source: The operating system's failure.
     """
@@ -90,7 +110,7 @@ def get_root(start: Path) -> Path:
         start: Directory the search begins at, then climbs from. A relative path is resolved first.
 
     Raises:
-        RootNotFoundError: If no directory from ``start`` upward holds ``docs/__meta__/``.
+        RootNotFoundError: If no directory from `start` upward holds `docs/__meta__/`.
         RootCandidateInspectError: If the operating system refuses to inspect a directory on the way up.
     """
     # A relative start has parents that stop at `.`, so resolve first to climb the resolved directory tree.
@@ -127,3 +147,26 @@ def resolve_root(path: Path) -> Path:
     if not is_directory:
         raise InvalidRootError(resolved)
     return resolved
+
+
+def establish_root(root: Path | None) -> Path:
+    """The root a command reads: the one given, resolved, or the nearest found upward from the working directory.
+
+    Args:
+        root: The `--root` option; `None` searches upward from the working directory.
+
+    Raises:
+        WorkingDirectoryReadError: If no root is given and the working directory cannot be read.
+        RootNotFoundError: If no root is given and no directory upward holds docs/__meta__/.
+        RootCandidateInspectError: If no root is given and a directory upward cannot be inspected.
+        InvalidRootError: If the given root is not an existing directory.
+        RootInspectError: If the given root cannot be inspected.
+    """
+    if root is not None:
+        return resolve_root(root)
+    try:
+        working_directory = Path.cwd()
+    except OSError as exc:
+        # The operating system cannot report a deleted working directory, for one.
+        raise WorkingDirectoryReadError(OsRefusal.from_error(exc), source=exc) from exc
+    return get_root(working_directory)

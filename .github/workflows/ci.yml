@@ -250,8 +250,5 @@ jobs:
       - name: Sync the development environment
         run: just sync
 
-      - name: Check documents
+      - name: Check documents and skills
         run: just check-docs
-
-      - name: Check skills
-        run: just check-skills

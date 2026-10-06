@@ -71,20 +71,14 @@ typecheck *EXTRA_FLAGS:
 
 ## Docs
 
-# Each check exits 0 when clean, 1 when it reports findings and 2 when it cannot
-# run, so a findings exit fails the recipe.
+# `lorecraft check` exits 0 when no diagnostic is an error, 1 when one is and 2
+# when it cannot run, so an error fails the recipe.
 
-# Check this repository's own documents with every lorecraft check
+# Check this repository's own documents and skills with every lorecraft rule (lorecraft check)
 [group: 'docs']
 check-docs *EXTRA_FLAGS:
-    @echo "📚 Checking documents..."
+    @echo "📚 Checking documents and skills..."
     uv run lorecraft check {{EXTRA_FLAGS}}
-
-# Check this repository's own skills against the Agent Skills specification: the frontmatter, the line budget and the links (lorecraft check skills)
-[group: 'docs']
-check-skills *EXTRA_FLAGS:
-    @echo "📚 Checking skills..."
-    uv run lorecraft check skills {{EXTRA_FLAGS}}
 
 
 ## Codegen
