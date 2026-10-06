@@ -148,6 +148,9 @@
           "words": 8
         },
         {
+          "chars": 60
+        },
+        {
           "pattern": "^[A-Z]"
         }
       ],
@@ -167,6 +170,22 @@
           "description": "The most words the title's text may hold, counted as a section's prose words are; no cap when absent.",
           "examples": [
             8
+          ]
+        },
+        "chars": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The most characters the title's text may hold, inline markup stripped, counted as Unicode code points; no cap when absent.",
+          "examples": [
+            60
           ]
         },
         "pattern": {
@@ -265,7 +284,7 @@
         }
       ],
       "default": null,
-      "description": "The checks a document's H1 title is held to: `words` caps its words, and `pattern` holds its text to a regular expression. No title check when absent; the title is there, once, opening the document, either way."
+      "description": "The checks a document's H1 title is held to: `words` caps its words, `chars` its characters, and `pattern` holds its text to a regular expression. No title check when absent; the title is there, once, opening the document, either way."
     },
     "tokens": {
       "anyOf": [

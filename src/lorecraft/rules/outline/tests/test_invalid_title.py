@@ -45,6 +45,7 @@ def _spec(spec: RootRelativePath, mismatch: TitleMismatch | None) -> HeadingsSpe
     return HeadingsSpec(
         spec=spec,
         title_cap=None,
+        title_char_cap=None,
         title_mismatch=mismatch,
         forbid_empty_sections=False,
         forbidden=(),

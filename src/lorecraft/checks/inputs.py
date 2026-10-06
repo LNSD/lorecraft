@@ -68,6 +68,7 @@ from lorecraft.rules.inputs import (
     SkillFrontmatterOwner,
     StructureSpecSchema,
     TitleCap,
+    TitleCharCap,
     TitleMismatch,
     TokenCountInput,
     UnlistedSection,
@@ -412,9 +413,9 @@ def build_headings_input(database: Database, source: DocumentText) -> HeadingsIn
     """A document's headings, with what each structure specification that governs it states over them.
 
     The structure specifications are read first, and the document is parsed only when one governs it. Each section's
-    word cap is worked out here, from the outline, and so is the title's, with the words of the title's text, so a
-    rule over the caps only compares numbers. The title's text is matched against its pattern here too, so a rule
-    over the pattern only reads the outcome.
+    word cap is worked out here, from the outline, and so are the title's, with the words and the characters of the
+    title's text, so a rule over the caps only compares numbers. The title's text is matched against its pattern here
+    too, so a rule over the pattern only reads the outcome.
 
     Args:
         database: The revision the document is read from; its model decides which specifications govern it.
@@ -498,6 +499,7 @@ def _headings_spec(structure_spec: StructureSpec, title: Heading | None, section
     return HeadingsSpec(
         spec=structure_spec.path,
         title_cap=_title_cap(structure_spec.title, title),
+        title_char_cap=_title_char_cap(structure_spec.title, title),
         title_mismatch=_title_mismatch(structure_spec.title, title),
         forbid_empty_sections=structure_spec.forbid_empty_sections,
         forbidden=structure_spec.forbidden,
@@ -519,6 +521,26 @@ def _title_cap(title_checks: TitleChecks | None, title: Heading | None) -> Title
     if title_checks is None or title_checks.words is None or title is None:
         return None
     return TitleCap(title=title, title_words=count_words(title.text), words=title_checks.words)
+
+
+def _title_char_cap(title_checks: TitleChecks | None, title: Heading | None) -> TitleCharCap | None:
+    """The cap on a document's title characters under one specification, measured against its title. Raises nothing.
+
+    The characters are those of the title's text as the parse holds it, inline markup already stripped, counted as
+    Unicode code points: the `len` of the text, neither its bytes nor the letters a reader sees, so an emoji built
+    of several code points counts each of them.
+
+    Args:
+        title_checks: The checks the specification's `title` states, or `None` when it states none.
+        title: The document's title, its first H1 heading, or `None` when it has none.
+
+    Returns:
+        The cap with the title it applies to and the characters of the title's text; or `None` when the
+        specification sets no cap, or when the document has no title.
+    """
+    if title_checks is None or title_checks.chars is None or title is None:
+        return None
+    return TitleCharCap(title=title, title_chars=len(title.text), chars=title_checks.chars)
 
 
 def _title_mismatch(title_checks: TitleChecks | None, title: Heading | None) -> TitleMismatch | None:

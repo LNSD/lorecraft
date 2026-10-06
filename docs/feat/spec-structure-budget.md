@@ -1,6 +1,6 @@
 ---
 name: "spec-structure-budget"
-description: "The length keys of a structure specification: the words cap on an outline entry or on the title and what counts as a prose word, the whole-file tokens budget in o200k_base tokens, and how a namespace file tightens either. Load when setting or changing a word cap or a token budget, or asking why a section or a document is reported over its limit"
+description: "The length keys of a structure specification: the words cap on an outline entry or on the title and what counts as a prose word, the chars cap on the title, the whole-file tokens budget in o200k_base tokens, and how a namespace file tightens either. Load when setting or changing a word cap or a token budget, or asking why a section or a document is reported over its limit"
 type: "feature"
 status: "experimental"
 components: "module:lorecraft.project,module:lorecraft.checks,spec:feat,spec:code"
@@ -39,9 +39,10 @@ whole file, which is what loading the document costs an agent. `lorecraft check 
 |-----|-------|-------|---------|
 | `words` | an `outline` entry | integer | The word cap of the section the entry names; on an `any` entry, of each section in the run alone |
 | `words` | `title` | integer | The word cap of the H1 title's own text |
+| `chars` | `title` | integer | The character cap of the H1 title's own text, in code points |
 | `tokens` | top level | integer | The token budget of the whole file |
 
-Both are optional: an entry without `words` caps nothing, and a file without `tokens` sets no budget. The
+Each is optional: an entry without `words` caps nothing, and a file without `tokens` sets no budget. The
 outline entries a cap sits on are the ones [spec-structure-outline](spec-structure-outline.md) describes.
 
 ## Usage

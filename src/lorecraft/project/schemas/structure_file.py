@@ -14,8 +14,9 @@ What the schema shows an editor is declared here too: each field's docstring is 
 its examples and bounds, and each model's config names it and gives a whole example. Only the shape is stated
 here; what a shape cannot state, such as an outline naming a section twice, is refused by `StructureSpec`.
 
-A word cap, on a section or on the title, or the token budget is a `NonZeroUnsignedInt`, which states its own
-bound: it is built while the file is decoded, and a number it refuses is a validation error carrying its own message.
+A word cap, on a section or on the title, the title's character cap, or the token budget is a `NonZeroUnsignedInt`,
+which states its own bound: it is built while the file is decoded, and a number it refuses is a validation error
+carrying its own message.
 A section name, in an outline entry or in `forbidden`, is a `SectionName` the same way, which states its own rule.
 """
 
@@ -105,11 +106,14 @@ class StructureFileTitle(_StructureFileModel):
     # `minProperties` is for the editor only: pydantic does not apply it, and `_refuse_no_check` refuses the same.
     model_config = ConfigDict(
         title='Title checks',
-        json_schema_extra={'minProperties': 1, 'examples': [{'words': 8}, {'pattern': '^[A-Z]'}]},
+        json_schema_extra={'minProperties': 1, 'examples': [{'words': 8}, {'chars': 60}, {'pattern': '^[A-Z]'}]},
     )
 
     words: NonZeroUnsignedInt | None = Field(default=None, examples=[8])
     """The most words the title's text may hold, counted as a section's prose words are; no cap when absent."""
+    chars: NonZeroUnsignedInt | None = Field(default=None, examples=[60])
+    """The most characters the title's text may hold, inline markup stripped, counted as Unicode code points; no cap
+    when absent."""
     pattern: str | None = Field(default=None, min_length=1, examples=['^[A-Z]', '^[^:]+$'])
     """A regular expression the title's text must match, searched for anywhere in it as JSON Schema's `pattern` is;
     any text when absent. An empty one, which every title matches, and one that does not compile are refused when
@@ -122,7 +126,7 @@ class StructureFileTitle(_StructureFileModel):
         Raises:
             ValueError: If the key states no check; pydantic reports it as a validation error.
         """
-        if self.words is None and self.pattern is None:
+        if self.words is None and self.chars is None and self.pattern is None:
             raise ValueError('states no check; leave the key out for no title check')
         return self
 
@@ -213,8 +217,9 @@ class StructureFile(_StructureFileModel):
     )
     """What this file governs and why, for whoever opens it; not read by the check."""
     title: StructureFileTitle | None = None
-    """The checks a document's H1 title is held to: `words` caps its words, and `pattern` holds its text to a regular
-    expression. No title check when absent; the title is there, once, opening the document, either way."""
+    """The checks a document's H1 title is held to: `words` caps its words, `chars` its characters, and `pattern`
+    holds its text to a regular expression. No title check when absent; the title is there, once, opening the
+    document, either way."""
     tokens: NonZeroUnsignedInt | None = Field(default=None, examples=[5000])
     """The token budget: the most tokens the whole file may cost an agent that loads it, frontmatter, code and
     tables included; no budget when absent. Counted with OpenAI's `o200k_base` encoding, the same whichever agent

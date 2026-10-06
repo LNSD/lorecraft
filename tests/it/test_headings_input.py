@@ -3,7 +3,7 @@
 The structure specifications come from the model's governance and the headings from the `parse` query, so the
 input is tested over a database opened on an in-memory snapshot: governed by a corpus and a namespace
 specification, governed by an outline whose caps each section resolves, governed by caps on the title's words and
-patterns on its text, and ungoverned.
+characters and patterns on its text, and ungoverned.
 """
 
 from typing import Final
@@ -19,7 +19,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import SectionName
 from lorecraft.project.syntax import Heading, ParsedDocument, parse_document
-from lorecraft.rules.inputs import HeadingsInput, HeadingsSpec, SectionCap, TitleCap, TitleMismatch
+from lorecraft.rules.inputs import HeadingsInput, HeadingsSpec, SectionCap, TitleCap, TitleCharCap, TitleMismatch
 from lorecraft.vfs import Snapshot
 
 TYPING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
@@ -132,6 +132,7 @@ class TestBuildHeadingsInput:
             corpus=HeadingsSpec(
                 spec=CORPUS_SPEC,
                 title_cap=None,
+                title_char_cap=None,
                 title_mismatch=None,
                 forbid_empty_sections=True,
                 forbidden=(),
@@ -141,6 +142,7 @@ class TestBuildHeadingsInput:
                 HeadingsSpec(
                     spec=NAMESPACE_SPEC,
                     title_cap=None,
+                    title_char_cap=None,
                     title_mismatch=None,
                     forbid_empty_sections=False,
                     forbidden=(SectionName.parse('Notes'), SectionName.parse('Todo')),
@@ -170,6 +172,7 @@ class TestBuildHeadingsInput:
             corpus=HeadingsSpec(
                 spec=CORPUS_SPEC,
                 title_cap=None,
+                title_char_cap=None,
                 title_mismatch=None,
                 forbid_empty_sections=False,
                 forbidden=(),
@@ -197,6 +200,7 @@ class TestBuildHeadingsInput:
             corpus=HeadingsSpec(
                 spec=CORPUS_SPEC,
                 title_cap=TitleCap(title=headings[0], title_words=3, words=NonZeroUnsignedInt(2)),
+                title_char_cap=None,
                 title_mismatch=None,
                 forbid_empty_sections=False,
                 forbidden=(),
@@ -206,6 +210,7 @@ class TestBuildHeadingsInput:
                 HeadingsSpec(
                     spec=NAMESPACE_SPEC,
                     title_cap=TitleCap(title=headings[0], title_words=3, words=NonZeroUnsignedInt(5)),
+                    title_char_cap=None,
                     title_mismatch=None,
                     forbid_empty_sections=False,
                     forbidden=(),
@@ -227,6 +232,60 @@ class TestBuildHeadingsInput:
         assert isinstance(subject, HeadingsInput), 'a structure specification governs the document'
         assert subject.corpus.title_cap is None, 'a document with no title has no title to hold to a cap'
 
+    def test_build_headings_input_with_title_character_caps_holds_each_against_the_first_title_text(self) -> None:
+        #: Given
+        # `Typing in Python é` is 18 code points, though its `é` is two bytes and its backticks are left out
+        typing_text = '# Typing in `Python` é\n\nAnnotate every signature.\n\n# Typing again\n'
+        database = Database(
+            _snapshot(b'{"title": {"chars": 12}}', b'{"title": {"chars": 20}}', typing_text=typing_text)
+        )
+        source = _document_text(database, TYPING)
+
+        #: When
+        subject = build_headings_input(database, source)
+
+        #: Then
+        headings = parse_document(typing_text).headings
+        assert subject == HeadingsInput(
+            headings=headings,
+            corpus=HeadingsSpec(
+                spec=CORPUS_SPEC,
+                title_cap=None,
+                title_char_cap=TitleCharCap(title=headings[0], title_chars=18, chars=NonZeroUnsignedInt(12)),
+                title_mismatch=None,
+                forbid_empty_sections=False,
+                forbidden=(),
+                section_caps=(),
+            ),
+            namespaces=(
+                HeadingsSpec(
+                    spec=NAMESPACE_SPEC,
+                    title_cap=None,
+                    title_char_cap=TitleCharCap(title=headings[0], title_chars=18, chars=NonZeroUnsignedInt(20)),
+                    title_mismatch=None,
+                    forbid_empty_sections=False,
+                    forbidden=(),
+                    section_caps=(),
+                ),
+            ),
+        ), (
+            'each specification holds its own cap against the first H1 alone, with the code points of its text, '
+            'inline markup stripped'
+        )
+
+    def test_build_headings_input_with_a_title_character_cap_and_no_title_holds_no_title_cap(self) -> None:
+        #: Given
+        typing_text = '## Rule\n\nAnnotate every signature.\n'
+        database = Database(_snapshot(b'{"title": {"chars": 12}}', None, typing_text=typing_text))
+        source = _document_text(database, TYPING)
+
+        #: When
+        subject = build_headings_input(database, source)
+
+        #: Then
+        assert isinstance(subject, HeadingsInput), 'a structure specification governs the document'
+        assert subject.corpus.title_char_cap is None, 'a document with no title has no title to hold to a cap'
+
     def test_build_headings_input_with_a_title_pattern_the_first_title_fails_holds_the_mismatch(self) -> None:
         #: Given
         typing_text = '# typing in Python\n\nAnnotate every signature.\n\n# Typing again\n'
@@ -245,6 +304,7 @@ class TestBuildHeadingsInput:
             corpus=HeadingsSpec(
                 spec=CORPUS_SPEC,
                 title_cap=None,
+                title_char_cap=None,
                 title_mismatch=TitleMismatch(title=headings[0], pattern='^[A-Z]'),
                 forbid_empty_sections=False,
                 forbidden=(),
@@ -254,6 +314,7 @@ class TestBuildHeadingsInput:
                 HeadingsSpec(
                     spec=NAMESPACE_SPEC,
                     title_cap=None,
+                    title_char_cap=None,
                     title_mismatch=None,
                     forbid_empty_sections=False,
                     forbidden=(),
