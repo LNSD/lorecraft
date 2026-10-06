@@ -21,6 +21,7 @@ from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.length.too_many_words import TooManyWords
 from lorecraft.rules.link.absolute_link import AbsoluteLink
 from lorecraft.rules.link.broken_link import BrokenLink
+from lorecraft.rules.link.escaping_link import EscapingLink
 from lorecraft.rules.link.missing_fragment import MissingFragment
 from lorecraft.rules.outline.empty_section import EmptySection
 from lorecraft.rules.outline.extra_title import ExtraTitle
@@ -148,6 +149,18 @@ class TestRuleTableFromRegistry:
             EnabledRule(BrokenLink, Severity.ERROR),
         ), "the package's rules over a Markdown file's links are enabled by default as errors, in code order"
 
+    def test_from_registry_with_the_package_registry_enables_the_skill_file_link_rule(self) -> None:
+        #: Given
+        registry = Registry.load(rules)
+
+        #: When
+        table = RuleTable.from_registry(registry)
+
+        #: Then
+        assert table.skill_file_rules == (EnabledRule(EscapingLink, Severity.ERROR),), (
+            "the package's rule over a skill file's escaping links is enabled by default as an error"
+        )
+
     def test_from_registry_with_the_package_registry_enables_the_frontmatter_block_rules_in_code_order(self) -> None:
         #: Given
         registry = Registry.load(rules)
@@ -259,6 +272,16 @@ class TestRuleTable:
 
         #: Then
         assert table.markdown_rules == (), 'no enabled rule reads a Markdown file'
+
+    def test_rule_table_with_no_rules_has_an_empty_skill_file_partition(self) -> None:
+        #: Given
+        severities: dict[type[Rule], Severity] = {}
+
+        #: When
+        table = RuleTable(severities)
+
+        #: Then
+        assert table.skill_file_rules == (), "no enabled rule reads a skill's file"
 
     def test_document_rules_governed_by_with_the_facet_a_rule_reads_returns_it(self) -> None:
         #: Given

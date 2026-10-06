@@ -6,7 +6,8 @@ from a registry and each rule's default level: a rule at `warn` reports warnings
 conditions are not rules a run enables, so the table never holds one.
 
 A rule is partitioned by its base: the rules over a document, which the runner runs facet by facet, the rules over
-a skill, and the rules over a Markdown file, which the runner runs over a document, a skill and a resource alike.
+a skill, the rules over a Markdown file, which the runner runs over a document, a skill and a resource alike, and the
+rules over a skill's file, which it runs over a skill and a resource alike.
 Each partition pairs every rule in it with its severity, as an `EnabledRule`, so a rule the runner finds in a
 partition always has a severity to report at.
 
@@ -26,7 +27,7 @@ from lorecraft.rules.inputs import (
     SchemaProblemsRule,
 )
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.subject import DocumentRule, Facet, MarkdownRule, SkillRule
+from lorecraft.rules.subject import DocumentRule, Facet, MarkdownRule, SkillFileRule, SkillRule
 
 
 class UnknownRuleInputError(TypeError):
@@ -66,6 +67,7 @@ class RuleTable:
     _document_rules_by_facet: dict[Facet, tuple[EnabledRule[DocumentRule], ...]]
     _skill_rules: tuple[EnabledRule[SkillRule], ...]
     _markdown_rules: tuple[EnabledRule[MarkdownRule], ...]
+    _skill_file_rules: tuple[EnabledRule[SkillFileRule], ...]
     # One partition per input kind, until the rules that read one read a context.
     _frontmatter_block_rules: tuple[EnabledRule[FrontmatterBlockRule], ...]
     _schema_problems_rules: tuple[EnabledRule[SchemaProblemsRule], ...]
@@ -85,6 +87,7 @@ class RuleTable:
         document_rules: list[EnabledRule[DocumentRule]] = []
         skill_rules: list[EnabledRule[SkillRule]] = []
         markdown_rules: list[EnabledRule[MarkdownRule]] = []
+        skill_file_rules: list[EnabledRule[SkillFileRule]] = []
         frontmatter_block_rules: list[EnabledRule[FrontmatterBlockRule]] = []
         schema_problems_rules: list[EnabledRule[SchemaProblemsRule]] = []
         headings_rules: list[EnabledRule[HeadingsRule]] = []
@@ -98,6 +101,8 @@ class RuleTable:
                 skill_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, MarkdownRule):
                 markdown_rules.append(EnabledRule(rule_class, severities[rule_class]))
+            elif issubclass(rule_class, SkillFileRule):
+                skill_file_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, FrontmatterBlockRule):
                 frontmatter_block_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, SchemaProblemsRule):
@@ -116,6 +121,7 @@ class RuleTable:
             )
         self._skill_rules = tuple(skill_rules)
         self._markdown_rules = tuple(markdown_rules)
+        self._skill_file_rules = tuple(skill_file_rules)
         self._frontmatter_block_rules = tuple(frontmatter_block_rules)
         self._schema_problems_rules = tuple(schema_problems_rules)
         self._headings_rules = tuple(headings_rules)
@@ -169,6 +175,11 @@ class RuleTable:
     def markdown_rules(self) -> tuple[EnabledRule[MarkdownRule], ...]:
         """Each enabled rule over a Markdown file, with its severity, in code order; empty when none is."""
         return self._markdown_rules
+
+    @property
+    def skill_file_rules(self) -> tuple[EnabledRule[SkillFileRule], ...]:
+        """Each enabled rule over a skill's file, with its severity, in code order; empty when none is."""
+        return self._skill_file_rules
 
     @property
     def frontmatter_block_rules(self) -> tuple[EnabledRule[FrontmatterBlockRule], ...]:

@@ -4,8 +4,8 @@ The runner decodes each document, skill and resource, hands each rule over a doc
 subject's context or builds each input an enabled rule still reads, and runs the rules of a table built from a
 registry. The package's own registry runs the frontmatter block rules over documents and skills, the token budget,
 the headings rules and the outline divergence rules over documents, the line budget over skills, and the link
-rules over every Markdown file; a registry of sample rules over a document's token count, declared in this
-module, runs through the same runner, with no edit to it.
+rules over every Markdown file and every skill's file; a registry of sample rules over a document's token count,
+declared in this module, runs through the same runner, with no edit to it.
 
 A snapshot built in memory scans nothing, so no path is in its scope and no link is looked up in it. The tests of
 `LINK003`, which judges what a link names, open the database on a scan of a real tree instead.
@@ -72,6 +72,7 @@ from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.length.too_many_words import TooManyWords
 from lorecraft.rules.link.absolute_link import AbsoluteLink
 from lorecraft.rules.link.broken_link import BrokenLink
+from lorecraft.rules.link.escaping_link import EscapingLink
 from lorecraft.rules.link.missing_fragment import MissingFragment
 from lorecraft.rules.outline.empty_section import EmptySection
 from lorecraft.rules.outline.extra_title import ExtraTitle
@@ -1797,6 +1798,136 @@ class TestCheckSubjects:
                 checklist, diagnostics=(RuleDiagnostic(checklist_path, occurrence, Severity.ERROR),), ungoverned=()
             ),
         ), "a resource's fragment names one of its own headings, never the SKILL.md's, and is reported where it is"
+
+    def test_check_subjects_with_escaping_links_reports_each_in_its_file_ordered_by_file_then_line(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        review = REVIEW_FRONTMATTER + b'# Review\n\nRead [the guide](../../docs/guide.md).\n'
+        snapshot = Snapshot.from_tree(
+            {
+                '.agents': {
+                    'skills': {
+                        'review': {
+                            'SKILL.md': review,
+                            'references': {
+                                'a.md': b'[up](../a.md)\n\n[in](SKILL.md) and ![flow](../../flow.png)\n',
+                                'deep': {'guide.md': b'# Guide\n\nBack to [the skill](../SKILL.md).\n'},
+                            },
+                        }
+                    }
+                }
+            }
+        )
+        database = Database(snapshot)
+        a = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
+        guide = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/deep/guide.md'))
+
+        #: When
+        reports = check_subjects(database, (_location(database, REVIEW), *_resources(database, REVIEW)), package_table)
+
+        #: Then
+        assert reports == (
+            CheckedSubject(
+                REVIEW,
+                diagnostics=(
+                    RuleDiagnostic(
+                        REVIEW_FILE,
+                        EscapingLink(line=LineNumber.from_int(7), url='../../docs/guide.md'),
+                        Severity.ERROR,
+                    ),
+                ),
+                ungoverned=(),
+            ),
+            CheckedSubject(
+                a,
+                diagnostics=(
+                    RuleDiagnostic(a.path, EscapingLink(line=LineNumber.from_int(1), url='../a.md'), Severity.ERROR),
+                    RuleDiagnostic(
+                        a.path, EscapingLink(line=LineNumber.from_int(3), url='../../flow.png'), Severity.ERROR
+                    ),
+                ),
+                ungoverned=(),
+            ),
+            CheckedSubject(
+                guide,
+                diagnostics=(
+                    RuleDiagnostic(
+                        guide.path, EscapingLink(line=LineNumber.from_int(3), url='../SKILL.md'), Severity.ERROR
+                    ),
+                ),
+                ungoverned=(),
+            ),
+        ), 'the SKILL.md first, then each resource by path, each read from the skill root and located in its own file'
+
+    def test_check_subjects_with_an_escaping_link_in_a_linked_skill_reports_it_where_the_agent_finds_it(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        # What a scan records for `.agents/skills/review -> ../../skills/review`: the link in the skills directory,
+        # and the skill's files at the resolved path it leads to.
+        shipped = Snapshot.from_tree(
+            {
+                '.agents': {'skills': {}},
+                'skills': {
+                    'review': {
+                        'SKILL.md': REVIEW_FRONTMATTER,
+                        'references': {'a.md': b'See [the skill](../SKILL.md).\n'},
+                    }
+                },
+            }
+        )
+        records: dict[RootRelativePath, EntryRecord] = dict(shipped.records)
+        records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(PurePosixPath('../../skills/review'))
+        database = Database(Snapshot(FrozenMapping(records)))
+        a = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
+
+        #: When
+        reports = check_subjects(database, _resources(database, REVIEW), package_table)
+
+        #: Then
+        occurrence = EscapingLink(line=LineNumber.from_int(1), url='../SKILL.md')
+        resource_path = RootRelativePath.parse('.agents/skills/review/references/a.md')
+        assert reports == (
+            CheckedSubject(a, diagnostics=(RuleDiagnostic(resource_path, occurrence, Severity.ERROR),), ungoverned=()),
+        ), 'the resource is read through the linked entry, and reported under the skills directory'
+
+    def test_check_subjects_with_a_link_back_in_by_the_repository_path_reports_it_escaping(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        review = REVIEW_FRONTMATTER + b'See [the skill](../../skills/review/SKILL.md).\n'
+        database = Database(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review))
+
+        #: When
+        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+
+        #: Then
+        occurrence = EscapingLink(line=LineNumber.from_int(5), url='../../skills/review/SKILL.md')
+        assert reports == (
+            CheckedSubject(
+                REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),), ungoverned=()
+            ),
+        ), 'the path alone decides, so a link out of the skill and back in by the repository path escapes'
+
+    def test_check_subjects_with_a_document_link_climbing_its_directory_reports_nothing(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        guide = b'# Guide\n\nRead [the intro](../code/intro.md).\n'
+        database = Database(_snapshot(_budget(1000), guide=guide))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), package_table)
+
+        #: Then
+        assert reports == (
+            CheckedSubject(
+                GUIDE,
+                diagnostics=(),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.OUTLINE_DIVERGENCE),
+            ),
+        ), "a document's links are read from its own directory, so no rule over a skill's file judges them"
 
 
 def _write(root: Path, relative: str, data: bytes = b'') -> None:
