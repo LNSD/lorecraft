@@ -128,6 +128,19 @@ class TestTooManyWords:
             TooManyWords(spec=CORPUS_SPEC, line=LineNumber.from_int(7), word_count=4, cap=2),
         ), 'a named section is held to its entry cap, an unnamed one to its run cap, and one with no cap to none'
 
+    def test_check_with_two_any_runs_holds_each_unnamed_section_to_its_own_run_cap(self) -> None:
+        #: Given
+        # `Intro` falls in the first run, capped at 1 word, and `Detail`, after `Middle`, in the second, capped at 5
+        text = '# Guide\n\n## Intro\n\nOne.\n\n## Middle\n\nText.\n\n## Detail\n\nOne two three.\n'
+        outline = '{"outline": [{"any": true, "words": 1}, {"section": "Middle"}, {"any": true, "words": 5}]}'
+        subject = FakeDocumentContext(text, corpus='guide', structure=outline)
+
+        #: When
+        occurrences = TooManyWords.check(subject)
+
+        #: Then
+        assert occurrences == (), 'a section after `Middle` falls in the second run, capped at 5 words, not 1'
+
     def test_check_with_a_section_over_only_the_namespace_cap_reports_that_cap(self) -> None:
         #: Given
         subject = FakeDocumentContext(

@@ -50,7 +50,7 @@ from a snapshot, and one that never outlives its snapshot. The layout it derives
 | Declares a fixed directory or suffix, or the scope a snapshot reads | `lorecraft.layout` |
 | Reads the disk, or follows a symlink by asking the operating system | `lorecraft.vfs` |
 | States an agent's skills directories or guide files | `lorecraft.agents` |
-| Decides whether a document or a skill breaks a rule | `lorecraft.checks` |
+| Decides whether a document or a skill breaks a rule | `lorecraft.rules` |
 | Runs the rules over the query results, or reports what they find | `lorecraft.checks` |
 | Chooses which documents a run checks, or prints anything | `lorecraft.cli` |
 

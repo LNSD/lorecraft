@@ -1,7 +1,7 @@
-"""The layout's guard, and the scope a command naming directories to check the skills in declares.
+"""The layout's guard.
 
 A view in which `docs/` or `docs/__meta__/` is a symlink is refused; each view answers from a hand-built snapshot,
-the shape a scan records. The scope is a value, compared whole.
+the shape a scan records.
 """
 
 from pathlib import PurePosixPath
@@ -10,18 +10,10 @@ import pytest
 
 from lorecraft.core.error import Error
 from lorecraft.core.mapping import FrozenMapping
-from lorecraft.core.path import ROOT, RootRelativePath
-from lorecraft.vfs import ScanRoot, Snapshot, SymlinkRecord, VirtualFileSystem
+from lorecraft.core.path import RootRelativePath
+from lorecraft.vfs import Snapshot, SymlinkRecord, VirtualFileSystem
 
-from ..layout import (
-    DOCS_DIR,
-    SNAPSHOT_SCOPE,
-    SPECS_DIR,
-    LinkedLayoutError,
-    named_dirs_of_scope,
-    reject_linked_layout,
-    scope_with_named_dirs,
-)
+from ..layout import DOCS_DIR, SPECS_DIR, LinkedLayoutError, reject_linked_layout
 
 
 def _view_with_link(path: RootRelativePath, target: str) -> VirtualFileSystem:
@@ -102,72 +94,3 @@ class TestRejectLinkedLayout:
 
         #: Then
         assert outcome is None, 'a linked corpus is left out by the model, not refused here'
-
-
-@pytest.mark.unit
-class TestScopeWithNamedDirs:
-    def test_scope_with_named_dirs_with_a_named_directory_reads_it_as_a_skills_directory(self) -> None:
-        #: Given
-        named_dirs = (RootRelativePath.parse('skills'),)
-
-        #: When
-        scope = scope_with_named_dirs(named_dirs)
-
-        #: Then
-        assert scope == (*SNAPSHOT_SCOPE, ScanRoot(RootRelativePath.parse('skills'), depth=None, follow_links=True)), (
-            'the named directory joins the scope at any depth, its links followed'
-        )
-
-    def test_scope_with_named_dirs_with_no_named_directory_returns_the_snapshot_scope(self) -> None:
-        #: Given
-        named_dirs: tuple[RootRelativePath, ...] = ()
-
-        #: When
-        scope = scope_with_named_dirs(named_dirs)
-
-        #: Then
-        assert scope == SNAPSHOT_SCOPE, 'a command naming no directory reads what every command reads'
-
-    def test_scope_with_named_dirs_with_an_agent_skills_directory_adds_no_root(self) -> None:
-        #: Given
-        named_dirs = (RootRelativePath.parse('.agents/skills'),)
-
-        #: When
-        scope = scope_with_named_dirs(named_dirs)
-
-        #: Then
-        assert scope == SNAPSHOT_SCOPE, 'a directory the scope already reads as a skills directory is not added again'
-
-    def test_scope_with_named_dirs_with_the_root_adds_no_root(self) -> None:
-        #: Given
-        named_dirs = (ROOT,)
-
-        #: When
-        scope = scope_with_named_dirs(named_dirs)
-
-        #: Then
-        assert scope == SNAPSHOT_SCOPE, 'the root never joins: the snapshot would hold the whole repository'
-
-
-@pytest.mark.unit
-class TestNamedDirsOfScope:
-    def test_named_dirs_of_scope_with_a_scope_naming_directories_returns_them_in_order(self) -> None:
-        #: Given
-        named_dirs = (RootRelativePath.parse('skills'), RootRelativePath.parse('vendor/skills'))
-        scope = scope_with_named_dirs(named_dirs)
-
-        #: When
-        found = named_dirs_of_scope(scope)
-
-        #: Then
-        assert found == named_dirs, 'the roots beyond the snapshot scope are the directories named, in order'
-
-    def test_named_dirs_of_scope_with_the_snapshot_scope_returns_empty(self) -> None:
-        #: Given
-        scope = SNAPSHOT_SCOPE
-
-        #: When
-        found = named_dirs_of_scope(scope)
-
-        #: Then
-        assert found == (), 'a scope naming no directory names none'

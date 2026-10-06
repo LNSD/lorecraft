@@ -1763,6 +1763,58 @@ class TestCheckSubjects:
         #: Then
         assert reports == (UndecodableSubject(cafe),), 'a resource that is not UTF-8 is judged by no rule'
 
+    def test_check_subjects_with_an_undecodable_skill_file_still_judges_its_resources(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        snapshot = Snapshot.from_tree(
+            {
+                '.agents': {
+                    'skills': {
+                        'review': {'SKILL.md': b'---\nname: caf\xe9\n---\n', 'references': {'a.md': b'[x](/x.md)\n'}}
+                    }
+                }
+            }
+        )
+        database = Database(snapshot)
+        resource = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
+
+        #: When
+        reports = check_subjects(database, (_location(database, REVIEW), *_resources(database, REVIEW)), package_table)
+
+        #: Then
+        occurrence = AbsoluteLink(line=LineNumber.from_int(1), url='/x.md')
+        assert reports == (
+            UndecodableSubject(REVIEW),
+            CheckedSubject(
+                resource, diagnostics=(RuleDiagnostic(resource.path, occurrence, Severity.ERROR),), ungoverned=()
+            ),
+        ), 'each resource is a subject of its own, judged whatever bytes the SKILL.md holds'
+
+    def test_check_subjects_with_a_skill_file_whose_block_is_not_yaml_still_judges_its_links(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        review = '---\nname: [review\n---\nRead [x](/x.md).\n'
+        database = Database(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review.encode()))
+
+        #: When
+        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+
+        #: Then
+        invalid_yaml = InvalidYaml(spec=None, line=LineNumber.from_int(3), problem=_invalid_yaml_problem(review))
+        absolute_link = AbsoluteLink(line=LineNumber.from_int(4), url='/x.md')
+        assert reports == (
+            CheckedSubject(
+                REVIEW,
+                diagnostics=(
+                    RuleDiagnostic(REVIEW_FILE, invalid_yaml, Severity.ERROR),
+                    RuleDiagnostic(REVIEW_FILE, absolute_link, Severity.ERROR),
+                ),
+                ungoverned=(),
+            ),
+        ), 'a link is judged whether or not the frontmatter parses, so a broken block hides no link diagnostic'
+
     def test_check_subjects_with_a_markdown_rule_over_a_corpus_stating_no_structure_specification_reports_it_ungoverned(
         self,
     ) -> None:

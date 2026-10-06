@@ -100,6 +100,34 @@ class TestMatchOutlines:
             'a document whose sections match the outline, an unnamed one inside an `any` run, does not diverge'
         )
 
+    def test_match_outlines_with_an_optional_section_left_out_matches_the_entries_after_it(self) -> None:
+        #: Given
+        outline = (
+            '{"outline": [{"section": "Rule"}, {"section": "Example", "optional": true}, {"any": true},'
+            ' {"section": "Checklist"}]}'
+        )
+
+        #: When
+        found = _match_corpus_outline(outline, RULE_ASIDE_CHECKLIST)
+
+        #: Then
+        assert found == (OutlineDivergenceSpec(spec=CORPUS_SPEC, divergence=None),), (
+            'an optional section the document leaves out is skipped, and the entries after it still match'
+        )
+
+    def test_match_outlines_with_a_subsection_matches_it_as_part_of_its_section(self) -> None:
+        #: Given
+        text = '# Typing\n\n## Rule\n\n### Detail\n\nAnnotate every signature.\n\n## Checklist\n\n- [ ] Annotated.\n'
+        outline = '{"outline": [{"section": "Rule"}, {"section": "Checklist"}]}'
+
+        #: When
+        found = _match_corpus_outline(outline, text)
+
+        #: Then
+        assert found == (OutlineDivergenceSpec(spec=CORPUS_SPEC, divergence=None),), (
+            'only an H2 is a section; an H3 is part of the section above it, so the outline never meets it'
+        )
+
     def test_match_outlines_with_a_section_absent_before_another_holds_it_before_that_section(self) -> None:
         #: Given
         outline = (

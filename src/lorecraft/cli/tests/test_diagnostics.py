@@ -145,6 +145,38 @@ class TestRenderDiagnostics:
             '              lorecraft check'
         ), 'later lines align under the first, keep their indentation, and lose trailing whitespace'
 
+    def test_render_diagnostics_with_a_note_of_crlf_lines_leaves_no_carriage_return(self) -> None:
+        #: Given
+        guide = _document('feat', 'guide')
+        missing_usage = MissingSection(
+            spec=_FEAT_SPEC,
+            line=_line(9),
+            section=SectionName.parse('Usage'),
+            before=None,
+            description=None,
+            example='Run it:\r\n    lorecraft check',
+        )
+        reports: tuple[SubjectReport, ...] = (
+            CheckedSubject(
+                guide, diagnostics=(RuleDiagnostic(guide.path, missing_usage, Severity.ERROR),), ungoverned=()
+            ),
+        )
+
+        #: When
+        text = render_diagnostics(reports)
+
+        #: Then
+        assert text == (
+            'docs/feat/guide.md:9: error[OUT006]: missing required section `Usage`\n'
+            '  --> docs/feat/guide.md:9: expected `Usage` before the end of the document\n'
+            '  = note: the document structure is set here (docs/__meta__/feat.structure.json)\n'
+            '  = note: for example:\n'
+            '          ## Usage\n'
+            '\n'
+            '          Run it:\n'
+            '              lorecraft check'
+        ), 'a CRLF line break in a note prints as a plain line break'
+
 
 @pytest.mark.unit
 class TestRenderCoverage:
