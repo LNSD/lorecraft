@@ -32,10 +32,11 @@ What it replaces is everything around the checks:
 
 ## Decision
 
-1. **A rule reads its subject through its kind's context** and declares the facet it is governed for; every
-   shipped rule still reads one of a closed set of inputs until it moves. A rule never scans: every pass over text,
-   a tree or a schema is a query, and a rule only loops over the values its context or input hands it. An analysis
-   several rules share is a query of the database, never a rule with several codes.
+1. **A rule reads its subject through its kind's context** and declares the facet it is governed for; the
+   frontmatter, outline and other length rules still read one of a closed set of inputs until they move. A rule
+   never scans: every pass over text, a tree or a schema is a query, and a rule only loops over the values its
+   context or input hands it. An analysis several rules share is a query of the database, never a rule with several
+   codes.
 2. **One runner** resolves each input once per subject, only when an enabled rule reads it, with one
    hand-written branch per input kind, and one per subject kind for the rules that read a context.
 3. **A subject's status is the engine's, not a rule's.** Whether a file decodes, and whether a specification
@@ -100,17 +101,15 @@ The set is closed. Each kind is one dataclass and one rule base class whose `che
 | Schema problems | document, skill | the schema-problems query, a skill's against the Agent Skills specification | a frontmatter schema |
 | Headings | document | the parse query | a structure specification |
 | Outline divergence | document | the outline-divergences query, over the parse and line-count queries | a structure specification that states an outline |
-| Token count | document | the tokens query | a specification that sets a budget |
-| Line count | skill | the line-count query | the package |
 | Links | skill, skill resource | the parse query, the link-target query | the package |
 | Layout | layout entry, skill | the model, the skill's resource listing | the package |
 
 Three rules follow from the table.
 
-**An input scans, a rule loops.** Building an input is where the cost of a run lies: the parse, the token count,
-and the shared analyses the input reads from their queries. A rule's own work is a loop over a short tuple the input prepared. So a scan written
-inside a rule is paid once per rule, and the same scan written as an input is paid once per subject, however
-many rules read it. A rule never walks text or a tree: the scan it needs is an input, existing or new. A rule
+**An input scans, a rule loops.** Building an input is where the cost of a run lies: the parse, and the shared
+analyses the input reads from their queries. A rule's own work is a loop over a short tuple the input prepared. So a
+scan written inside a rule is paid once per rule, and the same scan written as an input is paid once per subject,
+however many rules read it. A rule never walks text or a tree: the scan it needs is an input, existing or new. A rule
 that needs two facts, such as the headings and the frontmatter, gets one input that holds both, never two
 inputs. A new input is the runner's one reviewed extension point, so it is where a new cost enters and is
 reviewed.
@@ -139,9 +138,10 @@ a document whose corpus states a structure specification, since no facet governs
 takes the context: `DocumentRule` over a document, `SkillRule` over a skill. A rule over a document declares the
 facet it reads in `GOVERNED_BY`, one of `Facet.FRONTMATTER` (a frontmatter schema governs it), `STRUCTURE` (its
 corpus states a structure specification), `OUTLINE` (a specification states an outline) and `BUDGET` (a
-specification sets a token budget). No shipped rule derives from these bases yet: every rule still reads an input
-above until it moves onto a context. A `FrontmatterRule` base over a `FrontmatterContext`, for a rule that reads a
-document's or a skill's frontmatter alike, arrives with the frontmatter rules.
+specification sets a token budget). The token budget, `LEN001`, is a document rule governed by `BUDGET`, and the
+line budget, `LEN002`, a skill rule, so the token and line counts are no longer inputs. The other rules still read
+the inputs above until they move onto a context. A `FrontmatterRule` base over a `FrontmatterContext`, for a rule
+that reads a document's or a skill's frontmatter alike, arrives with the frontmatter rules.
 
 ### A Subject's Status Comes Before Any Rule
 

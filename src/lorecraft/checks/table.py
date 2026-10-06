@@ -9,8 +9,8 @@ A rule is partitioned by its base: the rules over a document, which the runner r
 over a skill. Each partition pairs every rule in it with its severity, as an `EnabledRule`, so a rule the runner finds
 in a partition always has a severity to report at.
 
-Every shipped rule still reads an input, so the table also keeps one partition per input kind; later changes move
-those rules onto a context and remove these partitions.
+The frontmatter, outline and other length rules still read an input each, so the table also keeps one partition per
+input kind they read; later changes move those rules onto a context and remove these partitions.
 """
 
 from collections.abc import Mapping
@@ -21,10 +21,8 @@ from lorecraft.rules.declaration import EngineCondition, Level, RemovedRule, Rul
 from lorecraft.rules.inputs import (
     FrontmatterBlockRule,
     HeadingsRule,
-    LineCountRule,
     OutlineDivergenceRule,
     SchemaProblemsRule,
-    TokenCountRule,
 )
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.subject import DocumentRule, Facet, SkillRule
@@ -67,8 +65,6 @@ class RuleTable:
     _document_rules_by_facet: dict[Facet, tuple[EnabledRule[DocumentRule], ...]]
     _skill_rules: tuple[EnabledRule[SkillRule], ...]
     # One partition per input kind, until the rules that read one read a context.
-    _token_count_rules: tuple[EnabledRule[TokenCountRule], ...]
-    _line_count_rules: tuple[EnabledRule[LineCountRule], ...]
     _frontmatter_block_rules: tuple[EnabledRule[FrontmatterBlockRule], ...]
     _schema_problems_rules: tuple[EnabledRule[SchemaProblemsRule], ...]
     _headings_rules: tuple[EnabledRule[HeadingsRule], ...]
@@ -86,8 +82,6 @@ class RuleTable:
         """
         document_rules: list[EnabledRule[DocumentRule]] = []
         skill_rules: list[EnabledRule[SkillRule]] = []
-        token_count_rules: list[EnabledRule[TokenCountRule]] = []
-        line_count_rules: list[EnabledRule[LineCountRule]] = []
         frontmatter_block_rules: list[EnabledRule[FrontmatterBlockRule]] = []
         schema_problems_rules: list[EnabledRule[SchemaProblemsRule]] = []
         headings_rules: list[EnabledRule[HeadingsRule]] = []
@@ -99,10 +93,6 @@ class RuleTable:
                 document_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, SkillRule):
                 skill_rules.append(EnabledRule(rule_class, severities[rule_class]))
-            elif issubclass(rule_class, TokenCountRule):
-                token_count_rules.append(EnabledRule(rule_class, severities[rule_class]))
-            elif issubclass(rule_class, LineCountRule):
-                line_count_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, FrontmatterBlockRule):
                 frontmatter_block_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, SchemaProblemsRule):
@@ -120,8 +110,6 @@ class RuleTable:
                 enabled for enabled in document_rules if enabled.rule.GOVERNED_BY is facet
             )
         self._skill_rules = tuple(skill_rules)
-        self._token_count_rules = tuple(token_count_rules)
-        self._line_count_rules = tuple(line_count_rules)
         self._frontmatter_block_rules = tuple(frontmatter_block_rules)
         self._schema_problems_rules = tuple(schema_problems_rules)
         self._headings_rules = tuple(headings_rules)
@@ -170,16 +158,6 @@ class RuleTable:
     def skill_rules(self) -> tuple[EnabledRule[SkillRule], ...]:
         """Each enabled rule over a skill, with its severity, in code order; empty when none is."""
         return self._skill_rules
-
-    @property
-    def token_count_rules(self) -> tuple[EnabledRule[TokenCountRule], ...]:
-        """Each enabled rule over a document's token count, with its severity, in code order; empty when none is."""
-        return self._token_count_rules
-
-    @property
-    def line_count_rules(self) -> tuple[EnabledRule[LineCountRule], ...]:
-        """Each enabled rule over a skill's line count, with its severity, in code order; empty when none is."""
-        return self._line_count_rules
 
     @property
     def frontmatter_block_rules(self) -> tuple[EnabledRule[FrontmatterBlockRule], ...]:
