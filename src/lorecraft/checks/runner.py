@@ -7,18 +7,18 @@ method of the context and a query of the database, never a branch here.
 
 A subject's status comes before any rule. Each subject is decoded once: one that does not decode is reported as
 `UndecodableSubject`, whatever the table enables, and no rule sees it. A decoded document is then judged facet by
-facet: for each facet an enabled rule over a document declares, the runner reads whether the specifications govern
-the document for it, runs those rules over the document's context if they do, and records the facet as ungoverned
-rather than a diagnostic if they do not. A rule over a Markdown file judges a document under `Facet.STRUCTURE`, beside
-the rules over a document that declare it. A document in no corpus, or in one that states no structure
-specification, is governed for no facet, and no context is built for it. The package governs every skill and every
-resource, so neither is ever ungoverned. A rule over a skill's file judges every `SKILL.md` and every resource, and
-never a document. A context asks the database only for what a rule reads, so a fact no
-enabled rule reads is never computed.
+facet: for each facet an enabled rule over a document or over the frontmatter declares, the runner reads whether the
+specifications govern the document for it, runs those rules over the document's context if they do, and records the
+facet as ungoverned rather than a diagnostic if they do not. A rule over a Markdown file judges a document under
+`Facet.STRUCTURE`, beside the rules over a document that declare it. A document in no corpus, or in one that states no
+structure specification, is governed for no facet, and no context is built for it. The package governs every skill and
+every resource, so neither is ever ungoverned, and the rules over the frontmatter, over a skill and over a Markdown
+file run over its context. A rule over a skill's file judges every `SKILL.md` and every resource, and never a
+document. A context asks the database only for what a rule reads, so a fact no enabled rule reads is never computed.
 
-The frontmatter and outline rules still read an input each. For each input kind an enabled one of them reads, the
-input is built once from the queries, and a subject no specification governs for it records that input kind as
-ungoverned. Later changes move those rules onto a context and remove these branches.
+The outline rules still read an input each. For each input kind an enabled one of them reads, the input is built once
+from the queries, and a document no specification governs for it records that input kind as ungoverned. A later
+change moves those rules onto a context and removes these branches.
 
 The subjects are documents, skills, skills' resources and layout entries, each matched to its own function, so a
 subject kind without one is a type error. A document is handed over as its ref, and a skill as the `SkillLocation` the
@@ -57,24 +57,10 @@ from lorecraft.project.database import (
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillResourceLocation
 from lorecraft.project.workspace import Governance
-from lorecraft.rules.inputs import (
-    FrontmatterBlockInput,
-    HeadingsInput,
-    InputKind,
-    OutlineDivergenceInput,
-    SchemaProblemsInput,
-)
+from lorecraft.rules.inputs import HeadingsInput, InputKind, OutlineDivergenceInput
 from lorecraft.rules.subject import Facet, MarkdownRule
 
-from .inputs import (
-    Ungoverned,
-    build_document_frontmatter_block_input,
-    build_document_schema_problems_input,
-    build_headings_input,
-    build_outline_divergence_input,
-    build_skill_frontmatter_block_input,
-    build_skill_schema_problems_input,
-)
+from .inputs import Ungoverned, build_headings_input, build_outline_divergence_input
 from .report import (
     CheckedLayoutEntry,
     CheckedSubject,
@@ -237,59 +223,37 @@ def _check_document_text(database: Database, source: DocumentText, table: RuleTa
     diagnostics: list[Diagnostic] = []
     ungoverned: list[Coverage] = []
 
-    # Transitional: the frontmatter and outline rules still read an input each, built in this function's input
-    # branches, which go once those rules read the context.
-
-    # The frontmatter is never asked for when no enabled rule reads it.
-    if table.frontmatter_block_rules:
-        frontmatter_block_input = build_document_frontmatter_block_input(database, source)
-        match frontmatter_block_input:
-            case Ungoverned():
-                ungoverned.append(InputKind.FRONTMATTER_BLOCK)
-            case FrontmatterBlockInput():
-                for enabled in table.frontmatter_block_rules:
-                    for occurrence in enabled.rule.check(frontmatter_block_input):
-                        diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
-            case _:
-                assert_never(frontmatter_block_input)
-
-    # The frontmatter is never held to its schemas when no enabled rule reads what they reject.
-    if table.schema_problems_rules:
-        schema_problems_input = build_document_schema_problems_input(database, source)
-        match schema_problems_input:
-            case Ungoverned():
-                ungoverned.append(InputKind.SCHEMA_PROBLEMS)
-            case SchemaProblemsInput():
-                for enabled in table.schema_problems_rules:
-                    for occurrence in enabled.rule.check(schema_problems_input):
-                        diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
-            case _:
-                assert_never(schema_problems_input)
-
-    # Each rule over the document reads it through its context, and only when the specifications govern the facet the
-    # rule declares; a rule over a Markdown file reads it under `Facet.STRUCTURE`, as its base states. Governance is
-    # never read when no rule over a document and no rule over a Markdown file is enabled. The ungoverned facets and
-    # input kinds are recorded in the order the runner reaches them.
-    if table.document_rules or table.markdown_rules:
+    # Each rule over the document or its frontmatter reads it through its context, and only when the specifications
+    # govern the facet it reads; a rule over a Markdown file reads it under `Facet.STRUCTURE`, as its base states.
+    # Governance is never read when no rule over a document, over the frontmatter or over a Markdown file is enabled.
+    # The ungoverned facets and input kinds are recorded in the order the runner reaches them.
+    if table.frontmatter_rules or table.document_rules or table.markdown_rules:
         context = _find_document_context(database, source)
         for facet in Facet:
+            frontmatter_rules = table.frontmatter_rules_governed_by(facet)
             facet_rules = table.document_rules_governed_by(facet)
             # The rules over a Markdown file join the rules over a document that declare the structure facet.
             markdown_rules: tuple[EnabledRule[MarkdownRule], ...] = ()
             if facet is Facet.STRUCTURE:
                 markdown_rules = table.markdown_rules
             # A facet no enabled rule reads is never looked at, so it is never reported as ungoverned either.
-            if not facet_rules and not markdown_rules:
+            if not frontmatter_rules and not facet_rules and not markdown_rules:
                 continue
             if context is None or not _is_governed_for(context.specifications(), facet):
                 ungoverned.append(facet)
                 continue
+            for enabled in frontmatter_rules:
+                for occurrence in enabled.rule.check(context):
+                    diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
             for enabled in facet_rules:
                 for occurrence in enabled.rule.check(context):
                     diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
             for enabled in markdown_rules:
                 for occurrence in enabled.rule.check(context):
                     diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
+
+    # Transitional: the outline rules still read an input each, built in the input branches below, which go once
+    # those rules read the context.
 
     # The document is never parsed when no enabled rule reads its headings.
     if table.headings_rules:
@@ -358,25 +322,11 @@ def _check_skill_text(
     # Building the context asks nothing of the database; each rule asks it only for what it reads.
     context = DatabaseSkillContext(database, source, location)
 
-    # Transitional: the frontmatter rules still read an input each, built in the branches below, which go once those
-    # rules read the context.
-
-    # The frontmatter is never asked for when no enabled rule reads it.
-    if table.frontmatter_block_rules:
-        frontmatter_block_input = build_skill_frontmatter_block_input(database, source, context.link_target())
-        for enabled in table.frontmatter_block_rules:
-            for occurrence in enabled.rule.check(frontmatter_block_input):
-                diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
-
-    # The frontmatter is never held to the Agent Skills specification when no enabled rule reads what it rejects.
-    if table.schema_problems_rules:
-        schema_problems_input = build_skill_schema_problems_input(database, source)
-        for enabled in table.schema_problems_rules:
-            for occurrence in enabled.rule.check(schema_problems_input):
-                diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
-
-    # The package governs every skill, so each rule over a skill judges it through its context, after the frontmatter
-    # branches, as a document's rules run after its own.
+    # The package governs every skill, so each rule over the frontmatter and each rule over a skill judges it through
+    # its context, the frontmatter rules first, as on a document.
+    for enabled in table.frontmatter_rules:
+        for occurrence in enabled.rule.check(context):
+            diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
     for enabled in table.skill_rules:
         for occurrence in enabled.rule.check(context):
             diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))

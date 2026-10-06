@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 
+from lorecraft.project.context import FrontmatterContext
 from lorecraft.project.schemas import (
     BlockProblem,
     InvalidValueProblem,
@@ -11,15 +12,15 @@ from lorecraft.project.schemas import (
     WrongTypeProblem,
 )
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.inputs import SchemaProblemsInput, SchemaProblemsRule
 from lorecraft.rules.location import Note, Subdiagnostic
+from lorecraft.rules.subject import FrontmatterRule
 
 from .__ruleset__ import GROUP_ID, schema_note, schema_spec
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class BlockConstraint(SchemaProblemsRule):
+class BlockConstraint(FrontmatterRule):
     """A frontmatter breaks a constraint its schema sets on the whole block.
 
     ## What it does
@@ -92,14 +93,14 @@ class BlockConstraint(SchemaProblemsRule):
         return (Note(self.problem.message), schema_note(self.spec))
 
     @classmethod
-    def check(cls, subject: SchemaProblemsInput) -> tuple[Self, ...]:
+    def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:
         """One occurrence for each block constraint a schema found broken, schema by schema, in the order found.
 
         Args:
-            subject: The problems each governing schema found.
+            subject: The document or the skill whose frontmatter each governing schema is applied to.
         """
         occurrences: list[Self] = []
-        for schema in subject.schemas:
+        for schema in subject.schema_problems():
             for located in schema.problems:
                 problem = located.problem
                 match problem:

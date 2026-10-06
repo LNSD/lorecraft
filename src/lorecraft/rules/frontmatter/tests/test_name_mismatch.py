@@ -1,6 +1,8 @@
-"""`FM004`, `name-mismatch`, over a document's or a skill's frontmatter block.
+"""`FM004`, `name-mismatch`, over a document's or a skill's frontmatter.
 
-The rule is pure, so every case here is a frontmatter block written as a literal; no file is read.
+Every case is a document or a `SKILL.md` written as text, read through a fake context that parses its frontmatter as
+the real parser does; no file is read from disk. The name a document is held to is the fake's filename, `setup`, and
+the name a skill is held to the directory the fake lists it under, `review`.
 """
 
 from typing import Final
@@ -8,43 +10,29 @@ from typing import Final
 import pytest
 
 from lorecraft.core.path import ROOT, RootRelativePath
-from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
-from lorecraft.project.syntax import LineNumber, NonMappingFrontmatter
-from lorecraft.rules.inputs import FrontmatterBlockInput, FrontmatterFields, NameField
+from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Note
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, FakeSkillContext, structure_spec_path
 from lorecraft.vfs import ResolvedPath
 
 from ..name_mismatch import DirectoryNameExpected, FilenameExpected, NameMismatch
 
-SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/guide.structure.json')
-"""The structure specification whose frontmatter schema governs the document."""
+STRUCTURE: Final[str] = '{"frontmatter": {"type": "object"}}'
+"""A corpus structure specification whose frontmatter schema accepts any mapping."""
 
-DOCUMENT: Final[DocumentFrontmatterOwner] = DocumentFrontmatterOwner(filename=AspectFilename.parse('setup'), spec=SPEC)
-"""A document `setup` the schema in `SPEC` governs."""
-
-SKILL: Final[SkillFrontmatterOwner] = SkillFrontmatterOwner(directory_name='review', link_target=None)
-"""A skill listed as `review`, not through a link."""
+SPEC: Final[RootRelativePath] = structure_spec_path('guide')
+"""Where the corpus structure specification lies."""
 
 SHIPPED: Final[ResolvedPath] = ResolvedPath(RootRelativePath.parse('skills/code-review'))
 """The directory a linked skill directory leads to, named otherwise than the listed one."""
-
-
-def _named(value: object, line: int) -> FrontmatterFields:
-    """A mapping that writes `name` once, with this value, on this line, and repeats no key.
-
-    Args:
-        value: The `name` as YAML decoded it.
-        line: The line the `name` key is written on.
-    """
-    return FrontmatterFields(name=NameField(value=value, line=LineNumber.from_int(line)), repeated_keys=())
 
 
 @pytest.mark.unit
 class TestNameMismatch:
     def test_check_with_a_document_named_otherwise_reports_it_on_the_name_line(self) -> None:
         #: Given
-        subject = FrontmatterBlockInput(frontmatter=_named('installation', 3), owner=DOCUMENT)
+        text = '---\ndescription: Install the toolkit.\nname: installation\n---\n# Setup\n'
+        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = NameMismatch.check(subject)
@@ -54,11 +42,26 @@ class TestNameMismatch:
             NameMismatch(
                 spec=SPEC, line=LineNumber.from_int(3), name='installation', expectation=FilenameExpected('setup')
             ),
-        ), 'a name other than the filename is one occurrence, on the line the input locates `name` at'
+        ), 'a name other than the filename is one occurrence, on the line the `name` key is written on'
+
+    def test_check_with_a_name_written_twice_reports_the_last_value_on_its_line(self) -> None:
+        #: Given
+        text = '---\nname: setup\nmetadata:\n  name: inner\nname: installation\n---\n# Setup\n'
+        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
+
+        #: When
+        occurrences = NameMismatch.check(subject)
+
+        #: Then
+        assert occurrences == (
+            NameMismatch(
+                spec=SPEC, line=LineNumber.from_int(5), name='installation', expectation=FilenameExpected('setup')
+            ),
+        ), 'YAML keeps the last value of a repeated key, so that value is compared, on its line; a nested key is not it'
 
     def test_check_with_a_document_named_for_its_filename_reports_nothing(self) -> None:
         #: Given
-        subject = FrontmatterBlockInput(frontmatter=_named('setup', 2), owner=DOCUMENT)
+        subject = FakeDocumentContext('---\nname: setup\n---\n# Setup\n', corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = NameMismatch.check(subject)
@@ -68,7 +71,7 @@ class TestNameMismatch:
 
     def test_check_with_a_document_without_a_name_reports_nothing(self) -> None:
         #: Given
-        subject = FrontmatterBlockInput(frontmatter=FrontmatterFields(name=None, repeated_keys=()), owner=DOCUMENT)
+        subject = FakeDocumentContext('---\ntitle: Setup\n---\n# Setup\n', corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = NameMismatch.check(subject)
@@ -78,7 +81,7 @@ class TestNameMismatch:
 
     def test_check_with_a_name_that_is_not_a_string_reports_nothing(self) -> None:
         #: Given
-        subject = FrontmatterBlockInput(frontmatter=_named(42, 2), owner=SKILL)
+        subject = FakeSkillContext('---\nname: 42\n---\n')
 
         #: When
         occurrences = NameMismatch.check(subject)
@@ -88,7 +91,7 @@ class TestNameMismatch:
 
     def test_check_with_a_block_that_is_not_a_mapping_reports_nothing(self) -> None:
         #: Given
-        subject = FrontmatterBlockInput(frontmatter=NonMappingFrontmatter(), owner=DOCUMENT)
+        subject = FakeDocumentContext('---\n- installation\n---\n# Setup\n', corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = NameMismatch.check(subject)
@@ -96,10 +99,19 @@ class TestNameMismatch:
         #: Then
         assert occurrences == (), 'a block that is not a mapping has no `name` to compare'
 
+    def test_check_with_a_skill_named_for_its_directory_reports_nothing(self) -> None:
+        #: Given
+        subject = FakeSkillContext('---\nname: review\n---\n')
+
+        #: When
+        occurrences = NameMismatch.check(subject)
+
+        #: Then
+        assert occurrences == (), 'a name equal to the listed directory name holds to the rule'
+
     def test_check_with_a_skill_named_otherwise_reports_it_with_its_link_target(self) -> None:
         #: Given
-        owner = SkillFrontmatterOwner(directory_name='review', link_target=SHIPPED)
-        subject = FrontmatterBlockInput(frontmatter=_named('code-review', 2), owner=owner)
+        subject = FakeSkillContext('---\nname: code-review\n---\n', link_target=SHIPPED)
 
         #: When
         occurrences = NameMismatch.check(subject)
