@@ -12,7 +12,8 @@ the document for it, runs those rules over the document's context if they do, an
 rather than a diagnostic if they do not. A rule over a Markdown file judges a document under `Facet.STRUCTURE`, beside
 the rules over a document that declare it. A document in no corpus, or in one that states no structure
 specification, is governed for no facet, and no context is built for it. The package governs every skill and every
-resource, so neither is ever ungoverned. A context asks the database only for what a rule reads, so a fact no
+resource, so neither is ever ungoverned. A rule over a skill's file judges every `SKILL.md` and every resource, and
+never a document. A context asks the database only for what a rule reads, so a fact no
 enabled rule reads is never computed.
 
 The frontmatter, outline and other length rules still read an input each. For each input kind an enabled one of
@@ -361,6 +362,11 @@ def _check_skill_text(
         for occurrence in enabled.rule.check(context):
             diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
 
+    # The `SKILL.md` is one of the skill's files, so each rule over a skill's file judges it too.
+    for enabled in table.skill_file_rules:
+        for occurrence in enabled.rule.check(context):
+            diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
+
     # The package governs a skill for every facet and every input, so it is never ungoverned.
     return CheckedSubject(source.ref, diagnostics=tuple(diagnostics), ungoverned=())
 
@@ -389,7 +395,8 @@ def _check_skill_resource(database: Database, location: SkillResourceLocation, t
 def _check_skill_resource_text(database: Database, source: SkillResourceText, table: RuleTable) -> CheckedSubject:
     """Run the enabled rules over a decoded resource of a skill. Raises nothing.
 
-    Only a rule over a Markdown file judges a resource: no rule over a document or a skill, and no input, reads one.
+    Only a rule over a Markdown file or over a skill's file judges a resource: no rule over a document or a skill, and
+    no input, reads one.
 
     Args:
         database: The revision the resource is read from.
@@ -401,6 +408,9 @@ def _check_skill_resource_text(database: Database, source: SkillResourceText, ta
     # Building the context asks nothing of the database; each rule asks it only for what it reads.
     context = DatabaseSkillResourceContext(database, source)
     for enabled in table.markdown_rules:
+        for occurrence in enabled.rule.check(context):
+            diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
+    for enabled in table.skill_file_rules:
         for occurrence in enabled.rule.check(context):
             diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
 
