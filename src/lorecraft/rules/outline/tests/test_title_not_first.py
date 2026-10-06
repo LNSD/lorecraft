@@ -42,12 +42,9 @@ def _spec(spec: RootRelativePath) -> HeadingsSpec:
     """
     return HeadingsSpec(
         spec=spec,
-        title_cap=None,
-        title_char_cap=None,
         title_mismatch=None,
         forbid_empty_sections=False,
         forbidden=(),
-        section_caps=(),
     )
 
 

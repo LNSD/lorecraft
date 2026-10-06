@@ -16,9 +16,9 @@ package governs every skill and every resource, so a rule over a skill or one of
 A symlink has no lines, so the base derives from `LayoutRule` rather than `ContentRule`, and an occurrence points at
 the entry itself. The package governs the skill layout, so a rule over it declares no facet either.
 
-The token and line budgets, `LEN001` and `LEN002`, derive from these bases, the link rules from `MarkdownRule` and
-`SkillFileRule`, and `LAY001` from `LayoutEntryRule`. Until every group reads a context, the frontmatter, outline and
-other length rules still read the inputs of `inputs`.
+The length rules, `LEN001` to `LEN005`, derive from these bases, the link rules from `MarkdownRule` and
+`SkillFileRule`, and `LAY001` from `LayoutEntryRule`. Until every group reads a context, the frontmatter and outline
+rules still read the inputs of `inputs`.
 """
 
 from abc import abstractmethod

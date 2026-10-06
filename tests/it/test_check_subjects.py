@@ -546,6 +546,27 @@ class TestCheckSubjects:
         #: Then
         assert database.counted_tokens == [], 'no context is built for it, so its tokens are never counted'
 
+    def test_check_subjects_with_a_corpus_stating_no_structure_specification_reports_the_structure_as_ungoverned(
+        self,
+    ) -> None:
+        #: Given
+        # the code corpus states only its prose specification, so no structure specification governs its documents
+        snapshot = Snapshot.from_tree(
+            {'docs': {'__meta__': {'code.md': b'# Code\n'}, 'code': {'guide.md': GUIDE_TEXT.encode()}}}
+        )
+        database = CountingDatabase(snapshot)
+        severities: dict[type[Rule], Severity] = {TooManyWords: Severity.ERROR, TitleTooLong: Severity.ERROR}
+        table = RuleTable(severities)
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), table)
+
+        #: Then
+        assert reports == (CheckedSubject(GUIDE, diagnostics=(), ungoverned=(Facet.STRUCTURE,)),), (
+            'the length rules over sections and the title read the structure facet, recorded once as ungoverned'
+        )
+        assert database.parsed_documents == [], 'no context is built for it, so it is never parsed'
+
     def test_check_subjects_with_an_undecodable_document_reports_it_undecodable(self, package_table: RuleTable) -> None:
         #: Given
         database = Database(_snapshot(_budget(1000), guide=b'# Caf\xe9\n'))

@@ -112,7 +112,7 @@ class TestRuleTableFromRegistry:
         #: Then
         assert exc_info.value.rule is UppercaseEntry, 'the error names the first enabled rule, in code order'
 
-    def test_from_registry_with_the_package_registry_enables_the_token_budget(self) -> None:
+    def test_from_registry_with_the_package_registry_enables_the_length_rules_over_a_document(self) -> None:
         #: Given
         registry = Registry.load(rules)
 
@@ -120,8 +120,14 @@ class TestRuleTableFromRegistry:
         table = RuleTable.from_registry(registry)
 
         #: Then
-        assert table.document_rules == (EnabledRule(TooManyTokens, Severity.ERROR),), (
-            "the package's token budget is enabled by default as an error, and its engine condition is not in the table"
+        assert table.document_rules == (
+            EnabledRule(TooManyTokens, Severity.ERROR),
+            EnabledRule(TooManyWords, Severity.ERROR),
+            EnabledRule(TitleTooManyWords, Severity.ERROR),
+            EnabledRule(TitleTooLong, Severity.ERROR),
+        ), (
+            "the package's length rules over a document are enabled by default as errors, in code order, and its "
+            'engine condition is not in the table'
         )
 
     def test_from_registry_with_the_package_registry_enables_the_line_budget(self) -> None:
@@ -203,9 +209,6 @@ class TestRuleTableFromRegistry:
 
         #: Then
         assert table.headings_rules == (
-            EnabledRule(TooManyWords, Severity.ERROR),
-            EnabledRule(TitleTooManyWords, Severity.ERROR),
-            EnabledRule(TitleTooLong, Severity.ERROR),
             EnabledRule(MissingTitle, Severity.ERROR),
             EnabledRule(ExtraTitle, Severity.ERROR),
             EnabledRule(TitleNotFirst, Severity.ERROR),

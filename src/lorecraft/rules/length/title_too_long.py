@@ -4,16 +4,18 @@ from dataclasses import dataclass
 from typing import ClassVar, Self
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.context import DocumentContext
+from lorecraft.project.syntax import find_title
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.inputs import HeadingsInput, HeadingsRule
 from lorecraft.rules.location import Elsewhere, Note, Subdiagnostic
+from lorecraft.rules.subject import DocumentRule, Facet
 
 from .__ruleset__ import GROUP_ID
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class TitleTooLong(HeadingsRule):
+class TitleTooLong(DocumentRule):
     """A document's title is longer than its character cap allows.
 
     ## What it does
@@ -65,6 +67,7 @@ class TitleTooLong(HeadingsRule):
     NAME: ClassVar[RuleName] = RuleName('title-too-long')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
 
     spec: RootRelativePath
     char_count: int
@@ -79,24 +82,26 @@ class TitleTooLong(HeadingsRule):
         return (Note('the cap is set here', at=Elsewhere(self.spec)),)
 
     @classmethod
-    def check(cls, subject: HeadingsInput) -> tuple[Self, ...]:
+    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
         """One occurrence, at the title's heading, for each cap on the title's characters that it exceeds.
 
+        The caps are taken in the order their specifications apply; a document with no title is held to none.
+
         Args:
-            subject: The document's headings, with what each governing structure specification states over them.
+            subject: The document, governed by a structure specification.
         """
+        title = find_title(subject.parse().headings)
+        if title is None:
+            return ()
+        # The parse holds the title's text with its inline markup stripped, and `len` counts its Unicode code
+        # points: neither its bytes nor the letters a reader sees, so an emoji built of several counts each of them.
+        char_count = len(title.text)
         occurrences: list[Self] = []
-        for headings_spec in subject.specs:
-            title_char_cap = headings_spec.title_char_cap
-            if title_char_cap is None:
+        for structure_spec in subject.specifications().structure_specs():
+            title_checks = structure_spec.title
+            if title_checks is None or title_checks.chars is None:
                 continue
-            if title_char_cap.title_chars > title_char_cap.chars.value:
-                occurrences.append(
-                    cls(
-                        spec=headings_spec.spec,
-                        line=title_char_cap.title.line,
-                        char_count=title_char_cap.title_chars,
-                        cap=title_char_cap.chars.value,
-                    )
-                )
+            cap = title_checks.chars.value
+            if char_count > cap:
+                occurrences.append(cls(spec=structure_spec.path, line=title.line, char_count=char_count, cap=cap))
         return tuple(occurrences)

@@ -16,9 +16,9 @@ resource, so neither is ever ungoverned. A rule over a skill's file judges every
 never a document. A context asks the database only for what a rule reads, so a fact no
 enabled rule reads is never computed.
 
-The frontmatter, outline and other length rules still read an input each. For each input kind an enabled one of
-them reads, the input is built once from the queries, and a subject no specification governs for it records that input
-kind as ungoverned. Later changes move those rules onto a context and remove these branches.
+The frontmatter and outline rules still read an input each. For each input kind an enabled one of them reads, the
+input is built once from the queries, and a subject no specification governs for it records that input kind as
+ungoverned. Later changes move those rules onto a context and remove these branches.
 
 The subjects are documents, skills, skills' resources and layout entries, each matched to its own function, so a
 subject kind without one is a type error. A document is handed over as its ref, and a skill as the `SkillLocation` the
@@ -237,8 +237,8 @@ def _check_document_text(database: Database, source: DocumentText, table: RuleTa
     diagnostics: list[Diagnostic] = []
     ungoverned: list[Coverage] = []
 
-    # Transitional: the frontmatter, outline and other length rules still read an input each, built in this function's
-    # input branches, which go once those rules read the context.
+    # Transitional: the frontmatter and outline rules still read an input each, built in this function's input
+    # branches, which go once those rules read the context.
 
     # The frontmatter is never asked for when no enabled rule reads it.
     if table.frontmatter_block_rules:

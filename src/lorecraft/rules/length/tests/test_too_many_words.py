@@ -1,76 +1,61 @@
 """`LEN003`, `too-many-words`, over the word caps of a document's sections.
 
-The rule is pure, so every case here is a document's headings and the caps each specification resolved for its
-sections, written as literals; no document is read.
+Every case is a document written as text, read through a fake context that parses it as the real parser does, under
+structure specifications decoded from JSON; no document is read from disk.
 """
 
 from typing import Final
 
 import pytest
 
-from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.syntax import Heading, LineNumber
-from lorecraft.rules.inputs import HeadingsInput, HeadingsSpec, SectionCap
+from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Note
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
 
 from ..too_many_words import TooManyWords
 
-CORPUS_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/guide.structure.json')
-"""A corpus structure specification."""
+CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
+"""The corpus structure specification."""
 
-NAMESPACE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/guide-cli.structure.json')
+NAMESPACE_SPEC: Final[RootRelativePath] = structure_spec_path('guide-cli')
 """A namespace structure specification under the same corpus, which sets caps of its own."""
 
-TITLE: Final[Heading] = Heading(level=1, text='Setup', line=LineNumber.from_int(1), empty=False, words=0)
-"""An H1 title on line 1, holding the sections below it."""
-
-RUN: Final[Heading] = Heading(level=2, text='Run', line=LineNumber.from_int(3), empty=False, words=6)
-"""An H2 section on line 3, of six prose words."""
-
-CONFIGURATION: Final[Heading] = Heading(
-    level=2, text='Configuration', line=LineNumber.from_int(7), empty=False, words=12
+TEXT: Final[str] = (
+    '# Setup\n'
+    '\n'
+    '## Run\n'
+    '\n'
+    'Run the toolkit over the repository.\n'
+    '\n'
+    '## Configuration\n'
+    '\n'
+    'Every option has a default, and each one is documented right below.\n'
 )
-"""An H2 section on line 7, of twelve prose words."""
+"""A title, then the sections `Run`, on line 3, of six prose words, and `Configuration`, on line 7, of twelve."""
 
 
-def _spec(spec: RootRelativePath, *, section_caps: tuple[SectionCap, ...]) -> HeadingsSpec:
-    """What a specification states over the headings: its sections' word caps, alone.
+def _outline(*, run: int | None, configuration: int | None) -> str:
+    """A structure specification whose outline names both sections of `TEXT`, each with the cap given.
 
     Args:
-        spec: The structure specification file.
-        section_caps: The cap that applies to each capped section, in document order.
+        run: The most prose words `Run` may hold, or `None` for no cap.
+        configuration: The most prose words `Configuration` may hold, or `None` for no cap.
     """
-    return HeadingsSpec(
-        spec=spec,
-        title_cap=None,
-        title_char_cap=None,
-        title_mismatch=None,
-        forbid_empty_sections=False,
-        forbidden=(),
-        section_caps=section_caps,
+    run_entry = '{"section": "Run"}' if run is None else f'{{"section": "Run", "words": {run}}}'
+    configuration_entry = (
+        '{"section": "Configuration"}'
+        if configuration is None
+        else f'{{"section": "Configuration", "words": {configuration}}}'
     )
-
-
-def _cap(section: Heading, words: int) -> SectionCap:
-    """The cap of `words` prose words on `section`.
-
-    Args:
-        section: The H2 heading the cap applies to.
-        words: The most prose words the section may hold.
-    """
-    return SectionCap(section=section, words=NonZeroUnsignedInt(words))
+    return f'{{"outline": [{run_entry}, {configuration_entry}]}}'
 
 
 @pytest.mark.unit
 class TestTooManyWords:
     def test_check_with_a_section_over_its_cap_reports_it_at_its_heading(self) -> None:
         #: Given
-        subject = HeadingsInput(
-            headings=(TITLE, RUN, CONFIGURATION),
-            corpus=_spec(CORPUS_SPEC, section_caps=(_cap(CONFIGURATION, 10),)),
-            namespaces=(),
-        )
+        subject = FakeDocumentContext(TEXT, corpus='guide', structure=_outline(run=None, configuration=10))
 
         #: When
         occurrences = TooManyWords.check(subject)
@@ -82,11 +67,7 @@ class TestTooManyWords:
 
     def test_check_with_a_section_at_its_cap_reports_nothing(self) -> None:
         #: Given
-        subject = HeadingsInput(
-            headings=(TITLE, RUN, CONFIGURATION),
-            corpus=_spec(CORPUS_SPEC, section_caps=(_cap(CONFIGURATION, 12),)),
-            namespaces=(),
-        )
+        subject = FakeDocumentContext(TEXT, corpus='guide', structure=_outline(run=None, configuration=12))
 
         #: When
         occurrences = TooManyWords.check(subject)
@@ -96,9 +77,7 @@ class TestTooManyWords:
 
     def test_check_with_no_section_capped_reports_nothing(self) -> None:
         #: Given
-        subject = HeadingsInput(
-            headings=(TITLE, RUN, CONFIGURATION), corpus=_spec(CORPUS_SPEC, section_caps=()), namespaces=()
-        )
+        subject = FakeDocumentContext(TEXT, corpus='guide', structure=_outline(run=None, configuration=None))
 
         #: When
         occurrences = TooManyWords.check(subject)
@@ -108,10 +87,7 @@ class TestTooManyWords:
 
     def test_check_with_two_sections_over_their_caps_reports_each_in_document_order(self) -> None:
         #: Given
-        section_caps = (_cap(RUN, 5), _cap(CONFIGURATION, 10))
-        subject = HeadingsInput(
-            headings=(TITLE, RUN, CONFIGURATION), corpus=_spec(CORPUS_SPEC, section_caps=section_caps), namespaces=()
-        )
+        subject = FakeDocumentContext(TEXT, corpus='guide', structure=_outline(run=5, configuration=10))
 
         #: When
         occurrences = TooManyWords.check(subject)
@@ -122,12 +98,43 @@ class TestTooManyWords:
             TooManyWords(spec=CORPUS_SPEC, line=LineNumber.from_int(7), word_count=12, cap=10),
         ), 'each section over its cap is reported, in document order'
 
+    def test_check_with_unnamed_sections_holds_each_to_the_cap_of_the_any_run_it_falls_in(self) -> None:
+        #: Given
+        # `Rule` takes its entry's cap, `Aside` the cap of the `any` run after `Rule`, and `Checklist` none
+        text = (
+            '# Typing\n'
+            '\n'
+            '## Rule\n'
+            '\n'
+            'Annotate every signature.\n'
+            '\n'
+            '## Aside\n'
+            '\n'
+            'Read the rationale once.\n'
+            '\n'
+            '## Checklist\n'
+            '\n'
+            'Every signature is annotated, and every annotation is honest.\n'
+        )
+        outline = '{"outline": [{"section": "Rule", "words": 2}, {"any": true, "words": 2}, {"section": "Checklist"}]}'
+        subject = FakeDocumentContext(text, corpus='guide', structure=outline)
+
+        #: When
+        occurrences = TooManyWords.check(subject)
+
+        #: Then
+        assert occurrences == (
+            TooManyWords(spec=CORPUS_SPEC, line=LineNumber.from_int(3), word_count=3, cap=2),
+            TooManyWords(spec=CORPUS_SPEC, line=LineNumber.from_int(7), word_count=4, cap=2),
+        ), 'a named section is held to its entry cap, an unnamed one to its run cap, and one with no cap to none'
+
     def test_check_with_a_section_over_only_the_namespace_cap_reports_that_cap(self) -> None:
         #: Given
-        subject = HeadingsInput(
-            headings=(TITLE, RUN, CONFIGURATION),
-            corpus=_spec(CORPUS_SPEC, section_caps=(_cap(CONFIGURATION, 20),)),
-            namespaces=(_spec(NAMESPACE_SPEC, section_caps=(_cap(CONFIGURATION, 10),)),),
+        subject = FakeDocumentContext(
+            TEXT,
+            corpus='guide',
+            structure=_outline(run=None, configuration=20),
+            namespaces=(namespace_spec('guide', 'cli', _outline(run=None, configuration=10)),),
         )
 
         #: When
@@ -140,10 +147,11 @@ class TestTooManyWords:
 
     def test_check_with_a_section_over_both_caps_reports_each_in_order(self) -> None:
         #: Given
-        subject = HeadingsInput(
-            headings=(TITLE, RUN, CONFIGURATION),
-            corpus=_spec(CORPUS_SPEC, section_caps=(_cap(CONFIGURATION, 10),)),
-            namespaces=(_spec(NAMESPACE_SPEC, section_caps=(_cap(CONFIGURATION, 8),)),),
+        subject = FakeDocumentContext(
+            TEXT,
+            corpus='guide',
+            structure=_outline(run=None, configuration=10),
+            namespaces=(namespace_spec('guide', 'cli', _outline(run=None, configuration=8)),),
         )
 
         #: When
