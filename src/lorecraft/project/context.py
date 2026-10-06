@@ -11,9 +11,15 @@ Two contexts hold what several kinds share. `MarkdownContext` holds what any one
 `FrontmatterContext` holds the frontmatter a document and a skill open with, and `DocumentContext` and
 `SkillContext` extend it too; a resource opens with no frontmatter the package governs, so `SkillResourceContext`
 does not.
+
+A Markdown file also states two facts beyond its own text, for a rule that follows its links: the directory its
+relative links are read from, a `LinkBase`, and what the snapshot holds at each link's target, a `PathLookup`. Both
+are facts of the revision, never a judgment of a link.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 from typing import Protocol
 
 from lorecraft.core.num import UnsignedInt
@@ -21,6 +27,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.vfs import ResolvedPath
 
 from .aspect import AspectFilename
+from .link_target import LinkBase, PathLookup
 from .schemas import OutlineDivergenceSpec, SchemaProblems
 from .syntax import FrontmatterNode, ParsedDocument
 from .workspace import Governance
@@ -67,6 +74,18 @@ class MarkdownContext(Protocol):
 
     def parse(self) -> ParsedDocument:
         """The file's parse tree: its headings, their anchors and its links."""
+        ...
+
+    def link_base(self) -> LinkBase:
+        """Where the file's relative links are read from: its skill's root, or the document's own directory."""
+        ...
+
+    def link_targets(self) -> Mapping[PurePosixPath, PathLookup]:
+        """What the snapshot holds at the target of each relative link, keyed by the link's normalised relative path.
+
+        A link spelling no relative path has no entry, and neither has one climbing past its bound: above the skill
+        root in a file of a skill, above the repository root in a document.
+        """
         ...
 
 

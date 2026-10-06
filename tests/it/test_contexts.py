@@ -7,7 +7,7 @@ The static hold of each class to its protocol is in `lorecraft.project.database.
 type-checking gate reaches it.
 """
 
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import Final
 
 import pytest
@@ -34,14 +34,19 @@ from lorecraft.project.database import (
     SkillText,
 )
 from lorecraft.project.document import DocumentRef
+from lorecraft.project.layout import SNAPSHOT_SCOPE
+from lorecraft.project.link_target import DocumentDirectory, PathLookup, SkillRoot
 from lorecraft.project.skill import SkillLocation, SkillRef
 from lorecraft.project.syntax import count_lines, count_tokens
-from lorecraft.vfs import EntryRecord, Snapshot, SymlinkRecord
+from lorecraft.vfs import EntryRecord, FileTree, Snapshot, SymlinkRecord, take_snapshot
 
 TYPING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
 """A document of corpus `code` its `python` namespace governs too."""
 
-TYPING_TEXT: Final[str] = '---\nname: python-typing\nowner: 7\n---\n# Typing\n\n## Rule\n\nAnnotate every signature.\n'
+TYPING_TEXT: Final[str] = (
+    '---\nname: python-typing\nowner: 7\n---\n# Typing\n\n## Rule\n\nAnnotate every signature, as [the code corpus]'
+    '(../__meta__/code.md) says, not [gone](gone.md), [the source](../../src/main.py) or [up](../../../x.md).\n'
+)
 """The text of `TYPING`: a frontmatter whose `owner` the corpus schema rejects, a title and one section."""
 
 CORPUS_STRUCTURE: Final[bytes] = (
@@ -56,36 +61,42 @@ CORPUS_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/cod
 REVIEW: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/review'))
 """A skill an agent reaches under `.agents/skills`."""
 
-REVIEW_TEXT: Final[str] = '---\nname: reviewer\n---\n# Review\n\nRead the diff.\n'
+REVIEW_TEXT: Final[str] = (
+    '---\nname: reviewer\n---\n# Review\n\nRead [the checklist](references/checklist.md), not '
+    '[gone](references/gone.md) or [up](../x.md).\n'
+)
 """The `SKILL.md` of `REVIEW`: a frontmatter missing the `description` the Agent Skills specification requires."""
 
-CHECKLIST_TEXT: Final[str] = '# Checklist\n\nRead [the review](SKILL.md).\n'
+CHECKLIST_TEXT: Final[str] = '# Checklist\n\nRead [the review](SKILL.md), not [gone](gone.md).\n'
 """The text of `REVIEW`'s one resource, `references/checklist.md`: a title and a link."""
 
 
-def _snapshot() -> Snapshot:
-    """A snapshot of corpus `code`, with a `python` namespace, holding `TYPING`, and `REVIEW` with one resource."""
-    return Snapshot.from_tree(
-        {
-            '.agents': {
-                'skills': {
-                    'review': {
-                        'SKILL.md': REVIEW_TEXT.encode(),
-                        'references': {'checklist.md': CHECKLIST_TEXT.encode()},
-                    }
+def _tree() -> FileTree:
+    """Corpus `code`, with a `python` namespace, holding `TYPING`, and `REVIEW` with one resource, as files."""
+    return {
+        '.agents': {
+            'skills': {
+                'review': {
+                    'SKILL.md': REVIEW_TEXT.encode(),
+                    'references': {'checklist.md': CHECKLIST_TEXT.encode()},
                 }
+            }
+        },
+        'docs': {
+            '__meta__': {
+                'code.md': b'# Code\n',
+                'code.structure.json': CORPUS_STRUCTURE,
+                'code-python.md': b'# Code Python\n',
+                'code-python.structure.json': b'{"tokens": 200}',
             },
-            'docs': {
-                '__meta__': {
-                    'code.md': b'# Code\n',
-                    'code.structure.json': CORPUS_STRUCTURE,
-                    'code-python.md': b'# Code Python\n',
-                    'code-python.structure.json': b'{"tokens": 200}',
-                },
-                'code': {'python-typing.md': TYPING_TEXT.encode()},
-            },
-        }
-    )
+            'code': {'python-typing.md': TYPING_TEXT.encode()},
+        },
+    }
+
+
+def _snapshot() -> Snapshot:
+    """A snapshot of `_tree`, built in memory, so no path is in its scope."""
+    return Snapshot.from_tree(_tree())
 
 
 def _document_text(database: Database) -> DocumentText:
@@ -162,6 +173,34 @@ def _skill_context(database: Database) -> SkillContext:
         database: The database `REVIEW` is read from.
     """
     return DatabaseSkillContext(database, _skill_text(database), _location(database))
+
+
+def _scanned(root: Path) -> Database:
+    """A database over a scan of a real tree holding what `_snapshot` holds, so the scope covers `docs/` and the skill.
+
+    `Snapshot.from_tree` scans nothing, so no path is in its scope; asking what the snapshot holds at a path needs a
+    scan.
+
+    Args:
+        root: Directory the tree is written into, as the repository root.
+    """
+    _write_tree(root, _tree())
+    return Database(take_snapshot(root, SNAPSHOT_SCOPE))
+
+
+def _write_tree(directory: Path, tree: FileTree) -> None:
+    """Write a tree of files under a directory, a nested mapping a directory each, as `Snapshot.from_tree` reads one.
+
+    Args:
+        directory: The directory the tree's entries are written into; created if absent.
+        tree: Each entry's name, mapped to a file's bytes or to the tree of a directory.
+    """
+    directory.mkdir(parents=True, exist_ok=True)
+    for name, entry in tree.items():
+        if isinstance(entry, bytes):
+            (directory / name).write_bytes(entry)
+        else:
+            _write_tree(directory / name, entry)
 
 
 @pytest.mark.it
@@ -276,6 +315,36 @@ class TestDatabaseDocumentContext:
         )
         assert divergences != (), 'the corpus outline states a section the document lacks'
 
+    def test_link_base_with_a_document_returns_its_own_directory(self) -> None:
+        #: Given
+        context = _document_context(Database(_snapshot()))
+
+        #: When
+        base = context.link_base()
+
+        #: Then
+        assert base == DocumentDirectory(RootRelativePath.parse('docs/code')), (
+            "a document's relative links are read from the directory holding it"
+        )
+
+    def test_link_targets_with_a_document_returns_the_link_targets_query(self, tmp_path: Path) -> None:
+        #: Given
+        database = _scanned(tmp_path)
+        context = _document_context(database)
+
+        #: When
+        targets = context.link_targets()
+
+        #: Then
+        assert targets is database.link_targets(_document_text(database)), (
+            'the targets are the ones the database memoizes, not ones the context looked up again'
+        )
+        assert dict(targets) == {
+            PurePosixPath('../__meta__/code.md'): PathLookup.PRESENT,
+            PurePosixPath('gone.md'): PathLookup.MISSING,
+            PurePosixPath('../../src/main.py'): PathLookup.OUTSIDE_SCOPE,
+        }, "each link is read from the document's directory, and the one climbing above the repository has no entry"
+
 
 @pytest.mark.it
 class TestDatabaseSkillContext:
@@ -381,6 +450,33 @@ class TestDatabaseSkillContext:
         #: Then
         assert lines == UnsignedInt(count_lines(REVIEW_TEXT)), 'the lines are those the skill-lines query counts'
 
+    def test_link_base_with_a_skill_returns_the_skill_directory_an_agent_reaches(self) -> None:
+        #: Given
+        context = _skill_context(Database(_snapshot()))
+
+        #: When
+        base = context.link_base()
+
+        #: Then
+        assert base == SkillRoot(REVIEW.directory), "a SKILL.md's relative links are read from the skill root"
+
+    def test_link_targets_with_a_skill_returns_the_skill_link_targets_query(self, tmp_path: Path) -> None:
+        #: Given
+        database = _scanned(tmp_path)
+        context = _skill_context(database)
+
+        #: When
+        targets = context.link_targets()
+
+        #: Then
+        assert targets is database.skill_link_targets(_skill_text(database)), (
+            'the targets are the ones the database memoizes, not ones the context looked up again'
+        )
+        assert dict(targets) == {
+            PurePosixPath('references/checklist.md'): PathLookup.PRESENT,
+            PurePosixPath('references/gone.md'): PathLookup.MISSING,
+        }, 'each link is read from the skill root, and the one climbing above it has no entry'
+
 
 @pytest.mark.it
 class TestDatabaseSkillResourceContext:
@@ -396,3 +492,30 @@ class TestDatabaseSkillResourceContext:
         assert parsed is database.skill_resource_parse(_resource_text(database)), (
             'the parse is the one the database memoizes, not one the context parsed again'
         )
+
+    def test_link_base_with_a_resource_returns_its_skill_directory(self) -> None:
+        #: Given
+        context = _resource_context(Database(_snapshot()))
+
+        #: When
+        base = context.link_base()
+
+        #: Then
+        assert base == SkillRoot(REVIEW.directory), "a resource's relative links are read from the skill root"
+
+    def test_link_targets_with_a_resource_returns_the_skill_resource_link_targets_query(self, tmp_path: Path) -> None:
+        #: Given
+        database = _scanned(tmp_path)
+        context = _resource_context(database)
+
+        #: When
+        targets = context.link_targets()
+
+        #: Then
+        assert targets is database.skill_resource_link_targets(_resource_text(database)), (
+            'the targets are the ones the database memoizes, not ones the context looked up again'
+        )
+        assert dict(targets) == {
+            PurePosixPath('SKILL.md'): PathLookup.PRESENT,
+            PurePosixPath('gone.md'): PathLookup.MISSING,
+        }, "a resource's links are read from the skill root, so `SKILL.md` names the skill's own"
