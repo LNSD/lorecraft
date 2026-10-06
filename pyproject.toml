@@ -109,7 +109,8 @@ testpaths = [
     "tests/it",
     "tests/e2e",
 ]
-# The end-to-end helpers in tests/lib/ import as `lib`.
+# The helpers in tests/lib/ import as `lib`: the end-to-end tier's, and `lib.snapshot`, which every tier's
+# snapshot tests read.
 pythonpath = ["tests"]
 addopts = [
     "-v",
@@ -196,6 +197,8 @@ quote-style = "single"
 [tool.ty.environment]
 root = [
     "src",
+    # A unit test pins text output through `lib.snapshot`, which pytest imports from here through `pythonpath`.
+    "tests",
 ]
 python-version = "3.12"
 

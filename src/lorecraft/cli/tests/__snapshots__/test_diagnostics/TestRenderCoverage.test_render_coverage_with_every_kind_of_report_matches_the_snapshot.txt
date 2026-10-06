@@ -1,0 +1,2 @@
+docs/arch/adr.md: ungoverned for structure
+docs/feat/check.md: ungoverned for frontmatter, budget
