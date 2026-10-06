@@ -132,8 +132,9 @@ def diagnostic_order(diagnostic: Diagnostic) -> DiagnosticOrder:
 # report path is where an agent reaches it.
 type SubjectRef = DocumentRef | SkillRef | SkillResourceRef
 
-# What a subject can be ungoverned for: the facet a rule over a document declares, or the input kind of a rule that
-# still reads an input. Transitional: once the last rules read a context, the input kinds go and this is `Facet`.
+# What a subject can be ungoverned for: the facet a rule over a document or over the frontmatter declares, or the
+# input kind of a rule that still reads an input. Transitional: once the last rules read a context, the input kinds
+# go and this is `Facet`.
 type Coverage = Facet | InputKind
 
 

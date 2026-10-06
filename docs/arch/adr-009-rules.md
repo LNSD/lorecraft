@@ -41,7 +41,7 @@ shorter still: the checker reports errors and warnings, and they act on them.
 | **Removed rule** | A retired code, with the release that removed it and its replacement. Never has an occurrence |
 | **Subject** | What is checked: a document, a skill, a skill resource or a layout entry |
 | **Context** | The read-only view of one decoded subject a rule asks for the facts it reads, each a query of the database |
-| **Facet** | What part of a document a specification governs, which a rule over a document declares it reads |
+| **Facet** | What part of a document a specification governs, which a rule over a document or the frontmatter is gated on |
 | **Input** | The one frozen value a rule not yet moved onto a context reads about a subject, built from the database's queries |
 | **Diagnostic** | An occurrence located at a subject's path, with a severity |
 | **Level** | `allow`, `warn` or `deny`: how a rule is configured |
@@ -119,13 +119,16 @@ class EmptySection(HeadingsRule):
   A rule over what any Markdown file has derives from `MarkdownRule`, whose `check` takes a `MarkdownContext`, and
   judges a document, a skill's `SKILL.md` and a skill's resource alike. A rule over what holds of a skill's files
   and not of a document, such as a link read from the skill root, derives from `SkillFileRule`, whose `check` takes
-  a `SkillFileContext`, and judges a skill's `SKILL.md` and its resources. A rule picks its subject by picking its
-  base, and asks the context for what it reads. A rule over a document declares the facet it reads in `GOVERNED_BY`,
-  and the registry rejects one that declares none; the package governs every skill and resource, so a rule over a
-  skill or one of its files declares none. A rule over a Markdown file declares none either: its base judges a
-  document under its structure, the facet under which a document has a context at all. The length rules,
-  `LEN001` to `LEN005`, the `LINK` rules and `LAY001` read a context; the rules not yet moved still pick an input by
-  their base, such as `HeadingsRule` above, until they are.
+  a `SkillFileContext`, and judges a skill's `SKILL.md` and its resources. What a document and a skill share has a
+  base too: `FrontmatterRule`, over a document's or a skill's frontmatter, takes the `FrontmatterContext` both
+  contexts extend, so one check judges both. A rule picks its subject by picking its base, and asks the context for
+  what it reads. A rule over a document declares the facet it reads in `GOVERNED_BY`, and the registry rejects one
+  that declares none; a rule over the frontmatter inherits `Facet.FRONTMATTER` from its base, and the package governs
+  every skill and resource, so a rule over a skill or one of its files declares none. A rule over a Markdown file
+  declares none either: its base judges a document under its structure, the facet under which a document has a
+  context at all. The length rules, `LEN001` to `LEN005`, the frontmatter rules, `FM001` to `FM010`, the `LINK` rules
+  and `LAY001` read a context; the rules not yet moved still pick an input by their base, such as `HeadingsRule`
+  above, until they are.
 - **A layout entry has a base of its own.** `LayoutEntryRule` derives from `LayoutRule`, since a symlink has no
   lines, and its `check` takes a `LayoutContext`: one symlink of the skill layout whose chain leaves the repository,
   and where it leaves. The package governs the skill layout, so a rule over it declares no facet.

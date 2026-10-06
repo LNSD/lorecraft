@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 
+from lorecraft.project.context import FrontmatterContext
 from lorecraft.project.schemas import (
     BlockProblem,
     InvalidValueProblem,
@@ -11,15 +12,15 @@ from lorecraft.project.schemas import (
     WrongTypeProblem,
 )
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.inputs import SchemaProblemsInput, SchemaProblemsRule
 from lorecraft.rules.location import Note, Subdiagnostic
+from lorecraft.rules.subject import FrontmatterRule
 
 from .__ruleset__ import GROUP_ID, schema_note, schema_spec
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class WrongType(SchemaProblemsRule):
+class WrongType(FrontmatterRule):
     """A frontmatter field's value is of a type its schema does not accept.
 
     ## What it does
@@ -94,14 +95,14 @@ class WrongType(SchemaProblemsRule):
         return (Note(self.problem.message), schema_note(self.spec))
 
     @classmethod
-    def check(cls, subject: SchemaProblemsInput) -> tuple[Self, ...]:
+    def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:
         """One occurrence for each value a schema found of the wrong type, schema by schema, in the order found.
 
         Args:
-            subject: The problems each governing schema found.
+            subject: The document or the skill whose frontmatter each governing schema is applied to.
         """
         occurrences: list[Self] = []
-        for schema in subject.schemas:
+        for schema in subject.schema_problems():
             for located in schema.problems:
                 problem = located.problem
                 match problem:

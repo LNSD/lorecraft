@@ -3,18 +3,19 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 
+from lorecraft.project.context import FrontmatterContext
 from lorecraft.project.schemas import FIRST_LINE
-from lorecraft.project.syntax import InvalidYamlFrontmatter, MissingFrontmatter, NonMappingFrontmatter
+from lorecraft.project.syntax import Frontmatter, InvalidYamlFrontmatter, MissingFrontmatter, NonMappingFrontmatter
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.inputs import FrontmatterBlockInput, FrontmatterBlockRule, FrontmatterFields
 from lorecraft.rules.location import Subdiagnostic
+from lorecraft.rules.subject import FrontmatterRule
 
 from .__ruleset__ import GROUP_ID, owner_spec, spec_note
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class InvalidYaml(FrontmatterBlockRule):
+class InvalidYaml(FrontmatterRule):
     """A frontmatter block is not valid YAML.
 
     ## What it does
@@ -89,18 +90,18 @@ class InvalidYaml(FrontmatterBlockRule):
         return (spec_note(self.spec),)
 
     @classmethod
-    def check(cls, subject: FrontmatterBlockInput) -> tuple[Self, ...]:
+    def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:
         """The one occurrence, at the line the YAML reader stopped on or else line 1, when the block is not YAML.
 
         Args:
-            subject: The subject's frontmatter block, and the subject it opens.
+            subject: The document or the skill whose frontmatter is judged.
         """
-        frontmatter = subject.frontmatter
+        frontmatter = subject.frontmatter()
         match frontmatter:
             case InvalidYamlFrontmatter():
                 line = FIRST_LINE if frontmatter.line is None else frontmatter.line
-                return (cls(spec=owner_spec(subject.owner), line=line, problem=frontmatter.problem),)
-            case MissingFrontmatter() | NonMappingFrontmatter() | FrontmatterFields():
+                return (cls(spec=owner_spec(subject.frontmatter_owner()), line=line, problem=frontmatter.problem),)
+            case MissingFrontmatter() | NonMappingFrontmatter() | Frontmatter():
                 return ()
             case _:
                 assert_never(frontmatter)

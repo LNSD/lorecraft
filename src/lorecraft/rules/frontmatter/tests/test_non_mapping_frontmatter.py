@@ -1,6 +1,7 @@
-"""`FM003`, `non-mapping-frontmatter`, over a document's or a skill's frontmatter block.
+"""`FM003`, `non-mapping-frontmatter`, over a document's or a skill's frontmatter.
 
-The rule is pure, so every case here is a frontmatter block written as a literal; no file is read.
+Every case is a document or a `SKILL.md` written as text, read through a fake context that parses its frontmatter as
+the real parser does; no file is read from disk.
 """
 
 from typing import Final
@@ -8,35 +9,24 @@ from typing import Final
 import pytest
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
-from lorecraft.project.syntax import LineNumber, MissingFrontmatter
-from lorecraft.project.syntax import NonMappingFrontmatter as NonMappingBlock
-from lorecraft.rules.inputs import FrontmatterBlockInput, FrontmatterFields, NameField
+from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Note
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, FakeSkillContext, structure_spec_path
 
 from ..non_mapping_frontmatter import NonMappingFrontmatter
 
-SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/guide.structure.json')
-"""The structure specification whose frontmatter schema governs the document."""
+STRUCTURE: Final[str] = '{"frontmatter": {"type": "object"}}'
+"""A corpus structure specification whose frontmatter schema accepts any mapping."""
 
-DOCUMENT: Final[DocumentFrontmatterOwner] = DocumentFrontmatterOwner(filename=AspectFilename.parse('setup'), spec=SPEC)
-"""A document `setup` the schema in `SPEC` governs."""
-
-SKILL: Final[SkillFrontmatterOwner] = SkillFrontmatterOwner(directory_name='review', link_target=None)
-"""A skill listed as `review`, not through a link."""
-
-NAMED_SETUP: Final[FrontmatterFields] = FrontmatterFields(
-    name=NameField(value='setup', line=LineNumber.from_int(2)), repeated_keys=()
-)
-"""A mapping whose `name` is `setup`, on line 2, and that repeats no key."""
+SPEC: Final[RootRelativePath] = structure_spec_path('guide')
+"""Where the corpus structure specification lies."""
 
 
 @pytest.mark.unit
 class TestNonMappingFrontmatter:
-    def test_check_with_a_document_whose_block_is_not_a_mapping_reports_it_on_line_1(self) -> None:
+    def test_check_with_a_document_whose_block_is_a_list_reports_it_on_line_1(self) -> None:
         #: Given
-        subject = FrontmatterBlockInput(frontmatter=NonMappingBlock(), owner=DOCUMENT)
+        subject = FakeDocumentContext('---\n- setup\n---\n# Setup\n', corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = NonMappingFrontmatter.check(subject)
@@ -46,9 +36,21 @@ class TestNonMappingFrontmatter:
             'a block that is not a mapping is one occurrence, on line 1'
         )
 
+    def test_check_with_an_empty_block_reports_it_on_line_1(self) -> None:
+        #: Given
+        subject = FakeDocumentContext('---\n---\n# Setup\n', corpus='guide', structure=STRUCTURE)
+
+        #: When
+        occurrences = NonMappingFrontmatter.check(subject)
+
+        #: Then
+        assert occurrences == (NonMappingFrontmatter(spec=SPEC, line=LineNumber.from_int(1)),), (
+            'an empty block holds no mapping, so it is not a mapping either'
+        )
+
     def test_check_with_a_skill_whose_block_is_not_a_mapping_reports_it_under_no_specification_file(self) -> None:
         #: Given
-        subject = FrontmatterBlockInput(frontmatter=NonMappingBlock(), owner=SKILL)
+        subject = FakeSkillContext('---\n- review\n---\n')
 
         #: When
         occurrences = NonMappingFrontmatter.check(subject)
@@ -60,7 +62,7 @@ class TestNonMappingFrontmatter:
 
     def test_check_with_a_mapping_reports_nothing(self) -> None:
         #: Given
-        subject = FrontmatterBlockInput(frontmatter=NAMED_SETUP, owner=DOCUMENT)
+        subject = FakeDocumentContext('---\nname: setup\n---\n# Setup\n', corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = NonMappingFrontmatter.check(subject)
@@ -70,7 +72,7 @@ class TestNonMappingFrontmatter:
 
     def test_check_with_no_block_reports_nothing(self) -> None:
         #: Given
-        subject = FrontmatterBlockInput(frontmatter=MissingFrontmatter(), owner=DOCUMENT)
+        subject = FakeDocumentContext('# Setup\n', corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = NonMappingFrontmatter.check(subject)

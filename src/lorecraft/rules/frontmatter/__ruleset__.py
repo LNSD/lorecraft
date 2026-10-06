@@ -1,13 +1,14 @@
 """What the `FM` group's rules share: the group, and under which specification an occurrence is reported.
 
 A document's frontmatter block is governed by the structure specification of its corpus, and a skill's by the
-package, after the Agent Skills specification, which no file in the repository holds. Every rule of the group reads
-which of the two governs the subject from its input, through `owner_spec` for the block and `schema_spec` for a
-schema's problems, and says which it is through `spec_note` or `schema_note`, so a document's occurrence and a
-skill's read apart.
+package, after the Agent Skills specification, which no file in the repository holds. Every rule of the group derives
+from `FrontmatterRule`, so one check judges a document and a skill alike, and reads which of the two governs the
+subject from its context, through `owner_spec` for the block and `schema_spec` for a schema's problems. It says which
+it is through `spec_note` or `schema_note`, so a document's occurrence and a skill's read apart.
 
-A rule never locates a line of the frontmatter itself: its input arrives with each line located, through
-`field_line` in `lorecraft.project.schemas`, the one place a field's line, or line 1 in its absence, is decided.
+A field's line, or line 1 in its absence, is decided in one place, `field_line` in `lorecraft.project.schemas`: the
+schema problems arrive placed through it, and a rule that reports at a field's line calls it rather than search the
+keys itself.
 """
 
 from typing import Final, assert_never
