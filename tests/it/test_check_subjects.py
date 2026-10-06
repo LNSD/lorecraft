@@ -52,6 +52,7 @@ from lorecraft.rules.frontmatter.non_mapping_frontmatter import NonMappingFrontm
 from lorecraft.rules.frontmatter.unknown_field import UnknownField
 from lorecraft.rules.frontmatter.wrong_type import WrongType
 from lorecraft.rules.inputs import InputKind, TokenCountInput, TokenCountRule
+from lorecraft.rules.length.title_too_long import TitleTooLong
 from lorecraft.rules.length.title_too_many_words import TitleTooManyWords
 from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
@@ -1297,6 +1298,31 @@ class TestCheckSubjects:
                 ),
             ),
         ), 'LEN004 runs at deny over a document whose specification caps the title, at the title over its cap'
+
+    def test_check_subjects_with_a_title_over_its_character_cap_reports_title_too_long(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        guide = b'# Setting up the guide\n\nRun it once, then again.\n'
+        database = Database(_snapshot(b'{"title": {"chars": 12}}', guide=guide))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), package_table)
+
+        #: Then
+        occurrence = TitleTooLong(spec=CODE_SPEC, line=LineNumber.from_int(1), char_count=20, cap=12)
+        assert reports == (
+            CheckedSubject(
+                GUIDE,
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                ungoverned=(
+                    InputKind.FRONTMATTER_BLOCK,
+                    InputKind.SCHEMA_PROBLEMS,
+                    InputKind.TOKEN_COUNT,
+                    InputKind.OUTLINE_DIVERGENCE,
+                ),
+            ),
+        ), 'LEN005 runs at deny over a document whose specification caps the title, at the title over its cap'
 
     def test_check_subjects_with_a_title_failing_its_pattern_reports_invalid_title(
         self, package_table: RuleTable

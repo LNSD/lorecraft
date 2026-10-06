@@ -346,6 +346,23 @@ class TitleCap:
 
 
 @dataclass(frozen=True, slots=True)
+class TitleCharCap:
+    """The most characters a document's title may hold, under one structure specification, against those it holds.
+
+    Attributes:
+        title: The document's first H1 heading, its title; a later H1 is not its title, so no cap applies to it.
+        title_chars: The characters of the title's own text, inline markup stripped, counted as code points.
+        chars: The cap the specification's `title` sets.
+    """
+
+    title: Heading
+    # Not range-checked: only the headings builder makes a cap, from the length of a string, so the value is never
+    # below 0.
+    title_chars: int
+    chars: NonZeroUnsignedInt
+
+
+@dataclass(frozen=True, slots=True)
 class TitleMismatch:
     """A document's title whose text does not match the pattern one structure specification holds it to.
 
@@ -367,6 +384,8 @@ class HeadingsSpec:
         spec: The structure specification file that states it.
         title_cap: The cap on the title's words, measured against the document's title; or `None` when the
             specification sets no cap, or when the document has no title.
+        title_char_cap: The cap on the title's characters, measured against the document's title; or `None` when
+            the specification sets no cap, or when the document has no title.
         title_mismatch: The title and the pattern its text does not match; or `None` when it matches, when the
             specification sets no pattern, or when the document has no title.
         forbid_empty_sections: True when every section must hold content.
@@ -378,6 +397,7 @@ class HeadingsSpec:
 
     spec: RootRelativePath
     title_cap: TitleCap | None
+    title_char_cap: TitleCharCap | None
     title_mismatch: TitleMismatch | None
     forbid_empty_sections: bool
     forbidden: tuple[SectionName, ...]
@@ -394,8 +414,9 @@ class HeadingsInput:
 
     The title is the exception: no specification states it, since every governed document carries exactly one H1
     title that opens it. So a title rule judges the document once, under its corpus's structure specification,
-    rather than once per specification. A check a specification adds on the title, a cap on its words or a pattern
-    its text must match, is that specification's own, and applies once per specification that states it.
+    rather than once per specification. A check a specification adds on the title, a cap on its words or its
+    characters or a pattern its text must match, is that specification's own, and applies once per specification
+    that states it.
 
     The corpus's specification is held apart from the namespaces' so that a title rule finds it by name: a document
     governed by a namespace specification alone is ungoverned, so the corpus's is always there.

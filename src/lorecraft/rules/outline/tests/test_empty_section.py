@@ -41,6 +41,7 @@ def _spec(spec: RootRelativePath, *, forbid_empty_sections: bool) -> HeadingsSpe
     return HeadingsSpec(
         spec=spec,
         title_cap=None,
+        title_char_cap=None,
         title_mismatch=None,
         forbid_empty_sections=forbid_empty_sections,
         forbidden=(),
