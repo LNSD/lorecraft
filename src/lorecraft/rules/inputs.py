@@ -15,7 +15,7 @@ from typing import Final, Self
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.schemas import FrontmatterProblem, SectionName
+from lorecraft.project.schemas import SchemaProblems, SectionName
 from lorecraft.project.syntax import (
     Heading,
     InvalidYamlFrontmatter,
@@ -232,53 +232,6 @@ class FrontmatterBlockRule(ContentRule):
         Args:
             subject: The frontmatter block judged, with the name its subject must carry.
         """
-
-
-@dataclass(frozen=True, slots=True)
-class StructureSpecSchema:
-    """A frontmatter schema a structure specification states under its `frontmatter` key.
-
-    Attributes:
-        spec: The structure specification file that states the schema.
-    """
-
-    spec: RootRelativePath
-
-
-@dataclass(frozen=True, slots=True)
-class AgentSkillsSchema:
-    """The Agent Skills specification's frontmatter schema: the package states it, and no repository file sets it."""
-
-
-# The schema a set of problems was found against: one a structure specification file states, for a document, or
-# the Agent Skills specification's, for a skill.
-type SchemaSource = StructureSpecSchema | AgentSkillsSchema
-
-
-@dataclass(frozen=True, slots=True)
-class LocatedProblem:
-    """One thing a frontmatter schema rejects, with the line it is reported on.
-
-    Attributes:
-        problem: What the schema rejects.
-        line: The line of the field it concerns, or line 1 when it concerns no field or a field not written.
-    """
-
-    problem: FrontmatterProblem
-    line: LineNumber
-
-
-@dataclass(frozen=True, slots=True)
-class SchemaProblems:
-    """Every problem one frontmatter schema found in a frontmatter.
-
-    Attributes:
-        source: The schema the problems were found against.
-        problems: In the order the schema reports them; empty when the frontmatter conforms to it.
-    """
-
-    source: SchemaSource
-    problems: tuple[LocatedProblem, ...]
 
 
 @dataclass(frozen=True, slots=True)

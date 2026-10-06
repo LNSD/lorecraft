@@ -9,17 +9,15 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import (
+    AgentSkillsSchema,
+    LocatedProblem,
     MissingFieldProblem,
+    SchemaProblems,
+    StructureSpecSchema,
     UnknownFieldProblem,
 )
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.inputs import (
-    AgentSkillsSchema,
-    LocatedProblem,
-    SchemaProblems,
-    SchemaProblemsInput,
-    StructureSpecSchema,
-)
+from lorecraft.rules.inputs import SchemaProblemsInput
 from lorecraft.rules.location import Elsewhere, Help, Note
 
 from ..missing_field import MissingField

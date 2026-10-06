@@ -3,12 +3,13 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 
+from lorecraft.project.schemas import FIRST_LINE
 from lorecraft.project.syntax import InvalidYamlFrontmatter, MissingFrontmatter, NonMappingFrontmatter
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.inputs import FrontmatterBlockInput, FrontmatterBlockRule, FrontmatterFields
 from lorecraft.rules.location import Subdiagnostic
 
-from .__ruleset__ import FIRST_LINE, GROUP_ID, owner_spec, spec_note
+from .__ruleset__ import GROUP_ID, owner_spec, spec_note
 
 
 @rule

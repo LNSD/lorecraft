@@ -1,4 +1,4 @@
-"""What the `FM` group's rules share: the group, and where and under which specification an occurrence is reported.
+"""What the `FM` group's rules share: the group, and under which specification an occurrence is reported.
 
 A document's frontmatter block is governed by the structure specification of its corpus, and a skill's by the
 package, after the Agent Skills specification, which no file in the repository holds. Every rule of the group reads
@@ -6,30 +6,20 @@ which of the two governs the subject from its input, through `owner_spec` for th
 schema's problems, and says which it is through `spec_note` or `schema_note`, so a document's occurrence and a
 skill's read apart.
 
-A rule never locates a line of the frontmatter itself: the builders of the group's inputs, in `lorecraft.checks`,
-locate each field through `field_line`, the one place a field's line, or line 1 in its absence, is decided.
+A rule never locates a line of the frontmatter itself: its input arrives with each line located, through
+`field_line` in `lorecraft.project.schemas`, the one place a field's line, or line 1 in its absence, is decided.
 """
 
 from typing import Final, assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.syntax import Frontmatter, LineNumber
+from lorecraft.project.schemas import AgentSkillsSchema, SchemaSource, StructureSpecSchema
 from lorecraft.rules.declaration import RuleGroup
-from lorecraft.rules.inputs import (
-    AgentSkillsSchema,
-    DocumentFrontmatterOwner,
-    FrontmatterOwner,
-    SchemaSource,
-    SkillFrontmatterOwner,
-    StructureSpecSchema,
-)
+from lorecraft.rules.inputs import DocumentFrontmatterOwner, FrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.rules.location import Elsewhere, Note
 
 GROUP_ID: Final[RuleGroup] = RuleGroup('FM', 'Frontmatter checks')
 """The group of the rules over a subject's frontmatter: the block itself, and the schema that governs it."""
-
-FIRST_LINE: Final[LineNumber] = LineNumber.from_int(1)
-"""Where an occurrence with no more precise line is reported: the subject's first line, which opens the block."""
 
 
 def owner_spec(owner: FrontmatterOwner) -> RootRelativePath | None:
@@ -85,16 +75,3 @@ def schema_note(spec: RootRelativePath | None) -> Note:
     if spec is None:
         return Note("the Agent Skills specification states a SKILL.md's frontmatter schema")
     return Note('the frontmatter schema is set here', at=Elsewhere(spec))
-
-
-def field_line(frontmatter: Frontmatter, field: str) -> LineNumber:
-    """The line a top-level field is written on, or line 1 when the mapping does not hold it.
-
-    Args:
-        frontmatter: The decoded frontmatter, whose top-level keys carry the line each is written on.
-        field: Name of the top-level key to find.
-    """
-    line = frontmatter.find_key_line(field)
-    if line is None:
-        return FIRST_LINE
-    return line
