@@ -26,8 +26,8 @@ What it replaces is everything around the checks:
   documents and skills report through parallel types: `CheckRun` and `SkillCheckRun`, and a report type each for
   a document, a skill, a resource and a symlink.
 - **Facts read once per check.** A file that is not UTF-8 is decoded, and reported, once per check.
-- **Uncached cross-file lookups.** The link and `metadata` rules read `find_path`, `find_file` and
-  `is_in_scope`, which are answered fresh on every call and state no carry-over rule.
+- **Uncached cross-file lookups.** The link rules read `find_path`, which is answered fresh on every call and
+  states no carry-over rule.
 - **No levels.** Every finding fails the run.
 
 ## Decision
@@ -100,8 +100,7 @@ The set is closed. Each kind is one dataclass and one rule base class whose `che
 | Outline divergence | document | the parse and line-count queries, and each specification's outline | a structure specification that states an outline |
 | Token count | document | the tokens query | a specification that sets a budget |
 | Line count | skill | the line-count query | the package |
-| Links | skill, skill resource | the parse query, the link-target query, the skill's `metadata` | the package |
-| Listed files | skill | the frontmatter query, the listed-file query | the package |
+| Links | skill, skill resource | the parse query, the link-target query | the package |
 | Layout | layout entry, skill | the model, the skill's resource listing | the package |
 
 Three rules follow from the table.
@@ -120,9 +119,9 @@ reads it. Each condition is then a rule that projects its own problem type into 
 analysis is a judgment, so it lives for one run and is never memoized as a query: the invariant that check
 results are not cached stands.
 
-**A cross-file input is a query.** The link-target states and the listed-file states become queries keyed by the
-subject's ref. Each one's carry-over rule names every path it looked up, an absent target included, since
-creating a missing target must remove its diagnostic. Nothing a rule reads is left outside a query contract.
+**A cross-file input is a query.** The link-target states become a query keyed by the subject's ref. Its
+carry-over rule names every path it looked up, an absent target included, since creating a missing target must
+remove its diagnostic. Nothing a rule reads is left outside a query contract.
 
 ### A Subject's Status Comes Before Any Rule
 

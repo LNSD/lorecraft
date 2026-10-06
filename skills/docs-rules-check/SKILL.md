@@ -2,8 +2,6 @@
 name: docs-rules-check
 description: Review documents under docs/ and the Lorecraft specifications in docs/__meta__/ that govern them - run lorecraft check for frontmatter, section outline, word caps and token budget, walk each specification's checklist for what a machine cannot decide, and check that each changed specification loads, that its prose and JSON agree, and that it governs the documents intended. Use after editing anything under docs/, when reviewing a pull request that touches docs/, before committing, when lorecraft check exits 2 or a document is unexpectedly ungoverned, or when setting the checks up in CI. Not for writing documents or specifications; see /docs-rules and /docs-rules-creator
 compatibility: Requires the lorecraft command, on PATH or run through uvx lorecraft, or uv run lorecraft in a uv project that declares Lorecraft as a dependency, and a git checkout
-metadata:
-  references: docs/feat/cli-check.md docs/feat/cli-check-frontmatter.md docs/feat/cli-check-structure.md docs/feat/cli-check-budget.md docs/feat/cli-check-skills.md docs/feat/cli-inspect.md docs/feat/spec.md docs/feat/spec-structure.md docs/feat/spec-structure-budget.md docs/feat/spec-structure-frontmatter.md docs/feat/spec-structure-outline.md
 allowed-tools: Bash(lorecraft check*) Bash(lorecraft inspect*) Bash(uvx lorecraft *) Bash(uv run lorecraft *) Bash(git diff *) Bash(git status *) Bash(git merge-base *) Bash(grep *) Bash(ls docs/*)
 ---
 
@@ -42,12 +40,14 @@ Given explicit paths, check those instead. Split what changed in two:
 lorecraft inspect
 ```
 
-Each document is followed by the names of the specifications governing it, broad to narrow; the name `<name>`
-is the prose at `docs/__meta__/<name>.md`. [cli-inspect](references/cli-inspect.md) describes the output. Read
-every specification listed for a document **before** the document, so its checklist is in hand while reading. A
-document can be governed by one check and not another; [check](references/cli-check.md#key-concepts) says
-what governs it for each. Report a document a check does not govern as unvalidated for that check, rather than
-borrowing another corpus's rules.
+Each document is followed by the names of the specifications governing it, broad to narrow; the name `<name>` is the
+prose at `docs/__meta__/<name>.md`.
+[cli-inspect](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-inspect.md) describes the output. Read every
+specification listed for a document **before** the document, so its checklist is in hand while reading. A document can
+be governed by one check and not another;
+[check](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-check.md#key-concepts) says what governs it for
+each. Report a document a check does not govern as unvalidated for that check, rather than borrowing another corpus's
+rules.
 
 ## 3. Run the checks
 
@@ -63,17 +63,19 @@ lorecraft check budget <files>               # the whole-file token budget, the 
 lorecraft check --format json                # machine-readable
 ```
 
-Findings print as `path:line: [rule] message`, and may be followed by `= help:` and `= note:` lines, or a
-`notes` list in JSON; for a missing section they say what it holds and show a sample, so read them before
-fixing it. Exit `0` means no findings, `1` findings, and `2` that the run
-could not happen: a rejected path, or a specification that cannot be loaded — §6 covers that one. A
-`<corpus>.ungoverned` line is not a failure; report the corpus as unvalidated for that check. Each check's rule
-identifiers are explained in its guide: [check](references/cli-check.md),
-[frontmatter](references/cli-check-frontmatter.md), [structure](references/cli-check-structure.md),
-[budget](references/cli-check-budget.md).
+Findings print as `path:line: [rule] message`, and may be followed by `= help:` and `= note:` lines, or a `notes` list
+in JSON; for a missing section they say what it holds and show a sample, so read them before fixing it. Exit `0` means
+no findings, `1` findings, and `2` that the run could not happen: a rejected path, or a specification that cannot be
+loaded — §6 covers that one. A `<corpus>.ungoverned` line is not a failure; report the corpus as unvalidated for that
+check. Each check's rule identifiers are explained in its guide:
+[check](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-check.md),
+[frontmatter](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-check-frontmatter.md),
+[structure](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-check-structure.md),
+[budget](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-check-budget.md).
 
-A bare run checks every agent skill too. A `skill.*` finding is about a skill, not a document, and falls
-outside this review; [check skills](references/cli-check-skills.md#findings) explains each.
+A bare run checks every agent skill too. A `skill.*` finding is about a skill, not a document, and falls outside this
+review; [check skills](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-check-skills.md#findings) explains
+each.
 
 A word cap or budget finding on a section the change added to blocks, like any other finding. One on a section
 the change did not touch is pre-existing: report it as such. The fix for an overage is to move or cut, never to
@@ -104,30 +106,31 @@ Lorecraft loads and validates each JSON file on its own, but it cannot tell whet
 prose says, or whether a specification name governs the documents its author meant. Check each changed
 specification for both.
 
-**Load.** `lorecraft inspect` validates every specification before any document is read. A structure
-specification must use only the dialect's keys and state usable rules, and its `frontmatter` key must satisfy
-the JSON Schema Draft 2020-12 meta-schema, state `"type": "object"` at its root, and carry no `$id` at any
-depth. A leftover `<name>.header.json` is not read: its schema belongs in that key now. A file that fails stops
-the run with an error naming it: `inspect` and `lorecraft check` both exit `2`. That error is the finding; [spec-structure](references/spec-structure.md) says what is refused for any file, and
-[spec-structure-outline](references/spec-structure-outline.md),
-[spec-structure-budget](references/spec-structure-budget.md) and
-[spec-structure-frontmatter](references/spec-structure-frontmatter.md) what is refused for their keys.
+**Load.** `lorecraft inspect` validates every specification before any document is read. A structure specification
+must use only the dialect's keys and state usable rules, and its `frontmatter` key must satisfy the JSON Schema Draft
+2020-12 meta-schema, state `"type": "object"` at its root, and carry no `$id` at any depth. A leftover
+`<name>.header.json` is not read: its schema belongs in that key now. A file that fails stops the run with an error
+naming it: `inspect` and `lorecraft check` both exit `2`. That error is the finding;
+[spec-structure](https://github.com/LNSD/lorecraft/blob/main/docs/feat/spec-structure.md) says what is refused for any
+file, and [spec-structure-outline](https://github.com/LNSD/lorecraft/blob/main/docs/feat/spec-structure-outline.md),
+[spec-structure-budget](https://github.com/LNSD/lorecraft/blob/main/docs/feat/spec-structure-budget.md) and
+[spec-structure-frontmatter](https://github.com/LNSD/lorecraft/blob/main/docs/feat/spec-structure-frontmatter.md) what
+is refused for their keys.
 
-**Resolution.** In the `inspect` tree, compare what is governed with what was meant. [spec](references/spec.md)
-owns the rules.
+**Resolution.** In the `inspect` tree, compare what is governed with what was meant.
+[spec](https://github.com/LNSD/lorecraft/blob/main/docs/feat/spec.md) owns the rules.
 
-- Each changed specification appears under its corpus. A file whose name does not parse — a hyphen in a corpus
-  name, a dot in a specification name, a `<name>.<token>.json` that no file type's pattern claims — is left out
-  silently, and so is a namespace specification whose corpus has no file of its own or no directory under
-  `docs/`.
-- Each document lists the specification names intended. A namespace matches a filename that equals it or
-  continues it with a hyphen: `code-python` governs `python-typing.md`, not `pythonic.md`.
-- A namespace specification matches at least one document. One that matches none still loads and governs
-  nothing, usually after a rename.
+- Each changed specification appears under its corpus. A file whose name does not parse — a hyphen in a corpus name, a
+  dot in a specification name, a `<name>.<token>.json` that no file type's pattern claims — is left out silently, and
+  so is a namespace specification whose corpus has no file of its own or no directory under `docs/`.
+- Each document lists the specification names intended. A namespace matches a filename that equals it or continues it
+  with a hyphen: `code-python` governs `python-typing.md`, not `pythonic.md`.
+- A namespace specification matches at least one document. One that matches none still loads and governs nothing,
+  usually after a rename.
 - For each check the corpus means to run, the documents meant are governed, as
-  [check](references/cli-check.md#key-concepts) defines it. A namespace file never governs alone: its rules
-  apply only once the corpus specification has a structure file, and its `frontmatter` only once that file states
-  the key.
+  [check](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-check.md#key-concepts) defines it. A namespace
+  file never governs alone: its rules apply only once the corpus specification has a structure file, and its
+  `frontmatter` only once that file states the key.
 
 **Agreement.** Nothing detects drift between a specification's prose and its JSON, so read both:
 

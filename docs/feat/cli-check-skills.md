@@ -1,6 +1,6 @@
 ---
 name: "cli-check-skills"
-description: "lorecraft check skills: validating the frontmatter of each agent skill's SKILL.md against the Agent Skills specification, the name-matches-directory rule, duplicate keys, the 500-line budget on a SKILL.md, links in any of a skill's Markdown files that are absolute, name a heading the file lacks, leave the skill or name nothing in it, and the skill-root resolution they follow, the files a skill links in through `metadata`, symlinks in the skill layout that lead outside the repository, how a skill is named on the command line, and the rule identifiers it reports. Load when a skill finding needs explaining, when running the skill check on its own, or when a skill is not checked"
+description: "lorecraft check skills: validating the frontmatter of each agent skill's SKILL.md against the Agent Skills specification, the name-matches-directory rule, duplicate keys, the 500-line budget on a SKILL.md, links in any of a skill's Markdown files that are absolute, name a heading the file lacks, leave the skill or name nothing in it, and the skill-root resolution they follow, symlinks in the skill layout that lead outside the repository, how a skill is named on the command line, and the rule identifiers it reports. Load when a skill finding needs explaining, when running the skill check on its own, or when a skill is not checked"
 type: "feature"
 status: "experimental"
 components: "module:lorecraft.cli,module:lorecraft.checks,module:lorecraft.project"
@@ -13,8 +13,8 @@ components: "module:lorecraft.cli,module:lorecraft.checks,module:lorecraft.proje
 `lorecraft check skills` holds each `SKILL.md` to the
 [Agent Skills specification](https://agentskills.io/specification): its frontmatter, a `name` matching the
 directory agents list, through any symlink, and at most 500 lines. It reports a link in any skill file that is
-absolute, names a missing heading, leaves the skill or names nothing, a `metadata` path repeating a file name,
-missing, or outside what it reads, and a symlink leaving the repository. It reads the
+absolute, names a missing heading, leaves the skill or names nothing, and a symlink leaving the repository. It
+reads the
 [workspace](workspace.md)'s skills; a bare `lorecraft check` runs it too.
 
 ## Table of Contents
@@ -37,9 +37,6 @@ missing, or outside what it reads, and a symlink leaving the repository. It read
 - **Skill root**: A relative link in any Markdown file of a skill is read from the skill's directory, as the
   specification has it, not from the file holding it: from `references/guide.md`, the entry file is `SKILL.md`,
   and `../SKILL.md` leaves the skill.
-- **Linked-in file**: A repository file a `metadata` subkey lists, which lands in the skill at
-  `<subkey>/<file name>`: `references: docs/code/logging.md` is `references/logging.md`. A link to it names
-  something in the skill, whatever the skill's directory holds.
 - **Frontmatter**: The YAML mapping between two `---` lines that opens a `SKILL.md`, read as
   [basic YAML](cli-check-frontmatter.md#key-concepts).
 - **Specification field**: One of the six fields the specification defines: `name`, `description`, `license`,
@@ -85,7 +82,7 @@ checked 1 skill(s), 1 finding(s)
 
 A skill named by its directory, by a skills directory, or by no path is checked whole. One named by its `SKILL.md`,
 directly, through a link, or by the file a linked `SKILL.md` leads to, has that file checked alone: its frontmatter,
-its length, its links and its `metadata`. No resource or symlink inside the skill is looked at, yet a link to a
+its length and its links. No resource or symlink inside the skill is looked at, yet a link to a
 resource still names something in the skill. A skill named both ways in one run is checked whole, once, where first
 named.
 
@@ -97,12 +94,9 @@ ungoverned, and `ungoverned` is always empty in the JSON report.
 
 - A fragment after a path, such as `guide.md#usage`, is not checked against the file it names.
 - An HTML heading (`<h2>`) has no anchor.
-- Only the `metadata` subkeys `references`, `scripts` and `assets` are read.
 - A linked skill entry or `SKILL.md` is read where it leads; one that dangles is skipped silently.
 - A repository with skills and no `docs/__meta__/` needs `--root`.
 - The root is never read for skills, which would read the whole repository.
-- A `metadata` path is judged by what the run reads: naming `skills/gamma` or `skills` can judge a path into a
-  sibling skill outside the scope or missing.
 - A key repeated inside a nested mapping such as `metadata` is not reported as repeated.
 - Run alone, it accepts a linked `docs/` or `docs/__meta__/`, which a check over documents refuses.
 
@@ -122,10 +116,6 @@ compared with the directory agents list, through any symlink, then the specifica
 reported, as the [frontmatter check](cli-check-frontmatter.md#findings) does. Every message is Lorecraft's own,
 whatever version of the library validating the fields is installed.
 
-A `skill.metadata-*` finding is on the line of the `metadata` key, after the `SKILL.md`'s link findings. Within a
-subkey, repeated file names come first, then missing paths, then paths outside the scope, each in the order written
-and once per occurrence.
-
 A top-level key written again is a `skill.duplicate-key` finding, on the line of each occurrence after the first,
 and it suppresses no other finding; any other finding about that key is on the line of its last occurrence. The
 [frontmatter check](cli-check-frontmatter.md#findings) states the rule in full.
@@ -144,10 +134,7 @@ and it suppresses no other finding; any other finding about that key is on the l
 | `skill.link-absolute` | A link or image in the `SKILL.md` or a resource has a destination that starts with `/`; the message shows the link decoded, and a help note says how to fix it |
 | `skill.link-fragment` | A link in the `SKILL.md` or a resource whose destination is only a `#fragment` names no heading of the file holding it, at any depth, by GitHub's anchors, regardless of case; the message shows the link decoded, and a bare `#` is not reported |
 | `skill.link-escapes` | A relative link or image in the `SKILL.md` or a resource, its path percent-decoded and normalised lexically, climbs above the skill root, whatever directory the skill is in; no symlink is followed, the fragment and the query are ignored, the message shows the link decoded, and a help note says how to fix it |
-| `skill.link-broken` | A relative link or image in the `SKILL.md` or a resource stays inside the skill, yet its path, read from the skill root as an agent reaches it, leads to no file or directory in the snapshot, through any symlink, and is no linked-in file; the fragment and the query are ignored, the message shows the link decoded, and a help note says how to fix it. A linked-in file that is missing is `skill.metadata-missing-file`'s alone. Not judged at all when the `SKILL.md` frontmatter is missing, unparseable or not a mapping, or the `SKILL.md` is not UTF-8: which files `metadata` links in is then unknown |
-| `skill.metadata-duplicate-name` | A path under a `metadata` subkey has the file name of an earlier one, so both link in as one path; the message names both |
-| `skill.metadata-missing-file` | A listed path in scope, as the [workspace declares it](workspace.md#one-snapshot), leads to no regular file in the snapshot: nothing is there, not even its directory, a directory is, or a link dangles, leaves the repository or reaches a file lorecraft does not read |
-| `skill.metadata-outside-scope` | A listed path is in a directory the command does not read, or is absolute or climbs with `..` |
+| `skill.link-broken` | A relative link or image in the `SKILL.md` or a resource stays inside the skill, yet its path, read from the skill root as an agent reaches it, leads to no file or directory in the snapshot, through any symlink; the fragment and the query are ignored, the message shows the link decoded, and a help note says how to fix it. `metadata` brings no file into the skill, so a link to a path a `metadata` value names is judged like any other |
 | `skill.symlink-outside` | A skills directory an agent declares, a path given, an entry in either, its `SKILL.md` or the one at the root of a directory given, or a file or directory inside a skill is a symlink whose chain leaves the repository: a link targets a path outside it, or a `..` climbs above the root. Judged from the link targets the snapshot recorded; nothing outside the root is read. On line 1 at the symlink, named where an agent reaches it, with a note naming the link the chain leaves through and its target, and a help note says how to fix it. One not inside a skill is no skill: it is reported first, by path, whichever skills are selected, and counts no skill; one inside a skill comes after that skill's resources. A chain is judged by the resolved path each step reaches, as the operating system resolves it, so `tmp/../../..` leaves as surely as `../..`. A link that dangles or loops inside the repository is not reported |
 
 ## References
@@ -167,7 +154,6 @@ and it suppresses no other finding; any other finding about that key is on the l
 - `src/lorecraft/checks/frontmatter_problem.py` - Names the rule a schema problem breaks and the line it is reported on, for this check and the frontmatter check
 - `src/lorecraft/checks/skill_link.py` - Reports an absolute link, a dangling fragment link, or a link leaving the skill or naming nothing in it
 - `src/lorecraft/checks/run.py` - Reads each skill and its resources, looks up each path a link names, and locates each finding in its file
-- `src/lorecraft/checks/skill_metadata.py` - Reports a duplicate, missing or out-of-scope file in a skill's `metadata`
 - `src/lorecraft/checks/skill_symlink.py` - Reports a symlink of the skill layout that leads outside the repository
 - `src/lorecraft/project/schemas/skill.py` - Holds a frontmatter to the specification, in Lorecraft's words
 - `src/lorecraft/project/schemas/skill_frontmatter.py` - Declares the specification's fields and their limits

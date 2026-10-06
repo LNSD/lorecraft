@@ -87,9 +87,9 @@ specification, so a command stops with an error naming the linked directory rath
 ## Limitations
 
 - The layout is fixed: `docs/` and `docs/__meta__/` cannot be renamed or moved, and a corpus cannot nest.
-- The snapshot reads the whole of a skill, but [check skills](cli-check-skills.md) checks only the skill's
-  `SKILL.md`: its frontmatter, the links in its body, and that the files its `metadata` lists exist. The other
-  files of a skill are read, not checked.
+- The snapshot reads the whole of a skill, but [check skills](cli-check-skills.md) checks only its Markdown
+  files: the `SKILL.md`'s frontmatter and length, and the links in every Markdown file of the skill. Its other
+  files are read, not checked.
 - A link inside a skill to an ancestor directory, or to a large directory, makes the snapshot read that whole
   subtree; a directory is never read twice, so the read is finite. A directory in it that cannot be read stops
   the command. A link into `docs/` reads that part of `docs/` as a skill is read, its symlinks followed.

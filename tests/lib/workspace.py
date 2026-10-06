@@ -20,7 +20,7 @@ import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
-from typing import Final, Literal, assert_never
+from typing import Final, assert_never
 
 from faker import Faker
 
@@ -52,17 +52,13 @@ class RawFrontmatter:
 
 @dataclass(frozen=True)
 class SkillFrontmatter:
-    """The frontmatter a skill generates from its fields: `name`, `description`, then `metadata` when it lists any.
+    """The frontmatter a skill generates from its fields: `name`, then `description`.
 
     Attributes:
         description: The `description`, on line 3 of the file. One line; generated when unset.
-        metadata: The `metadata` mapping, on line 4 of the file, each subkey to the root-relative paths it lists,
-            separated by spaces. Empty by default, in which case no `metadata` key is written. A subkey outside the
-            three is a malformed frontmatter, written through `RawFrontmatter`.
     """
 
     description: str | None = None
-    metadata: Mapping[Literal['references', 'scripts', 'assets'], str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -74,7 +70,7 @@ class Skill:
     Attributes:
         name: The skill's name, written as its `name` unless the frontmatter is raw, and the name of its directory.
             Always set by the test, since every finding the command prints names the skill's path.
-        frontmatter: Generated from its fields by default, which is four lines with no `metadata`, so the body's
+        frontmatter: Generated from its fields by default, which is four lines, so the body's
             first line is line 5 of the file; or written as given.
         body: The Markdown below the frontmatter, written as given. Generated when unset: a title and a
             paragraph, linking nothing.
@@ -307,12 +303,7 @@ def _skill_frontmatter_text(name: str, frontmatter: SkillFrontmatter, faker: Fak
     if description is None:
         description = generated.skill_description(faker)
 
-    text = f'name: {_yaml_string(name)}\ndescription: {_yaml_string(description)}\n'
-    if frontmatter.metadata:
-        text += 'metadata:\n'
-    for subkey, paths in frontmatter.metadata.items():
-        text += f'  {subkey}: {_yaml_string(paths)}\n'
-    return text
+    return f'name: {_yaml_string(name)}\ndescription: {_yaml_string(description)}\n'
 
 
 def _yaml_string(value: str) -> str:

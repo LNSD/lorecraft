@@ -1,8 +1,8 @@
 """Link validation over the links and the heading anchors of one file of a skill: its `SKILL.md` or a resource.
 
 `validate_skill_links` is pure and holds either file to the same rules, so every case here is a tuple of links, a
-set of `Anchor` values, what the snapshot holds at each path a link names and the paths `metadata` links in,
-all built in memory; no file is read or parsed, and no path is looked up.
+set of `Anchor` values and what the snapshot holds at each path a link names, all built in memory; no file is
+read or parsed, and no path is looked up.
 """
 
 from pathlib import PurePosixPath
@@ -36,7 +36,7 @@ class TestValidateSkillLinks:
         links = (Link(url='/docs/guide.md', line=LineNumber.from_int(7)),)
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets={})
 
         #: Then
         assert result.violations == (
@@ -53,7 +53,7 @@ class TestValidateSkillLinks:
         links = (Link(url='/a%20b', line=LineNumber.from_int(3)),)
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets={})
 
         #: Then
         assert result.violations == (
@@ -71,7 +71,7 @@ class TestValidateSkillLinks:
         targets = {PurePosixPath('references/guide.md'): LinkTargetState.PRESENT}
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets)
 
         #: Then
         assert result.violations == (), 'a link relative to the skill root is what the rule asks for'
@@ -81,7 +81,7 @@ class TestValidateSkillLinks:
         links = (Link(url='../../docs/guide.md', line=LineNumber.from_int(3)),)
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets={})
 
         #: Then
         assert result.violations == (
@@ -101,7 +101,7 @@ class TestValidateSkillLinks:
         )
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets={})
 
         #: Then
         assert result.violations == (), 'a URL with a scheme points outside the skill, not at a path'
@@ -112,7 +112,7 @@ class TestValidateSkillLinks:
         anchors = frozenset({Anchor('overview'), Anchor('checklist')})
 
         #: When
-        result = validate_skill_links(links=links, anchors=anchors, targets={}, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=anchors, targets={})
 
         #: Then
         assert result.violations == (), 'a fragment naming a heading of its own file points at something it holds'
@@ -123,7 +123,7 @@ class TestValidateSkillLinks:
         anchors = frozenset({Anchor('overview'), Anchor('checklist')})
 
         #: When
-        result = validate_skill_links(links=links, anchors=anchors, targets={}, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=anchors, targets={})
 
         #: Then
         assert result.violations == (
@@ -140,7 +140,7 @@ class TestValidateSkillLinks:
         anchors = frozenset({Anchor('straße')})
 
         #: When
-        result = validate_skill_links(links=links, anchors=anchors, targets={}, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=anchors, targets={})
 
         #: Then
         assert result.violations == (), 'the fragment is percent-decoded before it is looked up among the anchors'
@@ -151,7 +151,7 @@ class TestValidateSkillLinks:
         anchors = frozenset({Anchor('usage')})
 
         #: When
-        result = validate_skill_links(links=links, anchors=anchors, targets={}, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=anchors, targets={})
 
         #: Then
         assert result.violations == (), 'GitHub resolves a fragment regardless of case, so the check does too'
@@ -162,7 +162,7 @@ class TestValidateSkillLinks:
         anchors = frozenset({Anchor('usage')})
 
         #: When
-        result = validate_skill_links(links=links, anchors=anchors, targets={}, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=anchors, targets={})
 
         #: Then
         assert result.violations == (
@@ -179,7 +179,7 @@ class TestValidateSkillLinks:
         anchors = frozenset({Anchor('getting-started')})
 
         #: When
-        result = validate_skill_links(links=links, anchors=anchors, targets={}, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=anchors, targets={})
 
         #: Then
         assert result.violations == (
@@ -195,7 +195,7 @@ class TestValidateSkillLinks:
         links = (Link(url='#', line=LineNumber.from_int(3)),)
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets={})
 
         #: Then
         assert result.violations == (), 'an empty fragment names no heading, so there is none to miss'
@@ -206,7 +206,7 @@ class TestValidateSkillLinks:
         targets = {PurePosixPath('references/guide.md'): LinkTargetState.PRESENT}
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets)
 
         #: Then
         assert result.violations == (), 'a fragment into another file is not checked against the headings of its own'
@@ -217,7 +217,7 @@ class TestValidateSkillLinks:
         targets = {PurePosixPath('SKILL.md'): LinkTargetState.PRESENT}
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets)
 
         #: Then
         assert result.violations == (), 'only a fragment-only link is checked, even when the path names SKILL.md'
@@ -233,7 +233,7 @@ class TestValidateSkillLinks:
         anchors = frozenset({Anchor('checklist')})
 
         #: When
-        result = validate_skill_links(links=links, anchors=anchors, targets={}, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=anchors, targets={})
 
         #: Then
         assert result.violations == (
@@ -265,7 +265,7 @@ class TestValidateSkillLinks:
         targets = {PurePosixPath('b.md'): LinkTargetState.PRESENT}
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets)
 
         #: Then
         assert result.violations == (
@@ -289,7 +289,7 @@ class TestValidateSkillLinks:
         targets = {PurePosixPath('references/gone.md'): LinkTargetState.MISSING}
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets)
 
         #: Then
         assert result.violations == (
@@ -308,44 +308,10 @@ class TestValidateSkillLinks:
         targets = {PurePosixPath('references'): LinkTargetState.PRESENT}
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets)
 
         #: Then
         assert result.violations == (), 'a directory the skill holds is something a link may name'
-
-    def test_validate_skill_links_with_a_missing_file_metadata_links_in_returns_no_violations(self) -> None:
-        #: Given
-        links = (Link(url='references/logging.md', line=LineNumber.from_int(3)),)
-        targets = {PurePosixPath('references/logging.md'): LinkTargetState.MISSING}
-        linked_in = frozenset({PurePosixPath('references/logging.md')})
-
-        #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets, linked_in=linked_in)
-
-        #: Then
-        assert result.violations == (), (
-            'a file metadata links in lands at that path once the skill is installed, so the link is not broken'
-        )
-
-    def test_validate_skill_links_with_metadata_unknown_judges_no_link_broken_but_still_reports_an_escape(
-        self,
-    ) -> None:
-        #: Given
-        # the frontmatter could not be read, so which files `metadata` links in is unknown
-        links = (
-            Link(url='references/gone.md', line=LineNumber.from_int(5)),
-            Link(url='../out.md', line=LineNumber.from_int(6)),
-        )
-        targets = {PurePosixPath('references/gone.md'): LinkTargetState.MISSING}
-        linked_in = None
-
-        #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets, linked_in=linked_in)
-
-        #: Then
-        assert [(violation.line, violation.rule) for violation in result.violations] == [
-            (LineNumber.from_int(6), 'skill.link-escapes'),
-        ], 'with metadata unknown any path might be linked in, so only the rules that need no metadata report'
 
     def test_validate_skill_links_with_a_link_breaking_each_rule_reports_each_link_once_in_the_order_given(
         self,
@@ -364,7 +330,7 @@ class TestValidateSkillLinks:
         }
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets)
 
         #: Then
         assert [(violation.line, violation.rule) for violation in result.violations] == [
@@ -380,7 +346,7 @@ class TestValidateSkillLinks:
         links = (Link(url='../SKILL.md', line=LineNumber.from_int(4)),)
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets={})
 
         #: Then
         assert result.violations == (
@@ -397,7 +363,7 @@ class TestValidateSkillLinks:
         links = (Link(url='../../../../../outside.md', line=LineNumber.from_int(2)),)
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets={})
 
         #: Then
         assert result.violations == (
@@ -415,7 +381,7 @@ class TestValidateSkillLinks:
         targets = {PurePosixPath('SKILL.md'): LinkTargetState.PRESENT}
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets)
 
         #: Then
         assert result.violations == (), 'a `..` that stays below the skill root normalises to a path inside it'
@@ -427,7 +393,7 @@ class TestValidateSkillLinks:
         links = (Link(url='../review/references/a.md', line=LineNumber.from_int(3)),)
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets={})
 
         #: Then
         assert result.violations == (
@@ -446,7 +412,7 @@ class TestValidateSkillLinks:
         links = (Link(url='../../skills/review/SKILL.md', line=LineNumber.from_int(3)),)
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets={})
 
         #: Then
         assert result.violations == (
@@ -464,7 +430,7 @@ class TestValidateSkillLinks:
         targets = {PurePosixPath('SKILL.md'): LinkTargetState.PRESENT}
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets)
 
         #: Then
         assert result.violations == (), 'a `.` component names the skill root itself'
@@ -475,7 +441,7 @@ class TestValidateSkillLinks:
         targets = {PurePosixPath('SKILL.md'): LinkTargetState.PRESENT}
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets)
 
         #: Then
         assert result.violations == (), 'the fragment after the path is not part of the path'
@@ -486,7 +452,7 @@ class TestValidateSkillLinks:
         targets = {PurePosixPath('SKILL.md'): LinkTargetState.PRESENT}
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets)
 
         #: Then
         assert result.violations == (), 'the query after the path is not part of the path'
@@ -496,7 +462,7 @@ class TestValidateSkillLinks:
         links = (Link(url='../../docs/guide.md#usage', line=LineNumber.from_int(5)),)
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets={})
 
         #: Then
         assert result.violations == (
@@ -516,7 +482,7 @@ class TestValidateSkillLinks:
         )
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets={})
 
         #: Then
         assert result.violations == (), 'a URL with a scheme names no path in the skill, so it cannot leave it'
@@ -526,7 +492,7 @@ class TestValidateSkillLinks:
         links = (Link(url='/../outside.md', line=LineNumber.from_int(3)),)
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets={})
 
         #: Then
         assert result.violations == (
@@ -543,7 +509,7 @@ class TestValidateSkillLinks:
         links = (Link(url='#..', line=LineNumber.from_int(3)),)
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets={})
 
         #: Then
         assert result.violations == (
@@ -559,7 +525,7 @@ class TestValidateSkillLinks:
         links = (Link(url='%2E%2E/a%20b.md', line=LineNumber.from_int(3)),)
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets={})
 
         #: Then
         assert result.violations == (
@@ -577,7 +543,7 @@ class TestValidateSkillLinks:
         targets = {PurePosixPath('references/a b.md'): LinkTargetState.PRESENT}
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets)
 
         #: Then
         assert result.violations == (), 'an encoded name inside the skill decodes to a name inside it'
@@ -588,7 +554,7 @@ class TestValidateSkillLinks:
         links = (Link(url='../../assets/flow.png', line=LineNumber.from_int(6)),)
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets={}, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets={})
 
         #: Then
         assert result.violations == (
@@ -612,7 +578,7 @@ class TestValidateSkillLinks:
         targets = {PurePosixPath('SKILL.md'): LinkTargetState.PRESENT}
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets)
 
         #: Then
         assert result.violations == (
@@ -636,7 +602,7 @@ class TestValidateSkillLinks:
         targets = {PurePosixPath('references/gone.md'): LinkTargetState.MISSING}
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets)
 
         #: Then
         assert result.violations == (
@@ -654,7 +620,7 @@ class TestValidateSkillLinks:
         targets = {PurePosixPath('SKILL.md'): LinkTargetState.PRESENT}
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets)
 
         #: Then
         assert result.violations == (), 'the query after the path is not part of the path the snapshot holds'
@@ -666,7 +632,7 @@ class TestValidateSkillLinks:
         targets: dict[PurePosixPath, LinkTargetState] = {}
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets)
 
         #: Then
         assert [violation.rule for violation in result.violations] == ['skill.link-escapes'], (
@@ -679,7 +645,7 @@ class TestValidateSkillLinks:
         targets = {PurePosixPath('references/a b.md'): LinkTargetState.MISSING}
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets)
 
         #: Then
         assert result.violations == (
@@ -698,7 +664,7 @@ class TestValidateSkillLinks:
         targets = {PurePosixPath('assets/flow.png'): LinkTargetState.MISSING}
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets)
 
         #: Then
         assert [violation.rule for violation in result.violations] == ['skill.link-broken'], (
@@ -722,7 +688,7 @@ class TestValidateSkillLinks:
         }
 
         #: When
-        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets, linked_in=frozenset())
+        result = validate_skill_links(links=links, anchors=frozenset(), targets=targets)
 
         #: Then
         assert [(violation.line, violation.rule) for violation in result.violations] == [
