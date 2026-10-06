@@ -1,7 +1,7 @@
-"""`FM005`, `duplicate-key`, over a document's or a skill's frontmatter block.
+"""`FM005`, `duplicate-key`, over a document's or a skill's frontmatter.
 
-The rule is pure, so every case here is a frontmatter block written as a literal; no file is read. Which keys repeat,
-and where, is located by the input's builder, and tested with it.
+Every case is a document or a `SKILL.md` written as text, read through a fake context that parses its frontmatter as
+the real parser does, which keeps every top-level key once per occurrence with its line; no file is read from disk.
 """
 
 from typing import Final
@@ -9,50 +9,25 @@ from typing import Final
 import pytest
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
-from lorecraft.project.syntax import LineNumber, MissingFrontmatter
-from lorecraft.rules.inputs import FrontmatterBlockInput, FrontmatterFields, RepeatedKey
+from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, FakeSkillContext, structure_spec_path
 
 from ..duplicate_key import DuplicateKey
 
-SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/guide.structure.json')
-"""The structure specification whose frontmatter schema governs the document."""
+STRUCTURE: Final[str] = '{"frontmatter": {"type": "object"}}'
+"""A corpus structure specification whose frontmatter schema accepts any mapping."""
 
-DOCUMENT: Final[DocumentFrontmatterOwner] = DocumentFrontmatterOwner(filename=AspectFilename.parse('setup'), spec=SPEC)
-"""A document `setup` the schema in `SPEC` governs."""
-
-SKILL: Final[SkillFrontmatterOwner] = SkillFrontmatterOwner(directory_name='review', link_target=None)
-"""A skill listed as `review`, not through a link."""
-
-
-def _repeating(*repeated: RepeatedKey) -> FrontmatterFields:
-    """A mapping with no `name` that writes these keys again.
-
-    Args:
-        repeated: Each occurrence of a key after its first, in document order.
-    """
-    return FrontmatterFields(name=None, repeated_keys=repeated)
-
-
-def _repeated(key: str, line: int, first_line: int) -> RepeatedKey:
-    """One occurrence of a key after its first.
-
-    Args:
-        key: The key written again.
-        line: The line this occurrence is written on.
-        first_line: The line the key's first occurrence is written on.
-    """
-    return RepeatedKey(key=key, line=LineNumber.from_int(line), first_line=LineNumber.from_int(first_line))
+SPEC: Final[RootRelativePath] = structure_spec_path('guide')
+"""Where the corpus structure specification lies."""
 
 
 @pytest.mark.unit
 class TestDuplicateKey:
     def test_check_with_a_key_written_three_times_reports_each_later_occurrence_against_the_first(self) -> None:
         #: Given
-        frontmatter = _repeating(_repeated('name', 3, 2), _repeated('name', 5, 2))
-        subject = FrontmatterBlockInput(frontmatter=frontmatter, owner=DOCUMENT)
+        text = '---\nname: setup\nname: setup\ndescription: Install.\nname: other\n---\n# Setup\n'
+        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = DuplicateKey.check(subject)
@@ -62,11 +37,22 @@ class TestDuplicateKey:
         assert occurrences == (
             DuplicateKey(spec=SPEC, line=LineNumber.from_int(3), key='name', first_line=first),
             DuplicateKey(spec=SPEC, line=LineNumber.from_int(5), key='name', first_line=first),
-        ), 'each later occurrence is reported on its own line, pointing back at the first'
+        ), 'each later occurrence is reported on its own line, pointing back at the first, not at the one before'
+
+    def test_check_with_a_nested_key_of_a_top_level_name_reports_nothing(self) -> None:
+        #: Given
+        text = '---\nname: setup\nmetadata:\n  name: inner\n---\n# Setup\n'
+        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
+
+        #: When
+        occurrences = DuplicateKey.check(subject)
+
+        #: Then
+        assert occurrences == (), 'a key nested in a value is not a top-level key, so it repeats none'
 
     def test_check_with_a_skill_repeating_a_key_reports_it_under_no_specification_file(self) -> None:
         #: Given
-        subject = FrontmatterBlockInput(frontmatter=_repeating(_repeated('name', 3, 2)), owner=SKILL)
+        subject = FakeSkillContext('---\nname: review\nname: review\n---\n')
 
         #: When
         occurrences = DuplicateKey.check(subject)
@@ -78,7 +64,8 @@ class TestDuplicateKey:
 
     def test_check_with_no_key_repeated_reports_nothing(self) -> None:
         #: Given
-        subject = FrontmatterBlockInput(frontmatter=_repeating(), owner=DOCUMENT)
+        text = '---\nname: setup\ndescription: Install.\n---\n# Setup\n'
+        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = DuplicateKey.check(subject)
@@ -88,7 +75,7 @@ class TestDuplicateKey:
 
     def test_check_with_no_block_reports_nothing(self) -> None:
         #: Given
-        subject = FrontmatterBlockInput(frontmatter=MissingFrontmatter(), owner=DOCUMENT)
+        subject = FakeDocumentContext('# Setup\n', corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = DuplicateKey.check(subject)

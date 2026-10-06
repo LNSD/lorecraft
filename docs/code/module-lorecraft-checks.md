@@ -26,11 +26,11 @@ queries, and the rules are declared there.
 - A check: values in, violations out.
 - A run that resolves a check's inputs and turns violations into findings.
 - Building the input a rule reads from the queries, and running the rules over a subject: a rule over a document
-  only when the document is governed for the facet the rule declares, each facet it is not governed for recorded as
-  coverage, and a rule over a Markdown file over a document governed for its structure, a skill's `SKILL.md` and each
-  resource handed over as a subject of its own.
+  or over the frontmatter only when the document is governed for the facet the rule declares, each facet it is not
+  governed for recorded as coverage, and a rule over a Markdown file over a document governed for its structure, a
+  skill's `SKILL.md` and each resource handed over as a subject of its own.
 - The rule table: the rules a run enables, each with the severity it reports at, partitioned by the subject kind
-  each judges or the input each reads.
+  each judges, the frontmatter both kinds share, or the input each reads.
 - The value types a check reports in, and their plain-text form.
 
 ## Belongs Elsewhere

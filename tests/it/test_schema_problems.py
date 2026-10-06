@@ -1,16 +1,15 @@
-"""The schema-problems input, and the queries it is built from, for one decoded document or skill.
+"""The `schema_problems` and `skill_schema_problems` queries, for one decoded document or skill.
 
-A document's schemas come from the model's governance and a skill's is the Agent Skills specification, so the input
-and the `schema_problems` and `skill_schema_problems` queries are tested over a database opened on an in-memory
-snapshot: a document governed by a corpus and a namespace schema, an ungoverned one, one without a block, and a
-skill. How each problem is found and placed on its line is `locate_schema_problems`'s, tested on its own beside it.
+A document's schemas come from the model's governance and a skill's is the Agent Skills specification, so the queries
+are tested over a database opened on an in-memory snapshot: a document governed by a corpus and a namespace schema, an
+ungoverned one, one without a block, and a skill. How each problem is found and placed on its line is
+`locate_schema_problems`'s, tested on its own beside it.
 """
 
 from typing import Final
 
 import pytest
 
-from lorecraft.checks.inputs import Ungoverned, build_document_schema_problems_input, build_skill_schema_problems_input
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
@@ -27,7 +26,6 @@ from lorecraft.project.schemas import (
 )
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import FrontmatterNode, LineNumber
-from lorecraft.rules.inputs import SchemaProblemsInput
 from lorecraft.vfs import Snapshot
 
 TYPING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
@@ -126,147 +124,6 @@ def _skill_text(database: Database, ref: SkillRef) -> SkillText:
 
 
 @pytest.mark.it
-class TestBuildDocumentSchemaProblemsInput:
-    def test_build_with_two_schemas_holds_each_schema_problems_in_the_order_the_specifications_apply(self) -> None:
-        #: Given
-        # each schema requires a field the frontmatter lacks, so each finds one problem on line 1
-        typing = b'---\nname: python-typing\n---\n# Typing\n'
-        database = Database(_snapshot(REQUIRE_STATUS, REQUIRE_OWNER, typing=typing))
-        source = _document_text(database, TYPING)
-
-        #: When
-        subject = build_document_schema_problems_input(database, source)
-
-        #: Then
-        assert subject == SchemaProblemsInput(
-            schemas=(
-                SchemaProblems(
-                    source=StructureSpecSchema(spec=CORPUS_SPEC),
-                    problems=(
-                        LocatedProblem(
-                            problem=MissingFieldProblem('status', "'status' is a required property"),
-                            line=LineNumber.from_int(1),
-                        ),
-                    ),
-                ),
-                SchemaProblems(
-                    source=StructureSpecSchema(spec=NAMESPACE_SPEC),
-                    problems=(
-                        LocatedProblem(
-                            problem=MissingFieldProblem('owner', "'owner' is a required property"),
-                            line=LineNumber.from_int(1),
-                        ),
-                    ),
-                ),
-            )
-        ), 'the corpus schema comes first, then the namespace one, each naming the specification that states it'
-
-    def test_build_with_no_frontmatter_schema_returns_ungoverned(self) -> None:
-        #: Given
-        # the namespace states a schema, but a namespace narrows the corpus, which states none
-        database = Database(_snapshot(b'{"tokens": 40}', STRING_DESCRIPTION, typing=b'---\ndescription: 3\n---\n'))
-        source = _document_text(database, TYPING)
-
-        #: When
-        subject = build_document_schema_problems_input(database, source)
-
-        #: Then
-        assert subject == Ungoverned(), 'no corpus schema states a frontmatter schema, so none governs the document'
-
-    def test_build_with_no_frontmatter_schema_never_reads_the_frontmatter(self) -> None:
-        #: Given
-        database = FrontmatterReadingDatabase(
-            _snapshot(b'{"tokens": 40}', STRING_DESCRIPTION, typing=b'---\ndescription: 3\n---\n')
-        )
-        source = _document_text(database, TYPING)
-
-        #: When
-        build_document_schema_problems_input(database, source)
-
-        #: Then
-        assert database.read == [], 'governance is read first, so a document no schema governs never has its block read'
-
-    def test_build_with_a_document_in_no_corpus_returns_ungoverned(self) -> None:
-        #: Given
-        # the code corpus states a schema, but `docs/blog/` has no corpus spec, so the model holds no `blog` corpus
-        snapshot = Snapshot.from_tree(
-            {
-                'docs': {
-                    '__meta__': {'code.md': b'# Code\n', 'code.structure.json': REQUIRE_STATUS},
-                    'blog': {'launch.md': b'# Launch\n'},
-                }
-            }
-        )
-        database = Database(snapshot)
-        source = _document_text(database, DocumentRef(CorpusName.parse('blog'), AspectFilename.parse('launch')))
-
-        #: When
-        subject = build_document_schema_problems_input(database, source)
-
-        #: Then
-        assert subject == Ungoverned(), 'no specification governs a document in no corpus the model holds'
-
-    def test_build_with_a_document_without_a_block_holds_no_schema(self) -> None:
-        #: Given
-        database = Database(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'# Typing\n'))
-        source = _document_text(database, TYPING)
-
-        #: When
-        subject = build_document_schema_problems_input(database, source)
-
-        #: Then
-        assert subject == SchemaProblemsInput(schemas=()), (
-            'the document is governed, but no schema can hold a missing block: the block rules report it'
-        )
-
-
-@pytest.mark.it
-class TestBuildSkillSchemaProblemsInput:
-    def test_build_with_a_skill_holds_the_agent_skills_problems_on_their_lines(self) -> None:
-        #: Given
-        review = b'---\nname: review\ndescription: [a]\nextra: y\n---\n# Review\n'
-        database = Database(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=review))
-        source = _skill_text(database, REVIEW)
-
-        #: When
-        subject = build_skill_schema_problems_input(database, source)
-
-        #: Then
-        assert subject == SchemaProblemsInput(
-            schemas=(
-                SchemaProblems(
-                    source=AgentSkillsSchema(),
-                    problems=(
-                        LocatedProblem(
-                            problem=WrongTypeProblem('description', '`description` must be a string'),
-                            line=LineNumber.from_int(3),
-                        ),
-                        LocatedProblem(
-                            problem=UnknownFieldProblem(
-                                'extra', '`extra` is not a field of the Agent Skills specification'
-                            ),
-                            line=LineNumber.from_int(4),
-                        ),
-                    ),
-                ),
-            )
-        ), 'a skill is held to the Agent Skills specification alone, each problem on its field line'
-
-    def test_build_with_a_skill_with_no_frontmatter_holds_no_schema(self) -> None:
-        #: Given
-        database = Database(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=b'# Review\n'))
-        source = _skill_text(database, REVIEW)
-
-        #: When
-        subject = build_skill_schema_problems_input(database, source)
-
-        #: Then
-        assert subject == SchemaProblemsInput(schemas=()), (
-            'no schema can hold a missing block: the block rules report it'
-        )
-
-
-@pytest.mark.it
 class TestSchemaProblems:
     def test_schema_problems_of_a_governed_document_holds_each_schema_problems_on_their_lines(self) -> None:
         #: Given
@@ -342,6 +199,19 @@ class TestSchemaProblems:
             'the schemas are read first, so a document no schema governs never has its block read'
         )
 
+    def test_schema_problems_with_a_document_without_a_block_holds_none(self) -> None:
+        #: Given
+        database = Database(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'# Typing\n'))
+        source = _document_text(database, TYPING)
+
+        #: When
+        found = database.schema_problems(source)
+
+        #: Then
+        assert found == (), (
+            'the document is governed, but no schema can hold a missing block: the block rules report it'
+        )
+
     def test_schema_problems_with_a_document_in_no_corpus_holds_none(self) -> None:
         #: Given
         # the code corpus states a schema, but `docs/blog/` has no corpus spec, so the model holds no `blog` corpus
@@ -392,6 +262,17 @@ class TestSkillSchemaProblems:
                 ),
             ),
         ), 'a skill is held to the Agent Skills specification alone, whatever the specifications in the repository'
+
+    def test_skill_schema_problems_with_a_skill_with_no_frontmatter_holds_none(self) -> None:
+        #: Given
+        database = Database(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=b'# Review\n'))
+        source = _skill_text(database, REVIEW)
+
+        #: When
+        found = database.skill_schema_problems(source)
+
+        #: Then
+        assert found == (), 'no schema can hold a missing block: the block rules report it'
 
     def test_skill_schema_problems_called_twice_returns_the_first_answer(self) -> None:
         #: Given

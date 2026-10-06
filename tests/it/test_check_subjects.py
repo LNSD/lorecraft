@@ -1,9 +1,9 @@
 """The rules engine's runner over a database opened on an in-memory snapshot.
 
-The runner decodes each document, skill and resource, hands each rule over a document, a skill or a Markdown file the
-subject's context or builds each input an enabled rule still reads, and runs the rules of a table built from a
-registry. The package's own registry runs the frontmatter block rules over documents and skills, the token budget,
-the headings rules and the outline divergence rules over documents, the line budget over skills, and the link
+The runner decodes each document, skill and resource, hands each rule over a document, a skill, the frontmatter or a
+Markdown file the subject's context or builds each input an enabled rule still reads, and runs the rules of a table
+built from a registry. The package's own registry runs the frontmatter rules over documents and skills, the token
+budget, the headings rules and the outline divergence rules over documents, the line budget over skills, and the link
 rules over every Markdown file and every skill's file; a registry of sample rules over a document's token count,
 declared in this module, runs through the same runner, with no edit to it.
 
@@ -34,6 +34,7 @@ from lorecraft.project.schemas import (
     BlockProblem,
     InvalidValueProblem,
     MissingFieldProblem,
+    SchemaProblems,
     SectionName,
     UnknownFieldProblem,
     WrongTypeProblem,
@@ -226,7 +227,7 @@ class AnyTokens(DocumentRule):
 
 
 class CountingDatabase(Database):
-    """A database that records each document and skill whose tokens, lines, frontmatter or parse it is asked for."""
+    """A database that records each subject whose counts, frontmatter, schema problems or parse it is asked for."""
 
     def __init__(self, snapshot: Snapshot) -> None:
         """Open the database on the snapshot, with nothing counted yet.
@@ -238,6 +239,7 @@ class CountingDatabase(Database):
         self.counted_tokens: list[DocumentRef] = []
         self.counted_lines: list[SkillRef] = []
         self.parsed_frontmatters: list[DocumentRef | SkillRef] = []
+        self.validated_frontmatters: list[DocumentRef | SkillRef] = []
         self.parsed_documents: list[DocumentRef] = []
 
     def tokens(self, source: DocumentText) -> int:
@@ -284,6 +286,24 @@ class CountingDatabase(Database):
         """
         self.parsed_frontmatters.append(source.ref)
         return super().skill_frontmatter(source)
+
+    def schema_problems(self, source: DocumentText) -> tuple[SchemaProblems, ...]:
+        """Record the document, then hold its frontmatter to the schemas that govern it.
+
+        Args:
+            source: The decoded document whose frontmatter is validated, recorded by its ref first.
+        """
+        self.validated_frontmatters.append(source.ref)
+        return super().schema_problems(source)
+
+    def skill_schema_problems(self, source: SkillText) -> tuple[SchemaProblems, ...]:
+        """Record the skill, then hold the frontmatter of its `SKILL.md` to the Agent Skills specification.
+
+        Args:
+            source: The decoded `SKILL.md` whose frontmatter is validated, recorded by its skill's ref first.
+        """
+        self.validated_frontmatters.append(source.ref)
+        return super().skill_schema_problems(source)
 
 
 def _snapshot(
@@ -393,7 +413,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.FRONTMATTER, InputKind.OUTLINE_DIVERGENCE),
             ),
         ), 'LEN001 runs at deny, so a document over its budget carries its occurrence as an error'
 
@@ -450,7 +470,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.FRONTMATTER, InputKind.OUTLINE_DIVERGENCE),
             ),
         ), 'a document within its budget has no diagnostic, and no frontmatter schema governs it'
 
@@ -467,8 +487,7 @@ class TestCheckSubjects:
                 GUIDE,
                 diagnostics=(),
                 ungoverned=(
-                    InputKind.FRONTMATTER_BLOCK,
-                    InputKind.SCHEMA_PROBLEMS,
+                    Facet.FRONTMATTER,
                     Facet.BUDGET,
                     InputKind.OUTLINE_DIVERGENCE,
                 ),
@@ -500,8 +519,7 @@ class TestCheckSubjects:
                 launch,
                 diagnostics=(),
                 ungoverned=(
-                    InputKind.FRONTMATTER_BLOCK,
-                    InputKind.SCHEMA_PROBLEMS,
+                    Facet.FRONTMATTER,
                     Facet.STRUCTURE,
                     Facet.BUDGET,
                     InputKind.HEADINGS,
@@ -746,13 +764,13 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.FRONTMATTER, InputKind.OUTLINE_DIVERGENCE),
             ),
             CheckedSubject(REVIEW, diagnostics=(), ungoverned=()),
             CheckedSubject(
                 INTRO,
                 diagnostics=(),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.FRONTMATTER, InputKind.OUTLINE_DIVERGENCE),
             ),
         ), 'documents and skills share one run, each reported in the order given'
 
@@ -1018,25 +1036,56 @@ class TestCheckSubjects:
         check_subjects(database, (GUIDE, _location(database, REVIEW)), table)
 
         #: Then
-        assert database.parsed_frontmatters == [], (
-            'an input no enabled rule reads is never built, so no frontmatter is parsed or held to a schema'
+        assert database.parsed_frontmatters == [], 'no enabled rule reads the frontmatter, so it is never parsed'
+        assert database.validated_frontmatters == [], (
+            'no enabled rule reads the schema problems, so no frontmatter is held to a schema'
         )
 
-    def test_check_subjects_with_every_package_rule_asks_for_each_frontmatter_once_per_input(
+    def test_check_subjects_with_no_frontmatter_schema_never_parses_a_document_frontmatter(
         self, package_table: RuleTable
     ) -> None:
         #: Given
-        # every FM rule reads the one frontmatter-block input, built once per subject
-        database = CountingDatabase(_snapshot(OBJECT_SCHEMA, guide=GUIDE_TEXT.encode()))
+        # no specification states a frontmatter schema, but the package governs every skill's frontmatter
+        database = CountingDatabase(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode()))
 
         #: When
         check_subjects(database, (GUIDE, _location(database, REVIEW), INTRO), package_table)
 
         #: Then
-        assert database.parsed_frontmatters == [GUIDE, GUIDE, REVIEW, REVIEW, INTRO, INTRO], (
-            'the frontmatter query is asked once per input that reads it, the block and the schema problems, '
-            'however many rules read each input'
+        assert GUIDE not in database.parsed_frontmatters, (
+            'no schema governs the guide, so governance stops the rules over the frontmatter before they parse it'
         )
+        assert INTRO not in database.parsed_frontmatters, (
+            'no schema governs the intro, so governance stops the rules over the frontmatter before they parse it'
+        )
+
+    def test_check_subjects_with_only_a_namespace_frontmatter_schema_reports_the_frontmatter_as_ungoverned(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        # a namespace narrows its corpus's frontmatter schema, and the corpus states none
+        snapshot = Snapshot.from_tree(
+            {
+                'docs': {
+                    '__meta__': {
+                        'code.md': b'# Code\n',
+                        'code.structure.json': _budget(1000),
+                        'code-python.md': b'# Code Python\n',
+                        'code-python.structure.json': OBJECT_SCHEMA,
+                    },
+                    'code': {'python-typing.md': b'# Typing\n'},
+                }
+            }
+        )
+        typing = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
+
+        #: When
+        reports = check_subjects(Database(snapshot), (typing,), package_table)
+
+        #: Then
+        assert reports == (
+            CheckedSubject(typing, diagnostics=(), ungoverned=(Facet.FRONTMATTER, InputKind.OUTLINE_DIVERGENCE)),
+        ), 'a namespace schema narrows a corpus schema and cannot supply one, so no rule over the frontmatter runs'
 
     def test_check_subjects_with_a_document_breaking_its_schema_reports_each_schema_rule(
         self, package_table: RuleTable
@@ -1196,7 +1245,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.FRONTMATTER, InputKind.OUTLINE_DIVERGENCE),
             ),
         ), 'no specification states a frontmatter schema, which is coverage, not a diagnostic'
 
@@ -1238,8 +1287,8 @@ class TestCheckSubjects:
         check_subjects(database, (GUIDE, _location(database, REVIEW)), table)
 
         #: Then
-        assert database.parsed_frontmatters == [GUIDE, REVIEW], (
-            'the frontmatter is asked for once per subject, by the block input alone: no schema problems are built'
+        assert database.validated_frontmatters == [], (
+            'no enabled rule reads the schema problems, so neither frontmatter is held to its schema'
         )
 
     def test_check_subjects_with_a_document_without_its_title_reports_missing_title(
@@ -1263,8 +1312,7 @@ class TestCheckSubjects:
                     RuleDiagnostic(GUIDE.path, not_first, Severity.ERROR),
                 ),
                 ungoverned=(
-                    InputKind.FRONTMATTER_BLOCK,
-                    InputKind.SCHEMA_PROBLEMS,
+                    Facet.FRONTMATTER,
                     Facet.BUDGET,
                     InputKind.OUTLINE_DIVERGENCE,
                 ),
@@ -1291,8 +1339,7 @@ class TestCheckSubjects:
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
-                    InputKind.FRONTMATTER_BLOCK,
-                    InputKind.SCHEMA_PROBLEMS,
+                    Facet.FRONTMATTER,
                     Facet.BUDGET,
                     InputKind.OUTLINE_DIVERGENCE,
                 ),
@@ -1318,8 +1365,7 @@ class TestCheckSubjects:
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
-                    InputKind.FRONTMATTER_BLOCK,
-                    InputKind.SCHEMA_PROBLEMS,
+                    Facet.FRONTMATTER,
                     Facet.BUDGET,
                     InputKind.OUTLINE_DIVERGENCE,
                 ),
@@ -1340,8 +1386,7 @@ class TestCheckSubjects:
                 GUIDE,
                 diagnostics=(),
                 ungoverned=(
-                    InputKind.FRONTMATTER_BLOCK,
-                    InputKind.SCHEMA_PROBLEMS,
+                    Facet.FRONTMATTER,
                     Facet.BUDGET,
                     InputKind.OUTLINE_DIVERGENCE,
                 ),
@@ -1363,8 +1408,7 @@ class TestCheckSubjects:
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
-                    InputKind.FRONTMATTER_BLOCK,
-                    InputKind.SCHEMA_PROBLEMS,
+                    Facet.FRONTMATTER,
                     Facet.BUDGET,
                     InputKind.OUTLINE_DIVERGENCE,
                 ),
@@ -1386,8 +1430,7 @@ class TestCheckSubjects:
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
-                    InputKind.FRONTMATTER_BLOCK,
-                    InputKind.SCHEMA_PROBLEMS,
+                    Facet.FRONTMATTER,
                     Facet.BUDGET,
                     InputKind.OUTLINE_DIVERGENCE,
                 ),
@@ -1410,7 +1453,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, Facet.BUDGET),
+                ungoverned=(Facet.FRONTMATTER, Facet.BUDGET),
             ),
         ), 'LEN003 runs at deny over a document whose specification caps a section, at the section over its cap'
 
@@ -1431,8 +1474,7 @@ class TestCheckSubjects:
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
-                    InputKind.FRONTMATTER_BLOCK,
-                    InputKind.SCHEMA_PROBLEMS,
+                    Facet.FRONTMATTER,
                     Facet.BUDGET,
                     InputKind.OUTLINE_DIVERGENCE,
                 ),
@@ -1456,8 +1498,7 @@ class TestCheckSubjects:
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
-                    InputKind.FRONTMATTER_BLOCK,
-                    InputKind.SCHEMA_PROBLEMS,
+                    Facet.FRONTMATTER,
                     Facet.BUDGET,
                     InputKind.OUTLINE_DIVERGENCE,
                 ),
@@ -1483,8 +1524,7 @@ class TestCheckSubjects:
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
-                    InputKind.FRONTMATTER_BLOCK,
-                    InputKind.SCHEMA_PROBLEMS,
+                    Facet.FRONTMATTER,
                     Facet.BUDGET,
                     InputKind.OUTLINE_DIVERGENCE,
                 ),
@@ -1528,7 +1568,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, Facet.BUDGET),
+                ungoverned=(Facet.FRONTMATTER, Facet.BUDGET),
             ),
         ), 'OUT006 runs at deny over a document lacking a section its outline requires, at its last line'
 
@@ -1551,7 +1591,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, Facet.BUDGET),
+                ungoverned=(Facet.FRONTMATTER, Facet.BUDGET),
             ),
         ), 'OUT007 runs at deny over a document writing a section where its outline places another, at its heading'
 
@@ -1574,7 +1614,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, Facet.BUDGET),
+                ungoverned=(Facet.FRONTMATTER, Facet.BUDGET),
             ),
         ), 'OUT008 runs at deny over a document writing a section its outline does not name, at its heading'
 
@@ -1593,7 +1633,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, Facet.BUDGET),
+                ungoverned=(Facet.FRONTMATTER, Facet.BUDGET),
             ),
         ), 'a document whose sections match its outline is governed for its outline, and clean'
 
@@ -1627,7 +1667,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.FRONTMATTER, InputKind.OUTLINE_DIVERGENCE),
             ),
         ), 'LINK001 runs at deny over a document its structure specification governs, on the line of the link'
 
@@ -1772,7 +1812,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.FRONTMATTER, InputKind.OUTLINE_DIVERGENCE),
             ),
         ), "LINK002 runs at deny over a document, reporting the fragment its own headings lack and not the title's"
 
@@ -1946,7 +1986,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(),
-                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.FRONTMATTER, InputKind.OUTLINE_DIVERGENCE),
             ),
         ), "a document's links are read from its own directory, so no rule over a skill's file judges them"
 

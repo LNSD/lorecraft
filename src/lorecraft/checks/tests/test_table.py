@@ -168,7 +168,7 @@ class TestRuleTableFromRegistry:
             "the package's rule over a skill file's escaping links is enabled by default as an error"
         )
 
-    def test_from_registry_with_the_package_registry_enables_the_frontmatter_block_rules_in_code_order(self) -> None:
+    def test_from_registry_with_the_package_registry_enables_the_frontmatter_rules_in_code_order(self) -> None:
         #: Given
         registry = Registry.load(rules)
 
@@ -176,29 +176,18 @@ class TestRuleTableFromRegistry:
         table = RuleTable.from_registry(registry)
 
         #: Then
-        assert table.frontmatter_block_rules == (
+        assert table.frontmatter_rules == (
             EnabledRule(MissingFrontmatter, Severity.ERROR),
             EnabledRule(InvalidYaml, Severity.ERROR),
             EnabledRule(NonMappingFrontmatter, Severity.ERROR),
             EnabledRule(NameMismatch, Severity.ERROR),
             EnabledRule(DuplicateKey, Severity.ERROR),
-        ), "the package's frontmatter block rules are enabled by default as errors, in code order"
-
-    def test_from_registry_with_the_package_registry_enables_the_schema_rules(self) -> None:
-        #: Given
-        registry = Registry.load(rules)
-
-        #: When
-        table = RuleTable.from_registry(registry)
-
-        #: Then
-        assert table.schema_problems_rules == (
             EnabledRule(MissingField, Severity.ERROR),
             EnabledRule(UnknownField, Severity.WARNING),
             EnabledRule(WrongType, Severity.ERROR),
             EnabledRule(InvalidValue, Severity.ERROR),
             EnabledRule(BlockConstraint, Severity.ERROR),
-        ), "the package's schema rules are enabled by default at their own level, in code order"
+        ), "the package's frontmatter rules are enabled by default at their own level, in code order"
 
     def test_from_registry_with_the_package_registry_enables_the_headings_rules(self) -> None:
         #: Given
@@ -323,7 +312,33 @@ class TestRuleTable:
         #: Then
         assert governed == (), 'a rule over a document is run under no facet but the one it declares'
 
-    def test_rule_table_with_no_rules_has_an_empty_frontmatter_block_partition(self) -> None:
+    def test_frontmatter_rules_governed_by_with_the_frontmatter_facet_returns_a_rule_over_the_frontmatter(
+        self,
+    ) -> None:
+        #: Given
+        severities: dict[type[Rule], Severity] = {NameMismatch: Severity.WARNING}
+        table = RuleTable(severities)
+
+        #: When
+        governed = table.frontmatter_rules_governed_by(Facet.FRONTMATTER)
+
+        #: Then
+        assert governed == (EnabledRule(NameMismatch, Severity.WARNING),), (
+            'a rule over the frontmatter is run over a document under the facet its base declares'
+        )
+
+    def test_frontmatter_rules_governed_by_with_another_facet_returns_nothing(self) -> None:
+        #: Given
+        severities: dict[type[Rule], Severity] = {NameMismatch: Severity.WARNING}
+        table = RuleTable(severities)
+
+        #: When
+        governed = table.frontmatter_rules_governed_by(Facet.STRUCTURE)
+
+        #: Then
+        assert governed == (), 'a rule over the frontmatter is run over a document under no other facet'
+
+    def test_rule_table_with_no_rules_has_an_empty_frontmatter_partition(self) -> None:
         #: Given
         severities: dict[type[Rule], Severity] = {}
 
@@ -331,9 +346,9 @@ class TestRuleTable:
         table = RuleTable(severities)
 
         #: Then
-        assert table.frontmatter_block_rules == (), 'no enabled rule reads the frontmatter block'
+        assert table.frontmatter_rules == (), 'no enabled rule reads the frontmatter'
 
-    def test_rule_table_with_a_rule_over_the_frontmatter_block_partitions_it_with_its_severity(self) -> None:
+    def test_rule_table_with_a_rule_over_the_frontmatter_partitions_it_with_its_severity(self) -> None:
         #: Given
         severities: dict[type[Rule], Severity] = {NameMismatch: Severity.WARNING, TooManyLines: Severity.ERROR}
 
@@ -341,8 +356,8 @@ class TestRuleTable:
         table = RuleTable(severities)
 
         #: Then
-        assert table.frontmatter_block_rules == (EnabledRule(NameMismatch, Severity.WARNING),), (
-            'a rule joins the partition of the input it reads, and no other'
+        assert table.frontmatter_rules == (EnabledRule(NameMismatch, Severity.WARNING),), (
+            'a rule over the frontmatter joins the frontmatter partition, and no other'
         )
 
     def test_rule_table_with_a_rule_over_a_document_and_one_over_a_skill_partitions_each_by_its_base(self) -> None:
@@ -360,17 +375,9 @@ class TestRuleTable:
             'a rule over a skill joins the skill partition, and no other'
         )
 
-    def test_rule_table_with_no_rules_has_an_empty_schema_problems_partition(self) -> None:
-        #: Given
-        severities: dict[type[Rule], Severity] = {}
-
-        #: When
-        table = RuleTable(severities)
-
-        #: Then
-        assert table.schema_problems_rules == (), 'no enabled rule reads what the frontmatter schemas reject'
-
-    def test_rule_table_with_a_rule_over_the_schema_problems_leaves_it_out_of_the_skill_partition(self) -> None:
+    def test_rule_table_with_a_rule_over_the_frontmatter_leaves_it_out_of_the_document_and_skill_partitions(
+        self,
+    ) -> None:
         #: Given
         severities: dict[type[Rule], Severity] = {MissingField: Severity.ERROR}
 
@@ -378,7 +385,8 @@ class TestRuleTable:
         table = RuleTable(severities)
 
         #: Then
-        assert table.skill_rules == (), 'a rule joins the partition of what it reads, and no other'
+        assert table.document_rules == (), 'a rule over the frontmatter is not a rule over a document'
+        assert table.skill_rules == (), 'a rule over the frontmatter is not a rule over a skill'
 
     def test_rule_table_with_no_rules_has_an_empty_headings_partition(self) -> None:
         #: Given

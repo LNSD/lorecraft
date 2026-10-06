@@ -1,42 +1,34 @@
-"""`FM002`, `invalid-yaml`, over a document's or a skill's frontmatter block.
+"""`FM002`, `invalid-yaml`, over a document's or a skill's frontmatter.
 
-The rule is pure, so every case here is a frontmatter block written as a literal; no file is read.
+Every case is a document or a `SKILL.md` written as text, read through a fake context that parses its frontmatter as
+the real parser does; no file is read from disk.
 """
 
+import sys
 from typing import Final
 
 import pytest
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
-from lorecraft.project.syntax import InvalidYamlFrontmatter, LineNumber
-from lorecraft.rules.inputs import FrontmatterBlockInput, FrontmatterFields, NameField
+from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Note
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, FakeSkillContext, structure_spec_path
 
 from ..invalid_yaml import InvalidYaml
 
-SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/guide.structure.json')
-"""The structure specification whose frontmatter schema governs the document."""
+STRUCTURE: Final[str] = '{"frontmatter": {"type": "object"}}'
+"""A corpus structure specification whose frontmatter schema accepts any mapping."""
 
-DOCUMENT: Final[DocumentFrontmatterOwner] = DocumentFrontmatterOwner(filename=AspectFilename.parse('setup'), spec=SPEC)
-"""A document `setup` the schema in `SPEC` governs."""
-
-SKILL: Final[SkillFrontmatterOwner] = SkillFrontmatterOwner(directory_name='review', link_target=None)
-"""A skill listed as `review`, not through a link."""
-
-NAMED_SETUP: Final[FrontmatterFields] = FrontmatterFields(
-    name=NameField(value='setup', line=LineNumber.from_int(2)), repeated_keys=()
-)
-"""A mapping whose `name` is `setup`, on line 2, and that repeats no key."""
+SPEC: Final[RootRelativePath] = structure_spec_path('guide')
+"""Where the corpus structure specification lies."""
 
 
 @pytest.mark.unit
 class TestInvalidYaml:
     def test_check_with_a_block_that_is_not_yaml_reports_it_at_the_line_the_parser_names(self) -> None:
         #: Given
-        frontmatter = InvalidYamlFrontmatter(problem='mapping values are not allowed here', line=LineNumber.from_int(3))
-        subject = FrontmatterBlockInput(frontmatter=frontmatter, owner=DOCUMENT)
+        text = '---\nname: setup\ndescription: Setup: install the toolkit\n---\n# Setup\n'
+        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = InvalidYaml.check(subject)
@@ -48,26 +40,39 @@ class TestInvalidYaml:
 
     def test_check_with_no_line_known_reports_it_on_line_1(self) -> None:
         #: Given
-        frontmatter = InvalidYamlFrontmatter(problem='collections nested too deeply', line=None)
-        subject = FrontmatterBlockInput(frontmatter=frontmatter, owner=SKILL)
+        # reading spends at least one frame per level, so as many levels as the recursion limit always exhaust the
+        # stack, and the parser can name no line
+        depth = sys.getrecursionlimit()
+        block = 'name: review\n' + ''.join(f'{" " * level}nested:\n' for level in range(depth)) + f'{" " * depth}a: b\n'
+        subject = FakeSkillContext(f'---\n{block}---\n')
 
         #: When
         occurrences = InvalidYaml.check(subject)
 
         #: Then
         assert occurrences == (
-            InvalidYaml(spec=None, line=LineNumber.from_int(1), problem='collections nested too deeply'),
+            InvalidYaml(spec=None, line=LineNumber.from_int(1), problem='found collections nested too deeply to parse'),
         ), 'a problem at no known line is reported on line 1; a skill under no specification file'
 
     def test_check_with_a_mapping_reports_nothing(self) -> None:
         #: Given
-        subject = FrontmatterBlockInput(frontmatter=NAMED_SETUP, owner=DOCUMENT)
+        subject = FakeDocumentContext('---\nname: setup\n---\n# Setup\n', corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = InvalidYaml.check(subject)
 
         #: Then
         assert occurrences == (), 'a block that reads as YAML is not invalid-yaml'
+
+    def test_check_with_no_block_reports_nothing(self) -> None:
+        #: Given
+        subject = FakeSkillContext('# Review\n')
+
+        #: When
+        occurrences = InvalidYaml.check(subject)
+
+        #: Then
+        assert occurrences == (), 'a missing block is missing-frontmatter, never invalid-yaml'
 
     def test_message_with_an_occurrence_names_the_parser_problem(self) -> None:
         #: Given

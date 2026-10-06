@@ -5,17 +5,18 @@ from typing import ClassVar, Self, assert_never
 
 # The module, not its classes: this rule's own name is the syntax's `NonMappingFrontmatter`.
 from lorecraft.project import syntax
+from lorecraft.project.context import FrontmatterContext
 from lorecraft.project.schemas import FIRST_LINE
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.inputs import FrontmatterBlockInput, FrontmatterBlockRule, FrontmatterFields
 from lorecraft.rules.location import Subdiagnostic
+from lorecraft.rules.subject import FrontmatterRule
 
 from .__ruleset__ import GROUP_ID, owner_spec, spec_note
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class NonMappingFrontmatter(FrontmatterBlockRule):
+class NonMappingFrontmatter(FrontmatterRule):
     """A frontmatter block is valid YAML, but not a mapping of fields.
 
     ## What it does
@@ -87,17 +88,17 @@ class NonMappingFrontmatter(FrontmatterBlockRule):
         return (spec_note(self.spec),)
 
     @classmethod
-    def check(cls, subject: FrontmatterBlockInput) -> tuple[Self, ...]:
+    def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:
         """The one occurrence, on line 1, when the block is YAML but not a mapping; none otherwise.
 
         Args:
-            subject: The subject's frontmatter block, and the subject it opens.
+            subject: The document or the skill whose frontmatter is judged.
         """
-        frontmatter = subject.frontmatter
+        frontmatter = subject.frontmatter()
         match frontmatter:
             case syntax.NonMappingFrontmatter():
-                return (cls(spec=owner_spec(subject.owner), line=FIRST_LINE),)
-            case syntax.MissingFrontmatter() | syntax.InvalidYamlFrontmatter() | FrontmatterFields():
+                return (cls(spec=owner_spec(subject.frontmatter_owner()), line=FIRST_LINE),)
+            case syntax.MissingFrontmatter() | syntax.InvalidYamlFrontmatter() | syntax.Frontmatter():
                 return ()
             case _:
                 assert_never(frontmatter)
