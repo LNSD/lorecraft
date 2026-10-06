@@ -4,17 +4,10 @@ from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.schemas import SectionName
+from lorecraft.project.schemas import AbsentSection, DocumentEnd, MisplacedSection, SectionName, UnlistedSection
 from lorecraft.project.syntax import Heading
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.inputs import (
-    AbsentSection,
-    DocumentEnd,
-    MisplacedSection,
-    OutlineDivergenceInput,
-    OutlineDivergenceRule,
-    UnlistedSection,
-)
+from lorecraft.rules.inputs import OutlineDivergenceInput, OutlineDivergenceRule
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 
 from .__ruleset__ import GROUP_ID, spec_note
