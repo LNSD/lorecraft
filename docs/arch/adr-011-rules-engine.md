@@ -16,7 +16,7 @@ the shapes are the decision.
 
 ## Context
 
-The checks package already has the right foundation. A `Database` wraps one revision and memoizes every derived
+Lorecraft already has the right foundation. A `Database` wraps one revision and memoizes every derived
 value as a query. A check is a pure function of the values those queries return, and it returns violations that
 name no document. The engine keeps all of that.
 
@@ -131,7 +131,7 @@ remove its diagnostic. Nothing a rule reads is left outside a query contract.
 
 **A subject's facts are also stated as a context.** `lorecraft.project` declares, as a `Protocol` per subject kind,
 what can be asked of one decoded subject: `DocumentContext` and `SkillContext`, both extending
-`FrontmatterContext`. `lorecraft.checks` implements them over the database, bound to the decode witness: each fact
+`FrontmatterContext`. `lorecraft.project.database` implements them over the database, bound to the decode witness: each fact
 one memoized query, each identity value read from the subject's ref or location. A document context is built only for
 a document whose corpus states a structure specification, since no facet governs one whose corpus does not.
 
@@ -273,13 +273,15 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
 | Piece | Package |
 |---|---|
 | Rule classes and removed rules, the registry, the rule groups and their rules, the rule bases per subject kind and the facets, the input types | `lorecraft.rules` |
-| The database, decoding, building the inputs, the contexts' implementations, the runner, the report types, level resolution | `lorecraft.checks` |
+| Building the inputs, the runner, the report types, level resolution | `lorecraft.checks` |
 | The context protocols, what can be asked of one decoded subject | `lorecraft.project` |
+| The database, decoding, the contexts' implementations ([adr-012](adr-012-database-derivation.md)) | `lorecraft.project.database` |
 | The configuration file's dialect and its decoding, once it is designed | `lorecraft.project` |
 | Path selection, options, text and machine-readable rendering, the exit code, the rule lookup command | `lorecraft.cli` |
 
-`lorecraft.rules` is a layer of its own, below `lorecraft.checks`, so the import contract refuses a rule that
-imports the database, which the design could otherwise only state.
+`lorecraft.rules` is a layer of its own, below `lorecraft.checks` and above `lorecraft.project`. A forbidden contract
+refuses a rule that imports `lorecraft.project.database`, so a rule cannot reach the database by import, which the
+design could otherwise only state.
 
 ```text
 src/lorecraft/rules/
@@ -291,9 +293,12 @@ src/lorecraft/rules/
     ├── <rule>.py        # one rule: its class, with its docstring and its check
     └── tests/
 
-src/lorecraft/checks/
+src/lorecraft/project/database/
 ├── context.py           # the database-backed contexts; their protocols are in project/context.py
 ├── database.py          # gains the decoded text, the cross-file queries and, later, the configuration
+└── text.py              # the decode witnesses
+
+src/lorecraft/checks/
 ├── inputs.py            # how each input kind is resolved from the queries
 ├── runner.py            # replaces run.py's four run functions
 └── report.py
@@ -349,9 +354,10 @@ A more elaborate engine waits for a profile that asks for one.
 - **A projecting rule is thin.** A schema rule is a few lines over a problem type, and the validation it
   projects lives in a query.
 - **The runner is hand-written per input kind.** That is the price of typed dispatch with no generic machinery.
-- **A later package split.** The established linters keep the database apart from the linter. The rules already
-  sit apart, in `lorecraft.rules`, but `lorecraft.checks` still holds the database and the runner. Splitting those
-  two adds another layer to the import contract, so it is a change of its own, after this one.
+- **The database sits apart from the linter**, as the established linters keep it. The rules sit in
+  `lorecraft.rules`, the runner in `lorecraft.checks`, and the database, with its witnesses and the contexts'
+  implementations, in `lorecraft.project.database`, beside the derivations it memoizes
+  ([adr-012](adr-012-database-derivation.md)). The split adds no layer to the import contract.
 - **What stays true:** a check is pure, a rule's result is never cached, and every value a rule reads comes from a
   query with a stated carry-over rule.
 
@@ -378,4 +384,5 @@ The PRD defers the IDE-like, long-lived mode. The design builds none of it and c
 - [adr-004-database](adr-004-database.md) - Foundation: Revisions and queries
 - [adr-005-incremental](adr-005-incremental.md) - Foundation: Carry-over rules and persistable results
 - [adr-006-specifications](adr-006-specifications.md) - Foundation: Governance, computed once by the model
+- [adr-012-database-derivation](adr-012-database-derivation.md) - Foundation: The database in the Derivation package
 - [module-lorecraft-checks](../code/module-lorecraft-checks.md) - Foundation: The package the engine lives in

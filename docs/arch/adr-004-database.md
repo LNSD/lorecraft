@@ -89,4 +89,5 @@ Before committing code, verify:
 - [adr-001-snapshot-model](adr-001-snapshot-model.md) - Related: The model and the package roles
 - [adr-002-vfs](adr-002-vfs.md) - Related: The snapshot the database wraps
 - [adr-005-incremental](adr-005-incremental.md) - Related: What a query's result carries over to the next revision
+- [adr-012-database-derivation](adr-012-database-derivation.md) - Related: The package the database lives in
 - [pattern-memoization](../code/pattern-memoization.md) - Foundation: How a query is memoized

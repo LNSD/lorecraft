@@ -31,7 +31,7 @@
     {
       "section": "Belongs Elsewhere",
       "description": "A table of the code a reader is tempted to put here and the package it goes in instead, one row per case; each row points to the neighbour and does not restate its rules.",
-      "examples": ["| Code that… | Belongs in |\n|---|---|\n| Names `docs/`, a skills directory or any other fixed directory | `lorecraft.layout` |\n| Decides what an entry is to Lorecraft: a document, a specification, a skill | `lorecraft.project` |\n| Parses or decodes the bytes of a file | `lorecraft.project` |\n| Keeps a value derived from a file for the snapshot's lifetime | `lorecraft.checks` |\n| Finds the workspace root, or maps a command-line argument onto it | `lorecraft.cli` |"]
+      "examples": ["| Code that… | Belongs in |\n|---|---|\n| Names `docs/`, a skills directory or any other fixed directory | `lorecraft.layout` |\n| Decides what an entry is to Lorecraft: a document, a specification, a skill | `lorecraft.project` |\n| Parses or decodes the bytes of a file | `lorecraft.project` |\n| Keeps a value derived from a file for the snapshot's lifetime | `lorecraft.project` |\n| Finds the workspace root, or maps a command-line argument onto it | `lorecraft.cli` |"]
     },
     {
       "section": "Invariants",

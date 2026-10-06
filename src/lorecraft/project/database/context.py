@@ -1,4 +1,4 @@
-"""The contexts of `lorecraft.project`, answered by the database's queries for one decoded subject.
+"""The contexts of `lorecraft.project.context`, answered by the database's queries for one decoded subject.
 
 `DatabaseDocumentContext` and `DatabaseSkillContext` implement `DocumentContext` and `SkillContext`. Each holds the
 database, the decode query's witness and what the model says about the subject, and nothing it computed: every fact

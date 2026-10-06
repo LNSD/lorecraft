@@ -17,9 +17,9 @@ reads.
 
 **Analysis**, the judging half of it. A rule is a pure judgment of one subject, read through its context, or of one
 input value for a rule not yet moved onto a context, and this package holds the rules with everything that makes one
-a rule: its identity, the class that declares and checks it, and the registry that lists them all. The database that
-answers a context or builds an input, and the run that hands it over, sit above it in `lorecraft.checks`; the context
-is a `Protocol` of `lorecraft.project`, so a rule has nothing to read but what it is handed.
+a rule: its identity, the class that declares and checks it, and the registry that lists them all. The run that
+builds an input or hands over a context sits above it in `lorecraft.checks`; the context is a `Protocol` of
+`lorecraft.project`, answered by the database there, so a rule has nothing to read but what it is handed.
 
 ## Belongs Here
 
@@ -45,7 +45,7 @@ is a `Protocol` of `lorecraft.project`, so a rule has nothing to read but what i
 
 | Code that… | Belongs in |
 |---|---|
-| Answers or memoizes a query over one revision, decoding a subject included | `lorecraft.checks` |
+| Answers or memoizes a query over one revision, decoding a subject included | `lorecraft.project` |
 | Builds a rule's input from the queries, or runs the rules over a subject | `lorecraft.checks` |
 | Applies a level, files an occurrence under its subject, or holds a report | `lorecraft.checks` |
 | Prints, renders a report, or sets an exit code | `lorecraft.cli` |
@@ -54,8 +54,9 @@ is a `Protocol` of `lorecraft.project`, so a rule has nothing to read but what i
 
 ## Invariants
 
-- A rule never imports `lorecraft.checks`. The layers contract puts this package below it, so the database, a
-  query and the run are out of a rule's reach by import, not by review.
+- A rule never imports `lorecraft.checks` or `lorecraft.project.database`. The layers contract puts this package
+  below the first and a forbidden contract refuses the second, so the database, a query and the run are out of a
+  rule's reach by import, not by review.
 - A rule reads the one context or input its base fixes and nothing else, and performs no I/O.
 - An occurrence names no subject. It points at a line of the subject or at the subject itself, and the run that
   checked the subject supplies the path.
@@ -73,8 +74,8 @@ is a `Protocol` of `lorecraft.project`, so a rule has nothing to read but what i
 ## Examples
 
 ```python
-# ❌ Bad — the rule asks the database for the headings itself: it imports the layer above, which the import
-# contract refuses, and a test of one heading rule now needs a whole revision
+# ❌ Bad — the rule asks the database for the headings itself: it imports the database, which the import
+# contracts refuse, and a test of one heading rule now needs a whole revision
 @rule
 class EmptySection(HeadingsRule):
     @classmethod

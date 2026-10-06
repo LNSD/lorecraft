@@ -13,7 +13,7 @@ from typing import Final
 
 import pytest
 
-from lorecraft.checks import Database, SkillScope, SkillSelection
+from lorecraft.checks import SkillScope, SkillSelection
 from lorecraft.cli.check_run import select_documents, select_skills
 from lorecraft.cli.select import (
     CorpuslessDocumentPathError,
@@ -33,6 +33,7 @@ from lorecraft.cli.select import (
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName, InvalidCorpusNameCharacterError
+from lorecraft.project.database import Database
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE, scope_with_named_dirs
 from lorecraft.project.skill import SkillLocation, SkillRef

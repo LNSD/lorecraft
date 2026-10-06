@@ -74,4 +74,6 @@ Before committing code, verify:
 - [adr-001-snapshot-model](adr-001-snapshot-model.md) - Related: The model and the package roles
 - [adr-004-database](adr-004-database.md) - Related: The queries whose results carry over
 - [adr-003-project-model](adr-003-project-model.md) - Related: Identity apart from location
+- [adr-012-database-derivation](adr-012-database-derivation.md) - Related: The package the database, and so its
+  caches, live in
 - [pattern-memoization](../code/pattern-memoization.md) - Foundation: How a query is memoized
