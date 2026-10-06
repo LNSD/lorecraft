@@ -9,17 +9,15 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import (
+    AgentSkillsSchema,
     InvalidValueProblem,
+    LocatedProblem,
+    SchemaProblems,
+    StructureSpecSchema,
     WrongTypeProblem,
 )
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.inputs import (
-    AgentSkillsSchema,
-    LocatedProblem,
-    SchemaProblems,
-    SchemaProblemsInput,
-    StructureSpecSchema,
-)
+from lorecraft.rules.inputs import SchemaProblemsInput
 from lorecraft.rules.location import Elsewhere, Note
 
 from ..invalid_value import InvalidValue

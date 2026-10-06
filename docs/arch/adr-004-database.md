@@ -55,6 +55,11 @@ result is an immutable value. The queries are layered:
 - **Per file**: a frontmatter node, a parse tree, a token count, a line count. Each takes the witness its decode
   query returned, never a bare ref, so a fact of an undecodable file cannot be asked for, and is keyed by the
   witness's ref.
+- **Analysis**: a shared analysis of one file against what governs it, which several rules read: `schema_problems`,
+  what each governing frontmatter schema rejects in a document's frontmatter, and `skill_schema_problems`, the same
+  for a skill against the Agent Skills specification. Each takes the witness, reads the per-file queries it analyses and, for a
+  document, the governance the model records, and is kept whenever they are. It finds problems, not diagnostics:
+  levels apply after detection, so no diagnostic is cached.
 - **Fresh**: a question too cheap to keep, such as where a symlink leads, answered on every call and never memoized.
 
 A query reads what it needs through the view, or calls another query to reuse that query's cached result,

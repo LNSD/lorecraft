@@ -24,6 +24,8 @@ declaration, read from `lorecraft.layout` and never stated here.
 - A repository that lists entries or reads text through a view, and decides what an entry is to Lorecraft.
 - The decoding of a specification into rules that are proved usable when they are built.
 - The parse tree, the token count and the line count: pure functions of one document's text.
+- A shared analysis of one document's parsed values against the specifications handed to it, such as the problems
+  each frontmatter schema finds, each placed on its field's line. It finds the facts several rules read; whether one is reported, and how, is a rule's.
 - A document's, a skill's or a skill resource's identity, kept apart from its content and from where its symlinks
   lead.
 - Turning a Markdown link's destination into a root-relative path, relative to the document that holds it.
@@ -47,6 +49,8 @@ declaration, read from `lorecraft.layout` and never stated here.
   skill's symlinks lead. It never holds a document's content, and the loader never reads one.
 - A parse tree, a token count and a line count read one document's text and nothing else, and return immutable
   values. No third-party parser type leaves the package.
+- A shared analysis reads the parsed values and the specifications it is handed, never a view, and returns
+  immutable values.
 - A broken document is a value the parse returns, not an exception. A repository or specification error names
   its path and propagates.
 
