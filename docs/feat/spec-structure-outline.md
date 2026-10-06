@@ -1,6 +1,6 @@
 ---
 name: "spec-structure-outline"
-description: "The outline keys of a structure specification: the one H1 title every governed document carries and the word cap and pattern a title key sets on it, the outline of H2 sections with required, optional and any entries, empty_sections and forbidden sections, how a namespace outline adds to the corpus outline, and which outlines are refused on load. Load when writing or changing a section outline, requiring, ordering or forbidding a section, or an outline is reported invalid"
+description: "The outline keys of a structure specification: the one H1 title every governed document carries and the word and character caps and the pattern a title key sets on it, the outline of H2 sections with required, optional and any entries, empty_sections and forbidden sections, how a namespace outline adds to the corpus outline, and which outlines are refused on load. Load when writing or changing a section outline, requiring, ordering or forbidding a section, or an outline is reported invalid"
 type: "feature"
 status: "experimental"
 components: "module:lorecraft.project,module:lorecraft.checks,spec:feat,spec:code"
@@ -12,7 +12,7 @@ components: "module:lorecraft.project,module:lorecraft.checks,spec:feat,spec:cod
 
 The `outline`, `empty_sections` and `forbidden` keys of a `<name>.structure.json` file state which H2 sections
 the documents its name governs hold, in which order, and which must hold content or not appear. Every governed
-document carries exactly one H1 title that opens it; `title` caps its words or sets its pattern. An order over a
+document carries exactly one H1 title that opens it; `title` caps its length or sets its pattern. An order over a
 sequence of any length is no JSON Schema, so the file is a dialect of its own. `lorecraft check structure` applies
 the keys and the title.
 
@@ -38,7 +38,7 @@ the keys and the title.
 
 | Key | Value | Meaning |
 |-----|-------|---------|
-| `title` | `{"words": N}`, `{"pattern": "<regex>"}`, or both | The title's text holds at most `N` words, and matches the pattern |
+| `title` | `{"words": N}`, `{"chars": N}`, `{"pattern": "<regex>"}`, or several | The title's text holds at most `N` words, at most `N` characters, and matches the pattern |
 | `empty_sections` | `"forbidden"` | Every heading must have content under it |
 | `outline` | list of entries | `{"section": "<name>"}`, with `"optional": true` when it may be left out, or `{"any": true}` |
 | `forbidden` | list of names | Sections that must not appear anywhere |
@@ -46,16 +46,19 @@ the keys and the title.
 Every key is optional. An outline entry may also cap its section's words, as
 [spec-structure-budget](spec-structure-budget.md) describes.
 
-The `title` key's `words` is a positive integer, counted as prose words are: each whitespace-delimited token of
-the H1's text is one. Only the first H1 is measured, and a document with no title is reported as missing one,
-never as over the cap. A title over it is `LEN004 title-too-many-words`, at its heading, once per specification that sets
-a cap: a corpus and a namespace cap each apply on their own.
+The `title` key's `words` and `chars` are positive integers. `words` counts prose words, each whitespace-delimited
+token of the H1's text; `chars` counts the code points of that text, without its `#` marker or inline markup. Only
+the first H1 is measured, and a document with no title is reported as missing one, never as over a cap. A title
+over a cap is `LEN004 title-too-many-words` or `LEN005 title-too-long`, at its heading, once per specification
+that sets it: a corpus and a namespace cap each apply on their own.
 
 Its `pattern` is a regular expression, in Python's `re` syntax, that the title's text must match. It is matched as
 JSON Schema's `pattern` is, searched for anywhere in the text, so `^[A-Z]` asks only for a capital first letter, and a
 pattern that must hold the whole title anchors itself with `^` and `$`. Only the first H1 is matched, and a document
 with no title is reported as missing one alone. A title that does not match is `OUT009 invalid-title`, at its
-heading, once per specification that sets a pattern. Either key may be set alone.
+heading, once per specification that sets a pattern. Each key may be set alone, and each applies on its own: the
+two caps are upper bounds and never conflict, but a `pattern` that only titles longer than a cap can match, such as
+`{"chars": 40, "pattern": "^.{60,}$"}`, fails every governed document, and is not refused on load.
 
 A named entry may carry two more optional keys, which `any` entries never take:
 
@@ -139,8 +142,8 @@ whitespace at either end, or spans two lines: no heading's text could match it.
 
 - The outline names H2 sections only; H3 subsections are never required, ordered or forbidden.
 - A section is matched on its exact heading text, without its `#` markers or inline markup.
-- `lorecraft check structure` does not apply the title's `words` cap or `pattern` yet: `LEN004` and `OUT009` belong
-  to the rules engine, which the command line does not run yet. It does refuse a pattern that does not compile.
+- `lorecraft check structure` does not apply the title's `words` cap, `chars` cap or `pattern` yet: `LEN004`, `LEN005`
+  and `OUT009` belong to the rules engine, which the command line does not run yet. It does refuse a pattern that does not compile.
 
 ## References
 
@@ -155,4 +158,5 @@ whitespace at either end, or spans two lines: no heading's text could match it.
 - `src/lorecraft/project/schemas/structure.py` - Turns the keys into rules, and refuses an unusable outline
 - `src/lorecraft/checks/structure.py` - Applies the title, outline, empty and forbidden rules to a document
 - `src/lorecraft/rules/length/title_too_many_words.py` - Reports a title over its word cap as `LEN004`
+- `src/lorecraft/rules/length/title_too_long.py` - Reports a title over its character cap as `LEN005`
 - `src/lorecraft/rules/outline/invalid_title.py` - Reports a title failing its pattern as `OUT009`

@@ -44,6 +44,7 @@ def _spec(spec: RootRelativePath, *, section_caps: tuple[SectionCap, ...]) -> He
     return HeadingsSpec(
         spec=spec,
         title_cap=None,
+        title_char_cap=None,
         title_mismatch=None,
         forbid_empty_sections=False,
         forbidden=(),

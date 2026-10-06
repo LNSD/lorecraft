@@ -83,7 +83,7 @@ class TestStructureSpecParse:
                 """
                 {
                   "description": "read by people only",
-                  "title": {"words": 8},
+                  "title": {"words": 8, "chars": 60},
                   "empty_sections": "forbidden",
                   "tokens": 5000,
                   "frontmatter": {"type": "object", "required": ["name"]},
@@ -104,7 +104,7 @@ class TestStructureSpecParse:
         #: Then
         assert structure_spec == StructureSpec(
             file=SPEC_FILE,
-            title=TitleChecks(words=NonZeroUnsignedInt(8), pattern=None),
+            title=TitleChecks(words=NonZeroUnsignedInt(8), chars=NonZeroUnsignedInt(60), pattern=None),
             forbid_empty_sections=True,
             outline=(
                 AnySections(words=NonZeroUnsignedInt(350)),
@@ -537,7 +537,7 @@ class TestStructureSpecParse:
         structure_spec = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert structure_spec.title == TitleChecks(words=NonZeroUnsignedInt(8), pattern=None), (
+        assert structure_spec.title == TitleChecks(words=NonZeroUnsignedInt(8), chars=None, pattern=None), (
             'a cap on the title is a rule, so a file stating only it is usable'
         )
 
@@ -585,6 +585,62 @@ class TestStructureSpecParse:
             f'the problem opens with the dotted path of the cap, got {exc_info.value.problems[0]!r}'
         )
 
+    def test_parse_with_only_a_title_character_cap_returns_a_structure_spec_with_that_cap(self) -> None:
+        #: Given
+        schema = StructureSchema('{"title": {"chars": 60}}')
+
+        #: When
+        structure_spec = StructureSpec.parse(SPEC_FILE, schema)
+
+        #: Then
+        assert structure_spec.title == TitleChecks(words=None, chars=NonZeroUnsignedInt(60), pattern=None), (
+            "a cap on the title's characters is a rule, so a file stating only it is usable"
+        )
+
+    def test_parse_with_a_title_character_cap_of_zero_raises_structure_spec_decode_error(self) -> None:
+        #: Given
+        schema = StructureSchema('{"title": {"chars": 0}}')
+
+        #: When
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
+            StructureSpec.parse(SPEC_FILE, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'no title satisfies a cap of 0 characters'
+        assert exc_info.value.problems == ('title.chars: must be at least 1, got 0',), (
+            f'the problem names the cap and reads with the count rejection, got {exc_info.value.problems}'
+        )
+
+    def test_parse_with_a_negative_title_character_cap_raises_structure_spec_decode_error(self) -> None:
+        #: Given
+        schema = StructureSchema('{"title": {"chars": -3}}')
+
+        #: When
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
+            StructureSpec.parse(SPEC_FILE, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'a character cap is a count of characters, never below 1'
+        assert len(exc_info.value.problems) == 1, f'one field is wrong, got {exc_info.value.problems}'
+        assert exc_info.value.problems[0].startswith('title.chars: '), (
+            f'the problem opens with the dotted path of the cap, got {exc_info.value.problems[0]!r}'
+        )
+
+    def test_parse_with_a_boolean_title_character_cap_raises_structure_spec_decode_error(self) -> None:
+        #: Given
+        schema = StructureSchema('{"title": {"chars": true}}')
+
+        #: When
+        with pytest.raises(StructureSpecDecodeError) as exc_info:
+            StructureSpec.parse(SPEC_FILE, schema)
+
+        #: Then
+        assert exc_info.value.path == SPEC_PATH, 'a JSON boolean is not a character cap, though Python treats it as one'
+        assert len(exc_info.value.problems) == 1, f'one field is wrong, got {exc_info.value.problems}'
+        assert exc_info.value.problems[0].startswith('title.chars: '), (
+            f'the problem opens with the dotted path of the cap, got {exc_info.value.problems[0]!r}'
+        )
+
     def test_parse_with_an_empty_title_raises_structure_spec_decode_error(self) -> None:
         #: Given
         schema = StructureSchema(
@@ -616,9 +672,9 @@ class TestStructureSpecParse:
         structure_spec = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert structure_spec.title == TitleChecks(words=None, pattern=TitlePattern(re.compile('^[A-Z]'))), (
-            'a pattern on the title is a rule, so a file stating only it is usable, and it is held compiled'
-        )
+        assert structure_spec.title == TitleChecks(
+            words=None, chars=None, pattern=TitlePattern(re.compile('^[A-Z]'))
+        ), 'a pattern on the title is a rule, so a file stating only it is usable, and it is held compiled'
 
     def test_parse_with_a_title_word_cap_and_pattern_returns_a_structure_spec_with_both(self) -> None:
         #: Given
@@ -629,7 +685,7 @@ class TestStructureSpecParse:
 
         #: Then
         assert structure_spec.title == TitleChecks(
-            words=NonZeroUnsignedInt(8), pattern=TitlePattern(re.compile('^[A-Z]'))
+            words=NonZeroUnsignedInt(8), chars=None, pattern=TitlePattern(re.compile('^[A-Z]'))
         ), 'a cap and a pattern are independent, and the title carries both'
 
     def test_parse_with_a_title_pattern_that_does_not_compile_raises_invalid_title_pattern_error(self) -> None:
@@ -907,7 +963,7 @@ class TestStructureSpecConstruction:
         with pytest.raises(EmptyStructureSpecError) as exc_info:
             StructureSpec(
                 file=file,
-                title=TitleChecks(words=None, pattern=None),
+                title=TitleChecks(words=None, chars=None, pattern=None),
                 forbid_empty_sections=False,
                 outline=(),
                 forbidden=(),
