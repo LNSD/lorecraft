@@ -23,7 +23,8 @@ way: it builds the input each rule reads from the queries, and the rules are dec
 ## Belongs Here
 
 - A query over one revision: the project model, the scope index, a skill's resource listing, a file's decoded
-  text, a frontmatter node, a parse tree, a token count, memoized on first use.
+  text, a frontmatter node, a parse tree, a token count, a shared analysis such as the problems the frontmatter
+  schemas find, memoized on first use.
 - The witness a decode query returns, a file's ref and its decoded text, and the undecodable marker.
 - The carry-over rule: which change to a revision's inputs invalidates which query.
 - What a persisted result is keyed by, and its validation against a new revision's inputs before the database
@@ -50,8 +51,9 @@ way: it builds the input each rule reads from the queries, and the rules are dec
 ## Invariants
 
 - Every memoized query reads one input: one file's bytes, or the structure: listings, symlink targets, the declared
-  scope and specifications. A value drawn from
-  several files is a query of its own, with its own rule.
+  scope and specifications. A shared analysis reads one file's per-file queries and the specifications the model
+  says govern that file, and is kept only when both are. A value drawn from several files is a query of its own,
+  with its own rule.
 - A per-file query is keyed by an identity, a ref, and carries over only when the next model, or for a resource
   the next resource listing of its skill, locates the ref at the same resolved file and its bytes are unchanged.
 - A file's bytes become text in its decode query alone, which turns a decode failure into the undecodable marker.

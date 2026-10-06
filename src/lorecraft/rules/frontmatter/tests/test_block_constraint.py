@@ -9,17 +9,15 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import (
-    BlockProblem,
-    MissingFieldProblem,
-)
-from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.inputs import (
     AgentSkillsSchema,
+    BlockProblem,
     LocatedProblem,
+    MissingFieldProblem,
     SchemaProblems,
-    SchemaProblemsInput,
     StructureSpecSchema,
 )
+from lorecraft.project.syntax import LineNumber
+from lorecraft.rules.inputs import SchemaProblemsInput
 from lorecraft.rules.location import Elsewhere, Note
 
 from ..block_constraint import BlockConstraint

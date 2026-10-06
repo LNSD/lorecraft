@@ -20,6 +20,12 @@ use and kept for as long as the database lives (pattern-memoization):
 - `document_lines(source)`: how many lines one document's whole file holds, like `tokens(source)`: counted from the
   raw text, frontmatter included, without a parse. It reads the text of the witness `text(ref)` returned and nothing
   else.
+- `schema_problems(source)`: what each frontmatter schema that governs one document rejects in its frontmatter, each
+  problem placed on its line, like an analysis the IDE runs once over a file and every inspection then reads. It reads
+  `frontmatter(source)` and the governance the model records for the document, and nothing else.
+- `outline_divergences(source)`: where one document's sections first stop matching each outline that governs it, the
+  same kind of shared analysis. It reads `parse(source)`, `document_lines(source)` and the governance the model
+  records for the document, and nothing else.
 - `skill_text(ref)`: one skill's `SKILL.md` decoded, the same document text: a `SkillText` witness, or an
   `Undecodable` marker. It reads that skill's bytes and nothing else.
 - `skill_frontmatter(source)`: one skill's frontmatter node, the same stub for a `SKILL.md`. It reads the text of
@@ -28,6 +34,9 @@ use and kept for as long as the database lives (pattern-memoization):
   witness and nothing else.
 - `skill_lines(source)`: how many lines one skill's `SKILL.md` holds, like `tokens(source)` for a document: counted
   from the raw text, frontmatter included, without a parse. It reads the text of the witness and nothing else.
+- `skill_schema_problems(source)`: what the Agent Skills specification rejects in one skill's frontmatter, the same
+  analysis as `schema_problems(source)` for a document. It reads `skill_frontmatter(source)` and nothing else: the
+  package states the specification, so no specification in the repository plays a part.
 - `skill_resources(skill)`: one skill's resources, the Markdown files inside it other than its top-level `SKILL.md`,
   like the IDE's listing of a content root's children, and the symlinks inside it whose chain leaves the
   repository. It reads the listings and the symlink targets reached from that skill, and where the model locates
@@ -64,34 +73,35 @@ query that holds what a check reads, so a check that needs only the frontmatter 
 parse, and every check reading the same query shares one computation of it. Their results are not cached; a
 check runs again every time.
 
-Nothing here records what a cached value read, so no dependency is tracked. Invalidation is written by hand instead,
-the way the IDE drops per-file index entries on a file change event and resets structural caches on a project model
-change. Reserved, not implemented: `advance(snapshot) -> Database`, the next state. It would `diff` the two
-snapshots and carry over each cached value the change set leaves valid: the decoded text, the frontmatter, the parse
-and the token count of every document whose bytes did not change, the decoded text, the frontmatter, the parse and the
-line count of every skill whose bytes did not, the resources of every skill and the decoded text and the parse of
-every resource as their own docstrings state, and
-the model unless one of these changes invalidates it. An entry added or deleted under `docs/` invalidates it. So
-does an entry added or deleted in a skills directory, or in a skill's directory, both where the skill's entry names
-it and where a link leads it. So does an entry added or deleted at the resolved path a skill's linked `SKILL.md` leads
-to, or on the way to it, since the loader resolves that link to find the skill. So does a link on the way to a skill
-or to its `SKILL.md` that changed its target, and so does a changed specification. So does a link that changed its
-target on the chain of a skills directory an agent declares, of an entry in a skills directory, or of an entry's
-`SKILL.md`, a chain leaving the repository included, since the model records the link each such chain leaves
-through and its target. So does a directory added or deleted that a `..` on such a chain climbs out of: deleting
-`tmp` leaves `x -> tmp/../alpha` leading nowhere, and the change set shows `tmp` go, since the snapshot records each
-climbed directory and the next scan, stopping at the missing `tmp`, no longer records it. The directories a
-command named are read from the snapshot's scope, so a scope that adds or drops one invalidates the model too, and
-each counts as a skills directory for every rule above, a `SKILL.md` at its root as an entry's. Any other change
-leaves the model valid, an entry added or deleted anywhere else inside a skill included: the model lists nothing below
-a skill's directory, and reads nothing there but the way to its `SKILL.md`. The scope index carries over unless the
-two snapshots' scopes, links or climbed directories differ, compared as recorded rather than through the change set,
-which holds no scope. A change of scope invalidates nothing else but the model, when it adds or drops a named
-directory: what the new scope adds or drops reaches the model and each skill's resources as entries in the change
-set. That rule holds only while the decoded text reads its own document, skill or resource, the frontmatter, the
-parse, the token count and the line count each read only the decoded text of their own, the model and each skill's
-resource listing read no document, and the scope index reads only the scope, the links and the climbed directories,
-so keep them that way: data drawn from several documents belongs in a new cache with its own rule.
+Nothing here records what a cached value read, so no dependency is tracked. Invalidation is written by hand instead, the
+way the IDE drops per-file index entries on a file change event and resets structural caches on a project model change.
+Reserved, not implemented: `advance(snapshot) -> Database`, the next state. It would `diff` the two snapshots and carry
+over each cached value the change set leaves valid: the decoded text, the frontmatter, the parse, the token count and
+the line count of every document whose bytes did not change, and its schema problems and outline divergences too when
+the model carries over, the decoded text, the frontmatter, the parse, the line count and the schema problems of every
+skill whose bytes did not, the resources of every skill and the decoded text and the parse of every resource as their
+own docstrings state, and the model unless one of these changes invalidates it. An entry added or deleted under `docs/`
+invalidates it. So does an entry added or deleted in a skills directory, or in a skill's directory, both where the
+skill's entry names it and where a link leads it. So does an entry added or deleted at the resolved path a skill's
+linked `SKILL.md` leads to, or on the way to it, since the loader resolves that link to find the skill. So does a link
+on the way to a skill or to its `SKILL.md` that changed its target, and so does a changed specification. So does a link
+that changed its target on the chain of a skills directory an agent declares, of an entry in a skills directory, or of
+an entry's `SKILL.md`, a chain leaving the repository included, since the model records the link each such chain leaves
+through and its target. So does a directory added or deleted that a `..` on such a chain climbs out of: deleting `tmp`
+leaves `x -> tmp/../alpha` leading nowhere, and the change set shows `tmp` go, since the snapshot records each climbed
+directory and the next scan, stopping at the missing `tmp`, no longer records it. The directories a command named are
+read from the snapshot's scope, so a scope that adds or drops one invalidates the model too, and each counts as a skills
+directory for every rule above, a `SKILL.md` at its root as an entry's. Any other change leaves the model valid, an
+entry added or deleted anywhere else inside a skill included: the model lists nothing below a skill's directory, and
+reads nothing there but the way to its `SKILL.md`. The scope index carries over unless the two snapshots' scopes, links
+or climbed directories differ, compared as recorded rather than through the change set, which holds no scope. A change
+of scope invalidates nothing else but the model, when it adds or drops a named directory: what the new scope adds or
+drops reaches the model and each skill's resources as entries in the change set. That rule holds only while the decoded
+text reads its own document, skill or resource, the frontmatter, the parse, the token count and the line count each read
+only the decoded text of their own, the schema problems and the outline divergences read only their own document's
+frontmatter, or parse and line count, and the model, a skill's schema problems only its own frontmatter, the model and
+each skill's resource listing read no document, and the scope index reads only the scope, the links and the climbed
+directories, so keep them that way: data drawn from several documents belongs in a new cache with its own rule.
 
 A change names a resolved path, while a ref may name a path through a link: a skill's `SKILL.md` under a linked
 skill entry changes at the path the link leads to, not at the ref's. A snapshot maps a linked path to its resolved one
@@ -109,6 +119,15 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.document import DocumentDecodeError, DocumentRef
 from lorecraft.project.document import Repository as DocumentRepository
 from lorecraft.project.layout import named_dirs_of_scope, reject_linked_layout
+from lorecraft.project.schemas import (
+    FrontmatterSchema,
+    OutlineDivergenceSpec,
+    SchemaProblems,
+    StructureSpec,
+    locate_schema_problems,
+    locate_skill_schema_problems,
+    match_outlines,
+)
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.skill import (
     SkillDecodeError,
@@ -136,9 +155,10 @@ from .text import DocumentText, SkillResourceText, SkillText, Undecodable
 class Database:
     """What the checks read from one snapshot, each computed once and cached for the snapshot's lifetime.
 
-    That is the workspace model, the decoded text, the frontmatter, the parse trees and the token counts of the
-    documents, the decoded text, the frontmatter, the parse trees and the line counts of the skills, the resources of
-    each skill with their decoded text and their parse trees, and the scope index `is_in_scope` answers from.
+    That is the workspace model, the decoded text, the frontmatter, the parse trees, the token counts, the line
+    counts, the schema problems and the outline divergences of the documents, the decoded text, the frontmatter, the
+    parse trees, the line counts and the schema problems of the skills, the resources of each skill with their decoded
+    text and their parse trees, and the scope index `is_in_scope` answers from.
     """
 
     def __init__(self, snapshot: Snapshot) -> None:
@@ -160,10 +180,13 @@ class Database:
         self._parses: dict[DocumentRef, ParsedDocument] = {}
         self._token_counts: dict[DocumentRef, int] = {}
         self._line_counts: dict[DocumentRef, int] = {}
+        self._schema_problems: dict[DocumentRef, tuple[SchemaProblems, ...]] = {}
+        self._outline_divergences: dict[DocumentRef, tuple[OutlineDivergenceSpec, ...]] = {}
         self._skill_texts: dict[SkillRef, SkillText | Undecodable] = {}
         self._skill_frontmatters: dict[SkillRef, FrontmatterNode] = {}
         self._skill_parses: dict[SkillRef, ParsedDocument] = {}
         self._skill_line_counts: dict[SkillRef, int] = {}
+        self._skill_schema_problems: dict[SkillRef, tuple[SchemaProblems, ...]] = {}
         self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
         self._skill_resource_texts: dict[SkillResourceRef, SkillResourceText | Undecodable] = {}
         self._skill_resource_parses: dict[SkillResourceRef, ParsedDocument] = {}
@@ -374,6 +397,132 @@ class Database:
             self._line_counts[source.ref] = count
         return count
 
+    def schema_problems(self, source: DocumentText) -> tuple[SchemaProblems, ...]:
+        """What each frontmatter schema that governs one document rejects in its frontmatter, found on the first call.
+
+        Each problem is placed on the line its field is written on, or line 1 when it has none. The frontmatter is
+        read only when a schema governs the document.
+
+        Carry-over: kept for the next revision whenever `frontmatter(source)` is and the model is.
+
+        Args:
+            source: The document's text, as `text(ref)` returns it; its ref is the cache key, so one ref is
+                validated once.
+
+        Returns:
+            One entry per frontmatter schema that governs the document, in the order the schemas apply, each naming
+            the structure specification that states it; none when no schema governs it, or when its block is
+            missing, not YAML or not a mapping, which no schema can hold.
+
+        Raises:
+            DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
+            CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
+            StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
+            StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in
+                the dialect's shape.
+            EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
+            RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
+            RepeatedForbiddenSectionError: If the model is not loaded yet and a specification forbids a section
+                twice.
+            ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
+                outline names.
+            AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
+            InvalidTitlePatternError: If the model is not loaded yet and a title's pattern does not compile.
+            InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by
+                the meta-schema.
+            FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries
+                `$id`.
+            ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema
+                names another dialect.
+            UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not
+                state an object.
+            DirResolveError: If the model is not loaded yet and a skills directory or a named directory cannot be
+                resolved.
+            EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot
+                be inspected, or a link's target read, while looking for where it leaves the repository.
+            SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
+            SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
+            SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
+            SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
+        """
+        found = self._schema_problems.get(source.ref)
+        if found is None:
+            governance = self.model().find_governance(source.ref)
+            schemas: tuple[FrontmatterSchema, ...] = ()
+            if governance is not None:
+                schemas = governance.frontmatter_schemas()
+            if schemas:
+                found = locate_schema_problems(self.frontmatter(source), schemas)
+            else:
+                found = ()
+            self._schema_problems[source.ref] = found
+        return found
+
+    def outline_divergences(self, source: DocumentText) -> tuple[OutlineDivergenceSpec, ...]:
+        """Where one document's sections first stop matching each outline that governs it, found on the first call.
+
+        The document is parsed, and its lines counted, only when a structure specification that governs it states an
+        outline.
+
+        Carry-over: kept for the next revision whenever `parse(source)` and `document_lines(source)` are and the model
+        is.
+
+        Args:
+            source: The document's text, as `text(ref)` returns it; its ref is the cache key, so one ref is matched
+                once.
+
+        Returns:
+            One entry per structure specification that governs the document and states an outline, in the order the
+            specifications apply; none when no outline governs it.
+
+        Raises:
+            DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
+            CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
+            StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
+            StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in
+                the dialect's shape.
+            EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
+            RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
+            RepeatedForbiddenSectionError: If the model is not loaded yet and a specification forbids a section
+                twice.
+            ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
+                outline names.
+            AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
+            InvalidTitlePatternError: If the model is not loaded yet and a title's pattern does not compile.
+            InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by
+                the meta-schema.
+            FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries
+                `$id`.
+            ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema
+                names another dialect.
+            UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not
+                state an object.
+            DirResolveError: If the model is not loaded yet and a skills directory or a named directory cannot be
+                resolved.
+            EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot
+                be inspected, or a link's target read, while looking for where it leaves the repository.
+            SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
+            SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
+            SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
+            SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
+        """
+        divergences = self._outline_divergences.get(source.ref)
+        if divergences is None:
+            governance = self.model().find_governance(source.ref)
+            outlined_specs: list[StructureSpec] = []
+            if governance is not None:
+                for structure_spec in governance.structure_specs():
+                    if structure_spec.outline:
+                        outlined_specs.append(structure_spec)
+            if outlined_specs:
+                divergences = match_outlines(
+                    tuple(outlined_specs), self.parse(source).headings, self.document_lines(source)
+                )
+            else:
+                divergences = ()
+            self._outline_divergences[source.ref] = divergences
+        return divergences
+
     def skill_text(self, ref: SkillRef) -> SkillText | Undecodable:
         """One skill's `SKILL.md` decoded as UTF-8, read from the snapshot on the first call for its ref.
 
@@ -454,6 +603,28 @@ class Database:
             count = count_lines(source.text)
             self._skill_line_counts[source.ref] = count
         return count
+
+    def skill_schema_problems(self, source: SkillText) -> tuple[SchemaProblems, ...]:
+        """What the Agent Skills specification rejects in a skill's frontmatter, found once. Raises nothing.
+
+        Each problem is placed on the line its field is written on, or line 1 when it has none. The package states
+        the specification, so every skill is held to it and no specification in the repository plays a part.
+
+        Carry-over: kept for the next revision whenever `skill_frontmatter(source)` is.
+
+        Args:
+            source: The skill's `SKILL.md` text, as `skill_text(ref)` returns it; its ref is the cache key, so one ref
+                is validated once.
+
+        Returns:
+            One entry, for the Agent Skills specification; none when the block is missing, not YAML or not a
+            mapping, which no schema can hold.
+        """
+        found = self._skill_schema_problems.get(source.ref)
+        if found is None:
+            found = locate_skill_schema_problems(self.skill_frontmatter(source))
+            self._skill_schema_problems[source.ref] = found
+        return found
 
     def skill_resources(self, skill: SkillLocation) -> SkillResourceListing:
         """The resources of one skill and its symlinks leading outside the repository, listed on the first call.

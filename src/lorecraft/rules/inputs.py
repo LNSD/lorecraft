@@ -10,12 +10,12 @@ Building an input from the queries is the run's job, in `lorecraft.checks`, neve
 from abc import abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Final, Self
+from typing import Self
 
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.schemas import FrontmatterProblem, SectionName
+from lorecraft.project.schemas import OutlineDivergenceSpec, SchemaProblems, SectionName
 from lorecraft.project.syntax import (
     Heading,
     InvalidYamlFrontmatter,
@@ -235,53 +235,6 @@ class FrontmatterBlockRule(ContentRule):
 
 
 @dataclass(frozen=True, slots=True)
-class StructureSpecSchema:
-    """A frontmatter schema a structure specification states under its `frontmatter` key.
-
-    Attributes:
-        spec: The structure specification file that states the schema.
-    """
-
-    spec: RootRelativePath
-
-
-@dataclass(frozen=True, slots=True)
-class AgentSkillsSchema:
-    """The Agent Skills specification's frontmatter schema: the package states it, and no repository file sets it."""
-
-
-# The schema a set of problems was found against: one a structure specification file states, for a document, or
-# the Agent Skills specification's, for a skill.
-type SchemaSource = StructureSpecSchema | AgentSkillsSchema
-
-
-@dataclass(frozen=True, slots=True)
-class LocatedProblem:
-    """One thing a frontmatter schema rejects, with the line it is reported on.
-
-    Attributes:
-        problem: What the schema rejects.
-        line: The line of the field it concerns, or line 1 when it concerns no field or a field not written.
-    """
-
-    problem: FrontmatterProblem
-    line: LineNumber
-
-
-@dataclass(frozen=True, slots=True)
-class SchemaProblems:
-    """Every problem one frontmatter schema found in a frontmatter.
-
-    Attributes:
-        source: The schema the problems were found against.
-        problems: In the order the schema reports them; empty when the frontmatter conforms to it.
-    """
-
-    source: SchemaSource
-    problems: tuple[LocatedProblem, ...]
-
-
-@dataclass(frozen=True, slots=True)
 class SchemaProblemsInput:
     """What each frontmatter schema that governs a document or a skill rejects in its frontmatter.
 
@@ -309,10 +262,6 @@ class SchemaProblemsRule(ContentRule):
         Args:
             subject: The problems each governing schema found, each with its line.
         """
-
-
-SECTION_LEVEL: Final[int] = 2
-"""The heading level of a section: H1 is the title, and anything deeper is a subsection."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -450,83 +399,6 @@ class HeadingsRule(ContentRule):
         Args:
             subject: The headings judged, with what each governing structure specification states over them.
         """
-
-
-@dataclass(frozen=True, slots=True)
-class DocumentEnd:
-    """The end of a document, where a section the outline expects last would be written.
-
-    Attributes:
-        last_line: The document's last line, or line 1 for an empty document.
-    """
-
-    last_line: LineNumber
-
-
-@dataclass(frozen=True, slots=True)
-class AbsentSection:
-    """A required section the outline expects next, which the document holds nowhere.
-
-    Attributes:
-        name: The section's heading text, as the outline entry names it.
-        description: What the section holds, as the outline entry states it, or `None` when it states none.
-        example: The first sample of the section's body the outline entry gives, without its heading, or `None`
-            when it gives none.
-        before: The section found where the missing one was expected, which it should come before; or the end of
-            the document, when every section was matched before the outline expected it.
-    """
-
-    name: SectionName
-    description: str | None
-    example: str | None
-    before: Heading | DocumentEnd
-
-
-@dataclass(frozen=True, slots=True)
-class MisplacedSection:
-    """A section the outline names, written where the outline places a different section.
-
-    Attributes:
-        section: The section's H2 heading.
-        expected: The section the outline places there instead, which the document holds later; or `None` when
-            the section is left over once the outline is used up.
-    """
-
-    section: Heading
-    expected: SectionName | None
-
-
-@dataclass(frozen=True, slots=True)
-class UnlistedSection:
-    """A section the outline does not name, in a place no `any` run of the outline covers.
-
-    Attributes:
-        section: The section's H2 heading.
-        expected: The section the outline places there instead, which the document holds later; or `None` when
-            the section comes after the outline's end.
-    """
-
-    section: Heading
-    expected: SectionName | None
-
-
-# The first place a document's sections stop matching an outline: a required section absent from the document, a
-# named section out of its place, or a section the outline does not name. Matching stops there, since every later
-# entry would be compared with sections it was never meant to match.
-type OutlineDivergence = AbsentSection | MisplacedSection | UnlistedSection
-
-
-@dataclass(frozen=True, slots=True)
-class OutlineDivergenceSpec:
-    """Where a document's sections first stop matching one structure specification's outline.
-
-    Attributes:
-        spec: The structure specification file whose outline the sections are matched against.
-        divergence: The first divergence, or `None` when the sections match the outline.
-    """
-
-    spec: RootRelativePath
-    divergence: OutlineDivergence | None
 
 
 @dataclass(frozen=True, slots=True)

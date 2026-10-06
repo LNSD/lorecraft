@@ -6,12 +6,15 @@ not a heading; the Markdown parser decides both (see `markdown`).
 """
 
 from dataclasses import dataclass
-from typing import Literal, assert_never
+from typing import Final, Literal, assert_never
 
 from .position import LineNumber
 
 type HeadingLevel = Literal[1, 2, 3, 4, 5, 6]
 """A heading's depth: 1 for a title through 6, the deepest Markdown has."""
+
+SECTION_LEVEL: Final[int] = 2
+"""The heading level of a section: H1 is the title, and anything deeper is a subsection."""
 
 
 @dataclass(frozen=True, slots=True)

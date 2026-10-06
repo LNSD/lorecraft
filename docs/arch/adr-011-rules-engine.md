@@ -34,7 +34,7 @@ What it replaces is everything around the checks:
 
 1. **A closed set of input kinds.** A rule declares the one input it reads. An input scans, a rule loops: every
    pass over text, a tree or a schema is an input, and a rule only loops over the values its input holds. An
-   analysis several rules share is an input of its own, never a rule with several codes.
+   analysis several rules share is a query of the database, never a rule with several codes.
 2. **One runner** resolves each input once per subject, only when an enabled rule reads it, with one
    hand-written branch per input kind.
 3. **A subject's status is the engine's, not a rule's.** Whether a file decodes, and whether a specification
@@ -95,9 +95,9 @@ The set is closed. Each kind is one dataclass and one rule base class whose `che
 | Input | Subjects | Built from | Governed by |
 |---|---|---|---|
 | Frontmatter block | document, skill | the frontmatter query | a frontmatter schema; for a skill, the package, after the Agent Skills specification |
-| Schema problems | document, skill | the same query, and each governing schema | a frontmatter schema |
+| Schema problems | document, skill | the schema-problems query, a skill's against the Agent Skills specification | a frontmatter schema |
 | Headings | document | the parse query | a structure specification |
-| Outline divergence | document | the parse and line-count queries, and each specification's outline | a structure specification that states an outline |
+| Outline divergence | document | the outline-divergences query, over the parse and line-count queries | a structure specification that states an outline |
 | Token count | document | the tokens query | a specification that sets a budget |
 | Line count | skill | the line-count query | the package |
 | Links | skill, skill resource | the parse query, the link-target query, the skill's `metadata` | the package |
@@ -107,18 +107,22 @@ The set is closed. Each kind is one dataclass and one rule base class whose `che
 Three rules follow from the table.
 
 **An input scans, a rule loops.** Building an input is where the cost of a run lies: the parse, the token count,
-the schema validation. A rule's own work is a loop over a short tuple the input prepared. So a scan written
+and the shared analyses the input reads from their queries. A rule's own work is a loop over a short tuple the input prepared. So a scan written
 inside a rule is paid once per rule, and the same scan written as an input is paid once per subject, however
 many rules read it. A rule never walks text or a tree: the scan it needs is an input, existing or new. A rule
 that needs two facts, such as the headings and the frontmatter, gets one input that holds both, never two
 inputs. A new input is the runner's one reviewed extension point, so it is where a new cost enters and is
 reviewed.
 
-**A shared analysis is an input.** Schema validation and outline matching each find several conditions in one
-pass. The runner computes the analysis once per subject, as a tuple of typed problems, when an enabled rule
-reads it. Each condition is then a rule that projects its own problem type into its occurrences. The
-analysis is a judgment, so it lives for one run and is never memoized as a query: the invariant that check
-results are not cached stands.
+**A shared analysis is a query.** Schema validation and outline matching each find several conditions in one
+pass. Each is a pure function of the revision's per-file queries and the specifications that govern the subject, so
+it is memoized on the database like any other query, with its own carry-over rule: `schema_problems` and
+`skill_schema_problems` are kept whenever the frontmatter is and, for a document, the model is, and
+`outline_divergences` whenever the parse and the line count are and the model is. The runner asks for it once per
+subject, as a tuple of typed problems, and only when an enabled rule reads it and a specification governs the subject
+for it, so an ungoverned subject never pays for it. Each condition is then a rule that projects its own problem type
+into its occurrences. The analysis finds problems, never diagnostics: levels are applied after detection, so no
+diagnostic is cached and a rule's result still is not.
 
 **A cross-file input is a query.** The link-target states and the listed-file states become queries keyed by the
 subject's ref. Each one's carry-over rule names every path it looked up, an absent target included, since
@@ -319,12 +323,12 @@ A more elaborate engine waits for a profile that asks for one.
   [module-lorecraft-checks](../code/module-lorecraft-checks.md) (the run and the shared
   analysis boundary) and [adr-004-database](adr-004-database.md) (decoding as a value, cross-file queries).
 - **A projecting rule is thin.** A schema rule is a few lines over a problem type, and the validation it
-  projects lives with the input.
+  projects lives in a query.
 - **The runner is hand-written per input kind.** That is the price of typed dispatch with no generic machinery.
 - **A later package split.** The established linters keep the database apart from the linter. The rules already
   sit apart, in `lorecraft.rules`, but `lorecraft.checks` still holds the database and the runner. Splitting those
   two adds another layer to the import contract, so it is a change of its own, after this one.
-- **What stays true:** a check is pure, a judgment is never cached, and every value a rule reads comes from a
+- **What stays true:** a check is pure, a rule's result is never cached, and every value a rule reads comes from a
   query with a stated carry-over rule.
 
 ## Deferred
