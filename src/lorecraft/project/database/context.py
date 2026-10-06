@@ -11,9 +11,13 @@ context only for a document whose corpus states a structure specification, with 
 facet governs a document whose corpus states none. The model is loaded by then, so no method raises.
 """
 
+from collections.abc import Mapping
+from pathlib import PurePosixPath
+
 from lorecraft.core.num import UnsignedInt
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
+from lorecraft.project.link_target import DocumentDirectory, PathLookup, SkillRoot
 from lorecraft.project.schemas import OutlineDivergenceSpec, SchemaProblems, StructureSpec
 from lorecraft.project.skill import SkillLocation
 from lorecraft.project.syntax import FrontmatterNode, ParsedDocument
@@ -65,6 +69,14 @@ class DatabaseDocumentContext:
     def parse(self) -> ParsedDocument:
         """The document's parse tree, from the `parse` query."""
         return self._database.parse(self._source)
+
+    def link_base(self) -> DocumentDirectory:
+        """The directory holding the document, read from its ref."""
+        return DocumentDirectory(self._source.ref.path.parent)
+
+    def link_targets(self) -> Mapping[PurePosixPath, PathLookup]:
+        """What the snapshot holds at the target of each relative link, from the `link_targets` query."""
+        return self._database.link_targets(self._source)
 
     def tokens(self) -> UnsignedInt:
         """The tokens in the document's whole file, from the `tokens` query."""
@@ -130,6 +142,14 @@ class DatabaseSkillContext:
         """The parse tree of the skill's `SKILL.md`, from the `skill_parse` query."""
         return self._database.skill_parse(self._source)
 
+    def link_base(self) -> SkillRoot:
+        """The skill directory where an agent reaches it, read from its ref, never where a link there leads."""
+        return SkillRoot(self._source.ref.directory)
+
+    def link_targets(self) -> Mapping[PurePosixPath, PathLookup]:
+        """What the snapshot holds at the target of each relative link, from the `skill_link_targets` query."""
+        return self._database.skill_link_targets(self._source)
+
     def lines(self) -> UnsignedInt:
         """The lines in the skill's whole `SKILL.md`, from the `skill_lines` query."""
         # A count is never negative, so building the `UnsignedInt` cannot raise `NegativeIntError` here.
@@ -153,3 +173,11 @@ class DatabaseSkillResourceContext:
     def parse(self) -> ParsedDocument:
         """The resource's parse tree, from the `skill_resource_parse` query."""
         return self._database.skill_resource_parse(self._source)
+
+    def link_base(self) -> SkillRoot:
+        """The directory of the resource's skill where an agent reaches it, read from its ref."""
+        return SkillRoot(self._source.ref.skill.directory)
+
+    def link_targets(self) -> Mapping[PurePosixPath, PathLookup]:
+        """What the snapshot holds at the target of each relative link, from `skill_resource_link_targets`."""
+        return self._database.skill_resource_link_targets(self._source)

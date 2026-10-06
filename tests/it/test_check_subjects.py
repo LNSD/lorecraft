@@ -6,10 +6,13 @@ registry. The package's own registry runs the frontmatter block rules over docum
 the headings rules and the outline divergence rules over documents, the line budget over skills, and the link
 rules over every Markdown file; a registry of sample rules over a document's token count, declared in this
 module, runs through the same runner, with no edit to it.
+
+A snapshot built in memory scans nothing, so no path is in its scope and no link is looked up in it. The tests of
+`LINK003`, which judges what a link names, open the database on a scan of a real tree instead.
 """
 
 from dataclasses import dataclass
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import ClassVar, Final, Self
 
 import pytest
@@ -25,6 +28,8 @@ from lorecraft.project.context import DocumentContext
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, DocumentText, SkillText
 from lorecraft.project.document import DocumentRef
+from lorecraft.project.layout import SNAPSHOT_SCOPE
+from lorecraft.project.link_target import DocumentDirectory, SkillRoot
 from lorecraft.project.schemas import (
     BlockProblem,
     InvalidValueProblem,
@@ -66,6 +71,7 @@ from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.length.too_many_words import TooManyWords
 from lorecraft.rules.link.absolute_link import AbsoluteLink
+from lorecraft.rules.link.broken_link import BrokenLink
 from lorecraft.rules.link.missing_fragment import MissingFragment
 from lorecraft.rules.outline.empty_section import EmptySection
 from lorecraft.rules.outline.extra_title import ExtraTitle
@@ -78,7 +84,7 @@ from lorecraft.rules.outline.title_not_first import TitleNotFirst
 from lorecraft.rules.outline.unexpected_section import UnexpectedSection
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.subject import DocumentRule, Facet
-from lorecraft.vfs import EntryRecord, ResolvedPath, Snapshot, SymlinkRecord
+from lorecraft.vfs import EntryRecord, ResolvedPath, Snapshot, SymlinkRecord, take_snapshot
 
 GUIDE: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('guide'))
 """A document of corpus `code`."""
@@ -1791,3 +1797,245 @@ class TestCheckSubjects:
                 checklist, diagnostics=(RuleDiagnostic(checklist_path, occurrence, Severity.ERROR),), ungoverned=()
             ),
         ), "a resource's fragment names one of its own headings, never the SKILL.md's, and is reported where it is"
+
+
+def _write(root: Path, relative: str, data: bytes = b'') -> None:
+    """Write one file under the root, creating its parents.
+
+    Args:
+        root: Directory the file is written under, as the repository root.
+        relative: Path of the file below `root`, with `/` separators.
+        data: Bytes written to the file; empty by default.
+    """
+    path = root / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
+
+
+def _write_code_corpus(root: Path, guide: bytes) -> None:
+    """Write corpus `code`, whose structure specification sets a budget, holding `GUIDE` with the bytes given.
+
+    Args:
+        root: Directory the corpus is written under, as the repository root.
+        guide: Bytes of `GUIDE`, at `docs/code/guide.md`.
+    """
+    _write(root, 'docs/__meta__/code.md', b'# Code\n')
+    _write(root, 'docs/__meta__/code.structure.json', _budget(1000))
+    _write(root, 'docs/code/guide.md', guide)
+
+
+def _broken_in_skill(path: str, line: int, url: str) -> RuleDiagnostic:
+    """The `LINK003` diagnostic of a link in a file of `REVIEW`, read from the skill root.
+
+    Args:
+        path: Where an agent reaches the file holding the link, root-relative.
+        line: The line the link is on.
+        url: The link's destination, as the parser encodes it.
+    """
+    occurrence = BrokenLink(line=LineNumber.from_int(line), url=url, base=SkillRoot(REVIEW.directory))
+    return RuleDiagnostic(RootRelativePath.parse(path), occurrence, Severity.ERROR)
+
+
+@pytest.fixture(scope='module')
+def broken_link_table() -> RuleTable:
+    """The rule table enabling `LINK003` alone, as an error; immutable, so shared by the module."""
+    severities: dict[type[Rule], Severity] = {BrokenLink: Severity.ERROR}
+    return RuleTable(severities)
+
+
+@pytest.mark.it
+class TestCheckSubjectsBrokenLink:
+    def test_check_subjects_with_a_broken_link_in_a_skill_file_reports_only_it(
+        self, tmp_path: Path, broken_link_table: RuleTable
+    ) -> None:
+        #: Given
+        _write(
+            tmp_path,
+            '.agents/skills/review/SKILL.md',
+            REVIEW_FRONTMATTER + b'# Review\n\nRun [the script](scripts/run.py) from [scripts](scripts/).\n\n'
+            b'Read [the steps](references/steps.md).\n',
+        )
+        _write(tmp_path, '.agents/skills/review/scripts/run.py')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        reports = check_subjects(database, (_location(database, REVIEW),), broken_link_table)
+
+        #: Then
+        assert reports == (
+            CheckedSubject(
+                REVIEW,
+                diagnostics=(_broken_in_skill('.agents/skills/review/SKILL.md', 9, 'references/steps.md'),),
+                ungoverned=(),
+            ),
+        ), 'a file and a directory the skill holds are found, whatever their kind, and the missing file is not'
+
+    def test_check_subjects_with_a_broken_link_in_a_nested_resource_reads_it_from_the_skill_root(
+        self, tmp_path: Path, broken_link_table: RuleTable
+    ) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/review/SKILL.md', REVIEW_FRONTMATTER)
+        _write(tmp_path, '.agents/skills/review/references/a.md', b'# A\n')
+        _write(
+            tmp_path,
+            '.agents/skills/review/references/deep/guide.md',
+            b'# Guide\n\nSee [a](references/a.md), not [a](a.md) or [itself](guide.md).\n',
+        )
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        resources = _resources(database, REVIEW)
+
+        #: When
+        reports = check_subjects(database, resources, broken_link_table)
+
+        #: Then
+        guide = '.agents/skills/review/references/deep/guide.md'
+        assert reports == (
+            CheckedSubject(resources[0].ref, diagnostics=(), ungoverned=()),
+            CheckedSubject(
+                resources[1].ref,
+                diagnostics=(_broken_in_skill(guide, 3, 'a.md'), _broken_in_skill(guide, 3, 'guide.md')),
+                ungoverned=(),
+            ),
+        ), 'a link in a resource is read from the skill root, not from the resource, so only the first is found'
+
+    def test_check_subjects_with_a_link_through_a_symlinked_directory_in_the_skill_follows_it(
+        self, tmp_path: Path, broken_link_table: RuleTable
+    ) -> None:
+        #: Given
+        _write(
+            tmp_path,
+            '.agents/skills/review/SKILL.md',
+            REVIEW_FRONTMATTER + b'# Review\n\nSee [d](guides/d.md) and [e](guides/e.md).\n',
+        )
+        _write(tmp_path, 'shared/guides/d.md', b'# D\n')
+        (tmp_path / '.agents' / 'skills' / 'review' / 'guides').symlink_to('../../../shared/guides')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        reports = check_subjects(database, (_location(database, REVIEW),), broken_link_table)
+
+        #: Then
+        assert reports == (
+            CheckedSubject(
+                REVIEW,
+                diagnostics=(_broken_in_skill('.agents/skills/review/SKILL.md', 7, 'guides/e.md'),),
+                ungoverned=(),
+            ),
+        ), 'the symlink inside the skill is followed to the files it leads to, and a file it lacks is missing'
+
+    def test_check_subjects_with_a_broken_link_in_a_linked_skill_reports_it_where_the_agent_finds_it(
+        self, tmp_path: Path, broken_link_table: RuleTable
+    ) -> None:
+        #: Given
+        _write(
+            tmp_path,
+            'skills/review/SKILL.md',
+            REVIEW_FRONTMATTER + b'# Review\n\nSee [a](references/a.md) and [b](references/b.md).\n',
+        )
+        _write(tmp_path, 'skills/review/references/a.md', b'# A\n\nBack to [the skill](SKILL.md), on to [c](c.md).\n')
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        resources = _resources(database, REVIEW)
+
+        #: When
+        reports = check_subjects(database, (_location(database, REVIEW), *resources), broken_link_table)
+
+        #: Then
+        assert reports == (
+            CheckedSubject(
+                REVIEW,
+                diagnostics=(_broken_in_skill('.agents/skills/review/SKILL.md', 7, 'references/b.md'),),
+                ungoverned=(),
+            ),
+            CheckedSubject(
+                resources[0].ref,
+                diagnostics=(_broken_in_skill('.agents/skills/review/references/a.md', 3, 'c.md'),),
+                ungoverned=(),
+            ),
+        ), 'each diagnostic names its file where an agent reaches it, under the skills directory, not under skills/'
+
+    def test_check_subjects_with_links_escaping_the_skill_root_never_reports_them_broken(
+        self, tmp_path: Path, broken_link_table: RuleTable
+    ) -> None:
+        #: Given
+        _write(
+            tmp_path,
+            '.agents/skills/review/SKILL.md',
+            REVIEW_FRONTMATTER + b'# Review\n\nSee [back in](../review/references/a.md) and [out](../gone.md).\n',
+        )
+        _write(tmp_path, '.agents/skills/review/references/a.md', b'# A\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        reports = check_subjects(database, (_location(database, REVIEW),), broken_link_table)
+
+        #: Then
+        assert reports == (CheckedSubject(REVIEW, diagnostics=(), ungoverned=()),), (
+            'a link above the skill root is not judged as broken, whether a file lies where it leads or not'
+        )
+
+    def test_check_subjects_with_a_broken_sibling_link_in_a_document_reports_it(
+        self, tmp_path: Path, broken_link_table: RuleTable
+    ) -> None:
+        #: Given
+        _write_code_corpus(tmp_path, b'# Guide\n\nRead [the setup](setup.md) first.\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), broken_link_table)
+
+        #: Then
+        occurrence = BrokenLink(
+            line=LineNumber.from_int(3), url='setup.md', base=DocumentDirectory(RootRelativePath.parse('docs/code'))
+        )
+        assert reports == (
+            CheckedSubject(GUIDE, diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),), ungoverned=()),
+        ), "a link in a document is read from the document's own directory, where nothing is named setup.md"
+
+    def test_check_subjects_with_links_to_a_file_and_a_directory_present_reports_the_document_clean(
+        self, tmp_path: Path, broken_link_table: RuleTable
+    ) -> None:
+        #: Given
+        _write_code_corpus(tmp_path, b'# Guide\n\nRead [the setup](setup.md), then [the specs](../__meta__/).\n')
+        _write(tmp_path, 'docs/code/setup.md', b'# Setup\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), broken_link_table)
+
+        #: Then
+        assert reports == (CheckedSubject(GUIDE, diagnostics=(), ungoverned=()),), (
+            "a sibling file and a directory reached by climbing out of the document's directory are both found"
+        )
+
+    def test_check_subjects_with_a_link_outside_the_scope_never_judges_it(
+        self, tmp_path: Path, broken_link_table: RuleTable
+    ) -> None:
+        #: Given
+        # `src/` is not read by the scan, so whether `src/main.py` exists cannot be told from the snapshot.
+        _write_code_corpus(tmp_path, b'# Guide\n\nSee [the entry point](../../src/main.py).\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), broken_link_table)
+
+        #: Then
+        assert reports == (CheckedSubject(GUIDE, diagnostics=(), ungoverned=()),), (
+            'a link into a directory the scan never read is not judged'
+        )
+
+    def test_check_subjects_with_a_link_climbing_above_the_repository_never_judges_it(
+        self, tmp_path: Path, broken_link_table: RuleTable
+    ) -> None:
+        #: Given
+        _write_code_corpus(tmp_path, b'# Guide\n\nSee [elsewhere](../../../elsewhere.md).\n')
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), broken_link_table)
+
+        #: Then
+        assert reports == (CheckedSubject(GUIDE, diagnostics=(), ungoverned=()),), (
+            'a link climbing above the repository root names nothing the snapshot can hold, so it is not judged'
+        )

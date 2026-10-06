@@ -30,7 +30,8 @@ from a snapshot, and one that never outlives its snapshot. The layout it derives
   outline. It finds the facts several rules read; whether one is reported, and how, is a rule's.
 - A document's, a skill's or a skill resource's identity, kept apart from its content and from where its symlinks
   lead.
-- Turning a Markdown link's destination into a root-relative path, relative to the document that holds it.
+- Turning a Markdown link's destination into a root-relative path, relative to the document that holds it, or to the
+  skill root for a file of a skill, and what the snapshot holds at that path.
 - The contexts: a `Protocol` per subject kind stating what can be asked of one decoded document, skill or skill
   resource, the ones several kinds share, such as what any Markdown file has, and the owner types they return.
 - The database of one revision: each query over it, such as the model, a file's decoded text, a parse tree, a count
