@@ -4,11 +4,12 @@ from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import ROOT
-from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
-from lorecraft.project.syntax import InvalidYamlFrontmatter, MissingFrontmatter, NonMappingFrontmatter
+from lorecraft.project.context import DocumentFrontmatterOwner, FrontmatterContext, SkillFrontmatterOwner
+from lorecraft.project.schemas import field_line
+from lorecraft.project.syntax import Frontmatter, InvalidYamlFrontmatter, MissingFrontmatter, NonMappingFrontmatter
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.inputs import FrontmatterBlockInput, FrontmatterBlockRule, FrontmatterFields
 from lorecraft.rules.location import Help, Note, Subdiagnostic
+from lorecraft.rules.subject import FrontmatterRule
 from lorecraft.vfs import ResolvedPath
 
 from .__ruleset__ import GROUP_ID, owner_spec, spec_note
@@ -46,7 +47,7 @@ type NameExpectation = FilenameExpected | DirectoryNameExpected
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class NameMismatch(FrontmatterBlockRule):
+class NameMismatch(FrontmatterRule):
     """A frontmatter `name` differs from the name its document or skill is found under.
 
     ## What it does
@@ -139,27 +140,29 @@ class NameMismatch(FrontmatterBlockRule):
                 assert_never(expectation)
 
     @classmethod
-    def check(cls, subject: FrontmatterBlockInput) -> tuple[Self, ...]:
+    def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:
         """The one occurrence, on the `name` line, when a string `name` differs from the expected name.
 
+        A `name` written more than once holds its last value, so it is reported on the last line it is written on.
+
         Args:
-            subject: The subject's frontmatter block, and the subject it opens.
+            subject: The document or the skill whose frontmatter is judged.
         """
-        frontmatter = subject.frontmatter
+        frontmatter = subject.frontmatter()
         match frontmatter:
-            case FrontmatterFields():
+            case Frontmatter():
                 pass  # the `name` is compared below
             case MissingFrontmatter() | InvalidYamlFrontmatter() | NonMappingFrontmatter():
                 return ()
             case _:
                 assert_never(frontmatter)
 
-        name = frontmatter.name
+        name = frontmatter.data.get('name')
         # A missing `name`, or one of another type, is the schema's to report, never this rule's.
-        if name is None or not isinstance(name.value, str):
+        if not isinstance(name, str):
             return ()
 
-        owner = subject.owner
+        owner = subject.frontmatter_owner()
         expectation: NameExpectation
         match owner:
             case DocumentFrontmatterOwner():
@@ -169,9 +172,9 @@ class NameMismatch(FrontmatterBlockRule):
             case _:
                 assert_never(owner)
 
-        if name.value == _expected_name(expectation):
+        if name == _expected_name(expectation):
             return ()
-        return (cls(spec=owner_spec(owner), line=name.line, name=name.value, expectation=expectation),)
+        return (cls(spec=owner_spec(owner), line=field_line(frontmatter, 'name'), name=name, expectation=expectation),)
 
 
 def _expected_name(expectation: NameExpectation) -> str:

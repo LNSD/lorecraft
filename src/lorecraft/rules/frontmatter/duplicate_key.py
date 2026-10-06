@@ -3,17 +3,24 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 
-from lorecraft.project.syntax import InvalidYamlFrontmatter, LineNumber, MissingFrontmatter, NonMappingFrontmatter
+from lorecraft.project.context import FrontmatterContext
+from lorecraft.project.syntax import (
+    Frontmatter,
+    InvalidYamlFrontmatter,
+    LineNumber,
+    MissingFrontmatter,
+    NonMappingFrontmatter,
+)
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.inputs import FrontmatterBlockInput, FrontmatterBlockRule, FrontmatterFields
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
+from lorecraft.rules.subject import FrontmatterRule
 
 from .__ruleset__ import GROUP_ID, owner_spec, spec_note
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class DuplicateKey(FrontmatterBlockRule):
+class DuplicateKey(FrontmatterRule):
     """A top-level frontmatter key is written more than once.
 
     ## What it does
@@ -99,23 +106,31 @@ class DuplicateKey(FrontmatterBlockRule):
         return (spec_note(self.spec), Help(f'write {self.key!r} once, with the value meant'))
 
     @classmethod
-    def check(cls, subject: FrontmatterBlockInput) -> tuple[Self, ...]:
+    def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:
         """One occurrence per top-level key written after its first, on its own line, in document order.
 
-        The third occurrence of a key points back at the first, not at the second.
+        The third occurrence of a key points back at the first, not at the second. A key nested in a value is not a
+        top-level key, so it repeats none.
 
         Args:
-            subject: The subject's frontmatter block, and the subject it opens.
+            subject: The document or the skill whose frontmatter is judged.
         """
-        frontmatter = subject.frontmatter
+        frontmatter = subject.frontmatter()
         match frontmatter:
-            case FrontmatterFields():
-                spec = owner_spec(subject.owner)
-                return tuple(
-                    cls(spec=spec, line=repeated.line, key=repeated.key, first_line=repeated.first_line)
-                    for repeated in frontmatter.repeated_keys
-                )
+            case Frontmatter():
+                pass  # the keys are walked below
             case MissingFrontmatter() | InvalidYamlFrontmatter() | NonMappingFrontmatter():
                 return ()
             case _:
                 assert_never(frontmatter)
+
+        spec = owner_spec(subject.frontmatter_owner())
+        first_lines: dict[str, LineNumber] = {}
+        occurrences: list[Self] = []
+        for key in frontmatter.keys:
+            first_line = first_lines.get(key.name)
+            if first_line is None:
+                first_lines[key.name] = key.line
+            else:
+                occurrences.append(cls(spec=spec, line=key.line, key=key.name, first_line=first_line))
+        return tuple(occurrences)

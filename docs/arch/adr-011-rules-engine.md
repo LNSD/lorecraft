@@ -33,11 +33,11 @@ What it replaces is everything around the checks:
 ## Decision
 
 1. **A rule reads its subject through its kind's context** and declares the facet it is governed for; the
-   frontmatter and outline rules still read one of a closed set of inputs until they move. A rule may walk the parse
-   tree its context hands it, but a pass over a file's raw text or a schema is a query, and so is a walk several
-   rules share. A helper that only selects from a value the context already holds, such as the first H1 among the
-   parsed headings, is not such a walk, so it stays a function beside the parse tree. An analysis several rules
-   share is a query of the database, never a rule with several codes.
+   outline rules still read one of a closed set of inputs until they move. A rule may walk the parse tree its
+   context hands it, but a pass over a file's raw text or a schema is a query, and so is a walk several rules share.
+   A helper that only selects from a value the context already holds, such as the first H1 among the parsed
+   headings, is not such a walk, so it stays a function beside the parse tree. An analysis several rules share is a
+   query of the database, never a rule with several codes.
 2. **One runner** resolves each input once per subject, only when an enabled rule reads it, with one
    hand-written branch per input kind, and one per subject kind for the rules that read a context.
 3. **A subject's status is the engine's, not a rule's.** Whether a file decodes, and whether a specification
@@ -100,8 +100,6 @@ The set is closed. Each kind is one dataclass and one rule base class whose `che
 
 | Input | Subjects | Built from | Governed by |
 |---|---|---|---|
-| Frontmatter block | document, skill | the frontmatter query | a frontmatter schema; for a skill, the package, after the Agent Skills specification |
-| Schema problems | document, skill | the schema-problems query, a skill's against the Agent Skills specification | a frontmatter schema |
 | Headings | document | the parse query | a structure specification |
 | Outline divergence | document | the outline-divergences query, over the parse and line-count queries | a structure specification that states an outline |
 
@@ -119,11 +117,11 @@ reviewed.
 pass. Each is a pure function of the revision's per-file queries and the specifications that govern the subject, so
 it is memoized on the database like any other query, with its own carry-over rule: `schema_problems` and
 `skill_schema_problems` are kept whenever the frontmatter is and, for a document, the model is, and
-`outline_divergences` whenever the parse and the line count are and the model is. The runner asks for it once per
-subject, as a tuple of typed problems, and only when an enabled rule reads it and a specification governs the subject
-for it, so an ungoverned subject never pays for it. Each condition is then a rule that projects its own problem type
-into its occurrences. The analysis finds problems, never diagnostics: levels are applied after detection, so no
-diagnostic is cached and a rule's result still is not.
+`outline_divergences` whenever the parse and the line count are and the model is. It is computed once per subject,
+as a tuple of typed problems, however many rules ask for it, and only when an enabled rule reads it and a
+specification governs the subject for it, so an ungoverned subject never pays for it. Each condition is then a rule
+that projects its own problem type into its occurrences. The analysis finds problems, never diagnostics: levels are
+applied after detection, so no diagnostic is cached and a rule's result still is not.
 
 **A cross-file input is a query.** The link-target states are a query keyed by the subject's ref, one per kind of
 Markdown file, read through `link_targets()`: what the snapshot holds at the target of each relative link, present,
@@ -158,9 +156,19 @@ context too, `LINK001`, `LINK002` and `LINK003` deriving from `MarkdownRule`, `L
 facet the headings input was governed by, so their coverage is unchanged; `LEN003` keeps it, rather than `OUTLINE`,
 although it reads only the outline. Each walks the parse tree its context hands it: an analysis only one rule reads is
 that rule's own, so `LEN003` resolves each section's cap from the outline itself. Finding the title, the first H1, is
-the helper `find_title` beside the parse tree. The frontmatter and outline rules still read the inputs above until they
-move onto a context. A `FrontmatterRule` base over a `FrontmatterContext`, for a rule that reads a document's or a
-skill's frontmatter alike, arrives with the frontmatter rules.
+the helper `find_title` beside the parse tree.
+
+**A rule over what both subject kinds share reads the shared context.** `FrontmatterRule` is the base of a rule over
+a document's or a skill's frontmatter alike: its `check` takes a `FrontmatterContext`, so one check judges both
+kinds, and a document runs its rules and the frontmatter rules, a skill its rules and the frontmatter rules. The
+frontmatter rules, `FM001` to `FM010`, derive from it, so the frontmatter block and the schema problems are no longer
+inputs. A rule over the frontmatter inherits `GOVERNED_BY = Facet.FRONTMATTER` from its base, so the runner gates it
+on a document as it gates a rule over a document. That facet is governed exactly when the two inputs were, so their
+coverage is now that one facet, and a skill is governed for it by the package. `FM006` to `FM010` stay filters, each
+picking its own problem type out of the one `schema_problems()` answer. Where a key repeats and which line `name` is
+written on are each read by one rule only, so `FM005` walks the keys and `FM004` locates `name` itself, through the
+same `field_line` the schema query places its problems with. The outline rules still read the inputs above until they
+move onto a context.
 
 **A layout entry is read through a context alone**, since no input ever stood for it. One layout entry is one
 symlink of the skill layout whose chain leaves the repository: a skills directory, an entry in one or an entry's
@@ -177,10 +185,10 @@ it is never decoded, and the package governs the layout, so it is never ungovern
   cached like any result. The runner decodes every selected subject, whatever the levels. That is the one read
   NFR-003 does not gate, so that FR-020 holds under any configuration.
 - **Governed or ungoverned, per facet.** Governance comes from the model, which computes it once. A document can be
-  governed for its frontmatter and ungoverned for its outline. The runner runs a rule over a document only when the
-  document is governed for the rule's facet, and records each facet an enabled rule reads that it is not governed
-  for; a rule still on an input records that input kind instead. A skill and a resource are governed by the
-  package for every facet, so neither is ever ungoverned.
+  governed for its frontmatter and ungoverned for its outline. The runner runs a rule over a document or over the
+  frontmatter only when the document is governed for the rule's facet, and records each facet an enabled rule reads
+  that it is not governed for; a rule still on an input records that input kind instead. A skill and a resource are
+  governed by the package for every facet, so neither is ever ungoverned.
 - **Undecodable is an engine diagnostic**, not a rule (FR-020). It has a fixed code under the engine's prefix
   and a rulebook page, and no level. It always fails the run, and a configuration that names its code fails.
 - **Ungoverned is coverage**, not a diagnostic (FR-019). It describes the specifications, not the subject.
@@ -207,15 +215,15 @@ Python's types bound what this proves, and the design states the two gaps rather
 ### The Runner
 
 The runner takes the database, the selected subjects and a rule table. The table is built once per run from the
-registry and the resolved levels: the enabled rules, partitioned by subject kind, or by input kind for a rule still on
-an input, in code order. Each partition holds every enabled rule beside its severity, so a rule the runner holds
-always has one. For a document, the runner builds one context, then for each facet an enabled document rule
-declares, runs those rules over the context or records the facet as ungoverned; the Markdown rules run beside the
-`STRUCTURE` rules. For a skill, it builds one context and runs every skill rule, every Markdown rule and every
-skill-file rule over it. For a resource, it builds one context and runs every Markdown rule and every skill-file rule
-over it. For a layout entry, it builds the context from the entry's record and runs every layout rule over it, in a
-report that holds the entry's path and its diagnostics. The input branches below stay beside these until the last
-rule reads a context.
+registry and the resolved levels: the enabled rules, partitioned by base, or by input kind for a rule still on an
+input, in code order. Each partition holds every enabled rule beside its severity, so a rule the runner holds always
+has one. For a document, the runner builds one context, then for each facet an enabled document rule declares, and the
+frontmatter facet when a frontmatter rule is enabled, runs those rules over the context or records the facet as
+ungoverned; the Markdown rules run beside the `STRUCTURE` rules. For a skill, it builds one context and runs every
+frontmatter rule, then every skill rule, every Markdown rule and every skill-file rule over it. For a resource, it
+builds one context and runs every Markdown rule and every skill-file rule over it. For a layout entry, it builds the
+context from the entry's record and runs every layout rule over it, in a report that holds the entry's path and its
+diagnostics. The input branches below stay beside these until the last rule reads a context.
 
 ```python
 def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> SubjectReport:

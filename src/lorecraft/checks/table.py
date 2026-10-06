@@ -5,14 +5,16 @@ from a registry and each rule's default level: a rule at `warn` reports warnings
 `allow` is not in the table, so it never runs and what it reads may never be computed. Removed rules and engine
 conditions are not rules a run enables, so the table never holds one.
 
-A rule is partitioned by its base: the rules over a document, which the runner runs facet by facet, the rules over
-a skill, the rules over a Markdown file, which the runner runs over a document, a skill and a resource alike, the
-rules over a skill's file, which it runs over a skill and a resource alike, and the rules over a layout entry. Each
-partition pairs every rule in it with its severity, as an `EnabledRule`, so a rule the runner finds in a partition
-always has a severity to report at.
+A rule is partitioned by its base: the rules over a document, the rules over a skill, the rules over the
+frontmatter, which the runner runs over documents and skills alike, the rules over a Markdown file, which the runner
+runs over a document, a skill and a resource alike, the rules over a skill's file, which it runs over a skill and a
+resource alike, and the rules over a layout entry. The rules over a document and over the frontmatter are also
+grouped by the facet each declares, since the runner runs them over a document facet by facet. Each partition pairs
+every rule in it with its severity, as an `EnabledRule`, so a rule the runner finds in a partition always has a
+severity to report at.
 
-The frontmatter and outline rules still read an input each, so the table also keeps one partition per input kind they
-read; later changes move those rules onto a context and remove these partitions.
+The outline rules still read an input each, so the table also keeps one partition per input kind they read; a later
+change moves those rules onto a context and removes these partitions.
 """
 
 from collections.abc import Mapping
@@ -20,14 +22,17 @@ from dataclasses import dataclass
 from typing import Self, assert_never
 
 from lorecraft.rules.declaration import EngineCondition, Level, RemovedRule, Rule, Severity
-from lorecraft.rules.inputs import (
-    FrontmatterBlockRule,
-    HeadingsRule,
-    OutlineDivergenceRule,
-    SchemaProblemsRule,
-)
+from lorecraft.rules.inputs import HeadingsRule, OutlineDivergenceRule
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.subject import DocumentRule, Facet, LayoutEntryRule, MarkdownRule, SkillFileRule, SkillRule
+from lorecraft.rules.subject import (
+    DocumentRule,
+    Facet,
+    FrontmatterRule,
+    LayoutEntryRule,
+    MarkdownRule,
+    SkillFileRule,
+    SkillRule,
+)
 
 
 class UnknownRuleInputError(TypeError):
@@ -69,9 +74,9 @@ class RuleTable:
     _markdown_rules: tuple[EnabledRule[MarkdownRule], ...]
     _skill_file_rules: tuple[EnabledRule[SkillFileRule], ...]
     _layout_rules: tuple[EnabledRule[LayoutEntryRule], ...]
+    _frontmatter_rules: tuple[EnabledRule[FrontmatterRule], ...]
+    _frontmatter_rules_by_facet: dict[Facet, tuple[EnabledRule[FrontmatterRule], ...]]
     # One partition per input kind, until the rules that read one read a context.
-    _frontmatter_block_rules: tuple[EnabledRule[FrontmatterBlockRule], ...]
-    _schema_problems_rules: tuple[EnabledRule[SchemaProblemsRule], ...]
     _headings_rules: tuple[EnabledRule[HeadingsRule], ...]
     _outline_divergence_rules: tuple[EnabledRule[OutlineDivergenceRule], ...]
 
@@ -90,8 +95,7 @@ class RuleTable:
         markdown_rules: list[EnabledRule[MarkdownRule]] = []
         skill_file_rules: list[EnabledRule[SkillFileRule]] = []
         layout_rules: list[EnabledRule[LayoutEntryRule]] = []
-        frontmatter_block_rules: list[EnabledRule[FrontmatterBlockRule]] = []
-        schema_problems_rules: list[EnabledRule[SchemaProblemsRule]] = []
+        frontmatter_rules: list[EnabledRule[FrontmatterRule]] = []
         headings_rules: list[EnabledRule[HeadingsRule]] = []
         outline_divergence_rules: list[EnabledRule[OutlineDivergenceRule]] = []
         for rule_class in sorted(severities, key=_printed_code):
@@ -107,10 +111,8 @@ class RuleTable:
                 skill_file_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, LayoutEntryRule):
                 layout_rules.append(EnabledRule(rule_class, severities[rule_class]))
-            elif issubclass(rule_class, FrontmatterBlockRule):
-                frontmatter_block_rules.append(EnabledRule(rule_class, severities[rule_class]))
-            elif issubclass(rule_class, SchemaProblemsRule):
-                schema_problems_rules.append(EnabledRule(rule_class, severities[rule_class]))
+            elif issubclass(rule_class, FrontmatterRule):
+                frontmatter_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, HeadingsRule):
                 headings_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, OutlineDivergenceRule):
@@ -127,8 +129,12 @@ class RuleTable:
         self._markdown_rules = tuple(markdown_rules)
         self._skill_file_rules = tuple(skill_file_rules)
         self._layout_rules = tuple(layout_rules)
-        self._frontmatter_block_rules = tuple(frontmatter_block_rules)
-        self._schema_problems_rules = tuple(schema_problems_rules)
+        self._frontmatter_rules = tuple(frontmatter_rules)
+        self._frontmatter_rules_by_facet = {}
+        for facet in Facet:
+            self._frontmatter_rules_by_facet[facet] = tuple(
+                enabled for enabled in frontmatter_rules if enabled.rule.GOVERNED_BY is facet
+            )
         self._headings_rules = tuple(headings_rules)
         self._outline_divergence_rules = tuple(outline_divergence_rules)
 
@@ -192,14 +198,17 @@ class RuleTable:
         return self._layout_rules
 
     @property
-    def frontmatter_block_rules(self) -> tuple[EnabledRule[FrontmatterBlockRule], ...]:
-        """Each enabled rule over a frontmatter block, with its severity, in code order; empty when none is."""
-        return self._frontmatter_block_rules
+    def frontmatter_rules(self) -> tuple[EnabledRule[FrontmatterRule], ...]:
+        """Each enabled rule over the frontmatter, with its severity, in code order; empty when none is."""
+        return self._frontmatter_rules
 
-    @property
-    def schema_problems_rules(self) -> tuple[EnabledRule[SchemaProblemsRule], ...]:
-        """Each enabled rule over the schema problems, with its severity, in code order; empty when none is."""
-        return self._schema_problems_rules
+    def frontmatter_rules_governed_by(self, facet: Facet) -> tuple[EnabledRule[FrontmatterRule], ...]:
+        """Each enabled rule over the frontmatter that a document is gated on this facet for, in code order.
+
+        Args:
+            facet: The facet the rules declare in `GOVERNED_BY`; the result is empty when no enabled rule reads it.
+        """
+        return self._frontmatter_rules_by_facet[facet]
 
     @property
     def headings_rules(self) -> tuple[EnabledRule[HeadingsRule], ...]:

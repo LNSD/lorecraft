@@ -29,7 +29,9 @@ builds an input or hands over a context sits above it in `lorecraft.checks`; the
   at. A subject kind's base takes the subject's context; a document's also requires the rule to declare the facet
   it reads, from the facets this package states. A rule over what any Markdown file has takes the context they share,
   and judges a document, a skill's `SKILL.md` and a skill's resource alike; a rule over one of a skill's files takes
-  the context a `SKILL.md` and a resource share, and never judges a document.
+  the context a `SKILL.md` and a resource share, and never judges a document. A base over what both a document and a
+  skill share, such as the frontmatter, takes the context they share and declares, for every rule on it, the facet a
+  document is gated on.
 - A removed rule, the decorator that registers a declaration, and the registry, with every check it makes on a
   declaration as the package loads.
 - An engine condition: what the engine reports about a subject before any rule runs, such as a file that does
@@ -38,10 +40,8 @@ builds an input or hands over a context sits above it in `lorecraft.checks`; the
 - A rule group, as a subpackage: its `__ruleset__.py` declares the group as `GROUP_ID` and whatever else its rules
   share, its `__init__.py` holds only the docstring, and each of its rules is one module. The `LC` group is
   declared the same way, and the registry imports its `GROUP_ID` to hold the reservation.
-- The input value types a rule reads: frozen values of Lorecraft's own types, holding facts, the subject's identity
-  values a rule compares them with, such as a document's filename or a skill's directory name, and the
-  specifications that govern them. An input the package governs, such as a skill's frontmatter block, holds no
-  specification.
+- The input value types a rule not yet moved onto a context reads: frozen values of Lorecraft's own types, holding
+  a document's facts and the specifications that govern them.
 
 ## Belongs Elsewhere
 
