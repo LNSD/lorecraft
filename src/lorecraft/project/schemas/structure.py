@@ -13,7 +13,7 @@ structure specification is not JSON Schema. It is this small dialect, whose fiel
     {
       "$schema": "../schemas/structure.spec.json",
       "description": "what this file governs, for whoever opens it",
-      "title": {"words": 8, "pattern": "^[A-Z]"},
+      "title": {"words": 8, "chars": 60, "pattern": "^[A-Z]"},
       "empty_sections": "forbidden",
       "tokens": 5000,
       "frontmatter": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string"}}},
@@ -38,8 +38,9 @@ finding quotes it.
   below it cannot state.
 - `description` is read by people only, and is not kept.
 - `title` holds the checks a document's H1 title is held to: `words` caps the title's own words, counted as a
-  section's prose words are, and `pattern` is a regular expression the title's text must match, searched for
-  anywhere in it as JSON Schema's `pattern` is. A pattern that does not compile is refused when the file loads. It
+  section's prose words are, `chars` caps its characters, counted as code points with inline markup stripped, and
+  `pattern` is a regular expression the title's text must match, searched for anywhere in it as JSON Schema's
+  `pattern` is. A pattern that does not compile is refused when the file loads. It
   states at least one check, since an empty `title` would check nothing.
 - `empty_sections`, whose one value is `"forbidden"`, reports a section left without content.
 - `tokens` is the token budget: the most tokens the whole file may hold, frontmatter, code and tables
@@ -358,14 +359,16 @@ class TitlePattern:
 class TitleChecks:
     """The checks a structure specification holds a document's H1 title to, beyond its being there.
 
-    Each is optional and independent of the other.
+    Each is optional and independent of the others.
 
     Attributes:
         words: The most words the title's text may hold, or None for no cap.
+        chars: The most characters the title's text may hold, or None for no cap.
         pattern: The pattern the title's text must match, or None for any text.
     """
 
     words: NonZeroUnsignedInt | None
+    chars: NonZeroUnsignedInt | None
     pattern: TitlePattern | None
 
 
@@ -673,7 +676,9 @@ class StructureSpec:
         """
         # The title is held to one H1 opening the document whatever the specification states, so `title` states a
         # rule of its own only through a check it holds.
-        states_no_title_check = self.title is None or (self.title.words is None and self.title.pattern is None)
+        states_no_title_check = self.title is None or (
+            self.title.words is None and self.title.chars is None and self.title.pattern is None
+        )
         states_no_rule = (
             states_no_title_check
             and not self.forbid_empty_sections
@@ -798,8 +803,8 @@ def _title_checks(path: RootRelativePath, title: StructureFileTitle | None) -> T
     if title is None:
         return None
     if title.pattern is None:
-        return TitleChecks(words=title.words, pattern=None)
-    return TitleChecks(words=title.words, pattern=TitlePattern.parse(title.pattern, path=path))
+        return TitleChecks(words=title.words, chars=title.chars, pattern=None)
+    return TitleChecks(words=title.words, chars=title.chars, pattern=TitlePattern.parse(title.pattern, path=path))
 
 
 def _frontmatter_schema(path: RootRelativePath, schema: dict[str, JsonValue] | None) -> FrontmatterSchema | None:
