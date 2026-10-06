@@ -68,6 +68,7 @@ from lorecraft.rules.inputs import (
     SkillFrontmatterOwner,
     StructureSpecSchema,
     TitleCap,
+    TitleMismatch,
     TokenCountInput,
     UnlistedSection,
 )
@@ -111,6 +112,7 @@ def build_token_count_input(database: Database, source: DocumentText) -> TokenCo
         ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
             outline names.
         AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
+        InvalidTitlePatternError: If the model is not loaded yet and a title's pattern does not compile.
         InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by the
             meta-schema.
         FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries `$id`.
@@ -178,6 +180,7 @@ def build_document_frontmatter_block_input(
         ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
             outline names.
         AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
+        InvalidTitlePatternError: If the model is not loaded yet and a title's pattern does not compile.
         InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by the
             meta-schema.
         FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries `$id`.
@@ -305,6 +308,7 @@ def build_document_schema_problems_input(database: Database, source: DocumentTex
         ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
             outline names.
         AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
+        InvalidTitlePatternError: If the model is not loaded yet and a title's pattern does not compile.
         InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by the
             meta-schema.
         FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries `$id`.
@@ -409,7 +413,8 @@ def build_headings_input(database: Database, source: DocumentText) -> HeadingsIn
 
     The structure specifications are read first, and the document is parsed only when one governs it. Each section's
     word cap is worked out here, from the outline, and so is the title's, with the words of the title's text, so a
-    rule over the caps only compares numbers.
+    rule over the caps only compares numbers. The title's text is matched against its pattern here too, so a rule
+    over the pattern only reads the outcome.
 
     Args:
         database: The revision the document is read from; its model decides which specifications govern it.
@@ -432,6 +437,7 @@ def build_headings_input(database: Database, source: DocumentText) -> HeadingsIn
         ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
             outline names.
         AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
+        InvalidTitlePatternError: If the model is not loaded yet and a title's pattern does not compile.
         InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by the
             meta-schema.
         FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries `$id`.
@@ -492,6 +498,7 @@ def _headings_spec(structure_spec: StructureSpec, title: Heading | None, section
     return HeadingsSpec(
         spec=structure_spec.path,
         title_cap=_title_cap(structure_spec.title, title),
+        title_mismatch=_title_mismatch(structure_spec.title, title),
         forbid_empty_sections=structure_spec.forbid_empty_sections,
         forbidden=structure_spec.forbidden,
         section_caps=_section_caps(structure_spec.outline, sections),
@@ -512,6 +519,24 @@ def _title_cap(title_checks: TitleChecks | None, title: Heading | None) -> Title
     if title_checks is None or title_checks.words is None or title is None:
         return None
     return TitleCap(title=title, title_words=count_words(title.text), words=title_checks.words)
+
+
+def _title_mismatch(title_checks: TitleChecks | None, title: Heading | None) -> TitleMismatch | None:
+    """The title and the pattern it fails under one specification, or `None`. Raises nothing.
+
+    Args:
+        title_checks: The checks the specification's `title` states, or `None` when it states none.
+        title: The document's title, its first H1 heading, or `None` when it has none.
+
+    Returns:
+        The title with the pattern its text does not match; or `None` when its text matches, when the
+        specification sets no pattern, or when the document has no title.
+    """
+    if title_checks is None or title_checks.pattern is None or title is None:
+        return None
+    if title_checks.pattern.is_found_in(title.text):
+        return None
+    return TitleMismatch(title=title, pattern=str(title_checks.pattern))
 
 
 def _section_caps(outline: tuple[OutlineEntry, ...], sections: tuple[Heading, ...]) -> tuple[SectionCap, ...]:
@@ -604,6 +629,7 @@ def build_outline_divergence_input(database: Database, source: DocumentText) -> 
         ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
             outline names.
         AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
+        InvalidTitlePatternError: If the model is not loaded yet and a title's pattern does not compile.
         InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by the
             meta-schema.
         FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries `$id`.

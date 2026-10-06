@@ -146,6 +146,9 @@
       "examples": [
         {
           "words": 8
+        },
+        {
+          "pattern": "^[A-Z]"
         }
       ],
       "minProperties": 1,
@@ -164,6 +167,23 @@
           "description": "The most words the title's text may hold, counted as a section's prose words are; no cap when absent.",
           "examples": [
             8
+          ]
+        },
+        "pattern": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A regular expression the title's text must match, searched for anywhere in it as JSON Schema's `pattern` is; any text when absent. An empty one, which every title matches, and one that does not compile are refused when the file loads.",
+          "examples": [
+            "^[A-Z]",
+            "^[^:]+$"
           ]
         }
       },
@@ -245,7 +265,7 @@
         }
       ],
       "default": null,
-      "description": "The checks a document's H1 title is held to: `words` caps its words. No title check when absent; the title is there, once, opening the document, either way."
+      "description": "The checks a document's H1 title is held to: `words` caps its words, and `pattern` holds its text to a regular expression. No title check when absent; the title is there, once, opening the document, either way."
     },
     "tokens": {
       "anyOf": [
