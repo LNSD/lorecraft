@@ -3,10 +3,11 @@
 from dataclasses import dataclass
 from typing import ClassVar, Final, Self
 
+from lorecraft.project.context import SkillContext
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.inputs import LineCountInput, LineCountRule
 from lorecraft.rules.location import Help, Note, Subdiagnostic
+from lorecraft.rules.subject import SkillRule
 
 from .__ruleset__ import GROUP_ID
 
@@ -25,7 +26,7 @@ _FIRST_LINE: Final[LineNumber] = LineNumber.from_int(1)
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class TooManyLines(LineCountRule):
+class TooManyLines(SkillRule):
     """A skill's `SKILL.md` is longer than the Agent Skills specification allows.
 
     ## What it does
@@ -105,12 +106,13 @@ class TooManyLines(LineCountRule):
         )
 
     @classmethod
-    def check(cls, subject: LineCountInput) -> tuple[Self, ...]:
+    def check(cls, subject: SkillContext) -> tuple[Self, ...]:
         """The one occurrence, on line 1, when the `SKILL.md` holds more lines than the budget; none otherwise.
 
         Args:
-            subject: The skill's line count.
+            subject: The skill, whose whole `SKILL.md` is counted.
         """
-        if subject.line_count.value <= _LINE_BUDGET:
+        line_count = subject.lines().value
+        if line_count <= _LINE_BUDGET:
             return ()
-        return (cls(line=_FIRST_LINE, line_count=subject.line_count.value),)
+        return (cls(line=_FIRST_LINE, line_count=line_count),)

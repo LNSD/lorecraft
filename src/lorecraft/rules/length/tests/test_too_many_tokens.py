@@ -1,48 +1,62 @@
 """`LEN001`, `too-many-tokens`, over a document's whole-file token count.
 
-The rule is pure, so every case here is a token count and the budgets that govern it; no document is read.
+Every case is a document written as text, read through a fake context that counts its tokens as the real tokenizer
+does, under structure specifications decoded from JSON; no document is read from disk.
 """
 
 from typing import Final
 
 import pytest
 
-from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.inputs import Budget, TokenCountInput
+from lorecraft.project.syntax import LineNumber, count_tokens
 from lorecraft.rules.location import Elsewhere, Note
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
 
 from ..too_many_tokens import TooManyTokens
 
-CORPUS_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
-"""A corpus structure specification, which sets one budget."""
+TEXT: Final[str] = '# Setup\n\nInstall the toolkit, then run it once over the repository.\n'
+"""The document every case judges."""
 
-NAMESPACE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code-python.structure.json')
+TOKENS: Final[int] = count_tokens(TEXT)
+"""The tokens in `TEXT`, as the real tokenizer counts them."""
+
+CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('code')
+"""The corpus structure specification, which sets one budget."""
+
+NAMESPACE_SPEC: Final[RootRelativePath] = structure_spec_path('code-python')
 """A namespace structure specification under the same corpus, which sets a budget of its own."""
+
+NO_BUDGET: Final[str] = '{"empty_sections": "forbidden"}'
+"""A structure specification that states a rule other than a budget."""
+
+
+def _budget(tokens: int) -> str:
+    """A structure specification that sets a token budget and nothing else.
+
+    Args:
+        tokens: The most tokens the specification lets a document it governs hold; at least 1.
+    """
+    return f'{{"tokens": {tokens}}}'
 
 
 @pytest.mark.unit
 class TestTooManyTokens:
     def test_check_with_a_document_over_the_budget_reports_it_on_line_1(self) -> None:
         #: Given
-        subject = TokenCountInput(
-            token_count=UnsignedInt(7), budgets=(Budget(tokens=NonZeroUnsignedInt(6), spec=CORPUS_SPEC),)
-        )
+        subject = FakeDocumentContext(TEXT, corpus='code', structure=_budget(TOKENS - 1))
 
         #: When
         occurrences = TooManyTokens.check(subject)
 
         #: Then
         assert occurrences == (
-            TooManyTokens(spec=CORPUS_SPEC, line=LineNumber.from_int(1), token_count=7, budget=6),
+            TooManyTokens(spec=CORPUS_SPEC, line=LineNumber.from_int(1), token_count=TOKENS, budget=TOKENS - 1),
         ), 'a document over its budget is one occurrence, on line 1, naming the specification that sets the budget'
 
     def test_check_with_a_document_at_the_budget_reports_nothing(self) -> None:
         #: Given
-        subject = TokenCountInput(
-            token_count=UnsignedInt(7), budgets=(Budget(tokens=NonZeroUnsignedInt(7), spec=CORPUS_SPEC),)
-        )
+        subject = FakeDocumentContext(TEXT, corpus='code', structure=_budget(TOKENS))
 
         #: When
         occurrences = TooManyTokens.check(subject)
@@ -52,12 +66,11 @@ class TestTooManyTokens:
 
     def test_check_with_a_document_over_only_the_namespace_budget_reports_that_budget(self) -> None:
         #: Given
-        subject = TokenCountInput(
-            token_count=UnsignedInt(7),
-            budgets=(
-                Budget(tokens=NonZeroUnsignedInt(10), spec=CORPUS_SPEC),
-                Budget(tokens=NonZeroUnsignedInt(5), spec=NAMESPACE_SPEC),
-            ),
+        subject = FakeDocumentContext(
+            TEXT,
+            corpus='code',
+            structure=_budget(TOKENS + 10),
+            namespaces=(namespace_spec('code', 'python', _budget(TOKENS - 1)),),
         )
 
         #: When
@@ -65,17 +78,16 @@ class TestTooManyTokens:
 
         #: Then
         assert occurrences == (
-            TooManyTokens(spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), token_count=7, budget=5),
+            TooManyTokens(spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), token_count=TOKENS, budget=TOKENS - 1),
         ), 'a namespace budget does not replace the corpus one, so the document is held to it on its own'
 
     def test_check_with_a_document_over_both_budgets_reports_each_in_order(self) -> None:
         #: Given
-        subject = TokenCountInput(
-            token_count=UnsignedInt(12),
-            budgets=(
-                Budget(tokens=NonZeroUnsignedInt(10), spec=CORPUS_SPEC),
-                Budget(tokens=NonZeroUnsignedInt(5), spec=NAMESPACE_SPEC),
-            ),
+        subject = FakeDocumentContext(
+            TEXT,
+            corpus='code',
+            structure=_budget(TOKENS - 1),
+            namespaces=(namespace_spec('code', 'python', _budget(TOKENS - 2)),),
         )
 
         #: When
@@ -83,9 +95,36 @@ class TestTooManyTokens:
 
         #: Then
         assert occurrences == (
-            TooManyTokens(spec=CORPUS_SPEC, line=LineNumber.from_int(1), token_count=12, budget=10),
-            TooManyTokens(spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), token_count=12, budget=5),
-        ), 'a document over two budgets is one occurrence per budget, in the order the budgets are given'
+            TooManyTokens(spec=CORPUS_SPEC, line=LineNumber.from_int(1), token_count=TOKENS, budget=TOKENS - 1),
+            TooManyTokens(spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), token_count=TOKENS, budget=TOKENS - 2),
+        ), 'a document over two budgets is one occurrence per budget, in the order the specifications apply'
+
+    def test_check_with_no_specification_setting_a_budget_reports_nothing(self) -> None:
+        #: Given
+        subject = FakeDocumentContext(TEXT, corpus='code', structure=NO_BUDGET)
+
+        #: When
+        occurrences = TooManyTokens.check(subject)
+
+        #: Then
+        assert occurrences == (), 'a document no specification sets a budget for is held to none'
+
+    def test_check_with_a_specification_setting_no_budget_holds_the_document_to_the_other(self) -> None:
+        #: Given
+        subject = FakeDocumentContext(
+            TEXT,
+            corpus='code',
+            structure=NO_BUDGET,
+            namespaces=(namespace_spec('code', 'python', _budget(TOKENS - 1)),),
+        )
+
+        #: When
+        occurrences = TooManyTokens.check(subject)
+
+        #: Then
+        assert occurrences == (
+            TooManyTokens(spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), token_count=TOKENS, budget=TOKENS - 1),
+        ), 'a specification that sets no budget holds the document to none, and the one that sets a budget still does'
 
     def test_message_with_an_occurrence_names_the_tokens_and_the_budget(self) -> None:
         #: Given

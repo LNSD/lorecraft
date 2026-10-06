@@ -14,9 +14,9 @@ is governed for no facet, and no context is built for it. The package governs ev
 ungoverned. A context asks the database only for what a rule reads, so a fact no enabled rule reads is never
 computed.
 
-Every shipped rule still reads an input. For each input kind an enabled rule reads, the input is built once from
-the queries, and a subject no specification governs for it records that input kind as ungoverned. Later changes move
-those rules onto a context and remove these branches.
+The frontmatter, outline and other length rules still read an input each. For each input kind an enabled one of
+them reads, the input is built once from the queries, and a subject no specification governs for it records that input
+kind as ungoverned. Later changes move those rules onto a context and remove these branches.
 
 The subjects are documents and skills, each matched to its own function, so a subject kind without one is a type
 error. A document is handed over as its ref, and a skill as the `SkillLocation` the model hands out for it, since a
@@ -45,7 +45,6 @@ from lorecraft.rules.inputs import (
     InputKind,
     OutlineDivergenceInput,
     SchemaProblemsInput,
-    TokenCountInput,
 )
 from lorecraft.rules.subject import Facet
 
@@ -54,11 +53,9 @@ from .inputs import (
     build_document_frontmatter_block_input,
     build_document_schema_problems_input,
     build_headings_input,
-    build_line_count_input,
     build_outline_divergence_input,
     build_skill_frontmatter_block_input,
     build_skill_schema_problems_input,
-    build_token_count_input,
 )
 from .report import CheckedSubject, Coverage, Diagnostic, RuleDiagnostic, SubjectReport, UndecodableSubject
 from .table import RuleTable
@@ -205,8 +202,8 @@ def _check_document_text(database: Database, source: DocumentText, table: RuleTa
     diagnostics: list[Diagnostic] = []
     ungoverned: list[Coverage] = []
 
-    # Transitional: every shipped rule still reads an input, built in this function's input branches, which go once
-    # those rules read the context.
+    # Transitional: the frontmatter, outline and other length rules still read an input each, built in this function's
+    # input branches, which go once those rules read the context.
 
     # The frontmatter is never asked for when no enabled rule reads it.
     if table.frontmatter_block_rules:
@@ -234,23 +231,9 @@ def _check_document_text(database: Database, source: DocumentText, table: RuleTa
             case _:
                 assert_never(schema_problems_input)
 
-    # The token count is never asked for when no enabled rule reads it.
-    if table.token_count_rules:
-        token_count_input = build_token_count_input(database, source)
-        match token_count_input:
-            case Ungoverned():
-                ungoverned.append(InputKind.TOKEN_COUNT)
-            case TokenCountInput():
-                for enabled in table.token_count_rules:
-                    for occurrence in enabled.rule.check(token_count_input):
-                        diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
-            case _:
-                assert_never(token_count_input)
-
     # Each rule over the document reads it through its context, and only when the specifications govern the facet the
-    # rule declares. Governance is never read when no rule over a document is enabled. The loop sits beside the token
-    # count's input branch, where that branch goes once its rule reads the context, so the ungoverned facets and input
-    # kinds keep their order.
+    # rule declares. Governance is never read when no rule over a document is enabled. The ungoverned facets and input
+    # kinds are recorded in the order the runner reaches them.
     if table.document_rules:
         context = _find_document_context(database, source)
         for facet in Facet:
@@ -332,8 +315,8 @@ def _check_skill_text(
     # Building the context asks nothing of the database; each rule asks it only for what it reads.
     context = DatabaseSkillContext(database, source, location)
 
-    # Transitional: every shipped rule still reads an input, built in the branches below, which go once those rules
-    # read the context.
+    # Transitional: the frontmatter rules still read an input each, built in the branches below, which go once those
+    # rules read the context.
 
     # The frontmatter is never asked for when no enabled rule reads it.
     if table.frontmatter_block_rules:
@@ -349,14 +332,7 @@ def _check_skill_text(
             for occurrence in enabled.rule.check(schema_problems_input):
                 diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
 
-    # The line count is never asked for when no enabled rule reads it.
-    if table.line_count_rules:
-        line_count_input = build_line_count_input(database, source)
-        for enabled in table.line_count_rules:
-            for occurrence in enabled.rule.check(line_count_input):
-                diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
-
-    # The package governs every skill, so each rule over a skill judges it through its context, after the input
+    # The package governs every skill, so each rule over a skill judges it through its context, after the frontmatter
     # branches, as a document's rules run after its own.
     for enabled in table.skill_rules:
         for occurrence in enabled.rule.check(context):

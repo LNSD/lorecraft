@@ -38,7 +38,7 @@ builds an input or hands over a context sits above it in `lorecraft.checks`; the
   declared the same way, and the registry imports its `GROUP_ID` to hold the reservation.
 - The input value types a rule reads: frozen values of Lorecraft's own types, holding facts, the subject's identity
   values a rule compares them with, such as a document's filename or a skill's directory name, and the
-  specifications that govern them. An input the package governs, such as a skill's line count, holds no
+  specifications that govern them. An input the package governs, such as a skill's frontmatter block, holds no
   specification.
 
 ## Belongs Elsewhere

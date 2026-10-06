@@ -1,23 +1,37 @@
 """`LEN002`, `too-many-lines`, over a skill's whole-`SKILL.md` line count.
 
-The rule is pure, so every case here is a line count; no skill is read.
+Every case is a `SKILL.md` written as text, read through a fake context that counts its lines as the real counter
+does; no skill is read from disk.
 """
+
+from typing import Final
 
 import pytest
 
-from lorecraft.core.num import UnsignedInt
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.inputs import LineCountInput
 from lorecraft.rules.location import Help, Note
+from lorecraft.rules.tests.fake_context import FakeSkillContext
 
 from ..too_many_lines import TooManyLines
+
+FRONTMATTER: Final[str] = '---\nname: review\ndescription: Review a change before it is merged.\n---\n'
+"""A frontmatter of four lines."""
+
+
+def _skill_of(lines: int) -> str:
+    """A `SKILL.md` of exactly `lines` lines: `FRONTMATTER`, then one step per line.
+
+    Args:
+        lines: The lines the file holds; at least 4, for the frontmatter.
+    """
+    return FRONTMATTER + 'Run the next step.\n' * (lines - 4)
 
 
 @pytest.mark.unit
 class TestTooManyLines:
     def test_check_with_a_skill_over_the_budget_reports_it_on_line_1(self) -> None:
         #: Given
-        subject = LineCountInput(line_count=UnsignedInt(501))
+        subject = FakeSkillContext(_skill_of(501))
 
         #: When
         occurrences = TooManyLines.check(subject)
@@ -29,7 +43,7 @@ class TestTooManyLines:
 
     def test_check_with_a_skill_at_the_budget_reports_nothing(self) -> None:
         #: Given
-        subject = LineCountInput(line_count=UnsignedInt(500))
+        subject = FakeSkillContext(_skill_of(500))
 
         #: When
         occurrences = TooManyLines.check(subject)
