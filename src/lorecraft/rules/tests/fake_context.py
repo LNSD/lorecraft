@@ -3,11 +3,17 @@
 A fake answers every fact of its subject's own file from the subject's text, through the real parsers and analyses of
 `lorecraft.project` the database's queries call, so a test cannot hand a rule a parse or a count no file would
 produce. Only what no single file states is set by hand: a document's governance, from structure specifications
-decoded from their JSON by the real decoder, and where a skill is listed and what a link there leads to.
+decoded from their JSON by the real decoder, where a skill is listed and what a link there leads to, and, as a
+cross-file state, what the snapshot holds at the target of each relative link, keyed by the link's normalised relative
+path. A fake document or skill holds no link target; a test of a rule over links states them on
+`FakeDocumentMarkdownContext` or `FakeSkillResourceContext`.
 """
 
+from collections.abc import Mapping
+from pathlib import PurePosixPath
 from typing import Final
 
+from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
@@ -15,6 +21,7 @@ from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatter
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import SPECS_DIR
+from lorecraft.project.link_target import DocumentDirectory, PathLookup, SkillRoot
 from lorecraft.project.schemas import (
     CorpusSpecName,
     NamespaceSpecName,
@@ -47,6 +54,9 @@ _DEFAULT_FILENAME: Final[str] = 'setup'
 
 _DEFAULT_DIRECTORY_NAME: Final[str] = 'review'
 """The directory a fake skill is listed under unless a test names another."""
+
+_SKILLS_DIRECTORY: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills')
+"""The skills directory a fake skill is listed in."""
 
 
 def structure_spec_path(name: str) -> RootRelativePath:
@@ -205,6 +215,14 @@ class FakeDocumentContext:
         """The document's parse tree, as the real parser reads it."""
         return parse_document(self._text)
 
+    def link_base(self) -> DocumentDirectory:
+        """The directory holding the document, read from its ref."""
+        return DocumentDirectory(self._governance.ref.path.parent)
+
+    def link_targets(self) -> Mapping[PurePosixPath, PathLookup]:
+        """None: a fake document holds no link target."""
+        return FrozenMapping({})
+
     def tokens(self) -> UnsignedInt:
         """The tokens in the document's whole text, as the real tokenizer counts them."""
         # A count is never negative, so building the `UnsignedInt` cannot raise `NegativeIntError` here.
@@ -273,25 +291,100 @@ class FakeSkillContext:
         """The parse tree of the `SKILL.md`, as the real parser reads it."""
         return parse_document(self._text)
 
+    def link_base(self) -> SkillRoot:
+        """The skill directory, under the skills directory, at the name the test listed it under."""
+        return SkillRoot(_SKILLS_DIRECTORY / self._directory_name)
+
+    def link_targets(self) -> Mapping[PurePosixPath, PathLookup]:
+        """None: a fake skill holds no link target."""
+        return FrozenMapping({})
+
     def lines(self) -> UnsignedInt:
         """The lines in the whole `SKILL.md`, as the real counter counts them."""
         # A count is never negative, so building the `UnsignedInt` cannot raise `NegativeIntError` here.
         return UnsignedInt(count_lines(self._text))
 
 
+DEFAULT_SKILL_DIRECTORY: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills/review')
+"""The skill directory a fake resource belongs to unless a test names another."""
+
+DEFAULT_DOCUMENT_DIRECTORY: Final[RootRelativePath] = RootRelativePath.parse('docs/guide')
+"""The directory a fake document lies in unless a test names another."""
+
+
 class FakeSkillResourceContext:
     """A resource of a skill a test writes as text; a `SkillResourceContext`."""
 
     _text: str
+    _skill_directory: RootRelativePath
+    _link_targets: Mapping[PurePosixPath, PathLookup]
 
-    def __init__(self, text: str) -> None:
-        """Hold the resource's text.
+    def __init__(
+        self,
+        text: str,
+        *,
+        skill_directory: RootRelativePath = DEFAULT_SKILL_DIRECTORY,
+        link_targets: Mapping[PurePosixPath, PathLookup] = FrozenMapping({}),
+    ) -> None:
+        """Hold the resource's text, its skill's directory and what the snapshot holds at each link target.
 
         Args:
             text: The resource's whole file.
+            skill_directory: The skill directory where an agent reaches it, which its relative links are read from.
+            link_targets: What the snapshot holds at the target of each relative link, keyed by the link's
+                normalised relative path, as the database's link-target query would find it; none by default.
         """
         self._text = text
+        self._skill_directory = skill_directory
+        self._link_targets = link_targets
 
     def parse(self) -> ParsedDocument:
         """The resource's parse tree, as the real parser reads it."""
         return parse_document(self._text)
+
+    def link_base(self) -> SkillRoot:
+        """The skill root, at the directory the test named."""
+        return SkillRoot(self._skill_directory)
+
+    def link_targets(self) -> Mapping[PurePosixPath, PathLookup]:
+        """What the snapshot holds at each link target, as the test stated it."""
+        return self._link_targets
+
+
+class FakeDocumentMarkdownContext:
+    """A document a test writes as text, asked only what any Markdown file is asked; a `MarkdownContext`."""
+
+    _text: str
+    _directory: RootRelativePath
+    _link_targets: Mapping[PurePosixPath, PathLookup]
+
+    def __init__(
+        self,
+        text: str,
+        *,
+        directory: RootRelativePath = DEFAULT_DOCUMENT_DIRECTORY,
+        link_targets: Mapping[PurePosixPath, PathLookup] = FrozenMapping({}),
+    ) -> None:
+        """Hold the document's text, its directory and what the snapshot holds at each link target.
+
+        Args:
+            text: The document's whole file.
+            directory: The directory holding the document, which its relative links are read from.
+            link_targets: What the snapshot holds at the target of each relative link, keyed by the link's
+                normalised relative path, as the database's link-target query would find it; none by default.
+        """
+        self._text = text
+        self._directory = directory
+        self._link_targets = link_targets
+
+    def parse(self) -> ParsedDocument:
+        """The document's parse tree, as the real parser reads it."""
+        return parse_document(self._text)
+
+    def link_base(self) -> DocumentDirectory:
+        """The document's own directory, as the test named it."""
+        return DocumentDirectory(self._directory)
+
+    def link_targets(self) -> Mapping[PurePosixPath, PathLookup]:
+        """What the snapshot holds at each link target, as the test stated it."""
+        return self._link_targets

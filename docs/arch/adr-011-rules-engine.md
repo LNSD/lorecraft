@@ -124,9 +124,13 @@ for it, so an ungoverned subject never pays for it. Each condition is then a rul
 into its occurrences. The analysis finds problems, never diagnostics: levels are applied after detection, so no
 diagnostic is cached and a rule's result still is not.
 
-**A cross-file input is a query.** The link-target states become a query keyed by the subject's ref. Its
-carry-over rule names every path it looked up, an absent target included, since creating a missing target must
-remove its diagnostic. Nothing a rule reads is left outside a query contract.
+**A cross-file input is a query.** The link-target states are a query keyed by the subject's ref, one per kind of
+Markdown file, read through `link_targets()`: what the snapshot holds at the target of each relative link, present,
+missing or outside the scope the scan read, keyed by the link's normalised relative path. Each link is read from the
+file's `link_base()`, the skill root for any file of a skill and the document's own directory for a document, and a
+link climbing past that bound has no entry. The query states facts; whether a missing target makes a link broken is
+the rule's. Its carry-over rule names every path it looked up, an absent target included, since creating a missing
+target must remove its diagnostic. Nothing a rule reads is left outside a query contract.
 
 **A subject's facts are also stated as a context.** `lorecraft.project` declares, as a `Protocol` per subject kind,
 what can be asked of one decoded subject: `DocumentContext`, `SkillContext` and `SkillResourceContext`. The first two
@@ -144,8 +148,8 @@ specification states an outline) and `BUDGET` (a specification sets a token budg
 declares none: it judges a document governed for `STRUCTURE`, the facet under which a document has a context at
 all, and every skill's `SKILL.md` and every resource, which the package governs. The token budget, `LEN001`, is a
 document rule governed by `BUDGET`, and the line budget, `LEN002`, a skill rule, so the token and line counts are no
-longer inputs; the links rules read a context too, `LINK001` and `LINK002` deriving from `MarkdownRule`. The other
-rules still read the inputs above until they move onto a context. A `FrontmatterRule` base over a
+longer inputs; the links rules read a context too, `LINK001`, `LINK002` and `LINK003` deriving from `MarkdownRule`.
+The other rules still read the inputs above until they move onto a context. A `FrontmatterRule` base over a
 `FrontmatterContext`, for a rule that reads a document's or a skill's frontmatter alike, arrives with the frontmatter
 rules.
 

@@ -20,6 +20,7 @@ from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.length.too_many_words import TooManyWords
 from lorecraft.rules.link.absolute_link import AbsoluteLink
+from lorecraft.rules.link.broken_link import BrokenLink
 from lorecraft.rules.link.missing_fragment import MissingFragment
 from lorecraft.rules.outline.empty_section import EmptySection
 from lorecraft.rules.outline.extra_title import ExtraTitle
@@ -144,6 +145,7 @@ class TestRuleTableFromRegistry:
         assert table.markdown_rules == (
             EnabledRule(AbsoluteLink, Severity.ERROR),
             EnabledRule(MissingFragment, Severity.ERROR),
+            EnabledRule(BrokenLink, Severity.ERROR),
         ), "the package's rules over a Markdown file's links are enabled by default as errors, in code order"
 
     def test_from_registry_with_the_package_registry_enables_the_frontmatter_block_rules_in_code_order(self) -> None:

@@ -99,7 +99,6 @@ visible to a static checker instead.
 
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: Keep one state's behavior together
 - [pattern-resource-lifecycle](pattern-resource-lifecycle.md) - Related: Resource cleanup remains exception-safe across transitions
-- [pattern-typestate](pattern-typestate.md) - Related: Distinct types expose valid operations after a transition
 
 ## External References
 
