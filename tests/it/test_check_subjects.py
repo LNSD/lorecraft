@@ -1,11 +1,11 @@
 """The rules engine's runner over a database opened on an in-memory snapshot.
 
 The runner decodes each document, skill and resource, hands each rule over a document, a skill, the frontmatter or a
-Markdown file the subject's context or builds each input an enabled rule still reads, and runs the rules of a table
-built from a registry. The package's own registry runs the frontmatter rules over documents and skills, the token
-budget, the headings rules and the outline divergence rules over documents, the line budget over skills, and the link
-rules over every Markdown file and every skill's file; a registry of sample rules over a document's token count,
-declared in this module, runs through the same runner, with no edit to it.
+Markdown file the subject's context, and runs the rules of a table built from a registry. The package's own registry
+runs the frontmatter rules over documents and skills, the token budget, the headings rules and the outline divergence
+rules over documents, the line budget over skills, and the link rules over every Markdown file and every skill's file;
+a registry of sample rules over a document's token count, declared in this module, runs through the same runner, with
+no edit to it.
 
 A snapshot built in memory scans nothing, so no path is in its scope and no link is looked up in it. The tests of
 `LINK003`, which judges what a link names, open the database on a scan of a real tree instead.
@@ -65,7 +65,6 @@ from lorecraft.rules.frontmatter.name_mismatch import DirectoryNameExpected, Fil
 from lorecraft.rules.frontmatter.non_mapping_frontmatter import NonMappingFrontmatter
 from lorecraft.rules.frontmatter.unknown_field import UnknownField
 from lorecraft.rules.frontmatter.wrong_type import WrongType
-from lorecraft.rules.inputs import InputKind
 from lorecraft.rules.length.title_too_long import TitleTooLong
 from lorecraft.rules.length.title_too_many_words import TitleTooManyWords
 from lorecraft.rules.length.too_many_lines import TooManyLines
@@ -413,7 +412,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(Facet.FRONTMATTER, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.FRONTMATTER, Facet.OUTLINE),
             ),
         ), 'LEN001 runs at deny, so a document over its budget carries its occurrence as an error'
 
@@ -470,7 +469,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(),
-                ungoverned=(Facet.FRONTMATTER, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.FRONTMATTER, Facet.OUTLINE),
             ),
         ), 'a document within its budget has no diagnostic, and no frontmatter schema governs it'
 
@@ -488,8 +487,8 @@ class TestCheckSubjects:
                 diagnostics=(),
                 ungoverned=(
                     Facet.FRONTMATTER,
+                    Facet.OUTLINE,
                     Facet.BUDGET,
-                    InputKind.OUTLINE_DIVERGENCE,
                 ),
             ),
         ), 'no specification sets a budget or a frontmatter schema, which is coverage, not a diagnostic'
@@ -521,9 +520,8 @@ class TestCheckSubjects:
                 ungoverned=(
                     Facet.FRONTMATTER,
                     Facet.STRUCTURE,
+                    Facet.OUTLINE,
                     Facet.BUDGET,
-                    InputKind.HEADINGS,
-                    InputKind.OUTLINE_DIVERGENCE,
                 ),
             ),
         ), 'no specification governs a document in no corpus the model holds, which is coverage, not a diagnostic'
@@ -764,13 +762,13 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(),
-                ungoverned=(Facet.FRONTMATTER, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.FRONTMATTER, Facet.OUTLINE),
             ),
             CheckedSubject(REVIEW, diagnostics=(), ungoverned=()),
             CheckedSubject(
                 INTRO,
                 diagnostics=(),
-                ungoverned=(Facet.FRONTMATTER, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.FRONTMATTER, Facet.OUTLINE),
             ),
         ), 'documents and skills share one run, each reported in the order given'
 
@@ -802,7 +800,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(Facet.BUDGET, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.OUTLINE, Facet.BUDGET),
             ),
         ), 'FM001 runs at deny over a document a frontmatter schema governs, under its corpus specification'
 
@@ -822,7 +820,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(Facet.BUDGET, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.OUTLINE, Facet.BUDGET),
             ),
         ), 'FM002 runs at deny, at the line the YAML parser stopped on'
 
@@ -841,7 +839,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(Facet.BUDGET, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.OUTLINE, Facet.BUDGET),
             ),
         ), 'FM003 runs at deny over a block that reads as YAML but is not a mapping'
 
@@ -862,7 +860,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(Facet.BUDGET, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.OUTLINE, Facet.BUDGET),
             ),
         ), 'FM004 runs at deny over a document whose `name` is not its filename'
 
@@ -883,7 +881,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(Facet.BUDGET, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.OUTLINE, Facet.BUDGET),
             ),
         ), 'FM005 runs at deny over a key written again, at the later occurrence'
 
@@ -1083,9 +1081,9 @@ class TestCheckSubjects:
         reports = check_subjects(Database(snapshot), (typing,), package_table)
 
         #: Then
-        assert reports == (
-            CheckedSubject(typing, diagnostics=(), ungoverned=(Facet.FRONTMATTER, InputKind.OUTLINE_DIVERGENCE)),
-        ), 'a namespace schema narrows a corpus schema and cannot supply one, so no rule over the frontmatter runs'
+        assert reports == (CheckedSubject(typing, diagnostics=(), ungoverned=(Facet.FRONTMATTER, Facet.OUTLINE)),), (
+            'a namespace schema narrows a corpus schema and cannot supply one, so no rule over the frontmatter runs'
+        )
 
     def test_check_subjects_with_a_document_breaking_its_schema_reports_each_schema_rule(
         self, package_table: RuleTable
@@ -1135,7 +1133,7 @@ class TestCheckSubjects:
                     RuleDiagnostic(GUIDE.path, invalid_value, Severity.ERROR),
                     RuleDiagnostic(GUIDE.path, block_constraint, Severity.ERROR),
                 ),
-                ungoverned=(Facet.BUDGET, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.OUTLINE, Facet.BUDGET),
             ),
         ), (
             'FM006 and FM008 to FM010 run at deny and FM007 at warn, each on its own problem, on its field line or '
@@ -1227,7 +1225,7 @@ class TestCheckSubjects:
                     RuleDiagnostic(typing.path, status, Severity.ERROR),
                     RuleDiagnostic(typing.path, owner, Severity.ERROR),
                 ),
-                ungoverned=(Facet.BUDGET, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.OUTLINE, Facet.BUDGET),
             ),
         ), 'each schema is applied on its own, and each problem names the specification whose schema found it'
 
@@ -1245,7 +1243,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(),
-                ungoverned=(Facet.FRONTMATTER, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.FRONTMATTER, Facet.OUTLINE),
             ),
         ), 'no specification states a frontmatter schema, which is coverage, not a diagnostic'
 
@@ -1264,7 +1262,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(Facet.BUDGET, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.OUTLINE, Facet.BUDGET),
             ),
         ), 'FM003 alone reports a block that is not a mapping: it is held to no schema, so no schema rule fires'
 
@@ -1313,8 +1311,8 @@ class TestCheckSubjects:
                 ),
                 ungoverned=(
                     Facet.FRONTMATTER,
+                    Facet.OUTLINE,
                     Facet.BUDGET,
-                    InputKind.OUTLINE_DIVERGENCE,
                 ),
             ),
         ), (
@@ -1340,8 +1338,8 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
                     Facet.FRONTMATTER,
+                    Facet.OUTLINE,
                     Facet.BUDGET,
-                    InputKind.OUTLINE_DIVERGENCE,
                 ),
             ),
         ), 'OUT002 runs at deny over a document a structure specification governs, at the title after the first'
@@ -1366,8 +1364,8 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
                     Facet.FRONTMATTER,
+                    Facet.OUTLINE,
                     Facet.BUDGET,
-                    InputKind.OUTLINE_DIVERGENCE,
                 ),
             ),
         ), 'OUT003 runs at deny over a document a structure specification governs, at the heading opening it'
@@ -1387,8 +1385,8 @@ class TestCheckSubjects:
                 diagnostics=(),
                 ungoverned=(
                     Facet.FRONTMATTER,
+                    Facet.OUTLINE,
                     Facet.BUDGET,
-                    InputKind.OUTLINE_DIVERGENCE,
                 ),
             ),
         ), 'a document carrying its title is governed for its headings, and clean'
@@ -1409,8 +1407,8 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
                     Facet.FRONTMATTER,
+                    Facet.OUTLINE,
                     Facet.BUDGET,
-                    InputKind.OUTLINE_DIVERGENCE,
                 ),
             ),
         ), 'OUT004 runs at deny over a document whose specification forbids empty sections, at the empty heading'
@@ -1431,8 +1429,8 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
                     Facet.FRONTMATTER,
+                    Facet.OUTLINE,
                     Facet.BUDGET,
-                    InputKind.OUTLINE_DIVERGENCE,
                 ),
             ),
         ), 'OUT005 runs at deny over a document whose specification forbids a section, at the forbidden heading'
@@ -1475,8 +1473,8 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
                     Facet.FRONTMATTER,
+                    Facet.OUTLINE,
                     Facet.BUDGET,
-                    InputKind.OUTLINE_DIVERGENCE,
                 ),
             ),
         ), 'LEN004 runs at deny over a document whose specification caps the title, at the title over its cap'
@@ -1499,8 +1497,8 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
                     Facet.FRONTMATTER,
+                    Facet.OUTLINE,
                     Facet.BUDGET,
-                    InputKind.OUTLINE_DIVERGENCE,
                 ),
             ),
         ), 'LEN005 runs at deny over a document whose specification caps the title, at the title over its cap'
@@ -1525,8 +1523,8 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
                     Facet.FRONTMATTER,
+                    Facet.OUTLINE,
                     Facet.BUDGET,
-                    InputKind.OUTLINE_DIVERGENCE,
                 ),
             ),
         ), 'OUT009 runs at deny over a document whose specification sets a title pattern, at the title failing it'
@@ -1541,9 +1539,7 @@ class TestCheckSubjects:
         check_subjects(database, (GUIDE,), table)
 
         #: Then
-        assert database.parsed_documents == [], (
-            'an input no enabled rule reads is never built, so its query is never asked'
-        )
+        assert database.parsed_documents == [], 'no enabled rule reads the headings, so the document is never parsed'
 
     def test_check_subjects_with_a_document_lacking_a_section_reports_missing_section(
         self, package_table: RuleTable
@@ -1647,9 +1643,7 @@ class TestCheckSubjects:
         check_subjects(database, (GUIDE,), table)
 
         #: Then
-        assert database.parsed_documents == [], (
-            'an input no enabled rule reads is never built, so its query is never asked'
-        )
+        assert database.parsed_documents == [], 'no enabled rule reads the outline, so the document is never parsed'
 
     def test_check_subjects_with_an_absolute_link_in_a_document_reports_absolute_link_on_its_line(
         self, package_table: RuleTable
@@ -1667,7 +1661,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(Facet.FRONTMATTER, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.FRONTMATTER, Facet.OUTLINE),
             ),
         ), 'LINK001 runs at deny over a document its structure specification governs, on the line of the link'
 
@@ -1812,7 +1806,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(Facet.FRONTMATTER, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.FRONTMATTER, Facet.OUTLINE),
             ),
         ), "LINK002 runs at deny over a document, reporting the fragment its own headings lack and not the title's"
 
@@ -1986,7 +1980,7 @@ class TestCheckSubjects:
             CheckedSubject(
                 GUIDE,
                 diagnostics=(),
-                ungoverned=(Facet.FRONTMATTER, InputKind.OUTLINE_DIVERGENCE),
+                ungoverned=(Facet.FRONTMATTER, Facet.OUTLINE),
             ),
         ), "a document's links are read from its own directory, so no rule over a skill's file judges them"
 

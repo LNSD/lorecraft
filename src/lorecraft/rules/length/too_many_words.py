@@ -81,7 +81,8 @@ class TooManyWords(DocumentRule):
     NAME: ClassVar[RuleName] = RuleName('too-many-words')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
-    # STRUCTURE, not OUTLINE, though only the outline is read: it keeps the coverage the headings input recorded.
+    # STRUCTURE, not OUTLINE, though only the outline is read: it judges the same documents as the rules over the
+    # headings (owner decision).
     GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
 
     spec: RootRelativePath

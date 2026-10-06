@@ -2,8 +2,8 @@
 
 A rule is one class. The class is the declaration and the check: its code, name, default level, the
 release it is stable since and its documentation, as class attributes and the docstring, and the `check`
-classmethod that judges its input. Each input kind has one base class deriving from `ContentRule` or
-`LayoutRule`, whose abstract `check` fixes the input's type, so a rule picks its input by picking its base.
+classmethod that judges its subject. Each subject kind has one base class deriving from `ContentRule` or
+`LayoutRule`, whose abstract `check` fixes the context it reads, so a rule picks its subject by picking its base.
 A retired rule is a `RemovedRule`, which is not a `Rule`, so it can never be built as one or reported. What the
 engine itself reports about a subject, such as a file that does not decode, is an `EngineCondition`: declared
 and rendered like a rule, but with a fixed `Severity` in place of a level, and no `check`.
@@ -445,7 +445,7 @@ class Rule(ABC):
     and the context its diagnostic needs as fields, and renders every part of the diagnostic from those fields.
     It names no subject: the run that checked the subject locates it.
 
-    A rule never derives from this class directly, but from its input's base, which derives from
+    A rule never derives from this class directly, but from its subject kind's base, which derives from
     `ContentRule` or `LayoutRule` and declares the abstract `check` a rule implements.
 
     Attributes:
@@ -566,7 +566,7 @@ class EngineCondition(ABC):
 
     It is declared like a rule, with a code, a name, the release it is stable since and its documentation, and an
     instance of it is one occurrence that renders like a rule's. It is not a `Rule`: it has no level, so nothing
-    can turn it off, and no `check`, since the engine finds it, not a judgment of an input. Its severity is fixed
+    can turn it off, and no `check`, since the engine finds it, not a judgment of a subject. Its severity is fixed
     on the class, and its code is always in the engine's group, which the registry holds at load.
 
     Attributes:
@@ -607,7 +607,7 @@ _declared: list[RuleDeclaration] = []
 
 
 # The type parameter only carries the decorated class's own type through, so a rule's name still names its class
-# for the type checker; it ranges over no input kind, and the registry takes none, as adr-009 states. Without the
+# for the type checker; it ranges over no subject kind, and the registry takes none, as adr-009 states. Without the
 # parameter, every decorated name would be retyped as `RuleDeclaration`, and a rule's own fields and `check` would
 # no longer type-check at its call sites.
 def rule[T: Rule | RemovedRule | EngineCondition](declaration: type[T]) -> type[T]:

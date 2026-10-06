@@ -4,17 +4,18 @@ from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.context import DocumentContext
 from lorecraft.project.schemas import AbsentSection, MisplacedSection, SectionName, UnlistedSection
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.inputs import OutlineDivergenceInput, OutlineDivergenceRule
 from lorecraft.rules.location import Here, Label, Subdiagnostic
+from lorecraft.rules.subject import DocumentRule, Facet
 
 from .__ruleset__ import GROUP_ID, spec_note
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class SectionOutOfOrder(OutlineDivergenceRule):
+class SectionOutOfOrder(DocumentRule):
     """A section the outline names is written out of the order the outline sets.
 
     ## What it does
@@ -88,6 +89,7 @@ class SectionOutOfOrder(OutlineDivergenceRule):
     NAME: ClassVar[RuleName] = RuleName('section-out-of-order')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    GOVERNED_BY: ClassVar[Facet] = Facet.OUTLINE
 
     spec: RootRelativePath
     section: str
@@ -108,14 +110,14 @@ class SectionOutOfOrder(OutlineDivergenceRule):
         return (spec_note(self.spec),)
 
     @classmethod
-    def check(cls, subject: OutlineDivergenceInput) -> tuple[Self, ...]:
+    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
         """One occurrence for each outline whose first divergence is a section it names, out of its place.
 
         Args:
-            subject: The first divergence from each governing outline, if any.
+            subject: The document, governed by at least one outline.
         """
         occurrences: list[Self] = []
-        for outline_spec in subject.specs:
+        for outline_spec in subject.outline_divergences():
             divergence = outline_spec.divergence
             match divergence:
                 case MisplacedSection():

@@ -1,6 +1,6 @@
 ---
 name: "adr-011-rules-engine"
-description: "How a run of the structured checks judges subjects: a rule table built from the registry, the levels and a one-run selection, a closed set of inputs each built once per subject from the database's queries, a decoded subject before any rule, one runner, and caching in memory for one revision. Load when adding an input or a query a rule reads, changing how subjects are selected or levels resolved, or reasoning about what a run costs"
+description: "How a run of the structured checks judges subjects: a rule table built from the registry, the levels and a one-run selection, a context per subject kind whose every fact is a memoized query, a decoded subject before any rule, one runner, and caching in memory for one revision. Load when adding a rule base, a context method or a query a rule reads, changing how subjects are selected or levels resolved, or reasoning about what a run costs"
 type: "adr"
 status: "proposed"
 ---
@@ -32,16 +32,15 @@ What it replaces is everything around the checks:
 
 ## Decision
 
-1. **A rule reads its subject through its kind's context** and declares the facet it is governed for; the
-   outline rules still read one of a closed set of inputs until they move. A rule may walk the parse tree its
-   context hands it, but a pass over a file's raw text or a schema is a query, and so is a walk several rules share.
-   A helper that only selects from a value the context already holds, such as the first H1 among the parsed
-   headings, is not such a walk, so it stays a function beside the parse tree. An analysis several rules share is a
-   query of the database, never a rule with several codes.
-2. **One runner** resolves each input once per subject, only when an enabled rule reads it, with one
-   hand-written branch per input kind, and one per subject kind for the rules that read a context.
+1. **A rule reads its subject through its kind's context** and, over a document, declares the facet it is
+   governed for. A rule may walk the parse tree its context hands it, but a pass over a file's raw text or a schema
+   is a query, and so is a walk several rules share. A helper that only selects from a value the context already
+   holds, such as the first H1 among the parsed headings, is not such a walk, so it stays a function beside the parse
+   tree. An analysis several rules share is a query of the database, never a rule with several codes.
+2. **One runner** builds each subject's context once and runs every enabled rule over it, with one hand-written
+   branch per subject kind. A context asks the database only for what a rule reads.
 3. **A subject's status is the engine's, not a rule's.** Whether a file decodes, and whether a specification
-   governs each facet (each input, for a rule still on one), is resolved before any rule runs.
+   governs each facet, is resolved before any rule runs.
 4. **Levels are applied after detection.** The configuration is an input of the revision, and a rule's result
    never depends on it.
 5. **The engine is efficient within one revision**, caching in memory and persisting nothing across runs.
@@ -50,8 +49,8 @@ What it replaces is everything around the checks:
 
 ### Overview
 
-The engine is generic over rules and specific over inputs. The set of rules is fixed by the package, then
-filtered and graded before a run; the run then judges each selected subject once per input kind.
+The engine is generic over rules and specific over subject kinds. The set of rules is fixed by the package, then
+filtered and graded before a run; the run then judges each selected subject through one context.
 
 ```text
 once per process   registry ── walks rules/, collects every @rule class (package data)
@@ -63,16 +62,17 @@ per run            configuration (a query of the revision) ──▶ levels
                    rule table = registry × levels × selection
                      · enabled rules only (allow and filtered-out rules are absent)
                      · each with its severity
-                     · partitioned by subject kind or input kind, in code order
+                     · partitioned by base, a document's rules also by facet, in code order
                      · any failure (unknown code, bad config) is raised here, before any subject
                        │
                        ▼
                    runner(database, subjects, table)
                      for each subject:
                        decode → witness, or an undecodable engine diagnostic
-                       for each input kind with enabled rules:
-                         build the input once from the queries → governed or ungoverned
-                         for each rule in that partition: rule.check(input) → occurrences
+                       build its context once, bound to the witness
+                       for each facet an enabled rule over a document declares:
+                         governed or ungoverned, from the specifications
+                         for each rule in that partition: rule.check(context) → occurrences
                        locate the occurrences into diagnostics with the table's severities
                        │
                        ▼
@@ -80,38 +80,30 @@ per run            configuration (a query of the revision) ──▶ levels
 ```
 
 - **Generic over rules.** The runner never names a rule: a new rule is a class the registry collects, and it
-  joins its input's partition of the table.
-- **Specific over inputs.** The runner has one hand-written branch per input kind, which keeps dispatch typed:
-  the headings partition holds `type[HeadingsRule]`, so `rule.check(input)` checks against `HeadingsInput`.
+  joins its base's partition of the table.
+- **Specific over subject kinds.** The runner has one hand-written branch per subject kind, which keeps dispatch
+  typed: the document partition holds `type[DocumentRule]`, so `rule.check(context)` checks against
+  `DocumentContext`.
 - **Configuration and selection never reach a rule.** They shape the table and nothing else.
 - **Subjects arrive chosen.** The command line resolves the paths into subjects; the runner receives a document's
   ref or a skill's location as the model issued it, a resource's location as its skill's resource listing issued
   it, or a layout entry's record as the model or that listing issued it, the database and the table, and nothing
   else.
 
-### Inputs
+### Contexts and Queries
 
-An input is a frozen value of Lorecraft's own types: the facts a query returned, the specifications that govern
-them, and the subject's identity values, such as a filename or the directory a skill is listed under. For the
-rules not yet moved onto a context, a rule receives one input and nothing else: never the database, a view or a
-path.
+A rule reads one context, a read-only view of one decoded subject, and nothing else: never the database, a view or a
+path. Each method of a context is a memoized query of the database, or an identity value read from the subject's ref
+or location, such as a filename or the directory a skill is listed under. So a rule pulls only what it reads, and a
+fact no enabled rule reads is never computed. A document's governance is the one exception: `specifications()` and
+`corpus_structure()` hand out what the model stated when the context was built, and no per-document query records
+that dependency yet; a planned `governance(ref)` query is where it will be recorded. Three rules follow.
 
-The set is closed. Each kind is one dataclass and one rule base class whose `check` takes it.
-
-| Input | Subjects | Built from | Governed by |
-|---|---|---|---|
-| Headings | document | the parse query | a structure specification |
-| Outline divergence | document | the outline-divergences query, over the parse and line-count queries | a structure specification that states an outline |
-
-Three rules follow from the table.
-
-**An input scans, a rule loops.** Building an input is where the cost of a run lies: the parse, and the shared
-analyses the input reads from their queries. A rule's own work is a loop over a short tuple the input prepared. So a
-scan written inside a rule is paid once per rule, and the same scan written as an input is paid once per subject,
-however many rules read it. A rule on an input never walks text or a tree: the scan it needs is an input, existing or
-new. A rule that needs two facts, such as the headings and the frontmatter, gets one input that holds both, never two
-inputs. A new input is the runner's one reviewed extension point, so it is where a new cost enters and is
-reviewed.
+**A query scans, a rule loops.** The cost of a run lies in the queries: the parse, and the shared analyses over it. A
+rule's own work is a loop over a short tuple a query returned, or a walk of the parse tree it alone reads. A scan
+written inside a rule is paid once per rule, and the same scan written as a query is paid once per subject, however
+many rules read it, so a scan two rules need is a query. A new fact is one context method and its query, with a
+carry-over rule: that is where a new cost enters and is reviewed, and the runner never changes for it.
 
 **A shared analysis is a query.** Schema validation and outline matching each find several conditions in one
 pass. Each is a pure function of the revision's per-file queries and the specifications that govern the subject, so
@@ -123,7 +115,7 @@ specification governs the subject for it, so an ungoverned subject never pays fo
 that projects its own problem type into its occurrences. The analysis finds problems, never diagnostics: levels are
 applied after detection, so no diagnostic is cached and a rule's result still is not.
 
-**A cross-file input is a query.** The link-target states are a query keyed by the subject's ref, one per kind of
+**A cross-file fact is a query.** The link-target states are a query keyed by the subject's ref, one per kind of
 Markdown file, read through `link_targets()`: what the snapshot holds at the target of each relative link, present,
 missing or outside the scope the scan read, keyed by the link's normalised relative path. Each link is read from the
 file's `link_base()`, the skill root for any file of a skill and the document's own directory for a document, and a
@@ -137,8 +129,10 @@ two extend `FrontmatterContext`, and all three extend `MarkdownContext`, what an
 with its parse tree; a skill's Markdown file is its `SKILL.md` alone. The last two also extend `SkillFileContext`,
 what one of a skill's files has, since every file of a skill names another from the skill root.
 `lorecraft.project.database` implements them over the database, bound to the decode witness: each fact one memoized
-query, each identity value read from the subject's ref or location. A document context is built only for a document
-whose corpus states a structure specification, since no facet governs one whose corpus does not.
+query, each identity value read from the subject's ref or location, and a document's governance as the model stated
+it. A document context is built only for a document whose corpus states a structure specification, since no facet
+governs one whose corpus does not, so it always hands out that specification, `corpus_structure()`: the one a rule
+reports under when no specification key states it, as the title rules do.
 
 **A rule may read its subject's context.** `lorecraft.rules` gives each subject kind a rule base whose `check` takes
 the context: `DocumentRule` over a document, `SkillRule` over a skill, `MarkdownRule` over any one Markdown file,
@@ -149,28 +143,28 @@ specification states an outline) and `BUDGET` (a specification sets a token budg
 declares none: it judges a document governed for `STRUCTURE`, the facet under which a document has a context at
 all, and every skill's `SKILL.md` and every resource, which the package governs; a rule over a skill's file or a
 layout entry declares none either. The token budget, `LEN001`, is a document rule governed by `BUDGET`, and the line
-budget, `LEN002`, a skill rule, so the token and line counts are no longer inputs; the links and layout rules read a
-context too, `LINK001`, `LINK002` and `LINK003` deriving from `MarkdownRule`, `LINK004` from `SkillFileRule` and
-`LAY001` from `LayoutEntryRule`. The caps on a section's words and on the title's words and characters, `LEN003` to
-`LEN005`, are document rules governed by `STRUCTURE`, so the headings input no longer resolves caps. `STRUCTURE` is the
-facet the headings input was governed by, so their coverage is unchanged; `LEN003` keeps it, rather than `OUTLINE`,
-although it reads only the outline. Each walks the parse tree its context hands it: an analysis only one rule reads is
-that rule's own, so `LEN003` resolves each section's cap from the outline itself. Finding the title, the first H1, is
-the helper `find_title` beside the parse tree.
+budget, `LEN002`, a skill rule; `LINK001`, `LINK002` and `LINK003` derive from `MarkdownRule`, `LINK004` from
+`SkillFileRule` and `LAY001` from `LayoutEntryRule`. The caps on a section's words and on the title's words and
+characters, `LEN003` to `LEN005`, and the rules over a document's headings, `OUT001` to `OUT005` and `OUT009`, are
+document rules governed by `STRUCTURE`; `LEN003` is governed by it rather than by `OUTLINE`, although it reads only the
+outline, so it judges the same documents as the rules over the headings. The rules over where the sections leave
+their outlines, `OUT006` to `OUT008`, are governed by `OUTLINE`, and each filters its own divergence out of the one
+`outline_divergences()` answer. Each walks the parse tree its context hands it: an analysis only one rule reads is
+that rule's own, so `LEN003` resolves each section's cap from the outline, `LEN004` and `LEN005` the title's caps, and
+`OUT009` matches the title against each pattern itself. Finding the title, the first H1, is the helper `find_title`
+beside the parse tree.
 
 **A rule over what both subject kinds share reads the shared context.** `FrontmatterRule` is the base of a rule over
 a document's or a skill's frontmatter alike: its `check` takes a `FrontmatterContext`, so one check judges both
 kinds, and a document runs its rules and the frontmatter rules, a skill its rules and the frontmatter rules. The
-frontmatter rules, `FM001` to `FM010`, derive from it, so the frontmatter block and the schema problems are no longer
-inputs. A rule over the frontmatter inherits `GOVERNED_BY = Facet.FRONTMATTER` from its base, so the runner gates it
-on a document as it gates a rule over a document. That facet is governed exactly when the two inputs were, so their
-coverage is now that one facet, and a skill is governed for it by the package. `FM006` to `FM010` stay filters, each
+frontmatter rules, `FM001` to `FM010`, derive from it. A rule over the frontmatter inherits
+`GOVERNED_BY = Facet.FRONTMATTER` from its base, so the runner gates it on a document as it gates a rule over a
+document, and a skill is governed for it by the package. `FM006` to `FM010` stay filters, each
 picking its own problem type out of the one `schema_problems()` answer. Where a key repeats and which line `name` is
 written on are each read by one rule only, so `FM005` walks the keys and `FM004` locates `name` itself, through the
-same `field_line` the schema query places its problems with. The outline rules still read the inputs above until they
-move onto a context.
+same `field_line` the schema query places its problems with.
 
-**A layout entry is read through a context alone**, since no input ever stood for it. One layout entry is one
+**A layout entry is read through a context built from its record**, since it has no text. One layout entry is one
 symlink of the skill layout whose chain leaves the repository: a skills directory, an entry in one or an entry's
 `SKILL.md`, from the model's outside symlinks, or a symlink inside a skill, from that skill's resource listing. The
 loader and the resource walk decide that a chain leaves, from the link targets the scan recorded, so a symlink that
@@ -187,8 +181,8 @@ it is never decoded, and the package governs the layout, so it is never ungovern
 - **Governed or ungoverned, per facet.** Governance comes from the model, which computes it once. A document can be
   governed for its frontmatter and ungoverned for its outline. The runner runs a rule over a document or over the
   frontmatter only when the document is governed for the rule's facet, and records each facet an enabled rule reads
-  that it is not governed for; a rule still on an input records that input kind instead. A skill and a resource are
-  governed by the package for every facet, so neither is ever ungoverned.
+  that it is not governed for. A skill and a resource are governed by the package for every facet, so neither is ever
+  ungoverned.
 - **Undecodable is an engine diagnostic**, not a rule (FR-020). It has a fixed code under the engine's prefix
   and a rulebook page, and no level. It always fails the run, and a configuration that names its code fails.
 - **Ungoverned is coverage**, not a diagnostic (FR-019). It describes the specifications, not the subject.
@@ -215,15 +209,15 @@ Python's types bound what this proves, and the design states the two gaps rather
 ### The Runner
 
 The runner takes the database, the selected subjects and a rule table. The table is built once per run from the
-registry and the resolved levels: the enabled rules, partitioned by base, or by input kind for a rule still on an
-input, in code order. Each partition holds every enabled rule beside its severity, so a rule the runner holds always
+registry and the resolved levels: the enabled rules, partitioned by base, in code order, and a document's rules
+also by facet. Each partition holds every enabled rule beside its severity, so a rule the runner holds always
 has one. For a document, the runner builds one context, then for each facet an enabled document rule declares, and the
 frontmatter facet when a frontmatter rule is enabled, runs those rules over the context or records the facet as
 ungoverned; the Markdown rules run beside the `STRUCTURE` rules. For a skill, it builds one context and runs every
 frontmatter rule, then every skill rule, every Markdown rule and every skill-file rule over it. For a resource, it
 builds one context and runs every Markdown rule and every skill-file rule over it. For a layout entry, it builds the
 context from the entry's record and runs every layout rule over it, in a report that holds the entry's path and its
-diagnostics. The input branches below stay beside these until the last rule reads a context.
+diagnostics.
 
 ```python
 def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> SubjectReport:
@@ -233,25 +227,28 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
     # `source` is a `DocumentText` from here on: the witness every per-file query takes
 
     diagnostics: list[Diagnostic] = []
-    ungoverned: list[InputKind] = []
+    ungoverned: list[Facet] = []
 
-    if table.headings_rules:  # the parse is never asked for when no enabled rule reads it
-        match build_headings_input(database, source):
-            case Ungoverned():
-                ungoverned.append(InputKind.HEADINGS)
-            case HeadingsInput() as subject:
-                for enabled in table.headings_rules:
-                    for occurrence in enabled.rule.check(subject):
-                        diagnostics.append(RuleDiagnostic(ref.path, occurrence, enabled.severity))
+    context = _find_document_context(database, source)  # None when its corpus states no structure specification
+    for facet in Facet:
+        rules = table.document_rules_governed_by(facet)
+        if not rules:  # a facet no enabled rule reads is never looked at
+            continue
+        if context is None or not _is_governed_for(context.specifications(), facet):
+            ungoverned.append(facet)
+            continue
+        for enabled in rules:
+            for occurrence in enabled.rule.check(context):  # the context asks only for what the rule reads
+                diagnostics.append(RuleDiagnostic(ref.path, occurrence, enabled.severity))
     ...
     return CheckedSubject(ref, diagnostics=tuple(diagnostics), ungoverned=tuple(ungoverned))
 ```
 
-- **Adding a rule never touches the runner.** The rule joins its input's partition through the registry
+- **Adding a rule never touches the runner.** The rule joins its base's partition through the registry
   (NFR-004).
-- **Adding an input touches it once**: one branch, one input type, and its query with a carry-over rule. That is
+- **Adding a fact never touches it either**: one context method and its query with a carry-over rule. That is
   the deliberate point where a new dependency is reviewed.
-- **A rule at `allow` is not in the table**, so it does not run and its input may never be computed (FR-027,
+- **A rule at `allow` is not in the table**, so it does not run and what it reads may never be computed (FR-027,
   NFR-003).
 - **No second walk.** Every subject kind goes through the same function family and the same table. A new group
   or subject kind adds no pipeline.
@@ -286,7 +283,7 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
 - **Detection never reads the configuration.** Two rules that overlap are made disjoint in their own logic. The
   name rule compares `name` only when it is a string, so a missing or mistyped `name` belongs to the schema
   rule alone (FR-022).
-- **A rule's options are specification data**, read through its input: a line length or a list marker style is
+- **A rule's options are specification data**, read through its context: a line length or a list marker style is
   stated beside the outline and caps, so corpora can differ. The established linters read rule options from
   their settings; this design departs from them because a rule that read the configuration would break the
   invariant above.
@@ -312,8 +309,8 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
 
 | Piece | Package |
 |---|---|
-| Rule classes and removed rules, the registry, the rule groups and their rules, the rule bases per subject kind and the facets, the input types | `lorecraft.rules` |
-| Building the inputs, the runner, the report types, level resolution | `lorecraft.checks` |
+| Rule classes and removed rules, the registry, the rule groups and their rules, the rule bases per subject kind and the facets | `lorecraft.rules` |
+| The rule table, the runner, the report types, level resolution | `lorecraft.checks` |
 | The context protocols, what can be asked of one decoded subject | `lorecraft.project` |
 | The database, decoding, the contexts' implementations ([adr-012](adr-012-database-derivation.md)) | `lorecraft.project.database` |
 | The configuration file's dialect and its decoding, once it is designed | `lorecraft.project` |
@@ -325,7 +322,6 @@ design could otherwise only state.
 
 ```text
 src/lorecraft/rules/
-├── inputs.py            # the input kinds the rules not yet on a context read
 ├── subject.py           # the rule base per subject kind, and the facets
 ├── registry.py
 └── <group>/
@@ -339,35 +335,35 @@ src/lorecraft/project/database/
 └── text.py              # the decode witnesses
 
 src/lorecraft/checks/
-├── inputs.py            # how each input kind is resolved from the queries
+├── table.py             # the enabled rules, partitioned by base and by facet
 ├── runner.py            # replaces run.py's four run functions
 └── report.py
 ```
 
 ### Tests
 
-- **A sample rule** is registered over an existing input in a test and runs with no other edit (NFR-004).
+- **A sample rule** is registered over an existing rule base in a test and runs with no other edit (NFR-004).
 
 ### Performance
 
-The engine is efficient within one revision: no query is computed twice, no input is built for a rule that does
+The engine is efficient within one revision: no query is computed twice, no fact is asked for by a rule that does
 not run, and a scan is paid once per subject whatever the number of rules. Caching stays in memory, in the
 database, for the revision's lifetime. No result persists across runs in this release (see
 [Deferred](#deferred)).
 
 The baseline is v0.2 on this repository, at about 0.85 s per run. Under a profiler, parsing Markdown is 57% of
 the run, loading the tokenizer's vocabulary 10% and imports 17%; the checks' own logic does not register. So the
-rule count is not today's cost, and the inputs are.
+rule count is not today's cost, and the queries are.
 
 Two measurements keep that true:
 
 - **Before and after**, for NFR-002. The stages are timed apart on this repository: the snapshot, specification
   loading, decoding, parsing, token counting, schema validation, the rules and the rendering. The comparison is
-  the median of repeated runs on one machine, with the noise stated. Query counts show that no input is resolved
+  the median of repeated runs on one machine, with the noise stated. Query counts show that no query is computed
   twice for a subject.
-- **At scale.** A `just` recipe registers a large number of synthetic rules over the existing inputs and times
+- **At scale.** A `just` recipe registers a large number of synthetic rules over the existing contexts and times
   the run. The cost per added rule is stated here and stays small and flat: two hundred rules looping over
-  twenty headings each, across a hundred subjects, take about 12 ms. A slope that jumps means an input is built
+  twenty headings each, across a hundred subjects, take about 12 ms. A slope that jumps means a query is computed
   per rule or a rule scans. It is a recipe run on demand, not a test with a time limit, which a shared machine
   makes flaky.
 
@@ -379,8 +375,9 @@ A more elaborate engine waits for a profile that asks for one.
 
 ## Alternatives Considered
 
-- **One generic rule type, or a visitor over a syntax tree.** Lorecraft's inputs are small flat values a rule
-  iterates on its own. A closed union the runner matches on stays typed and readable.
+- **One generic rule type, or a visitor over a syntax tree.** A rule reads a few facts of one subject, mostly
+  short tuples, and loops over them on its own. One base per subject kind, which the runner matches on, stays typed
+  and readable.
 - **Undecodable and ungoverned as rules.** A rule can be turned off. A file that cannot be read must not be,
   and a missing specification is not a fact about the document.
 - **Caching a subject's diagnostics as a query.** Not needed while rules are cheap and a run is one revision.
@@ -393,7 +390,7 @@ A more elaborate engine waits for a profile that asks for one.
   analysis boundary) and [adr-004-database](adr-004-database.md) (decoding as a value, cross-file queries).
 - **A projecting rule is thin.** A schema rule is a few lines over a problem type, and the validation it
   projects lives in a query.
-- **The runner is hand-written per input kind.** That is the price of typed dispatch with no generic machinery.
+- **The runner is hand-written per subject kind.** That is the price of typed dispatch with no generic machinery.
 - **The database sits apart from the linter**, as the established linters keep it. The rules sit in
   `lorecraft.rules`, the runner in `lorecraft.checks`, and the database, with its witnesses and the contexts'
   implementations, in `lorecraft.project.database`, beside the derivations it memoizes
@@ -407,7 +404,7 @@ The PRD defers the IDE-like, long-lived mode. The design builds none of it and c
 
 | Deferred | What the design keeps open |
 |---|---|
-| Re-checking only what a change affects | A rule declares its input, an input names its queries, and a query states its carry-over rule, so the affected rules are derivable |
+| Re-checking only what a change affects | A rule reads its context, each context method but a document's governance is one query, and a query states its carry-over rule, so the affected rules are derivable once a `governance(ref)` query records that last dependency |
 | Unsaved content | A rule reads values, never the disk |
 | Rejecting a superseded revision's results | One report reads one revision; a diagnostic names no revision-bound object |
 | Warm starts | No store is built: caching is in memory, for one revision. Query results stay persistable data, the new queries included, and the registry stays out of them, so the store of [adr-005-incremental](adr-005-incremental.md) is an addition. A cross-file query's carry-over rule names the paths it looked up; recording them waits for the store or for the next revision's carry-over |

@@ -4,17 +4,18 @@ from dataclasses import dataclass
 from typing import ClassVar, Self
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.context import DocumentContext
 from lorecraft.project.syntax import SECTION_LEVEL
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.inputs import HeadingsInput, HeadingsRule
 from lorecraft.rules.location import Subdiagnostic
+from lorecraft.rules.subject import DocumentRule, Facet
 
 from .__ruleset__ import GROUP_ID, spec_note
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class ForbiddenSection(HeadingsRule):
+class ForbiddenSection(DocumentRule):
     """A section a structure specification forbids appears in the document.
 
     ## What it does
@@ -77,6 +78,7 @@ class ForbiddenSection(HeadingsRule):
     NAME: ClassVar[RuleName] = RuleName('forbidden-section')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
 
     spec: RootRelativePath
     section: str
@@ -90,16 +92,19 @@ class ForbiddenSection(HeadingsRule):
         return (spec_note(self.spec),)
 
     @classmethod
-    def check(cls, subject: HeadingsInput) -> tuple[Self, ...]:
+    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
         """One occurrence, at its heading, for each forbidden H2 section under each specification that forbids it.
 
+        The specifications are taken in the order they apply, and the headings of each in document order.
+
         Args:
-            subject: The document's headings, with what each governing structure specification states over them.
+            subject: The document, governed by a structure specification.
         """
+        headings = subject.parse().headings
         occurrences: list[Self] = []
-        for headings_spec in subject.specs:
-            forbidden_names = {name.value for name in headings_spec.forbidden}
-            for heading in subject.headings:
+        for structure_spec in subject.specifications().structure_specs():
+            forbidden_names = {name.value for name in structure_spec.forbidden}
+            for heading in headings:
                 if heading.level == SECTION_LEVEL and heading.text in forbidden_names:
-                    occurrences.append(cls(spec=headings_spec.spec, line=heading.line, section=heading.text))
+                    occurrences.append(cls(spec=structure_spec.path, line=heading.line, section=heading.text))
         return tuple(occurrences)

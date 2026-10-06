@@ -96,6 +96,10 @@ class DatabaseDocumentContext:
         """The specifications that govern the document, as the model found them when the context was built."""
         return self._governance
 
+    def corpus_structure(self) -> StructureSpec:
+        """The structure specification of the document's corpus, as the caller found it stated."""
+        return self._corpus_structure
+
     def outline_divergences(self) -> tuple[OutlineDivergenceSpec, ...]:
         """Where the document's sections stop matching each outline, from the `outline_divergences` query."""
         return self._database.outline_divergences(self._source)

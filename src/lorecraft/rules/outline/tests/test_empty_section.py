@@ -1,7 +1,7 @@
 """`OUT004`, `empty-section`, over a document's headings.
 
-The rule is pure, so every case here is a document's headings and what each specification states, written as
-literals; no document is read.
+Every case is a document written as text, read through a fake context that parses it as the real parser does, under
+structure specifications decoded from JSON; no document is read from disk.
 """
 
 from typing import Final
@@ -9,50 +9,33 @@ from typing import Final
 import pytest
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.syntax import Heading, LineNumber
-from lorecraft.rules.inputs import HeadingsInput, HeadingsSpec
+from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Note
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
 
 from ..empty_section import EmptySection
 
-CORPUS_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/guide.structure.json')
-"""A corpus structure specification."""
+CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
+"""The corpus structure specification."""
 
-NAMESPACE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/guide-cli.structure.json')
+NAMESPACE_SPEC: Final[RootRelativePath] = structure_spec_path('guide-cli')
 """A namespace structure specification under the same corpus."""
 
-TITLE: Final[Heading] = Heading(level=1, text='Setup', line=LineNumber.from_int(1), empty=False, words=0)
-"""An H1 title on line 1, holding the sections below it."""
+FORBIDS_EMPTY: Final[str] = '{"empty_sections": "forbidden"}'
+"""A structure specification that forbids empty sections."""
 
-INSTALL: Final[Heading] = Heading(level=2, text='Install', line=LineNumber.from_int(3), empty=True, words=0)
-"""An empty H2 section on line 3."""
+ALLOWS_EMPTY: Final[str] = '{"forbidden": ["Changelog"]}'
+"""A structure specification that states another rule, and leaves empty sections allowed."""
 
-RUN: Final[Heading] = Heading(level=2, text='Run', line=LineNumber.from_int(5), empty=False, words=6)
-"""An H2 section on line 5, holding prose."""
-
-
-def _spec(spec: RootRelativePath, *, forbid_empty_sections: bool) -> HeadingsSpec:
-    """What a specification states over the headings: whether it forbids empty sections, alone.
-
-    Args:
-        spec: The structure specification file.
-        forbid_empty_sections: True when it forbids empty sections.
-    """
-    return HeadingsSpec(
-        spec=spec,
-        title_mismatch=None,
-        forbid_empty_sections=forbid_empty_sections,
-        forbidden=(),
-    )
+EMPTY_INSTALL: Final[str] = '# Setup\n\n## Install\n\n## Run\n\nRun the toolkit once over the repository.\n'
+"""A document whose title holds two sections: `Install`, empty, on line 3, and `Run`, holding prose, on line 5."""
 
 
 @pytest.mark.unit
 class TestEmptySection:
     def test_check_with_an_empty_section_reports_it_at_its_heading(self) -> None:
         #: Given
-        subject = HeadingsInput(
-            headings=(TITLE, INSTALL, RUN), corpus=_spec(CORPUS_SPEC, forbid_empty_sections=True), namespaces=()
-        )
+        subject = FakeDocumentContext(EMPTY_INSTALL, corpus='guide', structure=FORBIDS_EMPTY)
 
         #: When
         occurrences = EmptySection.check(subject)
@@ -64,9 +47,7 @@ class TestEmptySection:
 
     def test_check_with_empty_sections_allowed_reports_nothing(self) -> None:
         #: Given
-        subject = HeadingsInput(
-            headings=(TITLE, INSTALL, RUN), corpus=_spec(CORPUS_SPEC, forbid_empty_sections=False), namespaces=()
-        )
+        subject = FakeDocumentContext(EMPTY_INSTALL, corpus='guide', structure=ALLOWS_EMPTY)
 
         #: When
         occurrences = EmptySection.check(subject)
@@ -76,8 +57,8 @@ class TestEmptySection:
 
     def test_check_with_every_section_holding_content_reports_nothing(self) -> None:
         #: Given
-        subject = HeadingsInput(
-            headings=(TITLE, RUN), corpus=_spec(CORPUS_SPEC, forbid_empty_sections=True), namespaces=()
+        subject = FakeDocumentContext(
+            '# Setup\n\n## Run\n\nRun the toolkit once over the repository.\n', corpus='guide', structure=FORBIDS_EMPTY
         )
 
         #: When
@@ -88,8 +69,7 @@ class TestEmptySection:
 
     def test_check_with_an_empty_title_reports_it(self) -> None:
         #: Given
-        title = Heading(level=1, text='Setup', line=LineNumber.from_int(1), empty=True, words=0)
-        subject = HeadingsInput(headings=(title,), corpus=_spec(CORPUS_SPEC, forbid_empty_sections=True), namespaces=())
+        subject = FakeDocumentContext('# Setup\n', corpus='guide', structure=FORBIDS_EMPTY)
 
         #: When
         occurrences = EmptySection.check(subject)
@@ -101,12 +81,7 @@ class TestEmptySection:
 
     def test_check_with_empty_sections_of_different_levels_reports_each_in_order(self) -> None:
         #: Given
-        subsection = Heading(level=3, text='Linux', line=LineNumber.from_int(7), empty=True, words=0)
-        subject = HeadingsInput(
-            headings=(TITLE, INSTALL, RUN, subsection),
-            corpus=_spec(CORPUS_SPEC, forbid_empty_sections=True),
-            namespaces=(),
-        )
+        subject = FakeDocumentContext(EMPTY_INSTALL + '\n### Linux\n', corpus='guide', structure=FORBIDS_EMPTY)
 
         #: When
         occurrences = EmptySection.check(subject)
@@ -114,15 +89,16 @@ class TestEmptySection:
         #: Then
         assert occurrences == (
             EmptySection(spec=CORPUS_SPEC, line=LineNumber.from_int(3), section='Install'),
-            EmptySection(spec=CORPUS_SPEC, line=LineNumber.from_int(7), section='Linux'),
+            EmptySection(spec=CORPUS_SPEC, line=LineNumber.from_int(9), section='Linux'),
         ), 'every empty heading is reported, whatever its level, in document order'
 
     def test_check_with_two_specifications_forbidding_empty_sections_reports_each_in_order(self) -> None:
         #: Given
-        subject = HeadingsInput(
-            headings=(TITLE, INSTALL, RUN),
-            corpus=_spec(CORPUS_SPEC, forbid_empty_sections=True),
-            namespaces=(_spec(NAMESPACE_SPEC, forbid_empty_sections=True),),
+        subject = FakeDocumentContext(
+            EMPTY_INSTALL,
+            corpus='guide',
+            structure=FORBIDS_EMPTY,
+            namespaces=(namespace_spec('guide', 'cli', FORBIDS_EMPTY),),
         )
 
         #: When
@@ -136,10 +112,11 @@ class TestEmptySection:
 
     def test_check_with_one_of_two_specifications_forbidding_empty_sections_reports_under_it_alone(self) -> None:
         #: Given
-        subject = HeadingsInput(
-            headings=(TITLE, INSTALL, RUN),
-            corpus=_spec(CORPUS_SPEC, forbid_empty_sections=False),
-            namespaces=(_spec(NAMESPACE_SPEC, forbid_empty_sections=True),),
+        subject = FakeDocumentContext(
+            EMPTY_INSTALL,
+            corpus='guide',
+            structure=ALLOWS_EMPTY,
+            namespaces=(namespace_spec('guide', 'cli', FORBIDS_EMPTY),),
         )
 
         #: When
