@@ -160,7 +160,7 @@ of this package.
 ```python
 # ❌ Bad — the page describes the machinery: a user over the cap learns which parser counts and which input the
 # rule reads, but not whether a code block counts, and `word-cap = "warn"` does not say which way the rule fires
-class WordCap(HeadingsRule):
+class WordCap(DocumentRule):
     """Compares each section's word count from the Markdown parser with its outline entry's cap.
 
     ## What it does
@@ -171,7 +171,7 @@ class WordCap(HeadingsRule):
 
 ```python
 # ✅ Good — the name states what is wrong, and the page speaks of the user's section and specification
-class TooManyWords(HeadingsRule):
+class TooManyWords(DocumentRule):
     """A section is longer than its word cap allows.
 
     ## What it does

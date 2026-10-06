@@ -1,7 +1,7 @@
 """A document's parse tree.
 
 It holds the frontmatter node, the headings and their anchors, the links, and the line positions every check
-reports against.
+reports against. `find_title` finds a document's title among its headings.
 
 Beside it, `count_tokens`: what a document's raw text costs an agent, counted without parsing it,
 `count_lines`: how many lines that raw text holds, counted the same way, and `count_words`: the prose words in a
@@ -18,7 +18,7 @@ from .frontmatter import (
     MissingFrontmatter,
     NonMappingFrontmatter,
 )
-from .heading import SECTION_LEVEL, Heading, HeadingLevel
+from .heading import SECTION_LEVEL, Heading, HeadingLevel, find_title
 from .lines import count_lines
 from .link import Link
 from .position import LineNumber
@@ -38,6 +38,7 @@ __all__: list[str] = [
     'Heading',
     'HeadingLevel',
     'SECTION_LEVEL',
+    'find_title',
     'Link',
     'Anchor',
     'InvalidAnchorError',

@@ -123,9 +123,9 @@ class EmptySection(HeadingsRule):
   base, and asks the context for what it reads. A rule over a document declares the facet it reads in `GOVERNED_BY`,
   and the registry rejects one that declares none; the package governs every skill and resource, so a rule over a
   skill or one of its files declares none. A rule over a Markdown file declares none either: its base judges a
-  document under its structure, the facet under which a document has a context at all. The length rules over a whole
-  file, `LEN001` and `LEN002`, the `LINK` rules and `LAY001` read a context; the rules not yet moved still pick an
-  input by their base, such as `HeadingsRule` above, until they are.
+  document under its structure, the facet under which a document has a context at all. The length rules,
+  `LEN001` to `LEN005`, the `LINK` rules and `LAY001` read a context; the rules not yet moved still pick an input by
+  their base, such as `HeadingsRule` above, until they are.
 - **A layout entry has a base of its own.** `LayoutEntryRule` derives from `LayoutRule`, since a symlink has no
   lines, and its `check` takes a `LayoutContext`: one symlink of the skill layout whose chain leaves the repository,
   and where it leaves. The package governs the skill layout, so a rule over it declares no facet.

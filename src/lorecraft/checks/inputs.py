@@ -18,19 +18,10 @@ that memoizes it, so the analysis is computed once per subject however many inpu
 from dataclasses import dataclass
 from typing import assert_never
 
-from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.database import Database, DocumentText, SkillText
-from lorecraft.project.schemas import (
-    AnySections,
-    OutlineEntry,
-    SectionEntry,
-    StructureSpec,
-    TitleChecks,
-    field_line,
-)
+from lorecraft.project.schemas import StructureSpec, TitleChecks, field_line
 from lorecraft.project.syntax import (
-    SECTION_LEVEL,
     Frontmatter,
     FrontmatterNode,
     Heading,
@@ -38,7 +29,7 @@ from lorecraft.project.syntax import (
     LineNumber,
     MissingFrontmatter,
     NonMappingFrontmatter,
-    count_words,
+    find_title,
 )
 from lorecraft.rules.inputs import (
     FrontmatterBlock,
@@ -50,9 +41,6 @@ from lorecraft.rules.inputs import (
     OutlineDivergenceInput,
     RepeatedKey,
     SchemaProblemsInput,
-    SectionCap,
-    TitleCap,
-    TitleCharCap,
     TitleMismatch,
 )
 from lorecraft.vfs import ResolvedPath
@@ -267,10 +255,8 @@ def build_skill_schema_problems_input(database: Database, source: SkillText) -> 
 def build_headings_input(database: Database, source: DocumentText) -> HeadingsInput | Ungoverned:
     """A document's headings, with what each structure specification that governs it states over them.
 
-    The structure specifications are read first, and the document is parsed only when one governs it. Each section's
-    word cap is worked out here, from the outline, and so are the title's, with the words and the characters of the
-    title's text, so a rule over the caps only compares numbers. The title's text is matched against its pattern here
-    too, so a rule over the pattern only reads the outcome.
+    The structure specifications are read first, and the document is parsed only when one governs it. The title's
+    text is matched against its pattern here, so a rule over the pattern only reads the outcome.
 
     Args:
         database: The revision the document is read from; its model decides which specifications govern it.
@@ -318,84 +304,29 @@ def build_headings_input(database: Database, source: DocumentText) -> HeadingsIn
         return Ungoverned()
 
     headings = database.parse(source).headings
-    title = _find_title(headings)
-    sections = tuple(heading for heading in headings if heading.level == SECTION_LEVEL)
+    title = find_title(headings)
     namespaces: list[HeadingsSpec] = []
     for namespace_spec in governance.namespace_specs:
         if namespace_spec.structure is not None:
-            namespaces.append(_headings_spec(namespace_spec.structure, title, sections))
+            namespaces.append(_headings_spec(namespace_spec.structure, title))
     return HeadingsInput(
-        headings=headings, corpus=_headings_spec(corpus_structure, title, sections), namespaces=tuple(namespaces)
+        headings=headings, corpus=_headings_spec(corpus_structure, title), namespaces=tuple(namespaces)
     )
 
 
-def _find_title(headings: tuple[Heading, ...]) -> Heading | None:
-    """A document's title: its first H1 heading, or `None` when it has none. Raises nothing.
-
-    A later H1 is a second title, which is a finding of its own, so no check on the title is held against it.
-
-    Args:
-        headings: The document's top-level headings, in document order.
-    """
-    for heading in headings:
-        if heading.level == 1:
-            return heading
-    return None
-
-
-def _headings_spec(structure_spec: StructureSpec, title: Heading | None, sections: tuple[Heading, ...]) -> HeadingsSpec:
-    """What one structure specification states over a document's headings, its caps resolved. Raises nothing.
+def _headings_spec(structure_spec: StructureSpec, title: Heading | None) -> HeadingsSpec:
+    """What one structure specification states over a document's headings, its title pattern matched. Raises nothing.
 
     Args:
         structure_spec: The structure specification that governs the document.
         title: The document's title, its first H1 heading, or `None` when it has none.
-        sections: The document's H2 headings, in document order, each with its prose word count.
     """
     return HeadingsSpec(
         spec=structure_spec.path,
-        title_cap=_title_cap(structure_spec.title, title),
-        title_char_cap=_title_char_cap(structure_spec.title, title),
         title_mismatch=_title_mismatch(structure_spec.title, title),
         forbid_empty_sections=structure_spec.forbid_empty_sections,
         forbidden=structure_spec.forbidden,
-        section_caps=_section_caps(structure_spec.outline, sections),
     )
-
-
-def _title_cap(title_checks: TitleChecks | None, title: Heading | None) -> TitleCap | None:
-    """The cap on a document's title words under one specification, measured against its title. Raises nothing.
-
-    Args:
-        title_checks: The checks the specification's `title` states, or `None` when it states none.
-        title: The document's title, its first H1 heading, or `None` when it has none.
-
-    Returns:
-        The cap with the title it applies to and the words of the title's text; or `None` when the specification
-        sets no cap, or when the document has no title.
-    """
-    if title_checks is None or title_checks.words is None or title is None:
-        return None
-    return TitleCap(title=title, title_words=count_words(title.text), words=title_checks.words)
-
-
-def _title_char_cap(title_checks: TitleChecks | None, title: Heading | None) -> TitleCharCap | None:
-    """The cap on a document's title characters under one specification, measured against its title. Raises nothing.
-
-    The characters are those of the title's text as the parse holds it, inline markup already stripped, counted as
-    Unicode code points: the `len` of the text, neither its bytes nor the letters a reader sees, so an emoji built
-    of several code points counts each of them.
-
-    Args:
-        title_checks: The checks the specification's `title` states, or `None` when it states none.
-        title: The document's title, its first H1 heading, or `None` when it has none.
-
-    Returns:
-        The cap with the title it applies to and the characters of the title's text; or `None` when the
-        specification sets no cap, or when the document has no title.
-    """
-    if title_checks is None or title_checks.chars is None or title is None:
-        return None
-    return TitleCharCap(title=title, title_chars=len(title.text), chars=title_checks.chars)
 
 
 def _title_mismatch(title_checks: TitleChecks | None, title: Heading | None) -> TitleMismatch | None:
@@ -414,69 +345,6 @@ def _title_mismatch(title_checks: TitleChecks | None, title: Heading | None) -> 
     if title_checks.pattern.is_found_in(title.text):
         return None
     return TitleMismatch(title=title, pattern=str(title_checks.pattern))
-
-
-def _section_caps(outline: tuple[OutlineEntry, ...], sections: tuple[Heading, ...]) -> tuple[SectionCap, ...]:
-    """The word cap each section of a document is held to under one outline, in document order. Raises nothing.
-
-    A section the outline names takes the cap of the entry naming it, which may be none. Any other section takes
-    the cap of the `any` run it falls in: the first `any` entry after the entry naming the last named section
-    before it. In a document that follows the outline, that is the run which matches it. A section no cap applies
-    to is left out.
-
-    Args:
-        outline: The entries of the structure specification's outline, which carry the caps; may be empty.
-        sections: The document's H2 headings, in document order, each with its prose word count.
-    """
-    caps: list[SectionCap] = []
-    last_named_at = -1  # the outline index of the last named section passed; -1 before any
-    for section in sections:
-        entry_at = _find_entry_index(outline, section.text)
-        if entry_at is None:
-            cap = _find_run_cap(outline, last_named_at)
-        else:
-            last_named_at = entry_at
-            cap = outline[entry_at].words
-        if cap is not None:
-            caps.append(SectionCap(section=section, words=cap))
-    return tuple(caps)
-
-
-def _find_entry_index(outline: tuple[OutlineEntry, ...], name: str) -> int | None:
-    """Where in the outline the section entry naming `name` sits, or `None` when no entry names it. Raises nothing.
-
-    Args:
-        outline: The entries to search, in outline order.
-        name: Heading text of the section to find.
-    """
-    for index, entry in enumerate(outline):
-        match entry:
-            case SectionEntry():
-                if entry.name.value == name:
-                    return index
-            case AnySections():
-                pass  # a run names no section
-            case _:
-                assert_never(entry)
-    return None
-
-
-def _find_run_cap(outline: tuple[OutlineEntry, ...], after: int) -> NonZeroUnsignedInt | None:
-    """The cap of the first `any` entry past outline index `after`, or `None` when there is none. Raises nothing.
-
-    Args:
-        outline: The entries to search, in outline order.
-        after: Outline index of the last named section passed, exclusive; -1 searches from the start.
-    """
-    for entry in outline[after + 1 :]:
-        match entry:
-            case AnySections():
-                return entry.words
-            case SectionEntry():
-                pass  # a section entry caps only its own section
-            case _:
-                assert_never(entry)
-    return None
 
 
 def build_outline_divergence_input(database: Database, source: DocumentText) -> OutlineDivergenceInput | Ungoverned:
