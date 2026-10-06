@@ -1,4 +1,4 @@
-"""The rule table: the rules a run enables, each with its severity, and their partition by input kind."""
+"""The rule table: the rules a run enables, each with its severity, and their partition by base."""
 
 import pytest
 
@@ -29,8 +29,10 @@ from lorecraft.rules.outline.section_out_of_order import SectionOutOfOrder
 from lorecraft.rules.outline.title_not_first import TitleNotFirst
 from lorecraft.rules.outline.unexpected_section import UnexpectedSection
 from lorecraft.rules.registry import Registry
+from lorecraft.rules.subject import Facet
 from lorecraft.rules.tests.sample_rules import token_count
 from lorecraft.rules.tests.sample_rules import valid as valid_rules
+from lorecraft.rules.tests.sample_rules.skill_lines.any_lines import AnyLines
 from lorecraft.rules.tests.sample_rules.token_count.any_tokens import AnyTokens
 from lorecraft.rules.tests.sample_rules.token_count.empty_document import EmptyDocument
 from lorecraft.rules.tests.sample_rules.token_count.over_half_budget import OverHalfBudget
@@ -41,7 +43,7 @@ from ..table import EnabledRule, RuleTable, UnknownRuleInputError
 
 @pytest.fixture(scope='module')
 def registry() -> Registry:
-    """The registry of the sample rules over the token count; immutable, so shared by the module."""
+    """The registry of the sample rules over a document's token count; immutable, so shared by the module."""
     return Registry.load(token_count)
 
 
@@ -58,7 +60,7 @@ class TestRuleTableFromRegistry:
         table = RuleTable.from_registry(registry)
 
         #: Then
-        assert table.token_count_rules == enabled, (
+        assert table.document_rules == enabled, (
             'the rules above allow are enabled, in code order; the removed rule and the condition are not rules'
         )
 
@@ -70,7 +72,7 @@ class TestRuleTableFromRegistry:
         table = RuleTable.from_registry(registry)
 
         #: Then
-        assert table.token_count_rules == (EnabledRule(OverHalfBudget, Severity.WARNING),), (
+        assert table.document_rules == (EnabledRule(OverHalfBudget, Severity.WARNING),), (
             'a rule at warn reports warnings'
         )
 
@@ -82,7 +84,7 @@ class TestRuleTableFromRegistry:
         table = RuleTable.from_registry(registry)
 
         #: Then
-        assert table.token_count_rules == (EnabledRule(AnyTokens, Severity.ERROR),), 'a rule at deny reports errors'
+        assert table.document_rules == (EnabledRule(AnyTokens, Severity.ERROR),), 'a rule at deny reports errors'
 
     def test_from_registry_with_a_rule_at_allow_leaves_it_out(self) -> None:
         #: Given
@@ -92,11 +94,11 @@ class TestRuleTableFromRegistry:
         table = RuleTable.from_registry(registry)
 
         #: Then
-        assert table.token_count_rules == (), 'a rule at allow is not in the table, so it never runs'
+        assert table.document_rules == (), 'a rule at allow is not in the table, so it never runs'
 
     def test_from_registry_with_a_rule_over_no_known_input_raises_unknown_rule_input_error(self) -> None:
         #: Given
-        # the valid sample rules read sample inputs, which no partition of the table holds
+        # the valid sample rules derive from sample bases, which no partition of the table holds
         registry = Registry.load(valid_rules)
 
         #: When
@@ -207,10 +209,30 @@ class TestRuleTable:
         table = RuleTable(severities)
 
         #: Then
-        assert table.token_count_rules == (
+        assert table.document_rules == (
             EnabledRule(OverHalfBudget, Severity.WARNING),
             EnabledRule(AnyTokens, Severity.ERROR),
         ), 'a partition is in code order, whatever is given, each rule with the severity given for it'
+
+    def test_rule_table_with_no_rules_has_an_empty_document_partition(self) -> None:
+        #: Given
+        severities: dict[type[Rule], Severity] = {}
+
+        #: When
+        table = RuleTable(severities)
+
+        #: Then
+        assert table.document_rules == (), 'no enabled rule reads a document'
+
+    def test_rule_table_with_no_rules_has_an_empty_skill_partition(self) -> None:
+        #: Given
+        severities: dict[type[Rule], Severity] = {}
+
+        #: When
+        table = RuleTable(severities)
+
+        #: Then
+        assert table.skill_rules == (), 'no enabled rule reads a skill'
 
     def test_rule_table_with_no_rules_has_an_empty_token_count_partition(self) -> None:
         #: Given
@@ -231,6 +253,30 @@ class TestRuleTable:
 
         #: Then
         assert table.line_count_rules == (), 'no enabled rule reads the line count'
+
+    def test_document_rules_governed_by_with_the_facet_a_rule_reads_returns_it(self) -> None:
+        #: Given
+        severities: dict[type[Rule], Severity] = {AnyTokens: Severity.ERROR}
+        table = RuleTable(severities)
+
+        #: When
+        governed = table.document_rules_governed_by(Facet.BUDGET)
+
+        #: Then
+        assert governed == (EnabledRule(AnyTokens, Severity.ERROR),), (
+            'a rule over a document is run under the facet it declares'
+        )
+
+    def test_document_rules_governed_by_with_a_facet_no_rule_reads_returns_nothing(self) -> None:
+        #: Given
+        severities: dict[type[Rule], Severity] = {AnyTokens: Severity.ERROR}
+        table = RuleTable(severities)
+
+        #: When
+        governed = table.document_rules_governed_by(Facet.OUTLINE)
+
+        #: Then
+        assert governed == (), 'a rule over a document is run under no facet but the one it declares'
 
     def test_rule_table_with_no_rules_has_an_empty_frontmatter_block_partition(self) -> None:
         #: Given
@@ -263,6 +309,21 @@ class TestRuleTable:
 
         #: Then
         assert table.token_count_rules == (), 'a rule joins the partition of the input it reads, and no other'
+
+    def test_rule_table_with_a_rule_over_a_document_and_one_over_a_skill_partitions_each_by_its_base(self) -> None:
+        #: Given
+        severities: dict[type[Rule], Severity] = {AnyTokens: Severity.ERROR, AnyLines: Severity.WARNING}
+
+        #: When
+        table = RuleTable(severities)
+
+        #: Then
+        assert table.document_rules == (EnabledRule(AnyTokens, Severity.ERROR),), (
+            'a rule over a document joins the document partition, and no other'
+        )
+        assert table.skill_rules == (EnabledRule(AnyLines, Severity.WARNING),), (
+            'a rule over a skill joins the skill partition, and no other'
+        )
 
     def test_rule_table_with_no_rules_has_an_empty_schema_problems_partition(self) -> None:
         #: Given

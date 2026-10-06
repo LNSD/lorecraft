@@ -32,13 +32,14 @@ What it replaces is everything around the checks:
 
 ## Decision
 
-1. **A closed set of input kinds.** A rule declares the one input it reads. An input scans, a rule loops: every
-   pass over text, a tree or a schema is an input, and a rule only loops over the values its input holds. An
-   analysis several rules share is a query of the database, never a rule with several codes.
+1. **A rule reads its subject through its kind's context** and declares the facet it is governed for; every
+   shipped rule still reads one of a closed set of inputs until it moves. A rule never scans: every pass over text,
+   a tree or a schema is a query, and a rule only loops over the values its context or input hands it. An analysis
+   several rules share is a query of the database, never a rule with several codes.
 2. **One runner** resolves each input once per subject, only when an enabled rule reads it, with one
-   hand-written branch per input kind.
+   hand-written branch per input kind, and one per subject kind for the rules that read a context.
 3. **A subject's status is the engine's, not a rule's.** Whether a file decodes, and whether a specification
-   governs each input, is resolved before any rule runs.
+   governs each facet (each input, for a rule still on one), is resolved before any rule runs.
 4. **Levels are applied after detection.** The configuration is an input of the revision, and a rule's result
    never depends on it.
 5. **The engine is efficient within one revision**, caching in memory and persisting nothing across runs.
@@ -60,7 +61,7 @@ per run            configuration (a query of the revision) ──▶ levels
                    rule table = registry × levels × selection
                      · enabled rules only (allow and filtered-out rules are absent)
                      · each with its severity
-                     · partitioned by input kind, in code order
+                     · partitioned by subject kind or input kind, in code order
                      · any failure (unknown code, bad config) is raised here, before any subject
                        │
                        ▼
@@ -87,8 +88,9 @@ per run            configuration (a query of the revision) ──▶ levels
 ### Inputs
 
 An input is a frozen value of Lorecraft's own types: the facts a query returned, the specifications that govern
-them, and the subject's identity values, such as a filename or the directory a skill is listed under. A rule
-receives one input and nothing else: never the database, a view or a path.
+them, and the subject's identity values, such as a filename or the directory a skill is listed under. For the
+rules not yet moved onto a context, a rule receives one input and nothing else: never the database, a view or a
+path.
 
 The set is closed. Each kind is one dataclass and one rule base class whose `check` takes it.
 
@@ -130,17 +132,27 @@ remove its diagnostic. Nothing a rule reads is left outside a query contract.
 **A subject's facts are also stated as a context.** `lorecraft.project` declares, as a `Protocol` per subject kind,
 what can be asked of one decoded subject: `DocumentContext` and `SkillContext`, both extending
 `FrontmatterContext`. `lorecraft.checks` implements them over the database, bound to the decode witness: each fact
-one memoized query, each identity value read from the subject's ref or location. No rule reads a context yet: the
-inputs above are still what a rule receives. A document context is built only for a document whose corpus states a
-structure specification, since no facet governs one whose corpus does not.
+one memoized query, each identity value read from the subject's ref or location. A document context is built only for
+a document whose corpus states a structure specification, since no facet governs one whose corpus does not.
+
+**A rule may read its subject's context.** `lorecraft.rules` gives each subject kind a rule base whose `check`
+takes the context: `DocumentRule` over a document, `SkillRule` over a skill. A rule over a document declares the
+facet it reads in `GOVERNED_BY`, one of `Facet.FRONTMATTER` (a frontmatter schema governs it), `STRUCTURE` (its
+corpus states a structure specification), `OUTLINE` (a specification states an outline) and `BUDGET` (a
+specification sets a token budget). No shipped rule derives from these bases yet: every rule still reads an input
+above until it moves onto a context. A `FrontmatterRule` base over a `FrontmatterContext`, for a rule that reads a
+document's or a skill's frontmatter alike, arrives with the frontmatter rules.
 
 ### A Subject's Status Comes Before Any Rule
 
 - **Readable or undecodable.** A file is decoded once, as a query value: its text, or an undecodable marker,
   cached like any result. The runner decodes every selected subject, whatever the levels. That is the one read
   NFR-003 does not gate, so that FR-020 holds under any configuration.
-- **Governed or ungoverned, per input kind.** Governance comes from the model, which computes it once. A document
-  can be governed for its frontmatter and ungoverned for its outline. A rule only ever receives a governed input.
+- **Governed or ungoverned, per facet.** Governance comes from the model, which computes it once. A document can be
+  governed for its frontmatter and ungoverned for its outline. The runner runs a rule over a document only when the
+  document is governed for the rule's facet, and records each facet an enabled rule reads that it is not governed
+  for; a rule still on an input records that input kind instead. A skill is governed by the package for every
+  facet, so it is never ungoverned.
 - **Undecodable is an engine diagnostic**, not a rule (FR-020). It has a fixed code under the engine's prefix
   and a rulebook page, and no level. It always fails the run, and a configuration that names its code fails.
 - **Ungoverned is coverage**, not a diagnostic (FR-019). It describes the specifications, not the subject.
@@ -167,8 +179,11 @@ Python's types bound what this proves, and the design states the two gaps rather
 ### The Runner
 
 The runner takes the database, the selected subjects and a rule table. The table is built once per run from the
-registry and the resolved levels: the enabled rules, partitioned by input kind, in code order. Each partition
-holds every enabled rule beside its severity, so a rule the runner holds always has one.
+registry and the resolved levels: the enabled rules, partitioned by subject kind, or by input kind for a rule still on
+an input, in code order. Each partition holds every enabled rule beside its severity, so a rule the runner holds
+always has one. For a document, the runner builds one context, then for each facet an enabled document rule
+declares, runs those rules over the context or records the facet as ungoverned. For a skill, it builds one context
+and runs every skill rule over it. The input branches below stay beside these until the last rule reads a context.
 
 ```python
 def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> SubjectReport:
@@ -257,7 +272,7 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
 
 | Piece | Package |
 |---|---|
-| Rule classes and removed rules, the registry, the rule groups and their rules, the input types | `lorecraft.rules` |
+| Rule classes and removed rules, the registry, the rule groups and their rules, the rule bases per subject kind and the facets, the input types | `lorecraft.rules` |
 | The database, decoding, building the inputs, the contexts' implementations, the runner, the report types, level resolution | `lorecraft.checks` |
 | The context protocols, what can be asked of one decoded subject | `lorecraft.project` |
 | The configuration file's dialect and its decoding, once it is designed | `lorecraft.project` |
@@ -268,7 +283,8 @@ imports the database, which the design could otherwise only state.
 
 ```text
 src/lorecraft/rules/
-├── inputs.py            # the input kinds a rule reads
+├── inputs.py            # the input kinds the rules not yet on a context read
+├── subject.py           # the rule base per subject kind, and the facets
 ├── registry.py
 └── <group>/
     ├── __ruleset__.py   # the group: its prefix and title, and what its rules share
