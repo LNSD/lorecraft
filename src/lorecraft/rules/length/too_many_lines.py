@@ -95,10 +95,9 @@ class TooManyLines(LineCountRule):
         return f'too many lines ({self.line_count} > {_LINE_BUDGET})'
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Say where the budget comes from, how many lines to cut, and where to move them."""
+        """Say where the budget comes from, and where to move the lines over it."""
         return (
             Note(f'the Agent Skills specification keeps a SKILL.md under {_LINE_BUDGET} lines'),
-            Help(f'cut at least {self.line_count - _LINE_BUDGET} lines'),
             Help(
                 'move what most activations do not need into files under references/, and say in SKILL.md when to '
                 'read each'

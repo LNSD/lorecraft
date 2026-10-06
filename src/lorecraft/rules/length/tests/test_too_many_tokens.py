@@ -11,7 +11,7 @@ from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.inputs import Budget, TokenCountInput
-from lorecraft.rules.location import Elsewhere, Help, Note
+from lorecraft.rules.location import Elsewhere, Note
 
 from ..too_many_tokens import TooManyTokens
 
@@ -97,7 +97,7 @@ class TestTooManyTokens:
         #: Then
         assert message == 'too many tokens (7 > 6)', 'the message sets the token count against the budget'
 
-    def test_children_with_an_occurrence_point_at_the_spec_and_say_how_many_tokens_to_cut(self) -> None:
+    def test_children_with_an_occurrence_point_at_the_spec(self) -> None:
         #: Given
         occurrence = TooManyTokens(spec=CORPUS_SPEC, line=LineNumber.from_int(1), token_count=7, budget=5)
 
@@ -105,7 +105,6 @@ class TestTooManyTokens:
         children = occurrence.children()
 
         #: Then
-        assert children == (
-            Note('the budget is set here', at=Elsewhere(CORPUS_SPEC)),
-            Help('cut at least 2 tokens'),
-        ), 'a note points at the specification that sets the budget, and a help names the tokens over it'
+        assert children == (Note('the budget is set here', at=Elsewhere(CORPUS_SPEC)),), (
+            'a note points at the specification that sets the budget'
+        )
