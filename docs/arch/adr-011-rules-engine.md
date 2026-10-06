@@ -133,25 +133,27 @@ the rule's. Its carry-over rule names every path it looked up, an absent target 
 target must remove its diagnostic. Nothing a rule reads is left outside a query contract.
 
 **A subject's facts are also stated as a context.** `lorecraft.project` declares, as a `Protocol` per subject kind,
-what can be asked of one decoded subject: `DocumentContext`, `SkillContext` and `SkillResourceContext`. The first two
-extend `FrontmatterContext`, and all three extend `MarkdownContext`, what any one Markdown file has, starting with its
-parse tree; a skill's Markdown file is its `SKILL.md` alone. `lorecraft.project.database` implements them over the
-database, bound to the decode witness: each fact
-one memoized query, each identity value read from the subject's ref or location. A document context is built only for
-a document whose corpus states a structure specification, since no facet governs one whose corpus does not.
+what can be asked of one decoded subject: `DocumentContext`, `SkillContext` and `SkillResourceContext`. The first
+two extend `FrontmatterContext`, and all three extend `MarkdownContext`, what any one Markdown file has, starting
+with its parse tree; a skill's Markdown file is its `SKILL.md` alone. The last two also extend `SkillFileContext`,
+what one of a skill's files has, since every file of a skill names another from the skill root.
+`lorecraft.project.database` implements them over the database, bound to the decode witness: each fact one memoized
+query, each identity value read from the subject's ref or location. A document context is built only for a document
+whose corpus states a structure specification, since no facet governs one whose corpus does not.
 
-**A rule may read its subject's context.** `lorecraft.rules` gives each subject kind a rule base whose `check`
-takes the context: `DocumentRule` over a document, `SkillRule` over a skill, and `MarkdownRule` over any one
-Markdown file. A rule over a document declares the facet it reads in `GOVERNED_BY`, one of `Facet.FRONTMATTER` (a
-frontmatter schema governs it), `STRUCTURE` (its corpus states a structure specification), `OUTLINE` (a
-specification states an outline) and `BUDGET` (a specification sets a token budget). A rule over a Markdown file
-declares none: it judges a document governed for `STRUCTURE`, the facet under which a document has a context at
-all, and every skill's `SKILL.md` and every resource, which the package governs. The token budget, `LEN001`, is a
-document rule governed by `BUDGET`, and the line budget, `LEN002`, a skill rule, so the token and line counts are no
-longer inputs; the links rules read a context too, `LINK001`, `LINK002` and `LINK003` deriving from `MarkdownRule`.
-The other rules still read the inputs above until they move onto a context. A `FrontmatterRule` base over a
-`FrontmatterContext`, for a rule that reads a document's or a skill's frontmatter alike, arrives with the frontmatter
-rules.
+**A rule may read its subject's context.** `lorecraft.rules` gives each subject kind a rule base whose `check` takes
+the context: `DocumentRule` over a document, `SkillRule` over a skill, `MarkdownRule` over any one Markdown file,
+and `SkillFileRule` over one of a skill's files, its `SKILL.md` or a resource, never a document. A rule over a
+document declares the facet it reads in `GOVERNED_BY`, one of `Facet.FRONTMATTER` (a frontmatter schema governs it),
+`STRUCTURE` (its corpus states a structure specification), `OUTLINE` (a specification states an outline) and
+`BUDGET` (a specification sets a token budget). A rule over a Markdown file declares none: it judges a document
+governed for `STRUCTURE`, the facet under which a document has a context at all, and every skill's `SKILL.md` and
+every resource, which the package governs; a rule over a skill's file declares none either. The token budget,
+`LEN001`, is a document rule governed by `BUDGET`, and the line budget, `LEN002`, a skill rule, so the token and line
+counts are no longer inputs; the links rules read a context too, `LINK001`, `LINK002` and `LINK003` deriving from
+`MarkdownRule` and `LINK004` from `SkillFileRule`. The other rules still read the inputs above until they move onto a
+context. A `FrontmatterRule` base over a `FrontmatterContext`, for a rule that reads a document's or a skill's
+frontmatter alike, arrives with the frontmatter rules.
 
 ### A Subject's Status Comes Before Any Rule
 
@@ -193,8 +195,9 @@ registry and the resolved levels: the enabled rules, partitioned by subject kind
 an input, in code order. Each partition holds every enabled rule beside its severity, so a rule the runner holds
 always has one. For a document, the runner builds one context, then for each facet an enabled document rule
 declares, runs those rules over the context or records the facet as ungoverned; the Markdown rules run beside the
-`STRUCTURE` rules. For a skill, it builds one context and runs every skill rule and every Markdown rule over it. For a
-resource, it builds one context and runs every Markdown rule over it. The input branches below stay beside these until the last rule reads a context.
+`STRUCTURE` rules. For a skill, it builds one context and runs every skill rule, every Markdown rule and every
+skill-file rule over it. For a resource, it builds one context and runs every Markdown rule and every skill-file rule
+over it. The input branches below stay beside these until the last rule reads a context.
 
 ```python
 def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> SubjectReport:

@@ -28,7 +28,8 @@ builds an input or hands over a context sits above it in `lorecraft.checks`; the
 - A rule class, the base class its subject kind or its input kind gives it, and the places its occurrences may point
   at. A subject kind's base takes the subject's context; a document's also requires the rule to declare the facet
   it reads, from the facets this package states. A rule over what any Markdown file has takes the context they share,
-  and judges a document, a skill's `SKILL.md` and a skill's resource alike.
+  and judges a document, a skill's `SKILL.md` and a skill's resource alike; a rule over one of a skill's files takes
+  the context a `SKILL.md` and a resource share, and never judges a document.
 - A removed rule, the decorator that registers a declaration, and the registry, with every check it makes on a
   declaration as the package loads.
 - An engine condition: what the engine reports about a subject before any rule runs, such as a file that does

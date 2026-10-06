@@ -2,18 +2,19 @@
 
 A rule picks its subject kind by deriving from that kind's base: `DocumentRule` over a document, `SkillRule` over a
 skill. A rule over what any Markdown file has derives from `MarkdownRule` instead, and judges a document, a skill's
-`SKILL.md` and a skill's resource alike. The base's abstract `check` takes the subject's context, declared in
-`lorecraft.project`, and the rule asks it for the facts it reads and nothing else. The context is answered by the
-database in `lorecraft.project.database`, so a rule never learns that a database exists.
+`SKILL.md` and a skill's resource alike; a rule over one of a skill's Markdown files derives from `SkillFileRule`, and
+judges its `SKILL.md` and its resources alike, never a document. The base's abstract `check` takes the subject's
+context, declared in `lorecraft.project`, and the rule asks it for the facts it reads and nothing else. The context
+is answered by the database in `lorecraft.project.database`, so a rule never learns that a database exists.
 
 A document is judged only for what a specification governs, so a rule over a document declares the facet it reads in
 `GOVERNED_BY`, and the runner hands it the document only when the specifications govern that facet. A rule over a
 Markdown file declares none: the base fixes the one facet it judges a document under, as its docstring states. The
-package governs every skill and every resource, so a rule over a skill declares none either.
+package governs every skill and every resource, so a rule over a skill or one of its files declares none either.
 
-The token and line budgets, `LEN001` and `LEN002`, derive from these bases, and the link rules from `MarkdownRule`.
-Until every group reads a context, the frontmatter, outline and other length rules still read the inputs of
-`inputs`.
+The token and line budgets, `LEN001` and `LEN002`, derive from these bases, and the link rules from `MarkdownRule`
+and `SkillFileRule`. Until every group reads a context, the frontmatter, outline and other length rules still read the
+inputs of `inputs`.
 """
 
 from abc import abstractmethod
@@ -21,7 +22,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import ClassVar, Self
 
-from lorecraft.project.context import DocumentContext, MarkdownContext, SkillContext
+from lorecraft.project.context import DocumentContext, MarkdownContext, SkillContext, SkillFileContext
 
 from .declaration import ContentRule
 
@@ -96,4 +97,23 @@ class MarkdownRule(ContentRule):
 
         Args:
             subject: The file judged: a document governed for its structure, a skill's `SKILL.md` or a resource.
+        """
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class SkillFileRule(ContentRule):
+    """The base of every rule over one of a skill's Markdown files: its `SKILL.md` or one of its resources.
+
+    The rule judges what holds of a skill's files and not of a document, such as a relative link read from the skill
+    root: a document's links are read from its own directory. The package governs every skill and every resource, so
+    the rule declares no facet.
+    """
+
+    @classmethod
+    @abstractmethod
+    def check(cls, subject: SkillFileContext) -> tuple[Self, ...]:
+        """Every occurrence of the rule's condition in the skill's file.
+
+        Args:
+            subject: The file judged: a skill's `SKILL.md` or one of its resources.
         """
