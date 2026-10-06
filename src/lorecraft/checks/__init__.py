@@ -14,8 +14,9 @@ them as findings. Nothing here prints: the `check` commands own the output and t
 
 The rules engine that replaces these pipelines sits beside them, not yet run by the command line: `runner` judges
 each document and skill by the rules of `lorecraft.rules` a `RuleTable` enables, building each input a rule reads
-once, in `inputs`, and reports each subject as `report` states. Until the command line runs it, nothing of it is
-exported here: a caller imports it from its module.
+once, in `inputs`, and reports each subject as `report` states; `context` answers the subject contexts of
+`lorecraft.project` from the queries. Until the command line runs it, nothing of it is exported here: a caller
+imports it from its module.
 """
 
 from .budget import BudgetCheckResult, validate_budget

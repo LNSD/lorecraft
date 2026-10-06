@@ -10,14 +10,9 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.syntax import LineNumber, MissingFrontmatter
-from lorecraft.rules.inputs import (
-    DocumentFrontmatterOwner,
-    FrontmatterBlockInput,
-    FrontmatterFields,
-    RepeatedKey,
-    SkillFrontmatterOwner,
-)
+from lorecraft.rules.inputs import FrontmatterBlockInput, FrontmatterFields, RepeatedKey
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 
 from ..duplicate_key import DuplicateKey
