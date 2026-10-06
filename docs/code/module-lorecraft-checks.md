@@ -1,6 +1,6 @@
 ---
 name: "module-lorecraft-checks"
-description: "The lorecraft.checks package's responsibility, role, boundary and invariants: checks as pure functions of what a revision's queries return, and the runs that hand them those values. Load when adding or moving code in lorecraft.checks, adding a check, or deciding how a check or a rule gets its inputs"
+description: "The lorecraft.checks package's responsibility, role, boundary and invariants: checks as pure functions of what a revision's queries return, and the runs that hand them those values. Load when adding or moving code in lorecraft.checks, adding a check, or deciding how a check gets its values or a rule its subject's context"
 type: "pkg"
 scope: "pkg:lorecraft.checks"
 ---
