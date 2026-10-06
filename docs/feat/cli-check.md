@@ -153,7 +153,7 @@ reference, not to this document.
 
 - `src/lorecraft/cli/commands/check.py` - Declares the command, runs the rules and chooses the exit status
 - `src/lorecraft/cli/root.py` - Root discovery
-- `src/lorecraft/cli/select.py` - Selects every subject of the workspace, in path order
+- `src/lorecraft/cli/subjects.py` - Selects every subject of the workspace, in path order
 - `src/lorecraft/cli/diagnostics.py` - Renders the diagnostics, the coverage and the summary as text or JSON
 - `src/lorecraft/checks/runner.py` - Runs every enabled rule over each subject
 - `src/lorecraft/checks/table.py` - The rules a run enables, each with its severity

@@ -235,7 +235,7 @@ these three prefixes:
 | `skill:`  | A skill directory                                | kebab-case                     | `skill:docs-rules-check`  |
 | `spec:`   | A specification name under `docs/__meta__/`      | kebab-case, extensions dropped | `spec:feat`               |
 
-A `module:` entry names a top-level package and nothing deeper: `src/lorecraft/checks/frontmatter.py` is
+A `module:` entry names a top-level package and nothing deeper: `src/lorecraft/checks/runner.py` is
 `module:lorecraft.checks`. The modules inside a package are renamed and split as its code changes, while the
 package a feature lives in is not, so a deeper entry goes stale on a refactor that leaves the feature alone. The
 Code References section names the files. A `spec:` entry names the specification, not one of its files:

@@ -13,10 +13,6 @@ skills directory, a skill entry or a `SKILL.md` whose symlink chain leaves the r
 as an outside symlink, for a check to report. Any other entry that does not fit the layout is left out of the
 model; nothing it leaves out fails the run.
 
-A command may also name directories to check the skills in, each spelled root-relative. The loader reads each
-one the agents do not already read as one skill when a `SKILL.md` is at its root, and otherwise as a skills
-directory, and records the skills it finds under the spelled path, apart from the agents' skills.
-
 Nothing here logs and nothing here catches broadly: a repository or schema error names its path already, so
 it propagates unchanged to the command that loads the model, which reports it.
 """
@@ -25,7 +21,7 @@ from dataclasses import dataclass, field
 from typing import assert_never
 
 from lorecraft.agents import iter_agents
-from lorecraft.core.path import ROOT, RootRelativePath
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import (
     AspectFilename,
     AspectNamespace,
@@ -49,7 +45,6 @@ from lorecraft.project.schemas.spec_file import (
     parse_spec_file,
 )
 from lorecraft.project.schemas.structure import StructureSpec
-from lorecraft.project.skill.named_dir import NamedDir
 from lorecraft.project.skill.outside import OutsideSymlink
 from lorecraft.project.skill.ref import SkillLocation
 from lorecraft.project.skill.repo import Repository as SkillRepository
@@ -76,22 +71,17 @@ def load_workspace(
     schemas: SchemaRepository,
     documents: DocumentRepository,
     skills: SkillRepository,
-    *,
-    named_dirs: tuple[RootRelativePath, ...] = (),
 ) -> WorkspaceModel:
     """Build the workspace model of the snapshot.
 
     Parse the spec filenames, keep corpus specs whose docs/<corpus>/ is a directory, list the Markdown files
-    directly inside each, build a structure specification from every spec that has one, find the agents' skills
-    directories and the skills in them, and the skills in each directory a command names.
+    directly inside each, build a structure specification from every spec that has one, and find the agents' skills
+    directories and the skills in them.
 
     Args:
         schemas: Repository the specification files are listed and read from.
         documents: Repository the corpus directories and their Markdown files are listed from.
-        skills: Repository the agents' skills directories and the named directories are resolved and their
-            skills listed from.
-        named_dirs: The directories a command names to check the skills in, root-relative as it spelled them;
-            none by default.
+        skills: Repository the agents' skills directories are resolved and their skills listed from.
 
     Raises:
         DirListError: If the specification directory or docs/ cannot be listed.
@@ -108,7 +98,7 @@ def load_workspace(
         FrontmatterSchemaIdError: If a schema in a frontmatter schema carries `$id`.
         ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
         UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
-        DirResolveError: If a skills directory or a named directory cannot be resolved.
+        DirResolveError: If a skills directory cannot be resolved.
         EntryInspectError: If an entry on the way to a skills directory cannot be inspected, or a link's target
             read, while looking for where it leaves the repository.
         SkillsDirListError: If a skills directory cannot be listed.
@@ -139,21 +129,20 @@ def load_workspace(
 
     skills_dirs, outside_skills_dirs = _load_skills_dirs(skills)
     skill_locations, outside_entries = _list_skill_locations(skills, skills_dirs)
-    listed_named_dirs, outside_named = _list_named_dirs(skills, skills_dirs, named_dirs)
-    # Keyed by path: two named directories, such as `skills` and `skills/review`, may reach one symlink.
+    # Keyed by path: when one resolved skills directory is an entry of another, the same `<entry>/SKILL.md` symlink
+    # is reached twice, as the outer listing's entry `SKILL.md` and as an entry of the inner listing.
     outside_by_path: dict[RootRelativePath, OutsideSymlink] = {}
-    for outside in outside_skills_dirs + outside_entries + outside_named:
+    for outside in outside_skills_dirs + outside_entries:
         outside_by_path[outside.path] = outside
     return WorkspaceModel(
         corpora=tuple(corpora),
         skills_dirs=skills_dirs,
         skill_locations=skill_locations,
-        named_dirs=listed_named_dirs,
         outside_symlinks=tuple(outside_by_path[path] for path in sorted(outside_by_path)),
     )
 
 
-def load_model(fs: FileSystem, *, named_dirs: tuple[RootRelativePath, ...] = ()) -> WorkspaceModel:
+def load_model(fs: FileSystem) -> WorkspaceModel:
     """Wire one filesystem view into the three repositories and load the workspace model through them.
 
     The view decides where the model comes from: a `DiskFileSystem` reads the disk as it is at each call,
@@ -161,8 +150,6 @@ def load_model(fs: FileSystem, *, named_dirs: tuple[RootRelativePath, ...] = ())
 
     Args:
         fs: View of the repository the model is loaded from, rooted at the workspace root.
-        named_dirs: The directories a command names to check the skills in, root-relative as it spelled them;
-            none by default.
 
     Raises:
         DirListError: If the specification directory or docs/ cannot be listed.
@@ -179,7 +166,7 @@ def load_model(fs: FileSystem, *, named_dirs: tuple[RootRelativePath, ...] = ())
         FrontmatterSchemaIdError: If a schema in a frontmatter schema carries `$id`.
         ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
         UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
-        DirResolveError: If a skills directory or a named directory cannot be resolved.
+        DirResolveError: If a skills directory cannot be resolved.
         EntryInspectError: If an entry on the way to a skills directory cannot be inspected, or a link's target
             read, while looking for where it leaves the repository.
         SkillsDirListError: If a skills directory cannot be listed.
@@ -190,7 +177,7 @@ def load_model(fs: FileSystem, *, named_dirs: tuple[RootRelativePath, ...] = ())
     schemas = SchemaRepository(fs, SPECS_DIR)
     documents = DocumentRepository(fs)
     skills = SkillRepository(fs)
-    return load_workspace(schemas, documents, skills, named_dirs=named_dirs)
+    return load_workspace(schemas, documents, skills)
 
 
 def _group_spec_files(spec_paths: list[RootRelativePath]) -> dict[CorpusName, _CorpusFiles]:
@@ -412,58 +399,3 @@ def _list_skill_locations(
         locations.extend(listing.skills)
         outside_symlinks.extend(listing.outside_symlinks)
     return tuple(sorted(locations)), tuple(sorted(outside_symlinks, key=lambda outside: outside.path))
-
-
-def _list_named_dirs(
-    skills: SkillRepository, skills_dirs: tuple[SkillsDir, ...], paths: tuple[RootRelativePath, ...]
-) -> tuple[tuple[NamedDir, ...], tuple[OutsideSymlink, ...]]:
-    """One record per directory a command names, other than one the agents read, sorted by path, each once.
-
-    A path leading to an agent's skills directory, or to an entry of one, is left to the agents' skills: a command
-    selects those through `skills_dirs` and `skill_locations`, or through `outside_symlinks` for an entry leading
-    outside, and a record here would list them, and the symlinks leading outside in them, a second time under
-    another name. A path whose symlink chain leaves the repository is recorded as a directory holding that one
-    outside symlink, as an agent's declared skills directory is: a link leading outside is reported, never skipped.
-    Any other path leading to no directory under the root, such as a file or a dangling link, is no named directory,
-    and neither is one leading to the root itself, which is the whole repository.
-
-    Args:
-        skills: Repository each named directory is resolved and listed through.
-        skills_dirs: The agents' skills directories, as `_load_skills_dirs` returns them.
-        paths: The directories as the command spelled them, root-relative, in any order, possibly repeated.
-
-    Returns:
-        A pair: a record per named directory, with the skills it holds and its symlinks leading outside; then every
-        such symlink of every record, as the model's `outside_symlinks` holds them.
-
-    Raises:
-        DirResolveError: If a named directory, or the directory holding it, cannot be resolved.
-        EntryInspectError: If an entry on the way to a named directory leading nowhere cannot be inspected, or a
-            link's target read, while looking for where it leaves the repository.
-        SkillsDirListError: If a named directory read as a skills directory cannot be listed.
-        SkillEntryResolveError: If a symlinked entry of a named directory cannot be resolved.
-        SkillDirListError: If a named directory, or a skill directory in it, cannot be listed.
-        SkillFileResolveError: If a symlinked SKILL.md cannot be resolved.
-    """
-    agents_resolved_dirs: set[ResolvedPath] = set()
-    for skills_dir in skills_dirs:
-        agents_resolved_dirs.add(skills_dir.resolves_to)
-
-    named_dirs: list[NamedDir] = []
-    outside_symlinks: list[OutsideSymlink] = []
-    for path in sorted(set(paths)):
-        if skills.find_dir(path.parent) in agents_resolved_dirs:
-            continue  # an entry of an agent's skills directory, leading outside or not
-        resolved_directory = skills.find_dir(path)
-        if resolved_directory is None:
-            leads_outside = skills.find_skills_dir_exit(path)
-            if leads_outside is not None:
-                named_dirs.append(NamedDir(path, skills=(), outside_symlinks=(leads_outside,)))
-                outside_symlinks.append(leads_outside)
-            continue
-        if resolved_directory == ROOT or resolved_directory in agents_resolved_dirs:
-            continue
-        listing = skills.list_named_skills(path, resolved_directory)
-        named_dirs.append(NamedDir(path, skills=listing.skills, outside_symlinks=listing.outside_symlinks))
-        outside_symlinks.extend(listing.outside_symlinks)
-    return tuple(named_dirs), tuple(outside_symlinks)

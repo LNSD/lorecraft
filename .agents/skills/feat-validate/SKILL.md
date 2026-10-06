@@ -178,10 +178,10 @@ Produce a structured report listing:
 
 | Documented Capability | Implementation | Status |
 |-----------------------|----------------|--------|
-| Frontmatter checked against the frontmatter schema | `checks/frontmatter.py:validate_frontmatter()` | ✅ VERIFIED |
+| Frontmatter checked against the frontmatter schema | `project/schemas/schema_problems.py:locate_schema_problems()` | ✅ VERIFIED |
 | Flow: discover corpus → parse → validate → findings | Multiple modules | ✅ VERIFIED |
 | Flag `--format json` emits machine-readable findings | `cli.py:build_parser()` | ✅ VERIFIED |
-| Findings carry path, line, rule id and message | `finding.py:Finding` | ✅ VERIFIED |
+| Diagnostics carry path, line, code and message | `checks/report.py:RuleDiagnostic` | ✅ VERIFIED |
 | Flag `--root` overrides repository-root discovery | NOT FOUND | ❌ MISSING |
 
 ### Test Coverage

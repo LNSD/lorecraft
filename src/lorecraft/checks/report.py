@@ -18,10 +18,6 @@ not, so no rule judged it: it holds only its ref, and its one diagnostic, the en
 subject's path. A layout entry, one symlink of the skill layout whose chain leaves the repository, has no text to
 decode and no specification to be ungoverned by, so it gets a report of its own, a `CheckedLayoutEntry`: its path
 and its diagnostics, in their output order.
-
-This module is the rules engine's report. `reporting` beside it is the per-check pipeline's, whose `Violation` and
-`Finding` the `Diagnostic` here replaces; the command line no longer reports through it, and it stays only until it
-is deleted.
 """
 
 from dataclasses import dataclass

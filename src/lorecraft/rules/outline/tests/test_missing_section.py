@@ -225,6 +225,46 @@ class TestMissingSection:
             Note('for example:\n## Usage\n\nRun `lorecraft check`.'),
         ), 'a note points at the specification, help gives the description, and a note the example under its heading'
 
+    def test_children_with_only_a_description_give_it_as_help_alone(self) -> None:
+        #: Given
+        occurrence = MissingSection(
+            spec=CORPUS_SPEC,
+            line=LineNumber.from_int(3),
+            section=USAGE,
+            before='Options',
+            description='How to invoke the command.',
+            example=None,
+        )
+
+        #: When
+        children = occurrence.children()
+
+        #: Then
+        assert children == (
+            Note('the document structure is set here', at=Elsewhere(CORPUS_SPEC)),
+            Help('How to invoke the command.'),
+        ), 'an entry stating no example adds no example note'
+
+    def test_children_with_only_an_example_give_it_as_a_note_alone(self) -> None:
+        #: Given
+        occurrence = MissingSection(
+            spec=CORPUS_SPEC,
+            line=LineNumber.from_int(3),
+            section=USAGE,
+            before='Options',
+            description=None,
+            example='Run `lorecraft check`.',
+        )
+
+        #: When
+        children = occurrence.children()
+
+        #: Then
+        assert children == (
+            Note('the document structure is set here', at=Elsewhere(CORPUS_SPEC)),
+            Note('for example:\n## Usage\n\nRun `lorecraft check`.'),
+        ), 'an entry stating no description adds no help'
+
     def test_children_without_a_description_or_an_example_point_at_the_specification_alone(self) -> None:
         #: Given
         occurrence = MissingSection(
