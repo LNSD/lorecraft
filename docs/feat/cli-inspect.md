@@ -121,10 +121,10 @@ error: invalid structure schema docs/__meta__/feat.structure.json: Invalid JSON:
 ## Limitations
 
 - A skill is shown as found, not as valid: `inspect` does not read a `SKILL.md`;
-  [check skills](cli-check-skills.md) does.
+  [check](cli-check.md) does.
 - A skill entry that is a symlink does not show where it leads.
 - A skills directory, a skill entry or a `SKILL.md` whose symlink leads outside the repository is left out of
-  the tree; [check skills](cli-check-skills.md) reports it.
+  the tree; [check](cli-check.md) reports it.
 - A file the model [leaves out](workspace.md#left-out-not-reported), such as a Markdown file in a
   subdirectory of a corpus, is not shown at all.
 
@@ -133,7 +133,7 @@ error: invalid structure schema docs/__meta__/feat.structure.json: Invalid JSON:
 - [cli](cli.md) - Base: the command line and the options every command shares
 - [workspace](workspace.md) - Dependency: the layout the model is read from
 - [spec](spec.md) - Related: how a specification name selects the corpus and the documents it governs
-- [cli-check](cli-check.md) - Related: the checks that read the same model
+- [cli-check](cli-check.md) - Related: the rules that read the same model
 
 ## Code References
 

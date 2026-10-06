@@ -1,4 +1,4 @@
-"""Establishing the workspace root: discovery upward from a start directory, and an explicit root."""
+"""Establishing the workspace root: discovery upward from a start directory, an explicit root, and either."""
 
 import os
 import sys
@@ -15,6 +15,8 @@ from ..root import (
     RootCandidateInspectError,
     RootInspectError,
     RootNotFoundError,
+    WorkingDirectoryReadError,
+    establish_root,
     get_root,
     resolve_root,
 )
@@ -164,4 +166,52 @@ class TestResolveRoot:
         assert exc_info.value.path == path.resolve(), 'the error identifies the root it could not inspect'
         assert exc_info.value.refusal is OsRefusal.PERMISSION_DENIED, 'a locked parent is a refused permission'
         assert isinstance(exc_info.value.source, PermissionError), 'the error keeps the operating system failure'
+        assert exc_info.value.__cause__ is exc_info.value.source, 'the operating system failure is the cause'
+
+
+@pytest.mark.unit
+class TestEstablishRoot:
+    def test_establish_root_with_a_root_given_returns_it_resolved(self, tmp_path: Path) -> None:
+        #: Given
+        nested = tmp_path / 'nested'
+        nested.mkdir()
+
+        #: When
+        root = establish_root(nested / '..')
+
+        #: Then
+        assert root == tmp_path.resolve(), 'a given root is resolved, whatever the working directory holds'
+
+    def test_establish_root_without_a_root_returns_the_nearest_parent_holding_the_specs(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        #: Given
+        (tmp_path / 'docs' / '__meta__').mkdir(parents=True)
+        start = tmp_path / 'docs' / 'code'
+        start.mkdir()
+        monkeypatch.chdir(start)
+
+        #: When
+        root = establish_root(None)
+
+        #: Then
+        assert root == tmp_path.resolve(), 'without a root, the search climbs from the working directory'
+
+    def test_establish_root_without_a_root_from_a_deleted_working_directory_raises_working_directory_read_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        #: Given
+        deleted = tmp_path / 'deleted'
+        deleted.mkdir()
+        monkeypatch.chdir(deleted)
+        deleted.rmdir()
+
+        #: When
+        with pytest.raises(WorkingDirectoryReadError) as exc_info:
+            establish_root(None)
+
+        #: Then
+        assert type(exc_info.value).__bases__ == (Error,), 'the variant derives from Error directly, not a family'
+        assert exc_info.value.refusal is OsRefusal.NOT_FOUND, 'a deleted working directory is refused as not found'
+        assert isinstance(exc_info.value.source, FileNotFoundError), 'the operating system failure is kept'
         assert exc_info.value.__cause__ is exc_info.value.source, 'the operating system failure is the cause'

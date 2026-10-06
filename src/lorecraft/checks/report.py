@@ -20,7 +20,8 @@ decode and no specification to be ungoverned by, so it gets a report of its own,
 and its diagnostics, in their output order.
 
 This module is the rules engine's report. `reporting` beside it is the per-check pipeline's, whose `Violation` and
-`Finding` the `Diagnostic` here replaces; it stays until the command line runs the rules engine.
+`Finding` the `Diagnostic` here replaces; the command line no longer reports through it, and it stays only until it
+is deleted.
 """
 
 from dataclasses import dataclass

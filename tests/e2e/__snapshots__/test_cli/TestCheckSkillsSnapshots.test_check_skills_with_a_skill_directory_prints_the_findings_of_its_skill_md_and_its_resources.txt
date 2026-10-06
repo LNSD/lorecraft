@@ -1,4 +1,0 @@
-.agents/skills/review/SKILL.md:7: [skill.link-absolute] `/steps.md` is absolute
-  = help: link relative to the skill root
-.agents/skills/review/references/guide.md:3: [skill.link-absolute] `/docs/guide.md` is absolute
-  = help: link relative to the skill root

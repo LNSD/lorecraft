@@ -1,8 +1,8 @@
 ---
 name: skills-check
-description: Write agent skills that comply with the Agent Skills specification, and check the skills a repository's agents read against it with lorecraft check skills - frontmatter, the 500-line budget, links, and what no check can decide. Use before creating or editing a SKILL.md or any file in a skill directory, when reviewing a skill change, before committing one, or when lorecraft check skills reports a finding
+description: Write agent skills that comply with the Agent Skills specification, and check the skills a repository's agents read against it with lorecraft check - frontmatter, the 500-line budget, links, and what no check can decide. Use before creating or editing a SKILL.md or any file in a skill directory, when reviewing a skill change, before committing one, or when lorecraft check reports a diagnostic in a skill
 compatibility: Requires the lorecraft command, on PATH or run through uvx lorecraft, or uv run lorecraft in a uv project that declares Lorecraft as a dependency, and a git checkout
-allowed-tools: Bash(lorecraft check skills*) Bash(lorecraft inspect*) Bash(uvx lorecraft check skills*) Bash(uvx lorecraft inspect*) Bash(uv run lorecraft check skills*) Bash(uv run lorecraft inspect*) Bash(git diff *) Bash(git status *) Bash(git merge-base *) Bash(grep -l *)
+allowed-tools: Bash(lorecraft check*) Bash(lorecraft inspect*) Bash(uvx lorecraft check*) Bash(uvx lorecraft inspect*) Bash(uv run lorecraft check*) Bash(uv run lorecraft inspect*) Bash(git diff *) Bash(git status *) Bash(git merge-base *) Bash(grep -l *)
 ---
 
 # Skills Check
@@ -50,8 +50,9 @@ anchors, aliases or tags: a value containing `: ` must be quoted, and a value co
 | `metadata` | No | A map from string keys to string values. Quote numbers (`version: "1.0"`) and join lists with spaces |
 | `allowed-tools` | No | A space-separated string of pre-approved tools. Experimental: support varies between agents |
 
-No other field is allowed: `lorecraft check skills` holds every skill to these six and reports anything else as
-`skill.unknown-field`, including a field one agent reads, such as `model` or `argument-hint`.
+No other field is allowed: `lorecraft check` holds every skill to these six and reports anything else as `FM007`
+`unknown-field`, including a field one agent reads, such as `model` or `argument-hint`. `FM007` is a warning, so
+the run still exits 0: treat a `warning` at a skill path as a finding to fix, not a pass.
 
 **The `description` is the only part of the skill an agent reads before deciding to load it**, so it carries
 the whole discovery burden:
@@ -112,7 +113,7 @@ git status --short                                         # uncommitted work, t
 git diff --name-only "$(git merge-base HEAD main)"...HEAD  # a whole branch
 ```
 
-Given explicit paths, check those instead. A change to any file in a skill directory is a change to that skill,
+A change to any file in a skill directory is a change to that skill,
 whether the directory is an entry an agent lists or the directory a linked entry leads to.
 
 A change to a repository document is also a change to every skill that links it. Add those skills to the
@@ -120,30 +121,27 @@ subject: `grep -l <path>` over the skills directories prints them, one per line 
 
 ## 6. Run the check
 
-`lorecraft check skills` decides every mechanical rule. Do not check those rules by hand.
+`lorecraft check` decides every mechanical rule. Do not check those rules by hand.
 
 It decides the frontmatter: YAML validity, the six fields and their limits, `metadata` value types, and `name`
 against the directory an agent lists the skill by, through any symlink. It holds `SKILL.md` to 500 lines,
 frontmatter included. In every Markdown file of the skill it reports a link that is absolute, that climbs above
 the skill root, that names nothing the skill holds, or whose `#fragment` names no heading of its own file. It
 reports a symlink an agent would follow out of the repository, wherever it sits in the skill layout.
-[cli-check-skills](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-check-skills.md#findings) explains each
-rule identifier and where its finding is placed.
+[check](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-check.md#findings) lists the rule groups and their
+codes: `FM` for the frontmatter, `LEN002` for the line budget, `LINK` for the links and `LAY001` for a symlink.
 
 ```bash
-lorecraft check skills                          # every skill an agent reads
-lorecraft check skills .agents/skills/review    # named skills
-lorecraft check skills --format json            # machine-readable
-lorecraft check skills --help                   # arguments, options and exit codes
+lorecraft check                  # every document and every skill of the workspace
+lorecraft check --format json    # machine-readable
+lorecraft check --help           # options and exit codes
 ```
 
-Findings print to stdout as `path:line: [rule] message`, and may be followed by `= help:` and `= note:` lines,
-or a `notes` list in JSON; the summary goes to stderr. Exit 0 means no
-findings, 1 means findings, 2 means the run could not start.
-
-Name a skill by its directory or its `SKILL.md`; a skills directory selects every skill in it. A skill named by
-its `SKILL.md` alone has that file checked, and no resource or symlink inside the skill. Pass no paths to check
-every skill an agent reads: that is the run to gate on.
+The run covers the whole workspace, the documents under `docs/` included; read the diagnostics at the paths of the
+skills in the changeset. Diagnostics print to stdout as `path:line: severity[CODE]: message`, and may be followed by
+`-->`, `= help:` and `= note:` lines, or `labels` and `children` in JSON; the summary goes to stderr. Exit 0 means no
+error, warnings included, 1 means at least one error, 2 means the run could not start. A whole run is also the one to
+gate on.
 
 ## 7. Walk what the check cannot decide
 

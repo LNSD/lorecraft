@@ -84,7 +84,7 @@ and options as one table, in the order `lorecraft <command> --help` prints them:
 ```markdown
 | Argument or option | Default | Description |
 |--------------------|---------|-------------|
-| `PATHS...`         | every document | Markdown files to check |
+| `--root <path>`    | nearest parent holding `docs/__meta__/` | The repository root |
 | `--format`         | `text`  | Output format: `text` or `json` |
 ```
 
@@ -108,7 +108,7 @@ checks both.
 
 ### Findings
 
-A command whose output carries identifiers a reader matches on, such as a check's rule identifiers, lists
+A command whose output carries identifiers a reader matches on, such as the rule codes a check reports, lists
 them in a section of its own named **Findings**, as a `| Rule | Reported when |` table. It is a section the
 document invents, so it sits after Limitations and before References.
 
@@ -122,7 +122,7 @@ them.
 
 ## 5. Content Guidelines
 
-- **Invoke the installed command.** Write `lorecraft check frontmatter` in examples. The CLI overview may mention
+- **Invoke the installed command.** Write `lorecraft check` in examples. The CLI overview may mention
   `uv tool run lorecraft` and its `uvx lorecraft` alias for on-demand use, or `uv run lorecraft` when the
   current uv project declares Lorecraft as a dependency. Do not use a `just` recipe that wraps the command:
   the document describes the interface a user runs.
@@ -184,7 +184,7 @@ lorecraft {{command}} {{subcommand}}
 
 | Rule | Reported when |
 |------|---------------|
-| `{{rule.id}}` | {{The condition}} |
+| `{{CODE}}` | {{The condition}} |
 
 ## References
 
@@ -209,7 +209,7 @@ lorecraft {{command}} {{subcommand}}
 - [ ] A Configuration section tables every argument and option but `--help`, in `--help` order
 - [ ] A `feature` document's Usage has `### Output` and `### Exit Status`, or links to its base's
 - [ ] Every exit code the command can return is in the Exit Status table
-- [ ] A command reporting rule identifiers lists them under Findings
+- [ ] A command reporting rule codes lists them under Findings
 - [ ] Examples invoke `lorecraft` directly; the CLI overview gives the on-demand and conditional uv project
       alternatives, and output shown is copied from a run
 - [ ] The document agrees with the command's `--help`

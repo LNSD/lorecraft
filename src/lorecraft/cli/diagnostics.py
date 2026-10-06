@@ -19,7 +19,7 @@ A subject with no lines, such as a layout entry or a file that did not decode, p
 import json
 from typing import Literal, TypedDict, assert_never
 
-from lorecraft.checks.report import (
+from lorecraft.checks import (
     CheckedLayoutEntry,
     CheckedSubject,
     Diagnostic,

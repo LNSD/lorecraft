@@ -6,10 +6,10 @@ layout, where each part lives under the root, is this module's to know: no test 
 
 A workspace holds only the parts the test lists. Nothing is written that the test did not ask for.
 
-Each part renders its files, every root-relative path to the whole text written there, without touching the disk;
-`Workspace.write` is the one place that creates directories and writes files. Parts render in the order the
-workspace lists them, drawing from one generator, so reordering them changes the generated values; nothing a test
-asserts on is generated, so no test depends on that order.
+Each part renders its files, every root-relative path to the whole text written there, or to its bytes for a file
+that is not UTF-8, without touching the disk; `Workspace.write` is the one place that creates directories and
+writes files. Parts render in the order the workspace lists them, drawing from one generator, so reordering them
+changes the generated values; nothing a test asserts on is generated, so no test depends on that order.
 
 A symlink has no text, so a part renders its links apart from its files, every root-relative path to the target
 the link holds. `Workspace.write` creates every link after every file: a link may then dangle, or lead to a
@@ -194,6 +194,30 @@ class Document:
 
 
 @dataclass(frozen=True)
+class RawDocument:
+    """A document at `docs/<corpus>/<name>.md` written byte for byte, for a file that is not UTF-8.
+
+    Attributes:
+        corpus: The directory under `docs/` the document sits in. Always set by the test, since every finding the
+            command prints names the document's path.
+        name: The file name, without its `.md`. Always set by the test, for the same reason.
+        data: The whole file, written as given.
+    """
+
+    corpus: str
+    name: str
+    data: bytes
+
+    def _render(self, faker: Faker) -> dict[PurePosixPath, bytes]:
+        """The document's one file, its root-relative path to its bytes.
+
+        Args:
+            faker: Unused, since nothing in a raw document is generated; taken so every part renders alike.
+        """
+        return {_DOCS_DIRECTORY / self.corpus / f'{self.name}.md': self.data}
+
+
+@dataclass(frozen=True)
 class File:
     """Any file, written as given and governed by nothing in this model: the part for what no other part covers.
 
@@ -246,14 +270,14 @@ class Workspace:
 
     Attributes:
         specs: The specifications in `docs/__meta__/`.
-        documents: The documents under `docs/`.
+        documents: The documents under `docs/`, each built from its fields or written byte for byte.
         skills: The skills under `.agents/skills/`.
         files: Any other file, at the path it gives.
         links: Any other symlink, at the path it gives.
     """
 
     specs: Sequence[Spec] = ()
-    documents: Sequence[Document] = ()
+    documents: Sequence[Document | RawDocument] = ()
     skills: Sequence[Skill] = ()
     files: Sequence[File] = ()
     links: Sequence[Link] = ()
@@ -273,13 +297,17 @@ class Workspace:
 
         parts_with_files = [*self.specs, *self.documents, *self.skills, *self.files]
         for part in parts_with_files:
-            for relative_path, text in part._render(faker).items():
+            for relative_path, content in part._render(faker).items():
                 path = root / relative_path
                 path.parent.mkdir(parents=True, exist_ok=True)
+                if isinstance(content, str):
+                    data = content.encode('utf-8')
+                else:
+                    data = content
                 # Mode `x` refuses a file that is already there, so two parts rendering one path fail the test
                 # instead of the later one silently replacing the earlier.
-                with path.open('x', encoding='utf-8') as file:
-                    file.write(text)
+                with path.open('xb') as file:
+                    file.write(data)
 
         parts_with_links = [*self.skills, *self.links]
         for part in parts_with_links:

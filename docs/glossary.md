@@ -72,25 +72,21 @@ A JSON file beside a format specification that holds the rules a checker can dec
 
 What a file in `docs/__meta__/` is, claimed by a file name pattern: `*.md` claims a specification's prose and `*.structure.json` its structure specification. A file's extension is only what follows its last dot, so `code.structure.json` is a JSON file the structure file type claims; a file no pattern claims is not a specification file.
 
-### Check
+### Rule
 
-A `lorecraft check` subcommand that validates one kind of rule, read from a machine-checkable companion, over the documentation. Document checks cover frontmatter, structure with its word caps, and the token budget.
+One judgment `lorecraft check` makes of a subject, a document, a skill, a resource of a skill or a symlink of the skill layout, identified by a code in a group named by its prefix, such as `FM001`, and a kebab-case name, such as `missing-frontmatter`. A rule over a document reads the keys of a machine-checkable companion, and runs only when the document is governed for what it reads.
 
-### Violation
+### Diagnostic
 
-One rule a document breaks, as a check reports it: a line, a rule identifier, a message, and the specification file that states the rule, when one does. It does not name the document, since a check sees only the part of the document it reads, such as the headings or the frontmatter. Violations are collected per document, in that document's report.
-
-### Finding
-
-A [violation](#violation) located in its document: the violation plus the document's root-relative path. Findings are what `lorecraft check` prints, counts, and serialises, so each one stands on its own once findings from many documents are listed together.
+One occurrence of a rule, located at the root-relative path of the subject it was found in: a line when it has one, a severity, the code, a message, and the labels, help and notes around it. Diagnostics are what `lorecraft check` prints, counts, and serialises, in path order, so each one stands on its own once diagnostics from many subjects are listed together.
 
 ### Word cap
 
-The maximum prose words one section of a document may hold, its subsections included, as set by a `words` key on an outline entry of a structure specification and checked by `lorecraft check structure`. It keeps the section concise; code and tables are not counted.
+The maximum prose words one section of a document may hold, its subsections included, as set by a `words` key on an outline entry of a structure specification and checked by `lorecraft check` as `LEN003`. It keeps the section concise; code and tables are not counted.
 
 ### Token budget
 
-The maximum tokens a whole document file may hold, frontmatter, code and tables included, as set by the `tokens` key of a structure specification and checked by `lorecraft check budget`. It keeps the document cheap to load; tokens are OpenAI's `o200k_base`, counted the same whichever agent reads the document.
+The maximum tokens a whole document file may hold, frontmatter, code and tables included, as set by the `tokens` key of a structure specification and checked by `lorecraft check` as `LEN001`. It keeps the document cheap to load; tokens are OpenAI's `o200k_base`, counted the same whichever agent reads the document.
 
 ## Toolkit internals
 

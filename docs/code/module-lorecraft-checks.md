@@ -17,7 +17,8 @@ the rules, or the shape of what a check reports.
 **Analysis.** A check is a pure function of the values the queries of the database in `lorecraft.project` return.
 A run hands it those values: it asks the queries for what a check reads, hands the check only that, and locates each
 violation in its document. It runs the rules of `lorecraft.rules`, the layer below, the same way: it hands each
-rule the context of the subject it judges, whose every fact is a query, and the rules are declared there.
+rule the context of the subject it judges, whose every fact is a query, and the rules are declared there. The
+command line runs the rules; the checks and their runs stay only until they are removed.
 
 ## Belongs Here
 

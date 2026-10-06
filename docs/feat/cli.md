@@ -26,7 +26,6 @@ specifications govern. The application itself only routes: each command is its o
 ## Key Concepts
 
 - **Command**: One subcommand a user types, such as `lorecraft inspect`; each has its own help and options.
-- **Command group**: A command that holds subcommands of its own, such as `lorecraft check`.
 - **Global option**: An option of `lorecraft` itself, given before any command name.
 - **Repository root**: The directory whose `docs/__meta__/` a command reads; each command that reads one says
   how it finds it.
@@ -41,18 +40,17 @@ command from that project's environment.
 
 ### Finding a Command
 
-`lorecraft --help` lists the commands, and `lorecraft <command> --help` lists a command's options and, for a
-group, its subcommands. The help is the inventory: no document lists the commands, so none goes stale when
+`lorecraft --help` lists the commands, and `lorecraft <command> --help` lists a command's options. The help is the inventory: no document lists the commands, so none goes stale when
 one is added.
 
 ### What Every Command Shares
 
-- Every command and group takes `--help`.
+- Every command takes `--help`.
 - A command line the parser rejects — an unknown command or option, a missing or malformed value — prints the
   usage and the error on stderr and exits `2`, before the command runs.
 - No command reads an environment variable or a configuration file: what a command does is decided by its
   command line and by the repository it reads.
-- A command exits `0` when it succeeds, `1` when it ran and found something, which only
+- A command exits `0` when it succeeds, `1` when it ran and found an error, which only
   [check](cli-check.md) does, and `2` when it could not run: a usage error, or a failure that stopped it.
 - A command that can print JSON takes `--format text|json`: `text` for a person to read, `json` for a script.
 - Output a reader can script against goes to stdout; summaries and errors go to stderr.

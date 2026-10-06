@@ -47,22 +47,22 @@ specification that a machine can decide are held again as data, in a file at the
 ```
 docs/__meta__/<name>.md               the specification, in prose
 docs/__meta__/<name>.structure.json   the structure specification: the rules a check can decide
-lorecraft check <check>               a check that reads its own keys from the structure specifications
+lorecraft check                       the rules, each reading its own keys from the structure specifications
 ```
 
 What a file here is comes from its **file type**, which a file name **pattern** claims: `*.md` claims the prose,
 and `*.structure.json` the structure specification. A file's extension is only what follows its last dot, so
 `code.structure.json` is a JSON file that the structure file type claims. The structure specification is the one
 machine-checkable file type: it carries the section rules, the word caps, the token budget and the frontmatter
-schema. `lorecraft check structure` enforces the caps with the section outline,
-`lorecraft check budget` the global `tokens` key, since it reads the raw file rather than its parse, and
-`lorecraft check frontmatter` the global `frontmatter` key, as `check budget` reads `tokens`.
+schema. `lorecraft check` enforces the caps with the section outline through the `OUT` and `LEN` rules, the
+global `tokens` key as `LEN001`, which reads the raw file rather than its parse, and the global `frontmatter` key
+through the `FM` rules.
 
 **The filename is the whole binding.** The specification name says which documents a file governs, the pattern
-that claims it says which checks read it, each its own keys, and a check needs no list of the files it applies
-to — it derives them from the document's own path. Adding a check is adding the keys it reads, or a file type
-with its pattern and its dialect; nothing here has to be edited to know about it. To see the files and the
-checks that exist:
+that claims it says which rules read it, each its own keys, and a rule needs no list of the files it applies
+to — it derives them from the document's own path. Adding a rule is adding the keys it reads, or a file type
+with its pattern and its dialect; nothing here has to be edited to know about it. To see the files that exist,
+and the command that checks them:
 
 ```bash
 ls docs/__meta__/*.json
@@ -106,5 +106,5 @@ grep -m 3 -E '^(description|type|scope):' docs/__meta__/*.md
 ```
 
 Use the `/docs-rules` skill to write a document under `docs/`, and `/docs-rules-check` to validate one. This
-repository is the first corpus its own checks are pointed at: `just check-docs` runs every check over
-`docs/`, and CI runs the same recipe.
+repository is the first corpus its own checks are pointed at: `just check-docs` runs every rule over
+`docs/` and the skills, and CI runs the same recipe.

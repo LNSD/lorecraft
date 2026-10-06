@@ -98,7 +98,7 @@ files in `docs/__meta__/`:
 | File | Governs | Read by |
 |---|---|---|
 | `feat.md` | Everything. This document is the authority | A person, and an agent before it writes |
-| `feat.structure.json` | The frontmatter fields under its `frontmatter` key; the section outline, its order, the caps, the token budget | `lorecraft check frontmatter`, `lorecraft check structure`, `lorecraft check budget` |
+| `feat.structure.json` | The frontmatter fields under its `frontmatter` key; the section outline, its order, the caps, the token budget | `lorecraft check` |
 
 A **namespace layer** adds to that base for a group of documents: `feat-<namespace>.md` states its rules in
 prose, and `feat-<namespace>.structure.json` beside it holds the parts a check
@@ -113,7 +113,7 @@ The per-type section rules in [§4](#4-document-structure) have no machine-check
 file is selected by the document's path, never by its `type`, and `feat.structure.json` asks no questions
 about the document it is applied to. They are checked by review against the [checklist](#8-checklist).
 
-The three checks run together as `just check-docs`. Read the relationship in either direction from the shell:
+The rules run together as `just check-docs`. Read the relationship in either direction from the shell:
 
 ```bash
 ls docs/feat/*.md       # from a specification, the documents it governs
@@ -388,9 +388,9 @@ Use a simple list, with the relationship named before the description:
 ```markdown
 ## References
 
-- [cli-check-frontmatter](cli-check-frontmatter.md) - Dependency: frontmatter validation
-- [spec-structure-frontmatter](spec-structure-frontmatter.md) - Related: the dialect this check reads
-- [cli-check](cli-check.md) - Base: the CLI namespace this check belongs to
+- [cli](cli.md) - Base: the command line this command belongs to
+- [workspace](workspace.md) - Dependency: the documents and skills it checks
+- [spec-structure-frontmatter](spec-structure-frontmatter.md) - Related: the dialect its `FM` rules read
 ```
 
 **Relationship types:** `Dependency`, `Alternative`, `Related`, `Extended by`, `Base`
@@ -470,8 +470,8 @@ Direction is a judgment the checker does not make. It is on the author, and on r
 ## 6. Word Caps and Token Budget
 
 A feature document is loaded into an agent's context on demand, and read by people too. Two measures in
-[feat.structure.json](feat.structure.json) keep it fit for both, and `lorecraft check structure` and `lorecraft
-check budget`, run by `just check-docs`, report what is over. A namespace layer can only tighten them.
+[feat.structure.json](feat.structure.json) keep it fit for both, and `lorecraft check`, run by `just check-docs`,
+reports what is over. A namespace layer can only tighten them.
 
 **Word caps keep each section concise**, for the person reading it. A word is whitespace-delimited text outside fenced code blocks and outside table rows. Code and tables cost no
 words: they are the examples and the reference material a feature document exists to hold, and charging for

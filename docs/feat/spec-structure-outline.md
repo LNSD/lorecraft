@@ -13,8 +13,7 @@ components: "module:lorecraft.project,module:lorecraft.checks,spec:feat,spec:cod
 The `outline`, `empty_sections` and `forbidden` keys of a `<name>.structure.json` file state which H2 sections
 the documents its name governs hold, in which order, and which must hold content or not appear. Every governed
 document carries exactly one H1 title that opens it; `title` caps its length or sets its pattern. An order over a
-sequence of any length is no JSON Schema, so the file is a dialect of its own. `lorecraft check structure` applies
-the keys and the title.
+sequence of any length is no JSON Schema, so the file is a dialect of its own. `lorecraft check` applies them.
 
 ## Table of Contents
 
@@ -67,8 +66,8 @@ A named entry may carry two more optional keys, which `any` entries never take:
 | `description` | text | What the section holds |
 | `examples` | non-empty list of Markdown | Samples of the section's body, each without its heading, none empty |
 
-They change no rule. When a required section is absent, the finding carries the description and the first
-example as notes, as [cli-check-structure](cli-check-structure.md#usage) shows. The other examples serve a reader
+They change no rule. When a required section is absent, the diagnostic carries the description and the first
+example as a help and a note, as [cli-check](cli-check.md#output) describes. The other examples serve a reader
 of the specification, as JSON Schema's `examples` do.
 
 ## Usage
@@ -142,21 +141,19 @@ whitespace at either end, or spans two lines: no heading's text could match it.
 
 - The outline names H2 sections only; H3 subsections are never required, ordered or forbidden.
 - A section is matched on its exact heading text, without its `#` markers or inline markup.
-- `lorecraft check structure` does not apply the title's `words` cap, `chars` cap or `pattern` yet: `LEN004`, `LEN005`
-  and `OUT009` belong to the rules engine, which the command line does not run yet. It does refuse a pattern that does not compile.
 
 ## References
 
 - [spec-structure](spec-structure.md) - Base: the file these keys belong to, its layers and its editor schema
 - [spec-structure-budget](spec-structure-budget.md) - Related: the word cap an outline entry may carry
-- [cli-check-structure](cli-check-structure.md) - Related: the check that applies the outline
+- [cli-check](cli-check.md) - Related: the command that applies the outline
 
 ## Code References
 
 - `src/lorecraft/project/schemas/structure_file.py` - The shape of the outline keys
 - `src/lorecraft/project/schemas/section_name.py` - The section name an outline entry and `forbidden` hold
 - `src/lorecraft/project/schemas/structure.py` - Turns the keys into rules, and refuses an unusable outline
-- `src/lorecraft/checks/structure.py` - Applies the title, outline, empty and forbidden rules to a document
+- `src/lorecraft/rules/outline/` - The `OUT` rules that apply the title, outline, empty and forbidden keys
 - `src/lorecraft/rules/length/title_too_many_words.py` - Reports a title over its word cap as `LEN004`
 - `src/lorecraft/rules/length/title_too_long.py` - Reports a title over its character cap as `LEN005`
 - `src/lorecraft/rules/outline/invalid_title.py` - Reports a title failing its pattern as `OUT009`

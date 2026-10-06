@@ -85,10 +85,10 @@ per run            configuration (a query of the revision) ──▶ levels
   typed: the document partition holds `type[DocumentRule]`, so `rule.check(context)` checks against
   `DocumentContext`.
 - **Configuration and selection never reach a rule.** They shape the table and nothing else.
-- **Subjects arrive chosen.** The command line resolves the paths into subjects; the runner receives a document's
-  ref or a skill's location as the model issued it, a resource's location as its skill's resource listing issued
-  it, or a layout entry's record as the model or that listing issued it, the database and the table, and nothing
-  else.
+- **Subjects arrive chosen.** The command line chooses the subjects, the whole workspace until paths arrive; the
+  runner receives a document's ref or a skill's location as the model issued it, a resource's location as its
+  skill's resource listing issued it, or a layout entry's record as the model or that listing issued it, the
+  database and the table, and nothing else.
 
 ### Contexts and Queries
 
@@ -288,8 +288,10 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
   their settings; this design departs from them because a rule that read the configuration would break the
   invariant above.
 - **What a path selects stays in the command line**, where `cli/select.py` chooses subjects today (FR-002 to
-  FR-007). The runner receives subjects, sorted by path. The selection bounds what is reported, not what is
-  read: a selected skill's link rule still reads the target it links to.
+  FR-007). v0.3.0 checks the whole workspace and takes no path: selection by path, the next two bullets, is
+  deferred to v0.4.0 ([#442](https://github.com/LNSD/lorecraft/issues/442)). The runner receives subjects, sorted by
+  path. The selection bounds what is reported, not what is read: a selected skill's link rule still reads the
+  target it links to.
 - **A file selects every subject it is, and a directory every subject under it** (FR-003, FR-004), as the
   established linters read a path, and as editor and pre-commit integrations expect when they pass the changed
   files. A document selects itself; a `SKILL.md` selects its skill as a subject, and none of its resources; a
@@ -384,7 +386,8 @@ A more elaborate engine waits for a profile that asks for one.
 
 ## Consequences
 
-- **The per-check subcommands go.** One `check` command runs every rule over whatever it is given.
+- **The per-check subcommands go.** One `check` command runs every rule over the workspace, and over the files
+  and directories it is given once selection by path lands ([#442](https://github.com/LNSD/lorecraft/issues/442)).
 - **Rule documents change in the same change**, since each states something this design makes untrue:
   [module-lorecraft-checks](../code/module-lorecraft-checks.md) (the run and the shared
   analysis boundary) and [adr-004-database](adr-004-database.md) (decoding as a value, cross-file queries).

@@ -145,11 +145,11 @@ Keep rule documents focused and concise. Agent entrypoint docs should NOT hardco
 
 [code.structure.json](code.structure.json) makes "focused and concise" decidable with two measures:
 
-- **Word caps keep each section concise**, enforced by `lorecraft check structure`. One caps an optional `Rule` section, one every other section of the
+- **Word caps keep each section concise**, enforced by `lorecraft check` as `LEN003`. One caps an optional `Rule` section, one every other section of the
   document's own, and one the `Checklist`. A word is a whitespace-delimited token of prose; fenced code and table
   rows are not counted, so an example costs no words. A section's cap covers its H3 subsections. A section over
   its cap is split or moved, not compressed.
-- **A token budget keeps the document cheap to load**, enforced by `lorecraft check budget`. It covers the whole file, frontmatter, code and tables
+- **A token budget keeps the document cheap to load**, enforced by `lorecraft check` as `LEN001`. It covers the whole file, frontmatter, code and tables
   included, since an agent pays for every character it reads, and counts OpenAI's `o200k_base` tokens, the same
   whichever agent reads the document. A document over it is split, or its examples trimmed.
 
@@ -158,8 +158,8 @@ Keep rule documents focused and concise. Agent entrypoint docs should NOT hardco
 ## 2. Frontmatter Requirements
 
 This section is the operative rule, and the `frontmatter` key of [code.structure.json](code.structure.json)
-beside it is the same rule in a form a checker applies — `lorecraft check frontmatter` validates every document's
-frontmatter against it, and `just check-docs` runs that over this corpus. A document is additionally
+beside it is the same rule in a form a checker applies — `lorecraft check` validates every document's
+frontmatter against it with the `FM` rules, and `just check-docs` runs that over this corpus. A document is additionally
 narrowed by every `code-<namespace>.md` specification whose namespace matches its name
 ([§1](#1-core-principles)); the narrowing adds to what this section requires and never relaxes it.
 
@@ -225,7 +225,7 @@ one package. Two layers can hold a subpackage of the same name, so the path alwa
 governing `lorecraft/project/syntax/` is scoped `pkg:lorecraft.project.syntax`. A security companion takes the same name plus `-security`.
 
 `scope` carries the import path exactly as Python spells it — **snake_case**, dotted for nesting:
-`pkg:lorecraft.cli.commands.check` for the `check` subpackage of `commands`. The **filename** cannot
+`pkg:lorecraft.rules.frontmatter` for the `frontmatter` subpackage of `rules`. The **filename** cannot
 carry an underscore or a dot, so it converts both to `-`: a doc scoped `pkg:lorecraft.project.syntax` is named
 `pkg-lorecraft-project-syntax.md`, or `module-lorecraft-project-syntax.md` in the `module-` group.
 
@@ -400,8 +400,8 @@ Rule documents may reference other rule documents to establish relationships. Cr
 ### Required Sections
 
 [code.structure.json](code.structure.json) beside this file holds the outline below in machine-checkable
-form, together with the word caps and token budget of [§1](#1-core-principles). `lorecraft check structure`
-applies the outline and the caps, and `lorecraft check budget` the budget. A
+form, together with the word caps and token budget of [§1](#1-core-principles). `lorecraft check` applies the
+outline with the `OUT` rules, and the caps and the budget with the `LEN` rules. A
 document that a namespace specification matches takes its section outline from the narrowest
 `code-<namespace>.md` specification that matches its name instead of the general shape below; the general
 shape governs every document no namespace specification matches, `error-*`, `tests-*` and `logging` today

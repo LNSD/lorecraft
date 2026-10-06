@@ -94,8 +94,8 @@ A group that runs on its own, `invoke_without_command=True`, may take options fo
 subcommand declares its own. Typer parses the group's options before the subcommand's name and hands the
 subcommand none of them, so the group's options default to `None`, which tells a given option from an absent
 one, and its callback refuses one given before a subcommand's name with `typer.BadParameter`. That exits as a
-usage error naming where the option goes. Read and dropped instead, `lorecraft check --root . frontmatter`
-would have checked the repository around the working directory.
+usage error naming where the option goes. Read and dropped instead, `lorecraft lint --root . frontmatter` would
+check the repository around the working directory.
 
 ```python
 # ✅ Good — the option is the bare run's; before a subcommand it is refused, not silently dropped
@@ -233,7 +233,7 @@ Before committing code, verify:
 ## References
 
 - [python-docstrings](python-docstrings.md) - Related: Owns the sections below the cut, `Raises:` included
-- [pattern-registry](pattern-registry.md) - Related: Owns how a command or a group joins the command line
+- [pattern-registry](pattern-registry.md) - Related: Owns how a command joins the command line
 - [error-boundaries](error-boundaries.md) - Related: Owns why `typer.BadParameter` and `typer.Exit` are raised
   only in a command
 - [error-handling](error-handling.md) - Related: Owns catching `Error` at the command line's top level to
