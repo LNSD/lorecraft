@@ -1,1 +1,0 @@
-.agents/skills/review/SKILL.md:4: [skill.metadata-missing-file] `metadata.references` lists `docs/code/gone.md`, where lorecraft finds no file
