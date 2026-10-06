@@ -118,8 +118,8 @@ class EmptySection(HeadingsRule):
   `SkillRule` for a skill, whose abstract `check` takes the subject's context, a `Protocol` of `lorecraft.project`.
   A rule picks its subject by picking its base, and asks the context for what it reads. A rule over a document
   declares the facet it reads in `GOVERNED_BY`, and the registry rejects one that declares none; the package governs
-  every skill, so a rule over a skill declares none. No shipped rule derives from these bases yet: each still picks
-  an input by its base, such as `HeadingsRule` above, until it moves onto a context.
+  every skill, so a rule over a skill declares none. The length rules over a whole file, `LEN001` and `LEN002`, read
+  a context; the rules not yet moved still pick an input by their base, such as `HeadingsRule` above, until they are.
 - **`check` returns `tuple[Self, ...]`**, so a rule can only report its own occurrence, and the type checker
   rejects one that reports another's. That needs no type parameter anywhere in the engine.
 - **The message is rendered from the fields.** The corpus, the field and the section travel as data, not as
