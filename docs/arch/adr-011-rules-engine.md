@@ -33,10 +33,11 @@ What it replaces is everything around the checks:
 ## Decision
 
 1. **A rule reads its subject through its kind's context** and declares the facet it is governed for; the
-   frontmatter, outline and other length rules still read one of a closed set of inputs until they move. A rule
-   never scans: every pass over text, a tree or a schema is a query, and a rule only loops over the values its
-   context or input hands it. An analysis several rules share is a query of the database, never a rule with several
-   codes.
+   frontmatter and outline rules still read one of a closed set of inputs until they move. A rule may walk the parse
+   tree its context hands it, but a pass over a file's raw text or a schema is a query, and so is a walk several
+   rules share. A helper that only selects from a value the context already holds, such as the first H1 among the
+   parsed headings, is not such a walk, so it stays a function beside the parse tree. An analysis several rules
+   share is a query of the database, never a rule with several codes.
 2. **One runner** resolves each input once per subject, only when an enabled rule reads it, with one
    hand-written branch per input kind, and one per subject kind for the rules that read a context.
 3. **A subject's status is the engine's, not a rule's.** Whether a file decodes, and whether a specification
@@ -109,8 +110,8 @@ Three rules follow from the table.
 **An input scans, a rule loops.** Building an input is where the cost of a run lies: the parse, and the shared
 analyses the input reads from their queries. A rule's own work is a loop over a short tuple the input prepared. So a
 scan written inside a rule is paid once per rule, and the same scan written as an input is paid once per subject,
-however many rules read it. A rule never walks text or a tree: the scan it needs is an input, existing or new. A rule
-that needs two facts, such as the headings and the frontmatter, gets one input that holds both, never two
+however many rules read it. A rule on an input never walks text or a tree: the scan it needs is an input, existing or
+new. A rule that needs two facts, such as the headings and the frontmatter, gets one input that holds both, never two
 inputs. A new input is the runner's one reviewed extension point, so it is where a new cost enters and is
 reviewed.
 
@@ -152,9 +153,14 @@ all, and every skill's `SKILL.md` and every resource, which the package governs;
 layout entry declares none either. The token budget, `LEN001`, is a document rule governed by `BUDGET`, and the line
 budget, `LEN002`, a skill rule, so the token and line counts are no longer inputs; the links and layout rules read a
 context too, `LINK001`, `LINK002` and `LINK003` deriving from `MarkdownRule`, `LINK004` from `SkillFileRule` and
-`LAY001` from `LayoutEntryRule`. The other rules still read the inputs above until they move onto a context. A
-`FrontmatterRule` base over a `FrontmatterContext`, for a rule that reads a document's or a skill's frontmatter
-alike, arrives with the frontmatter rules.
+`LAY001` from `LayoutEntryRule`. The caps on a section's words and on the title's words and characters, `LEN003` to
+`LEN005`, are document rules governed by `STRUCTURE`, so the headings input no longer resolves caps. `STRUCTURE` is the
+facet the headings input was governed by, so their coverage is unchanged; `LEN003` keeps it, rather than `OUTLINE`,
+although it reads only the outline. Each walks the parse tree its context hands it: an analysis only one rule reads is
+that rule's own, so `LEN003` resolves each section's cap from the outline itself. Finding the title, the first H1, is
+the helper `find_title` beside the parse tree. The frontmatter and outline rules still read the inputs above until they
+move onto a context. A `FrontmatterRule` base over a `FrontmatterContext`, for a rule that reads a document's or a
+skill's frontmatter alike, arrives with the frontmatter rules.
 
 **A layout entry is read through a context alone**, since no input ever stood for it. One layout entry is one
 symlink of the skill layout whose chain leaves the repository: a skills directory, an entry in one or an entry's

@@ -11,8 +11,8 @@ rules over a skill's file, which it runs over a skill and a resource alike, and 
 partition pairs every rule in it with its severity, as an `EnabledRule`, so a rule the runner finds in a partition
 always has a severity to report at.
 
-The frontmatter, outline and other length rules still read an input each, so the table also keeps one partition per
-input kind they read; later changes move those rules onto a context and remove these partitions.
+The frontmatter and outline rules still read an input each, so the table also keeps one partition per input kind they
+read; later changes move those rules onto a context and remove these partitions.
 """
 
 from collections.abc import Mapping
