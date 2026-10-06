@@ -56,6 +56,7 @@ from .sample_rules import (
     token_count,
     unset_attribute,
     unset_condition_attribute,
+    unset_facet,
     unset_removed_attribute,
 )
 from .sample_rules import valid as valid_rules
@@ -77,6 +78,7 @@ from .sample_rules.token_count.retired import NearBudget
 from .sample_rules.token_count.sample_condition import SampleCondition
 from .sample_rules.unset_attribute.unreleased import Unreleased
 from .sample_rules.unset_condition_attribute.unsevere import Unsevere
+from .sample_rules.unset_facet.unfaceted import Unfaceted
 from .sample_rules.unset_removed_attribute.unreplaced import Unreplaced
 from .sample_rules.valid.outline.empty_line import EmptyLine
 from .sample_rules.valid.retired import TabIndent
@@ -203,6 +205,18 @@ class TestRegistryLoad:
         #: Then
         assert exc_info.value.declaration is Unreplaced, 'the error names the removed rule missing the attribute'
         assert exc_info.value.attribute == 'REPLACED_BY', 'the error names the attribute it leaves unbound'
+
+    def test_load_with_a_document_rule_without_a_facet_raises_unset_rule_attribute_error(self) -> None:
+        #: Given
+        package = unset_facet
+
+        #: When
+        with pytest.raises(UnsetRuleAttributeError) as exc_info:
+            Registry.load(package)
+
+        #: Then
+        assert exc_info.value.declaration is Unfaceted, 'the error names the rule over a document missing its facet'
+        assert exc_info.value.attribute == 'GOVERNED_BY', 'the error names the attribute it leaves unbound'
 
     def test_load_with_one_prefix_given_two_titles_raises_conflicting_rule_group_error(self) -> None:
         #: Given

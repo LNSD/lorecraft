@@ -40,7 +40,9 @@ shorter still: the checker reports errors and warnings, and they act on them.
 | **Alias code** | An upstream linter's code for a rule Lorecraft absorbed, such as `MD040`. A rule's code is always Lorecraft's; an alias code only points to it |
 | **Removed rule** | A retired code, with the release that removed it and its replacement. Never has an occurrence |
 | **Subject** | What is checked: a document, a skill, a skill resource or a layout entry |
-| **Input** | The one frozen value a rule reads about a subject, built from the database's queries |
+| **Context** | The read-only view of one decoded subject a rule asks for the facts it reads, each a query of the database |
+| **Facet** | What part of a document a specification governs, which a rule over a document declares it reads |
+| **Input** | The one frozen value a rule not yet moved onto a context reads about a subject, built from the database's queries |
 | **Diagnostic** | An occurrence located at a subject's path, with a severity |
 | **Level** | `allow`, `warn` or `deny`: how a rule is configured |
 | **Severity** | `error` or `warning`: what a diagnostic carries, and what a user acts on |
@@ -48,7 +50,7 @@ shorter still: the checker reports errors and warnings, and they act on them.
 | **Help**, **note** | A sub-diagnostic: help says how to fix this occurrence, a note gives the context that explains it. Either may point at a location |
 | **Location** | A line in the subject, the whole subject when it has no lines, or a place in another file, such as the specification. The runner supplies the subject's path |
 | **Engine diagnostic** | A diagnostic no rule produced: an undecodable file, an error; an alias code in the configuration, a warning |
-| **Coverage** | Which input kinds of a subject no specification governs. Never a diagnostic |
+| **Coverage** | Which facets of a subject no specification governs, and which input kinds while rules still read inputs. Never a diagnostic |
 | **Failure** | What stops a run before any subject is checked: raised, and exit code 2 |
 
 ## Decision
@@ -108,12 +110,16 @@ class EmptySection(HeadingsRule):
 ```
 
 - **`Rule`** carries what every occurrence has: the specification file that states the rule (or none, for a
-  rule the package states). The line is not on it: every input base whose subject has lines derives from
+  rule the package states). The line is not on it: every base whose subject has lines derives from
   `ContentRule`, which carries the line, and `LayoutRule`, for a layout entry, carries none. A subclass
   adds the data of its own condition and the context its diagnostic needs, as
   [adr-010-diagnostics](adr-010-diagnostics.md) states.
-- **The base class names the input.** Each input kind has one base, `HeadingsRule` for the headings, whose
-  abstract `check` fixes the input's type. A rule picks its input by picking its base.
+- **The base class names the subject kind.** Each subject kind has one base, `DocumentRule` for a document and
+  `SkillRule` for a skill, whose abstract `check` takes the subject's context, a `Protocol` of `lorecraft.project`.
+  A rule picks its subject by picking its base, and asks the context for what it reads. A rule over a document
+  declares the facet it reads in `GOVERNED_BY`, and the registry rejects one that declares none; the package governs
+  every skill, so a rule over a skill declares none. No shipped rule derives from these bases yet: each still picks
+  an input by its base, such as `HeadingsRule` above, until it moves onto a context.
 - **`check` returns `tuple[Self, ...]`**, so a rule can only report its own occurrence, and the type checker
   rejects one that reports another's. That needs no type parameter anywhere in the engine.
 - **The message is rendered from the fields.** The corpus, the field and the section travel as data, not as
@@ -127,7 +133,7 @@ class EmptySection(HeadingsRule):
   *Use instead*, and optionally *Known problems* and, for a rule with an alias, *Deviations from upstream*. Nothing
   about a rule is written in a second place.
 - **`@rule` registers the class** and returns it unchanged. Its one type parameter only passes the decorated
-  class's type through; nothing in the engine is generic over the input kind.
+  class's type through; nothing in the engine is generic over what a rule reads.
 - **One file per rule.** The class, its docstring and its check sit in one module, in a directory per group.
 
 The established linters keep a rule's check as a function beside its violation type. Here it is a classmethod
@@ -164,8 +170,9 @@ instance is one occurrence of it.
   each alias as the rule's provenance, the lookup command finds a rule by one, and the machine-readable output
   carries them beside the code. Output prints the code alone. Configuration and suppression accept an alias code
   and resolve it to the code, with a warning naming the code to write. Absorbing a linter adds
-  rules and aliases, and leaves the registry untouched; the runner changes only for an input its rules need that
-  does not exist yet. Which upstream rules are ported is decided rule by rule, outside this design.
+  rules and aliases, and leaves the registry untouched; a fact its rules need that no context offers yet is a method
+  of the context and a query of the database, never a change to the runner. Which upstream rules are ported is
+  decided rule by rule, outside this design.
 - **Documents and skills share the frontmatter codes.** A skill's frontmatter is judged against the Agent Skills
   schema and a document's against its corpus schemas. The governing schema and the name the subject is found
   under are data of the input, so one rule serves both and a later specifications corpus for skills retires no

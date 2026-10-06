@@ -18,7 +18,8 @@ changes: a query, a check, or the shape of what a check reports.
 revision's inputs and memoizes every derived value for as long as it lives. A check is a pure function of the values
 those queries return. A run joins the two: it asks the queries for what a check reads, hands the check only that,
 and locates each violation in its document. It runs the rules of `lorecraft.rules`, the layer below, the same
-way: it builds the input each rule reads from the queries, and the rules are declared there.
+way: it hands each rule the context of the subject it judges, or builds the input a rule not yet moved onto a context
+reads from the queries, and the rules are declared there.
 
 ## Belongs Here
 
@@ -33,11 +34,13 @@ way: it builds the input each rule reads from the queries, and the rules are dec
 - Resolving a Markdown link's target in the model: whether its path names a document, and the anchors it has.
 - A check: values in, violations out.
 - A run that resolves a check's inputs and turns violations into findings.
-- Building the input a rule reads from the queries, and running the rules over a subject.
+- Building the input a rule reads from the queries, and running the rules over a subject: a rule over a document
+  only when the document is governed for the facet the rule declares, each facet it is not governed for recorded as
+  coverage.
 - A context of `lorecraft.project` implemented over the database: each fact of one decoded subject answered by its
   memoized query, each identity value read from the subject's ref or location.
-- The rule table: the rules a run enables, each with the severity it reports at, partitioned by the input each
-  reads.
+- The rule table: the rules a run enables, each with the severity it reports at, partitioned by the subject kind
+  each judges or the input each reads.
 - The value types a check reports in, and their plain-text form.
 
 ## Belongs Elsewhere

@@ -1,10 +1,10 @@
 """The rules engine's runner over a database opened on an in-memory snapshot.
 
-The runner decodes each document and skill, builds each input an enabled rule reads, and runs the rules of a table
-built from a registry. The package's own registry runs the frontmatter block rules over documents and skills, the
-token budget, the headings rules and the outline divergence rules over documents and the line budget over skills;
-a registry of sample rules over the token count, declared in this module, runs through the same runner, with no
-edit to it.
+The runner decodes each document and skill, hands each rule over a document or a skill the subject's context or
+builds each input an enabled rule still reads, and runs the rules of a table built from a registry. The package's own
+registry runs the frontmatter block rules over documents and skills, the token budget, the headings rules and the
+outline divergence rules over documents and the line budget over skills; a registry of sample rules over a
+document's token count, declared in this module, runs through the same runner, with no edit to it.
 """
 
 from dataclasses import dataclass
@@ -21,6 +21,7 @@ from lorecraft.checks.table import RuleTable
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.context import DocumentContext, SkillContext
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import (
@@ -51,7 +52,7 @@ from lorecraft.rules.frontmatter.name_mismatch import DirectoryNameExpected, Fil
 from lorecraft.rules.frontmatter.non_mapping_frontmatter import NonMappingFrontmatter
 from lorecraft.rules.frontmatter.unknown_field import UnknownField
 from lorecraft.rules.frontmatter.wrong_type import WrongType
-from lorecraft.rules.inputs import InputKind, TokenCountInput, TokenCountRule
+from lorecraft.rules.inputs import InputKind
 from lorecraft.rules.length.title_too_long import TitleTooLong
 from lorecraft.rules.length.title_too_many_words import TitleTooManyWords
 from lorecraft.rules.length.too_many_lines import TooManyLines
@@ -67,6 +68,7 @@ from lorecraft.rules.outline.section_out_of_order import SectionOutOfOrder
 from lorecraft.rules.outline.title_not_first import TitleNotFirst
 from lorecraft.rules.outline.unexpected_section import UnexpectedSection
 from lorecraft.rules.registry import Registry
+from lorecraft.rules.subject import DocumentRule, Facet, SkillRule
 from lorecraft.vfs import EntryRecord, ResolvedPath, Snapshot, SymlinkRecord
 
 GUIDE: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('guide'))
@@ -105,7 +107,7 @@ SAMPLE: Final[RuleGroup] = RuleGroup('SMP', 'Sample rules')
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class OverHalfBudget(TokenCountRule):
+class OverHalfBudget(DocumentRule):
     """A sample rule at `warn`: a document holds more than half the tokens a budget allows.
 
     Attributes:
@@ -118,6 +120,7 @@ class OverHalfBudget(TokenCountRule):
     NAME: ClassVar[RuleName] = RuleName('over-half-budget')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('1.0.0')
+    GOVERNED_BY: ClassVar[Facet] = Facet.BUDGET
 
     spec: RootRelativePath
     token_count: int
@@ -128,51 +131,56 @@ class OverHalfBudget(TokenCountRule):
         return f'over half the budget ({self.token_count} of {self.budget})'
 
     @classmethod
-    def check(cls, subject: TokenCountInput) -> tuple[Self, ...]:
+    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
         """One occurrence for each budget the document holds more than half of.
 
         Args:
-            subject: The document's token count, with the budgets that govern it.
+            subject: The document, governed by a budget.
         """
-        return tuple(
-            cls(
-                spec=budget.spec,
-                line=LineNumber.from_int(1),
-                token_count=subject.token_count.value,
-                budget=budget.tokens.value,
-            )
-            for budget in subject.budgets
-            if subject.token_count.value * 2 > budget.tokens.value
-        )
+        token_count = subject.tokens().value
+        occurrences: list[Self] = []
+        for structure_spec in subject.specifications().structure_specs():
+            budget = structure_spec.tokens
+            if budget is not None and token_count * 2 > budget.value:
+                occurrences.append(
+                    cls(
+                        spec=structure_spec.path,
+                        line=LineNumber.from_int(1),
+                        token_count=token_count,
+                        budget=budget.value,
+                    )
+                )
+        return tuple(occurrences)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class EmptyDocument(TokenCountRule):
+class EmptyDocument(DocumentRule):
     """A sample rule at `allow`: a document holds no token at all."""
 
     CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 2)
     NAME: ClassVar[RuleName] = RuleName('empty-document')
     LEVEL: ClassVar[Level] = Level.ALLOW
     SINCE: ClassVar[Release] = Release('1.0.0')
+    GOVERNED_BY: ClassVar[Facet] = Facet.BUDGET
 
     def message(self) -> str:
         """Name the condition."""
         return 'document is empty'
 
     @classmethod
-    def check(cls, subject: TokenCountInput) -> tuple[Self, ...]:
+    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
         """The occurrence at line 1, when the document has no token.
 
         Args:
-            subject: The document's token count, with the budgets that govern it.
+            subject: The document, governed by a budget.
         """
-        if subject.token_count.value > 0:
+        if subject.tokens().value > 0:
             return ()
         return (cls(spec=None, line=LineNumber.from_int(1)),)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class AnyTokens(TokenCountRule):
+class AnyTokens(DocumentRule):
     """A sample rule at `deny` that fires once on every document a budget governs, whatever its token count.
 
     Attributes:
@@ -183,6 +191,7 @@ class AnyTokens(TokenCountRule):
     NAME: ClassVar[RuleName] = RuleName('any-tokens')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('1.0.0')
+    GOVERNED_BY: ClassVar[Facet] = Facet.BUDGET
 
     token_count: int
 
@@ -191,13 +200,42 @@ class AnyTokens(TokenCountRule):
         return f'document counted ({self.token_count} tokens)'
 
     @classmethod
-    def check(cls, subject: TokenCountInput) -> tuple[Self, ...]:
+    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
         """One occurrence at line 1, whatever the count.
 
         Args:
-            subject: The document's token count, with the budgets that govern it.
+            subject: The document, governed by a budget.
         """
-        return (cls(spec=None, line=LineNumber.from_int(1), token_count=subject.token_count.value),)
+        return (cls(spec=None, line=LineNumber.from_int(1), token_count=subject.tokens().value),)
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class AnyLines(SkillRule):
+    """A sample rule at `deny` that fires once on every skill, whatever its line count.
+
+    Attributes:
+        line_count: The lines in the skill's whole `SKILL.md`.
+    """
+
+    CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 4)
+    NAME: ClassVar[RuleName] = RuleName('any-lines')
+    LEVEL: ClassVar[Level] = Level.DENY
+    SINCE: ClassVar[Release] = Release('1.0.0')
+
+    line_count: int
+
+    def message(self) -> str:
+        """Name the condition and the count."""
+        return f'skill counted ({self.line_count} lines)'
+
+    @classmethod
+    def check(cls, subject: SkillContext) -> tuple[Self, ...]:
+        """One occurrence at line 1, whatever the count.
+
+        Args:
+            subject: The skill judged.
+        """
+        return (cls(spec=None, line=LineNumber.from_int(1), line_count=subject.lines().value),)
 
 
 class CountingDatabase(Database):
@@ -526,6 +564,125 @@ class TestCheckSubjects:
         assert reports == (
             CheckedSubject(GUIDE, diagnostics=(RuleDiagnostic(GUIDE.path, any_tokens, Severity.ERROR),), ungoverned=()),
         ), 'a rule at allow is not in the table, so only the enabled rules report'
+
+    def test_check_subjects_with_a_document_over_a_corpus_and_a_namespace_budget_reports_both(self) -> None:
+        #: Given
+        namespace_spec = RootRelativePath.parse('docs/__meta__/code-python.structure.json')
+        typing_text = '# Typing\n\nAnnotate every signature, and keep the checker clean before a change is done.\n'
+        snapshot = Snapshot.from_tree(
+            {
+                'docs': {
+                    '__meta__': {
+                        'code.md': b'# Code\n',
+                        'code.structure.json': _budget(5),
+                        'code-python.md': b'# Code Python\n',
+                        'code-python.structure.json': _budget(3),
+                    },
+                    'code': {'python-typing.md': typing_text.encode()},
+                }
+            }
+        )
+        typing = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
+        severities: dict[type[Rule], Severity] = {OverHalfBudget: Severity.WARNING}
+        table = RuleTable(severities)
+
+        #: When
+        reports = check_subjects(Database(snapshot), (typing,), table)
+
+        #: Then
+        token_count = count_tokens(typing_text)
+        corpus_budget = OverHalfBudget(spec=CODE_SPEC, line=LineNumber.from_int(1), token_count=token_count, budget=5)
+        namespace_budget = OverHalfBudget(
+            spec=namespace_spec, line=LineNumber.from_int(1), token_count=token_count, budget=3
+        )
+        assert reports == (
+            CheckedSubject(
+                typing,
+                diagnostics=(
+                    RuleDiagnostic(typing.path, corpus_budget, Severity.WARNING),
+                    RuleDiagnostic(typing.path, namespace_budget, Severity.WARNING),
+                ),
+                ungoverned=(),
+            ),
+        ), 'the context holds every specification that governs the document, so a rule reads both budgets'
+
+    def test_check_subjects_with_sample_rules_and_no_budget_set_reports_the_budget_as_ungoverned(
+        self, sample_table: RuleTable
+    ) -> None:
+        #: Given
+        database = Database(_snapshot(b'{"empty_sections": "forbidden"}', guide=GUIDE_TEXT.encode()))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), sample_table)
+
+        #: Then
+        assert reports == (CheckedSubject(GUIDE, diagnostics=(), ungoverned=(Facet.BUDGET,)),), (
+            'no specification sets a budget, so the facet the sample rules read is coverage, not a diagnostic'
+        )
+
+    def test_check_subjects_with_sample_rules_and_no_budget_set_never_counts_the_tokens(
+        self, sample_table: RuleTable
+    ) -> None:
+        #: Given
+        database = CountingDatabase(_snapshot(b'{"empty_sections": "forbidden"}', guide=GUIDE_TEXT.encode()))
+
+        #: When
+        check_subjects(database, (GUIDE,), sample_table)
+
+        #: Then
+        assert database.counted_tokens == [], (
+            'governance is read before a rule over the budget runs, so an ungoverned document never pays for the count'
+        )
+
+    def test_check_subjects_with_a_corpus_stating_no_structure_specification_reports_the_budget_as_ungoverned(
+        self, sample_table: RuleTable
+    ) -> None:
+        #: Given
+        # the code corpus states only its prose specification, so no structure specification governs its documents
+        snapshot = Snapshot.from_tree(
+            {'docs': {'__meta__': {'code.md': b'# Code\n'}, 'code': {'guide.md': GUIDE_TEXT.encode()}}}
+        )
+
+        #: When
+        reports = check_subjects(Database(snapshot), (GUIDE,), sample_table)
+
+        #: Then
+        assert reports == (CheckedSubject(GUIDE, diagnostics=(), ungoverned=(Facet.BUDGET,)),), (
+            'a document whose corpus states no structure specification is governed for no facet'
+        )
+
+    def test_check_subjects_with_a_corpus_stating_no_structure_specification_never_counts_the_tokens(
+        self, sample_table: RuleTable
+    ) -> None:
+        #: Given
+        # the code corpus states only its prose specification, so no structure specification governs its documents
+        snapshot = Snapshot.from_tree(
+            {'docs': {'__meta__': {'code.md': b'# Code\n'}, 'code': {'guide.md': GUIDE_TEXT.encode()}}}
+        )
+        database = CountingDatabase(snapshot)
+
+        #: When
+        check_subjects(database, (GUIDE,), sample_table)
+
+        #: Then
+        assert database.counted_tokens == [], 'no context is built for it, so its tokens are never counted'
+
+    def test_check_subjects_with_a_sample_rule_over_a_skill_runs_it_through_its_context(self) -> None:
+        #: Given
+        database = Database(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=_skill_of(7)))
+        severities: dict[type[Rule], Severity] = {AnyLines: Severity.ERROR}
+        table = RuleTable(severities)
+
+        #: When
+        reports = check_subjects(database, (_location(database, REVIEW),), table)
+
+        #: Then
+        occurrence = AnyLines(spec=None, line=LineNumber.from_int(1), line_count=7)
+        assert reports == (
+            CheckedSubject(
+                REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),), ungoverned=()
+            ),
+        ), 'a rule over a skill reads the line count through its context, and the package governs every skill'
 
     def test_check_subjects_with_a_skill_over_the_line_budget_reports_the_line_budget_as_an_error(
         self, package_table: RuleTable

@@ -13,8 +13,8 @@ that order as the fields it compares, and `diagnostic_order` builds it as the so
 
 Each subject the runner checks, a document or a skill, gets one report, and either kind of report gives its
 diagnostics as `diagnostics`. A `CheckedSubject` decoded, and holds its diagnostics, in their output order however
-it is built, and the inputs no specification governs it for. An `UndecodableSubject` did not, so no rule judged it:
-it holds only its ref, and its one diagnostic, the engine's, is built from that ref, at the subject's path.
+it is built, and the facets and inputs no specification governs it for. An `UndecodableSubject` did not, so no rule
+judged it: it holds only its ref, and its one diagnostic, the engine's, is built from that ref, at the subject's path.
 
 This module is the rules engine's report. `reporting` beside it is the per-check pipeline's, whose `Violation` and
 `Finding` the `Diagnostic` here replaces; it stays until the command line runs the rules engine.
@@ -30,6 +30,7 @@ from lorecraft.rules.declaration import EngineCondition, Rule, Severity
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.rules.inputs import InputKind
 from lorecraft.rules.location import Here, WholeSubject
+from lorecraft.rules.subject import Facet
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,22 +128,26 @@ def diagnostic_order(diagnostic: Diagnostic) -> DiagnosticOrder:
 # A subject the runner checks: a document, or a skill, whose report path is its `SKILL.md`.
 type SubjectRef = DocumentRef | SkillRef
 
+# What a subject can be ungoverned for: the facet a rule over a document declares, or the input kind of a rule that
+# still reads an input. Transitional: once the last rules read a context, the input kinds go and this is `Facet`.
+type Coverage = Facet | InputKind
+
 
 @dataclass(frozen=True, slots=True)
 class CheckedSubject:
-    """A subject that decoded, so the enabled rules judged every input it is governed for.
+    """A subject that decoded, so the enabled rules judged everything it is governed for.
 
     Attributes:
         ref: The document or skill the rules judged; a skill's diagnostics are reported at its `SKILL.md`.
         diagnostics: Every occurrence the rules found in it, in the order `diagnostic_order` sorts them into,
             whatever order they are given in; empty when it holds to every rule.
-        ungoverned: The input kinds an enabled rule reads that no specification governs the subject for, in the
-            order the runner builds them; no rule over such an input judged the subject.
+        ungoverned: The facets and the input kinds an enabled rule reads that no specification governs the subject
+            for, in the order the runner reads them; no rule that reads one judged the subject.
     """
 
     ref: SubjectRef
     diagnostics: tuple[Diagnostic, ...]
-    ungoverned: tuple[InputKind, ...]
+    ungoverned: tuple[Coverage, ...]
 
     def __post_init__(self) -> None:
         """Sort the diagnostics into their output order, so a report holds them in it however it is built."""
