@@ -1,8 +1,12 @@
 """One frozen state of a workspace: its snapshot, and the cached data every check, and every command, reads through.
 
 The layering follows an IDE's. The `Snapshot` plays the virtual file system: every byte a
-check can see, and never changed once built. Above it sit two kinds of cached data, each computed on first
-use and kept for as long as the database lives (pattern-memoization):
+check can see, and never changed once built. Above it sit the queries, each computed on first use and kept for as
+long as the database lives (pattern-memoization). They come in two kinds, and the kind decides how a query carries
+over to the next revision.
+
+Input queries read the snapshot. Each is the one place its part of the snapshot becomes a value, so only an input
+query builds a witness or fails to read, and each states its own carry-over rule against the change set:
 
 - `model()`: the workspace model, like the IDE's project model. It reads the structure of the snapshot, the
   specifications, the corpus directories, the skills directories, the directories a command named to check the
@@ -13,21 +17,38 @@ use and kept for as long as the database lives (pattern-memoization):
 - `text(ref)`: one document's bytes decoded as UTF-8, like the IDE's document text for a file: a `DocumentText`
   witness, or an `Undecodable` marker when the bytes are not UTF-8. It is the one place a document's bytes become
   text, and it reads that document's bytes and nothing else.
+- `skill_text(ref)`: one skill's `SKILL.md` decoded, the same document text: a `SkillText` witness, or an
+  `Undecodable` marker. It reads that skill's bytes and nothing else.
+- `skill_resources(skill)`: one skill's resources, the Markdown files inside it other than its top-level `SKILL.md`,
+  like the IDE's listing of a content root's children, and the symlinks inside it whose chain leaves the
+  repository. It reads the listings and the symlink targets reached from that skill, and where the model locates
+  the skill, and no file's content.
+- `skill_resource_text(resource)`: one resource decoded, the same document text: a `SkillResourceText` witness, or an
+  `Undecodable` marker. It reads that resource's bytes, and where its skill's listing locates it, and nothing else.
+- The `ScopeIndex` behind `is_in_scope(path)`: the scope the snapshot records it was taken of, expanded once
+  through the links it recorded, like the IDE's index of a project's content roots. It reads the snapshot's
+  scope, links and climbed directories and nothing else, and no caller reaches it but `is_in_scope`.
+
+Derived queries read the results of other queries and never the snapshot. Each hands what it read to one function
+of this package that computes the value, so its arguments are its read set, and it carries over whenever every query
+it read does:
+
 - `frontmatter(source)`: one document's frontmatter node, like a stub: the part of a file the IDE reads without
   building its full syntax tree. It reads the text of the witness `text(ref)` returned and nothing else.
 - `parse(source)`: one document's parse tree, like the IDE's syntax tree of a file or a per-file index entry. It
   reads the text of the witness and nothing else.
+- `tokens(source)`: what one document's whole file costs an agent that loads it, like another per-file index
+  entry: counted from the raw text, frontmatter and code included, without a parse. It reads the text of the
+  witness `text(ref)` returned and nothing else.
 - `document_lines(source)`: how many lines one document's whole file holds, like `tokens(source)`: counted from the
   raw text, frontmatter included, without a parse. It reads the text of the witness `text(ref)` returned and nothing
   else.
 - `schema_problems(source)`: what each frontmatter schema that governs one document rejects in its frontmatter, each
   problem placed on its line, like an analysis the IDE runs once over a file and every inspection then reads. It reads
-  `frontmatter(source)` and the governance the model records for the document, and nothing else.
+  `frontmatter(source)` and the frontmatter schemas the model records for the document, and nothing else.
 - `outline_divergences(source)`: where one document's sections first stop matching each outline that governs it, the
-  same kind of shared analysis. It reads `parse(source)`, `document_lines(source)` and the governance the model
-  records for the document, and nothing else.
-- `skill_text(ref)`: one skill's `SKILL.md` decoded, the same document text: a `SkillText` witness, or an
-  `Undecodable` marker. It reads that skill's bytes and nothing else.
+  same kind of shared analysis. It reads `parse(source)`, `document_lines(source)` and the outlines the model records
+  for the document, and nothing else.
 - `skill_frontmatter(source)`: one skill's frontmatter node, the same stub for a `SKILL.md`. It reads the text of
   the witness `skill_text(ref)` returned and nothing else.
 - `skill_parse(source)`: one skill's parse tree, the same syntax tree for a `SKILL.md`. It reads the text of the
@@ -37,20 +58,8 @@ use and kept for as long as the database lives (pattern-memoization):
 - `skill_schema_problems(source)`: what the Agent Skills specification rejects in one skill's frontmatter, the same
   analysis as `schema_problems(source)` for a document. It reads `skill_frontmatter(source)` and nothing else: the
   package states the specification, so no specification in the repository plays a part.
-- `skill_resources(skill)`: one skill's resources, the Markdown files inside it other than its top-level `SKILL.md`,
-  like the IDE's listing of a content root's children, and the symlinks inside it whose chain leaves the
-  repository. It reads the listings and the symlink targets reached from that skill, and where the model locates
-  the skill, and no file's content.
-- `skill_resource_text(resource)`: one resource decoded, the same document text: a `SkillResourceText` witness, or an
-  `Undecodable` marker. It reads that resource's bytes, and where its skill's listing locates it, and nothing else.
 - `skill_resource_parse(source)`: one resource's parse tree, the same syntax tree again. It reads the text of the
   witness `skill_resource_text(resource)` returned and nothing else.
-- `tokens(source)`: what one document's whole file costs an agent that loads it, like another per-file index
-  entry: counted from the raw text, frontmatter and code included, without a parse. It reads the text of the
-  witness `text(ref)` returned and nothing else.
-- The `ScopeIndex` behind `is_in_scope(path)`: the scope the snapshot records it was taken of, expanded once
-  through the links it recorded, like the IDE's index of a project's content roots. It reads the snapshot's
-  scope, links and climbed directories and nothing else, and no caller reaches it but `is_in_scope`.
 
 Three questions are asked of the snapshot's records directly and their answers are never cached, since an answer
 for one path is cheap:
@@ -120,10 +129,8 @@ from lorecraft.project.document import DocumentDecodeError, DocumentRef
 from lorecraft.project.document import Repository as DocumentRepository
 from lorecraft.project.layout import named_dirs_of_scope, reject_linked_layout
 from lorecraft.project.schemas import (
-    FrontmatterSchema,
     OutlineDivergenceSpec,
     SchemaProblems,
-    StructureSpec,
     locate_schema_problems,
     locate_skill_schema_problems,
     match_outlines,
@@ -447,10 +454,7 @@ class Database:
         """
         found = self._schema_problems.get(source.ref)
         if found is None:
-            governance = self.model().find_governance(source.ref)
-            schemas: tuple[FrontmatterSchema, ...] = ()
-            if governance is not None:
-                schemas = governance.frontmatter_schemas()
+            schemas = self.model().frontmatter_schemas_of(source.ref)
             if schemas:
                 found = locate_schema_problems(self.frontmatter(source), schemas)
             else:
@@ -508,16 +512,9 @@ class Database:
         """
         divergences = self._outline_divergences.get(source.ref)
         if divergences is None:
-            governance = self.model().find_governance(source.ref)
-            outlined_specs: list[StructureSpec] = []
-            if governance is not None:
-                for structure_spec in governance.structure_specs():
-                    if structure_spec.outline:
-                        outlined_specs.append(structure_spec)
-            if outlined_specs:
-                divergences = match_outlines(
-                    tuple(outlined_specs), self.parse(source).headings, self.document_lines(source)
-                )
+            outline_specs = self.model().outline_specs_of(source.ref)
+            if outline_specs:
+                divergences = match_outlines(outline_specs, self.parse(source).headings, self.document_lines(source))
             else:
                 divergences = ()
             self._outline_divergences[source.ref] = divergences
