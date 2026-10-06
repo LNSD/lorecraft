@@ -124,8 +124,11 @@ class EmptySection(HeadingsRule):
   and the registry rejects one that declares none; the package governs every skill and resource, so a rule over a
   skill or one of its files declares none. A rule over a Markdown file declares none either: its base judges a
   document under its structure, the facet under which a document has a context at all. The length rules over a whole
-  file, `LEN001` and `LEN002`, and the `LINK` rules read a context; the rules not yet moved still pick an input by
-  their base, such as `HeadingsRule` above, until they are.
+  file, `LEN001` and `LEN002`, the `LINK` rules and `LAY001` read a context; the rules not yet moved still pick an
+  input by their base, such as `HeadingsRule` above, until they are.
+- **A layout entry has a base of its own.** `LayoutEntryRule` derives from `LayoutRule`, since a symlink has no
+  lines, and its `check` takes a `LayoutContext`: one symlink of the skill layout whose chain leaves the repository,
+  and where it leaves. The package governs the skill layout, so a rule over it declares no facet.
 - **`check` returns `tuple[Self, ...]`**, so a rule can only report its own occurrence, and the type checker
   rejects one that reports another's. That needs no type parameter anywhere in the engine.
 - **The message is rendered from the fields.** The corpus, the field and the section travel as data, not as
@@ -165,7 +168,7 @@ instance is one occurrence of it.
   | `OUT` | The sections a structure specification states |
   | `LEN` | Every length limit: a document's token budget, a skill's line budget, a section's word cap |
   | `LINK` | Links in any Markdown file: a document, a skill's `SKILL.md` and its resources |
-  | `LAY` | The skill layout |
+  | `LAY` | The skill layout: a symlink an agent follows whose chain leaves the repository |
   | `LC` | The engine's own conditions, such as an undecodable file, and no rule |
 
   A group for the Markdown body, such as its blocks or its inline links, is added with its first rule.

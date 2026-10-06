@@ -6,10 +6,10 @@ from a registry and each rule's default level: a rule at `warn` reports warnings
 conditions are not rules a run enables, so the table never holds one.
 
 A rule is partitioned by its base: the rules over a document, which the runner runs facet by facet, the rules over
-a skill, the rules over a Markdown file, which the runner runs over a document, a skill and a resource alike, and the
-rules over a skill's file, which it runs over a skill and a resource alike.
-Each partition pairs every rule in it with its severity, as an `EnabledRule`, so a rule the runner finds in a
-partition always has a severity to report at.
+a skill, the rules over a Markdown file, which the runner runs over a document, a skill and a resource alike, the
+rules over a skill's file, which it runs over a skill and a resource alike, and the rules over a layout entry. Each
+partition pairs every rule in it with its severity, as an `EnabledRule`, so a rule the runner finds in a partition
+always has a severity to report at.
 
 The frontmatter, outline and other length rules still read an input each, so the table also keeps one partition per
 input kind they read; later changes move those rules onto a context and remove these partitions.
@@ -27,7 +27,7 @@ from lorecraft.rules.inputs import (
     SchemaProblemsRule,
 )
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.subject import DocumentRule, Facet, MarkdownRule, SkillFileRule, SkillRule
+from lorecraft.rules.subject import DocumentRule, Facet, LayoutEntryRule, MarkdownRule, SkillFileRule, SkillRule
 
 
 class UnknownRuleInputError(TypeError):
@@ -68,6 +68,7 @@ class RuleTable:
     _skill_rules: tuple[EnabledRule[SkillRule], ...]
     _markdown_rules: tuple[EnabledRule[MarkdownRule], ...]
     _skill_file_rules: tuple[EnabledRule[SkillFileRule], ...]
+    _layout_rules: tuple[EnabledRule[LayoutEntryRule], ...]
     # One partition per input kind, until the rules that read one read a context.
     _frontmatter_block_rules: tuple[EnabledRule[FrontmatterBlockRule], ...]
     _schema_problems_rules: tuple[EnabledRule[SchemaProblemsRule], ...]
@@ -88,6 +89,7 @@ class RuleTable:
         skill_rules: list[EnabledRule[SkillRule]] = []
         markdown_rules: list[EnabledRule[MarkdownRule]] = []
         skill_file_rules: list[EnabledRule[SkillFileRule]] = []
+        layout_rules: list[EnabledRule[LayoutEntryRule]] = []
         frontmatter_block_rules: list[EnabledRule[FrontmatterBlockRule]] = []
         schema_problems_rules: list[EnabledRule[SchemaProblemsRule]] = []
         headings_rules: list[EnabledRule[HeadingsRule]] = []
@@ -103,6 +105,8 @@ class RuleTable:
                 markdown_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, SkillFileRule):
                 skill_file_rules.append(EnabledRule(rule_class, severities[rule_class]))
+            elif issubclass(rule_class, LayoutEntryRule):
+                layout_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, FrontmatterBlockRule):
                 frontmatter_block_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, SchemaProblemsRule):
@@ -122,6 +126,7 @@ class RuleTable:
         self._skill_rules = tuple(skill_rules)
         self._markdown_rules = tuple(markdown_rules)
         self._skill_file_rules = tuple(skill_file_rules)
+        self._layout_rules = tuple(layout_rules)
         self._frontmatter_block_rules = tuple(frontmatter_block_rules)
         self._schema_problems_rules = tuple(schema_problems_rules)
         self._headings_rules = tuple(headings_rules)
@@ -180,6 +185,11 @@ class RuleTable:
     def skill_file_rules(self) -> tuple[EnabledRule[SkillFileRule], ...]:
         """Each enabled rule over a skill's file, with its severity, in code order; empty when none is."""
         return self._skill_file_rules
+
+    @property
+    def layout_rules(self) -> tuple[EnabledRule[LayoutEntryRule], ...]:
+        """Each enabled rule over a layout entry, with its severity, in code order; empty when none is."""
+        return self._layout_rules
 
     @property
     def frontmatter_block_rules(self) -> tuple[EnabledRule[FrontmatterBlockRule], ...]:

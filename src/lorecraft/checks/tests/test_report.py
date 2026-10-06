@@ -16,7 +16,14 @@ from lorecraft.rules.tests.sample_rules.valid.outline.empty_line import EmptyLin
 from lorecraft.rules.tests.sample_rules.valid.trailing_space import TrailingSpace
 from lorecraft.rules.tests.sample_rules.valid.uppercase_entry import UppercaseEntry
 
-from ..report import CheckedSubject, EngineDiagnostic, RuleDiagnostic, UndecodableSubject, diagnostic_order
+from ..report import (
+    CheckedLayoutEntry,
+    CheckedSubject,
+    EngineDiagnostic,
+    RuleDiagnostic,
+    UndecodableSubject,
+    diagnostic_order,
+)
 
 
 @pytest.mark.unit
@@ -172,6 +179,21 @@ class TestCheckedSubject:
 
         #: Then
         assert subject.diagnostics == (earlier, later), 'a report holds its diagnostics in output order, however built'
+
+
+@pytest.mark.unit
+class TestCheckedLayoutEntry:
+    def test_checked_layout_entry_with_diagnostics_out_of_order_holds_them_in_diagnostic_order(self) -> None:
+        #: Given
+        path = RootRelativePath.parse('.agents/skills/Review')
+        warning = RuleDiagnostic(path, UppercaseEntry(spec=None), Severity.WARNING)
+        error = RuleDiagnostic(path, UppercaseEntry(spec=None), Severity.ERROR)
+
+        #: When
+        entry = CheckedLayoutEntry(path, diagnostics=(warning, error))
+
+        #: Then
+        assert entry.diagnostics == (error, warning), 'a report holds its diagnostics in output order, however built'
 
 
 @pytest.mark.unit
