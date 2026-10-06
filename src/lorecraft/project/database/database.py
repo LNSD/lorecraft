@@ -197,24 +197,28 @@ class Database:
         self._model: WorkspaceModel | None = None
         # `None` until the first `is_in_scope()` call, as `_model` is until the first `model()` call.
         self._scope_index: ScopeIndex | None = None
+        # The input queries' caches.
         self._texts: dict[DocumentRef, DocumentText | Undecodable] = {}
+        self._skill_texts: dict[SkillRef, SkillText | Undecodable] = {}
+        self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
+        self._skill_resource_texts: dict[SkillResourceRef, SkillResourceText | Undecodable] = {}
+        self._link_targets: dict[DocumentRef, Mapping[PurePosixPath, PathLookup]] = {}
+        self._skill_link_targets: dict[SkillRef, Mapping[PurePosixPath, PathLookup]] = {}
+        self._skill_resource_link_targets: dict[SkillResourceRef, Mapping[PurePosixPath, PathLookup]] = {}
+        # The derived queries' caches.
         self._frontmatters: dict[DocumentRef, FrontmatterNode] = {}
         self._parses: dict[DocumentRef, ParsedDocument] = {}
-        self._link_targets: dict[DocumentRef, Mapping[PurePosixPath, PathLookup]] = {}
         self._token_counts: dict[DocumentRef, int] = {}
         self._line_counts: dict[DocumentRef, int] = {}
         self._schema_problems: dict[DocumentRef, tuple[SchemaProblems, ...]] = {}
         self._outline_divergences: dict[DocumentRef, tuple[OutlineDivergenceSpec, ...]] = {}
-        self._skill_texts: dict[SkillRef, SkillText | Undecodable] = {}
         self._skill_frontmatters: dict[SkillRef, FrontmatterNode] = {}
         self._skill_parses: dict[SkillRef, ParsedDocument] = {}
-        self._skill_link_targets: dict[SkillRef, Mapping[PurePosixPath, PathLookup]] = {}
         self._skill_line_counts: dict[SkillRef, int] = {}
         self._skill_schema_problems: dict[SkillRef, tuple[SchemaProblems, ...]] = {}
-        self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
-        self._skill_resource_texts: dict[SkillResourceRef, SkillResourceText | Undecodable] = {}
         self._skill_resource_parses: dict[SkillResourceRef, ParsedDocument] = {}
-        self._skill_resource_link_targets: dict[SkillResourceRef, Mapping[PurePosixPath, PathLookup]] = {}
+
+    # Input queries: each reads the snapshot and states its own carry-over rule.
 
     def model(self) -> WorkspaceModel:
         """The workspace model the snapshot declares, loaded on the first call.
@@ -262,72 +266,6 @@ class Database:
             self._model = load_model(self._fs, named_dirs=named_dirs_of_scope(self._snapshot.scope))
         return self._model
 
-    def reject_linked_layout(self) -> None:
-        """Refuse a snapshot in which ``docs/`` or ``docs/__meta__/`` is a symlink; never cached.
-
-        Behind a linked ``docs/`` or ``docs/__meta__/`` the snapshot holds no specification, so the model has no
-        corpus, and a run over its documents would report success over nothing. Kept apart from ``model()``, which
-        also lists the skills: a caller that reads only skills has no reason to refuse a linked ``docs/``.
-
-        Raises:
-            LinkedLayoutError: If ``docs/`` is a symlink, or else if ``docs/__meta__/`` is one.
-        """
-        reject_linked_layout(self._fs)
-
-    def find_path(self, path: RootRelativePath) -> ResolvedPath | None:
-        """Where `path` leads in the snapshot, every recorded link on the way followed; never cached.
-
-        Like the IDE's lookup of a path in its virtual file system: a path handed in from outside, such as a
-        command line argument, is interpreted in the same frozen tree every check reads, not on the live disk.
-
-        Args:
-            path: The path to look up, relative to the snapshot root; it may name a directory or a file.
-
-        Returns:
-            The resolved directory or the resolved file, root-relative, or `None` when the snapshot holds
-            neither there.
-        """
-        directory = self._fs.find_dir(path)
-        if directory is not None:
-            return directory
-        return self._fs.find_file(path)
-
-    def find_file(self, path: RootRelativePath) -> ResolvedPath | None:
-        """The file `path` leads to in the snapshot, every recorded link on the way followed; never cached.
-
-        Args:
-            path: The path to look up, relative to the snapshot root; a directory leads to no file.
-
-        Returns:
-            The resolved file, root-relative, or `None` when the snapshot holds no file there: nothing, a
-            directory, or a link it did not follow.
-        """
-        return self._fs.find_file(path)
-
-    def is_in_scope(self, path: RootRelativePath) -> bool:
-        """Whether the scan lists the directory `path` sits in, as the snapshot's scope declares it.
-
-        Like the IDE's question whether a file is in the project's content, answered from the roots the snapshot
-        records it was taken of rather than from what the virtual file system holds: a path in a directory the
-        scope covers is in it even where the directory does not exist, and then whatever the path names is
-        missing. Only the links and climbed directories the snapshot recorded are read besides, to tell where
-        `path` leads. A snapshot that scanned nothing, such as one built by `Snapshot.from_tree`, has no path in
-        scope.
-
-        The answer is not cached, but what it is computed from is: the scope expanded through the recorded
-        links, a `ScopeIndex` built on the first call and asked on every later one.
-
-        Args:
-            path: The entry to ask about, relative to the snapshot root; it need not exist.
-        """
-        return self._built_scope_index().is_in_scope(path)
-
-    def _built_scope_index(self) -> ScopeIndex:
-        """The scope index `is_in_scope` and the link-target queries answer from, built on the first call."""
-        if self._scope_index is None:
-            self._scope_index = ScopeIndex(self._snapshot)
-        return self._scope_index
-
     def text(self, ref: DocumentRef) -> DocumentText | Undecodable:
         """One document's bytes decoded as UTF-8, read from the snapshot on the first call for its ref.
 
@@ -357,6 +295,185 @@ class Database:
                 source = Undecodable(ref)
             self._texts[ref] = source
         return source
+
+    def skill_text(self, ref: SkillRef) -> SkillText | Undecodable:
+        """One skill's `SKILL.md` decoded as UTF-8, read from the snapshot on the first call for its ref.
+
+        The one place a `SKILL.md`'s bytes become text: every other query about it takes the witness this returns.
+        A `SKILL.md` that is not UTF-8 is cached as `Undecodable` like any answer, so it is decoded once.
+
+        Carry-over: kept for the next revision only when the next model locates the ref at the same resolved `SKILL.md`
+        and that file's bytes did not change.
+
+        A skill that cannot be read is not cached, so each call raises the same error again.
+
+        Args:
+            ref: The skill whose `SKILL.md` is decoded; the cache key, so one ref is decoded once.
+
+        Returns:
+            The witness, or `Undecodable` when the `SKILL.md` is present but not UTF-8: such bytes are a finding
+            about the file, on the same side of the line as invalid YAML, not the failure to read it a missing file
+            is.
+
+        Raises:
+            SkillReadError: If the snapshot holds no regular file at the skill's path.
+        """
+        source = self._skill_texts.get(ref)
+        if source is None:
+            try:
+                source = SkillText(ref, self._skills.get_skill(ref).text)
+            except SkillDecodeError:
+                source = Undecodable(ref)
+            self._skill_texts[ref] = source
+        return source
+
+    def skill_resources(self, skill: SkillLocation) -> SkillResourceListing:
+        """The resources of one skill and its symlinks leading outside the repository, listed on the first call.
+
+        Each resource is named where an agent reaches it, under the skill's directory, and located at the resolved file
+        that path leads to, sorted by ref; `Repository.list_skill_resources` states which files are resources and
+        which symlinks the walk follows. Each symlink whose chain leaves the repository is named the same way, with
+        the link it leaves through, sorted by path. The walk starts at the location given, the one the model hands
+        out for the skill.
+
+        Carry-over: the listing of one skill is kept for the next revision unless one of these changed:
+
+        - An entry was added, deleted or changed kind in a directory the walk entered, or at the path a symlink it
+          met leads to, or on the way there.
+        - A symlink on any of those ways changed its target, one whose chain leaves the repository included: the
+          listing records the link such a chain leaves through, and its target.
+        - The next model locates the skill's directory at another resolved directory, its `resolves_to`. Where its
+          `SKILL.md` leads plays no part, so a retargeted `SKILL.md` symlink alone leaves the listing valid.
+
+        A change to any file's bytes leaves it valid, and so does any change the walk does not reach, whichever
+        skill it is in.
+
+        A listing that fails is not cached, so each call raises the same error again.
+
+        Args:
+            skill: Where the skill's files live, as this database's model locates it; its ref is the cache key, so one
+                skill is walked once.
+
+        Raises:
+            SkillResourcesListError: If a directory the walk enters cannot be listed.
+            SkillResourcesSymlinkResolveError: If a symlink the walk meets cannot be resolved.
+        """
+        resources = self._skill_resources.get(skill.ref)
+        if resources is None:
+            resources = self._skills.list_skill_resources(skill)
+            self._skill_resources[skill.ref] = resources
+        return resources
+
+    # Takes the location its listing issued where `text` and `skill_text` take a ref: the model locates a document
+    # or a `SKILL.md` by its ref, but only the skill's resource listing locates a resource's file.
+    def skill_resource_text(self, resource: SkillResourceLocation) -> SkillResourceText | Undecodable:
+        """One resource of a skill decoded as UTF-8, read from the snapshot on the first call for its ref.
+
+        The resource is read at the resolved file its location records, as `skill_resources` lists it, never at
+        `resource.ref.path`. The one place a resource's bytes become text: every other query about it takes the
+        witness this returns. A resource that is not UTF-8 is cached as `Undecodable` like any answer, so it is
+        decoded once.
+
+        Carry-over: kept for the next revision only when the next `skill_resources` of its skill locates the ref at
+        the same resolved file and that file's bytes did not change.
+
+        A resource that cannot be read is not cached, so each call raises the same error again.
+
+        Args:
+            resource: The resource to decode, as `skill_resources` locates it; its ref is the cache key, so one ref
+                is decoded once.
+
+        Returns:
+            The witness, or `Undecodable` when the resource is present but not UTF-8: such bytes are a finding
+            about the file, on the same side of the line as invalid YAML, not the failure to read it a missing file
+            is.
+
+        Raises:
+            SkillResourceReadError: If the snapshot holds no regular file at the resolved file the ref leads to.
+        """
+        source = self._skill_resource_texts.get(resource.ref)
+        if source is None:
+            try:
+                source = SkillResourceText(resource.ref, self._skills.get_skill_resource(resource).text)
+            except SkillResourceDecodeError:
+                source = Undecodable(resource.ref)
+            self._skill_resource_texts[resource.ref] = source
+        return source
+
+    def _built_scope_index(self) -> ScopeIndex:
+        """The scope index `is_in_scope` and the link-target queries answer from, built on the first call."""
+        if self._scope_index is None:
+            self._scope_index = ScopeIndex(self._snapshot)
+        return self._scope_index
+
+    def link_targets(self, source: DocumentText) -> Mapping[PurePosixPath, PathLookup]:
+        """What the snapshot holds at the target of each relative link of one document, found on the first call.
+
+        Each link is read from the document's own directory, as `find_link_targets` states, and looked up through the
+        snapshot's view and scope. Raises nothing.
+
+        Carry-over: kept for the next revision only when `parse(source)` is kept and every path the query looked up,
+        an absent target included, still resolves to the same place and is in the same scope state: creating a
+        missing target, deleting a present one or retargeting a symlink on the way to one must change its entry.
+
+        Args:
+            source: The file's text, the witness every per-file query takes; its ref is the cache key, so one ref is
+                looked up once.
+        """
+        targets = self._link_targets.get(source.ref)
+        if targets is None:
+            base = DocumentDirectory(source.ref.path.parent)
+            targets = find_link_targets(self.parse(source).links, base, self._fs, self._built_scope_index())
+            self._link_targets[source.ref] = targets
+        return targets
+
+    def skill_link_targets(self, source: SkillText) -> Mapping[PurePosixPath, PathLookup]:
+        """What the snapshot holds at each relative link's target in a skill's `SKILL.md`, on the first call.
+
+        Each link is read from the skill root, the skill directory where an agent reaches it, as `find_link_targets`
+        states, and looked up through the snapshot's view and scope. Raises nothing.
+
+        Carry-over: kept for the next revision only when `skill_parse(source)` is kept and every path the query
+        looked up, an absent target included, still resolves to the same place and is in the same scope state:
+        creating a missing target, deleting a present one or retargeting a symlink on the way to one must change its
+        entry.
+
+        Args:
+            source: The file's text, the witness every per-file query takes; its ref is the cache key, so one ref is
+                looked up once.
+        """
+        targets = self._skill_link_targets.get(source.ref)
+        if targets is None:
+            base = SkillRoot(source.ref.directory)
+            targets = find_link_targets(self.skill_parse(source).links, base, self._fs, self._built_scope_index())
+            self._skill_link_targets[source.ref] = targets
+        return targets
+
+    def skill_resource_link_targets(self, source: SkillResourceText) -> Mapping[PurePosixPath, PathLookup]:
+        """What the snapshot holds at each relative link's target in a resource of a skill, on the first call.
+
+        Each link is read from the root of the resource's skill, where an agent reaches it, as `find_link_targets`
+        states, and looked up through the snapshot's view and scope. Raises nothing.
+
+        Carry-over: kept for the next revision only when `skill_resource_parse(source)` is kept and every path the query
+        looked up, an absent target included, still resolves to the same place and is in the same scope state:
+        creating a missing target, deleting a present one or retargeting a symlink on the way to one must change its
+        entry.
+
+        Args:
+            source: The file's text, the witness every per-file query takes; its ref is the cache key, so one ref is
+                looked up once.
+        """
+        targets = self._skill_resource_link_targets.get(source.ref)
+        if targets is None:
+            base = SkillRoot(source.ref.skill.directory)
+            targets = find_link_targets(
+                self.skill_resource_parse(source).links, base, self._fs, self._built_scope_index()
+            )
+            self._skill_resource_link_targets[source.ref] = targets
+        return targets
+
+    # Derived queries: each reads only other queries and carries over whenever they do.
 
     def frontmatter(self, source: DocumentText) -> FrontmatterNode:
         """The frontmatter of one document, parsed from its decoded text on the first call for its ref. Raises nothing.
@@ -389,27 +506,6 @@ class Database:
             parsed = parse_document(source.text)
             self._parses[source.ref] = parsed
         return parsed
-
-    def link_targets(self, source: DocumentText) -> Mapping[PurePosixPath, PathLookup]:
-        """What the snapshot holds at the target of each relative link of one document, found on the first call.
-
-        Each link is read from the document's own directory, as `find_link_targets` states, and looked up through the
-        snapshot's view and scope. Raises nothing.
-
-        Carry-over: kept for the next revision only when `parse(source)` is kept and every path the query looked up,
-        an absent target included, still resolves to the same place and is in the same scope state: creating a
-        missing target, deleting a present one or retargeting a symlink on the way to one must change its entry.
-
-        Args:
-            source: The file's text, the witness every per-file query takes; its ref is the cache key, so one ref is
-                looked up once.
-        """
-        targets = self._link_targets.get(source.ref)
-        if targets is None:
-            base = DocumentDirectory(source.ref.path.parent)
-            targets = find_link_targets(self.parse(source).links, base, self._fs, self._built_scope_index())
-            self._link_targets[source.ref] = targets
-        return targets
 
     def tokens(self, source: DocumentText) -> int:
         """The tokens in one document's whole file, counted on the first call for its ref. Raises nothing.
@@ -563,37 +659,6 @@ class Database:
             self._outline_divergences[source.ref] = divergences
         return divergences
 
-    def skill_text(self, ref: SkillRef) -> SkillText | Undecodable:
-        """One skill's `SKILL.md` decoded as UTF-8, read from the snapshot on the first call for its ref.
-
-        The one place a `SKILL.md`'s bytes become text: every other query about it takes the witness this returns.
-        A `SKILL.md` that is not UTF-8 is cached as `Undecodable` like any answer, so it is decoded once.
-
-        Carry-over: kept for the next revision only when the next model locates the ref at the same resolved `SKILL.md`
-        and that file's bytes did not change.
-
-        A skill that cannot be read is not cached, so each call raises the same error again.
-
-        Args:
-            ref: The skill whose `SKILL.md` is decoded; the cache key, so one ref is decoded once.
-
-        Returns:
-            The witness, or `Undecodable` when the `SKILL.md` is present but not UTF-8: such bytes are a finding
-            about the file, on the same side of the line as invalid YAML, not the failure to read it a missing file
-            is.
-
-        Raises:
-            SkillReadError: If the snapshot holds no regular file at the skill's path.
-        """
-        source = self._skill_texts.get(ref)
-        if source is None:
-            try:
-                source = SkillText(ref, self._skills.get_skill(ref).text)
-            except SkillDecodeError:
-                source = Undecodable(ref)
-            self._skill_texts[ref] = source
-        return source
-
     def skill_frontmatter(self, source: SkillText) -> FrontmatterNode:
         """The frontmatter of one skill's `SKILL.md`, parsed on the first call for its ref. Raises nothing.
 
@@ -625,28 +690,6 @@ class Database:
             parsed = parse_document(source.text)
             self._skill_parses[source.ref] = parsed
         return parsed
-
-    def skill_link_targets(self, source: SkillText) -> Mapping[PurePosixPath, PathLookup]:
-        """What the snapshot holds at each relative link's target in a skill's `SKILL.md`, on the first call.
-
-        Each link is read from the skill root, the skill directory where an agent reaches it, as `find_link_targets`
-        states, and looked up through the snapshot's view and scope. Raises nothing.
-
-        Carry-over: kept for the next revision only when `skill_parse(source)` is kept and every path the query
-        looked up, an absent target included, still resolves to the same place and is in the same scope state:
-        creating a missing target, deleting a present one or retargeting a symlink on the way to one must change its
-        entry.
-
-        Args:
-            source: The file's text, the witness every per-file query takes; its ref is the cache key, so one ref is
-                looked up once.
-        """
-        targets = self._skill_link_targets.get(source.ref)
-        if targets is None:
-            base = SkillRoot(source.ref.directory)
-            targets = find_link_targets(self.skill_parse(source).links, base, self._fs, self._built_scope_index())
-            self._skill_link_targets[source.ref] = targets
-        return targets
 
     def skill_lines(self, source: SkillText) -> int:
         """The lines in one skill's whole `SKILL.md`, counted on the first call for its ref. Raises nothing.
@@ -688,79 +731,6 @@ class Database:
             self._skill_schema_problems[source.ref] = found
         return found
 
-    def skill_resources(self, skill: SkillLocation) -> SkillResourceListing:
-        """The resources of one skill and its symlinks leading outside the repository, listed on the first call.
-
-        Each resource is named where an agent reaches it, under the skill's directory, and located at the resolved file
-        that path leads to, sorted by ref; `Repository.list_skill_resources` states which files are resources and
-        which symlinks the walk follows. Each symlink whose chain leaves the repository is named the same way, with
-        the link it leaves through, sorted by path. The walk starts at the location given, the one the model hands
-        out for the skill.
-
-        Carry-over: the listing of one skill is kept for the next revision unless one of these changed:
-
-        - An entry was added, deleted or changed kind in a directory the walk entered, or at the path a symlink it
-          met leads to, or on the way there.
-        - A symlink on any of those ways changed its target, one whose chain leaves the repository included: the
-          listing records the link such a chain leaves through, and its target.
-        - The next model locates the skill's directory at another resolved directory, its `resolves_to`. Where its
-          `SKILL.md` leads plays no part, so a retargeted `SKILL.md` symlink alone leaves the listing valid.
-
-        A change to any file's bytes leaves it valid, and so does any change the walk does not reach, whichever
-        skill it is in.
-
-        A listing that fails is not cached, so each call raises the same error again.
-
-        Args:
-            skill: Where the skill's files live, as this database's model locates it; its ref is the cache key, so one
-                skill is walked once.
-
-        Raises:
-            SkillResourcesListError: If a directory the walk enters cannot be listed.
-            SkillResourcesSymlinkResolveError: If a symlink the walk meets cannot be resolved.
-        """
-        resources = self._skill_resources.get(skill.ref)
-        if resources is None:
-            resources = self._skills.list_skill_resources(skill)
-            self._skill_resources[skill.ref] = resources
-        return resources
-
-    # Takes the location its listing issued where `text` and `skill_text` take a ref: the model locates a document
-    # or a `SKILL.md` by its ref, but only the skill's resource listing locates a resource's file.
-    def skill_resource_text(self, resource: SkillResourceLocation) -> SkillResourceText | Undecodable:
-        """One resource of a skill decoded as UTF-8, read from the snapshot on the first call for its ref.
-
-        The resource is read at the resolved file its location records, as `skill_resources` lists it, never at
-        `resource.ref.path`. The one place a resource's bytes become text: every other query about it takes the
-        witness this returns. A resource that is not UTF-8 is cached as `Undecodable` like any answer, so it is
-        decoded once.
-
-        Carry-over: kept for the next revision only when the next `skill_resources` of its skill locates the ref at
-        the same resolved file and that file's bytes did not change.
-
-        A resource that cannot be read is not cached, so each call raises the same error again.
-
-        Args:
-            resource: The resource to decode, as `skill_resources` locates it; its ref is the cache key, so one ref
-                is decoded once.
-
-        Returns:
-            The witness, or `Undecodable` when the resource is present but not UTF-8: such bytes are a finding
-            about the file, on the same side of the line as invalid YAML, not the failure to read it a missing file
-            is.
-
-        Raises:
-            SkillResourceReadError: If the snapshot holds no regular file at the resolved file the ref leads to.
-        """
-        source = self._skill_resource_texts.get(resource.ref)
-        if source is None:
-            try:
-                source = SkillResourceText(resource.ref, self._skills.get_skill_resource(resource).text)
-            except SkillResourceDecodeError:
-                source = Undecodable(resource.ref)
-            self._skill_resource_texts[resource.ref] = source
-        return source
-
     def skill_resource_parse(self, source: SkillResourceText) -> ParsedDocument:
         """The parse tree of one resource of a skill, parsed on the first call for its ref. Raises nothing.
 
@@ -776,26 +746,64 @@ class Database:
             self._skill_resource_parses[source.ref] = parsed
         return parsed
 
-    def skill_resource_link_targets(self, source: SkillResourceText) -> Mapping[PurePosixPath, PathLookup]:
-        """What the snapshot holds at each relative link's target in a resource of a skill, on the first call.
+    # Not queries: each is answered from the snapshot on every call and never cached.
 
-        Each link is read from the root of the resource's skill, where an agent reaches it, as `find_link_targets`
-        states, and looked up through the snapshot's view and scope. Raises nothing.
+    def reject_linked_layout(self) -> None:
+        """Refuse a snapshot in which ``docs/`` or ``docs/__meta__/`` is a symlink; never cached.
 
-        Carry-over: kept for the next revision only when `skill_resource_parse(source)` is kept and every path the query
-        looked up, an absent target included, still resolves to the same place and is in the same scope state:
-        creating a missing target, deleting a present one or retargeting a symlink on the way to one must change its
-        entry.
+        Behind a linked ``docs/`` or ``docs/__meta__/`` the snapshot holds no specification, so the model has no
+        corpus, and a run over its documents would report success over nothing. Kept apart from ``model()``, which
+        also lists the skills: a caller that reads only skills has no reason to refuse a linked ``docs/``.
+
+        Raises:
+            LinkedLayoutError: If ``docs/`` is a symlink, or else if ``docs/__meta__/`` is one.
+        """
+        reject_linked_layout(self._fs)
+
+    def find_path(self, path: RootRelativePath) -> ResolvedPath | None:
+        """Where `path` leads in the snapshot, every recorded link on the way followed; never cached.
+
+        Like the IDE's lookup of a path in its virtual file system: a path handed in from outside, such as a
+        command line argument, is interpreted in the same frozen tree every check reads, not on the live disk.
 
         Args:
-            source: The file's text, the witness every per-file query takes; its ref is the cache key, so one ref is
-                looked up once.
+            path: The path to look up, relative to the snapshot root; it may name a directory or a file.
+
+        Returns:
+            The resolved directory or the resolved file, root-relative, or `None` when the snapshot holds
+            neither there.
         """
-        targets = self._skill_resource_link_targets.get(source.ref)
-        if targets is None:
-            base = SkillRoot(source.ref.skill.directory)
-            targets = find_link_targets(
-                self.skill_resource_parse(source).links, base, self._fs, self._built_scope_index()
-            )
-            self._skill_resource_link_targets[source.ref] = targets
-        return targets
+        directory = self._fs.find_dir(path)
+        if directory is not None:
+            return directory
+        return self._fs.find_file(path)
+
+    def find_file(self, path: RootRelativePath) -> ResolvedPath | None:
+        """The file `path` leads to in the snapshot, every recorded link on the way followed; never cached.
+
+        Args:
+            path: The path to look up, relative to the snapshot root; a directory leads to no file.
+
+        Returns:
+            The resolved file, root-relative, or `None` when the snapshot holds no file there: nothing, a
+            directory, or a link it did not follow.
+        """
+        return self._fs.find_file(path)
+
+    def is_in_scope(self, path: RootRelativePath) -> bool:
+        """Whether the scan lists the directory `path` sits in, as the snapshot's scope declares it.
+
+        Like the IDE's question whether a file is in the project's content, answered from the roots the snapshot
+        records it was taken of rather than from what the virtual file system holds: a path in a directory the
+        scope covers is in it even where the directory does not exist, and then whatever the path names is
+        missing. Only the links and climbed directories the snapshot recorded are read besides, to tell where
+        `path` leads. A snapshot that scanned nothing, such as one built by `Snapshot.from_tree`, has no path in
+        scope.
+
+        The answer is not cached, but what it is computed from is: the scope expanded through the recorded
+        links, a `ScopeIndex` built on the first call and asked on every later one.
+
+        Args:
+            path: The entry to ask about, relative to the snapshot root; it need not exist.
+        """
+        return self._built_scope_index().is_in_scope(path)
