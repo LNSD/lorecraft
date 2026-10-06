@@ -127,6 +127,13 @@ diagnostic is cached and a rule's result still is not.
 carry-over rule names every path it looked up, an absent target included, since creating a missing target must
 remove its diagnostic. Nothing a rule reads is left outside a query contract.
 
+**A subject's facts are also stated as a context.** `lorecraft.project` declares, as a `Protocol` per subject kind,
+what can be asked of one decoded subject: `DocumentContext` and `SkillContext`, both extending
+`FrontmatterContext`. `lorecraft.checks` implements them over the database, bound to the decode witness: each fact
+one memoized query, each identity value read from the subject's ref or location. No rule reads a context yet: the
+inputs above are still what a rule receives. A document context is built only for a document whose corpus states a
+structure specification, since no facet governs one whose corpus does not.
+
 ### A Subject's Status Comes Before Any Rule
 
 - **Readable or undecodable.** A file is decoded once, as a query value: its text, or an undecodable marker,
@@ -251,7 +258,8 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
 | Piece | Package |
 |---|---|
 | Rule classes and removed rules, the registry, the rule groups and their rules, the input types | `lorecraft.rules` |
-| The database, decoding, building the inputs, the runner, the report types, level resolution | `lorecraft.checks` |
+| The database, decoding, building the inputs, the contexts' implementations, the runner, the report types, level resolution | `lorecraft.checks` |
+| The context protocols, what can be asked of one decoded subject | `lorecraft.project` |
 | The configuration file's dialect and its decoding, once it is designed | `lorecraft.project` |
 | Path selection, options, text and machine-readable rendering, the exit code, the rule lookup command | `lorecraft.cli` |
 
@@ -268,6 +276,7 @@ src/lorecraft/rules/
     └── tests/
 
 src/lorecraft/checks/
+├── context.py           # the database-backed contexts; their protocols are in project/context.py
 ├── database.py          # gains the decoded text, the cross-file queries and, later, the configuration
 ├── inputs.py            # how each input kind is resolved from the queries
 ├── runner.py            # replaces run.py's four run functions
