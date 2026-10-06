@@ -8,15 +8,16 @@ from typing import Final
 import pytest
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.schemas import InvalidValueProblem, WrongTypeProblem
-from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.inputs import (
+from lorecraft.project.schemas import (
     AgentSkillsSchema,
+    InvalidValueProblem,
     LocatedProblem,
     SchemaProblems,
-    SchemaProblemsInput,
     StructureSpecSchema,
+    WrongTypeProblem,
 )
+from lorecraft.project.syntax import LineNumber
+from lorecraft.rules.inputs import SchemaProblemsInput
 from lorecraft.rules.location import Elsewhere, Note
 
 from ..wrong_type import WrongType

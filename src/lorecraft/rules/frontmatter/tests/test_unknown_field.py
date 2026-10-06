@@ -8,15 +8,15 @@ from typing import Final
 import pytest
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.schemas import UnknownFieldProblem
-from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.inputs import (
+from lorecraft.project.schemas import (
     AgentSkillsSchema,
     LocatedProblem,
     SchemaProblems,
-    SchemaProblemsInput,
     StructureSpecSchema,
+    UnknownFieldProblem,
 )
+from lorecraft.project.syntax import LineNumber
+from lorecraft.rules.inputs import SchemaProblemsInput
 from lorecraft.rules.location import Elsewhere, Help, Note
 
 from ..unknown_field import UnknownField
