@@ -25,8 +25,8 @@ and what it asserts by [tests-assertions](tests-assertions.md). This document ow
 `it` lives in `tests/it/`. `e2e` lives in `tests/e2e/` and covers
 the command line only, because it tests the product rather than any one layer; its shared helpers sit in
 `tests/lib/`, imported as `lib` and never built or installed; [tests-e2e](tests-e2e.md) owns how an
-`e2e` test uses them. The library has no `e2e` tier: its end-to-end
-surface is its public API, which its `it` tier already exercises.
+`e2e` test uses them, and `lib.snapshot` serves every tier. The library has no `e2e` tier: its
+end-to-end surface is its public API, which its `it` tier already exercises.
 
 **Three tiers, selected by `just test-unit`, `just test-it` and `just test-e2e`.** A test that needs a
 network service has no directory to live in yet, and putting it in one of these does not give it one — it
