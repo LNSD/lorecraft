@@ -10,20 +10,24 @@ scope: "pkg:lorecraft.rules"
 ## Responsibility
 
 Declare the rules a subject is judged by. It changes when a rule is added, changed or removed, or when what a
-declaration states changes: a rule's identity, the places its occurrences point at, or the input it reads.
+declaration states changes: a rule's identity, the places its occurrences point at, or the context or input it
+reads.
 
 ## Role
 
-**Analysis**, the judging half of it. A rule is a pure judgment of one input value, and this package holds the
-rules with everything that makes one a rule: its identity, the class that declares and checks it, and the
-registry that lists them all. The database that builds the inputs and the run that hands them over sit above it,
-in `lorecraft.checks`, so a rule has nothing to read but the input it is handed.
+**Analysis**, the judging half of it. A rule is a pure judgment of one subject, read through its context, or of one
+input value for a rule not yet moved onto a context, and this package holds the rules with everything that makes one
+a rule: its identity, the class that declares and checks it, and the registry that lists them all. The database that
+answers a context or builds an input, and the run that hands it over, sit above it in `lorecraft.checks`; the context
+is a `Protocol` of `lorecraft.project`, so a rule has nothing to read but what it is handed.
 
 ## Belongs Here
 
 - A value that identifies a rule: a release, a group's prefix and title, a code, a name, an alias code, a level,
   and the severity an engine condition fixes.
-- A rule class, the base class an input kind gives it, and the places its occurrences may point at.
+- A rule class, the base class its subject kind or its input kind gives it, and the places its occurrences may point
+  at. A subject kind's base takes the subject's context; a document's also requires the rule to declare the facet
+  it reads, from the facets this package states.
 - A removed rule, the decorator that registers a declaration, and the registry, with every check it makes on a
   declaration as the package loads.
 - An engine condition: what the engine reports about a subject before any rule runs, such as a file that does
@@ -52,7 +56,7 @@ in `lorecraft.checks`, so a rule has nothing to read but the input it is handed.
 
 - A rule never imports `lorecraft.checks`. The layers contract puts this package below it, so the database, a
   query and the run are out of a rule's reach by import, not by review.
-- A rule reads the one input its class fixes and nothing else, and performs no I/O.
+- A rule reads the one context or input its base fixes and nothing else, and performs no I/O.
 - An occurrence names no subject. It points at a line of the subject or at the subject itself, and the run that
   checked the subject supplies the path.
 - The registry is package data: it reads no workspace and is not a query, and it holds this package's rules,
@@ -178,7 +182,8 @@ class TooManyWords(HeadingsRule):
 Before committing code, verify:
 
 - [ ] Nothing added to `lorecraft.rules` reads the disk, a view, a query or a configuration
-- [ ] A new rule's `check` takes the one input its base class fixes and returns occurrences that name no subject
+- [ ] A new rule's `check` takes the one context or input its base class fixes and returns occurrences that name no
+      subject; a rule over a document declares its facet in `GOVERNED_BY`
 - [ ] A new rule is declared with `@rule` in its own module, in its group's subpackage, and listed nowhere else
 - [ ] Decoding, building an input, running the rules, applying a level and rendering stay out of the package
 - [ ] A new rule's name states the condition it reports, and its class and module spell that name

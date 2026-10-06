@@ -6,6 +6,10 @@ that govern them, in types of `lorecraft.project` and the layers below it; an in
 skill's line count, holds no specification. A rule picks its input by deriving from that input's base, and receives
 the input and nothing else. Building an input from the queries is the run's job, in `lorecraft.checks`, never this
 package's.
+
+The inputs are on their way out: a rule over a document or a skill may read its subject through a context instead,
+from the bases in `subject`. Every rule here still reads an input; later changes move them onto those bases, which
+remove this module.
 """
 
 from abc import abstractmethod

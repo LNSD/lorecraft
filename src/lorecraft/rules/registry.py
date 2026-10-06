@@ -6,9 +6,10 @@ tests left out, and keeps the declarations whose module lies in that package out
 that walks a package of sample rules sees only those, and the package's own registry never sees them.
 
 The registry is package data: it reads no workspace and is not a query. A rejection, a code, a name or an alias
-code bound twice, a prefix given two groups, a class attribute left unbound, a rule or a condition still abstract,
-or a code in a group its kind may not use, is a defect in `lorecraft.rules`, never in the user's repository, so it
-raises a `RuntimeError` whose traceback locates the declaration.
+code bound twice, a prefix given two groups, a class attribute left unbound, a rule over a document that declares
+no facet among them, a rule or a condition still abstract, or a code in a group its kind may not use, is a defect in
+`lorecraft.rules`, never in the user's repository, so it raises a `RuntimeError` whose traceback locates the
+declaration.
 
 A command's composition root builds the registry with `Registry.load(rules)`, once per invocation, and hands it to
 what reads it; nothing below the composition root imports a registry or keeps one. A long-lived process builds it
@@ -27,12 +28,16 @@ from typing import Final, Self, assert_never
 
 from .declaration import EngineCondition, RemovedRule, Rule, RuleDeclaration, RuleGroup, RuleName, declared_rules
 from .engine.__ruleset__ import GROUP_ID as ENGINE_GROUP_ID
+from .subject import DocumentRule
 
 _UNIT_TESTS: Final[str] = 'tests'
 """The name of the subpackage beside a package's modules that holds their unit tests, fixed by the unit tier."""
 
 _RULE_ATTRIBUTES: Final[tuple[str, ...]] = ('CODE', 'NAME', 'LEVEL', 'SINCE')
 """The class attributes a rule's class must bind; `ALIASES` has a default, so it is not among them."""
+
+_DOCUMENT_RULE_ATTRIBUTES: Final[tuple[str, ...]] = ('GOVERNED_BY',)
+"""The class attributes a rule over a document must bind besides a rule's: the facet it reads."""
 
 _REMOVED_RULE_ATTRIBUTES: Final[tuple[str, ...]] = ('CODE', 'NAME', 'REMOVED_IN', 'REPLACED_BY')
 """The class attributes a removed rule must bind; `REPLACED_BY` is bound to None when nothing replaced it."""
@@ -219,7 +224,8 @@ class Registry:
             declarations: The rules to hold, in any order.
 
         Raises:
-            UnsetRuleAttributeError: If a declaration leaves a class attribute its kind requires unbound.
+            UnsetRuleAttributeError: If a declaration leaves a class attribute its kind requires unbound, the facet
+                of a rule over a document among them.
             AbstractRuleError: If a rule class or an engine condition is still abstract.
             RuleInEngineGroupError: If a rule's or a removed rule's code is in the engine's group.
             ConditionOutsideEngineGroupError: If an engine condition's code is outside the engine's group.
@@ -232,6 +238,10 @@ class Registry:
 
         for rule_class in rule_classes:
             _require_attributes(rule_class, _RULE_ATTRIBUTES)
+        # The runner gates a rule over a document on the facet it declares, so one that declares none would never run.
+        for rule_class in rule_classes:
+            if issubclass(rule_class, DocumentRule):
+                _require_attributes(rule_class, _DOCUMENT_RULE_ATTRIBUTES)
         for removed_rule in removed_rules:
             _require_attributes(removed_rule, _REMOVED_RULE_ATTRIBUTES)
         for condition in conditions:
@@ -298,7 +308,8 @@ class Registry:
             package: The rules package, walked with its subpackages.
 
         Raises:
-            UnsetRuleAttributeError: If a declaration leaves a class attribute its kind requires unbound.
+            UnsetRuleAttributeError: If a declaration leaves a class attribute its kind requires unbound, the facet
+                of a rule over a document among them.
             AbstractRuleError: If a rule class or an engine condition declared in the package is still abstract.
             RuleInEngineGroupError: If a rule's or a removed rule's code is in the engine's group.
             ConditionOutsideEngineGroupError: If an engine condition's code is outside the engine's group.

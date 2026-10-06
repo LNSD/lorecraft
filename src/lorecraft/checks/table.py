@@ -1,12 +1,16 @@
-"""The rule table: the rules a run enables, each with the severity it reports at, grouped by the input it reads.
+"""The rule table: the rules a run enables, each with the severity it reports at, grouped by what it reads.
 
 The table is built once per run, before any subject is checked. Until a configuration sets levels, it is built
 from a registry and each rule's default level: a rule at `warn` reports warnings, one at `deny` errors, and one at
-`allow` is not in the table, so it never runs and its input may never be built. Removed rules and engine conditions
-are not rules a run enables, so the table never holds one.
+`allow` is not in the table, so it never runs and what it reads may never be computed. Removed rules and engine
+conditions are not rules a run enables, so the table never holds one.
 
-Each partition pairs every rule in it with its severity, as an `EnabledRule`, so a rule the runner finds in a
-partition always has a severity to report at.
+A rule is partitioned by its base: the rules over a document, which the runner runs facet by facet, and the rules
+over a skill. Each partition pairs every rule in it with its severity, as an `EnabledRule`, so a rule the runner finds
+in a partition always has a severity to report at.
+
+Every shipped rule still reads an input, so the table also keeps one partition per input kind; later changes move
+those rules onto a context and remove these partitions.
 """
 
 from collections.abc import Mapping
@@ -23,16 +27,17 @@ from lorecraft.rules.inputs import (
     TokenCountRule,
 )
 from lorecraft.rules.registry import Registry
+from lorecraft.rules.subject import DocumentRule, Facet, SkillRule
 
 
 class UnknownRuleInputError(TypeError):
-    """A rule derives from no input base the table knows, so no partition holds it and it would never run.
+    """A rule derives from no base the table knows, so no partition holds it and it would never run.
 
-    The rule hierarchy is open, so no type closes the set of input bases a rule may derive from; the table
-    rejects such a rule as it is built, before any subject.
+    The rule hierarchy is open, so no type closes the set of bases a rule may derive from; the table rejects such a
+    rule as it is built, before any subject.
 
     Attributes:
-        rule: The rule that reads no input the table partitions by.
+        rule: The rule that derives from no base the table partitions by.
     """
 
     rule: type[Rule]
@@ -47,7 +52,7 @@ class EnabledRule[R: Rule]:
     """A rule a run enables, with the severity its occurrences are reported at.
 
     Attributes:
-        rule: The rule class, whose `check` the runner calls on the input its partition reads.
+        rule: The rule class, whose `check` the runner calls on the context or the input its partition reads.
         severity: The severity each of the rule's occurrences is reported at.
     """
 
@@ -56,8 +61,12 @@ class EnabledRule[R: Rule]:
 
 
 class RuleTable:
-    """The enabled rules of one run, each with its severity, partitioned by input kind in code order."""
+    """The enabled rules of one run, each with its severity, partitioned by base in code order."""
 
+    _document_rules: tuple[EnabledRule[DocumentRule], ...]
+    _document_rules_by_facet: dict[Facet, tuple[EnabledRule[DocumentRule], ...]]
+    _skill_rules: tuple[EnabledRule[SkillRule], ...]
+    # One partition per input kind, until the rules that read one read a context.
     _token_count_rules: tuple[EnabledRule[TokenCountRule], ...]
     _line_count_rules: tuple[EnabledRule[LineCountRule], ...]
     _frontmatter_block_rules: tuple[EnabledRule[FrontmatterBlockRule], ...]
@@ -66,15 +75,17 @@ class RuleTable:
     _outline_divergence_rules: tuple[EnabledRule[OutlineDivergenceRule], ...]
 
     def __init__(self, severities: Mapping[type[Rule], Severity]) -> None:
-        """Hold the enabled rules, and partition them by the input each reads.
+        """Hold the enabled rules, and partition them by the base each derives from.
 
         Args:
             severities: Each enabled rule, mapped to the severity its occurrences are reported at; a rule absent
                 from it does not run.
 
         Raises:
-            UnknownRuleInputError: If a rule derives from no input base the table partitions by.
+            UnknownRuleInputError: If a rule derives from no base the table partitions by.
         """
+        document_rules: list[EnabledRule[DocumentRule]] = []
+        skill_rules: list[EnabledRule[SkillRule]] = []
         token_count_rules: list[EnabledRule[TokenCountRule]] = []
         line_count_rules: list[EnabledRule[LineCountRule]] = []
         frontmatter_block_rules: list[EnabledRule[FrontmatterBlockRule]] = []
@@ -82,9 +93,13 @@ class RuleTable:
         headings_rules: list[EnabledRule[HeadingsRule]] = []
         outline_divergence_rules: list[EnabledRule[OutlineDivergenceRule]] = []
         for rule_class in sorted(severities, key=_printed_code):
-            # The rule hierarchy is open, so the chain cannot close with `assert_never`: a rule over an input with
-            # no partition here is a defect, raised before any subject is checked.
-            if issubclass(rule_class, TokenCountRule):
+            # The rule hierarchy is open, so the chain cannot close with `assert_never`: a rule over a base with no
+            # partition here is a defect, raised before any subject is checked.
+            if issubclass(rule_class, DocumentRule):
+                document_rules.append(EnabledRule(rule_class, severities[rule_class]))
+            elif issubclass(rule_class, SkillRule):
+                skill_rules.append(EnabledRule(rule_class, severities[rule_class]))
+            elif issubclass(rule_class, TokenCountRule):
                 token_count_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, LineCountRule):
                 line_count_rules.append(EnabledRule(rule_class, severities[rule_class]))
@@ -98,6 +113,13 @@ class RuleTable:
                 outline_divergence_rules.append(EnabledRule(rule_class, severities[rule_class]))
             else:
                 raise UnknownRuleInputError(rule_class)
+        self._document_rules = tuple(document_rules)
+        self._document_rules_by_facet = {}
+        for facet in Facet:
+            self._document_rules_by_facet[facet] = tuple(
+                enabled for enabled in document_rules if enabled.rule.GOVERNED_BY is facet
+            )
+        self._skill_rules = tuple(skill_rules)
         self._token_count_rules = tuple(token_count_rules)
         self._line_count_rules = tuple(line_count_rules)
         self._frontmatter_block_rules = tuple(frontmatter_block_rules)
@@ -113,7 +135,7 @@ class RuleTable:
             registry: The rules the run may enable; its removed rules and engine conditions are left out.
 
         Raises:
-            UnknownRuleInputError: If an enabled rule derives from no input base the table partitions by.
+            UnknownRuleInputError: If an enabled rule derives from no base the table partitions by.
         """
         severities: dict[type[Rule], Severity] = {}
         for declaration in registry.rules:
@@ -130,6 +152,24 @@ class RuleTable:
             else:
                 assert_never(declaration)
         return cls(severities)
+
+    @property
+    def document_rules(self) -> tuple[EnabledRule[DocumentRule], ...]:
+        """Each enabled rule over a document, whatever facet it reads, in code order; empty when none is."""
+        return self._document_rules
+
+    def document_rules_governed_by(self, facet: Facet) -> tuple[EnabledRule[DocumentRule], ...]:
+        """Each enabled rule over a document that reads this facet, with its severity, in code order.
+
+        Args:
+            facet: The facet the rules declare in `GOVERNED_BY`; the result is empty when no enabled rule reads it.
+        """
+        return self._document_rules_by_facet[facet]
+
+    @property
+    def skill_rules(self) -> tuple[EnabledRule[SkillRule], ...]:
+        """Each enabled rule over a skill, with its severity, in code order; empty when none is."""
+        return self._skill_rules
 
     @property
     def token_count_rules(self) -> tuple[EnabledRule[TokenCountRule], ...]:

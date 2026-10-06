@@ -4,9 +4,10 @@ from dataclasses import dataclass
 from typing import ClassVar, Final, Self
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.context import DocumentContext
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.inputs import TokenCountInput, TokenCountRule
+from lorecraft.rules.subject import DocumentRule, Facet
 
 from ..groups import SAMPLE
 
@@ -16,7 +17,7 @@ _FIRST_LINE: Final[LineNumber] = LineNumber.from_int(1)
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class OverHalfBudget(TokenCountRule):
+class OverHalfBudget(DocumentRule):
     """A document holds more than half the tokens a budget allows.
 
     Attributes:
@@ -29,6 +30,7 @@ class OverHalfBudget(TokenCountRule):
     NAME: ClassVar[RuleName] = RuleName('over-half-budget')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('1.0.0')
+    GOVERNED_BY: ClassVar[Facet] = Facet.BUDGET
 
     spec: RootRelativePath
     token_count: int
@@ -39,14 +41,18 @@ class OverHalfBudget(TokenCountRule):
         return f'over half the budget ({self.token_count} of {self.budget})'
 
     @classmethod
-    def check(cls, subject: TokenCountInput) -> tuple[Self, ...]:
+    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
         """One occurrence for each budget the document holds more than half of.
 
         Args:
-            subject: The document's token count, with the budgets that govern it.
+            subject: The document, governed by a budget.
         """
-        return tuple(
-            cls(spec=budget.spec, line=_FIRST_LINE, token_count=subject.token_count.value, budget=budget.tokens.value)
-            for budget in subject.budgets
-            if subject.token_count.value * 2 > budget.tokens.value
-        )
+        token_count = subject.tokens().value
+        occurrences: list[Self] = []
+        for structure_spec in subject.specifications().structure_specs():
+            budget = structure_spec.tokens
+            if budget is not None and token_count * 2 > budget.value:
+                occurrences.append(
+                    cls(spec=structure_spec.path, line=_FIRST_LINE, token_count=token_count, budget=budget.value)
+                )
+        return tuple(occurrences)
