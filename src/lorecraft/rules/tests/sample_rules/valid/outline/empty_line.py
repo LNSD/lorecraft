@@ -5,8 +5,8 @@ from typing import ClassVar, Self
 
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.tests.sample_input import SampleLines, SampleLinesRule
 from lorecraft.rules.tests.sample_rules.groups import SAMPLE
+from lorecraft.rules.tests.sample_subject import SampleLines, SampleLinesRule
 
 
 @rule
