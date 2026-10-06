@@ -18,6 +18,7 @@ from typing import assert_never
 
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
+from lorecraft.project.database import Database, DocumentText, SkillText
 from lorecraft.project.schemas import (
     AnySections,
     OutlineEntry,
@@ -56,9 +57,6 @@ from lorecraft.rules.inputs import (
     TokenCountInput,
 )
 from lorecraft.vfs import ResolvedPath
-
-from .database import Database
-from .text import DocumentText, SkillText
 
 
 @dataclass(frozen=True, slots=True)

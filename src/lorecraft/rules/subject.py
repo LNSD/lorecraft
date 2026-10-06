@@ -2,8 +2,8 @@
 
 A rule picks its subject kind by deriving from that kind's base: `DocumentRule` over a document, `SkillRule` over a
 skill. The base's abstract `check` takes the subject's context, declared in `lorecraft.project`, and the rule asks it
-for the facts it reads and nothing else. The context is answered by the database in `lorecraft.checks`, so a rule
-never learns that a database exists.
+for the facts it reads and nothing else. The context is answered by the database in `lorecraft.project.database`,
+so a rule never learns that a database exists.
 
 A document is judged only for what a specification governs, so a rule over a document declares the facet it reads in
 `GOVERNED_BY`, and the runner hands it the document only when the specifications govern that facet. The package

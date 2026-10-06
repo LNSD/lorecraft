@@ -17,12 +17,12 @@ from typing import Final
 
 import pytest
 
-from lorecraft.checks import Database, DocumentText, SkillText, Undecodable
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
+from lorecraft.project.database import Database, DocumentText, SkillText, Undecodable
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import LinkedLayoutError, scope_with_named_dirs
 from lorecraft.project.skill import NamedDir, SkillLocation, SkillRef

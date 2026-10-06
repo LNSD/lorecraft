@@ -229,6 +229,14 @@ source_modules = ["lorecraft.checks", "lorecraft.rules"]
 forbidden_modules = ["jsonschema", "pydantic", "pydantic_core"]
 allow_indirect_imports = true
 
+# The database sits in `lorecraft.project`, a layer below the rules, so the layers contract alone would let a rule
+# import it. A rule reads only the context it is handed, so the database stays out of its reach by import.
+[[tool.importlinter.contracts]]
+name = "A rule reads its subject's context, never the database"
+type = "forbidden"
+source_modules = ["lorecraft.rules"]
+forbidden_modules = ["lorecraft.project.database"]
+
 # The Markdown parser is read in `project.syntax.markdown` alone, which hands the rest of the package its own frozen
 # values, so a parser upgrade changes that one module and no parser type reaches anything else.
 [[tool.importlinter.contracts]]

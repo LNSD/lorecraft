@@ -8,12 +8,12 @@ from typing import Final
 
 import pytest
 
-from lorecraft.checks import Database, DocumentText
 from lorecraft.checks.inputs import Ungoverned, build_token_count_input
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
+from lorecraft.project.database import Database, DocumentText
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.syntax import count_tokens
 from lorecraft.rules.inputs import Budget, TokenCountInput

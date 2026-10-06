@@ -34,7 +34,7 @@ process: the arguments, the working directory, standard output and the exit code
 | Code that… | Belongs in |
 |---|---|
 | Decides whether a document or a skill breaks a rule | `lorecraft.checks` |
-| Memoizes anything derived from the snapshot | `lorecraft.checks` |
+| Memoizes anything derived from the snapshot | `lorecraft.project` |
 | Parses a document, or decides which specification governs it | `lorecraft.project` |
 | Reads a file or lists a directory under the workspace root | `lorecraft.vfs` |
 

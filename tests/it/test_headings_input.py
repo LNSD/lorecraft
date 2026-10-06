@@ -10,12 +10,12 @@ from typing import Final
 
 import pytest
 
-from lorecraft.checks import Database, DocumentText
 from lorecraft.checks.inputs import Ungoverned, build_headings_input
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
+from lorecraft.project.database import Database, DocumentText
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import SectionName
 from lorecraft.project.syntax import Heading, ParsedDocument, parse_document
