@@ -1,13 +1,16 @@
 """What can be asked of one decoded subject: a context per subject kind, and whose frontmatter a subject opens with.
 
-A context is a read-only view of one document or one skill whose file decoded. Each method names one fact of the
-subject, such as its frontmatter, its parse tree or the specifications that govern it, and every type a method
-returns is this package's own or a layer below's, so the contexts import nothing from above. The contexts are
-interfaces only: nothing here computes or caches a fact. The implementations that answer them from a revision's
-memoized queries live in `lorecraft.project.database`, beside the database they read.
+A context is a read-only view of one document, one skill or one skill resource whose file decoded. Each method
+names one fact of the subject, such as its frontmatter, its parse tree or the specifications that govern it, and
+every type a method returns is this package's own or a layer below's, so the contexts import nothing from above. The
+contexts are interfaces only: nothing here computes or caches a fact. The implementations that answer them from a
+revision's memoized queries live in `lorecraft.project.database`, beside the database they read.
 
-`FrontmatterContext` holds what a document and a skill share, the frontmatter they open with; `DocumentContext` and
-`SkillContext` extend it with what each kind adds.
+Two contexts hold what several kinds share. `MarkdownContext` holds what any one Markdown file has, its parse tree;
+`DocumentContext`, `SkillContext` and `SkillResourceContext` all extend it, a skill being its `SKILL.md`.
+`FrontmatterContext` holds the frontmatter a document and a skill open with, and `DocumentContext` and
+`SkillContext` extend it too; a resource opens with no frontmatter the package governs, so `SkillResourceContext`
+does not.
 """
 
 from dataclasses import dataclass
@@ -59,6 +62,14 @@ class SkillFrontmatterOwner:
 type FrontmatterOwner = DocumentFrontmatterOwner | SkillFrontmatterOwner
 
 
+class MarkdownContext(Protocol):
+    """One decoded Markdown file: a document, a skill's `SKILL.md` or a skill's resource."""
+
+    def parse(self) -> ParsedDocument:
+        """The file's parse tree: its headings, their anchors and its links."""
+        ...
+
+
 class FrontmatterContext(Protocol):
     """The frontmatter a document or a skill opens with, and whose it is."""
 
@@ -84,15 +95,11 @@ class FrontmatterContext(Protocol):
         ...
 
 
-class DocumentContext(FrontmatterContext, Protocol):
+class DocumentContext(FrontmatterContext, MarkdownContext, Protocol):
     """One decoded document of a corpus, and the specifications that govern it."""
 
     def filename(self) -> AspectFilename:
         """The document's filename, without its extension."""
-        ...
-
-    def parse(self) -> ParsedDocument:
-        """The document's parse tree: its headings, their anchors and its links."""
         ...
 
     def tokens(self) -> UnsignedInt:
@@ -119,8 +126,12 @@ class DocumentContext(FrontmatterContext, Protocol):
         ...
 
 
-class SkillContext(FrontmatterContext, Protocol):
-    """One skill whose `SKILL.md` decoded; the package governs it, after the Agent Skills specification."""
+class SkillContext(FrontmatterContext, MarkdownContext, Protocol):
+    """One skill whose `SKILL.md` decoded; the package governs it, after the Agent Skills specification.
+
+    Its Markdown file is its `SKILL.md` alone, so its parse tree is that file's: each of its resources is a subject of
+    its own.
+    """
 
     def directory_name(self) -> str:
         """The name of the skill's directory as an agent lists it, whatever a link there leads to."""
@@ -130,10 +141,14 @@ class SkillContext(FrontmatterContext, Protocol):
         """The resolved directory the listed directory leads to when it is a link, or `None` when it is not."""
         ...
 
-    def parse(self) -> ParsedDocument:
-        """The parse tree of the skill's `SKILL.md`."""
-        ...
-
     def lines(self) -> UnsignedInt:
         """The lines in the skill's whole `SKILL.md`, frontmatter, code and blank lines included."""
         ...
+
+
+class SkillResourceContext(MarkdownContext, Protocol):
+    """One resource of a skill whose file decoded; the package governs it, after the Agent Skills specification.
+
+    A resource is a Markdown file inside the skill other than its own top-level `SKILL.md`, at any depth, named where
+    an agent reaches it. It is asked only what any Markdown file can be asked.
+    """

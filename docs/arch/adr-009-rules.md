@@ -116,10 +116,14 @@ class EmptySection(HeadingsRule):
   [adr-010-diagnostics](adr-010-diagnostics.md) states.
 - **The base class names the subject kind.** Each subject kind has one base, `DocumentRule` for a document and
   `SkillRule` for a skill, whose abstract `check` takes the subject's context, a `Protocol` of `lorecraft.project`.
-  A rule picks its subject by picking its base, and asks the context for what it reads. A rule over a document
-  declares the facet it reads in `GOVERNED_BY`, and the registry rejects one that declares none; the package governs
-  every skill, so a rule over a skill declares none. The length rules over a whole file, `LEN001` and `LEN002`, read
-  a context; the rules not yet moved still pick an input by their base, such as `HeadingsRule` above, until they are.
+  A rule over what any Markdown file has derives from `MarkdownRule`, whose `check` takes a `MarkdownContext`, and
+  judges a document, a skill's `SKILL.md` and a skill's resource alike. A rule picks its subject by picking its base,
+  and asks the context for what it reads. A rule over a document declares the facet it reads in `GOVERNED_BY`, and
+  the registry rejects one that declares none; the package governs every skill and resource, so a rule over a skill
+  declares none. A rule over a Markdown file declares none either: its base judges a document under its structure,
+  the facet under which a document has a context at all. The length rules over a whole file, `LEN001` and `LEN002`,
+  and `LINK001` read a context; the rules not yet moved still pick an input by their base, such as `HeadingsRule`
+  above, until they are.
 - **`check` returns `tuple[Self, ...]`**, so a rule can only report its own occurrence, and the type checker
   rejects one that reports another's. That needs no type parameter anywhere in the engine.
 - **The message is rendered from the fields.** The corpus, the field and the section travel as data, not as
@@ -158,7 +162,7 @@ instance is one occurrence of it.
   | `FM` | The frontmatter block and its schema |
   | `OUT` | The sections a structure specification states |
   | `LEN` | Every length limit: a document's token budget, a skill's line budget, a section's word cap |
-  | `LINK` | Links inside a skill |
+  | `LINK` | Links in any Markdown file: a document, a skill's `SKILL.md` and its resources |
   | `LAY` | The skill layout |
   | `LC` | The engine's own conditions, such as an undecodable file, and no rule |
 

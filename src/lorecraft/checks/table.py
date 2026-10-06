@@ -5,9 +5,10 @@ from a registry and each rule's default level: a rule at `warn` reports warnings
 `allow` is not in the table, so it never runs and what it reads may never be computed. Removed rules and engine
 conditions are not rules a run enables, so the table never holds one.
 
-A rule is partitioned by its base: the rules over a document, which the runner runs facet by facet, and the rules
-over a skill. Each partition pairs every rule in it with its severity, as an `EnabledRule`, so a rule the runner finds
-in a partition always has a severity to report at.
+A rule is partitioned by its base: the rules over a document, which the runner runs facet by facet, the rules over
+a skill, and the rules over a Markdown file, which the runner runs over a document, a skill and a resource alike.
+Each partition pairs every rule in it with its severity, as an `EnabledRule`, so a rule the runner finds in a
+partition always has a severity to report at.
 
 The frontmatter, outline and other length rules still read an input each, so the table also keeps one partition per
 input kind they read; later changes move those rules onto a context and remove these partitions.
@@ -25,7 +26,7 @@ from lorecraft.rules.inputs import (
     SchemaProblemsRule,
 )
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.subject import DocumentRule, Facet, SkillRule
+from lorecraft.rules.subject import DocumentRule, Facet, MarkdownRule, SkillRule
 
 
 class UnknownRuleInputError(TypeError):
@@ -64,6 +65,7 @@ class RuleTable:
     _document_rules: tuple[EnabledRule[DocumentRule], ...]
     _document_rules_by_facet: dict[Facet, tuple[EnabledRule[DocumentRule], ...]]
     _skill_rules: tuple[EnabledRule[SkillRule], ...]
+    _markdown_rules: tuple[EnabledRule[MarkdownRule], ...]
     # One partition per input kind, until the rules that read one read a context.
     _frontmatter_block_rules: tuple[EnabledRule[FrontmatterBlockRule], ...]
     _schema_problems_rules: tuple[EnabledRule[SchemaProblemsRule], ...]
@@ -82,6 +84,7 @@ class RuleTable:
         """
         document_rules: list[EnabledRule[DocumentRule]] = []
         skill_rules: list[EnabledRule[SkillRule]] = []
+        markdown_rules: list[EnabledRule[MarkdownRule]] = []
         frontmatter_block_rules: list[EnabledRule[FrontmatterBlockRule]] = []
         schema_problems_rules: list[EnabledRule[SchemaProblemsRule]] = []
         headings_rules: list[EnabledRule[HeadingsRule]] = []
@@ -93,6 +96,8 @@ class RuleTable:
                 document_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, SkillRule):
                 skill_rules.append(EnabledRule(rule_class, severities[rule_class]))
+            elif issubclass(rule_class, MarkdownRule):
+                markdown_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, FrontmatterBlockRule):
                 frontmatter_block_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, SchemaProblemsRule):
@@ -110,6 +115,7 @@ class RuleTable:
                 enabled for enabled in document_rules if enabled.rule.GOVERNED_BY is facet
             )
         self._skill_rules = tuple(skill_rules)
+        self._markdown_rules = tuple(markdown_rules)
         self._frontmatter_block_rules = tuple(frontmatter_block_rules)
         self._schema_problems_rules = tuple(schema_problems_rules)
         self._headings_rules = tuple(headings_rules)
@@ -158,6 +164,11 @@ class RuleTable:
     def skill_rules(self) -> tuple[EnabledRule[SkillRule], ...]:
         """Each enabled rule over a skill, with its severity, in code order; empty when none is."""
         return self._skill_rules
+
+    @property
+    def markdown_rules(self) -> tuple[EnabledRule[MarkdownRule], ...]:
+        """Each enabled rule over a Markdown file, with its severity, in code order; empty when none is."""
+        return self._markdown_rules
 
     @property
     def frontmatter_block_rules(self) -> tuple[EnabledRule[FrontmatterBlockRule], ...]:

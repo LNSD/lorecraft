@@ -1,9 +1,10 @@
 """The database-backed contexts, held to the protocols of `lorecraft.project` they implement.
 
-Each method of `DocumentContext` and `SkillContext` is asked through a value typed as the protocol, over a database
-opened on an in-memory snapshot, and compared with what the database's matching query returns; a fact the database
-memoizes is the very value the query keeps, so a context computes nothing of its own. The static hold of each class
-to its protocol is in `lorecraft.project.database.tests.test_context`, where the type-checking gate reaches it.
+Each method of `DocumentContext`, `SkillContext` and `SkillResourceContext` is asked through a value typed as the
+protocol, over a database opened on an in-memory snapshot, and compared with what the database's matching query
+returns; a fact the database memoizes is the very value the query keeps, so a context computes nothing of its own.
+The static hold of each class to its protocol is in `lorecraft.project.database.tests.test_context`, where the
+type-checking gate reaches it.
 """
 
 from pathlib import PurePosixPath
@@ -15,9 +16,23 @@ from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.context import DocumentContext, DocumentFrontmatterOwner, SkillContext, SkillFrontmatterOwner
+from lorecraft.project.context import (
+    DocumentContext,
+    DocumentFrontmatterOwner,
+    SkillContext,
+    SkillFrontmatterOwner,
+    SkillResourceContext,
+)
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, DatabaseDocumentContext, DatabaseSkillContext, DocumentText, SkillText
+from lorecraft.project.database import (
+    Database,
+    DatabaseDocumentContext,
+    DatabaseSkillContext,
+    DatabaseSkillResourceContext,
+    DocumentText,
+    SkillResourceText,
+    SkillText,
+)
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.skill import SkillLocation, SkillRef
 from lorecraft.project.syntax import count_lines, count_tokens
@@ -44,12 +59,22 @@ REVIEW: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/review
 REVIEW_TEXT: Final[str] = '---\nname: reviewer\n---\n# Review\n\nRead the diff.\n'
 """The `SKILL.md` of `REVIEW`: a frontmatter missing the `description` the Agent Skills specification requires."""
 
+CHECKLIST_TEXT: Final[str] = '# Checklist\n\nRead [the review](SKILL.md).\n'
+"""The text of `REVIEW`'s one resource, `references/checklist.md`: a title and a link."""
+
 
 def _snapshot() -> Snapshot:
-    """A snapshot of corpus `code`, with a `python` namespace, holding `TYPING` and the skill `REVIEW`."""
+    """A snapshot of corpus `code`, with a `python` namespace, holding `TYPING`, and `REVIEW` with one resource."""
     return Snapshot.from_tree(
         {
-            '.agents': {'skills': {'review': {'SKILL.md': REVIEW_TEXT.encode()}}},
+            '.agents': {
+                'skills': {
+                    'review': {
+                        'SKILL.md': REVIEW_TEXT.encode(),
+                        'references': {'checklist.md': CHECKLIST_TEXT.encode()},
+                    }
+                }
+            },
             'docs': {
                 '__meta__': {
                     'code.md': b'# Code\n',
@@ -107,6 +132,27 @@ def _location(database: Database) -> SkillLocation:
     location = database.model().find_skill_location(REVIEW.directory)
     assert location is not None, f'the model lists the skill {REVIEW.directory}'
     return location
+
+
+def _resource_text(database: Database) -> SkillResourceText:
+    """The witness of `REVIEW`'s one resource, as the database decodes it at the file its listing locates.
+
+    Args:
+        database: The database the resource is listed and decoded by.
+    """
+    (resource,) = database.skill_resources(_location(database)).resources
+    source = database.skill_resource_text(resource)
+    assert isinstance(source, SkillResourceText), f'{resource.ref.path} was written as UTF-8, so it decodes'
+    return source
+
+
+def _resource_context(database: Database) -> SkillResourceContext:
+    """The context of `REVIEW`'s one resource, typed as the protocol, so the type checker holds the class to it.
+
+    Args:
+        database: The database the resource is read from.
+    """
+    return DatabaseSkillResourceContext(database, _resource_text(database))
 
 
 def _skill_context(database: Database) -> SkillContext:
@@ -334,3 +380,19 @@ class TestDatabaseSkillContext:
 
         #: Then
         assert lines == UnsignedInt(count_lines(REVIEW_TEXT)), 'the lines are those the skill-lines query counts'
+
+
+@pytest.mark.it
+class TestDatabaseSkillResourceContext:
+    def test_parse_with_a_resource_returns_the_skill_resource_parse_query(self) -> None:
+        #: Given
+        database = Database(_snapshot())
+        context = _resource_context(database)
+
+        #: When
+        parsed = context.parse()
+
+        #: Then
+        assert parsed is database.skill_resource_parse(_resource_text(database)), (
+            'the parse is the one the database memoizes, not one the context parsed again'
+        )
