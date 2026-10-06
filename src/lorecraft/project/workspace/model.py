@@ -120,6 +120,17 @@ class Governance:
                 schemas.append(structure_spec.frontmatter)
         return tuple(schemas)
 
+    def outline_specs(self) -> tuple[StructureSpec, ...]:
+        """Structure specifications that state an outline, in order; `()` means ungoverned for the outline.
+
+        They are the ones among `structure_specs` that state one, so a namespace outline never governs alone either.
+        """
+        outline_specs: list[StructureSpec] = []
+        for structure_spec in self.structure_specs():
+            if structure_spec.outline:
+                outline_specs.append(structure_spec)
+        return tuple(outline_specs)
+
 
 def namespace_order_key(namespace: AspectNamespace) -> tuple[int, str]:
     """The broad-to-narrow order of a corpus's namespace specs: segment count first, then value.
@@ -396,3 +407,29 @@ class WorkspaceModel:
         if corpus is None:
             return None
         return corpus.governance(ref.filename)
+
+    def frontmatter_schemas_of(self, ref: DocumentRef) -> tuple[FrontmatterSchema, ...]:
+        """The frontmatter schemas that govern a document, in the order `Governance.frontmatter_schemas` applies them.
+
+        `()` means no frontmatter schema governs the document, one of a corpus the model does not hold included.
+
+        Args:
+            ref: Document to look up, whether or not the model lists it; only its corpus and filename are read.
+        """
+        governance = self.find_governance(ref)
+        if governance is None:
+            return ()
+        return governance.frontmatter_schemas()
+
+    def outline_specs_of(self, ref: DocumentRef) -> tuple[StructureSpec, ...]:
+        """The structure specifications that state an outline for a document, in the order they apply.
+
+        `()` means no outline governs the document, one of a corpus the model does not hold included.
+
+        Args:
+            ref: Document to look up, whether or not the model lists it; only its corpus and filename are read.
+        """
+        governance = self.find_governance(ref)
+        if governance is None:
+            return ()
+        return governance.outline_specs()

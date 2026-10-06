@@ -63,9 +63,12 @@ from a snapshot, and one that never outlives its snapshot. The layout it derives
   values. No third-party parser type leaves the package.
 - A shared analysis reads the parsed values and the specifications it is handed, never a view, and returns
   immutable values.
-- Every memoized query reads one input: one file's bytes, or the structure. A shared analysis reads one file's
-  per-file queries and the specifications the model says govern that file. A value drawn from several files is a
-  query of its own, with its own carry-over rule, which its docstring states.
+- A memoized query is an input query or a derived one. An input query reads one input from the snapshot, one
+  file's bytes or the structure, and states its own carry-over rule. A derived query reads only other queries,
+  never the snapshot, and hands them to one function of the package, so its arguments are its read set and it
+  carries over whenever they do. A shared analysis is derived: it reads one file's per-file queries and the
+  specifications the model says govern that file. A value drawn from several files is a query of its own, with its
+  own carry-over rule, which its docstring states.
 - A per-file query takes its decode query's witness, never a bare ref, is keyed by the ref, and carries over only
   when the next revision locates the ref at the same resolved file and its bytes are unchanged. Only the database
   builds a witness.
@@ -98,6 +101,8 @@ Before committing code, verify:
 - [ ] Every new read in `lorecraft.project` goes through a view
 - [ ] A new query reads one input or states its own carry-over rule in its docstring, and takes a witness, not a
       bare ref, for a file's content
+- [ ] A new derived query reads no view, only other queries, and passes what it read to one function of the
+      package
 - [ ] Nothing added caches a value derived from a snapshot outside a database
 - [ ] The model and its loader read no document's content
 - [ ] A new parse or count reads one document's text, returns an immutable value, and leaks no parser type
