@@ -34,6 +34,8 @@ way: it builds the input each rule reads from the queries, and the rules are dec
 - A check: values in, violations out.
 - A run that resolves a check's inputs and turns violations into findings.
 - Building the input a rule reads from the queries, and running the rules over a subject.
+- A context of `lorecraft.project` implemented over the database: each fact of one decoded subject answered by its
+  memoized query, each identity value read from the subject's ref or location.
 - The rule table: the rules a run enables, each with the severity it reports at, partitioned by the input each
   reads.
 - The value types a check reports in, and their plain-text form.
@@ -45,6 +47,7 @@ way: it builds the input each rule reads from the queries, and the rules are dec
 | Takes the snapshot, or chooses which documents or skills to check | `lorecraft.cli` |
 | Prints, writes JSON, or sets an exit code | `lorecraft.cli` |
 | Declares a rule, its identity or its group, or the input type a rule reads | `lorecraft.rules` |
+| Declares what a context of a subject holds | `lorecraft.project` |
 | Parses text, decodes a specification, or builds the model | `lorecraft.project` |
 | Reads the disk | `lorecraft.vfs` |
 

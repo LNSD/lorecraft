@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from typing import assert_never
 
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
+from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.schemas import (
     AnySections,
     OutlineEntry,
@@ -38,7 +39,6 @@ from lorecraft.project.syntax import (
 )
 from lorecraft.rules.inputs import (
     Budget,
-    DocumentFrontmatterOwner,
     FrontmatterBlock,
     FrontmatterBlockInput,
     FrontmatterFields,
@@ -50,7 +50,6 @@ from lorecraft.rules.inputs import (
     RepeatedKey,
     SchemaProblemsInput,
     SectionCap,
-    SkillFrontmatterOwner,
     TitleCap,
     TitleCharCap,
     TitleMismatch,

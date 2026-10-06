@@ -9,14 +9,9 @@ import pytest
 
 from lorecraft.core.path import ROOT, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.syntax import LineNumber, NonMappingFrontmatter
-from lorecraft.rules.inputs import (
-    DocumentFrontmatterOwner,
-    FrontmatterBlockInput,
-    FrontmatterFields,
-    NameField,
-    SkillFrontmatterOwner,
-)
+from lorecraft.rules.inputs import FrontmatterBlockInput, FrontmatterFields, NameField
 from lorecraft.rules.location import Elsewhere, Help, Note
 from lorecraft.vfs import ResolvedPath
 
