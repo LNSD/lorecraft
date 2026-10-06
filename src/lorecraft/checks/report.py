@@ -15,7 +15,9 @@ Each subject the runner checks, a document, a skill or a skill's resource, gets 
 report gives its diagnostics as `diagnostics`. A `CheckedSubject` decoded, and holds its diagnostics, in their output
 order however it is built, and the facets and inputs no specification governs it for. An `UndecodableSubject` did
 not, so no rule judged it: it holds only its ref, and its one diagnostic, the engine's, is built from that ref, at the
-subject's path.
+subject's path. A layout entry, one symlink of the skill layout whose chain leaves the repository, has no text to
+decode and no specification to be ungoverned by, so it gets a report of its own, a `CheckedLayoutEntry`: its path
+and its diagnostics, in their output order.
 
 This module is the rules engine's report. `reporting` beside it is the per-check pipeline's, whose `Violation` and
 `Finding` the `Diagnostic` here replaces; it stays until the command line runs the rules engine.
@@ -177,5 +179,30 @@ class UndecodableSubject:
         return (EngineDiagnostic(self.ref.path, InvalidUtf8()),)
 
 
-# What the runner reports for one subject: what the rules found in it, or that it did not decode.
-type SubjectReport = CheckedSubject | UndecodableSubject
+@dataclass(frozen=True, slots=True)
+class CheckedLayoutEntry:
+    """A layout entry the enabled rules judged: one symlink of the skill layout whose chain leaves the repository.
+
+    The entry has no text, so it is never undecodable, and the package governs the skill layout, so it is never
+    ungoverned.
+
+    Attributes:
+        path: Where an agent reaches the symlink, the path its diagnostics are reported at: a skills directory as
+            declared, an entry in one, that entry's `SKILL.md`, or a path inside a skill, under the skill's entry.
+        diagnostics: Every occurrence the rules found at the entry, in the order `diagnostic_order` sorts them into,
+            whatever order they are given in.
+    """
+
+    path: RootRelativePath
+    diagnostics: tuple[Diagnostic, ...]
+
+    def __post_init__(self) -> None:
+        """Sort the diagnostics into their output order, so a report holds them in it however it is built."""
+        # The record is frozen, and `object.__setattr__` is how a frozen dataclass sets its own field while it is
+        # being constructed; nothing can set it after.
+        object.__setattr__(self, 'diagnostics', tuple(sorted(self.diagnostics, key=diagnostic_order)))
+
+
+# What the runner reports for one subject: what the rules found in it, that it did not decode, or what they found at
+# a layout entry.
+type SubjectReport = CheckedSubject | UndecodableSubject | CheckedLayoutEntry

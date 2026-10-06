@@ -14,6 +14,7 @@ from lorecraft.rules.frontmatter.name_mismatch import NameMismatch
 from lorecraft.rules.frontmatter.non_mapping_frontmatter import NonMappingFrontmatter
 from lorecraft.rules.frontmatter.unknown_field import UnknownField
 from lorecraft.rules.frontmatter.wrong_type import WrongType
+from lorecraft.rules.layout.outside_symlink import OutsideSymlink
 from lorecraft.rules.length.title_too_long import TitleTooLong
 from lorecraft.rules.length.title_too_many_words import TitleTooManyWords
 from lorecraft.rules.length.too_many_lines import TooManyLines
@@ -394,6 +395,7 @@ class TestPackageRegistry:
             WrongType,
             InvalidValue,
             BlockConstraint,
+            OutsideSymlink,
             InvalidUtf8,
             TooManyTokens,
             TooManyLines,

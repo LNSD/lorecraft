@@ -17,6 +17,11 @@ does not.
 A Markdown file also states two facts beyond its own text, for a rule that follows its links: the directory its
 relative links are read from, a `LinkBase`, and what the snapshot holds at each link's target, a `PathLookup`. Both
 are facts of the revision, never a judgment of a link.
+
+`LayoutContext` is the one context of a subject with no text: a layout entry, one symlink of the skill layout whose
+chain leaves the repository, as the model or a skill's resource listing records it. A symlink is never decoded, so
+its context is built from that record alone, and it states where the chain leaves, a fact, never that it is a
+finding.
 """
 
 from collections.abc import Mapping
@@ -26,7 +31,7 @@ from typing import Protocol
 
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.vfs import ResolvedPath
+from lorecraft.vfs import ResolvedPath, RootExit
 
 from .aspect import AspectFilename
 from .link_target import LinkBase, PathLookup
@@ -181,3 +186,19 @@ class SkillResourceContext(SkillFileContext, Protocol):
     A resource is a Markdown file inside the skill other than its own top-level `SKILL.md`, at any depth, named where
     an agent reaches it. It is asked only what any Markdown file can be asked.
     """
+
+
+class LayoutContext(Protocol):
+    """One layout entry: a symlink an agent follows in the skill layout whose chain leaves the repository.
+
+    The entry is a skills directory as an agent declares it, an entry in a skills directory, that entry's `SKILL.md`,
+    or a path inside a skill; the run supplies the path an agent reaches it by. It has no text, so nothing about it
+    is decoded.
+    """
+
+    def leaves_at(self) -> RootExit:
+        """The link the entry's chain leaves the repository through, and that link's target, as the scan recorded it.
+
+        The link is the entry itself when it links straight out, or one on the way to it or further along its chain.
+        """
+        ...

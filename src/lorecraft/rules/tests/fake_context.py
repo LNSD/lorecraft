@@ -6,7 +6,9 @@ produce. Only what no single file states is set by hand: a document's governance
 decoded from their JSON by the real decoder, where a skill is listed and what a link there leads to, and, as a
 cross-file state, what the snapshot holds at the target of each relative link, keyed by the link's normalised relative
 path. A fake document or skill holds no link target; a test of a rule over links states them on
-`FakeDocumentMarkdownContext` or `FakeSkillResourceContext`.
+`FakeDocumentMarkdownContext` or `FakeSkillResourceContext`. A layout entry has no text for a fake to parse: where a
+symlink's chain leaves the repository is read from the link targets a scan recorded across the tree, never from one
+file, so the test states it by hand too.
 """
 
 from collections.abc import Mapping
@@ -47,7 +49,7 @@ from lorecraft.project.syntax import (
     parse_frontmatter,
 )
 from lorecraft.project.workspace import CorpusSpec, Governance, NamespaceSpec
-from lorecraft.vfs import ResolvedPath
+from lorecraft.vfs import ResolvedPath, RootExit
 
 _DEFAULT_FILENAME: Final[str] = 'setup'
 """The filename a fake document has unless a test names another."""
@@ -388,3 +390,21 @@ class FakeDocumentMarkdownContext:
     def link_targets(self) -> Mapping[PurePosixPath, PathLookup]:
         """What the snapshot holds at each link target, as the test stated it."""
         return self._link_targets
+
+
+class FakeLayoutContext:
+    """A symlink of the skill layout whose chain leaves the repository where the test states; a `LayoutContext`."""
+
+    _leaves_at: RootExit
+
+    def __init__(self, leaves_at: RootExit) -> None:
+        """Hold where the symlink's chain leaves the repository.
+
+        Args:
+            leaves_at: The link the chain leaves through, and that link's target, as a scan would record them.
+        """
+        self._leaves_at = leaves_at
+
+    def leaves_at(self) -> RootExit:
+        """Where the chain leaves the repository, as the test stated it."""
+        return self._leaves_at

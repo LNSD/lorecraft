@@ -20,14 +20,24 @@ The frontmatter, outline and other length rules still read an input each. For ea
 them reads, the input is built once from the queries, and a subject no specification governs for it records that input
 kind as ungoverned. Later changes move those rules onto a context and remove these branches.
 
-The subjects are documents, skills and skills' resources, each matched to its own function, so a subject kind
-without one is a type error. A document is handed over as its ref, and a skill as the `SkillLocation` the model hands
-out for it, since a rule over a skill may read where its directory leads. A skill is its `SKILL.md`, decoded and
-reported at that path, under its ref. A resource is a subject of its own, handed over as the `SkillResourceLocation`
-its skill's resource listing gives, since only that listing locates its file: it is decoded at the file it leads to,
-and reported under its ref, at the path an agent reaches it by. The runner never lists a skill's resources itself, so
-a skill handed over judges its `SKILL.md` alone. The command line does not run this yet, and the per-check pipelines
-in `run` serve it until then.
+The subjects are documents, skills, skills' resources and layout entries, each matched to its own function, so a
+subject kind without one is a type error. A document is handed over as its ref, and a skill as the `SkillLocation` the
+model hands out for it, since a rule over a skill may read where its directory leads. A skill is its `SKILL.md`,
+decoded and reported at that path, under its ref. A resource is a subject of its own, handed over as the
+`SkillResourceLocation` its skill's resource listing gives, since only that listing locates its file: it is decoded at
+the file it leads to, and reported under its ref, at the path an agent reaches it by. The runner never lists a skill's
+resources itself, so a skill handed over judges its `SKILL.md` alone. The command line does not run this yet, and the
+per-check pipelines in `run` serve it until then.
+
+A layout entry is one symlink of the skill layout whose chain leaves the repository, handed over as the
+`OutsideSymlink` record the model or a skill's resource listing holds for it. Whether a chain leaves the repository is
+decided there, from the link targets the scan recorded; a symlink that stays inside, or dangles inside, is no layout
+entry. The caller collects the entries its selection covers as it chooses every other subject, from two queries: the
+model's `outside_symlinks`, for a skills directory, an entry in one or an entry's `SKILL.md`, and the
+`skill_resources` listing of each skill it checks whole, for a symlink inside that skill. Each is reported at the path
+an agent reaches it by, in the order given like every subject. A symlink has no text, so it is never decoded, and the
+package governs the skill layout, so it is never ungoverned: every rule over a layout entry judges it through its
+context.
 """
 
 from collections.abc import Iterable
@@ -36,6 +46,7 @@ from typing import assert_never
 from lorecraft.project.database import (
     Database,
     DatabaseDocumentContext,
+    DatabaseLayoutContext,
     DatabaseSkillContext,
     DatabaseSkillResourceContext,
     DocumentText,
@@ -44,7 +55,7 @@ from lorecraft.project.database import (
     Undecodable,
 )
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.skill import SkillLocation, SkillResourceLocation
+from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillResourceLocation
 from lorecraft.project.workspace import Governance
 from lorecraft.rules.inputs import (
     FrontmatterBlockInput,
@@ -64,22 +75,33 @@ from .inputs import (
     build_skill_frontmatter_block_input,
     build_skill_schema_problems_input,
 )
-from .report import CheckedSubject, Coverage, Diagnostic, RuleDiagnostic, SubjectReport, UndecodableSubject
+from .report import (
+    CheckedLayoutEntry,
+    CheckedSubject,
+    Coverage,
+    Diagnostic,
+    RuleDiagnostic,
+    SubjectReport,
+    UndecodableSubject,
+)
 from .table import EnabledRule, RuleTable
 
-# A subject the runner checks: a document, by its ref, a skill, by the location the model hands out for it, or a
-# skill's resource, by the location its skill's resource listing gives. Its report holds its ref either way: each
-# location carries its subject's ref.
-type Subject = DocumentRef | SkillLocation | SkillResourceLocation
+# A subject the runner checks: a document, by its ref, a skill, by the location the model hands out for it, a skill's
+# resource, by the location its skill's resource listing gives, or a layout entry, by the record of a symlink whose
+# chain leaves the repository. A document's, a skill's and a resource's report holds its ref, which each location
+# carries; a layout entry's holds the path an agent reaches the symlink by.
+type Subject = DocumentRef | SkillLocation | SkillResourceLocation | OutsideSymlink
 
 
 def check_subjects(database: Database, subjects: Iterable[Subject], table: RuleTable) -> tuple[SubjectReport, ...]:
-    """Run the table's rules over each document, skill and resource, and report each in the order given.
+    """Run the table's rules over each document, skill, resource and layout entry, and report each in the order given.
 
     Args:
         database: The revision the subjects are read from; its model decides which specifications govern each.
-        subjects: The documents, skills and resources to check; a document in no corpus the database's model holds is
-            ungoverned for every facet and input a specification governs.
+        subjects: The documents, skills, resources and layout entries to check; a document in no corpus the
+            database's model holds is ungoverned for every facet and input a specification governs, and a layout
+            entry is a symlink whose chain leaves the repository, as the database's model or a skill's resource
+            listing records it.
         table: The rules the run enables, each with its severity.
 
     Raises:
@@ -122,6 +144,8 @@ def check_subjects(database: Database, subjects: Iterable[Subject], table: RuleT
                 reports.append(_check_skill(database, subject, table))
             case SkillResourceLocation():
                 reports.append(_check_skill_resource(database, subject, table))
+            case OutsideSymlink():
+                reports.append(_check_layout_entry(subject, table))
             case _:
                 assert_never(subject)
     return tuple(reports)
@@ -416,6 +440,25 @@ def _check_skill_resource_text(database: Database, source: SkillResourceText, ta
 
     # The package governs every resource, after the Agent Skills specification, so it is never ungoverned.
     return CheckedSubject(source.ref, diagnostics=tuple(diagnostics), ungoverned=())
+
+
+def _check_layout_entry(outside: OutsideSymlink, table: RuleTable) -> CheckedLayoutEntry:
+    """Run the enabled rules over one symlink of the skill layout whose chain leaves the repository. Raises nothing.
+
+    Args:
+        outside: The symlink, as the model or a skill's resource listing records it.
+        table: The rules the run enables.
+    """
+    diagnostics: list[Diagnostic] = []
+
+    # The symlink has no text to decode, and the package governs the skill layout, so each rule over a layout entry
+    # judges it through its context, which reads the record and asks the database nothing.
+    context = DatabaseLayoutContext(outside)
+    for enabled in table.layout_rules:
+        for occurrence in enabled.rule.check(context):
+            diagnostics.append(RuleDiagnostic(outside.path, occurrence, enabled.severity))
+
+    return CheckedLayoutEntry(outside.path, diagnostics=tuple(diagnostics))
 
 
 def _find_document_context(database: Database, source: DocumentText) -> DatabaseDocumentContext | None:
