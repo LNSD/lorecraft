@@ -29,13 +29,13 @@ from ..declaration import (
     declared_rules,
 )
 from ..location import Here, WholeSubject
-from .sample_input import SampleEntry, SampleLines
 from .sample_rules.groups import SAMPLE
 from .sample_rules.rendered_message.long_line import LongLine
 from .sample_rules.token_count.sample_condition import SampleCondition
 from .sample_rules.valid.retired import TabIndent
 from .sample_rules.valid.trailing_space import TrailingSpace
 from .sample_rules.valid.uppercase_entry import UppercaseEntry
+from .sample_subject import SampleEntry, SampleLines
 
 
 @pytest.mark.unit

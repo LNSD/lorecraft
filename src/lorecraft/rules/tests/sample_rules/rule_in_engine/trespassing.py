@@ -5,7 +5,7 @@ from typing import ClassVar, Self
 
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.engine.__ruleset__ import GROUP_ID
-from lorecraft.rules.tests.sample_input import SampleLines, SampleLinesRule
+from lorecraft.rules.tests.sample_subject import SampleLines, SampleLinesRule
 
 
 @rule
