@@ -19,9 +19,9 @@ a rule over the frontmatter or a Markdown file judges a skill whatever its facet
 A symlink has no lines, so the base derives from `LayoutRule` rather than `ContentRule`, and an occurrence points at
 the entry itself. The package governs the skill layout, so a rule over it declares no facet either.
 
-The length rules, `LEN001` to `LEN005`, the frontmatter rules, `FM001` to `FM010`, the link rules from `MarkdownRule`
-and `SkillFileRule`, and `LAY001` from `LayoutEntryRule` derive from these bases. Until every group reads a context,
-the outline rules still read the inputs of `inputs`.
+Every rule derives from one of these bases: the length rules, `LEN001` to `LEN005`, and the outline rules, `OUT001` to
+`OUT009`, from `DocumentRule` or `SkillRule`, the frontmatter rules, `FM001` to `FM010`, from `FrontmatterRule`, the
+link rules from `MarkdownRule` and `SkillFileRule`, and `LAY001` from `LayoutEntryRule`.
 """
 
 from abc import abstractmethod

@@ -42,7 +42,7 @@ from lorecraft.rules.tests.sample_rules.token_count.empty_document import EmptyD
 from lorecraft.rules.tests.sample_rules.token_count.over_half_budget import OverHalfBudget
 from lorecraft.rules.tests.sample_rules.valid.uppercase_entry import UppercaseEntry
 
-from ..table import EnabledRule, RuleTable, UnknownRuleInputError
+from ..table import EnabledRule, RuleTable, UnknownRuleBaseError
 
 
 @pytest.fixture(scope='module')
@@ -100,19 +100,19 @@ class TestRuleTableFromRegistry:
         #: Then
         assert table.document_rules == (), 'a rule at allow is not in the table, so it never runs'
 
-    def test_from_registry_with_a_rule_over_no_known_input_raises_unknown_rule_input_error(self) -> None:
+    def test_from_registry_with_a_rule_over_no_known_base_raises_unknown_rule_base_error(self) -> None:
         #: Given
         # the valid sample rules derive from sample bases, which no partition of the table holds
         registry = Registry.load(valid_rules)
 
         #: When
-        with pytest.raises(UnknownRuleInputError) as exc_info:
+        with pytest.raises(UnknownRuleBaseError) as exc_info:
             RuleTable.from_registry(registry)
 
         #: Then
         assert exc_info.value.rule is UppercaseEntry, 'the error names the first enabled rule, in code order'
 
-    def test_from_registry_with_the_package_registry_enables_the_length_rules_over_a_document(self) -> None:
+    def test_from_registry_with_the_package_registry_enables_the_rules_over_a_document_in_code_order(self) -> None:
         #: Given
         registry = Registry.load(rules)
 
@@ -125,9 +125,18 @@ class TestRuleTableFromRegistry:
             EnabledRule(TooManyWords, Severity.ERROR),
             EnabledRule(TitleTooManyWords, Severity.ERROR),
             EnabledRule(TitleTooLong, Severity.ERROR),
+            EnabledRule(MissingTitle, Severity.ERROR),
+            EnabledRule(ExtraTitle, Severity.ERROR),
+            EnabledRule(TitleNotFirst, Severity.ERROR),
+            EnabledRule(EmptySection, Severity.ERROR),
+            EnabledRule(ForbiddenSection, Severity.ERROR),
+            EnabledRule(MissingSection, Severity.ERROR),
+            EnabledRule(SectionOutOfOrder, Severity.ERROR),
+            EnabledRule(UnexpectedSection, Severity.ERROR),
+            EnabledRule(InvalidTitle, Severity.ERROR),
         ), (
-            "the package's length rules over a document are enabled by default as errors, in code order, and its "
-            'engine condition is not in the table'
+            "the package's length and outline rules over a document are enabled by default as errors, in code order, "
+            'and its engine condition is not in the table'
         )
 
     def test_from_registry_with_the_package_registry_enables_the_line_budget(self) -> None:
@@ -189,7 +198,9 @@ class TestRuleTableFromRegistry:
             EnabledRule(BlockConstraint, Severity.ERROR),
         ), "the package's frontmatter rules are enabled by default at their own level, in code order"
 
-    def test_from_registry_with_the_package_registry_enables_the_headings_rules(self) -> None:
+    def test_from_registry_with_the_package_registry_runs_the_rules_over_the_headings_under_the_structure_facet(
+        self,
+    ) -> None:
         #: Given
         registry = Registry.load(rules)
 
@@ -197,16 +208,21 @@ class TestRuleTableFromRegistry:
         table = RuleTable.from_registry(registry)
 
         #: Then
-        assert table.headings_rules == (
+        assert table.document_rules_governed_by(Facet.STRUCTURE) == (
+            EnabledRule(TooManyWords, Severity.ERROR),
+            EnabledRule(TitleTooManyWords, Severity.ERROR),
+            EnabledRule(TitleTooLong, Severity.ERROR),
             EnabledRule(MissingTitle, Severity.ERROR),
             EnabledRule(ExtraTitle, Severity.ERROR),
             EnabledRule(TitleNotFirst, Severity.ERROR),
             EnabledRule(EmptySection, Severity.ERROR),
             EnabledRule(ForbiddenSection, Severity.ERROR),
             EnabledRule(InvalidTitle, Severity.ERROR),
-        ), "the package's headings rules are enabled by default as errors, in code order"
+        ), "the package's rules over a document's headings judge every document a structure specification governs"
 
-    def test_from_registry_with_the_package_registry_enables_the_outline_divergence_rules(self) -> None:
+    def test_from_registry_with_the_package_registry_runs_the_outline_divergence_rules_under_the_outline_facet(
+        self,
+    ) -> None:
         #: Given
         registry = Registry.load(rules)
 
@@ -214,11 +230,11 @@ class TestRuleTableFromRegistry:
         table = RuleTable.from_registry(registry)
 
         #: Then
-        assert table.outline_divergence_rules == (
+        assert table.document_rules_governed_by(Facet.OUTLINE) == (
             EnabledRule(MissingSection, Severity.ERROR),
             EnabledRule(SectionOutOfOrder, Severity.ERROR),
             EnabledRule(UnexpectedSection, Severity.ERROR),
-        ), "the package's outline divergence rules are enabled by default as errors"
+        ), "the package's rules over where the sections leave their outline judge only a document an outline governs"
 
     def test_from_registry_with_the_package_registry_enables_the_layout_rules(self) -> None:
         #: Given
@@ -388,48 +404,17 @@ class TestRuleTable:
         assert table.document_rules == (), 'a rule over the frontmatter is not a rule over a document'
         assert table.skill_rules == (), 'a rule over the frontmatter is not a rule over a skill'
 
-    def test_rule_table_with_no_rules_has_an_empty_headings_partition(self) -> None:
-        #: Given
-        severities: dict[type[Rule], Severity] = {}
-
-        #: When
-        table = RuleTable(severities)
-
-        #: Then
-        assert table.headings_rules == (), "no enabled rule reads a document's headings"
-
-    def test_rule_table_with_a_rule_over_the_headings_partitions_it_with_its_severity(self) -> None:
-        #: Given
-        severities: dict[type[Rule], Severity] = {MissingTitle: Severity.WARNING, TooManyTokens: Severity.ERROR}
-
-        #: When
-        table = RuleTable(severities)
-
-        #: Then
-        assert table.headings_rules == (EnabledRule(MissingTitle, Severity.WARNING),), (
-            'a rule joins the partition of the input it reads, and no other'
-        )
-
-    def test_rule_table_with_no_rules_has_an_empty_outline_divergence_partition(self) -> None:
-        #: Given
-        severities: dict[type[Rule], Severity] = {}
-
-        #: When
-        table = RuleTable(severities)
-
-        #: Then
-        assert table.outline_divergence_rules == (), 'no enabled rule reads where a document diverges from its outline'
-
-    def test_rule_table_with_a_rule_over_the_outline_divergences_partitions_it_with_its_severity(self) -> None:
+    def test_document_rules_governed_by_with_rules_over_two_facets_returns_each_under_its_own(self) -> None:
         #: Given
         severities: dict[type[Rule], Severity] = {MissingSection: Severity.WARNING, MissingTitle: Severity.ERROR}
-
-        #: When
         table = RuleTable(severities)
 
+        #: When
+        outline_rules = table.document_rules_governed_by(Facet.OUTLINE)
+
         #: Then
-        assert table.outline_divergence_rules == (EnabledRule(MissingSection, Severity.WARNING),), (
-            'a rule joins the partition of the input it reads, and no other'
+        assert outline_rules == (EnabledRule(MissingSection, Severity.WARNING),), (
+            'a rule over a document is grouped under the facet it declares, and no other'
         )
 
     def test_rule_table_with_no_rules_has_an_empty_layout_partition(self) -> None:

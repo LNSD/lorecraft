@@ -35,7 +35,7 @@ from lorecraft.vfs import ResolvedPath, RootExit
 
 from .aspect import AspectFilename
 from .link_target import LinkBase, PathLookup
-from .schemas import OutlineDivergenceSpec, SchemaProblems
+from .schemas import OutlineDivergenceSpec, SchemaProblems, StructureSpec
 from .syntax import FrontmatterNode, ParsedDocument
 from .workspace import Governance
 
@@ -148,6 +148,15 @@ class DocumentContext(FrontmatterContext, MarkdownContext, Protocol):
         """The specifications that govern the document: its corpus's first, then each matching namespace's.
 
         Never absent: a document in no corpus is governed by nothing, so no context is built for it.
+        """
+        ...
+
+    def corpus_structure(self) -> StructureSpec:
+        """The structure specification of the document's corpus.
+
+        It is the one a rule reports under when no specification key states it, as the title rules do.
+
+        Never absent: a document's context exists only for a document whose corpus states one.
         """
         ...
 

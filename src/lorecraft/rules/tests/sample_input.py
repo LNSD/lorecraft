@@ -1,8 +1,8 @@
-"""Input bases for the sample rules the unit tests declare, standing in for the engine's input kinds.
+"""Subject bases for the sample rules the unit tests declare, standing in for the engine's subject kinds.
 
-A rule picks its input by deriving from its input's base, whose abstract `check` fixes the input's type. These two
-stand in for a subject with lines and a layout entry, so the tests of a rule's declaration and of the registry
-depend on no input kind of the engine's.
+A rule picks its subject by deriving from its subject kind's base, whose abstract `check` fixes what it reads. These
+two stand in for a subject with lines and a layout entry, so the tests of a rule's declaration and of the registry
+depend on no subject kind of the engine's.
 """
 
 from abc import abstractmethod

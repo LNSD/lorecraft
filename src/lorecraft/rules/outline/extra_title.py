@@ -4,17 +4,18 @@ from dataclasses import dataclass
 from typing import ClassVar, Self
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.context import DocumentContext
 from lorecraft.project.syntax import Heading, LineNumber
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.inputs import HeadingsInput, HeadingsRule
 from lorecraft.rules.location import Here, Label, Subdiagnostic
+from lorecraft.rules.subject import DocumentRule, Facet
 
 from .__ruleset__ import GROUP_ID, spec_note
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class ExtraTitle(HeadingsRule):
+class ExtraTitle(DocumentRule):
     """A document a structure specification governs carries more than one H1 title.
 
     ## What it does
@@ -82,6 +83,7 @@ class ExtraTitle(HeadingsRule):
     NAME: ClassVar[RuleName] = RuleName('extra-title')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
 
     spec: RootRelativePath
     first_line: LineNumber
@@ -99,20 +101,21 @@ class ExtraTitle(HeadingsRule):
         return (spec_note(self.spec),)
 
     @classmethod
-    def check(cls, subject: HeadingsInput) -> tuple[Self, ...]:
+    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
         """One occurrence per H1 title after the first, at its heading, under the corpus's structure specification.
 
         Args:
-            subject: The document's headings, with the corpus's structure specification that governs them.
+            subject: The document, governed by its corpus's structure specification.
         """
         titles: list[Heading] = []
-        for heading in subject.headings:
+        for heading in subject.parse().headings:
             if heading.level == 1:
                 titles.append(heading)
         if not titles:
             return ()
         first = titles[0]
+        corpus_spec = subject.corpus_structure().path
         occurrences: list[Self] = []
         for extra in titles[1:]:
-            occurrences.append(cls(spec=subject.corpus.spec, line=extra.line, first_line=first.line))
+            occurrences.append(cls(spec=corpus_spec, line=extra.line, first_line=first.line))
         return tuple(occurrences)

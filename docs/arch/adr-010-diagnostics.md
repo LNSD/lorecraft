@@ -70,7 +70,7 @@ diagnostic from those fields:
 ```python
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class MissingSection(OutlineDivergenceRule):
+class MissingSection(DocumentRule):
     """..."""
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 6)
@@ -78,7 +78,7 @@ class MissingSection(OutlineDivergenceRule):
     spec: RootRelativePath
     section: SectionName
     before: str | None                # the heading it should precede; None at the end, reported at the last line
-    description: str | None           # the specification's guidance, through the input
+    description: str | None           # the specification's guidance, through the context
     example: str | None
 
     def message(self) -> str:
@@ -170,7 +170,7 @@ class Rule:
     def children(self) -> tuple[Subdiagnostic | EntrySubdiagnostic, ...]: ...
 
 
-class ContentRule(Rule):        # the base of every input whose subject has lines
+class ContentRule(Rule):        # the base of every rule base whose subject has lines
     line: int
 
     def primary(self) -> Here:
@@ -183,7 +183,7 @@ class ContentRule(Rule):        # the base of every input whose subject has line
         return ()
 
 
-class LayoutRule(Rule):         # the base of the layout input
+class LayoutRule(Rule):         # the base of the rule base over a layout entry
     def primary(self) -> WholeSubject:
         return WholeSubject()
 
@@ -212,7 +212,7 @@ class LayoutRule(Rule):         # the base of the layout input
   it into text. A persisted or machine-read diagnostic keeps the structured values, and the text can always be
   rendered again from them.
 - **The specification authors its own guidance.** An outline entry's description and example reach the
-  occurrence through the input, and `children()` presents them; the rule writes no guidance a specification
+  occurrence through the context, and `children()` presents them; the rule writes no guidance a specification
   states.
 - **An occurrence still names no subject.** `Here` is a line of the subject, and `WholeSubject` the subject itself;
   the runner adds the path. `Elsewhere` names another file. Ranged locations, when they come, widen `Here` and

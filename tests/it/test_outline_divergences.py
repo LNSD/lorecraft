@@ -1,16 +1,15 @@
-"""The outline divergence input, and the `outline_divergences` query it is built from, for one decoded document.
+"""The `outline_divergences` query, for one decoded document.
 
-The outlines come from the model's governance and the sections from the `parse` query, so both are tested over a
-database opened on an in-memory snapshot: a document that follows its outline, one that diverges from it, one
-governed by two specifications of which one states an outline, one no outline governs, and one in no corpus. How
-each divergence is found is `match_outlines`'s, tested on its own beside it.
+The outlines come from the model's governance and the sections from the `parse` query, so the query is tested over a
+database opened on an in-memory snapshot: a document that diverges from its outline, one governed by two
+specifications of which one states an outline, one no outline governs, and one in no corpus. How each divergence is
+found is `match_outlines`'s, tested on its own beside it.
 """
 
 from typing import Final
 
 import pytest
 
-from lorecraft.checks.inputs import Ungoverned, build_outline_divergence_input
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
@@ -18,7 +17,6 @@ from lorecraft.project.database import Database, DocumentText
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import AbsentSection, DocumentEnd, OutlineDivergenceSpec, SectionName
 from lorecraft.project.syntax import LineNumber, ParsedDocument
-from lorecraft.rules.inputs import OutlineDivergenceInput
 from lorecraft.vfs import Snapshot
 
 TYPING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
@@ -99,80 +97,6 @@ def _document_text(database: Database, ref: DocumentRef) -> DocumentText:
 
 
 @pytest.mark.it
-class TestBuildOutlineDivergenceInput:
-    def test_build_outline_divergence_input_with_a_document_following_its_outline_holds_no_divergence(self) -> None:
-        #: Given
-        outline = b'{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}]}'
-        database = Database(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
-        source = _document_text(database, TYPING)
-
-        #: When
-        subject = build_outline_divergence_input(database, source)
-
-        #: Then
-        assert subject == OutlineDivergenceInput(specs=(OutlineDivergenceSpec(spec=CORPUS_SPEC, divergence=None),)), (
-            'a document whose sections match the outline, an unnamed one inside an `any` run, does not diverge'
-        )
-
-    def test_build_outline_divergence_input_with_two_specifications_holds_only_those_stating_an_outline(self) -> None:
-        #: Given
-        corpus_spec = b'{"empty_sections": "forbidden"}'
-        namespace_spec = b'{"outline": [{"section": "Rule"}, {"any": true}]}'
-        database = Database(_snapshot(corpus_spec, namespace_spec, RULE_ASIDE_CHECKLIST))
-        source = _document_text(database, TYPING)
-
-        #: When
-        subject = build_outline_divergence_input(database, source)
-
-        #: Then
-        assert subject == OutlineDivergenceInput(
-            specs=(OutlineDivergenceSpec(spec=NAMESPACE_SPEC, divergence=None),)
-        ), 'a specification that states no outline has no entry, and the one that does is matched on its own'
-
-    def test_build_outline_divergence_input_with_no_outline_returns_ungoverned(self) -> None:
-        #: Given
-        database = Database(_snapshot(b'{"empty_sections": "forbidden"}', None, RULE_ASIDE_CHECKLIST))
-        source = _document_text(database, TYPING)
-
-        #: When
-        subject = build_outline_divergence_input(database, source)
-
-        #: Then
-        assert subject == Ungoverned(), 'no structure specification states an outline, so no outline governs it'
-
-    def test_build_outline_divergence_input_with_no_outline_never_parses_the_document(self) -> None:
-        #: Given
-        database = ParsingDatabase(_snapshot(b'{"empty_sections": "forbidden"}', None, RULE_ASIDE_CHECKLIST))
-        source = _document_text(database, TYPING)
-
-        #: When
-        build_outline_divergence_input(database, source)
-
-        #: Then
-        assert database.parsed == [], 'governance is read first, so a document no outline governs is never parsed'
-
-    def test_build_outline_divergence_input_with_a_document_in_no_corpus_returns_ungoverned(self) -> None:
-        #: Given
-        # the code corpus has an outline, but `docs/blog/` has no corpus spec, so the model holds no `blog` corpus
-        snapshot = Snapshot.from_tree(
-            {
-                'docs': {
-                    '__meta__': {'code.md': b'# Code\n', 'code.structure.json': b'{"outline": [{"section": "Rule"}]}'},
-                    'blog': {'launch.md': b'# Launch\n'},
-                }
-            }
-        )
-        database = Database(snapshot)
-        source = _document_text(database, DocumentRef(CorpusName.parse('blog'), AspectFilename.parse('launch')))
-
-        #: When
-        subject = build_outline_divergence_input(database, source)
-
-        #: Then
-        assert subject == Ungoverned(), 'no specification governs a document in no corpus the model holds'
-
-
-@pytest.mark.it
 class TestOutlineDivergences:
     def test_outline_divergences_with_a_section_absent_at_the_end_holds_the_document_last_line(self) -> None:
         #: Given
@@ -209,6 +133,21 @@ class TestOutlineDivergences:
         #: Then
         assert second is first, 'the outlines are matched once per database, then shared by every rule'
         assert database.parsed == [TYPING], 'the document is parsed once, for the first call'
+
+    def test_outline_divergences_with_two_specifications_holds_only_those_stating_an_outline(self) -> None:
+        #: Given
+        corpus_spec = b'{"empty_sections": "forbidden"}'
+        namespace_spec = b'{"outline": [{"section": "Rule"}, {"any": true}]}'
+        database = Database(_snapshot(corpus_spec, namespace_spec, RULE_ASIDE_CHECKLIST))
+        source = _document_text(database, TYPING)
+
+        #: When
+        divergences = database.outline_divergences(source)
+
+        #: Then
+        assert divergences == (OutlineDivergenceSpec(spec=NAMESPACE_SPEC, divergence=None),), (
+            'a specification that states no outline has no entry, and the one that does is matched on its own'
+        )
 
     def test_outline_divergences_with_no_outline_holds_none(self) -> None:
         #: Given

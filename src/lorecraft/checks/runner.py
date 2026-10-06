@@ -16,10 +16,6 @@ every resource, so neither is ever ungoverned, and the rules over the frontmatte
 file run over its context. A rule over a skill's file judges every `SKILL.md` and every resource, and never a
 document. A context asks the database only for what a rule reads, so a fact no enabled rule reads is never computed.
 
-The outline rules still read an input each. For each input kind an enabled one of them reads, the input is built once
-from the queries, and a document no specification governs for it records that input kind as ungoverned. A later
-change moves those rules onto a context and removes these branches.
-
 The subjects are documents, skills, skills' resources and layout entries, each matched to its own function, so a
 subject kind without one is a type error. A document is handed over as its ref, and a skill as the `SkillLocation` the
 model hands out for it, since a rule over a skill may read where its directory leads. A skill is its `SKILL.md`,
@@ -57,14 +53,11 @@ from lorecraft.project.database import (
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillResourceLocation
 from lorecraft.project.workspace import Governance
-from lorecraft.rules.inputs import HeadingsInput, InputKind, OutlineDivergenceInput
 from lorecraft.rules.subject import Facet, MarkdownRule
 
-from .inputs import Ungoverned, build_headings_input, build_outline_divergence_input
 from .report import (
     CheckedLayoutEntry,
     CheckedSubject,
-    Coverage,
     Diagnostic,
     RuleDiagnostic,
     SubjectReport,
@@ -85,7 +78,7 @@ def check_subjects(database: Database, subjects: Iterable[Subject], table: RuleT
     Args:
         database: The revision the subjects are read from; its model decides which specifications govern each.
         subjects: The documents, skills, resources and layout entries to check; a document in no corpus the
-            database's model holds is ungoverned for every facet and input a specification governs, and a layout
+            database's model holds is ungoverned for every facet a specification governs, and a layout
             entry is a symlink whose chain leaves the repository, as the database's model or a skill's resource
             listing records it.
         table: The rules the run enables, each with its severity.
@@ -221,12 +214,12 @@ def _check_document_text(database: Database, source: DocumentText, table: RuleTa
         SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
     """
     diagnostics: list[Diagnostic] = []
-    ungoverned: list[Coverage] = []
+    ungoverned: list[Facet] = []
 
     # Each rule over the document or its frontmatter reads it through its context, and only when the specifications
     # govern the facet it reads; a rule over a Markdown file reads it under `Facet.STRUCTURE`, as its base states.
     # Governance is never read when no rule over a document, over the frontmatter or over a Markdown file is enabled.
-    # The ungoverned facets and input kinds are recorded in the order the runner reaches them.
+    # The ungoverned facets are recorded in the order the runner reaches them.
     if table.frontmatter_rules or table.document_rules or table.markdown_rules:
         context = _find_document_context(database, source)
         for facet in Facet:
@@ -251,35 +244,6 @@ def _check_document_text(database: Database, source: DocumentText, table: RuleTa
             for enabled in markdown_rules:
                 for occurrence in enabled.rule.check(context):
                     diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
-
-    # Transitional: the outline rules still read an input each, built in the input branches below, which go once
-    # those rules read the context.
-
-    # The document is never parsed when no enabled rule reads its headings.
-    if table.headings_rules:
-        headings_input = build_headings_input(database, source)
-        match headings_input:
-            case Ungoverned():
-                ungoverned.append(InputKind.HEADINGS)
-            case HeadingsInput():
-                for enabled in table.headings_rules:
-                    for occurrence in enabled.rule.check(headings_input):
-                        diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
-            case _:
-                assert_never(headings_input)
-
-    # The document is never matched against its outlines when no enabled rule reads where it diverges.
-    if table.outline_divergence_rules:
-        outline_divergence_input = build_outline_divergence_input(database, source)
-        match outline_divergence_input:
-            case Ungoverned():
-                ungoverned.append(InputKind.OUTLINE_DIVERGENCE)
-            case OutlineDivergenceInput():
-                for enabled in table.outline_divergence_rules:
-                    for occurrence in enabled.rule.check(outline_divergence_input):
-                        diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
-            case _:
-                assert_never(outline_divergence_input)
 
     return CheckedSubject(source.ref, diagnostics=tuple(diagnostics), ungoverned=tuple(ungoverned))
 
@@ -341,7 +305,7 @@ def _check_skill_text(
         for occurrence in enabled.rule.check(context):
             diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
 
-    # The package governs a skill for every facet and every input, so it is never ungoverned.
+    # The package governs a skill for every facet, so it is never ungoverned.
     return CheckedSubject(source.ref, diagnostics=tuple(diagnostics), ungoverned=())
 
 
@@ -369,8 +333,8 @@ def _check_skill_resource(database: Database, location: SkillResourceLocation, t
 def _check_skill_resource_text(database: Database, source: SkillResourceText, table: RuleTable) -> CheckedSubject:
     """Run the enabled rules over a decoded resource of a skill. Raises nothing.
 
-    Only a rule over a Markdown file or over a skill's file judges a resource: no rule over a document or a skill, and
-    no input, reads one.
+    Only a rule over a Markdown file or over a skill's file judges a resource: no rule over a document, over a skill or
+    over the frontmatter reads one.
 
     Args:
         database: The revision the resource is read from.

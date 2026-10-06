@@ -4,10 +4,11 @@ from dataclasses import dataclass
 from typing import ClassVar, Final, Self
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.syntax import LineNumber
+from lorecraft.project.context import DocumentContext
+from lorecraft.project.syntax import LineNumber, find_title
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.inputs import HeadingsInput, HeadingsRule
 from lorecraft.rules.location import Subdiagnostic
+from lorecraft.rules.subject import DocumentRule, Facet
 
 from .__ruleset__ import GROUP_ID, spec_note
 
@@ -17,7 +18,7 @@ _FIRST_LINE: Final[LineNumber] = LineNumber.from_int(1)
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class MissingTitle(HeadingsRule):
+class MissingTitle(DocumentRule):
     """A document a structure specification governs carries no H1 title.
 
     ## What it does
@@ -72,6 +73,7 @@ class MissingTitle(HeadingsRule):
     NAME: ClassVar[RuleName] = RuleName('missing-title')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
 
     spec: RootRelativePath
 
@@ -84,13 +86,12 @@ class MissingTitle(HeadingsRule):
         return (spec_note(self.spec),)
 
     @classmethod
-    def check(cls, subject: HeadingsInput) -> tuple[Self, ...]:
+    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
         """One occurrence, on line 1, under the corpus's structure specification, when the document has no H1 title.
 
         Args:
-            subject: The document's headings, with the corpus's structure specification that governs them.
+            subject: The document, governed by its corpus's structure specification.
         """
-        for heading in subject.headings:
-            if heading.level == 1:
-                return ()
-        return (cls(spec=subject.corpus.spec, line=_FIRST_LINE),)
+        if find_title(subject.parse().headings) is not None:
+            return ()
+        return (cls(spec=subject.corpus_structure().path, line=_FIRST_LINE),)
