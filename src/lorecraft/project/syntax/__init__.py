@@ -18,7 +18,7 @@ from .frontmatter import (
     MissingFrontmatter,
     NonMappingFrontmatter,
 )
-from .heading import Heading, HeadingLevel
+from .heading import SECTION_LEVEL, Heading, HeadingLevel
 from .lines import count_lines
 from .link import Link
 from .position import LineNumber
@@ -37,6 +37,7 @@ __all__: list[str] = [
     'NonMappingFrontmatter',
     'Heading',
     'HeadingLevel',
+    'SECTION_LEVEL',
     'Link',
     'Anchor',
     'InvalidAnchorError',

@@ -97,7 +97,7 @@ The set is closed. Each kind is one dataclass and one rule base class whose `che
 | Frontmatter block | document, skill | the frontmatter query | a frontmatter schema; for a skill, the package, after the Agent Skills specification |
 | Schema problems | document, skill | the schema-problems query, a skill's against the Agent Skills specification | a frontmatter schema |
 | Headings | document | the parse query | a structure specification |
-| Outline divergence | document | the parse and line-count queries, and each specification's outline | a structure specification that states an outline |
+| Outline divergence | document | the outline-divergences query, over the parse and line-count queries | a structure specification that states an outline |
 | Token count | document | the tokens query | a specification that sets a budget |
 | Line count | skill | the line-count query | the package |
 | Links | skill, skill resource | the parse query, the link-target query | the package |
@@ -113,10 +113,11 @@ that needs two facts, such as the headings and the frontmatter, gets one input t
 inputs. A new input is the runner's one reviewed extension point, so it is where a new cost enters and is
 reviewed.
 
-**A shared analysis is a query.** Schema validation finds several conditions in one pass. It is a pure function of
-the revision's per-file queries and the specifications that govern the subject, so it is memoized on the database
-like any other query, with its own carry-over rule: `schema_problems` and `skill_schema_problems` are kept whenever
-the frontmatter is and, for a document, the model is. The runner asks for it once per
+**A shared analysis is a query.** Schema validation and outline matching each find several conditions in one
+pass. Each is a pure function of the revision's per-file queries and the specifications that govern the subject, so
+it is memoized on the database like any other query, with its own carry-over rule: `schema_problems` and
+`skill_schema_problems` are kept whenever the frontmatter is and, for a document, the model is, and
+`outline_divergences` whenever the parse and the line count are and the model is. The runner asks for it once per
 subject, as a tuple of typed problems, and only when an enabled rule reads it and a specification governs the subject
 for it, so an ungoverned subject never pays for it. Each condition is then a rule that projects its own problem type
 into its occurrences. The analysis finds problems, never diagnostics: levels are applied after detection, so no
