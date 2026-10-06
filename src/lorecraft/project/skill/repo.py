@@ -7,11 +7,10 @@ files inside a skill are its resources, and reads a `SKILL.md` or a resource as 
 frontmatter has the shape the Agent Skills specification defines is decided above it, and so is which skills
 directories to look in, which the agents state.
 
-A skill is `<skills directory>/<skill name>/SKILL.md` and nothing else, or a directory a command names with a
-`SKILL.md` at its root. Symlinks are followed here, unlike under `docs/`: an agent's skills directory is commonly
-a link to another one, a skill entry a link to where the skill's files live, and a `SKILL.md` a link to where its
-text lives. A skill is still named where it is listed, under the resolved skills directory of an agent or under the
-directory a command names as spelled: the place a link leads to is not a skill of its own. Where each link
+A skill is `<skills directory>/<skill name>/SKILL.md` and nothing else. Symlinks are followed here, unlike under
+`docs/`: an agent's skills directory is commonly a link to another one, a skill entry a link to where the skill's
+files live, and a `SKILL.md` a link to where its text lives. A skill is still named where it is listed, under the
+resolved skills directory of an agent: the place a link leads to is not a skill of its own. Where each link
 leads is recorded beside the ref, in its location, so what a skill is named by and where its files live are both
 known. A link whose chain leaves the repository is not followed out of it, and is recorded instead as an
 `OutsideSymlink`, where an agent reaches it: the snapshot holds nothing outside the root to follow it into.
@@ -319,20 +318,6 @@ class Repository:
         # A refused lookup is the resolve's own, with the skills directory as its path: nothing to add here.
         return self._fs.find_dir(skills_dir)
 
-    def find_dir(self, path: RootRelativePath) -> ResolvedPath | None:
-        """The resolved directory a path leads to, following every symlink on the way, such as one a command names.
-
-        Args:
-            path: A root-relative path, as spelled; it may be a link or lead through one.
-
-        Returns:
-            The resolved directory, root-relative, or `None` when the path leads to no directory under the root.
-
-        Raises:
-            DirResolveError: If the operating system refuses the lookup.
-        """
-        return self._fs.find_dir(path)
-
     def find_skills_dir_exit(self, skills_dir: RootRelativePath) -> OutsideSymlink | None:
         """The skills directory as a symlink leading outside the repository, or `None` when it does not lead out.
 
@@ -372,81 +357,24 @@ class Repository:
             SkillDirListError: If a skill directory cannot be listed.
             SkillFileResolveError: If a symlinked `SKILL.md` cannot be resolved.
         """
-        return self._list_entries(skills_dir, skills_dir)
-
-    def list_named_skills(self, directory: RootRelativePath, resolved_directory: ResolvedPath) -> SkillsListing:
-        """The skills in a directory a command names: the directory itself, or each skill directly inside it.
-
-        The directory is one skill when a `SKILL.md` is at its root: a regular file, or a link to one under the
-        root. Otherwise it is read as a skills directory, as `list_skills` reads one, so each entry holding a
-        `SKILL.md` is a skill. Either way a skill is named under `directory`, as the command spelled it, and
-        located at the resolved paths it leads to; a symlink leading outside the root is recorded as `list_skills`
-        records one, under `directory` too.
-
-        A `SKILL.md` at the root whose link leaves the root still makes the directory one skill, so it lists no
-        skill and records that link. A `SKILL.md` that is a directory, or a link that dangles or loops, is none.
-
-        Args:
-            directory: The directory as the command spelled it, root-relative; it may be a link or lead through one.
-            resolved_directory: The resolved directory `directory` leads to, as `find_skills_dir` returns it.
-
-        Raises:
-            SkillsDirListError: If the directory is read as a skills directory and cannot be listed.
-            SkillEntryResolveError: If a symlinked entry cannot be resolved.
-            SkillDirListError: If the directory, or a skill directory in it, cannot be listed.
-            SkillFileResolveError: If a symlinked `SKILL.md` cannot be resolved.
-        """
-        skill_file = self._find_skill_file(resolved_directory)
-        match skill_file:
-            case RootRelativePath():
-                location = SkillLocation(
-                    SkillRef(directory), resolves_to=resolved_directory, file_resolves_to=skill_file
-                )
-                return SkillsListing(skills=(location,), outside_symlinks=())
-            case RootExit():
-                outside = OutsideSymlink(directory / SKILL_ENTRY_FILENAME, skill_file)
-                return SkillsListing(skills=(), outside_symlinks=(outside,))
-            case None:
-                return self._list_entries(directory, resolved_directory)
-            case _:
-                assert_never(skill_file)
-
-    def _list_entries(self, skills_dir: RootRelativePath, resolved_skills_dir: ResolvedPath) -> SkillsListing:
-        """The location of every skill directly inside a skills directory, and its outside links, each sorted.
-
-        The rules are `list_skills`'s. Only the names differ: each skill and each outside link is named under
-        `skills_dir`, while every entry is listed and resolved under `resolved_skills_dir`, where it really is.
-
-        Args:
-            skills_dir: The directory the skills are named under: the resolved one for an agent's skills directory,
-                and the one a command spelled for a directory it names.
-            resolved_skills_dir: The resolved directory `skills_dir` leads to, the one listed.
-
-        Raises:
-            SkillsDirListError: If the resolved skills directory cannot be listed.
-            SkillEntryResolveError: If a symlinked entry cannot be resolved.
-            SkillDirListError: If a skill directory cannot be listed.
-            SkillFileResolveError: If a symlinked `SKILL.md` cannot be resolved.
-        """
         try:
-            entries = self._fs.list_dir(resolved_skills_dir)
+            entries = self._fs.list_dir(skills_dir)
         except DirListError as exc:
-            raise SkillsDirListError(resolved_skills_dir, source=exc) from exc
+            raise SkillsDirListError(skills_dir, source=exc) from exc
 
         # The seam lists entries in name order, so the locations and the outside links come out sorted.
         locations: list[SkillLocation] = []
         outside_symlinks: list[OutsideSymlink] = []
         for entry in entries:
             directory = skills_dir / entry.name
-            resolved_entry = resolved_skills_dir / entry.name
             match entry.kind:
                 case EntryKind.DIRECTORY:
                     # The skills directory is resolved and so is this entry: nothing is left to resolve.
-                    files_directory = ResolvedPath(resolved_entry)
+                    files_directory = ResolvedPath(directory)
                 case EntryKind.SYMLINK:
-                    files_directory = self._find_entry_dir(resolved_entry)
+                    files_directory = self._find_entry_dir(directory)
                     if files_directory is None:
-                        leaves_at = self._find_entry_exit(resolved_entry)
+                        leaves_at = self._find_entry_exit(directory)
                         if leaves_at is not None:
                             outside_symlinks.append(OutsideSymlink(directory, leaves_at))
                         continue  # a symlink that leads to no directory is no skill
@@ -463,7 +391,7 @@ class Repository:
                         SkillLocation(SkillRef(directory), resolves_to=files_directory, file_resolves_to=skill_file)
                     )
                 case RootExit():
-                    # Named under the entry, as the skill would have been, not under the resolved directory.
+                    # Named under the entry, as the skill would have been, not under the directory it leads to.
                     outside_symlinks.append(OutsideSymlink(directory / SKILL_ENTRY_FILENAME, skill_file))
                 case None:
                     pass

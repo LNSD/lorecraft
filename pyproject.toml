@@ -1,8 +1,8 @@
 # The lorecraft package: one import package, `lorecraft`, in layers, each importing only those below it:
 #
 #   lorecraft.cli      the command line, console script `lorecraft`
-#   lorecraft.checks   the checks the command line runs
-#   lorecraft.rules    the rules the checks run, and how a rule is declared and identified
+#   lorecraft.checks   the rules engine the command line runs
+#   lorecraft.rules    the rules the engine runs, and how a rule is declared and identified
 #   lorecraft.project  the workspace model and the parse trees, on the filesystem boundary
 #   lorecraft.agents   the model of the coding agents: the aspects an agent has, and each agent's values
 #   lorecraft.vfs      the filesystem boundary: paths, views, scan, snapshot

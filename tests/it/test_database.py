@@ -24,15 +24,14 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, DocumentText, SkillText, Undecodable
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.layout import LinkedLayoutError, scope_with_named_dirs
-from lorecraft.project.skill import NamedDir, SkillLocation, SkillRef
+from lorecraft.project.layout import LinkedLayoutError
+from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import Frontmatter, Heading, LineNumber, count_tokens
 from lorecraft.project.syntax import Link as MarkdownLink
 from lorecraft.vfs import (
     DirectoryRecord,
     EntryRecord,
     FileRecord,
-    ResolvedPath,
     ScanRoot,
     Snapshot,
     SymlinkRecord,
@@ -148,28 +147,6 @@ class TestDatabase:
         #: Then
         assert model.documents() == (GUIDE,), 'the model is loaded from the snapshot alone'
 
-    def test_model_from_a_snapshot_whose_scope_names_a_directory_lists_its_skills(self) -> None:
-        #: Given
-        files = Snapshot.from_tree({'skills': {'review': {'SKILL.md': b''}}})
-        scope = scope_with_named_dirs((RootRelativePath.parse('skills'),))
-        snapshot = Snapshot(files.records, scope=scope)
-
-        #: When
-        model = Database(snapshot).model()
-
-        #: Then
-        assert model.find_named_dir(RootRelativePath.parse('skills')) == NamedDir(
-            RootRelativePath.parse('skills'),
-            skills=(
-                SkillLocation(
-                    SkillRef(RootRelativePath.parse('skills/review')),
-                    resolves_to=ResolvedPath(RootRelativePath.parse('skills/review')),
-                    file_resolves_to=ResolvedPath(RootRelativePath.parse('skills/review/SKILL.md')),
-                ),
-            ),
-            outside_symlinks=(),
-        ), 'the directory named is read from the scope the snapshot records, so the snapshot alone carries it'
-
     def test_model_called_twice_returns_the_first_answer(self) -> None:
         #: Given
         database = Database(_snapshot(b'---\nname: "guide"\n---\n'))
@@ -255,7 +232,7 @@ class TestDatabase:
         #: Then
         assert in_scope is True, 'every question after the first is answered from the same expanded scan roots'
 
-    def test_find_path_through_a_link_climbing_out_of_a_directory_stepped_into_returns_the_resolved_file(
+    def test_find_file_through_a_link_climbing_out_of_a_directory_stepped_into_returns_the_resolved_file(
         self,
     ) -> None:
         #: Given
@@ -263,7 +240,7 @@ class TestDatabase:
         path = RootRelativePath.parse('skills/l/SKILL.md')
 
         #: When
-        resolved = database.find_path(path)
+        resolved = database.find_file(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('a/b/SKILL.md'), 'the `..` after a/tmp is a, so skills/l is a/b'

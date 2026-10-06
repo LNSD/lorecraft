@@ -52,11 +52,11 @@ line shows exactly which field moved. Nothing the code returned escapes the comp
 thought to check cannot change unnoticed.
 
 ```python
-# ✅ Good — the expected violations read like the output, and a mismatch is diffed field by field
-assert result.violations == (
-    Violation(line=LineNumber.from_int(3), rule='frontmatter.duplicate-key', message="'name' is already written on line 2"),
-), 'a key written twice is one violation, on the line that repeats it'
-assert report.violations == (), 'a document that conforms to its specifications carries no violation'
+# ✅ Good — the expected occurrences read like the output, and a mismatch is diffed field by field
+assert occurrences == (
+    DuplicateKey(spec=SPEC, line=LineNumber.from_int(3), key='name', first_line=LineNumber.from_int(2)),
+), 'a key written twice is one occurrence, on the line that repeats it'
+assert report.diagnostics == (), 'a document that conforms to its specifications carries no diagnostic'
 ```
 
 ## 3. Project Only When the Sequence Is the Fact
@@ -69,11 +69,10 @@ A projection built for a single item, or of fields the test is not about, is a c
 the whole value ([§2](#2-compare-the-whole-value)) or unfold it ([§4](#4-one-fact-per-assertion)).
 
 ```python
-# ✅ Good — the order across several violations is the fact, and the projection states it in one literal
-assert [(violation.line.value, violation.rule) for violation in result.violations] == [
-    (1, 'structure.forbidden'),
-    (5, 'structure.empty'),
-], 'violations are ordered by line, then by rule'
+# ✅ Good — the order across several diagnostics is the fact, and the projection states it in one literal
+assert [
+    (diagnostic_order(diagnostic).location, str(diagnostic.occurrence.CODE)) for diagnostic in report.diagnostics
+] == [(1, 'OUT005'), (5, 'OUT004')], 'diagnostics are ordered by line, then by code'
 ```
 
 ## 4. One Fact Per Assertion

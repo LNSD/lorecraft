@@ -82,7 +82,7 @@ type that carries the guarantee, or the lookup to return `None` for the case
 ```python
 # ❌ Bad — the callee's ValueError copied up with a precondition only prose carries; a ref from an older
 # revision, whose corpus was deleted, ended the whole run on a case the caller had promised away
-def check_documents(db: AnalysisDb, refs: tuple[DocumentRef, ...]) -> CheckRun:
+def check_documents(db: AnalysisDb, refs: tuple[DocumentRef, ...]) -> tuple[SubjectReport, ...]:
     """Check each document against the specifications that govern it.
 
     Raises:

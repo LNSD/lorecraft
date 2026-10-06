@@ -9,7 +9,7 @@ from typing import Final
 
 import pytest
 
-from lorecraft.cli.select import select_workspace
+from lorecraft.cli.subjects import select_workspace
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName

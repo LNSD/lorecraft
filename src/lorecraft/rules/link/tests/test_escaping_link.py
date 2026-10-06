@@ -51,6 +51,18 @@ class TestEscapingLink:
             "an image's source is read from the skill root like a link's"
         )
 
+    def test_check_with_percent_encoded_dots_climbing_above_the_skill_root_reports_it(self) -> None:
+        #: Given
+        subject = FakeSkillResourceContext('[a b](%2E%2E/a%20b.md)\n')
+
+        #: When
+        occurrences = EscapingLink.check(subject)
+
+        #: Then
+        assert occurrences == (EscapingLink(line=LineNumber.from_int(1), url='%2E%2E/a%20b.md'),), (
+            'the path is percent-decoded before it is read, so encoded dots climb above the skill root as `..` does'
+        )
+
     def test_check_with_a_link_climbing_and_coming_back_inside_reports_nothing(self) -> None:
         #: Given
         subject = FakeSkillResourceContext('[the steps](references/../SKILL.md)\n')

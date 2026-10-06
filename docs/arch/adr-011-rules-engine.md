@@ -287,7 +287,7 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
   stated beside the outline and caps, so corpora can differ. The established linters read rule options from
   their settings; this design departs from them because a rule that read the configuration would break the
   invariant above.
-- **What a path selects stays in the command line**, where `cli/select.py` chooses subjects today (FR-002 to
+- **What a path selects stays in the command line**, where `cli/subjects.py` chooses subjects today (FR-002 to
   FR-007). v0.3.0 checks the whole workspace and takes no path: selection by path, the next two bullets, is
   deferred to v0.4.0 ([#442](https://github.com/LNSD/lorecraft/issues/442)). The runner receives subjects, sorted by
   path. The selection bounds what is reported, not what is read: a selected skill's link rule still reads the
