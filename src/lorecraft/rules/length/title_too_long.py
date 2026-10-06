@@ -6,7 +6,7 @@ from typing import ClassVar, Self
 from lorecraft.core.path import RootRelativePath
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.inputs import HeadingsInput, HeadingsRule
-from lorecraft.rules.location import Elsewhere, Help, Note, Subdiagnostic
+from lorecraft.rules.location import Elsewhere, Note, Subdiagnostic
 
 from .__ruleset__ import GROUP_ID
 
@@ -75,11 +75,8 @@ class TitleTooLong(HeadingsRule):
         return f'too many characters in the title ({self.char_count} > {self.cap})'
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the specification that sets the cap, and say how many characters to cut."""
-        return (
-            Note('the cap is set here', at=Elsewhere(self.spec)),
-            Help(f'cut at least {self.char_count - self.cap} characters'),
-        )
+        """Point at the specification that sets the cap."""
+        return (Note('the cap is set here', at=Elsewhere(self.spec)),)
 
     @classmethod
     def check(cls, subject: HeadingsInput) -> tuple[Self, ...]:

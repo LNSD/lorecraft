@@ -6,7 +6,7 @@ from typing import ClassVar, Self
 from lorecraft.core.path import RootRelativePath
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.inputs import HeadingsInput, HeadingsRule
-from lorecraft.rules.location import Elsewhere, Help, Note, Subdiagnostic
+from lorecraft.rules.location import Elsewhere, Note, Subdiagnostic
 
 from .__ruleset__ import GROUP_ID
 
@@ -87,11 +87,8 @@ class TooManyWords(HeadingsRule):
         return f'too many words ({self.word_count} > {self.cap})'
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the specification that sets the cap, and say how many words to cut."""
-        return (
-            Note('the cap is set here', at=Elsewhere(self.spec)),
-            Help(f'cut at least {self.word_count - self.cap} words'),
-        )
+        """Point at the specification that sets the cap."""
+        return (Note('the cap is set here', at=Elsewhere(self.spec)),)
 
     @classmethod
     def check(cls, subject: HeadingsInput) -> tuple[Self, ...]:
