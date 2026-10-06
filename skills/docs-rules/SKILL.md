@@ -2,8 +2,6 @@
 name: docs-rules
 description: Load the Lorecraft specifications that govern a document under docs/ before writing it - its frontmatter, section outline, word caps and token budget. Use before creating or editing a document under docs/, when choosing which corpus a document belongs in, or when fixing findings from lorecraft check or /docs-rules-check. Not for writing the specifications themselves; see /docs-rules-creator
 compatibility: Requires the lorecraft command, on PATH or run through uvx lorecraft, or uv run lorecraft in a uv project that declares Lorecraft as a dependency
-metadata:
-  references: docs/feat/workspace.md docs/feat/spec.md docs/feat/cli-inspect.md
 allowed-tools: Bash(lorecraft check*) Bash(lorecraft inspect*) Bash(uvx lorecraft *) Bash(uv run lorecraft *) Bash(grep *) Bash(ls docs/*)
 ---
 
@@ -14,10 +12,11 @@ specifications for each corpus in `docs/__meta__/`. This skill is the **writing 
 specifications that govern a document before you write a line, so the document is right when written rather
 than corrected afterwards. `/docs-rules-check` is the reading path that validates the result.
 
-This skill carries no rules of its own. The specifications in `docs/__meta__/` are the authority; this skill
-routes you into them. How Lorecraft lays out a repository is in [workspace](references/workspace.md), and how a
-document's path selects its specifications is in [spec](references/spec.md). Read them when a document is not
-where you expect it or not governed the way you expect.
+This skill carries no rules of its own. The specifications in `docs/__meta__/` are the authority; this skill routes
+you into them. How Lorecraft lays out a repository is in
+[workspace](https://github.com/LNSD/lorecraft/blob/main/docs/feat/workspace.md), and how a document's path selects its
+specifications is in [spec](https://github.com/LNSD/lorecraft/blob/main/docs/feat/spec.md). Read them when a document
+is not where you expect it or not governed the way you expect.
 
 ## Running lorecraft
 
@@ -34,11 +33,11 @@ lorecraft inspect --format json   # the same model; each document's governed_by 
 ```
 
 In the tree, each document is followed by the names of the specifications governing it, broad to narrow:
-`pattern-state.md [code, code-pattern]` answers to `docs/__meta__/code.md`, then `docs/__meta__/code-pattern.md`.
-The file at the same specification name that the pattern `*.structure.json` claims, the structure specification,
-is the machine-checkable half the checks run: the frontmatter under its `frontmatter` key, the sections, the word
-caps and the token budget. [cli-inspect](references/cli-inspect.md) describes the output. The tree ends with the
-agent skills and the agents that read them, which writing a document does not need.
+`pattern-state.md [code, code-pattern]` answers to `docs/__meta__/code.md`, then `docs/__meta__/code-pattern.md`. The
+file at the same specification name that the pattern `*.structure.json` claims, the structure specification, is the
+machine-checkable half the checks run: the frontmatter under its `frontmatter` key, the sections, the word caps and
+the token budget. [cli-inspect](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-inspect.md) describes the
+output. The tree ends with the agent skills and the agents that read them, which writing a document does not need.
 
 A document not yet written is not listed: create the file, empty if need be, and run it again. A file that
 exists but is not listed is outside every corpus, and a corpus with no specification for a check is

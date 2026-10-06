@@ -14,9 +14,8 @@ which no agent reads), how it refuses a directory holding no skill, and what it 
 absolute path, for one linking to a heading it does not have, for one whose `SKILL.md` and a resource link outside the
 skill, for one whose `SKILL.md` and a resource link a file the skill does not hold, for one whose resource links to an
 absolute path and to a heading it does not have, for one whose `SKILL.md` and a resource link to an absolute path,
-named by its directory and by its `SKILL.md`, which checks that file alone, for one whose `metadata` repeats a file
-name, lists a path outside what the command reads, or lists a file the repository does not have, and for one holding a
-symlink that leads outside the repository. A root written from `lib.workspace` holding one skill whose every
+named by its directory and by its `SKILL.md`, which checks that file alone, and for one holding a symlink that leads
+outside the repository. A root written from `lib.workspace` holding one skill whose every
 field but its name is generated must pass `check skills` with no finding, and one holding a specification and a
 document under it, every field generated but their names, must pass `check` with no finding, since every test
 writing such a root sets only the fields its case turns on.
@@ -35,7 +34,7 @@ from syrupy.assertion import SnapshotAssertion
 import lorecraft
 from lib.cli import run_alias, run_cli
 from lib.snapshot import JsonTextSnapshotExtension, TextSnapshotExtension
-from lib.workspace import Document, File, Link, RawFrontmatter, Skill, SkillFrontmatter, Spec, Workspace
+from lib.workspace import Document, File, Link, RawFrontmatter, Skill, Spec, Workspace
 from lorecraft import __version__
 
 # The labelled lines of `version --verbose` whose values differ per checkout, interpreter, machine and install.
@@ -856,64 +855,6 @@ class TestCheckSkillsSnapshots:
         #: Then
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the symlink-outside finding and its note match the reviewed snapshot'
-
-    def test_check_skills_with_a_repeated_metadata_file_name_prints_the_duplicate_name_finding(
-        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        frontmatter = SkillFrontmatter(metadata={'references': 'docs/code/guide.md docs/feat/guide.md'})
-        workspace = Workspace(
-            skills=[Skill('review', frontmatter=frontmatter)],
-            files=[File('docs/code/guide.md', '# Guide\n'), File('docs/feat/guide.md', '# Guide\n')],
-        )
-        root = workspace.write(tmp_path, faker)
-        arguments = ('check', 'skills', '--root', str(root))
-
-        #: When
-        result = run_cli(*arguments)
-
-        #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the metadata-duplicate-name finding matches the reviewed snapshot'
-
-    def test_check_skills_with_a_metadata_path_outside_the_scope_prints_the_outside_scope_finding(
-        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        # `src/` is a directory no check reads.
-        frontmatter = SkillFrontmatter(metadata={'scripts': 'src/tool.py'})
-        workspace = Workspace(
-            skills=[Skill('review', frontmatter=frontmatter)],
-            files=[File('src/tool.py', '')],
-        )
-        root = workspace.write(tmp_path, faker)
-        arguments = ('check', 'skills', '--root', str(root))
-
-        #: When
-        result = run_cli(*arguments)
-
-        #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the metadata-outside-scope finding matches the reviewed snapshot'
-
-    def test_check_skills_with_a_missing_metadata_file_prints_the_missing_file_finding(
-        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        frontmatter = SkillFrontmatter(metadata={'references': 'docs/code/gone.md'})
-        workspace = Workspace(skills=[Skill('review', frontmatter=frontmatter)])
-        root = workspace.write(tmp_path, faker)
-        arguments = ('check', 'skills', '--root', str(root))
-
-        #: When
-        result = run_cli(*arguments)
-
-        #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the metadata-missing-file finding matches the reviewed snapshot'
 
 
 @pytest.mark.e2e

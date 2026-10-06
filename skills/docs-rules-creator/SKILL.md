@@ -2,9 +2,6 @@
 name: docs-rules-creator
 description: Write or change the Lorecraft specifications in docs/__meta__/ for any corpus under docs/ - a prose specification, and its structure specification for frontmatter schema, section outline, word caps and token budget. Use when adopting Lorecraft in a repository, adding a corpus or a namespace, adding a frontmatter field or a required section, changing a word cap or token budget, or fixing a specification that fails to load or that /docs-rules-check reported. Not for writing the documents a specification governs, see /docs-rules; not for reviewing a specification, see /docs-rules-check
 compatibility: Requires the lorecraft command, on PATH or run through uvx lorecraft, or uv run lorecraft in a uv project that declares Lorecraft as a dependency
-metadata:
-  references: docs/feat/spec.md docs/feat/spec-structure.md docs/feat/spec-structure-budget.md docs/feat/spec-structure-frontmatter.md docs/feat/spec-structure-outline.md docs/feat/workspace.md
-  assets: docs/schemas/structure.spec.json
 allowed-tools: Bash(lorecraft check*) Bash(lorecraft inspect*) Bash(uvx lorecraft *) Bash(uv run lorecraft *) Bash(grep *) Bash(ls docs/*)
 ---
 
@@ -16,11 +13,12 @@ the **writing path** for specifications: the files, their names, and the dialect
 `/docs-rules-check` is the review pass that validates the result.
 
 The rules below are summaries. The authorities are Lorecraft's guides, and each section says which to read:
-[spec](references/spec.md) for names and layering, [spec-structure](references/spec-structure.md) for the
-structure file, [spec-structure-frontmatter](references/spec-structure-frontmatter.md),
-[spec-structure-outline](references/spec-structure-outline.md) and
-[spec-structure-budget](references/spec-structure-budget.md) for its keys,
-[workspace](references/workspace.md) for the layout.
+[spec](https://github.com/LNSD/lorecraft/blob/main/docs/feat/spec.md) for names and layering,
+[spec-structure](https://github.com/LNSD/lorecraft/blob/main/docs/feat/spec-structure.md) for the structure file,
+[spec-structure-frontmatter](https://github.com/LNSD/lorecraft/blob/main/docs/feat/spec-structure-frontmatter.md),
+[spec-structure-outline](https://github.com/LNSD/lorecraft/blob/main/docs/feat/spec-structure-outline.md) and
+[spec-structure-budget](https://github.com/LNSD/lorecraft/blob/main/docs/feat/spec-structure-budget.md) for its keys,
+[workspace](https://github.com/LNSD/lorecraft/blob/main/docs/feat/workspace.md) for the layout.
 
 ## Running lorecraft
 
@@ -40,19 +38,20 @@ What a file is comes from its **file type**, which a file name **pattern** claim
 `*.structure.json` the structure specification. A file's extension is only what follows its last dot, and a
 `<name>.<token>.json` that no pattern claims is not a specification file: it is left out, not read.
 
-A **specification name**, the filename with its pattern's suffix stripped, is `<corpus>` or
-`<corpus>-<namespace>`. The corpus names a directory `docs/<corpus>/` and never holds a hyphen, so the first
-hyphen ends it; [spec](references/spec.md#filenames) and [workspace](references/workspace.md#corpora) give the
-characters each part may hold. The namespace names a group of documents in it: `code-python` governs
-`docs/code/python.md` and `docs/code/python-*.md`. Nothing registers a file; its name is the whole binding. A
-directory under `docs/` becomes a corpus the moment a file at its specification name exists.
+A **specification name**, the filename with its pattern's suffix stripped, is `<corpus>` or `<corpus>-<namespace>`.
+The corpus names a directory `docs/<corpus>/` and never holds a hyphen, so the first hyphen ends it;
+[spec](https://github.com/LNSD/lorecraft/blob/main/docs/feat/spec.md#filenames) and
+[workspace](https://github.com/LNSD/lorecraft/blob/main/docs/feat/workspace.md#corpora) give the characters each part
+may hold. The namespace names a group of documents in it: `code-python` governs `docs/code/python.md` and
+`docs/code/python-*.md`. Nothing registers a file; its name is the whole binding. A directory under `docs/` becomes a
+corpus the moment a file at its specification name exists.
 
 **Layers only add.** A document answers to its corpus specification, then to every namespace specification
 matching its name, broad to narrow, each applied on its own. So a namespace file states only what it adds, and
 cannot relax what the corpus file says. A namespace file never governs alone: without a structure file at the
 corpus specification name, every rule is unchecked for the whole corpus, and without the `frontmatter` key in it,
 frontmatter is. A namespace `tokens` or outline still applies once that file exists.
-[spec](references/spec.md#base-and-extension) has the rule.
+[spec](https://github.com/LNSD/lorecraft/blob/main/docs/feat/spec.md#base-and-extension) has the rule.
 
 **A base never names its extensions.** `code.md` does not mention `code-python.md` or its JSON, in its
 references, its description, or inline; the extension names its base. Adding or removing a namespace then never
@@ -80,31 +79,33 @@ A namespace specification states only what it adds to its base, and links to it.
 
 ## 3. The frontmatter schema
 
-The `frontmatter` key of `<name>.structure.json` is a JSON Schema, Draft 2020-12, for the parsed frontmatter
-mapping. Its root states `"type": "object"` outright, and no schema in it carries `$id`; a `$schema` inside
-it, if any, names Draft 2020-12. The corpus schema states the whole field set, with `required` and
-`"additionalProperties": false` so an undeclared field is a finding. A namespace schema leaves both out and
-narrows a field the corpus allows. The schema sees parsed YAML, so quoting is invisible to it; that `name`
-matches the filename is the check's own rule, not the schema's.
-Copy the shapes in [spec-structure-frontmatter](references/spec-structure-frontmatter.md).
+The `frontmatter` key of `<name>.structure.json` is a JSON Schema, Draft 2020-12, for the parsed frontmatter mapping.
+Its root states `"type": "object"` outright, and no schema in it carries `$id`; a `$schema` inside it, if any, names
+Draft 2020-12. The corpus schema states the whole field set, with `required` and `"additionalProperties": false` so an
+undeclared field is a finding. A namespace schema leaves both out and narrows a field the corpus allows. The schema
+sees parsed YAML, so quoting is invisible to it; that `name` matches the filename is the check's own rule, not the
+schema's. Copy the shapes in
+[spec-structure-frontmatter](https://github.com/LNSD/lorecraft/blob/main/docs/feat/spec-structure-frontmatter.md).
 
 ## 4. The structure specification
 
-`<name>.structure.json` states `empty_sections`, an `outline` of H2 sections — each
-`{"section": …}`, optionally `"optional": true`, a `description` of what it holds and a non-empty list of
-`examples` of its body, each trimmed from a real document of the corpus (the description and the first example are
-shown as notes when the section is missing), or an `{"any": true}` run — with a `words` cap on any entry,
-`forbidden` sections, a whole-file `tokens` budget, and the `frontmatter` schema of §3. Every key is optional,
-but a file states at least one rule. No key states that the title is there: every governed document carries one H1
-title that opens it, and `title` only caps its `words` or `chars` or holds its text to a `pattern`. A namespace
-file usually wraps its additions in `any` runs so the corpus outline still decides the rest.
-[spec-structure-outline](references/spec-structure-outline.md) and
-[spec-structure-budget](references/spec-structure-budget.md) have the keys, examples, and what is refused on load;
-[spec-structure](references/spec-structure.md) covers the file as a whole.
+`<name>.structure.json` states `empty_sections`, an `outline` of H2 sections — each `{"section": …}`, optionally
+`"optional": true`, a `description` of what it holds and a non-empty list of `examples` of its body, each trimmed from
+a real document of the corpus (the description and the first example are shown as notes when the section is missing),
+or an `{"any": true}` run — with a `words` cap on any entry, `forbidden` sections, a whole-file `tokens` budget, and
+the `frontmatter` schema of §3. Every key is optional, but a file states at least one rule. No key states that the
+title is there: every governed document carries one H1 title that opens it, and `title` only caps its `words` or
+`chars` or holds its text to a `pattern`. A namespace file usually wraps its additions in `any` runs so the corpus
+outline still decides the rest.
+[spec-structure-outline](https://github.com/LNSD/lorecraft/blob/main/docs/feat/spec-structure-outline.md) and
+[spec-structure-budget](https://github.com/LNSD/lorecraft/blob/main/docs/feat/spec-structure-budget.md) have the keys,
+examples, and what is refused on load;
+[spec-structure](https://github.com/LNSD/lorecraft/blob/main/docs/feat/spec-structure.md) covers the file as a whole.
 
-For editor validation, copy [the dialect's schema](assets/structure.spec.json) to `docs/schemas/structure.spec.json`
-and set `"$schema": "../schemas/structure.spec.json"` in each structure file. `docs/schemas/` has no
-specification, so it is not a corpus.
+For editor validation, copy [the dialect's
+schema](https://github.com/LNSD/lorecraft/blob/main/docs/schemas/structure.spec.json) to
+`docs/schemas/structure.spec.json` and set `"$schema": "../schemas/structure.spec.json"` in each structure file.
+`docs/schemas/` has no specification, so it is not a corpus.
 
 Pick caps and a budget from the documents that exist: set them so today's good documents pass with room, and
 say in the prose why each number is what it is. Never raise one to silence a finding; move or cut the content.

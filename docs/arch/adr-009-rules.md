@@ -153,7 +153,6 @@ instance is one occurrence of it.
   | `OUT` | The sections a structure specification states |
   | `LEN` | Every length limit: a document's token budget, a skill's line budget, a section's word cap |
   | `LINK` | Links inside a skill |
-  | `META` | A skill's `metadata` file list |
   | `LAY` | The skill layout |
   | `LC` | The engine's own conditions, such as an undecodable file, and no rule |
 
@@ -249,7 +248,7 @@ docs/rulebook/
 ## Alternatives Considered
 
 - **A function that reports several codes.** One judging function declares a set of violation classes and
-  returns any of them, as the link and `metadata` walks report several identifiers today. It needs no
+  returns any of them, as the link walk reports several identifiers today. It needs no
   intermediate problem types. It was not chosen because the type checker cannot hold a function to a declared
   set, so the runner would need a membership check, and a rule would no longer be one file. It becomes the
   better choice only if a shared analysis turns expensive.
