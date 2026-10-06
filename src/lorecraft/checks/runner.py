@@ -28,6 +28,14 @@ line does not run this yet, and the per-check pipelines in `run` serve it until 
 from collections.abc import Iterable
 from typing import assert_never
 
+from lorecraft.project.database import (
+    Database,
+    DatabaseDocumentContext,
+    DatabaseSkillContext,
+    DocumentText,
+    SkillText,
+    Undecodable,
+)
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.skill import SkillLocation
 from lorecraft.project.workspace import Governance
@@ -41,8 +49,6 @@ from lorecraft.rules.inputs import (
 )
 from lorecraft.rules.subject import Facet
 
-from .context import DatabaseDocumentContext, DatabaseSkillContext
-from .database import Database
 from .inputs import (
     Ungoverned,
     build_document_frontmatter_block_input,
@@ -56,7 +62,6 @@ from .inputs import (
 )
 from .report import CheckedSubject, Coverage, Diagnostic, RuleDiagnostic, SubjectReport, UndecodableSubject
 from .table import RuleTable
-from .text import DocumentText, SkillText, Undecodable
 
 # A subject the runner checks: a document, by its ref, or a skill, by the location the model hands out for it. Its
 # report holds its ref either way: a `SkillLocation` carries the skill's ref.

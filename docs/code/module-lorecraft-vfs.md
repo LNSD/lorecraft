@@ -35,7 +35,7 @@ and the package never knows why those directories matter or what the files in th
 | Decides which directories a snapshot reads | `lorecraft.layout`, as the scope it declares |
 | Decides what an entry is to Lorecraft: a document, a specification, a skill | `lorecraft.project` |
 | Parses or decodes the bytes of a file | `lorecraft.project` |
-| Keeps a value derived from a file for the snapshot's lifetime | `lorecraft.checks` |
+| Keeps a value derived from a file for the snapshot's lifetime | `lorecraft.project` |
 | Finds the workspace root, or maps a command-line argument onto it | `lorecraft.cli` |
 
 ## Invariants

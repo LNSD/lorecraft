@@ -5,8 +5,8 @@ from typing import Annotated, assert_never
 
 import typer
 
-from lorecraft.checks import Database
 from lorecraft.core.error import Error
+from lorecraft.project.database import Database
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.vfs import take_snapshot
 

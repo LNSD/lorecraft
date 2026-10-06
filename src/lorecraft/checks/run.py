@@ -25,6 +25,7 @@ from pathlib import PurePosixPath
 from typing import Literal, assert_never
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.database import Database, DocumentText, SkillResourceText, SkillText, Undecodable
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import SKILL_FRONTMATTER_SCHEMA, StructureSpec
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillResourceRef
@@ -34,7 +35,6 @@ from lorecraft.project.syntax import (
 )
 
 from .budget import validate_budget
-from .database import Database
 from .frontmatter import validate_frontmatter
 from .reporting import Finding, Violation
 from .skill import SkillCheckResult, validate_skill
@@ -42,7 +42,6 @@ from .skill_length import validate_skill_length
 from .skill_link import LinkTargetState, link_path_in_skill, validate_skill_links
 from .skill_symlink import validate_outside_symlink
 from .structure import validate_structure
-from .text import DocumentText, SkillResourceText, SkillText, Undecodable
 
 
 @dataclass(frozen=True, slots=True)

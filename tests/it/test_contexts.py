@@ -3,7 +3,7 @@
 Each method of `DocumentContext` and `SkillContext` is asked through a value typed as the protocol, over a database
 opened on an in-memory snapshot, and compared with what the database's matching query returns; a fact the database
 memoizes is the very value the query keeps, so a context computes nothing of its own. The static hold of each class
-to its protocol is in `lorecraft.checks.tests.test_context`, where the type-checking gate reaches it.
+to its protocol is in `lorecraft.project.database.tests.test_context`, where the type-checking gate reaches it.
 """
 
 from pathlib import PurePosixPath
@@ -11,14 +11,13 @@ from typing import Final
 
 import pytest
 
-from lorecraft.checks import Database, DocumentText, SkillText
-from lorecraft.checks.context import DatabaseDocumentContext, DatabaseSkillContext
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentContext, DocumentFrontmatterOwner, SkillContext, SkillFrontmatterOwner
 from lorecraft.project.corpus import CorpusName
+from lorecraft.project.database import Database, DatabaseDocumentContext, DatabaseSkillContext, DocumentText, SkillText
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.skill import SkillLocation, SkillRef
 from lorecraft.project.syntax import count_lines, count_tokens

@@ -14,7 +14,6 @@ from typing import ClassVar, Final, Self
 import pytest
 
 from lorecraft import rules
-from lorecraft.checks import Database, DocumentText, SkillText
 from lorecraft.checks.report import CheckedSubject, RuleDiagnostic, UndecodableSubject
 from lorecraft.checks.runner import check_subjects
 from lorecraft.checks.table import RuleTable
@@ -23,6 +22,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentContext, SkillContext
 from lorecraft.project.corpus import CorpusName
+from lorecraft.project.database import Database, DocumentText, SkillText
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import (
     BlockProblem,

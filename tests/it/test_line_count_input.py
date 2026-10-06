@@ -8,10 +8,10 @@ from typing import Final
 
 import pytest
 
-from lorecraft.checks import Database, SkillText
 from lorecraft.checks.inputs import build_line_count_input
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.database import Database, SkillText
 from lorecraft.project.skill import SkillRef
 from lorecraft.rules.inputs import LineCountInput
 from lorecraft.vfs import Snapshot

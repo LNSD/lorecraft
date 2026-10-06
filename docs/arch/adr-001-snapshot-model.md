@@ -7,6 +7,10 @@ status: "accepted"
 
 # The Snapshot Model
 
+> [!NOTE]
+> Superseded in part by [adr-012-database-derivation](adr-012-database-derivation.md): the Derivation and
+> Analysis rows of the role table below. The rest of this record binds code.
+
 ## Context
 
 Lorecraft analyses the workspace one **revision** at a time: one set of inputs and the database built from
@@ -64,5 +68,7 @@ Before committing code, verify:
 - [adr-005-incremental](adr-005-incremental.md) - Related: Results carried over between revisions and processes
 - [adr-006-specifications](adr-006-specifications.md) - Related: How specifications govern documents
 - [adr-007-findings](adr-007-findings.md) - Related: What a check reports, and how it reaches the user
+- [adr-012-database-derivation](adr-012-database-derivation.md) - Superseded in part by: The Derivation and Analysis
+  rows of the role table
 - [principle-single-responsibility](../code/principle-single-responsibility.md) - Foundation: One role per package is
   one reason to change per package
