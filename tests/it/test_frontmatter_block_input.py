@@ -18,18 +18,12 @@ from lorecraft.checks.inputs import (
 )
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import FrontmatterNode, LineNumber, MissingFrontmatter
-from lorecraft.rules.inputs import (
-    DocumentFrontmatterOwner,
-    FrontmatterBlockInput,
-    FrontmatterFields,
-    NameField,
-    RepeatedKey,
-    SkillFrontmatterOwner,
-)
+from lorecraft.rules.inputs import FrontmatterBlockInput, FrontmatterFields, NameField, RepeatedKey
 from lorecraft.vfs import ResolvedPath, Snapshot
 
 TYPING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))

@@ -2,9 +2,10 @@
 
 An input holds the facts the database's queries returned about one subject, the subject's identity values a rule
 compares them with, such as a document's filename or the directory a skill is listed under, and the specifications
-that govern them, in the package's own types; an input the package governs, such as a skill's line count, holds no
-specification. A rule picks its input by deriving from that input's base, and receives the input and nothing else.
-Building an input from the queries is the run's job, in `lorecraft.checks`, never this package's.
+that govern them, in types of `lorecraft.project` and the layers below it; an input the package governs, such as a
+skill's line count, holds no specification. A rule picks its input by deriving from that input's base, and receives
+the input and nothing else. Building an input from the queries is the run's job, in `lorecraft.checks`, never this
+package's.
 """
 
 from abc import abstractmethod
@@ -14,7 +15,7 @@ from typing import Self
 
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.context import FrontmatterOwner
 from lorecraft.project.schemas import OutlineDivergenceSpec, SchemaProblems, SectionName
 from lorecraft.project.syntax import (
     Heading,
@@ -24,7 +25,6 @@ from lorecraft.project.syntax import (
     NonMappingFrontmatter,
 )
 from lorecraft.rules.declaration import ContentRule
-from lorecraft.vfs import ResolvedPath
 
 
 class InputKind(Enum):
@@ -115,42 +115,6 @@ class LineCountRule(ContentRule):
         Args:
             subject: The line count judged.
         """
-
-
-@dataclass(frozen=True, slots=True)
-class DocumentFrontmatterOwner:
-    """A document whose frontmatter a schema governs: the name its frontmatter must carry, and where it is governed.
-
-    Attributes:
-        filename: The document's filename, without its extension, which its frontmatter `name` must equal.
-        spec: The structure specification of the document's corpus, whose frontmatter schema makes the document
-            governed for its frontmatter. A namespace's schema only narrows the corpus's, so this one file is
-            always the specification that states every rule over the block.
-    """
-
-    filename: AspectFilename
-    spec: RootRelativePath
-
-
-@dataclass(frozen=True, slots=True)
-class SkillFrontmatterOwner:
-    """A skill, whose frontmatter the package governs after the Agent Skills specification.
-
-    Attributes:
-        directory_name: The name of the skill directory as an agent lists it in its skills directory, which the
-            frontmatter `name` must equal. An agent never resolves a link itself, so where a link leads plays no
-            part in it.
-        link_target: The resolved directory the listed directory leads to when it is a link, or `None` when it is
-            not; it only words a note, so a reader sees why the name they know is not the one expected.
-    """
-
-    directory_name: str
-    link_target: ResolvedPath | None
-
-
-# Whose frontmatter block an input holds: a document a frontmatter schema governs, or a skill. A union of two
-# records rather than one with a flag, so a document can never carry a link target, nor a skill a specification.
-type FrontmatterOwner = DocumentFrontmatterOwner | SkillFrontmatterOwner
 
 
 @dataclass(frozen=True, slots=True)

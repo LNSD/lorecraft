@@ -4,15 +4,10 @@ from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import ROOT
+from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.syntax import InvalidYamlFrontmatter, MissingFrontmatter, NonMappingFrontmatter
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.inputs import (
-    DocumentFrontmatterOwner,
-    FrontmatterBlockInput,
-    FrontmatterBlockRule,
-    FrontmatterFields,
-    SkillFrontmatterOwner,
-)
+from lorecraft.rules.inputs import FrontmatterBlockInput, FrontmatterBlockRule, FrontmatterFields
 from lorecraft.rules.location import Help, Note, Subdiagnostic
 from lorecraft.vfs import ResolvedPath
 

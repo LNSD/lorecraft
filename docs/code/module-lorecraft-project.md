@@ -30,6 +30,8 @@ declaration, read from `lorecraft.layout` and never stated here.
 - A document's, a skill's or a skill resource's identity, kept apart from its content and from where its symlinks
   lead.
 - Turning a Markdown link's destination into a root-relative path, relative to the document that holds it.
+- The contexts: a `Protocol` per subject kind stating what can be asked of one decoded document or skill, and
+  the owner types they return. They are interfaces only: nothing here implements one, or computes or caches a fact.
 
 ## Belongs Elsewhere
 
@@ -39,6 +41,7 @@ declaration, read from `lorecraft.layout` and never stated here.
 | Reads the disk, or follows a symlink by asking the operating system | `lorecraft.vfs` |
 | States an agent's skills directories or guide files | `lorecraft.agents` |
 | Keeps a derived value across calls for the snapshot's lifetime | `lorecraft.checks` |
+| Answers a context from the memoized queries | `lorecraft.checks` |
 | Decides whether a document or a skill breaks a rule | `lorecraft.checks` |
 | Chooses which documents a run checks, or prints anything | `lorecraft.cli` |
 

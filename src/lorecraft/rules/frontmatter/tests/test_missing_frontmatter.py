@@ -9,15 +9,10 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.syntax import InvalidYamlFrontmatter, LineNumber
 from lorecraft.project.syntax import MissingFrontmatter as MissingBlock
-from lorecraft.rules.inputs import (
-    DocumentFrontmatterOwner,
-    FrontmatterBlockInput,
-    FrontmatterFields,
-    NameField,
-    SkillFrontmatterOwner,
-)
+from lorecraft.rules.inputs import FrontmatterBlockInput, FrontmatterFields, NameField
 from lorecraft.rules.location import Elsewhere, Note
 
 from ..missing_frontmatter import MissingFrontmatter
