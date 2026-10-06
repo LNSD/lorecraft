@@ -239,6 +239,10 @@ class FakeDocumentContext:
         """The specifications the test stated."""
         return self._governance
 
+    def corpus_structure(self) -> StructureSpec:
+        """The corpus's structure specification, decoded from the JSON the test stated."""
+        return self._corpus_structure
+
     def outline_divergences(self) -> tuple[OutlineDivergenceSpec, ...]:
         """Where the sections stop matching each governing outline, as the real analysis finds it."""
         outlined_specs: list[StructureSpec] = []

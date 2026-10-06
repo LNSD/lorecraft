@@ -13,7 +13,7 @@ that order as the fields it compares, and `diagnostic_order` builds it as the so
 
 Each subject the runner checks, a document, a skill or a skill's resource, gets one report, and either kind of
 report gives its diagnostics as `diagnostics`. A `CheckedSubject` decoded, and holds its diagnostics, in their output
-order however it is built, and the facets and inputs no specification governs it for. An `UndecodableSubject` did
+order however it is built, and the facets no specification governs it for. An `UndecodableSubject` did
 not, so no rule judged it: it holds only its ref, and its one diagnostic, the engine's, is built from that ref, at the
 subject's path. A layout entry, one symlink of the skill layout whose chain leaves the repository, has no text to
 decode and no specification to be ungoverned by, so it gets a report of its own, a `CheckedLayoutEntry`: its path
@@ -31,7 +31,6 @@ from lorecraft.project.document import DocumentRef
 from lorecraft.project.skill import SkillRef, SkillResourceRef
 from lorecraft.rules.declaration import EngineCondition, Rule, Severity
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
-from lorecraft.rules.inputs import InputKind
 from lorecraft.rules.location import Here, WholeSubject
 from lorecraft.rules.subject import Facet
 
@@ -132,11 +131,6 @@ def diagnostic_order(diagnostic: Diagnostic) -> DiagnosticOrder:
 # report path is where an agent reaches it.
 type SubjectRef = DocumentRef | SkillRef | SkillResourceRef
 
-# What a subject can be ungoverned for: the facet a rule over a document or over the frontmatter declares, or the
-# input kind of a rule that still reads an input. Transitional: once the last rules read a context, the input kinds
-# go and this is `Facet`.
-type Coverage = Facet | InputKind
-
 
 @dataclass(frozen=True, slots=True)
 class CheckedSubject:
@@ -147,13 +141,13 @@ class CheckedSubject:
             and a resource's where an agent reaches it.
         diagnostics: Every occurrence the rules found in it, in the order `diagnostic_order` sorts them into,
             whatever order they are given in; empty when it holds to every rule.
-        ungoverned: The facets and the input kinds an enabled rule reads that no specification governs the subject
-            for, in the order the runner reads them; no rule that reads one judged the subject.
+        ungoverned: The facets an enabled rule reads that no specification governs the subject for, in the order the
+            runner reads them; no rule that reads one judged the subject.
     """
 
     ref: SubjectRef
     diagnostics: tuple[Diagnostic, ...]
-    ungoverned: tuple[Coverage, ...]
+    ungoverned: tuple[Facet, ...]
 
     def __post_init__(self) -> None:
         """Sort the diagnostics into their output order, so a report holds them in it however it is built."""

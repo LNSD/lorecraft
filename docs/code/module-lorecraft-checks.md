@@ -17,20 +17,19 @@ the rules, or the shape of what a check reports.
 **Analysis.** A check is a pure function of the values the queries of the database in `lorecraft.project` return.
 A run hands it those values: it asks the queries for what a check reads, hands the check only that, and locates each
 violation in its document. It runs the rules of `lorecraft.rules`, the layer below, the same way: it hands each
-rule the context of the subject it judges, or builds the input a rule not yet moved onto a context reads from the
-queries, and the rules are declared there.
+rule the context of the subject it judges, whose every fact is a query, and the rules are declared there.
 
 ## Belongs Here
 
 - Resolving a Markdown link's target in the model: whether its path names a document, and the anchors it has.
 - A check: values in, violations out.
 - A run that resolves a check's inputs and turns violations into findings.
-- Building the input a rule reads from the queries, and running the rules over a subject: a rule over a document
-  or over the frontmatter only when the document is governed for the facet the rule declares, each facet it is not
-  governed for recorded as coverage, and a rule over a Markdown file over a document governed for its structure, a
-  skill's `SKILL.md` and each resource handed over as a subject of its own.
+- Running the rules over a subject, each through the subject's context: a rule over a document or over the
+  frontmatter only when the document is governed for the facet the rule declares, each facet it is not governed for
+  recorded as coverage, and a rule over a Markdown file over a document governed for its structure, a skill's
+  `SKILL.md` and each resource handed over as a subject of its own.
 - The rule table: the rules a run enables, each with the severity it reports at, partitioned by the subject kind
-  each judges, the frontmatter both kinds share, or the input each reads.
+  each judges or the frontmatter both kinds share, and a document's rules also by the facet each declares.
 - The value types a check reports in, and their plain-text form.
 
 ## Belongs Elsewhere
@@ -39,7 +38,7 @@ queries, and the rules are declared there.
 |---|---|
 | Takes the snapshot, or chooses which documents or skills to check | `lorecraft.cli` |
 | Prints, writes JSON, or sets an exit code | `lorecraft.cli` |
-| Declares a rule, its identity or its group, or the input type a rule reads | `lorecraft.rules` |
+| Declares a rule, its identity or its group, or the base a rule derives from | `lorecraft.rules` |
 | Declares what a context of a subject holds | `lorecraft.project` |
 | Adds a query, a decode witness, a carry-over rule, or a context implemented over the database | `lorecraft.project` |
 | Parses text, decodes a specification, or builds the model | `lorecraft.project` |

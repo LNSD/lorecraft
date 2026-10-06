@@ -1,7 +1,7 @@
 """`OUT003`, `title-not-first`, over a document's headings.
 
-The rule is pure, so every case here is a document's headings and what each specification states, written as
-literals; no document is read.
+Every case is a document written as text, read through a fake context that parses it as the real parser does, under
+structure specifications decoded from JSON; no document is read from disk.
 """
 
 from typing import Final
@@ -9,50 +9,27 @@ from typing import Final
 import pytest
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.syntax import Heading, LineNumber
-from lorecraft.rules.inputs import HeadingsInput, HeadingsSpec
+from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Note
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
 
 from ..title_not_first import TitleNotFirst
 
-CORPUS_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/guide.structure.json')
-"""A corpus structure specification."""
+CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
+"""The corpus structure specification."""
 
-NAMESPACE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/guide-cli.structure.json')
-"""A namespace structure specification under the same corpus."""
+STRUCTURE: Final[str] = '{"forbidden": ["Changelog"]}'
+"""A structure specification that states a rule other than the title, which no key states."""
 
-INSTALL: Final[Heading] = Heading(level=2, text='Install', line=LineNumber.from_int(1), empty=False, words=9)
-"""An H2 section opening the document, on line 1."""
-
-TITLE: Final[Heading] = Heading(level=1, text='Setup', line=LineNumber.from_int(5), empty=True, words=0)
-"""An H1 title on line 5, after the section."""
-
-USAGE: Final[Heading] = Heading(level=2, text='Usage', line=LineNumber.from_int(7), empty=False, words=6)
-"""An H2 section on line 7."""
-
-DETAILS: Final[Heading] = Heading(level=3, text='Details', line=LineNumber.from_int(1), empty=False, words=4)
-"""An H3 subsection opening the document, on line 1."""
-
-
-def _spec(spec: RootRelativePath) -> HeadingsSpec:
-    """What a specification states over the headings: nothing a title rule reads.
-
-    Args:
-        spec: The structure specification file.
-    """
-    return HeadingsSpec(
-        spec=spec,
-        title_mismatch=None,
-        forbid_empty_sections=False,
-        forbidden=(),
-    )
+SECTION_FIRST: Final[str] = '## Install\n\nInstall the toolkit, then run it once over the repository.\n\n# Setup\n'
+"""A document opening with an H2 section on line 1, its H1 title on line 5."""
 
 
 @pytest.mark.unit
 class TestTitleNotFirst:
     def test_check_with_a_section_before_the_title_reports_it_at_the_section(self) -> None:
         #: Given
-        subject = HeadingsInput(headings=(INSTALL, TITLE), corpus=_spec(CORPUS_SPEC), namespaces=())
+        subject = FakeDocumentContext(SECTION_FIRST, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = TitleNotFirst.check(subject)
@@ -64,7 +41,9 @@ class TestTitleNotFirst:
 
     def test_check_with_sections_and_no_title_reports_the_first_section(self) -> None:
         #: Given
-        subject = HeadingsInput(headings=(INSTALL, USAGE), corpus=_spec(CORPUS_SPEC), namespaces=())
+        subject = FakeDocumentContext(
+            '## Install\n\nInstall it.\n\n## Usage\n\nRun it.\n', corpus='guide', structure=STRUCTURE
+        )
 
         #: When
         occurrences = TitleNotFirst.check(subject)
@@ -76,7 +55,9 @@ class TestTitleNotFirst:
 
     def test_check_with_a_subsection_opening_the_document_reports_its_level(self) -> None:
         #: Given
-        subject = HeadingsInput(headings=(DETAILS, TITLE), corpus=_spec(CORPUS_SPEC), namespaces=())
+        subject = FakeDocumentContext(
+            '### Details\n\nRead them once.\n\n# Setup\n', corpus='guide', structure=STRUCTURE
+        )
 
         #: When
         occurrences = TitleNotFirst.check(subject)
@@ -88,7 +69,7 @@ class TestTitleNotFirst:
 
     def test_check_with_the_title_first_reports_nothing(self) -> None:
         #: Given
-        subject = HeadingsInput(headings=(TITLE, USAGE), corpus=_spec(CORPUS_SPEC), namespaces=())
+        subject = FakeDocumentContext('# Setup\n\n## Usage\n\nRun it.\n', corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = TitleNotFirst.check(subject)
@@ -98,7 +79,9 @@ class TestTitleNotFirst:
 
     def test_check_with_no_heading_reports_nothing(self) -> None:
         #: Given
-        subject = HeadingsInput(headings=(), corpus=_spec(CORPUS_SPEC), namespaces=())
+        subject = FakeDocumentContext(
+            'Run the toolkit once over the repository.\n', corpus='guide', structure=STRUCTURE
+        )
 
         #: When
         occurrences = TitleNotFirst.check(subject)
@@ -108,10 +91,8 @@ class TestTitleNotFirst:
 
     def test_check_with_two_specifications_reports_once_under_the_corpus_specification(self) -> None:
         #: Given
-        subject = HeadingsInput(
-            headings=(INSTALL, TITLE),
-            corpus=_spec(CORPUS_SPEC),
-            namespaces=(_spec(NAMESPACE_SPEC),),
+        subject = FakeDocumentContext(
+            SECTION_FIRST, corpus='guide', structure=STRUCTURE, namespaces=(namespace_spec('guide', 'cli', STRUCTURE),)
         )
 
         #: When

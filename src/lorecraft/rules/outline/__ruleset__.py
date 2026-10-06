@@ -6,9 +6,13 @@ the group says which specification an occurrence breaks through `spec_note`, so 
 specifications read apart.
 
 The title is the exception: no specification states it, since every governed document carries exactly one H1 title
-that opens it. A rule over its being there reports a document once, under `HeadingsInput.corpus`. A pattern a
-specification sets on the title is that specification's own, so a title failing it is reported once per
+that opens it. A rule over its being there reports a document once, under its corpus's structure specification. A
+pattern a specification sets on the title is that specification's own, so a title failing it is reported once per
 specification setting it, as a section is.
+
+The rules over the headings are governed by `Facet.STRUCTURE`, so they judge every document whose corpus states a
+structure specification; the rules over where the sections stop matching an outline are governed by `Facet.OUTLINE`,
+so they judge only a document some outline governs.
 """
 
 from typing import Final

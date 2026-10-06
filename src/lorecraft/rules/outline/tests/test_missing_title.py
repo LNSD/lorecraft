@@ -1,7 +1,7 @@
 """`OUT001`, `missing-title`, over a document's headings.
 
-The rule is pure, so every case here is a document's headings and what each specification states, written as
-literals; no document is read.
+Every case is a document written as text, read through a fake context that parses it as the real parser does, under
+structure specifications decoded from JSON; no document is read from disk.
 """
 
 from typing import Final
@@ -9,44 +9,27 @@ from typing import Final
 import pytest
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.syntax import Heading, LineNumber
-from lorecraft.rules.inputs import HeadingsInput, HeadingsSpec
+from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Note
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
 
 from ..missing_title import MissingTitle
 
-CORPUS_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/guide.structure.json')
-"""A corpus structure specification."""
+CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
+"""The corpus structure specification."""
 
-NAMESPACE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/guide-cli.structure.json')
-"""A namespace structure specification under the same corpus."""
+STRUCTURE: Final[str] = '{"forbidden": ["Changelog"]}'
+"""A structure specification that states a rule other than the title, which no key states."""
 
-TITLE: Final[Heading] = Heading(level=1, text='Setup', line=LineNumber.from_int(1), empty=False, words=0)
-"""An H1 title on line 1."""
-
-INSTALL: Final[Heading] = Heading(level=2, text='Install', line=LineNumber.from_int(3), empty=False, words=9)
-"""An H2 section on line 3."""
-
-
-def _spec(spec: RootRelativePath) -> HeadingsSpec:
-    """What a specification states over the headings: nothing a title rule reads.
-
-    Args:
-        spec: The structure specification file.
-    """
-    return HeadingsSpec(
-        spec=spec,
-        title_mismatch=None,
-        forbid_empty_sections=False,
-        forbidden=(),
-    )
+UNTITLED: Final[str] = '## Install\n\nInstall the toolkit, then run it once over the repository.\n'
+"""A document with one section and no H1 title."""
 
 
 @pytest.mark.unit
 class TestMissingTitle:
     def test_check_with_a_document_without_a_title_reports_it_on_line_1(self) -> None:
         #: Given
-        subject = HeadingsInput(headings=(INSTALL,), corpus=_spec(CORPUS_SPEC), namespaces=())
+        subject = FakeDocumentContext(UNTITLED, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = MissingTitle.check(subject)
@@ -58,7 +41,7 @@ class TestMissingTitle:
 
     def test_check_with_a_document_carrying_its_title_reports_nothing(self) -> None:
         #: Given
-        subject = HeadingsInput(headings=(TITLE, INSTALL), corpus=_spec(CORPUS_SPEC), namespaces=())
+        subject = FakeDocumentContext('# Setup\n\n' + UNTITLED, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = MissingTitle.check(subject)
@@ -68,8 +51,7 @@ class TestMissingTitle:
 
     def test_check_with_more_than_one_title_reports_nothing(self) -> None:
         #: Given
-        second = Heading(level=1, text='Again', line=LineNumber.from_int(5), empty=False, words=0)
-        subject = HeadingsInput(headings=(TITLE, INSTALL, second), corpus=_spec(CORPUS_SPEC), namespaces=())
+        subject = FakeDocumentContext('# Setup\n\n' + UNTITLED + '\n# Again\n', corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = MissingTitle.check(subject)
@@ -77,12 +59,22 @@ class TestMissingTitle:
         #: Then
         assert occurrences == (), 'a title after the first is an extra title, never a missing one'
 
+    def test_check_with_an_h1_inside_a_blockquote_reports_the_title_missing(self) -> None:
+        #: Given
+        subject = FakeDocumentContext('> # Setup\n\n' + UNTITLED, corpus='guide', structure=STRUCTURE)
+
+        #: When
+        occurrences = MissingTitle.check(subject)
+
+        #: Then
+        assert occurrences == (MissingTitle(spec=CORPUS_SPEC, line=LineNumber.from_int(1)),), (
+            'only a heading at the top level of the document counts, so an H1 in a blockquote is no title'
+        )
+
     def test_check_with_two_specifications_reports_once_under_the_corpus_specification(self) -> None:
         #: Given
-        subject = HeadingsInput(
-            headings=(INSTALL,),
-            corpus=_spec(CORPUS_SPEC),
-            namespaces=(_spec(NAMESPACE_SPEC),),
+        subject = FakeDocumentContext(
+            UNTITLED, corpus='guide', structure=STRUCTURE, namespaces=(namespace_spec('guide', 'cli', STRUCTURE),)
         )
 
         #: When

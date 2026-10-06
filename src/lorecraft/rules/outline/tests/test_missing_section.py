@@ -1,7 +1,9 @@
 """`OUT006`, `missing-section`, over where a document's sections first stop matching their outlines.
 
-The rule is pure, so every case here is the divergence each outline found, written as literals; no document is
-read and no outline is matched.
+Every case is a document written as text, read through a fake context that parses it and matches it against its
+outlines as the real parser and matcher do, under structure specifications decoded from JSON; no document is read from
+disk. Where each divergence falls is the matcher's, tested beside it, so a case here only shows which one the rule
+reports.
 """
 
 from typing import Final
@@ -9,53 +11,52 @@ from typing import Final
 import pytest
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.schemas import (
-    AbsentSection,
-    DocumentEnd,
-    MisplacedSection,
-    OutlineDivergenceSpec,
-    SectionName,
-    UnlistedSection,
-)
-from lorecraft.project.syntax import Heading, LineNumber
-from lorecraft.rules.inputs import OutlineDivergenceInput
+from lorecraft.project.schemas import SectionName
+from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
 
 from ..missing_section import MissingSection
 
-CORPUS_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/guide.structure.json')
-"""A corpus structure specification."""
+CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
+"""The corpus structure specification."""
 
-NAMESPACE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/guide-cli.structure.json')
+NAMESPACE_SPEC: Final[RootRelativePath] = structure_spec_path('guide-cli')
 """A namespace structure specification under the same corpus."""
 
 USAGE: Final[SectionName] = SectionName.parse('Usage')
 """The section the outline requires and the document lacks."""
 
-OPTIONS: Final[Heading] = Heading(level=2, text='Options', line=LineNumber.from_int(3), empty=False, words=4)
-"""An H2 section on line 3, written where `Usage` was expected."""
+OUTLINE: Final[str] = '{"outline": [{"section": "Usage"}, {"section": "Options"}]}'
+"""An outline requiring `Usage`, then `Options`."""
 
-DOCUMENT_END: Final[DocumentEnd] = DocumentEnd(last_line=LineNumber.from_int(9))
-"""The end of a nine-line document."""
+REVERSED_OUTLINE: Final[str] = '{"outline": [{"section": "Options"}, {"section": "Usage"}]}'
+"""An outline requiring `Options`, then `Usage`."""
 
+DESCRIBED_OUTLINE: Final[str] = (
+    '{"outline": [{"section": "Usage", "description": "How to invoke the command.", '
+    '"examples": ["Run `lorecraft check`.", "Run it with `--strict`."]}, {"section": "Options"}]}'
+)
+"""`OUTLINE`, whose `Usage` entry states a description and two examples."""
 
-def _absent(before: Heading | DocumentEnd, description: str | None, example: str | None) -> AbsentSection:
-    """`Usage`, absent from the document, expected before `before`.
+OPTIONS_ONLY: Final[str] = '# Check\n\n## Options\n\nPass a flag.\n'
+"""A document of five lines, its one section `Options` on line 3."""
 
-    Args:
-        before: The section it should come before, or the end of the document.
-        description: What the outline entry says the section holds, or `None`.
-        example: The outline entry's first example, or `None`.
-    """
-    return AbsentSection(name=USAGE, description=description, example=example, before=before)
+USAGE_ONLY: Final[str] = '# Check\n\n## Usage\n\nRun it.\n'
+"""A document of five lines, its one section `Usage` on line 3."""
+
+FOLLOWS: Final[str] = '# Check\n\n## Usage\n\nRun it.\n\n## Options\n\nPass a flag.\n'
+"""A document writing `Usage`, then `Options`."""
+
+OUT_OF_ORDER: Final[str] = '# Check\n\n## Options\n\nPass a flag.\n\n## Usage\n\nRun it.\n'
+"""A document writing `Options`, then `Usage`."""
 
 
 @pytest.mark.unit
 class TestMissingSection:
     def test_check_with_a_section_absent_before_another_reports_it_at_that_section(self) -> None:
         #: Given
-        absent = _absent(OPTIONS, 'How to invoke the command.', 'Run `lorecraft check`.')
-        subject = OutlineDivergenceInput(specs=(OutlineDivergenceSpec(spec=CORPUS_SPEC, divergence=absent),))
+        subject = FakeDocumentContext(OPTIONS_ONLY, corpus='guide', structure=DESCRIBED_OUTLINE)
 
         #: When
         occurrences = MissingSection.check(subject)
@@ -64,19 +65,17 @@ class TestMissingSection:
         assert occurrences == (
             MissingSection(
                 spec=CORPUS_SPEC,
-                line=OPTIONS.line,
+                line=LineNumber.from_int(3),
                 section=USAGE,
-                before=OPTIONS.text,
+                before='Options',
                 description='How to invoke the command.',
                 example='Run `lorecraft check`.',
             ),
-        ), 'a section absent before another is one occurrence, at that section, with what the entry states'
+        ), 'a section absent before another is one occurrence, at that section, with the entry and its first example'
 
     def test_check_with_a_section_absent_at_the_end_reports_it_at_the_last_line(self) -> None:
         #: Given
-        subject = OutlineDivergenceInput(
-            specs=(OutlineDivergenceSpec(spec=CORPUS_SPEC, divergence=_absent(DOCUMENT_END, None, None)),)
-        )
+        subject = FakeDocumentContext(USAGE_ONLY, corpus='guide', structure=OUTLINE)
 
         #: When
         occurrences = MissingSection.check(subject)
@@ -85,8 +84,8 @@ class TestMissingSection:
         assert occurrences == (
             MissingSection(
                 spec=CORPUS_SPEC,
-                line=LineNumber.from_int(9),
-                section=USAGE,
+                line=LineNumber.from_int(5),
+                section=SectionName.parse('Options'),
                 before=None,
                 description=None,
                 example=None,
@@ -95,8 +94,7 @@ class TestMissingSection:
 
     def test_check_with_a_misplaced_section_reports_nothing(self) -> None:
         #: Given
-        misplaced = MisplacedSection(section=OPTIONS, expected=USAGE)
-        subject = OutlineDivergenceInput(specs=(OutlineDivergenceSpec(spec=CORPUS_SPEC, divergence=misplaced),))
+        subject = FakeDocumentContext(OUT_OF_ORDER, corpus='guide', structure=OUTLINE)
 
         #: When
         occurrences = MissingSection.check(subject)
@@ -106,8 +104,7 @@ class TestMissingSection:
 
     def test_check_with_an_unlisted_section_reports_nothing(self) -> None:
         #: Given
-        unlisted = UnlistedSection(section=OPTIONS, expected=None)
-        subject = OutlineDivergenceInput(specs=(OutlineDivergenceSpec(spec=CORPUS_SPEC, divergence=unlisted),))
+        subject = FakeDocumentContext(FOLLOWS + '\n## Afterword\n\nThanks.\n', corpus='guide', structure=OUTLINE)
 
         #: When
         occurrences = MissingSection.check(subject)
@@ -117,7 +114,7 @@ class TestMissingSection:
 
     def test_check_with_no_divergence_reports_nothing(self) -> None:
         #: Given
-        subject = OutlineDivergenceInput(specs=(OutlineDivergenceSpec(spec=CORPUS_SPEC, divergence=None),))
+        subject = FakeDocumentContext(FOLLOWS, corpus='guide', structure=OUTLINE)
 
         #: When
         occurrences = MissingSection.check(subject)
@@ -127,11 +124,11 @@ class TestMissingSection:
 
     def test_check_with_a_section_absent_under_both_specifications_reports_each_in_order(self) -> None:
         #: Given
-        subject = OutlineDivergenceInput(
-            specs=(
-                OutlineDivergenceSpec(spec=CORPUS_SPEC, divergence=_absent(OPTIONS, None, None)),
-                OutlineDivergenceSpec(spec=NAMESPACE_SPEC, divergence=_absent(DOCUMENT_END, None, None)),
-            )
+        subject = FakeDocumentContext(
+            OPTIONS_ONLY,
+            corpus='guide',
+            structure=OUTLINE,
+            namespaces=(namespace_spec('guide', 'cli', REVERSED_OUTLINE),),
         )
 
         #: When
@@ -140,11 +137,16 @@ class TestMissingSection:
         #: Then
         assert occurrences == (
             MissingSection(
-                spec=CORPUS_SPEC, line=OPTIONS.line, section=USAGE, before=OPTIONS.text, description=None, example=None
+                spec=CORPUS_SPEC,
+                line=LineNumber.from_int(3),
+                section=USAGE,
+                before='Options',
+                description=None,
+                example=None,
             ),
             MissingSection(
                 spec=NAMESPACE_SPEC,
-                line=LineNumber.from_int(9),
+                line=LineNumber.from_int(5),
                 section=USAGE,
                 before=None,
                 description=None,
@@ -155,7 +157,12 @@ class TestMissingSection:
     def test_message_with_an_occurrence_names_the_missing_section(self) -> None:
         #: Given
         occurrence = MissingSection(
-            spec=CORPUS_SPEC, line=OPTIONS.line, section=USAGE, before=OPTIONS.text, description=None, example=None
+            spec=CORPUS_SPEC,
+            line=LineNumber.from_int(3),
+            section=USAGE,
+            before='Options',
+            description=None,
+            example=None,
         )
 
         #: When
@@ -167,7 +174,12 @@ class TestMissingSection:
     def test_labels_with_a_section_after_mark_that_section(self) -> None:
         #: Given
         occurrence = MissingSection(
-            spec=CORPUS_SPEC, line=OPTIONS.line, section=USAGE, before=OPTIONS.text, description=None, example=None
+            spec=CORPUS_SPEC,
+            line=LineNumber.from_int(3),
+            section=USAGE,
+            before='Options',
+            description=None,
+            example=None,
         )
 
         #: When
@@ -196,9 +208,9 @@ class TestMissingSection:
         #: Given
         occurrence = MissingSection(
             spec=CORPUS_SPEC,
-            line=OPTIONS.line,
+            line=LineNumber.from_int(3),
             section=USAGE,
-            before=OPTIONS.text,
+            before='Options',
             description='How to invoke the command.',
             example='Run `lorecraft check`.',
         )
@@ -216,7 +228,12 @@ class TestMissingSection:
     def test_children_without_a_description_or_an_example_point_at_the_specification_alone(self) -> None:
         #: Given
         occurrence = MissingSection(
-            spec=CORPUS_SPEC, line=OPTIONS.line, section=USAGE, before=OPTIONS.text, description=None, example=None
+            spec=CORPUS_SPEC,
+            line=LineNumber.from_int(3),
+            section=USAGE,
+            before='Options',
+            description=None,
+            example=None,
         )
 
         #: When

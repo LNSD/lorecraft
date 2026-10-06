@@ -4,16 +4,18 @@ from dataclasses import dataclass
 from typing import ClassVar, Self
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.context import DocumentContext
+from lorecraft.project.syntax import find_title
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.inputs import HeadingsInput, HeadingsRule
 from lorecraft.rules.location import Note, Subdiagnostic
+from lorecraft.rules.subject import DocumentRule, Facet
 
 from .__ruleset__ import GROUP_ID, spec_note
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class InvalidTitle(HeadingsRule):
+class InvalidTitle(DocumentRule):
     """A document's title does not match the pattern its structure specification sets on `title`.
 
     ## What it does
@@ -65,6 +67,7 @@ class InvalidTitle(HeadingsRule):
     NAME: ClassVar[RuleName] = RuleName('invalid-title')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
 
     spec: RootRelativePath
     title: str
@@ -79,23 +82,25 @@ class InvalidTitle(HeadingsRule):
         return (spec_note(self.spec), Note(f'the title must match `{self.pattern}`'))
 
     @classmethod
-    def check(cls, subject: HeadingsInput) -> tuple[Self, ...]:
+    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
         """One occurrence, at the title's heading, for each pattern on the title that it does not match.
 
+        The patterns are taken in the order their specifications apply; a document with no title is held to none.
+
         Args:
-            subject: The document's headings, with what each governing structure specification states over them.
+            subject: The document, governed by a structure specification.
         """
+        title = find_title(subject.parse().headings)
+        if title is None:
+            return ()
         occurrences: list[Self] = []
-        for headings_spec in subject.specs:
-            mismatch = headings_spec.title_mismatch
-            if mismatch is None:
+        for structure_spec in subject.specifications().structure_specs():
+            title_checks = structure_spec.title
+            if title_checks is None or title_checks.pattern is None:
+                continue
+            if title_checks.pattern.is_found_in(title.text):
                 continue
             occurrences.append(
-                cls(
-                    spec=headings_spec.spec,
-                    line=mismatch.title.line,
-                    title=mismatch.title.text,
-                    pattern=mismatch.pattern,
-                )
+                cls(spec=structure_spec.path, line=title.line, title=title.text, pattern=str(title_checks.pattern))
             )
         return tuple(occurrences)

@@ -303,6 +303,18 @@ class TestDatabaseDocumentContext:
         )
         assert len(governance.structure_specs()) == 2, 'the corpus and the python namespace both govern the document'
 
+    def test_corpus_structure_with_a_document_returns_its_corpus_structure_specification(self) -> None:
+        #: Given
+        context = _document_context(Database(_snapshot()))
+
+        #: When
+        corpus_structure = context.corpus_structure()
+
+        #: Then
+        assert corpus_structure.path == CORPUS_SPEC, (
+            "the corpus structure specification is the corpus's, not the python namespace's that also governs it"
+        )
+
     def test_outline_divergences_with_a_document_returns_the_outline_divergences_query(self) -> None:
         #: Given
         database = Database(_snapshot())
