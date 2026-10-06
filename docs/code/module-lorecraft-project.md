@@ -31,8 +31,8 @@ from a snapshot, and one that never outlives its snapshot. The layout it derives
 - A document's, a skill's or a skill resource's identity, kept apart from its content and from where its symlinks
   lead.
 - Turning a Markdown link's destination into a root-relative path, relative to the document that holds it.
-- The contexts: a `Protocol` per subject kind stating what can be asked of one decoded document or skill, and
-  the owner types they return.
+- The contexts: a `Protocol` per subject kind stating what can be asked of one decoded document, skill or skill
+  resource, the ones several kinds share, such as what any Markdown file has, and the owner types they return.
 - The database of one revision: each query over it, such as the model, a file's decoded text, a parse tree, a count
   or a shared analysis, memoized on first use, and each question answered fresh from the snapshot, such as where a
   symlink leads.

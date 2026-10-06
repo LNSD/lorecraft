@@ -277,3 +277,21 @@ class FakeSkillContext:
         """The lines in the whole `SKILL.md`, as the real counter counts them."""
         # A count is never negative, so building the `UnsignedInt` cannot raise `NegativeIntError` here.
         return UnsignedInt(count_lines(self._text))
+
+
+class FakeSkillResourceContext:
+    """A resource of a skill a test writes as text; a `SkillResourceContext`."""
+
+    _text: str
+
+    def __init__(self, text: str) -> None:
+        """Hold the resource's text.
+
+        Args:
+            text: The resource's whole file.
+        """
+        self._text = text
+
+    def parse(self) -> ParsedDocument:
+        """The resource's parse tree, as the real parser reads it."""
+        return parse_document(self._text)
