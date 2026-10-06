@@ -7,7 +7,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.inputs import TokenCountInput, TokenCountRule
-from lorecraft.rules.location import Elsewhere, Help, Note, Subdiagnostic
+from lorecraft.rules.location import Elsewhere, Note, Subdiagnostic
 
 from .__ruleset__ import GROUP_ID
 
@@ -94,11 +94,8 @@ class TooManyTokens(TokenCountRule):
         return f'too many tokens ({self.token_count} > {self.budget})'
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the specification that sets the budget, and say how many tokens to cut."""
-        return (
-            Note('the budget is set here', at=Elsewhere(self.spec)),
-            Help(f'cut at least {self.token_count - self.budget} tokens'),
-        )
+        """Point at the specification that sets the budget."""
+        return (Note('the budget is set here', at=Elsewhere(self.spec)),)
 
     @classmethod
     def check(cls, subject: TokenCountInput) -> tuple[Self, ...]:

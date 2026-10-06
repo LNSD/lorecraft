@@ -47,7 +47,7 @@ class TestTooManyLines:
         #: Then
         assert message == 'too many lines (612 > 500)', 'the message sets the line count against the budget'
 
-    def test_children_with_an_occurrence_name_the_budget_and_say_how_many_lines_to_cut_and_where_to(self) -> None:
+    def test_children_with_an_occurrence_name_the_budget_and_say_where_to_move_the_lines(self) -> None:
         #: Given
         occurrence = TooManyLines(line=LineNumber.from_int(1), line_count=612)
 
@@ -57,9 +57,8 @@ class TestTooManyLines:
         #: Then
         assert children == (
             Note('the Agent Skills specification keeps a SKILL.md under 500 lines'),
-            Help('cut at least 112 lines'),
             Help(
                 'move what most activations do not need into files under references/, and say in SKILL.md when to '
                 'read each'
             ),
-        ), 'a note names where the budget comes from, a help the lines over it, and a help where to move them'
+        ), 'a note names where the budget comes from, and a help where to move the lines over it'

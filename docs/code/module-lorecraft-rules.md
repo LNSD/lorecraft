@@ -119,9 +119,10 @@ A rule is named for what is wrong, as the established linters name theirs, so th
   it, points its `Note` at the corpus's structure specification that governs the document. A rule the package
   itself states has `spec` `None`: its `Note` names the external specification that sets the limit in its text,
   with no `at`.
-- **A `Help` gives the fix for this occurrence** when its fields make it concrete, such as how many tokens to cut.
-  The general fix is the docstring's, but a rule the package states may add a `Help` with the fix the external
-  specification itself prescribes.
+- **A `Help` gives the fix for this occurrence** when its fields make it concrete, such as the description an
+  outline gives a section the document lacks. A limit's message already names the value found against the limit,
+  so a `Help` restating the difference adds nothing. The general fix is the docstring's, but a rule the package
+  states may add a `Help` with the fix the external specification itself prescribes.
 
 ## Documenting a Rule
 
