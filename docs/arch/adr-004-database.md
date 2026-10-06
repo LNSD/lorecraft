@@ -56,8 +56,9 @@ result is an immutable value. The queries are layered:
   query returned, never a bare ref, so a fact of an undecodable file cannot be asked for, and is keyed by the
   witness's ref.
 - **Analysis**: a shared analysis of one file against what governs it, which several rules read: `schema_problems`,
-  what each governing frontmatter schema rejects in a document's frontmatter, and `skill_schema_problems`, the same
-  for a skill against the Agent Skills specification. Each takes the witness, reads the per-file queries it analyses and, for a
+  what each governing frontmatter schema rejects in a document's frontmatter, `skill_schema_problems`, the same for
+  a skill against the Agent Skills specification, and `outline_divergences`, where a document's sections first stop
+  matching each governing outline. Each takes the witness, reads the per-file queries it analyses and, for a
   document, the governance the model records, and is kept whenever they are. It finds problems, not diagnostics:
   levels apply after detection, so no diagnostic is cached.
 - **Fresh**: a question too cheap to keep, such as where a symlink leads, answered on every call and never memoized.
