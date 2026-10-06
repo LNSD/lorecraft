@@ -3,8 +3,8 @@
 The runner decodes each document, skill and resource, hands each rule over a document, a skill or a Markdown file the
 subject's context or builds each input an enabled rule still reads, and runs the rules of a table built from a
 registry. The package's own registry runs the frontmatter block rules over documents and skills, the token budget,
-the headings rules and the outline divergence rules over documents, the line budget over skills, and the absolute
-link rule over every Markdown file; a registry of sample rules over a document's token count, declared in this
+the headings rules and the outline divergence rules over documents, the line budget over skills, and the link
+rules over every Markdown file; a registry of sample rules over a document's token count, declared in this
 module, runs through the same runner, with no edit to it.
 """
 
@@ -66,6 +66,7 @@ from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.length.too_many_words import TooManyWords
 from lorecraft.rules.link.absolute_link import AbsoluteLink
+from lorecraft.rules.link.missing_fragment import MissingFragment
 from lorecraft.rules.outline.empty_section import EmptySection
 from lorecraft.rules.outline.extra_title import ExtraTitle
 from lorecraft.rules.outline.forbidden_section import ForbiddenSection
@@ -1726,3 +1727,67 @@ class TestCheckSubjects:
         assert reports == (CheckedSubject(GUIDE, diagnostics=(), ungoverned=(Facet.STRUCTURE,)),), (
             'a rule over a Markdown file judges a document only under its structure, which is coverage when ungoverned'
         )
+
+    def test_check_subjects_with_a_fragment_missing_from_a_document_reports_missing_fragment_on_its_line(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        guide = b'# Guide\n\nSee [the title](#guide), then [install](#install).\n'
+        database = Database(_snapshot(_budget(1000), guide=guide))
+
+        #: When
+        reports = check_subjects(database, (GUIDE,), package_table)
+
+        #: Then
+        occurrence = MissingFragment(line=LineNumber.from_int(3), url='#install')
+        assert reports == (
+            CheckedSubject(
+                GUIDE,
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                ungoverned=(InputKind.FRONTMATTER_BLOCK, InputKind.SCHEMA_PROBLEMS, InputKind.OUTLINE_DIVERGENCE),
+            ),
+        ), "LINK002 runs at deny over a document, reporting the fragment its own headings lack and not the title's"
+
+    def test_check_subjects_with_a_fragment_missing_from_a_skill_file_reports_missing_fragment_at_its_skill_file(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        review = REVIEW_FRONTMATTER + b'# Review\n\nFollow [the steps](#steps).\n'
+        database = Database(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review))
+
+        #: When
+        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+
+        #: Then
+        occurrence = MissingFragment(line=LineNumber.from_int(7), url='#steps')
+        assert reports == (
+            CheckedSubject(
+                REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),), ungoverned=()
+            ),
+        ), "LINK002 runs at deny over a skill's SKILL.md, on the line of the link"
+
+    def test_check_subjects_with_a_fragment_only_the_skill_file_has_reports_it_missing_from_the_resource(
+        self, package_table: RuleTable
+    ) -> None:
+        #: Given
+        # SKILL.md has the heading `Usage`, and both files link `#usage`: each is read against its own headings.
+        review = REVIEW_FRONTMATTER + b'# Review\n\nSee [usage](#usage).\n\n## Usage\n'
+        resource = b'# Checklist\n\nSee [usage](#usage).\n'
+        snapshot = Snapshot.from_tree(
+            {'.agents': {'skills': {'review': {'SKILL.md': review, 'references': {'checklist.md': resource}}}}}
+        )
+        database = Database(snapshot)
+        checklist = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/checklist.md'))
+
+        #: When
+        reports = check_subjects(database, (_location(database, REVIEW), *_resources(database, REVIEW)), package_table)
+
+        #: Then
+        occurrence = MissingFragment(line=LineNumber.from_int(3), url='#usage')
+        checklist_path = RootRelativePath.parse('.agents/skills/review/references/checklist.md')
+        assert reports == (
+            CheckedSubject(REVIEW, diagnostics=(), ungoverned=()),
+            CheckedSubject(
+                checklist, diagnostics=(RuleDiagnostic(checklist_path, occurrence, Severity.ERROR),), ungoverned=()
+            ),
+        ), "a resource's fragment names one of its own headings, never the SKILL.md's, and is reported where it is"
