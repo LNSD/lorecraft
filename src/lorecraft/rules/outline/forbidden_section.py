@@ -4,8 +4,9 @@ from dataclasses import dataclass
 from typing import ClassVar, Self
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.syntax import SECTION_LEVEL
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.inputs import SECTION_LEVEL, HeadingsInput, HeadingsRule
+from lorecraft.rules.inputs import HeadingsInput, HeadingsRule
 from lorecraft.rules.location import Subdiagnostic
 
 from .__ruleset__ import GROUP_ID, spec_note

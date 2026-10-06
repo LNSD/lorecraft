@@ -25,7 +25,8 @@ declaration, read from `lorecraft.layout` and never stated here.
 - The decoding of a specification into rules that are proved usable when they are built.
 - The parse tree, the token count and the line count: pure functions of one document's text.
 - A shared analysis of one document's parsed values against the specifications handed to it, such as the problems
-  each frontmatter schema finds, each placed on its field's line. It finds the facts several rules read; whether one is reported, and how, is a rule's.
+  each frontmatter schema finds, each placed on its field's line, or where the sections first stop matching an
+  outline. It finds the facts several rules read; whether one is reported, and how, is a rule's.
 - A document's, a skill's or a skill resource's identity, kept apart from its content and from where its symlinks
   lead.
 - Turning a Markdown link's destination into a root-relative path, relative to the document that holds it.

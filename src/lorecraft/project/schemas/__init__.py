@@ -1,8 +1,9 @@
 """The specifications: their files, the schemas they state, and the repository that reads them.
 
 That is the specification filenames and names, the structure specification with the frontmatter schema, the
-counts and the section names it carries, the repository that reads them, the skill frontmatter schema, and the
-problems both frontmatter schemas report, each placed on the line it is reported on.
+counts and the section names it carries, the repository that reads them, the skill frontmatter schema, the
+problems both frontmatter schemas report, each placed on the line it is reported on, and where a document's sections
+first stop matching an outline.
 """
 
 from .frontmatter_problem import (
@@ -14,6 +15,14 @@ from .frontmatter_problem import (
     WrongTypeProblem,
 )
 from .name import CorpusSpecName, NamespaceSpecName, SpecName, parse_spec_name
+from .outline_divergence import (
+    AbsentSection,
+    DocumentEnd,
+    MisplacedSection,
+    OutlineDivergenceSpec,
+    UnlistedSection,
+    match_outlines,
+)
 from .repo import Repository, StructureSchemaReadError
 from .schema_problems import (
     FIRST_LINE,
@@ -151,4 +160,10 @@ __all__: list[str] = [
     'SchemaProblems',
     'locate_schema_problems',
     'locate_skill_schema_problems',
+    'DocumentEnd',
+    'AbsentSection',
+    'MisplacedSection',
+    'UnlistedSection',
+    'OutlineDivergenceSpec',
+    'match_outlines',
 ]

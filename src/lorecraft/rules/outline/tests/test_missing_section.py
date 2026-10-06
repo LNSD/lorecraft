@@ -9,16 +9,16 @@ from typing import Final
 import pytest
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.schemas import SectionName
-from lorecraft.project.syntax import Heading, LineNumber
-from lorecraft.rules.inputs import (
+from lorecraft.project.schemas import (
     AbsentSection,
     DocumentEnd,
     MisplacedSection,
-    OutlineDivergenceInput,
     OutlineDivergenceSpec,
+    SectionName,
     UnlistedSection,
 )
+from lorecraft.project.syntax import Heading, LineNumber
+from lorecraft.rules.inputs import OutlineDivergenceInput
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 
 from ..missing_section import MissingSection
