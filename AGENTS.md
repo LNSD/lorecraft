@@ -91,8 +91,8 @@ Skills live in two places, and the difference is who loads them:
 
 - **`skills/` holds project skills**, shipped to other repositories: the workflow a Lorecraft user follows to
   write and check their specifications, documents, code rules and skills. A project skill assumes nothing about
-  this repository — no `just` recipe, no workspace skill, no path outside what its `metadata` links in — and
-  calls the installed `lorecraft` command rather than vendoring a script.
+  this repository — no `just` recipe, no workspace skill, no repository path — and calls the installed
+  `lorecraft` command rather than vendoring a script.
 - **`.agents/skills/` holds workspace skills**, for working on this repository. It also links each project
   skill in by symlink, named as the skill, so this repository's agents run the same skills its users do: that
   is the dogfooding above, applied to skills. `.claude/skills` is a symlink to `.agents/skills/`, so Claude Code
@@ -105,8 +105,8 @@ Skills live in two places, and the difference is who loads them:
   before loading the skill, each followed by a line telling the agent to run the command itself if it arrives as
   literal text. The other is a comma-separated `allowed-tools`. Neither adds a frontmatter field: every skill's
   frontmatter holds to the six fields the specification defines. A project skill uses neither.
-- A workspace skill names a repository file as a path in backticks. A project skill links it in through
-  `metadata` instead, as `/skills-check` describes.
+- A workspace skill names a repository file as a path in backticks. A project skill links a document of this
+  repository by its published URL instead, as `/skills-check` describes.
 - `just check-skills` is the gate. It checks every skill an agent reads, so each project skill is checked once,
   through its symlink.
 - When a skill restates a feature doc and the doc disagrees with the code, that is `/feat-validate`'s finding.

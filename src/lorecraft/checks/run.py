@@ -11,9 +11,8 @@ The skill check runs over skills instead: it is handed a `SkillSelection` per sk
 hands out for it and how much of the skill to check, the whole skill or its `SKILL.md` alone. The parts it reads
 are the frontmatter and the line count of each `SKILL.md`, and the links and the heading anchors of the `SKILL.md`
 and, for a whole skill, of each of the skill's resources, and the Agent Skills specification governs every one of
-them, so a skill is never ungoverned. The files a skill links in through `metadata` are checked too, against what
-the snapshot holds at each path listed, and so is each path inside the skill a link names, against what the
-snapshot holds there. It reports in a shape of its own, a `SkillCheckRun` of `SkillReport`s, each locating a
+them, so a skill is never ungoverned. Each path inside the skill a link names is checked against what the snapshot
+holds there. It reports in a shape of its own, a `SkillCheckRun` of `SkillReport`s, each locating a
 violation in the file it was found in: the `SKILL.md`, or a resource. A symlink of the skill layout whose chain
 leaves the repository is reported at the path an agent reaches it by, in a `SymlinkReport`: under its skill's report
 when it is inside a skill, and in the run's own layout reports when it is a skills directory, an entry or an entry's
@@ -25,17 +24,13 @@ from enum import Enum
 from pathlib import PurePosixPath
 from typing import Literal, assert_never
 
-from lorecraft.core.path import RootRelativePath, RootRelativePathError
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import SKILL_FRONTMATTER_SCHEMA, StructureSpec
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillResourceRef
 from lorecraft.project.syntax import (
-    Frontmatter,
-    InvalidYamlFrontmatter,
     LineNumber,
     Link,
-    MissingFrontmatter,
-    NonMappingFrontmatter,
 )
 
 from .budget import validate_budget
@@ -45,14 +40,6 @@ from .reporting import Finding, Violation
 from .skill import SkillCheckResult, validate_skill
 from .skill_length import validate_skill_length
 from .skill_link import LinkTargetState, link_path_in_skill, validate_skill_links
-from .skill_metadata import (
-    ListedFile,
-    ListedFiles,
-    ListedFileState,
-    linked_in_paths,
-    listed_by_subkey,
-    validate_skill_metadata,
-)
 from .skill_symlink import validate_outside_symlink
 from .structure import validate_structure
 from .text import DocumentText, SkillResourceText, SkillText, Undecodable
@@ -427,11 +414,10 @@ def run_budget(database: Database, refs: tuple[DocumentRef, ...]) -> CheckRun:
 
 
 def run_skills(database: Database, selections: tuple[SkillSelection, ...]) -> SkillCheckRun:
-    """Check each skill's frontmatter, its length, its links and the files its `metadata` lists, in the order given.
+    """Check each skill's frontmatter, its length and its links, in the order given.
 
     Every skill is governed: the Agent Skills specification applies to each one. The violations in a skill's
-    `SKILL.md` list the frontmatter's first, then the line budget's, then the links', then, when the frontmatter
-    is a mapping, its `metadata`'s; a skill whose `metadata` lists no file has none of those. A skill whose
+    `SKILL.md` list the frontmatter's first, then the line budget's, then the links'. A skill whose
     `SKILL.md` is not UTF-8 carries there the single violation `skill.undecodable` at line 1: it is never parsed,
     and its lines are not counted.
 
@@ -445,10 +431,6 @@ def run_skills(database: Database, selections: tuple[SkillSelection, ...]) -> Sk
     when the selection covers the whole skill: like a resource, it is not looked at for the `SKILL.md` alone. So is
     each skills directory, skill entry and entry's `SKILL.md` whose chain leaves it, in the run's layout
     reports, whichever skills are selected: an agent lists the same skills directories to load any one skill.
-
-    Which files `metadata` links in is known only when the `SKILL.md`'s frontmatter is a mapping. When it is
-    missing, unparseable or not a mapping, or the `SKILL.md` is not UTF-8, any path might be linked in, so no
-    link in the `SKILL.md` or in any resource is judged `skill.link-broken`; the other link rules still apply.
 
     Args:
         database: The snapshot state the refs come from.
@@ -468,21 +450,18 @@ def run_skills(database: Database, selections: tuple[SkillSelection, ...]) -> Sk
         ref = selection.ref
         source = database.skill_text(ref)
         violations: tuple[Violation, ...]
-        # `None` while the `metadata` cannot be read: unknown, not empty.
-        linked_in: frozenset[PurePosixPath] | None
         match source:
             case Undecodable():
                 violations = (_undecodable_skill('SKILL.md'),)
-                linked_in = None
             case SkillText():
                 link_target = _link_target(selection.location)
-                violations, linked_in = _skill_file_violations(database, source, link_target=link_target)
+                violations = _skill_file_violations(database, source, link_target=link_target)
             case _:
                 assert_never(source)
         resources: tuple[SkillResourceReport, ...] = ()
         symlinks: tuple[SymlinkReport, ...] = ()
         if selection.scope is SkillScope.WHOLE_SKILL:
-            resources = _skill_resource_reports(database, selection.location, linked_in=linked_in)
+            resources = _skill_resource_reports(database, selection.location)
             symlinks = _symlink_reports(database.skill_resources(selection.location).outside_symlinks)
         reports.append(SkillReport(ref, violations=violations, resources=resources, symlinks=symlinks))
     layout = _symlink_reports(database.model().outside_symlinks)
@@ -504,60 +483,29 @@ def _symlink_reports(outside_symlinks: tuple[OutsideSymlink, ...]) -> tuple[Syml
 
 def _skill_file_violations(
     database: Database, source: SkillText, *, link_target: RootRelativePath | None
-) -> tuple[tuple[Violation, ...], frozenset[PurePosixPath] | None]:
-    """The violations in a skill's decoded `SKILL.md`, and the paths its `metadata` links files in at. Raises nothing.
+) -> tuple[Violation, ...]:
+    """The violations in a skill's decoded `SKILL.md`: the frontmatter's, then the line budget's, then the links'.
+
+    Raises nothing.
 
     Args:
         database: Where the `SKILL.md`'s frontmatter, line count and parse tree are read, and each path its links
-            and its `metadata` name is looked up.
+            name is looked up.
         source: The skill's `SKILL.md` text, as the database decoded it.
         link_target: The resolved directory the skill's listed directory leads to when it is a link, or `None`
             when it is not, as `_link_target` reads it from the skill's location.
-
-    Returns:
-        The frontmatter's violations, then the line budget's, then the links', then, when the frontmatter is a
-        mapping, its `metadata`'s; and every path inside the skill the `metadata` links a file in at, or `None` when
-        the frontmatter is not a mapping, so the `metadata` is unknown.
     """
-    ref = source.ref
     # `name` is held to the directory an agent lists, never to where a link leads: an agent opens
     # `<entry>/SKILL.md` and lets the OS follow any symlink. Where it leads only words a note.
-    directory_name = ref.directory.name
-    frontmatter = database.skill_frontmatter(source)
+    frontmatter_result = validate_skill(
+        SKILL_FRONTMATTER_SCHEMA,
+        frontmatter=database.skill_frontmatter(source),
+        directory_name=source.ref.directory.name,
+        link_target=link_target,
+    )
     length_result = validate_skill_length(line_count=database.skill_lines(source))
-    match frontmatter:
-        case Frontmatter():
-            linked_in = linked_in_paths(frontmatter)
-            frontmatter_result = validate_skill(
-                SKILL_FRONTMATTER_SCHEMA,
-                frontmatter=frontmatter,
-                directory_name=directory_name,
-                link_target=link_target,
-            )
-            link_result = _skill_links(database, source, linked_in=linked_in)
-            metadata_result = validate_skill_metadata(
-                frontmatter=frontmatter, listed=_listed_files(database, frontmatter)
-            )
-            violations = (
-                frontmatter_result.violations
-                + length_result.violations
-                + link_result.violations
-                + metadata_result.violations
-            )
-            return violations, linked_in
-        case MissingFrontmatter() | InvalidYamlFrontmatter() | NonMappingFrontmatter():
-            # No mapping, so no `metadata` to read; the frontmatter check reports the frontmatter itself.
-            frontmatter_result = validate_skill(
-                SKILL_FRONTMATTER_SCHEMA,
-                frontmatter=frontmatter,
-                directory_name=directory_name,
-                link_target=link_target,
-            )
-            link_result = _skill_links(database, source, linked_in=None)
-            violations = frontmatter_result.violations + length_result.violations + link_result.violations
-            return violations, None
-        case _:
-            assert_never(frontmatter)
+    link_result = _skill_links(database, source)
+    return frontmatter_result.violations + length_result.violations + link_result.violations
 
 
 def _link_target(location: SkillLocation) -> RootRelativePath | None:
@@ -573,23 +521,18 @@ def _link_target(location: SkillLocation) -> RootRelativePath | None:
     return location.resolves_to
 
 
-def _skill_links(
-    database: Database, source: SkillText, *, linked_in: frozenset[PurePosixPath] | None
-) -> SkillCheckResult:
+def _skill_links(database: Database, source: SkillText) -> SkillCheckResult:
     """The link violations of a skill's decoded `SKILL.md`. Raises nothing.
 
     Args:
         database: Where the skill's parse tree is read from, and each path its links name is looked up.
         source: The text of the skill whose `SKILL.md` links are checked.
-        linked_in: Every path inside the skill the skill's `metadata` links a file in at, or `None` when that
-            `metadata` is unknown.
     """
     parsed = database.skill_parse(source)
     return validate_skill_links(
         links=parsed.links,
         anchors=parsed.anchors,
         targets=_link_targets(database, source.ref, parsed.links),
-        linked_in=linked_in,
     )
 
 
@@ -631,9 +574,7 @@ def _link_target_state(database: Database, ref: SkillRef, path: PurePosixPath) -
     return LinkTargetState.PRESENT
 
 
-def _skill_resource_reports(
-    database: Database, skill: SkillLocation, *, linked_in: frozenset[PurePosixPath] | None
-) -> tuple[SkillResourceReport, ...]:
+def _skill_resource_reports(database: Database, skill: SkillLocation) -> tuple[SkillResourceReport, ...]:
     """One report per resource of a skill, in the order the database lists them.
 
     A resource's links are held to the same rules as the `SKILL.md`'s, and a fragment-only link in it names one of
@@ -643,8 +584,6 @@ def _skill_resource_reports(
         database: Where the skill's resources are listed, each one's parse tree is read from, and each path a
             link names is looked up.
         skill: The skill whose resources are checked, located as the model hands it out.
-        linked_in: Every path inside the skill the skill's `metadata` links a file in at, or `None` when that
-            `metadata` is unknown.
 
     Raises:
         SkillResourcesListError: If a directory the walk over the skill's resources enters cannot be listed.
@@ -665,57 +604,11 @@ def _skill_resource_reports(
                     links=parsed.links,
                     anchors=parsed.anchors,
                     targets=_link_targets(database, skill.ref, parsed.links),
-                    linked_in=linked_in,
                 )
                 reports.append(SkillResourceReport(resource, violations=result.violations))
             case _:
                 assert_never(source)
     return tuple(reports)
-
-
-def _listed_files(database: Database, frontmatter: Frontmatter) -> tuple[ListedFiles, ...]:
-    """The files a skill's `metadata` lists, subkey by subkey, each path with what the snapshot holds there.
-
-    A path written twice is located twice, so each of its entries carries its own state. Raises nothing.
-
-    Args:
-        database: Where each listed path is looked up in the snapshot.
-        frontmatter: The skill's decoded frontmatter, whose `metadata` is read.
-    """
-    listed: list[ListedFiles] = []
-    for subkey, written_paths in listed_by_subkey(frontmatter):
-        files: list[ListedFile] = []
-        for written in written_paths:
-            files.append(ListedFile(written=written, state=_listed_file_state(database, written)))
-        listed.append(ListedFiles(subkey=subkey, files=tuple(files)))
-    return tuple(listed)
-
-
-def _listed_file_state(database: Database, written: str) -> ListedFileState:
-    """What the snapshot can tell about one path a skill lists under `metadata`, as written there.
-
-    Two questions decide it, kept apart as an IDE keeps them: whether the snapshot holds a file there, and
-    whether the path is in the scope the scan declares. The path is parsed here, once: one that is absolute or
-    climbs with `..` names nothing under the root the snapshot was taken of, so it is outside the scope. A file
-    is present wherever the snapshot holds it, links followed, even in a directory the scope does not cover,
-    such as a file a linked `SKILL.md` leads to. Otherwise a path in the scope is missing, whether it names
-    nothing, a directory, or a link to no file the snapshot holds, because it dangles, leaves the repository or
-    reaches a file the snapshot never read, and whether or not its directory exists; a path outside the scope is
-    one the snapshot cannot tell about.
-
-    Args:
-        database: Where the path is looked up in the snapshot and asked about the scope.
-        written: The path exactly as the skill wrote it, unparsed and unresolved.
-    """
-    try:
-        path = RootRelativePath.parse(written)
-    except RootRelativePathError:
-        return ListedFileState.OUTSIDE_SCOPE
-    if database.find_file(path) is not None:
-        return ListedFileState.PRESENT
-    if database.is_in_scope(path):
-        return ListedFileState.MISSING
-    return ListedFileState.OUTSIDE_SCOPE
 
 
 def _budgeted(structure_specs: tuple[StructureSpec, ...]) -> tuple[StructureSpec, ...]:
