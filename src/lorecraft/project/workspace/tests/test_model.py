@@ -21,6 +21,8 @@ from lorecraft.project.schemas import (
     CorpusSpecName,
     FrontmatterSchema,
     NamespaceSpecName,
+    SectionEntry,
+    SectionName,
     SpecFileType,
     StructureSpec,
     StructureSpecFile,
@@ -108,6 +110,16 @@ def _spec_files(
         )
         files.append(path)
     return tuple(sorted(files, key=str)), structure_spec
+
+
+def _outlined(structure_spec: StructureSpec | None) -> StructureSpec:
+    """The structure specification given, stating an outline of one required section, `Usage`.
+
+    Args:
+        structure_spec: A structure specification; only one can state an outline.
+    """
+    assert structure_spec is not None, 'only a structure specification states an outline'
+    return replace(structure_spec, outline=(SectionEntry(name=SectionName('Usage')),))
 
 
 def _ref(corpus: str, filename: str) -> DocumentRef:
@@ -311,6 +323,37 @@ class TestGovernance:
             SPECS_DIR / 'code.structure.json',
             SPECS_DIR / 'code-python.structure.json',
         ), 'a structure file is a base whatever rule it states, as a tokens-only file is, so the namespace applies'
+
+    def test_outline_specs_with_an_outline_in_the_namespace_alone_returns_the_namespace_structure(self) -> None:
+        #: Given
+        corpus_spec = _corpus_spec('code', structure=True)
+        python = _code_namespace('python', structure=True)
+        namespaces = (replace(python, structure=_outlined(python.structure)),)
+        filename = AspectFilename.parse('python-typing')
+        corpus = _code_corpus(corpus_spec, namespaces)
+        governance = corpus.governance(filename)
+
+        #: When
+        outline_specs = governance.outline_specs()
+
+        #: Then
+        assert tuple(structure_spec.path for structure_spec in outline_specs) == (
+            SPECS_DIR / 'code-python.structure.json',
+        ), 'the corpus structure states no outline, so only the namespace structure is matched against one'
+
+    def test_outline_specs_with_no_structure_stating_an_outline_returns_no_structures(self) -> None:
+        #: Given
+        corpus_spec = _corpus_spec('code', structure=True)
+        namespaces = (_code_namespace('python', structure=True),)
+        filename = AspectFilename.parse('python-typing')
+        corpus = _code_corpus(corpus_spec, namespaces)
+        governance = corpus.governance(filename)
+
+        #: When
+        outline_specs = governance.outline_specs()
+
+        #: Then
+        assert outline_specs == (), 'no outline governs a document when no governing structure states one'
 
 
 @pytest.mark.unit
@@ -662,6 +705,60 @@ class TestWorkspaceModel:
 
         #: Then
         assert governance is None, 'no specification governs a document in a corpus the model does not hold'
+
+    def test_frontmatter_schemas_of_with_a_ref_in_a_listed_corpus_returns_its_corpus_schema(
+        self, two_corpora_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        ref = _ref('code', 'logging')
+
+        #: When
+        schemas = two_corpora_model.frontmatter_schemas_of(ref)
+
+        #: Then
+        assert tuple(schema.path for schema in schemas) == (SPECS_DIR / 'code.structure.json',), (
+            'the code corpus schema governs the frontmatter of a document of the code corpus'
+        )
+
+    def test_frontmatter_schemas_of_with_a_ref_of_a_corpus_the_model_lacks_returns_no_schemas(
+        self, two_corpora_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        ref = _ref('blog', 'launch')
+
+        #: When
+        schemas = two_corpora_model.frontmatter_schemas_of(ref)
+
+        #: Then
+        assert schemas == (), 'no schema governs a document in a corpus the model does not hold'
+
+    def test_outline_specs_of_with_a_ref_in_an_outlined_corpus_returns_its_corpus_structure(self) -> None:
+        #: Given
+        corpus_spec = _corpus_spec('code', structure=True)
+        outlined_spec = replace(corpus_spec, structure=_outlined(corpus_spec.structure))
+        code = _code_corpus(outlined_spec, ())
+        model = WorkspaceModel(corpora=(code,), skills_dirs=(), skill_locations=(), named_dirs=(), outside_symlinks=())
+        ref = _ref('code', 'logging')
+
+        #: When
+        outline_specs = model.outline_specs_of(ref)
+
+        #: Then
+        assert tuple(structure_spec.path for structure_spec in outline_specs) == (SPECS_DIR / 'code.structure.json',), (
+            'the code corpus structure states the outline a document of the code corpus is matched against'
+        )
+
+    def test_outline_specs_of_with_a_ref_of_a_corpus_the_model_lacks_returns_no_structures(
+        self, two_corpora_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        ref = _ref('blog', 'launch')
+
+        #: When
+        outline_specs = two_corpora_model.outline_specs_of(ref)
+
+        #: Then
+        assert outline_specs == (), 'no outline governs a document in a corpus the model does not hold'
 
     def test_documents_with_two_corpora_returns_refs_in_corpus_then_filename_order(
         self, two_corpora_model: WorkspaceModel
