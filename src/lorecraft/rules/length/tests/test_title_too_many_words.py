@@ -12,7 +12,7 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import Heading, LineNumber
 from lorecraft.rules.inputs import HeadingsInput, HeadingsSpec, TitleCap
-from lorecraft.rules.location import Elsewhere, Help, Note
+from lorecraft.rules.location import Elsewhere, Note
 
 from ..title_too_many_words import TitleTooManyWords
 
@@ -161,7 +161,7 @@ class TestTitleTooManyWords:
         #: Then
         assert message == 'too many words in the title (8 > 5)', 'the message sets the word count against the cap'
 
-    def test_children_with_an_occurrence_point_at_the_spec_and_say_how_many_words_to_cut(self) -> None:
+    def test_children_with_an_occurrence_point_at_the_spec(self) -> None:
         #: Given
         occurrence = TitleTooManyWords(spec=CORPUS_SPEC, line=LineNumber.from_int(1), word_count=8, cap=5)
 
@@ -169,7 +169,6 @@ class TestTitleTooManyWords:
         children = occurrence.children()
 
         #: Then
-        assert children == (
-            Note('the cap is set here', at=Elsewhere(CORPUS_SPEC)),
-            Help('cut at least 3 words'),
-        ), 'a note points at the specification that sets the cap, and a help names the words over it'
+        assert children == (Note('the cap is set here', at=Elsewhere(CORPUS_SPEC)),), (
+            'a note points at the specification that sets the cap'
+        )

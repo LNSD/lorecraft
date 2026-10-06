@@ -12,7 +12,7 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import Heading, LineNumber
 from lorecraft.rules.inputs import HeadingsInput, HeadingsSpec, TitleCharCap
-from lorecraft.rules.location import Elsewhere, Help, Note
+from lorecraft.rules.location import Elsewhere, Note
 
 from ..title_too_long import TitleTooLong
 
@@ -163,7 +163,7 @@ class TestTitleTooLong:
             'the message sets the character count against the cap'
         )
 
-    def test_children_with_an_occurrence_point_at_the_spec_and_say_how_many_characters_to_cut(self) -> None:
+    def test_children_with_an_occurrence_point_at_the_spec(self) -> None:
         #: Given
         occurrence = TitleTooLong(spec=CORPUS_SPEC, line=LineNumber.from_int(1), char_count=39, cap=30)
 
@@ -171,7 +171,6 @@ class TestTitleTooLong:
         children = occurrence.children()
 
         #: Then
-        assert children == (
-            Note('the cap is set here', at=Elsewhere(CORPUS_SPEC)),
-            Help('cut at least 9 characters'),
-        ), 'a note points at the specification that sets the cap, and a help names the characters over it'
+        assert children == (Note('the cap is set here', at=Elsewhere(CORPUS_SPEC)),), (
+            'a note points at the specification that sets the cap'
+        )
