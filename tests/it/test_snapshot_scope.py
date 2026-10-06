@@ -12,8 +12,8 @@ from typing import Final, assert_never
 
 import pytest
 
-from lorecraft.checks import Database, SkillResourceText, Undecodable
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.database import Database, SkillResourceText, Undecodable
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.skill import (
     SkillLocation,

@@ -10,7 +10,6 @@ from typing import Final
 
 import pytest
 
-from lorecraft.checks import Database, DocumentText, SkillText
 from lorecraft.checks.inputs import (
     Ungoverned,
     build_document_frontmatter_block_input,
@@ -20,6 +19,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.corpus import CorpusName
+from lorecraft.project.database import Database, DocumentText, SkillText
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import FrontmatterNode, LineNumber, MissingFrontmatter

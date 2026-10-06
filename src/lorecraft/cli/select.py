@@ -15,10 +15,11 @@ import os
 from pathlib import Path, PurePosixPath
 
 from lorecraft.agents import SKILL_ENTRY_FILENAME
-from lorecraft.checks import Database, SkillScope, SkillSelection
+from lorecraft.checks import SkillScope, SkillSelection
 from lorecraft.core.error import Error
 from lorecraft.core.path import ROOT, RootRelativePath
 from lorecraft.project.corpus import CorpusName, EmptyCorpusNameError, InvalidCorpusNameCharacterError
+from lorecraft.project.database import Database
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR
 from lorecraft.project.skill import SkillLocation

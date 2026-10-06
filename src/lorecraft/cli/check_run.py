@@ -23,7 +23,6 @@ import typer
 
 from lorecraft.checks import (
     CheckRun,
-    Database,
     Finding,
     GovernedDocumentReport,
     SkillCheckRun,
@@ -33,6 +32,7 @@ from lorecraft.checks import (
     format_finding,
 )
 from lorecraft.core.error import Error
+from lorecraft.project.database import Database
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE, scope_with_named_dirs
 from lorecraft.vfs import OsRefusal, take_snapshot

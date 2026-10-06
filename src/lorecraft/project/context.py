@@ -4,7 +4,7 @@ A context is a read-only view of one document or one skill whose file decoded. E
 subject, such as its frontmatter, its parse tree or the specifications that govern it, and every type a method
 returns is this package's own or a layer below's, so the contexts import nothing from above. The contexts are
 interfaces only: nothing here computes or caches a fact. The implementations that answer them from a revision's
-memoized queries live in `lorecraft.checks`, beside the database they read.
+memoized queries live in `lorecraft.project.database`, beside the database they read.
 
 `FrontmatterContext` holds what a document and a skill share, the frontmatter they open with; `DocumentContext` and
 `SkillContext` extend it with what each kind adds.

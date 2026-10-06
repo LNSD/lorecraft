@@ -11,17 +11,11 @@ from typing import Final
 
 import pytest
 
-from lorecraft.checks import (
-    CheckRun,
-    Database,
-    GovernedDocumentReport,
-    UngovernedDocumentReport,
-    Violation,
-    run_frontmatter,
-)
+from lorecraft.checks import CheckRun, GovernedDocumentReport, UngovernedDocumentReport, Violation, run_frontmatter
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
+from lorecraft.project.database import Database
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.syntax import LineNumber

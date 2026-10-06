@@ -11,8 +11,9 @@ from pathlib import Path
 
 import pytest
 
-from lorecraft.checks import Database, SkillCheckRun, SkillScope, SkillSelection, run_frontmatter, run_skills
+from lorecraft.checks import SkillCheckRun, SkillScope, SkillSelection, run_frontmatter, run_skills
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.database import Database
 from lorecraft.project.skill import SkillLocation, SkillRef
 from lorecraft.vfs import OsRefusal, ResolvedPath
 
