@@ -3,7 +3,8 @@
 The table is built once per run, before any subject is checked. Until a configuration sets levels, it is built
 from a registry and each rule's default level: a rule at `warn` reports warnings, one at `deny` errors, and one at
 `allow` is not in the table, so it never runs and what it reads may never be computed. Removed rules and engine
-conditions are not rules a run enables, so the table never holds one.
+conditions are not rules a run enables, so the table never holds one. A one-run selection then leaves out every rule
+it does not keep; it filters, and never enables a rule its level leaves off.
 
 A rule is partitioned by its base: the rules over a document, the rules over a skill, the rules over the
 frontmatter, which the runner runs over documents and skills alike, the rules over a Markdown file, which the runner
@@ -18,7 +19,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Self, assert_never
 
-from lorecraft.rules.declaration import EngineCondition, Level, RemovedRule, Rule, Severity
+from lorecraft.rules.declaration import Level, Rule, Severity
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.subject import (
     DocumentRule,
@@ -29,6 +30,8 @@ from lorecraft.rules.subject import (
     SkillFileRule,
     SkillRule,
 )
+
+from .selection import RuleSelection
 
 
 class UnknownRuleBaseError(TypeError):
@@ -124,29 +127,23 @@ class RuleTable:
             )
 
     @classmethod
-    def from_registry(cls, registry: Registry) -> Self:
-        """Enable every rule of a registry at its default level, with no configuration and no selection.
+    def from_registry(cls, registry: Registry, selection: RuleSelection) -> Self:
+        """Enable each rule of a registry the selection keeps, at its default level, with no configuration.
 
         Args:
             registry: The rules the run may enable; its removed rules and engine conditions are left out.
+            selection: The rules this run keeps; a rule it leaves out is not enabled, whatever its level.
 
         Raises:
             UnknownRuleBaseError: If an enabled rule derives from no base the table partitions by.
         """
         severities: dict[type[Rule], Severity] = {}
-        for declaration in registry.rules:
-            # A `match` class pattern tests an instance, not a class, so the branch on a declaration's kind is an
-            # `issubclass` chain, closed by `assert_never` as the registry's own is.
-            if issubclass(declaration, Rule):
-                severity = _default_severity(declaration.LEVEL)
-                if severity is not None:
-                    severities[declaration] = severity
-            elif issubclass(declaration, RemovedRule):
+        for rule_class in registry.rules_in_service:
+            if not selection.is_kept(rule_class.CODE):
                 continue
-            elif issubclass(declaration, EngineCondition):
-                continue
-            else:
-                assert_never(declaration)
+            severity = _default_severity(rule_class.LEVEL)
+            if severity is not None:
+                severities[rule_class] = severity
         return cls(severities)
 
     @property
@@ -194,6 +191,27 @@ class RuleTable:
             facet: The facet the rules declare in `GOVERNED_BY`; the result is empty when no enabled rule reads it.
         """
         return self._frontmatter_rules_by_facet[facet]
+
+
+def selected_rules_left_off(registry: Registry, selection: RuleSelection) -> tuple[type[Rule], ...]:
+    """Each rule a selection names by its code, and keeps, that its level leaves off, in code order.
+
+    A selection never enables a rule, so such a rule does not run; the command line warns of each. A rule kept only
+    through a broader selector, its group, a prefix of its code or `ALL`, is not named, so it is not among them.
+
+    Args:
+        registry: The rules the run may enable.
+        selection: The rules this run keeps.
+    """
+    left_off: list[type[Rule]] = []
+    for rule_class in registry.rules_in_service:
+        if (
+            rule_class.CODE in selection.select
+            and selection.is_kept(rule_class.CODE)
+            and _default_severity(rule_class.LEVEL) is None
+        ):
+            left_off.append(rule_class)
+    return tuple(left_off)
 
 
 def _default_severity(level: Level) -> Severity | None:

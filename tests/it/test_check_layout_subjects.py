@@ -13,7 +13,16 @@ from typing import Final
 import pytest
 
 from lorecraft import rules
-from lorecraft.checks import CheckedLayoutEntry, CheckedSubject, RuleDiagnostic, RuleTable, Subject, check_subjects
+from lorecraft.checks import (
+    AllRules,
+    CheckedLayoutEntry,
+    CheckedSubject,
+    RuleDiagnostic,
+    RuleSelection,
+    RuleTable,
+    Subject,
+    check_subjects,
+)
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.database import Database
 from lorecraft.project.layout import SNAPSHOT_SCOPE
@@ -68,7 +77,9 @@ def _outside_report(path: str, link: str, target: Path | str) -> CheckedLayoutEn
 @pytest.fixture(scope='module')
 def package_table() -> RuleTable:
     """The rule table of the package's own rules at their default levels; immutable, so shared by the module."""
-    return RuleTable.from_registry(Registry.load(rules))
+    return RuleTable.from_registry(
+        Registry.load(rules), RuleSelection(select=frozenset({AllRules()}), ignore=frozenset())
+    )
 
 
 @pytest.fixture(scope='function')

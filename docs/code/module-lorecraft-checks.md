@@ -27,6 +27,8 @@ returns at its subject, as a diagnostic.
   `SKILL.md` and each resource handed over as a subject of its own.
 - The rule table: the rules a run enables, each with the severity it reports at, partitioned by the subject kind
   each judges or the frontmatter both kinds share, and a document's rules also by the facet each declares.
+- The one-run selection, by `ALL`, group, code prefix or code, the most specific deciding, which filters the rule
+  table and never changes a level.
 - The value types a run reports in: a diagnostic per occurrence, the order they print in, and a report per subject.
 
 ## Belongs Elsewhere
