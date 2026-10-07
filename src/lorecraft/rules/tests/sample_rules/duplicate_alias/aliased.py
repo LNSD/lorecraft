@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.rules.declaration import AliasCode, Level, Release, RuleCode, RuleName, rule
+from lorecraft.rules.declaration import AliasCode, Level, LinterName, Release, RuleCode, RuleName, UpstreamCode, rule
 from lorecraft.rules.tests.sample_subject import SampleLines, SampleLinesRule
 
 from ..groups import SAMPLE
@@ -18,7 +18,7 @@ class FirstAliased(SampleLinesRule):
     NAME: ClassVar[RuleName] = RuleName('first-aliased')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('1.0.0')
-    ALIASES: ClassVar[tuple[AliasCode, ...]] = (AliasCode('markdownlint', 'MD009'),)
+    ALIASES: ClassVar[tuple[AliasCode, ...]] = (AliasCode(LinterName('markdownlint'), UpstreamCode('MD009')),)
 
     def message(self) -> str:
         """Name the condition."""
@@ -43,7 +43,7 @@ class SecondAliased(SampleLinesRule):
     NAME: ClassVar[RuleName] = RuleName('second-aliased')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('1.0.0')
-    ALIASES: ClassVar[tuple[AliasCode, ...]] = (AliasCode('markdownlint', 'MD009'),)
+    ALIASES: ClassVar[tuple[AliasCode, ...]] = (AliasCode(LinterName('markdownlint'), UpstreamCode('MD009')),)
 
     def message(self) -> str:
         """Name the condition."""

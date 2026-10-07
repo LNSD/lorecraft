@@ -52,7 +52,7 @@ from lorecraft.project.syntax import (
     count_tokens,
     parse_frontmatter,
 )
-from lorecraft.rules.declaration import Level, Release, Rule, RuleCode, RuleGroup, RuleName, Severity
+from lorecraft.rules.declaration import Level, Release, Rule, RuleCode, RuleGroup, RuleGroupPrefix, RuleName, Severity
 from lorecraft.rules.frontmatter.block_constraint import BlockConstraint
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
 from lorecraft.rules.frontmatter.invalid_value import InvalidValue
@@ -116,7 +116,7 @@ GUIDE_SCHEMA: Final[bytes] = (
 )
 """A structure specification whose frontmatter schema each kind of schema problem can break."""
 
-SAMPLE: Final[RuleGroup] = RuleGroup('SMP', 'Sample rules')
+SAMPLE: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('SMP'), 'Sample rules')
 """The group of the sample rules this module declares."""
 
 

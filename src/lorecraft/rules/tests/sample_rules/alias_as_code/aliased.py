@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.rules.declaration import AliasCode, Level, Release, RuleCode, RuleName, rule
+from lorecraft.rules.declaration import AliasCode, Level, LinterName, Release, RuleCode, RuleName, UpstreamCode, rule
 from lorecraft.rules.tests.sample_subject import SampleLines, SampleLinesRule
 
 from ..groups import SAMPLE
@@ -42,7 +42,7 @@ class Lookalike(SampleLinesRule):
     NAME: ClassVar[RuleName] = RuleName('lookalike')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('1.0.0')
-    ALIASES: ClassVar[tuple[AliasCode, ...]] = (AliasCode('otherlint', 'SMP001'),)
+    ALIASES: ClassVar[tuple[AliasCode, ...]] = (AliasCode(LinterName('otherlint'), UpstreamCode('SMP001')),)
 
     def message(self) -> str:
         """Name the condition."""

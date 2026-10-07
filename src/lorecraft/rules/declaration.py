@@ -12,18 +12,20 @@ and rendered like a rule, but with a fixed `Severity` in place of a level, and n
 module in it but its unit tests, and keeps the declarations whose module lies in that package outside its unit
 tests, so the rules a test declares never reach the package's own registry.
 
-A `Release` and a `RuleName` are value objects, which cannot know whether their caller wrote a literal or parsed
-a file or a command line, so their format raises an `Error` variant. A `RuleGroup`, a `RuleCode` and an
-`AliasCode` are records only the package's own code builds, from literals in a rule's module, never from a file a
-command read. One that breaks its format is therefore a defect in the package, and is rejected with a `ValueError`
-rather than an `Error` that the command line would report as the user's fault.
+A `Release`, a `RuleName`, a `RuleGroupPrefix`, a `LinterName` and an `UpstreamCode` are value objects, which
+cannot know whether their caller wrote a literal or parsed a file or a command line, so their format raises an
+`Error` variant. A `RuleGroup`, a `RuleCode` and an `AliasCode` are records built from those values. Two of their
+fields are plain values with a bound: a group's title and a code's number. No file and no command line supplies
+either, since a user names a group by its prefix and a rule by its code, so one out of bounds is a defect in the
+package, rejected with a `ValueError` rather than an `Error` that the command line would report as the user's
+fault.
 """
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from string import ascii_lowercase, ascii_uppercase, digits
-from typing import ClassVar, Self
+from typing import ClassVar, Final, Self
 
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
@@ -263,18 +265,102 @@ class RuleName:
         return self.value
 
 
-class InvalidRuleGroupPrefixError(ValueError):
-    """A rule group's prefix is empty or holds a character other than an uppercase ASCII letter.
+ALL_RULES_SELECTOR: Final[str] = 'ALL'
+"""The selector for every rule, as ruff spells it, which no group may take as its prefix."""
+
+
+class EmptyRuleGroupPrefixError(Error):
+    """A rule group's prefix is empty."""
+
+    def __init__(self) -> None:
+        super().__init__('rule group prefix cannot be empty')
+
+
+class InvalidRuleGroupPrefixCharacterError(Error):
+    """A rule group's prefix holds a character other than an uppercase ASCII letter.
 
     Attributes:
-        prefix: The rejected prefix.
+        value: The rejected prefix.
+        position: Zero-based position of the first invalid character.
+        character: The invalid character.
     """
 
-    prefix: str
+    value: str
+    position: int
+    character: str
 
-    def __init__(self, prefix: str) -> None:
-        self.prefix = prefix
-        super().__init__(f'rule group prefix {prefix!r} must be one or more uppercase ASCII letters')
+    def __init__(self, value: str, position: int) -> None:
+        self.value = value
+        self.position = position
+        self.character = value[position]
+        super().__init__(f'invalid character {self.character!r} in rule group prefix {value!r}')
+
+
+class ReservedRuleGroupPrefixError(Error):
+    """A rule group's prefix is `ALL`, the selector for every rule, so selecting the group would select them all.
+
+    Attributes:
+        value: The rejected prefix.
+    """
+
+    value: str
+
+    def __init__(self, value: str) -> None:
+        self.value = value
+        super().__init__(f'rule group prefix {value!r} is reserved: it selects every rule')
+
+
+@dataclass(frozen=True, slots=True)
+class RuleGroupPrefix:
+    """A rule group's prefix, which starts the code of every rule in the group, such as `OUT`.
+
+    A valid prefix:
+
+    - Is not empty.
+    - Holds only uppercase ASCII letters.
+    - Is not `ALL`, the selector for every rule.
+
+    Parsing preserves the spelling.
+
+    Attributes:
+        value: The prefix, exactly as supplied.
+    """
+
+    value: str
+
+    @classmethod
+    def parse(cls, raw: str) -> Self:
+        """Return a validated prefix.
+
+        Args:
+            raw: Candidate prefix, such as `OUT`.
+
+        Raises:
+            EmptyRuleGroupPrefixError: If it is empty.
+            InvalidRuleGroupPrefixCharacterError: If it holds a character other than an uppercase ASCII letter.
+            ReservedRuleGroupPrefixError: If it is `ALL`, the selector for every rule.
+        """
+        return cls(raw)
+
+    def __post_init__(self) -> None:
+        """Keep direct construction from bypassing the format.
+
+        Raises:
+            EmptyRuleGroupPrefixError: If it is empty.
+            InvalidRuleGroupPrefixCharacterError: If it holds a character other than an uppercase ASCII letter.
+            ReservedRuleGroupPrefixError: If it is `ALL`, the selector for every rule.
+        """
+        if not self.value:
+            raise EmptyRuleGroupPrefixError()
+        for position, character in enumerate(self.value):
+            if character not in ascii_uppercase:
+                raise InvalidRuleGroupPrefixCharacterError(self.value, position)
+        if self.value == ALL_RULES_SELECTOR:
+            raise ReservedRuleGroupPrefixError(self.value)
+
+    def __str__(self) -> str:
+        """The prefix exactly as supplied."""
+        return self.value
 
 
 class EmptyRuleGroupTitleError(ValueError):
@@ -284,11 +370,11 @@ class EmptyRuleGroupTitleError(ValueError):
         prefix: The prefix of the group with no title.
     """
 
-    prefix: str
+    prefix: RuleGroupPrefix
 
-    def __init__(self, prefix: str) -> None:
+    def __init__(self, prefix: RuleGroupPrefix) -> None:
         self.prefix = prefix
-        super().__init__(f'rule group {prefix!r} has an empty title')
+        super().__init__(f'rule group {str(prefix)!r} has an empty title')
 
 
 @dataclass(frozen=True, slots=True)
@@ -296,23 +382,23 @@ class RuleGroup:
     """The rules one mechanism states, under one prefix and title, such as `OUT` for a structure's outline.
 
     Attributes:
-        prefix: One or more uppercase ASCII letters, which start the code of every rule in the group.
+        prefix: The prefix that starts the code of every rule in the group.
         title: What the group covers, for a reader; not empty.
     """
 
-    prefix: str
+    prefix: RuleGroupPrefix
     title: str
 
     def __post_init__(self) -> None:
-        """Reject a prefix outside its format and an empty title.
+        """Reject an empty title.
+
+        A title is text only the package writes, never input: no file or command line supplies one, so an empty
+        title is a defect in the package that declares the group. A value object would raise an `Error`, which the
+        command line reports as the user's fault, so the guard stays a `ValueError` (error-boundaries §1).
 
         Raises:
-            InvalidRuleGroupPrefixError: If the prefix is empty or holds a character other than an uppercase
-                ASCII letter.
             EmptyRuleGroupTitleError: If the title is empty.
         """
-        if not self.prefix or any(character not in ascii_uppercase for character in self.prefix):
-            raise InvalidRuleGroupPrefixError(self.prefix)
         if not self.title:
             raise EmptyRuleGroupTitleError(self.prefix)
 
@@ -331,7 +417,7 @@ class RuleNumberOutOfRangeError(ValueError):
     def __init__(self, group: RuleGroup, number: int) -> None:
         self.group = group
         self.number = number
-        super().__init__(f'rule number {number} in group {group.prefix!r} is outside 1 to 999')
+        super().__init__(f'rule number {number} in group {str(group.prefix)!r} is outside 1 to 999')
 
 
 @dataclass(frozen=True, slots=True)
@@ -362,35 +448,124 @@ class RuleCode:
         return f'{self.group.prefix}{self.number:03d}'
 
 
-class EmptyAliasLinterError(ValueError):
-    """An alias code names no upstream linter.
+class EmptyLinterNameError(Error):
+    """An upstream linter's name is empty."""
+
+    def __init__(self) -> None:
+        super().__init__('linter name cannot be empty')
+
+
+@dataclass(frozen=True, slots=True)
+class LinterName:
+    """The name of an upstream linter whose codes a rule answers to, such as `markdownlint`.
+
+    A valid name is not empty. Parsing preserves the spelling.
 
     Attributes:
-        code: The upstream code of the alias.
+        value: The name, exactly as supplied.
     """
 
-    code: str
+    value: str
 
-    def __init__(self, code: str) -> None:
-        self.code = code
-        super().__init__(f'alias code {code!r} names no linter')
+    @classmethod
+    def parse(cls, raw: str) -> Self:
+        """Return a validated name.
+
+        Args:
+            raw: Candidate name, such as `markdownlint`.
+
+        Raises:
+            EmptyLinterNameError: If it is empty.
+        """
+        return cls(raw)
+
+    def __post_init__(self) -> None:
+        """Keep direct construction from bypassing the format.
+
+        Raises:
+            EmptyLinterNameError: If it is empty.
+        """
+        if not self.value:
+            raise EmptyLinterNameError()
+
+    def __str__(self) -> str:
+        """The name exactly as supplied."""
+        return self.value
 
 
-class InvalidAliasCodeError(ValueError):
-    """An alias code's upstream code is empty or holds whitespace, so it cannot be typed as one word.
+class EmptyUpstreamCodeError(Error):
+    """An upstream linter's code is empty."""
+
+    def __init__(self) -> None:
+        super().__init__('upstream code cannot be empty')
+
+
+class InvalidUpstreamCodeCharacterError(Error):
+    """An upstream linter's code holds whitespace, so it cannot be typed as one word.
 
     Attributes:
-        linter: The upstream linter of the alias.
-        code: The rejected code.
+        value: The rejected code.
+        position: Zero-based position of the first whitespace character.
+        character: The whitespace character.
     """
 
-    linter: str
-    code: str
+    value: str
+    position: int
+    character: str
 
-    def __init__(self, linter: str, code: str) -> None:
-        self.linter = linter
-        self.code = code
-        super().__init__(f'alias code {code!r} of {linter!r} must be one or more characters without whitespace')
+    def __init__(self, value: str, position: int) -> None:
+        self.value = value
+        self.position = position
+        self.character = value[position]
+        super().__init__(f'invalid character {self.character!r} in upstream code {value!r}')
+
+
+@dataclass(frozen=True, slots=True)
+class UpstreamCode:
+    """An upstream linter's code, as the linter prints it, such as markdownlint's `MD040`.
+
+    A valid code:
+
+    - Is not empty.
+    - Holds no whitespace character, so a user types it as one word.
+
+    Parsing preserves the spelling.
+
+    Attributes:
+        value: The code, exactly as supplied.
+    """
+
+    value: str
+
+    @classmethod
+    def parse(cls, raw: str) -> Self:
+        """Return a validated code.
+
+        Args:
+            raw: Candidate code, such as `MD040`.
+
+        Raises:
+            EmptyUpstreamCodeError: If it is empty.
+            InvalidUpstreamCodeCharacterError: If it holds a whitespace character.
+        """
+        return cls(raw)
+
+    def __post_init__(self) -> None:
+        """Keep direct construction from bypassing the format.
+
+        Raises:
+            EmptyUpstreamCodeError: If it is empty.
+            InvalidUpstreamCodeCharacterError: If it holds a whitespace character.
+        """
+        if not self.value:
+            raise EmptyUpstreamCodeError()
+        for position, character in enumerate(self.value):
+            if character.isspace():
+                raise InvalidUpstreamCodeCharacterError(self.value, position)
+
+    def __str__(self) -> str:
+        """The code exactly as supplied."""
+        return self.value
 
 
 @dataclass(frozen=True, slots=True)
@@ -400,28 +575,16 @@ class AliasCode:
     A rule's code is always Lorecraft's; an alias code only points to it.
 
     Attributes:
-        linter: The upstream linter's name, such as `markdownlint`; not empty.
-        code: The upstream code, as the linter prints it; not empty, and without whitespace.
+        linter: The upstream linter's name, such as `markdownlint`.
+        code: The upstream code, as the linter prints it.
     """
 
-    linter: str
-    code: str
-
-    def __post_init__(self) -> None:
-        """Reject an alias with no linter, and an upstream code that is not one word.
-
-        Raises:
-            EmptyAliasLinterError: If the linter's name is empty.
-            InvalidAliasCodeError: If the code is empty or holds whitespace.
-        """
-        if not self.linter:
-            raise EmptyAliasLinterError(self.code)
-        if not self.code or any(character.isspace() for character in self.code):
-            raise InvalidAliasCodeError(self.linter, self.code)
+    linter: LinterName
+    code: UpstreamCode
 
     def __str__(self) -> str:
         """The upstream code alone, as a user types it to look the rule up."""
-        return self.code
+        return str(self.code)
 
 
 class Level(Enum):
