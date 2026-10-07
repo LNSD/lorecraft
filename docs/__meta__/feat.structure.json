@@ -89,7 +89,7 @@
       "optional": true,
       "words": 200,
       "description": "The feature's known constraints, as a short list.",
-      "examples": ["- The command takes no paths, and no option selects or ignores a rule: every rule runs at its default level.\n- A repository with skills and no `docs/__meta__/` needs `--root`.\n- A check covers what a machine can decide. Whether a section says what it should stays with review."]
+      "examples": ["- The command takes no paths, and no option sets a level: every rule runs at its default level, and a selection\n  only narrows which run.\n- A repository with skills and no `docs/__meta__/` needs `--root`.\n- A check covers what a machine can decide. Whether a section says what it should stays with review."]
     },
     { "any": true, "words": 300 },
     {

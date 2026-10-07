@@ -134,6 +134,7 @@ codes: `FM` for the frontmatter, `LEN002` for the line budget, `LINK` for the li
 ```bash
 lorecraft check                  # every document and every skill of the workspace
 lorecraft check --format json    # machine-readable
+lorecraft check --select FM      # one group's rules, by prefix, while fixing them; never the gate
 lorecraft check --help           # options and exit codes
 ```
 

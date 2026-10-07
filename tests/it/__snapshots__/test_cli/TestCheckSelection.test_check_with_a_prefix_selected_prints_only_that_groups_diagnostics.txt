@@ -1,0 +1,2 @@
+docs/code/guide.md:1: error[FM001]: no `---` delimited frontmatter block
+  = note: the frontmatter schema is set here (docs/__meta__/code.structure.json)

@@ -1,6 +1,6 @@
 ---
 name: "cli-check"
-description: "The lorecraft check command: every rule over every document and skill of the workspace, root discovery, the rule groups and their codes, the text and JSON output, and the 0/1/2 exit status. Load when running the documentation and skill checks, wiring them into CI or a pre-commit hook, matching on a rule code, or parsing their output"
+description: "The lorecraft check command: every rule over every document and skill of the workspace, root discovery, selecting and ignoring rules by code or prefix, the rule groups and their codes, the text and JSON output, and the 0/1/2 exit status. Load when running the documentation and skill checks, wiring them into CI or a pre-commit hook, running some rules only, matching on a rule code, or parsing their output"
 type: "feature"
 status: "experimental"
 components: "module:lorecraft.cli,module:lorecraft.checks,module:lorecraft.rules"
@@ -64,14 +64,33 @@ parsed once however many rules read it. Every specification is loaded and valida
 so one malformed specification stops the whole run. A file that is not UTF-8 is reported as `LC001`, and no rule
 judges it.
 
+### Selecting Rules
+
+`--select` and `--ignore` take selectors, comma-separated or repeated, as ruff's rule selection does. From the least
+specific to the most, one is `ALL`; a group's prefix, such as `OUT`; a code prefix of one or two digits, such as
+`OUT0`, every rule whose code starts with it; or a code, such as `OUT006`, or an alias code for it.
+Selectors are case-sensitive, and no `--select` is `ALL`.
+
+For each rule, the most specific matching selector decides, `--ignore` winning a tie: `--select OUT006 --ignore OUT`
+runs `OUT006`, `--select OUT --ignore OUT006` every `OUT` rule but it, and `--select OUT --ignore OUT` none. A
+selection only filters: a selected rule at `allow` stays off.
+
+Selectors are checked before any subject; the run exits `2` on an empty selector, one no rule or group has, a code
+prefix no code starts with, a rule's name, an engine condition or `LC`, always reported, or a removed rule, naming
+the release that removed it and what replaced it. An alias code, and a rule selected by its code that its level
+leaves off, each print a `warning:` line on stderr, and the run goes on.
+
 ## Configuration
 
 | Argument or option | Default | Description |
 |--------------------|---------|-------------|
 | `--root <path>`    | nearest parent holding `docs/__meta__/` | The repository root, as [Root Discovery](#root-discovery) describes |
 | `--format <text\|json>` | `text` | The output format, as [Output](#output) describes |
+| `--select <selectors>` | `ALL` | Run only these rules, as [Selecting Rules](#selecting-rules) describes |
+| `--ignore <selectors>` | none | Skip these rules |
 
-The command takes no paths: it always checks the whole workspace.
+The command takes no paths: it always checks the whole workspace. Between `--select` and `--ignore`, the more
+specific selector wins, as [Selecting Rules](#selecting-rules) describes.
 
 ## Usage
 
@@ -81,6 +100,14 @@ lorecraft check
 
 # Another repository, as JSON
 lorecraft check --root ../other-repo --format json
+
+# The frontmatter rules and one length rule; then every rule but the links
+lorecraft check --select FM,LEN003
+lorecraft check --ignore LINK
+
+# One outline rule, though its group is ignored; then the outline rules numbered 001 to 009
+lorecraft check --select OUT006 --ignore OUT
+lorecraft check --select OUT00
 ```
 
 ### Output
@@ -102,10 +129,10 @@ docs/notes/todo.md: ungoverned for outline, budget
 checked 2 subject(s): 2 error(s), 0 warning(s)
 ```
 
-In `json` format stdout is one JSON object and stderr is empty. `diagnostics` holds each diagnostic in the text
-order, its `line` `null` for a whole file, `labels` as `{"path", "line", "text"}` and `children` as
-`{"kind", "text", "path", "line"}`, `kind` being `help` or `note`. `summary` counts the subjects, errors and
-warnings, and `coverage` lists each subject with an ungoverned part:
+In `json` format stdout is one JSON object, and stderr holds nothing but the selection's warnings. `diagnostics`
+holds each diagnostic in the text order, its `line` `null` for a whole file, `labels` as `{"path", "line", "text"}`
+and `children` as `{"kind", "text", "path", "line"}`, `kind` being `help` or `note`. `summary` counts the subjects,
+errors and warnings, and `coverage` lists each subject with an ungoverned part:
 
 ```json
 {"diagnostics": [{"path": "docs/notes/broken.md", "line": null, "severity": "error", "code": "LC001", "name": "invalid-utf8", "message": "file is not valid UTF-8", "labels": [], "children": []}], "summary": {"subjects": 3, "errors": 1, "warnings": 0}, "coverage": [{"path": "docs/notes/todo.md", "ungoverned": ["outline", "budget"]}]}
@@ -117,11 +144,12 @@ warnings, and `coverage` lists each subject with an ungoverned part:
 |------|---------|
 | `0`  | No diagnostic is an error; warnings and ungoverned parts do not count |
 | `1`  | At least one diagnostic is an error, `LC001` included |
-| `2`  | The run could not start: no root, a symlinked `docs/` or `docs/__meta__/`, an unreadable file, an entry that changed kind while read, a malformed specification, or a usage error. Only the error is printed, on stderr, as [cli](cli.md) describes |
+| `2`  | The run could not start: no root, a symlinked `docs/` or `docs/__meta__/`, an unreadable file, an entry that changed kind while read, a malformed specification, a selector that cannot be used, or a usage error. Only the error is printed, on stderr, as [cli](cli.md) describes |
 
 ## Limitations
 
-- The command takes no paths, and no option selects or ignores a rule: every rule runs at its default level.
+- The command takes no paths, and no option sets a level: every rule runs at its default level, and a selection
+  only narrows which run.
 - A warning does not fail the run: a skill frontmatter field outside the six, `FM007`, exits 0.
 - A repository with skills and no `docs/__meta__/` needs `--root`.
 - A key repeated inside a nested frontmatter mapping is not reported as repeated.
@@ -140,7 +168,7 @@ reference, not to this document.
 | `LEN` | Length limits: a document's tokens, a section's or its title's words or characters, a `SKILL.md`'s lines. `LEN001` too-many-tokens, `LEN002` too-many-lines, `LEN003` too-many-words, `LEN004` title-too-many-words, `LEN005` title-too-long |
 | `LINK` | Links in Markdown files: a document governed for its structure, a `SKILL.md` and each resource, a skill's relative link read from the skill root. `LINK001` absolute-link, `LINK002` missing-fragment, `LINK003` broken-link, `LINK004` escaping-link |
 | `LAY` | Skill layout checks: `LAY001` outside-symlink, a symlink an agent reaches whose chain leaves the repository |
-| `LC` | Engine conditions, which no configuration turns off: `LC001` invalid-utf8, a file that is not UTF-8 |
+| `LC` | Engine conditions, which no configuration or selection turns off: `LC001` invalid-utf8, a file that is not UTF-8 |
 
 ## References
 
@@ -154,7 +182,9 @@ reference, not to this document.
 - `src/lorecraft/cli/commands/check.py` - Declares the command, runs the rules and chooses the exit status
 - `src/lorecraft/cli/root.py` - Root discovery
 - `src/lorecraft/cli/subjects.py` - Selects every subject of the workspace, in path order
+- `src/lorecraft/cli/rule_selection.py` - Parses `--select` and `--ignore` against the registry
 - `src/lorecraft/cli/diagnostics.py` - Renders the diagnostics, the coverage and the summary as text or JSON
 - `src/lorecraft/checks/runner.py` - Runs every enabled rule over each subject
 - `src/lorecraft/checks/table.py` - The rules a run enables, each with its severity
+- `src/lorecraft/checks/selection.py` - The selection that filters the rule table
 - `src/lorecraft/rules/` - The rules, one module each, in a package per group
