@@ -16,8 +16,16 @@ from lorecraft.core.path import RootRelativePath
 
 from ..frontmatter_problem import (
     BlockProblem,
+    FieldGuidance,
     InvalidValueProblem,
+    JsonType,
+    MaxFields,
+    MinFields,
     MissingFieldProblem,
+    OneOfValues,
+    OtherBlockConstraint,
+    OtherValueConstraint,
+    PatternMismatch,
     UnknownFieldProblem,
     WrongTypeProblem,
 )
@@ -1365,8 +1373,13 @@ class TestFrontmatterSchema:
 
         #: Then
         assert problems == (
-            WrongTypeProblem('name', "3 is not of type 'string'"),
-            InvalidValueProblem('type', "'guide' is not one of ['rule', 'pattern']"),
+            WrongTypeProblem('name', "3 is not of type 'string'", (JsonType.STRING,), JsonType.INTEGER),
+            InvalidValueProblem(
+                'type',
+                "'guide' is not one of ['rule', 'pattern']",
+                OneOfValues(('rule', 'pattern')),
+                guidance=FieldGuidance(allowed=('rule', 'pattern')),
+            ),
         ), 'problems are ordered by the field they concern first, and by their message only within a field'
 
     def test_validate_with_fields_the_schema_does_not_allow_returns_one_unknown_field_problem_each(self) -> None:
@@ -1388,12 +1401,14 @@ class TestFrontmatterSchema:
             UnknownFieldProblem(
                 'model',
                 "Additional properties are not allowed ('model' was unexpected)",
+                ('name',),
             ),
             UnknownFieldProblem(
                 'tier',
                 "Additional properties are not allowed ('tier' was unexpected)",
+                ('name',),
             ),
-        ), 'each field neither properties nor patternProperties names is its own problem'
+        ), 'each field neither properties nor patternProperties names is its own problem, naming the properties'
 
     def test_validate_with_fields_no_keyword_evaluates_returns_one_unknown_field_problem_each(self) -> None:
         #: Given
@@ -1419,9 +1434,12 @@ class TestFrontmatterSchema:
 
         #: Then
         assert problems == (
-            UnknownFieldProblem('desc', "Unevaluated properties are not allowed ('desc' was unexpected)"),
-            UnknownFieldProblem('tier', "Unevaluated properties are not allowed ('tier' was unexpected)"),
-        ), 'each field no keyword of the composed schema evaluates is its own problem, on that field'
+            UnknownFieldProblem('desc', "Unevaluated properties are not allowed ('desc' was unexpected)", ('status',)),
+            UnknownFieldProblem('tier', "Unevaluated properties are not allowed ('tier' was unexpected)", ('status',)),
+        ), (
+            'each field no keyword of the composed schema evaluates is its own problem, on that field, and the fields '
+            'named are the properties of the schema holding the keyword, not those it evaluates through `allOf`'
+        )
 
     def test_validate_with_unevaluated_fields_breaking_the_rule_schema_returns_an_invalid_value_problem_each(
         self,
@@ -1439,7 +1457,7 @@ class TestFrontmatterSchema:
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
 
         #: Then
-        assert problems == (InvalidValueProblem('tier', "1 is not of type 'string'"),), (
+        assert problems == (InvalidValueProblem('tier', "1 is not of type 'string'", OtherValueConstraint()),), (
             'an unevaluated field is held to the rule schema, and only one breaking it is a problem, on that field'
         )
 
@@ -1453,9 +1471,9 @@ class TestFrontmatterSchema:
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
 
         #: Then
-        assert problems == (WrongTypeProblem('name', "3 is not of type 'string'"),), (
-            "the message is the validator's, naming the constraint the schema wrote"
-        )
+        assert problems == (
+            WrongTypeProblem('name', "3 is not of type 'string'", (JsonType.STRING,), JsonType.INTEGER),
+        ), "the message is the validator's, and the types are the schema's and the value's"
 
     def test_validate_with_a_value_outside_an_enum_returns_an_invalid_value_problem(self) -> None:
         #: Given
@@ -1467,8 +1485,117 @@ class TestFrontmatterSchema:
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
 
         #: Then
-        assert problems == (InvalidValueProblem('type', "'guide' is not one of ['rule', 'pattern']"),), (
-            'a value of the right type breaking another rule is invalid'
+        assert problems == (
+            InvalidValueProblem(
+                'type',
+                "'guide' is not one of ['rule', 'pattern']",
+                OneOfValues(('rule', 'pattern')),
+                guidance=FieldGuidance(allowed=('rule', 'pattern')),
+            ),
+        ), 'a value of the right type breaking another rule is invalid, and the values allowed are carried'
+
+    def test_validate_with_a_value_breaking_a_pattern_returns_the_pattern_and_the_comment(self) -> None:
+        #: Given
+        schema: dict[str, object] = {
+            'type': 'object',
+            'properties': {'name': {'type': 'string', 'description': 'Kebab-case.', 'examples': ['setup-guide']}},
+            'allOf': [{'properties': {'name': {'pattern': '^[a-z-]+$'}}, '$comment': 'Lowercase words only.'}],
+        }
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
+        data: dict[str, object] = {'name': 'Setup'}
+
+        #: When
+        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+
+        #: Then
+        assert problems == (
+            InvalidValueProblem(
+                'name',
+                "'Setup' does not match '^[a-z-]+$'",
+                PatternMismatch('^[a-z-]+$'),
+                reason=None,
+                guidance=FieldGuidance(description='Kebab-case.', example='setup-guide'),
+            ),
+        ), "the `$comment` beside `properties` is not the failing subschema's, so it is no reason"
+
+    def test_validate_with_a_failing_subschema_that_has_a_comment_returns_it_as_the_reason(self) -> None:
+        #: Given
+        schema: dict[str, object] = {
+            'type': 'object',
+            'properties': {
+                'description': {
+                    'type': 'string',
+                    'allOf': [{'not': {'pattern': r'\.\s*$'}, '$comment': 'No trailing period.'}],
+                }
+            },
+        }
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
+        data: dict[str, object] = {'description': 'Load when x.'}
+
+        #: When
+        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+
+        #: Then
+        assert problems == (
+            InvalidValueProblem(
+                'description',
+                "'Load when x.' should not be valid under {'pattern': '\\\\.\\\\s*$'}",
+                OtherValueConstraint(),
+                reason='No trailing period.',
+            ),
+        ), "the failing subschema's `$comment` is the reason, and `not` has no typed constraint"
+
+    def test_validate_with_a_value_other_than_a_const_returns_the_value_allowed(self) -> None:
+        #: Given
+        schema: dict[str, object] = {'type': 'object', 'properties': {'type': {'const': 'rule'}}}
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
+        data: dict[str, object] = {'type': 'guide'}
+
+        #: When
+        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+
+        #: Then
+        assert problems == (
+            InvalidValueProblem(
+                'type',
+                "'rule' was expected",
+                OneOfValues(('rule',)),
+                guidance=FieldGuidance(example='rule', allowed=('rule',)),
+            ),
+        ), 'a const is the one value allowed, and the example the property gives when it lists none'
+
+    def test_validate_with_an_item_outside_an_enum_returns_an_untyped_constraint(self) -> None:
+        #: Given
+        schema: dict[str, object] = {
+            'type': 'object',
+            'properties': {'tags': {'type': 'array', 'items': {'enum': ['a', 'b']}}},
+        }
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
+        data: dict[str, object] = {'tags': ['c']}
+
+        #: When
+        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+
+        #: Then
+        assert problems == (InvalidValueProblem('tags', "'c' is not one of ['a', 'b']", OtherValueConstraint()),), (
+            "the enum limits the items, not the field, so the field's own value is not said to be outside it"
+        )
+
+    def test_validate_with_an_item_breaking_a_pattern_returns_an_untyped_constraint(self) -> None:
+        #: Given
+        schema: dict[str, object] = {
+            'type': 'object',
+            'properties': {'tags': {'type': 'array', 'items': {'pattern': '^[a-z]+$'}}},
+        }
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
+        data: dict[str, object] = {'tags': ['A']}
+
+        #: When
+        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+
+        #: Then
+        assert problems == (InvalidValueProblem('tags', "'A' does not match '^[a-z]+$'", OtherValueConstraint()),), (
+            "the pattern limits the items, not the field, so the field's own value is not said to break it"
         )
 
     def test_validate_with_an_unknown_key_inside_a_field_returns_an_invalid_value_problem_on_the_field(self) -> None:
@@ -1488,6 +1615,7 @@ class TestFrontmatterSchema:
             InvalidValueProblem(
                 'metadata',
                 "Additional properties are not allowed ('owner' was unexpected)",
+                OtherValueConstraint(),
             ),
         ), "a key inside a field makes that field's value invalid; the field itself is known"
 
@@ -1516,9 +1644,9 @@ class TestFrontmatterSchema:
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
 
         #: Then
-        assert problems == (WrongTypeProblem('name', "['a'] is not of type 'string'"),), (
-            'the message quotes the value as the YAML decoded it, not as the tuple it is frozen into'
-        )
+        assert problems == (
+            WrongTypeProblem('name', "['a'] is not of type 'string'", (JsonType.STRING,), JsonType.ARRAY),
+        ), 'the message quotes the value as the YAML decoded it, not as the tuple it is frozen into'
 
     def test_validate_with_a_rule_over_the_whole_block_returns_a_block_problem(self) -> None:
         #: Given
@@ -1531,4 +1659,150 @@ class TestFrontmatterSchema:
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
 
         #: Then
-        assert problems == (BlockProblem('{} should be non-empty'),), 'a rule over the block concerns no field'
+        assert problems == (BlockProblem('{} should be non-empty', MinFields(1), 0),), (
+            'a rule over the block concerns no field'
+        )
+
+    def test_validate_with_too_many_fields_returns_a_block_problem_with_the_limit_and_the_description(self) -> None:
+        #: Given
+        schema: dict[str, object] = {'type': 'object', 'description': 'A guide.', 'maxProperties': 1}
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
+        data: dict[str, object] = {'name': 'guide', 'type': 'rule'}
+
+        #: When
+        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+
+        #: Then
+        assert problems == (
+            BlockProblem(
+                "{'name': 'guide', 'type': 'rule'} has too many properties", MaxFields(1), 2, description='A guide.'
+            ),
+        ), 'the limit, the number of fields written and the root description are carried'
+
+    def test_validate_with_another_rule_over_the_block_returns_a_block_problem_without_a_typed_limit(self) -> None:
+        #: Given
+        schema: dict[str, object] = {'type': 'object', 'not': {'required': ['name']}}
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
+        data: dict[str, object] = {'name': 'guide'}
+
+        #: When
+        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+
+        #: Then
+        assert problems == (
+            BlockProblem(
+                "{'name': 'guide'} should not be valid under {'required': ['name']}", OtherBlockConstraint(), 1
+            ),
+        ), "a keyword with no typed constraint keeps the validator's wording"
+
+    def test_validate_with_a_key_propertynames_rejects_returns_an_invalid_value_problem_on_the_key(self) -> None:
+        #: Given
+        schema: dict[str, object] = {'type': 'object', 'propertyNames': {'pattern': '^[a-z]+$'}}
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
+        data: dict[str, object] = {'name': 'guide', 'B_': 2}
+
+        #: When
+        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+
+        #: Then
+        assert problems == (
+            InvalidValueProblem('B_', "'B_' does not match '^[a-z]+$'", PatternMismatch('^[a-z]+$')),
+        ), 'a key the names rule rejects names a field, so it is not a problem of the whole block'
+
+    def test_validate_with_a_missing_dependency_returns_an_invalid_value_problem_on_the_field(self) -> None:
+        #: Given
+        schema: dict[str, object] = {'type': 'object', 'dependentRequired': {'status': ['owner', 'date']}}
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
+        data: dict[str, object] = {'status': 'draft', 'owner': 'me'}
+
+        #: When
+        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+
+        #: Then
+        assert problems == (
+            InvalidValueProblem('status', "'date' is a dependency of 'status'", OtherValueConstraint()),
+        ), 'the field that needs another is the one at fault, and a dependency present is not reported'
+
+    def test_validate_with_a_missing_field_the_schema_describes_returns_its_guidance(self) -> None:
+        #: Given
+        schema: dict[str, object] = {
+            'type': 'object',
+            'required': ['type', 'name'],
+            'properties': {
+                'type': {'enum': ['rule', 'pattern'], 'description': 'The kind of document.'},
+                'name': {'type': 'string', 'examples': ['setup', 'install']},
+            },
+        }
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
+        data: dict[str, object] = {}
+
+        #: When
+        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+
+        #: Then
+        assert problems == (
+            MissingFieldProblem(
+                'type',
+                "'type' is a required property",
+                guidance=FieldGuidance(description='The kind of document.', allowed=('rule', 'pattern')),
+            ),
+            MissingFieldProblem('name', "'name' is a required property", guidance=FieldGuidance(example='setup')),
+        ), 'the description, the values allowed and the first example come from the property'
+
+    def test_validate_with_a_required_field_in_a_branch_returns_it_without_guidance(self) -> None:
+        #: Given
+        schema: dict[str, object] = {
+            'type': 'object',
+            'properties': {'status': {'type': 'string'}, 'owner': {'description': 'Who maintains it.'}},
+            'if': {'properties': {'status': {'const': 'stable'}}, 'required': ['status']},
+            'then': {'required': ['owner']},
+        }
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
+        data: dict[str, object] = {'status': 'stable'}
+
+        #: When
+        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+
+        #: Then
+        assert problems == (MissingFieldProblem('owner', "'owner' is a required property"),), (
+            "a branch's `required` sits in a schema without `properties`, so the property is not read"
+        )
+
+    def test_validate_with_a_value_of_one_of_several_types_returns_every_type_expected(self) -> None:
+        #: Given
+        schema: dict[str, object] = {'type': 'object', 'properties': {'tags': {'type': ['string', 'null']}}}
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
+        data: dict[str, object] = {'tags': True}
+
+        #: When
+        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+
+        #: Then
+        assert problems == (
+            WrongTypeProblem(
+                'tags', "True is not of type 'string', 'null'", (JsonType.STRING, JsonType.NULL), JsonType.BOOLEAN
+            ),
+        ), 'a boolean is not an integer, and every type the schema accepts is expected'
+
+    def test_validate_with_a_number_found_returns_the_number_type(self) -> None:
+        #: Given
+        schema: dict[str, object] = {
+            'type': 'object',
+            'properties': {'version': {'type': 'string', 'description': 'The version.'}},
+        }
+        frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
+        data: dict[str, object] = {'version': 1.5}
+
+        #: When
+        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+
+        #: Then
+        assert problems == (
+            WrongTypeProblem(
+                'version',
+                "1.5 is not of type 'string'",
+                (JsonType.STRING,),
+                JsonType.NUMBER,
+                guidance=FieldGuidance(description='The version.'),
+            ),
+        ), 'a fraction is a number, and the description is carried with the type'

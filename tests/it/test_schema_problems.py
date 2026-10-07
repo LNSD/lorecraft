@@ -17,6 +17,8 @@ from lorecraft.project.database import Database, DocumentText, SkillText
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import (
     AgentSkillsSchema,
+    FieldGuidance,
+    JsonType,
     LocatedProblem,
     MissingFieldProblem,
     SchemaProblems,
@@ -150,7 +152,9 @@ class TestSchemaProblems:
                 source=StructureSpecSchema(spec=NAMESPACE_SPEC),
                 problems=(
                     LocatedProblem(
-                        problem=WrongTypeProblem('description', "3 is not of type 'string'"),
+                        problem=WrongTypeProblem(
+                            'description', "3 is not of type 'string'", (JsonType.STRING,), JsonType.INTEGER
+                        ),
                         line=LineNumber.from_int(3),
                     ),
                 ),
@@ -250,12 +254,28 @@ class TestSkillSchemaProblems:
                 source=AgentSkillsSchema(),
                 problems=(
                     LocatedProblem(
-                        problem=MissingFieldProblem('description', '`description` is required'),
+                        problem=MissingFieldProblem(
+                            'description',
+                            '`description` is required',
+                            guidance=FieldGuidance(
+                                description=(
+                                    'What the skill does and when to use it, with the keywords that let an agent '
+                                    'match it to a task.'
+                                ),
+                                example=(
+                                    'Extracts text and tables from PDF files, fills PDF forms, and merges multiple '
+                                    'PDFs. Use when working with PDF documents or when the user mentions PDFs, '
+                                    'forms, or document extraction.'
+                                ),
+                            ),
+                        ),
                         line=LineNumber.from_int(1),
                     ),
                     LocatedProblem(
                         problem=UnknownFieldProblem(
-                            'extra', '`extra` is not a field of the Agent Skills specification'
+                            'extra',
+                            '`extra` is not a field of the Agent Skills specification',
+                            ('name', 'description', 'license', 'compatibility', 'metadata', 'allowed-tools'),
                         ),
                         line=LineNumber.from_int(3),
                     ),

@@ -11,7 +11,7 @@ import pytest
 
 from lorecraft.core.path import ROOT, RootRelativePath
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.location import Elsewhere, Help, Note
+from lorecraft.rules.location import Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, FakeSkillContext, structure_spec_path
 from lorecraft.vfs import ResolvedPath
 
@@ -136,11 +136,38 @@ class TestNameMismatch:
         message = occurrence.message()
 
         #: Then
-        assert message == "`name` is 'installation', expected 'setup'", (
-            'the message sets the name against the one expected'
+        assert message == "`name` is 'installation', which is not the name it is found under", (
+            'the message names the name written; the label names the one expected'
         )
 
-    def test_children_with_a_document_name_the_filename_and_the_specification(self) -> None:
+    def test_labels_with_a_document_name_the_filename_expected_on_the_name_line(self) -> None:
+        #: Given
+        occurrence = NameMismatch(
+            spec=SPEC, line=LineNumber.from_int(2), name='installation', expectation=FilenameExpected('setup')
+        )
+
+        #: When
+        labels = occurrence.labels()
+
+        #: Then
+        assert labels == (Label(Here(LineNumber.from_int(2)), 'expected `setup`'),), (
+            'the label sits on the `name` line and names the filename'
+        )
+
+    def test_labels_with_a_skill_name_the_directory_name_expected_on_the_name_line(self) -> None:
+        #: Given
+        expectation = DirectoryNameExpected(directory_name='review', link_target=None)
+        occurrence = NameMismatch(spec=None, line=LineNumber.from_int(2), name='code-review', expectation=expectation)
+
+        #: When
+        labels = occurrence.labels()
+
+        #: Then
+        assert labels == (Label(Here(LineNumber.from_int(2)), 'expected `review`'),), (
+            'the label sits on the `name` line and names the directory'
+        )
+
+    def test_children_with_a_document_name_the_filename_and_offer_the_rename(self) -> None:
         #: Given
         occurrence = NameMismatch(
             spec=SPEC, line=LineNumber.from_int(2), name='installation', expectation=FilenameExpected('setup')
@@ -152,9 +179,9 @@ class TestNameMismatch:
         #: Then
         assert children == (
             Note("a document's `name` must be its filename"),
-            Note('the frontmatter schema is set here', at=Elsewhere(SPEC)),
             Help("set `name` to 'setup'"),
-        ), 'notes say which name is expected and where the schema is set, a help gives the name to write'
+            Help("or rename the file to 'installation.md'"),
+        ), 'a note says which name is expected, with no pointer to a schema, since none states it; two helps fix it'
 
     def test_children_with_a_skill_reached_through_a_link_name_where_it_leads(self) -> None:
         #: Given
@@ -167,9 +194,10 @@ class TestNameMismatch:
         #: Then
         assert children == (
             Note('the Agent Skills specification requires `name` to match the skill directory name'),
-            Note("'review' is a link to 'skills/code-review'"),
             Help("set `name` to 'review'"),
-        ), 'a skill whose listed directory links to one named otherwise carries a note naming where it leads'
+            Help("or rename the skill directory to 'code-review'"),
+            Note("'review' is a link to 'skills/code-review'"),
+        ), 'a skill whose listed directory links to one named otherwise carries a note naming where it leads, last'
 
     def test_children_with_a_skill_linked_to_a_directory_of_the_same_name_carry_no_link_note(self) -> None:
         #: Given
@@ -184,6 +212,7 @@ class TestNameMismatch:
         assert children == (
             Note('the Agent Skills specification requires `name` to match the skill directory name'),
             Help("set `name` to 'review'"),
+            Help("or rename the skill directory to 'code-review'"),
         ), 'a link to a directory of the listed name explains nothing, so no note names it'
 
     def test_children_with_a_skill_linked_to_the_root_name_the_repository_root(self) -> None:
@@ -197,6 +226,7 @@ class TestNameMismatch:
         #: Then
         assert children == (
             Note('the Agent Skills specification requires `name` to match the skill directory name'),
-            Note("'review' is a link to the repository root"),
             Help("set `name` to 'review'"),
+            Help("or rename the skill directory to 'code-review'"),
+            Note("'review' is a link to the repository root"),
         ), 'the root, whose own name is empty, is named as such'

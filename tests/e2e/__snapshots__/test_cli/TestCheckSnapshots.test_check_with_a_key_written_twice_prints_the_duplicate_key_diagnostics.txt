@@ -1,9 +1,11 @@
-.agents/skills/review/SKILL.md:4: error[FM005]: duplicate key 'description', already written on line 3
+.agents/skills/review/SKILL.md:4: error[FM005]: duplicate key 'description'
+  --> .agents/skills/review/SKILL.md:4: written again here
   --> .agents/skills/review/SKILL.md:3: first written here
   = note: the Agent Skills specification governs a SKILL.md's frontmatter
   = help: write 'description' once, with the value meant
 
-docs/code/guide.md:4: error[FM005]: duplicate key 'type', already written on line 3
+docs/code/guide.md:4: error[FM005]: duplicate key 'type'
+  --> docs/code/guide.md:4: written again here
   --> docs/code/guide.md:3: first written here
   = note: the frontmatter schema is set here (docs/__meta__/code.structure.json)
   = help: write 'type' once, with the value meant

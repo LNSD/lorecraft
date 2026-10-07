@@ -8,14 +8,17 @@ from lorecraft.project.schemas import (
     BlockProblem,
     InvalidValueProblem,
     MissingFieldProblem,
+    OneOfValues,
+    OtherValueConstraint,
+    PatternMismatch,
     UnknownFieldProblem,
     WrongTypeProblem,
 )
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.location import Note, Subdiagnostic
+from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.subject import FrontmatterRule
 
-from .__ruleset__ import GROUP_ID, schema_note, schema_spec
+from .__ruleset__ import GROUP_ID, allowed_values_help, example_note, schema_note, schema_spec
 
 
 @rule
@@ -29,7 +32,14 @@ class InvalidValue(FrontmatterRule):
     structure specification's `frontmatter` schema other than its type, such as `maxLength`, `pattern` or `enum`,
     and for skills whose frontmatter breaks such a constraint of the Agent Skills specification, such as a `name`
     longer than 64 characters or not in lowercase. Anything wrong inside a field's value, such as a key a mapping
-    lacks or an item of the wrong type, is that field's value at fault, and is reported here on the field's line.
+    lacks or an item of the wrong type, is that field's value at fault, and is reported here on the field's line,
+    the top-level key's, since a key nested in a value has no line of its own. A key the schema's `propertyNames`
+    rejects, or whose `dependentRequired` fields are not all written, is reported here on its own line.
+
+    The label says which constraint the value broke, for an `enum`, a `const` or a `pattern`. The help is the reason
+    the failing subschema gives in its `$comment`, which this repository's schemas use to say why a branch is there,
+    or else the property's `description`; the allowed values and the property's first example follow. The
+    validator's own wording is shown as a note only for another keyword.
 
     ## Why is this bad?
 
@@ -74,7 +84,7 @@ class InvalidValue(FrontmatterRule):
     Attributes:
         spec: The structure specification whose frontmatter schema found the problem, or `None` for a skill, which
             the Agent Skills specification governs.
-        problem: The field whose value breaks the constraint.
+        problem: The field whose value breaks the constraint, with what the schema states about it.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 9)
@@ -85,12 +95,46 @@ class InvalidValue(FrontmatterRule):
     problem: InvalidValueProblem
 
     def message(self) -> str:
-        """Name the field whose value breaks a constraint; the constraint is in the schema's wording, a note."""
+        """Name the field whose value breaks a constraint; the label names the constraint."""
         return f'field `{self.problem.field}` breaks a constraint of the schema'
 
+    def labels(self) -> tuple[Label, ...]:
+        """Name the constraint on the field's line, for an `enum`, a `const` or a `pattern`; another has no label."""
+        constraint = self.problem.constraint
+        match constraint:
+            case OneOfValues():
+                return (Label(Here(self.line), 'not one of the allowed values'),)
+            case PatternMismatch():
+                return (Label(Here(self.line), f'does not match the pattern `{constraint.pattern}`'),)
+            case OtherValueConstraint():
+                return ()
+            case _:
+                assert_never(constraint)
+
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Give the schema's own wording, which names the constraint, and say where the schema is stated."""
-        return (Note(self.problem.message), schema_note(self.spec))
+        """Say where the schema is stated, why the value is wrong and what to write, then the validator's wording."""
+        problem = self.problem
+        parts: list[Subdiagnostic] = [schema_note(self.spec)]
+        if problem.reason is not None:
+            parts.append(Help(problem.reason))
+        elif problem.guidance.description is not None:
+            parts.append(Help(problem.guidance.description))
+
+        constraint = problem.constraint
+        # The validator's wording is the last child, after the example.
+        validator_wording: list[Subdiagnostic] = []
+        match constraint:
+            case OneOfValues():
+                parts.append(allowed_values_help(constraint.values))
+            case PatternMismatch():
+                pass  # the label says it
+            case OtherValueConstraint():
+                validator_wording.append(Note(problem.message))
+            case _:
+                assert_never(constraint)
+        if problem.guidance.example is not None:
+            parts.append(example_note(problem.field, problem.guidance.example))
+        return tuple(parts + validator_wording)
 
     @classmethod
     def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:

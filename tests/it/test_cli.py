@@ -515,13 +515,37 @@ class TestCheckCommand:
                     'code': 'FM012',
                     'name': 'allowed-tools-too-long',
                     'message': '`allowed-tools` value too long (501 > 500)',
-                    'labels': [],
-                    'children': [],
+                    'labels': [
+                        {'path': '.agents/skills/review/SKILL.md', 'line': 4, 'text': '1 character over'},
+                    ],
+                    'children': [
+                        {
+                            'kind': 'note',
+                            'text': "the Agent Skills specification's experimental `allowed-tools` field: "
+                            'https://agentskills.io/specification#allowed-tools-field',
+                            'path': None,
+                            'line': None,
+                        },
+                        {
+                            'kind': 'help',
+                            'text': 'keep only the tools the skill needs, and merge patterns such as '
+                            '`Bash(git diff *) Bash(git log *)` into `Bash(git *)`',
+                            'path': None,
+                            'line': None,
+                        },
+                        {
+                            'kind': 'note',
+                            'text': 'Lorecraft recommends at most 500 characters, the `compatibility` limit; '
+                            'the Agent Skills specification sets none for `allowed-tools`',
+                            'path': None,
+                            'line': None,
+                        },
+                    ],
                 }
             ],
             'summary': {'subjects': 1, 'errors': 0, 'warnings': 1},
             'coverage': [],
-        }, 'JSON identifies the recommendation as a warning at the field line without an upstream specification note'
+        }, 'JSON labels the excess, notes where the specification states the field, and where the limit comes from'
 
     def test_check_with_malformed_allowed_tools_warns_and_exits_zero(
         self, tmp_path: Path, snapshot: SnapshotAssertion
@@ -554,8 +578,14 @@ class TestCheckCommand:
                     'severity': 'warning',
                     'code': 'FM011',
                     'name': 'malformed-allowed-tools',
-                    'message': "malformed `allowed-tools` entry 'Read,'",
-                    'labels': [],
+                    'message': '`allowed-tools` is not a list of tool entries',
+                    'labels': [
+                        {
+                            'path': '.agents/skills/review/SKILL.md',
+                            'line': 4,
+                            'text': '`Read,` is not `Tool` or `Tool(pattern)`',
+                        },
+                    ],
                     'children': [
                         {
                             'kind': 'note',
@@ -566,7 +596,7 @@ class TestCheckCommand:
                         },
                         {
                             'kind': 'help',
-                            'text': 'separate tools with spaces, not commas',
+                            'text': 'write `Read`',
                             'path': None,
                             'line': None,
                         },
@@ -693,7 +723,9 @@ class TestCheckCommand:
                     'code': 'FM007',
                     'name': 'unknown-field',
                     'message': 'unknown field `version`',
-                    'labels': [],
+                    'labels': [
+                        {'path': '.agents/skills/review/SKILL.md', 'line': 4, 'text': 'not defined by the schema'},
+                    ],
                     'children': [
                         {
                             'kind': 'note',
@@ -704,6 +736,13 @@ class TestCheckCommand:
                         {
                             'kind': 'help',
                             'text': 'remove `version`, or respell it as a field the schema defines',
+                            'path': None,
+                            'line': None,
+                        },
+                        {
+                            'kind': 'note',
+                            'text': 'the schema defines: `name`, `description`, `license`, `compatibility`, '
+                            '`metadata`, `allowed-tools`',
                             'path': None,
                             'line': None,
                         },
@@ -746,14 +785,22 @@ class TestCheckCommand:
                     'code': 'FM001',
                     'name': 'missing-frontmatter',
                     'message': 'no `---` delimited frontmatter block',
-                    'labels': [],
+                    'labels': [
+                        {'path': 'docs/code/guide.md', 'line': 1, 'text': 'a `---` delimited block is expected here'},
+                    ],
                     'children': [
                         {
                             'kind': 'note',
                             'text': 'the frontmatter schema is set here',
                             'path': 'docs/__meta__/code.structure.json',
                             'line': None,
-                        }
+                        },
+                        {
+                            'kind': 'help',
+                            'text': 'open the file with a `---` line, the fields, and a closing `---` line',
+                            'path': None,
+                            'line': None,
+                        },
                     ],
                 },
                 {
@@ -1248,14 +1295,22 @@ class TestCheckSelection:
                     'code': 'FM001',
                     'name': 'missing-frontmatter',
                     'message': 'no `---` delimited frontmatter block',
-                    'labels': [],
+                    'labels': [
+                        {'path': 'docs/code/guide.md', 'line': 1, 'text': 'a `---` delimited block is expected here'},
+                    ],
                     'children': [
                         {
                             'kind': 'note',
                             'text': 'the frontmatter schema is set here',
                             'path': 'docs/__meta__/code.structure.json',
                             'line': None,
-                        }
+                        },
+                        {
+                            'kind': 'help',
+                            'text': 'open the file with a `---` line, the fields, and a closing `---` line',
+                            'path': None,
+                            'line': None,
+                        },
                     ],
                 },
             ],

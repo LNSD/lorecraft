@@ -8,7 +8,8 @@ Every diagnostic of every report is printed in the order `diagnostic_order` stat
 arrive in, so one revision always prints the same output. A diagnostic prints as its primary line, then one line per
 label, then its help and notes, and an empty line separates it from the next:
 
-    docs/code/a.md:3: error[FM005]: duplicate key 'name', already written on line 2
+    docs/code/a.md:3: error[FM005]: duplicate key 'name'
+      --> docs/code/a.md:3: written again here
       --> docs/code/a.md:2: first written here
       = note: the frontmatter schema is set here (docs/__meta__/code.structure.json)
       = help: write 'name' once, with the value meant

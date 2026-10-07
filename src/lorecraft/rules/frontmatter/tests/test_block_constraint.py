@@ -13,9 +13,9 @@ from typing import Final
 import pytest
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.schemas import BlockProblem
+from lorecraft.project.schemas import BlockProblem, MaxFields, MinFields, OtherBlockConstraint
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.location import Elsewhere, Note
+from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
 
 from ..block_constraint import BlockConstraint
@@ -35,7 +35,7 @@ REQUIRE_DESCRIPTION: Final[str] = '{"frontmatter": {"type": "object", "required"
 TEXT: Final[str] = '---\nname: setup\n---\n# Setup\n'
 """A document whose frontmatter holds one field, and no `description`."""
 
-PROBLEM: Final[BlockProblem] = BlockProblem("{'name': 'setup'} does not have enough properties")
+PROBLEM: Final[BlockProblem] = BlockProblem("{'name': 'setup'} does not have enough properties", MinFields(2), 1)
 """A constraint over the whole block broken: the rule's condition."""
 
 LINE: Final[LineNumber] = LineNumber.from_int(1)
@@ -109,7 +109,65 @@ class TestBlockConstraint:
             'the message states the condition, in lowercase, naming no specification'
         )
 
-    def test_children_with_a_document_occurrence_point_at_the_specification(self) -> None:
+    def test_check_with_a_described_schema_carries_its_description(self) -> None:
+        #: Given
+        structure = (
+            '{"frontmatter": {"type": "object", "minProperties": 2, '
+            '"description": "The fields an agent lists a document by."}}'
+        )
+        subject = FakeDocumentContext(TEXT, corpus='guide', structure=structure)
+
+        #: When
+        occurrences = BlockConstraint.check(subject)
+
+        #: Then
+        problem = BlockProblem(
+            "{'name': 'setup'} does not have enough properties",
+            MinFields(2),
+            1,
+            description='The fields an agent lists a document by.',
+        )
+        assert occurrences == (BlockConstraint(spec=CORPUS_SPEC, line=LINE, problem=problem),), (
+            "the root schema's description is carried with the limit and the number of fields"
+        )
+
+    def test_labels_with_too_few_fields_say_how_many_the_block_has_and_how_many_it_needs(self) -> None:
+        #: Given
+        occurrence = BlockConstraint(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM)
+
+        #: When
+        labels = occurrence.labels()
+
+        #: Then
+        assert labels == (Label(Here(LINE), 'has 1 field; the schema requires at least 2 fields'),), (
+            'the label is on line 1, the whole block'
+        )
+
+    def test_labels_with_too_many_fields_say_how_many_the_block_has_and_how_many_it_allows(self) -> None:
+        #: Given
+        problem = BlockProblem('too many', MaxFields(1), 3)
+        occurrence = BlockConstraint(spec=CORPUS_SPEC, line=LINE, problem=problem)
+
+        #: When
+        labels = occurrence.labels()
+
+        #: Then
+        assert labels == (Label(Here(LINE), 'has 3 fields; the schema allows at most 1 field'),), (
+            'the limit is a maximum, and the singular is used for one'
+        )
+
+    def test_labels_with_another_keyword_label_nothing(self) -> None:
+        #: Given
+        problem = BlockProblem('wrong', OtherBlockConstraint(), 1)
+        occurrence = BlockConstraint(spec=CORPUS_SPEC, line=LINE, problem=problem)
+
+        #: When
+        labels = occurrence.labels()
+
+        #: Then
+        assert labels == (), "a keyword with no typed constraint has nothing to label but the validator's prose"
+
+    def test_children_with_a_limit_on_the_number_of_fields_point_at_the_specification_only(self) -> None:
         #: Given
         occurrence = BlockConstraint(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM)
 
@@ -117,20 +175,34 @@ class TestBlockConstraint:
         children = occurrence.children()
 
         #: Then
-        assert children == (
-            Note(PROBLEM.message),
-            Note('the frontmatter schema is set here', at=Elsewhere(CORPUS_SPEC)),
-        ), "a note gives the schema's wording, then a note says where the schema is stated"
+        assert children == (Note('the frontmatter schema is set here', at=Elsewhere(CORPUS_SPEC)),), (
+            "the label states the limit, whose prose would repeat the block's whole frontmatter"
+        )
 
-    def test_children_with_a_skill_occurrence_name_the_agent_skills_specification(self) -> None:
+    def test_children_with_a_description_give_it_as_the_help(self) -> None:
         #: Given
-        occurrence = BlockConstraint(spec=None, line=LINE, problem=PROBLEM)
+        problem = BlockProblem('too few', MinFields(2), 1, description='The fields an agent lists a document by.')
+        occurrence = BlockConstraint(spec=CORPUS_SPEC, line=LINE, problem=problem)
 
         #: When
         children = occurrence.children()
 
         #: Then
         assert children == (
-            Note(PROBLEM.message),
+            Note('the frontmatter schema is set here', at=Elsewhere(CORPUS_SPEC)),
+            Help('The fields an agent lists a document by.'),
+        ), 'the root schema description is shown as the schema wrote it'
+
+    def test_children_with_another_keyword_end_with_the_validator_wording(self) -> None:
+        #: Given
+        problem = BlockProblem('wrong', OtherBlockConstraint(), 1)
+        occurrence = BlockConstraint(spec=None, line=LINE, problem=problem)
+
+        #: When
+        children = occurrence.children()
+
+        #: Then
+        assert children == (
             Note("the Agent Skills specification states a SKILL.md's frontmatter schema"),
-        ), 'the Agent Skills specification is no file, so its note has no location'
+            Note('wrong'),
+        ), "the validator's wording is the fallback, and the Agent Skills specification note has no location"

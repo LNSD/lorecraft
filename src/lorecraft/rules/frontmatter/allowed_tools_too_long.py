@@ -7,10 +7,10 @@ from lorecraft.project.context import SkillContext
 from lorecraft.project.schemas import field_line
 from lorecraft.project.syntax import Frontmatter, InvalidYamlFrontmatter, MissingFrontmatter, NonMappingFrontmatter
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.location import Subdiagnostic
+from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.subject import SkillRule
 
-from .__ruleset__ import GROUP_ID
+from .__ruleset__ import GROUP_ID, allowed_tools_note
 
 _CHARACTER_LIMIT: Final[int] = 500
 """Lorecraft's recommended length, matching the compatibility field's maximum."""
@@ -75,9 +75,24 @@ class AllowedToolsTooLong(SkillRule):
         """Name the characters found against the recommended length."""
         return f'`allowed-tools` value too long ({self.character_count} > {_CHARACTER_LIMIT})'
 
+    def labels(self) -> tuple[Label, ...]:
+        """Say how far the value is over the recommended length, on the field's line."""
+        over = self.character_count - _CHARACTER_LIMIT
+        return (Label(Here(self.line), f'{_characters(over)} over'),)
+
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """No external specification sets this recommendation."""
-        return ()
+        """Say where the field is specified, how to shorten the value, and whose limit this is."""
+        return (
+            allowed_tools_note(),
+            Help(
+                'keep only the tools the skill needs, and merge patterns such as '
+                '`Bash(git diff *) Bash(git log *)` into `Bash(git *)`'
+            ),
+            Note(
+                f'Lorecraft recommends at most {_CHARACTER_LIMIT} characters, the `compatibility` limit; '
+                'the Agent Skills specification sets none for `allowed-tools`'
+            ),
+        )
 
     @classmethod
     def check(cls, subject: SkillContext) -> tuple[Self, ...]:
@@ -102,3 +117,14 @@ class AllowedToolsTooLong(SkillRule):
         if character_count <= _CHARACTER_LIMIT:
             return ()
         return (cls(line=field_line(frontmatter, 'allowed-tools'), character_count=character_count),)
+
+
+def _characters(count: int) -> str:
+    """A number of characters, in the singular for one.
+
+    Args:
+        count: The number of characters.
+    """
+    if count == 1:
+        return '1 character'
+    return f'{count} characters'

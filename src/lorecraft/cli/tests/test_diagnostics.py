@@ -64,7 +64,7 @@ def _every_kind_of_report() -> tuple[SubjectReport, ...]:
     review = RootRelativePath.parse('.agents/skills/review')
     outside = OutsideSymlink(leaves_at=RootExit(review, PurePosixPath('/home/alex/review')))
     a = _document('code', 'a')
-    duplicate_name = DuplicateKey(spec=_CODE_SPEC, line=_line(3), key='name', first_line=_line(2))
+    duplicate_name = DuplicateKey(spec=_CODE_SPEC, line=_line(3), key='name', first_line=_line(2), kept_line=_line(3))
     over_budget = TooManyTokens(spec=_CODE_SPEC, line=_line(1), token_count=2400, budget=2000)
     return (
         CheckedSubject(
@@ -284,8 +284,11 @@ class TestRenderJson:
                     'severity': 'error',
                     'code': 'FM005',
                     'name': 'duplicate-key',
-                    'message': "duplicate key 'name', already written on line 2",
-                    'labels': [{'path': 'docs/code/a.md', 'line': 2, 'text': 'first written here'}],
+                    'message': "duplicate key 'name'",
+                    'labels': [
+                        {'path': 'docs/code/a.md', 'line': 3, 'text': 'written again here'},
+                        {'path': 'docs/code/a.md', 'line': 2, 'text': 'first written here'},
+                    ],
                     'children': [
                         {
                             'kind': 'note',

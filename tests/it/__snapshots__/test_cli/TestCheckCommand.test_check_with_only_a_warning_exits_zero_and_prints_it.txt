@@ -1,3 +1,5 @@
 .agents/skills/review/SKILL.md:4: warning[FM007]: unknown field `version`
+  --> .agents/skills/review/SKILL.md:4: not defined by the schema
   = note: the Agent Skills specification states a SKILL.md's frontmatter schema
   = help: remove `version`, or respell it as a field the schema defines
+  = note: the schema defines: `name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools`

@@ -7,7 +7,9 @@ shape. The messages are Lorecraft's own: the specification is fixed, so a reader
 words that do not change with pydantic's version.
 """
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, replace
+from types import MappingProxyType
 from typing import Final
 
 from pydantic import ValidationError
@@ -17,12 +19,17 @@ from lorecraft.core.mapping import Frozen, FrozenMapping
 
 from .frontmatter_problem import (
     BlockProblem,
+    FieldGuidance,
     FrontmatterProblem,
     InvalidValueProblem,
+    JsonType,
     MissingFieldProblem,
+    OtherBlockConstraint,
+    OtherValueConstraint,
     UnknownFieldProblem,
     WrongTypeProblem,
 )
+from .schema_guidance import json_type_of, known_fields, schema_guidance
 from .skill_frontmatter import SkillFrontmatter, find_value_object_message
 
 
@@ -52,7 +59,7 @@ class SkillFrontmatterSchema:
         except ValidationError as exc:
             problems: list[FrontmatterProblem] = []
             for detail in exc.errors(include_url=False):
-                problems.append(_frontmatter_problem(detail))
+                problems.append(_frontmatter_problem(detail, len(data)))
             return tuple(problems)
         return ()
 
@@ -61,34 +68,65 @@ SKILL_FRONTMATTER_SCHEMA: Final[SkillFrontmatterSchema] = SkillFrontmatterSchema
 """The Agent Skills specification every skill's frontmatter is held to."""
 
 
-def _frontmatter_problem(detail: ErrorDetails) -> FrontmatterProblem:
+_SPECIFIED_FIELDS: Final[tuple[str, ...]] = known_fields(SkillFrontmatter.model_json_schema())
+"""The fields the specification defines, in the order it declares them."""
+
+
+def _field_guidance() -> Mapping[str, FieldGuidance]:
+    """What the specification states about each of its fields, read from the JSON Schema the model renders.
+
+    The model's descriptions are its attribute docstrings, wrapped at the source's line width, so each is unwrapped
+    into the one line a reader sees.
+    """
+    specification = SkillFrontmatter.model_json_schema()
+    guidance: dict[str, FieldGuidance] = {}
+    for field, schema in specification['properties'].items():
+        stated = schema_guidance(schema)
+        if stated.description is not None:
+            stated = replace(stated, description=' '.join(stated.description.split()))
+        guidance[field] = stated
+    return MappingProxyType(guidance)
+
+
+_FIELD_GUIDANCE: Final[Mapping[str, FieldGuidance]] = _field_guidance()
+"""What the specification states about each field, by the name the frontmatter writes it under."""
+
+
+def _frontmatter_problem(detail: ErrorDetails, field_count: int) -> FrontmatterProblem:
     """One pydantic error, as the problem it reports on the top-level field it concerns.
 
     Args:
         detail: One entry of a pydantic `ValidationError`; its `loc` and `type` pick the problem reported.
+        field_count: The number of top-level fields the frontmatter holds, which a problem of the whole block states.
     """
     location = detail['loc']
     if not location:
         # pydantic locates every problem of a mapping at a key; one that names none concerns the block.
-        return BlockProblem('the frontmatter does not satisfy the Agent Skills specification')
+        message = 'the frontmatter does not satisfy the Agent Skills specification'
+        return BlockProblem(message, OtherBlockConstraint(), field_count)
     field = str(location[0])
+    # A field the specification does not define has none to state.
+    guidance = _FIELD_GUIDANCE.get(field, FieldGuidance())
     if len(location) > 1:
-        return InvalidValueProblem(field, _nested_message(field, detail))
+        return InvalidValueProblem(field, _nested_message(field, detail), OtherValueConstraint(), guidance=guidance)
     value_object_reason = find_value_object_message(detail)
     if value_object_reason is not None:
-        return InvalidValueProblem(field, value_object_reason)
+        return InvalidValueProblem(field, value_object_reason, OtherValueConstraint(), guidance=guidance)
     match detail['type']:
         case 'missing':
-            return MissingFieldProblem(field, f'`{field}` is required')
+            return MissingFieldProblem(field, f'`{field}` is required', guidance=guidance)
         case 'extra_forbidden':
             message = f'`{field}` is not a field of the Agent Skills specification'
-            return UnknownFieldProblem(field, message)
+            return UnknownFieldProblem(field, message, _SPECIFIED_FIELDS)
         case 'string_type':
-            return WrongTypeProblem(field, f'`{field}` must be a string')
+            found = json_type_of(detail['input'])
+            return WrongTypeProblem(field, f'`{field}` must be a string', (JsonType.STRING,), found, guidance=guidance)
         case 'dict_type':
-            return WrongTypeProblem(field, f'`{field}` must be a mapping of strings to strings')
+            message = f'`{field}` must be a mapping of strings to strings'
+            found = json_type_of(detail['input'])
+            return WrongTypeProblem(field, message, (JsonType.OBJECT,), found, guidance=guidance)
         case _:
-            return InvalidValueProblem(field, _unspecified_message(field))
+            return InvalidValueProblem(field, _unspecified_message(field), OtherValueConstraint(), guidance=guidance)
 
 
 def _nested_message(field: str, detail: ErrorDetails) -> str:

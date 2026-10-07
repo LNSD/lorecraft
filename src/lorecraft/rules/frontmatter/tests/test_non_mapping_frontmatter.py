@@ -10,7 +10,7 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.location import Elsewhere, Note
+from lorecraft.rules.location import Elsewhere, Help, Note
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, FakeSkillContext, structure_spec_path
 
 from ..non_mapping_frontmatter import NonMappingFrontmatter
@@ -90,7 +90,7 @@ class TestNonMappingFrontmatter:
         #: Then
         assert message == 'frontmatter is not a YAML mapping', 'the message names what the block is not'
 
-    def test_children_with_a_document_point_at_its_specification(self) -> None:
+    def test_children_with_a_document_point_at_its_specification_and_say_what_a_mapping_is(self) -> None:
         #: Given
         occurrence = NonMappingFrontmatter(spec=SPEC, line=LineNumber.from_int(1))
 
@@ -98,9 +98,10 @@ class TestNonMappingFrontmatter:
         children = occurrence.children()
 
         #: Then
-        assert children == (Note('the frontmatter schema is set here', at=Elsewhere(SPEC)),), (
-            'a note points at the specification that sets the schema'
-        )
+        assert children == (
+            Note('the frontmatter schema is set here', at=Elsewhere(SPEC)),
+            Help('write the block as `key: value` lines'),
+        ), 'a note points at the specification that sets the schema, then a help says what a mapping looks like'
 
     def test_children_with_a_skill_name_the_agent_skills_specification(self) -> None:
         #: Given
@@ -110,6 +111,7 @@ class TestNonMappingFrontmatter:
         children = occurrence.children()
 
         #: Then
-        assert children == (Note("the Agent Skills specification governs a SKILL.md's frontmatter"),), (
-            'a note names the external specification, with no location'
-        )
+        assert children == (
+            Note("the Agent Skills specification governs a SKILL.md's frontmatter"),
+            Help('write the block as `key: value` lines'),
+        ), 'a note names the external specification, with no location, then the same help'
