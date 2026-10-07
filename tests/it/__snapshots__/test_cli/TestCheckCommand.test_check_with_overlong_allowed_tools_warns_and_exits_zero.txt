@@ -1,0 +1,1 @@
+.agents/skills/review/SKILL.md:4: warning[FM012]: `allowed-tools` value too long (501 > 500)

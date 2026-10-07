@@ -1,10 +1,11 @@
 """What the `FM` group's rules share: the group, and under which specification an occurrence is reported.
 
 A document's frontmatter block is governed by the structure specification of its corpus, and a skill's by the
-package, after the Agent Skills specification, which no file in the repository holds. Every rule of the group derives
-from `FrontmatterRule`, so one check judges a document and a skill alike, and reads which of the two governs the
+package, after the Agent Skills specification, which no file in the repository holds. Rules over both subject kinds
+derive from `FrontmatterRule`, so one check judges a document and a skill alike, and reads which of the two governs the
 subject from its context, through `owner_spec` for the block and `schema_spec` for a schema's problems. It says which
-it is through `spec_note` or `schema_note`, so a document's occurrence and a skill's read apart.
+it is through `spec_note` or `schema_note`, so a document's occurrence and a skill's read apart. Rules over a skill's
+`allowed-tools` alone derive from `SkillRule`; its recommended length is set by Lorecraft, not the specification.
 
 A field's line, or line 1 in its absence, is decided in one place, `field_line` in `lorecraft.project.schemas`: the
 schema problems arrive placed through it, and a rule that reports at a field's line calls it rather than search the
