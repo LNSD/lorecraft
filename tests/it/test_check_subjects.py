@@ -18,7 +18,15 @@ from typing import ClassVar, Final, Self
 import pytest
 
 from lorecraft import rules
-from lorecraft.checks import CheckedSubject, RuleDiagnostic, RuleTable, UndecodableSubject, check_subjects
+from lorecraft.checks import (
+    AllRules,
+    CheckedSubject,
+    RuleDiagnostic,
+    RuleSelection,
+    RuleTable,
+    UndecodableSubject,
+    check_subjects,
+)
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
@@ -379,7 +387,9 @@ def _budget(tokens: int) -> bytes:
 @pytest.fixture(scope='module')
 def package_table() -> RuleTable:
     """The rule table of the package's own rules at their default levels; immutable, so shared by the module."""
-    return RuleTable.from_registry(Registry.load(rules))
+    return RuleTable.from_registry(
+        Registry.load(rules), RuleSelection(select=frozenset({AllRules()}), ignore=frozenset())
+    )
 
 
 @pytest.fixture(scope='module')
@@ -388,7 +398,10 @@ def sample_table() -> RuleTable:
 
     The registry holds the sample rules as it would hold any rule, so they reach the runner through the table alone.
     """
-    return RuleTable.from_registry(Registry((OverHalfBudget, EmptyDocument, AnyTokens)))
+    return RuleTable.from_registry(
+        Registry((OverHalfBudget, EmptyDocument, AnyTokens)),
+        RuleSelection(select=frozenset({AllRules()}), ignore=frozenset()),
+    )
 
 
 @pytest.mark.it

@@ -12,7 +12,7 @@ from typing import Annotated, assert_never
 import typer
 
 from lorecraft import rules
-from lorecraft.checks import RuleTable, SubjectReport, check_subjects
+from lorecraft.checks import AllRules, RuleSelection, RuleTable, SubjectReport, check_subjects
 from lorecraft.core.error import Error
 from lorecraft.project.database import Database
 from lorecraft.project.layout import SNAPSHOT_SCOPE
@@ -58,7 +58,10 @@ def check(
         # success.
         database.reject_linked_layout()
         subjects = select_workspace(database)
-        table = RuleTable.from_registry(Registry.load(rules))
+        # Every rule at its default level: the command takes no selection yet.
+        table = RuleTable.from_registry(
+            Registry.load(rules), RuleSelection(select=frozenset({AllRules()}), ignore=frozenset())
+        )
         reports = check_subjects(database, subjects, table)
     except Error as exc:
         report_failure(exc)
