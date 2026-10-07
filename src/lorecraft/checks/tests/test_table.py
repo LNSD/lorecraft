@@ -1,9 +1,11 @@
 """The rule table: the rules a run enables, each with its severity, and their partition by base."""
 
+from typing import Final
+
 import pytest
 
 from lorecraft import rules
-from lorecraft.rules.declaration import Rule, Severity
+from lorecraft.rules.declaration import Rule, RuleCode, Severity
 from lorecraft.rules.frontmatter.block_constraint import BlockConstraint
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
 from lorecraft.rules.frontmatter.invalid_value import InvalidValue
@@ -37,12 +39,17 @@ from lorecraft.rules.registry import Registry
 from lorecraft.rules.subject import Facet
 from lorecraft.rules.tests.sample_rules import token_count
 from lorecraft.rules.tests.sample_rules import valid as valid_rules
+from lorecraft.rules.tests.sample_rules.groups import SAMPLE
 from lorecraft.rules.tests.sample_rules.token_count.any_tokens import AnyTokens
 from lorecraft.rules.tests.sample_rules.token_count.empty_document import EmptyDocument
 from lorecraft.rules.tests.sample_rules.token_count.over_half_budget import OverHalfBudget
 from lorecraft.rules.tests.sample_rules.valid.uppercase_entry import UppercaseEntry
 
-from ..table import EnabledRule, RuleTable, UnknownRuleBaseError
+from ..selection import AllRules, RuleSelection
+from ..table import EnabledRule, RuleTable, UnknownRuleBaseError, selected_rules_left_off
+
+EVERY_RULE: Final[RuleSelection] = RuleSelection(select=frozenset({AllRules()}), ignore=frozenset())
+"""The selection of a run given neither `--select` nor `--ignore`: every rule is kept."""
 
 
 @pytest.fixture(scope='module')
@@ -61,7 +68,7 @@ class TestRuleTableFromRegistry:
         enabled = (EnabledRule(OverHalfBudget, Severity.WARNING), EnabledRule(AnyTokens, Severity.ERROR))
 
         #: When
-        table = RuleTable.from_registry(registry)
+        table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
         assert table.document_rules == enabled, (
@@ -73,7 +80,7 @@ class TestRuleTableFromRegistry:
         registry = Registry((OverHalfBudget,))
 
         #: When
-        table = RuleTable.from_registry(registry)
+        table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
         assert table.document_rules == (EnabledRule(OverHalfBudget, Severity.WARNING),), (
@@ -85,7 +92,7 @@ class TestRuleTableFromRegistry:
         registry = Registry((AnyTokens,))
 
         #: When
-        table = RuleTable.from_registry(registry)
+        table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
         assert table.document_rules == (EnabledRule(AnyTokens, Severity.ERROR),), 'a rule at deny reports errors'
@@ -95,7 +102,7 @@ class TestRuleTableFromRegistry:
         registry = Registry((EmptyDocument,))
 
         #: When
-        table = RuleTable.from_registry(registry)
+        table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
         assert table.document_rules == (), 'a rule at allow is not in the table, so it never runs'
@@ -107,7 +114,7 @@ class TestRuleTableFromRegistry:
 
         #: When
         with pytest.raises(UnknownRuleBaseError) as exc_info:
-            RuleTable.from_registry(registry)
+            RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
         assert exc_info.value.rule is UppercaseEntry, 'the error names the first enabled rule, in code order'
@@ -117,7 +124,7 @@ class TestRuleTableFromRegistry:
         registry = Registry.load(rules)
 
         #: When
-        table = RuleTable.from_registry(registry)
+        table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
         assert table.document_rules == (
@@ -144,7 +151,7 @@ class TestRuleTableFromRegistry:
         registry = Registry.load(rules)
 
         #: When
-        table = RuleTable.from_registry(registry)
+        table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
         assert table.skill_rules == (EnabledRule(TooManyLines, Severity.ERROR),), (
@@ -156,7 +163,7 @@ class TestRuleTableFromRegistry:
         registry = Registry.load(rules)
 
         #: When
-        table = RuleTable.from_registry(registry)
+        table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
         assert table.markdown_rules == (
@@ -170,7 +177,7 @@ class TestRuleTableFromRegistry:
         registry = Registry.load(rules)
 
         #: When
-        table = RuleTable.from_registry(registry)
+        table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
         assert table.skill_file_rules == (EnabledRule(EscapingLink, Severity.ERROR),), (
@@ -182,7 +189,7 @@ class TestRuleTableFromRegistry:
         registry = Registry.load(rules)
 
         #: When
-        table = RuleTable.from_registry(registry)
+        table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
         assert table.frontmatter_rules == (
@@ -205,7 +212,7 @@ class TestRuleTableFromRegistry:
         registry = Registry.load(rules)
 
         #: When
-        table = RuleTable.from_registry(registry)
+        table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
         assert table.document_rules_governed_by(Facet.STRUCTURE) == (
@@ -227,7 +234,7 @@ class TestRuleTableFromRegistry:
         registry = Registry.load(rules)
 
         #: When
-        table = RuleTable.from_registry(registry)
+        table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
         assert table.document_rules_governed_by(Facet.OUTLINE) == (
@@ -241,12 +248,114 @@ class TestRuleTableFromRegistry:
         registry = Registry.load(rules)
 
         #: When
-        table = RuleTable.from_registry(registry)
+        table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
         assert table.layout_rules == (EnabledRule(OutsideSymlink, Severity.ERROR),), (
             "the package's layout rules are enabled by default as errors"
         )
+
+
+@pytest.mark.unit
+class TestRuleTableFromRegistryWithASelection:
+    def test_from_registry_with_a_code_selected_enables_that_rule_alone(self, registry: Registry) -> None:
+        #: Given
+        selection = RuleSelection(select=frozenset({RuleCode(SAMPLE, 3)}), ignore=frozenset())
+
+        #: When
+        table = RuleTable.from_registry(registry, selection)
+
+        #: Then
+        assert table.document_rules == (EnabledRule(AnyTokens, Severity.ERROR),), (
+            'a selected rule is enabled at its level, and the rules not selected are left out'
+        )
+
+    def test_from_registry_with_a_group_selected_and_a_code_ignored_leaves_the_ignored_rule_out(
+        self, registry: Registry
+    ) -> None:
+        #: Given
+        selection = RuleSelection(select=frozenset({SAMPLE}), ignore=frozenset({RuleCode(SAMPLE, 1)}))
+
+        #: When
+        table = RuleTable.from_registry(registry, selection)
+
+        #: Then
+        assert table.document_rules == (EnabledRule(AnyTokens, Severity.ERROR),), (
+            'an ignored rule is left out of a selected group'
+        )
+
+    def test_from_registry_with_a_code_selected_and_its_group_ignored_enables_that_rule_alone(
+        self, registry: Registry
+    ) -> None:
+        #: Given
+        selection = RuleSelection(select=frozenset({RuleCode(SAMPLE, 3)}), ignore=frozenset({SAMPLE}))
+
+        #: When
+        table = RuleTable.from_registry(registry, selection)
+
+        #: Then
+        assert table.document_rules == (EnabledRule(AnyTokens, Severity.ERROR),), (
+            'the code, more specific than the group ignored, keeps its rule, and the group leaves the rest out'
+        )
+
+    def test_from_registry_with_a_rule_at_allow_selected_leaves_it_out(self, registry: Registry) -> None:
+        #: Given
+        selection = RuleSelection(select=frozenset({RuleCode(SAMPLE, 2)}), ignore=frozenset())
+
+        #: When
+        table = RuleTable.from_registry(registry, selection)
+
+        #: Then
+        assert table.document_rules == (), 'a selection never enables a rule at allow'
+
+
+@pytest.mark.unit
+class TestSelectedRulesLeftOff:
+    def test_selected_rules_left_off_with_a_rule_at_allow_selected_by_its_code_returns_it(
+        self, registry: Registry
+    ) -> None:
+        #: Given
+        selection = RuleSelection(select=frozenset({RuleCode(SAMPLE, 2), RuleCode(SAMPLE, 3)}), ignore=frozenset())
+
+        #: When
+        left_off = selected_rules_left_off(registry, selection)
+
+        #: Then
+        assert left_off == (EmptyDocument,), 'the rule at allow named by its code is left off; the one at deny runs'
+
+    def test_selected_rules_left_off_with_a_rule_at_allow_selected_by_its_group_returns_nothing(
+        self, registry: Registry
+    ) -> None:
+        #: Given
+        selection = RuleSelection(select=frozenset({SAMPLE}), ignore=frozenset())
+
+        #: When
+        left_off = selected_rules_left_off(registry, selection)
+
+        #: Then
+        assert left_off == (), 'a group selected names none of its rules, so its rules at allow are not warned of'
+
+    def test_selected_rules_left_off_with_a_rule_at_allow_selected_and_ignored_returns_nothing(
+        self, registry: Registry
+    ) -> None:
+        #: Given
+        selection = RuleSelection(select=frozenset({RuleCode(SAMPLE, 2)}), ignore=frozenset({RuleCode(SAMPLE, 2)}))
+
+        #: When
+        left_off = selected_rules_left_off(registry, selection)
+
+        #: Then
+        assert left_off == (), 'an ignored rule is left out by the ignore, not by its level'
+
+    def test_selected_rules_left_off_with_every_rule_selected_returns_nothing(self, registry: Registry) -> None:
+        #: Given
+        selection = RuleSelection(select=frozenset({AllRules()}), ignore=frozenset())
+
+        #: When
+        left_off = selected_rules_left_off(registry, selection)
+
+        #: Then
+        assert left_off == (), 'no --select names no rule'
 
 
 @pytest.mark.unit
