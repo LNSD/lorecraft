@@ -1,0 +1,3 @@
+.agents/skills/review/SKILL.md:4: warning[FM011]: malformed `allowed-tools` entry 'Read,'
+  = note: the Agent Skills specification's experimental `allowed-tools` field: https://agentskills.io/specification#allowed-tools-field
+  = help: separate tools with spaces, not commas

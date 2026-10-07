@@ -483,6 +483,100 @@ class TestInspectCommand:
 
 @pytest.mark.it
 class TestCheckCommand:
+    def test_check_with_overlong_allowed_tools_warns_and_exits_zero(
+        self, tmp_path: Path, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        value = 'A' * 501
+        _write(
+            tmp_path,
+            '.agents/skills/review/SKILL.md',
+            f'---\nname: review\ndescription: Review a change.\nallowed-tools: {value}\n---\n',
+        )
+        app = build_app()
+        expected_text = snapshot.use_extension(TextSnapshotExtension)
+
+        #: When
+        text_result = runner.invoke(app, ['check', '--root', str(tmp_path)])
+        json_result = runner.invoke(app, ['check', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert (text_result.exit_code, json_result.exit_code) == (0, 0), (
+            'the recommendation does not fail either format'
+        )
+        assert text_result.stdout == expected_text, 'the warning text matches the reviewed snapshot'
+        assert text_result.stderr == 'checked 1 subject(s): 0 error(s), 1 warning(s)\n', 'the warning is counted'
+        assert json.loads(json_result.stdout) == {
+            'diagnostics': [
+                {
+                    'path': '.agents/skills/review/SKILL.md',
+                    'line': 4,
+                    'severity': 'warning',
+                    'code': 'FM012',
+                    'name': 'allowed-tools-too-long',
+                    'message': '`allowed-tools` value too long (501 > 500)',
+                    'labels': [],
+                    'children': [],
+                }
+            ],
+            'summary': {'subjects': 1, 'errors': 0, 'warnings': 1},
+            'coverage': [],
+        }, 'JSON identifies the recommendation as a warning at the field line without an upstream specification note'
+
+    def test_check_with_malformed_allowed_tools_warns_and_exits_zero(
+        self, tmp_path: Path, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        _write(
+            tmp_path,
+            '.agents/skills/review/SKILL.md',
+            '---\nname: review\ndescription: Review a change.\nallowed-tools: Read, Grep\n---\n',
+        )
+        app = build_app()
+        expected_text = snapshot.use_extension(TextSnapshotExtension)
+
+        #: When
+        text_result = runner.invoke(app, ['check', '--root', str(tmp_path)])
+        json_result = runner.invoke(app, ['check', '--root', str(tmp_path), '--format', 'json'])
+
+        #: Then
+        assert text_result.exit_code == 0, text_result.output
+        assert text_result.stdout == expected_text, 'the warning text matches the reviewed snapshot'
+        assert text_result.stderr == 'checked 1 subject(s): 0 error(s), 1 warning(s)\n', (
+            'the warning is counted and does not fail the run'
+        )
+        assert json_result.exit_code == 0, json_result.output
+        assert json.loads(json_result.stdout) == {
+            'diagnostics': [
+                {
+                    'path': '.agents/skills/review/SKILL.md',
+                    'line': 4,
+                    'severity': 'warning',
+                    'code': 'FM011',
+                    'name': 'malformed-allowed-tools',
+                    'message': "malformed `allowed-tools` entry 'Read,'",
+                    'labels': [],
+                    'children': [
+                        {
+                            'kind': 'note',
+                            'text': "the Agent Skills specification's experimental `allowed-tools` field: "
+                            'https://agentskills.io/specification#allowed-tools-field',
+                            'path': None,
+                            'line': None,
+                        },
+                        {
+                            'kind': 'help',
+                            'text': 'separate tools with spaces, not commas',
+                            'path': None,
+                            'line': None,
+                        },
+                    ],
+                }
+            ],
+            'summary': {'subjects': 1, 'errors': 0, 'warnings': 1},
+            'coverage': [],
+        }, 'JSON reports the skill path, line, warning, help and specification note'
+
     def test_check_with_help_prints_the_description_and_stops_before_raises(self, snapshot: SnapshotAssertion) -> None:
         #: Given
         app = build_app()

@@ -61,10 +61,15 @@ from lorecraft.project.syntax import (
     parse_frontmatter,
 )
 from lorecraft.rules.declaration import Level, Release, Rule, RuleCode, RuleGroup, RuleGroupPrefix, RuleName, Severity
+from lorecraft.rules.frontmatter.allowed_tools_too_long import AllowedToolsTooLong
 from lorecraft.rules.frontmatter.block_constraint import BlockConstraint
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
 from lorecraft.rules.frontmatter.invalid_value import InvalidValue
 from lorecraft.rules.frontmatter.invalid_yaml import InvalidYaml
+from lorecraft.rules.frontmatter.malformed_allowed_tools import (
+    MalformedAllowedTools,
+    MalformedAllowedToolsProblem,
+)
 from lorecraft.rules.frontmatter.missing_field import MissingField
 from lorecraft.rules.frontmatter.missing_frontmatter import MissingFrontmatter
 from lorecraft.rules.frontmatter.name_mismatch import DirectoryNameExpected, FilenameExpected, NameMismatch
@@ -406,6 +411,71 @@ def sample_table() -> RuleTable:
 
 @pytest.mark.it
 class TestCheckSubjects:
+    def test_check_subjects_with_overlong_malformed_allowed_tools_reports_both_warnings(
+        self, tmp_path: Path, package_table: RuleTable
+    ) -> None:
+        #: Given
+        value = 'A' * 500 + ','
+        _write(
+            tmp_path,
+            '.agents/skills/review/SKILL.md',
+            f'---\nname: review\ndescription: Review a change.\nallowed-tools: {value}\n---\n'.encode(),
+        )
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+
+        #: Then
+        skill_file = RootRelativePath.parse('.agents/skills/review/SKILL.md')
+        assert reports == (
+            CheckedSubject(
+                REVIEW,
+                diagnostics=(
+                    RuleDiagnostic(
+                        skill_file,
+                        MalformedAllowedTools(
+                            line=LineNumber.from_int(4), entry=value, problem=MalformedAllowedToolsProblem.COMMA
+                        ),
+                        Severity.WARNING,
+                    ),
+                    RuleDiagnostic(
+                        skill_file,
+                        AllowedToolsTooLong(line=LineNumber.from_int(4), character_count=501),
+                        Severity.WARNING,
+                    ),
+                ),
+                ungoverned=(),
+            ),
+        ), 'an overlong value still receives structural validation, and both warnings point at its field'
+
+    def test_check_subjects_with_malformed_allowed_tools_reports_a_warning_at_the_skill_path(
+        self, tmp_path: Path, package_table: RuleTable
+    ) -> None:
+        #: Given
+        _write(
+            tmp_path,
+            '.agents/skills/review/SKILL.md',
+            b'---\nname: review\ndescription: Review a change.\nallowed-tools: Read, Grep\n---\n',
+        )
+        database = Database(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+
+        #: When
+        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+
+        #: Then
+        occurrence = MalformedAllowedTools(
+            line=LineNumber.from_int(4), entry='Read,', problem=MalformedAllowedToolsProblem.COMMA
+        )
+        skill_file = RootRelativePath.parse('.agents/skills/review/SKILL.md')
+        assert reports == (
+            CheckedSubject(
+                REVIEW,
+                diagnostics=(RuleDiagnostic(skill_file, occurrence, Severity.WARNING),),
+                ungoverned=(),
+            ),
+        ), 'the registry runs FM011 over a skill and reports the warning at its listed path and field line'
+
     def test_check_subjects_with_a_document_over_its_budget_reports_the_token_budget_as_an_error(
         self, package_table: RuleTable
     ) -> None:

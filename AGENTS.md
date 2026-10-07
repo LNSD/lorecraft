@@ -100,11 +100,11 @@ Skills live in two places, and the difference is who loads them:
 
 `/skills-check` holds every skill to the Agent Skills specification. This repository adds, by kind:
 
-- A workspace skill may use two extensions the specification does not define, because only this repository's
+- A workspace skill may use one extension the specification does not define, because only this repository's
   agents load it. One is dynamic context in the body, a `!` followed by a backticked command that the agent runs
   before loading the skill, each followed by a line telling the agent to run the command itself if it arrives as
-  literal text. The other is a comma-separated `allowed-tools`. Neither adds a frontmatter field: every skill's
-  frontmatter holds to the six fields the specification defines. A project skill uses neither.
+  literal text. It does not add a frontmatter field: every skill's frontmatter holds to the six fields the
+  specification defines. A project skill uses neither.
 - A workspace skill names a repository file as a path in backticks. A project skill links a document of this
   repository by its published URL instead, as `/skills-check` describes.
 - `just check-docs` is the gate. It checks every skill an agent reads, so each project skill is checked once,

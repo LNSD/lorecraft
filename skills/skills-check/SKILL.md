@@ -48,7 +48,7 @@ anchors, aliases or tags: a value containing `: ` must be quoted, and a value co
 | `license` | No | A license name, or the name of a bundled license file |
 | `compatibility` | No | 1-500 characters. Environment requirements: products, system packages, network access. Omit it when there are none |
 | `metadata` | No | A map from string keys to string values. Quote numbers (`version: "1.0"`) and join lists with spaces |
-| `allowed-tools` | No | A space-separated string of pre-approved tools. Experimental: support varies between agents |
+| `allowed-tools` | No | A space-separated string of pre-approved tools. `lorecraft check` warns on malformed entries and values over 500 characters, a Lorecraft recommendation rather than an upstream limit. Pattern whitespace stays intact. Experimental: support varies between agents |
 
 No other field is allowed: `lorecraft check` holds every skill to these six and reports anything else as `FM007`
 `unknown-field`, including a field one agent reads, such as `model` or `argument-hint`. `FM007` is a warning, so
@@ -123,8 +123,11 @@ subject: `grep -l <path>` over the skills directories prints them, one per line 
 
 `lorecraft check` decides every mechanical rule. Do not check those rules by hand.
 
-It decides the frontmatter: YAML validity, the six fields and their limits, `metadata` value types, and `name`
-against the directory an agent lists the skill by, through any symlink. It holds `SKILL.md` to 500 lines,
+It decides the frontmatter: YAML validity, the six fields and their limits, `metadata` value types, `name`
+against the directory an agent lists the skill by, through any symlink, and whether `allowed-tools` entries
+follow the list structure above. It also warns when the whole value exceeds Lorecraft's recommendation of
+500 characters, including whitespace and patterns. The structure rule splits on whitespace outside parentheses,
+so spaces and commas inside a parenthesised pattern stay in that entry, even in an overlong value. It holds `SKILL.md` to 500 lines,
 frontmatter included. In every Markdown file of the skill it reports a link that is absolute, that climbs above
 the skill root, that names nothing the skill holds, or whose `#fragment` names no heading of its own file. It
 reports a symlink an agent would follow out of the repository, wherever it sits in the skill layout.
@@ -155,7 +158,8 @@ For each changed skill, check:
 - [ ] Every `scripts/` file is executable, declares its dependencies, and fails with a useful message
 - [ ] A skill installed into other repositories assumes nothing about the one it was written in: no skill,
       task-runner recipe or path that only exists there
-- [ ] Every command in the body is covered by `allowed-tools` if the skill pre-approves any, and no pattern
+- [ ] Every command in the body is covered by `allowed-tools` if the skill pre-approves any, each entry parses as
+      a tool name with an optional parenthesised pattern, and no pattern
       there is broader than the commands need
 - [ ] A command the skill names exists, with the options it uses — its `--help` is the authority, not memory
 
