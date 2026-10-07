@@ -18,10 +18,10 @@ so they judge only a document some outline governs.
 from typing import Final
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.rules.declaration import RuleGroup
+from lorecraft.rules.declaration import RuleGroup, RuleGroupPrefix
 from lorecraft.rules.location import Elsewhere, Note
 
-GROUP_ID: Final[RuleGroup] = RuleGroup('OUT', 'Outline checks')
+GROUP_ID: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('OUT'), 'Outline checks')
 """The group of the rules over a document's sections, as a structure specification states them, and over its H1
 title, which every governed document carries without a key stating it."""
 

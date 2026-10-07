@@ -26,7 +26,16 @@ from collections.abc import Iterable
 from types import ModuleType
 from typing import Final, Self, assert_never
 
-from .declaration import EngineCondition, RemovedRule, Rule, RuleDeclaration, RuleGroup, RuleName, declared_rules
+from .declaration import (
+    EngineCondition,
+    RemovedRule,
+    Rule,
+    RuleDeclaration,
+    RuleGroup,
+    RuleGroupPrefix,
+    RuleName,
+    declared_rules,
+)
 from .engine.__ruleset__ import GROUP_ID as ENGINE_GROUP_ID
 from .subject import DocumentRule
 
@@ -74,16 +83,16 @@ class ConflictingRuleGroupError(RuntimeError):
         second: The declaration whose group differs from it.
     """
 
-    prefix: str
+    prefix: RuleGroupPrefix
     first: RuleDeclaration
     second: RuleDeclaration
 
-    def __init__(self, prefix: str, first: RuleDeclaration, second: RuleDeclaration) -> None:
+    def __init__(self, prefix: RuleGroupPrefix, first: RuleDeclaration, second: RuleDeclaration) -> None:
         self.prefix = prefix
         self.first = first
         self.second = second
         super().__init__(
-            f'rule group {prefix!r} of {second.__qualname__} is titled {second.CODE.group.title!r}, but '
+            f'rule group {str(prefix)!r} of {second.__qualname__} is titled {second.CODE.group.title!r}, but '
             f'{first.__qualname__} titles it {first.CODE.group.title!r}'
         )
 
@@ -183,8 +192,8 @@ class ConditionOutsideEngineGroupError(RuntimeError):
         group = declaration.CODE.group
         super().__init__(
             f'engine condition {declaration.__qualname__} has the code {str(declaration.CODE)!r}, in the group '
-            f'{group.prefix!r} titled {group.title!r}, not the engine group {ENGINE_GROUP_ID.prefix!r} titled '
-            f'{ENGINE_GROUP_ID.title!r}'
+            f'{str(group.prefix)!r} titled {group.title!r}, not the engine group '
+            f'{str(ENGINE_GROUP_ID.prefix)!r} titled {ENGINE_GROUP_ID.title!r}'
         )
 
 
@@ -201,18 +210,21 @@ class RuleInEngineGroupError(RuntimeError):
         self.declaration = declaration
         super().__init__(
             f'rule {declaration.__qualname__} has the code {str(declaration.CODE)!r}, in the engine group '
-            f'{ENGINE_GROUP_ID.prefix!r} reserved for engine conditions'
+            f'{str(ENGINE_GROUP_ID.prefix)!r} reserved for engine conditions'
         )
 
 
 class Registry:
     """The rules a rules package declares, in code order, found by their code, their name or an alias code.
 
-    Codes, names and alias codes share one namespace, so a lookup by any of them finds one declaration at most.
+    Codes, names and alias codes share one namespace, so a lookup by any of them finds one declaration at most. A
+    group is found apart, by its prefix.
     """
 
     _rules: tuple[RuleDeclaration, ...]
+    _rules_in_service: tuple[type[Rule], ...]
     _by_key: dict[str, RuleDeclaration]
+    _groups: dict[str, RuleGroup]
 
     def __init__(self, declarations: Iterable[RuleDeclaration]) -> None:
         """Index the declarations, rejecting any the registry cannot hold.
@@ -268,9 +280,11 @@ class Registry:
                 raise ConditionOutsideEngineGroupError(condition)
 
         self._rules = tuple(sorted((*rule_classes, *removed_rules, *conditions), key=_printed_code))
+        self._rules_in_service = tuple(sorted(rule_classes, key=_printed_code))
         self._by_key = {}
+        self._groups = {}
 
-        groups: dict[str, tuple[RuleGroup, RuleDeclaration]] = {}
+        groups: dict[RuleGroupPrefix, tuple[RuleGroup, RuleDeclaration]] = {}
         for declaration in self._rules:
             code = str(declaration.CODE)
             first = self._by_key.get(code)
@@ -284,6 +298,11 @@ class Registry:
                 groups[group.prefix] = (group, declaration)
             elif bound[0] != group:
                 raise ConflictingRuleGroupError(group.prefix, bound[1], declaration)
+
+        # A group whose every code is a removed rule holds nothing a run could select, so it is not found by its prefix.
+        # Keyed by the prefix as text: `find_group` looks up what a user typed, which need not be a valid prefix.
+        for declaration in (*rule_classes, *conditions):
+            self._groups[str(declaration.CODE.group.prefix)] = declaration.CODE.group
 
         for declaration in self._rules:
             name = str(declaration.NAME)
@@ -333,6 +352,11 @@ class Registry:
         """Every rule held, in code order, as the code prints."""
         return self._rules
 
+    @property
+    def rules_in_service(self) -> tuple[type[Rule], ...]:
+        """The rules a run may enable, in code order: every rule held but the removed rules and engine conditions."""
+        return self._rules_in_service
+
     def find(self, key: str) -> RuleDeclaration | None:
         """The rule with this code, name or alias code, or None when no rule has it.
 
@@ -341,6 +365,25 @@ class Registry:
                 `MD040`.
         """
         return self._by_key.get(key)
+
+    def find_group(self, prefix: str) -> RuleGroup | None:
+        """The group with this prefix, or None when no rule in service nor engine condition held is in a group with it.
+
+        The prefix is looked up as text, as `find` looks up a code, so text no prefix could be, such as `out`, is not
+        an error: no group has it.
+
+        Args:
+            prefix: A group's prefix as spelled, such as `OUT`.
+        """
+        return self._groups.get(prefix)
+
+    def is_engine_group(self, group: RuleGroup) -> bool:
+        """Whether a group is the engine's, reserved for engine conditions, which every run reports.
+
+        Args:
+            group: A group the registry found, such as by `find_group`.
+        """
+        return group.prefix == ENGINE_GROUP_ID.prefix
 
 
 def _import_modules(package: ModuleType) -> None:
