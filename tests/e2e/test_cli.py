@@ -7,13 +7,14 @@ well as the installed version and environment; run from a copy of the package ou
 output, `inspect` over a checked-in workspace fixture, and the diagnostics `check` prints over that fixture are
 compared to a reviewed snapshot file under `__snapshots__/`. So are the diagnostics `check` prints for a root holding
 a subject of each kind the fixture lacks (a resource of a skill, a symlink leading outside the repository, a file
-that is not UTF-8, and a document no budget governs, whose coverage goes to stderr), for a root whose frontmatter
-writes a key twice or a key that is not a string, and for a skill and a resource each linking to an absolute path;
-and what `check` and `inspect` print for a root whose `docs/` or `docs/__meta__/` is a symlink into that fixture.
-The JSON document `check` prints is asserted whole, once parsed. A root written from `lib.workspace` holding one
-skill whose every field but its name is generated must pass `check` with no diagnostic, and so must one holding a
-specification and a document under it, every field generated but their names, since every test writing such a root
-sets only the fields its case turns on.
+that is not UTF-8, and a document no budget governs, whose coverage goes to stderr), for that root with some rules
+selected and one ignored, for a root whose frontmatter writes a key twice or a key that is not a string, and for a
+skill and a resource each linking to an absolute path; and what `check` and `inspect` print for a root whose `docs/`
+or `docs/__meta__/` is a symlink into that fixture. The JSON document `check` prints is asserted whole, once parsed,
+and a selector `check` cannot use exits 2 before any document is printed. A root written from `lib.workspace`
+holding one skill whose every field but its name is generated must pass `check` with no diagnostic, and so must one
+holding a specification and a document under it, every field generated but their names, since every test writing
+such a root sets only the fields its case turns on.
 """
 
 import json
@@ -535,6 +536,35 @@ class TestCheckSnapshots:
             'summary': {'subjects': 5, 'errors': 3, 'warnings': 0},
             'coverage': [{'path': 'docs/notes/todo.md', 'ungoverned': ['outline', 'budget']}],
         }, f'the document holds every diagnostic, the summary and the coverage, got {result.stdout!r}'
+
+    def test_check_with_rules_selected_and_ignored_prints_only_the_kept_rules_and_the_engine_diagnostics(
+        self, snapshot: SnapshotAssertion, mixed_root: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('check', '--root', str(mixed_root), '--select', 'LINK,LAY001', '--ignore', 'LINK003')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, 'the symlink and the undecodable file match the snapshot, the broken link not'
+        assert result.stderr == 'checked 5 subject(s): 2 error(s), 0 warning(s)\n', (
+            'no rule over a document runs, so no part of one is reported ungoverned'
+        )
+
+    def test_check_with_an_unknown_selector_prints_the_error_and_exits_two(self, mixed_root: Path) -> None:
+        #: Given
+        arguments = ('check', '--root', str(mixed_root), '--select', 'NOPE', '--format', 'json')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 2, result.stderr
+        assert result.stdout == '', 'a run refused before checking prints no document'
+        assert result.stderr == "error: --select 'NOPE' is no rule code or prefix\n", 'the selector is named'
 
     def test_check_with_a_key_written_twice_prints_the_duplicate_key_diagnostics(
         self, snapshot: SnapshotAssertion, duplicate_key_root: Path

@@ -24,6 +24,8 @@ process: the arguments, the working directory, standard output and the exit code
 - Taking each snapshot, and building the revision every check of a report reads.
 - Choosing where the store of persisted results lives, and handing it to the database.
 - Selecting the subjects a run checks from the model, and building the rule table it runs.
+- Parsing `--select` and `--ignore` against the registry into the selection the rule table is built from, and
+  warning on stderr of what a selection cannot do.
 - Registering commands so a new one is a new module.
 - Rendering diagnostics and the model as text or JSON, and choosing the exit code.
 - The output formats and the exit statuses every command shares, in `output.py`.
