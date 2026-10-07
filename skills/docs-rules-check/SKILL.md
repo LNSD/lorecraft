@@ -57,6 +57,7 @@ token budget. Do not check those by hand.
 ```bash
 lorecraft check                              # every rule over every document and skill, one read of the tree
 lorecraft check --format json                # machine-readable
+lorecraft check --select OUT                 # one group's rules, by prefix, while fixing them; never the gate
 ```
 
 The run covers the whole workspace; read the diagnostics for the documents the change touches. A diagnostic prints as

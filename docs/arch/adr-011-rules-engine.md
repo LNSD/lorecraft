@@ -270,16 +270,18 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
   its rule's code, with an engine diagnostic at warning on the configuration file naming the code to write. A
   configuration that sets one rule under both its code and an alias code is a failure, so one rule never has two
   settings.
-- **A one-run selection filters; it never changes a level** (FR-008). `--select` and `--ignore` take codes or
-  prefixes, alias codes resolving with a warning, and narrow which rules run in this run. There is no level option
-  on the command line: levels live in the configuration alone, so a local run and CI agree on one revision
-  (NFR-001). A selected rule at `allow` stays off, with an engine diagnostic at warning saying the selection does
-  not enable it. The established linters' `--select` enables a rule, because they have no levels; with levels,
-  enabling a rule is the configuration's, and this is a stated departure.
-- **A selection is typed at the boundary.** A selector parses to `RuleCode | RuleGroup`, and an unknown one is a
-  failure before any subject is checked (FR-025), never a filter that matches nothing. No filter is the value
-  `AllRules`, never an empty set: `select: AllRules | frozenset[RuleSelector]`. The selection reaches the runner
-  only as a filter on the rule table, so no rule runs around it.
+- **A one-run selection filters; it never changes a level** (FR-008). `--select` and `--ignore` take `ALL`, group
+  prefixes, code prefixes and codes, alias codes resolving with a warning naming the code to write, and narrow which
+  rules run in this run. As in ruff, the most specific selector matching a rule decides, `--ignore` winning a tie.
+  There is no level option on the command line: levels live in the configuration alone, so a local run and CI agree
+  on one revision (NFR-001). A selected rule at `allow` stays off, with a warning saying the selection does not
+  enable it. Both warnings go to stderr, not into the report: they concern the command line, not a subject, so they
+  have no path a diagnostic could be filed under. The established linters' `--select` enables a rule, because they
+  have no levels; with levels, enabling a rule is the configuration's, and this is a stated departure.
+- **A selection is typed at the boundary.** A selector parses to `AllRules | RuleGroup | RuleCodePrefix | RuleCode`,
+  and an unknown one is a failure before any subject is checked (FR-025), never a filter that matches nothing. No
+  `--select` is `{AllRules()}`, never an empty set, which keeps no rule. The selection reaches the runner only as a
+  filter on the rule table, so no rule runs around it.
 - **Detection never reads the configuration.** Two rules that overlap are made disjoint in their own logic. The
   name rule compares `name` only when it is a string, so a missing or mistyped `name` belongs to the schema
   rule alone (FR-022).
