@@ -19,7 +19,7 @@ import math
 import re
 import sys
 from dataclasses import dataclass
-from typing import Final
+from typing import Final, assert_never
 
 import yaml
 from yaml.error import Mark
@@ -183,6 +183,25 @@ def decode_frontmatter(block: str) -> FrontmatterNode:
         # to go on, and the half-read parser is dropped. The line is left out, because the depth reading stops at
         # depends on the interpreter's recursion limit and on how deep the caller's stack already was.
         return InvalidYamlFrontmatter(problem='found collections nested too deeply to parse', line=None)
+
+
+def reads_back_as_string(text: str) -> bool:
+    """Whether a frontmatter field written as `text` without quotes decodes to that same string.
+
+    It goes through `decode_frontmatter`, so the answer is the one the frontmatter reader gives: `1.0`, `true`,
+    `0o17` and `1e3` read back as another value, and so does an empty text or one that is not YAML at all.
+
+    Args:
+        text: The text to write after `field: `.
+    """
+    node = decode_frontmatter(f'field: {text}\n')
+    match node:
+        case Frontmatter():
+            return node.data.get('field') == text
+        case MissingFrontmatter() | InvalidYamlFrontmatter() | NonMappingFrontmatter():
+            return False
+        case _:
+            assert_never(node)
 
 
 class _BasicYamlParser(Reader, Scanner, Parser):

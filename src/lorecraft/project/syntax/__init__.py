@@ -17,6 +17,7 @@ from .frontmatter import (
     InvalidYamlFrontmatter,
     MissingFrontmatter,
     NonMappingFrontmatter,
+    reads_back_as_string,
 )
 from .heading import SECTION_LEVEL, Heading, HeadingLevel, find_title
 from .lines import count_lines
@@ -35,6 +36,7 @@ __all__: list[str] = [
     'MissingFrontmatter',
     'InvalidYamlFrontmatter',
     'NonMappingFrontmatter',
+    'reads_back_as_string',
     'Heading',
     'HeadingLevel',
     'SECTION_LEVEL',
