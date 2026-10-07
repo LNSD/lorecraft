@@ -9,7 +9,7 @@ defensively, never asserted: a schema owes a reader none of it, and a keyword le
 import json
 from collections.abc import Mapping
 
-import yaml
+from lorecraft.project.syntax import reads_back_as_string
 
 from .frontmatter_problem import FieldGuidance, JsonType
 
@@ -17,27 +17,15 @@ from .frontmatter_problem import FieldGuidance, JsonType
 def value_text(value: object) -> str:
     """A schema value as the text a reader writes it as in YAML: a string as it is, any other value as JSON.
 
-    A string that YAML would read as another value, such as `1.0` or `true`, is quoted, so the text written back
-    in the frontmatter is the same string.
+    A string that the frontmatter reader would decode as another value, such as `1.0`, `true`, `0o17` or `1e3`,
+    is quoted, so the text written back in the frontmatter is the same string.
 
     Args:
         value: An example, or one of the values an `enum` or a `const` allows.
     """
-    if isinstance(value, str) and _is_plain_yaml_string(value):
+    if isinstance(value, str) and reads_back_as_string(value):
         return value
     return json.dumps(value, ensure_ascii=False)
-
-
-def _is_plain_yaml_string(text: str) -> bool:
-    """Whether YAML reads the text, written without quotes, back as the same string.
-
-    Args:
-        text: A string a schema states.
-    """
-    try:
-        return yaml.safe_load(text) == text
-    except yaml.YAMLError:
-        return False
 
 
 def json_type_of(value: object) -> JsonType:
