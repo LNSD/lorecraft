@@ -1,21 +1,25 @@
 """`FM008`: a frontmatter field's value is of a type its schema does not accept."""
 
 from dataclasses import dataclass
-from typing import ClassVar, Self, assert_never
+from typing import ClassVar, Final, Self, assert_never
 
 from lorecraft.project.context import FrontmatterContext
 from lorecraft.project.schemas import (
     BlockProblem,
     InvalidValueProblem,
+    JsonType,
     MissingFieldProblem,
     UnknownFieldProblem,
     WrongTypeProblem,
 )
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.location import Note, Subdiagnostic
+from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
 from lorecraft.rules.subject import FrontmatterRule
 
 from .__ruleset__ import GROUP_ID, schema_note, schema_spec
+
+_SCALARS_YAML_READS_UNQUOTED: Final[tuple[JsonType, ...]] = (JsonType.INTEGER, JsonType.NUMBER, JsonType.BOOLEAN)
+"""The types YAML reads an unquoted `1`, `1.0` or `yes` as, where a string was meant."""
 
 
 @rule
@@ -30,6 +34,10 @@ class WrongType(FrontmatterRule):
     gives a field a value other than the string, or the mapping of strings to strings for `metadata`, the Agent
     Skills specification requires. A value of the right type that breaks another constraint, such as a length
     limit, is not this rule's.
+
+    The label says the types expected and the type found. A number or a boolean written where a string is
+    expected is the usual YAML pitfall, as in `version: 1.0`, so the help says to quote it; the field's
+    `description`, when the schema states one, is shown as help too.
 
     ## Why is this bad?
 
@@ -76,7 +84,7 @@ class WrongType(FrontmatterRule):
     Attributes:
         spec: The structure specification whose frontmatter schema found the problem, or `None` for a skill, which
             the Agent Skills specification governs.
-        problem: The field whose value is of the wrong type, with the schema's wording of the type it expects.
+        problem: The field whose value is of the wrong type, with the types the schema expects and the type found.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 8)
@@ -90,9 +98,20 @@ class WrongType(FrontmatterRule):
         """Name the field whose value is of the wrong type."""
         return f'field `{self.problem.field}` has a type the schema does not accept'
 
+    def labels(self) -> tuple[Label, ...]:
+        """Say the types the schema expects and the type found, on the field's line."""
+        expected = ' or '.join(expected.value for expected in self.problem.expected)
+        return (Label(Here(self.line), f'expected {expected}, found {self.problem.found.value}'),)
+
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Give the schema's wording of the type it expects, and say where the schema is stated."""
-        return (Note(self.problem.message), schema_note(self.spec))
+        """Say where the schema is stated, how to write a string YAML read as another type, and what the field is."""
+        problem = self.problem
+        parts: list[Subdiagnostic] = [schema_note(self.spec)]
+        if JsonType.STRING in problem.expected and problem.found in _SCALARS_YAML_READS_UNQUOTED:
+            parts.append(Help('quote the value, so YAML reads it as a string'))
+        if problem.guidance.description is not None:
+            parts.append(Help(problem.guidance.description))
+        return tuple(parts)
 
     @classmethod
     def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:

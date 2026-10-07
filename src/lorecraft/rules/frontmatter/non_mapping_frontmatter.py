@@ -8,7 +8,7 @@ from lorecraft.project import syntax
 from lorecraft.project.context import FrontmatterContext
 from lorecraft.project.schemas import FIRST_LINE
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.location import Subdiagnostic
+from lorecraft.rules.location import Help, Subdiagnostic
 from lorecraft.rules.subject import FrontmatterRule
 
 from .__ruleset__ import GROUP_ID, owner_spec, spec_note
@@ -84,8 +84,8 @@ class NonMappingFrontmatter(FrontmatterRule):
         return 'frontmatter is not a YAML mapping'
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Name the specification that governs the frontmatter."""
-        return (spec_note(self.spec),)
+        """Name the specification that governs the frontmatter, and say what a mapping looks like."""
+        return (spec_note(self.spec), Help('write the block as `key: value` lines'))
 
     @classmethod
     def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:

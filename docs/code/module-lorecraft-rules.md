@@ -121,7 +121,9 @@ A rule is named for what is wrong, as the established linters name theirs, so th
   limit in parentheses where there is one: `too many tokens (5200 > 4000)`. It names no path and no specification.
 - **`children()` points a `Note` at the specification** that states the rule, at `Elsewhere(spec)`, so two
   occurrences from two specifications read apart. A rule every governed document is held to, with no key stating
-  it, points its `Note` at the corpus's structure specification that governs the document. A rule the package
+  it, points its `Note` at the corpus's structure specification that governs the document, unless no schema in
+  that specification states the rule either, as for a document's `name` held to its filename: that rule carries no
+  `Note` pointing at a schema, and says in its own words what it requires. A rule the package
   itself states has `spec` `None`: its `Note` names the external specification that sets the limit in its text,
   with no `at`. A rule the package states that no external specification sets, such as a link rule, carries no
   `Note`: nothing outside the diagnostic states the rule.
@@ -192,7 +194,7 @@ Before committing code, verify:
 - [ ] A new rule's `message()` is lowercase with the value found against the limit, and `children()` points a
       `Note` at the specification that states the rule, at the corpus's structure specification when no key states
       it, or, when the package states it, names the external specification in the `Note`'s text with no `at`;
-      one no external specification sets has none
+      one no external specification sets, or no schema states, has none
 - [ ] A new rule's docstring opens *What it does* with "Checks for", shows the broken and the fixed input under
       *Example* and *Use instead*, and names nothing of the implementation; a rule no key states says so, and its
       *Example* shows a governing specification's excerpt, then the subject; a rule the package states names the

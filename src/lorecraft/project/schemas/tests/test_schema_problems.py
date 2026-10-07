@@ -11,7 +11,7 @@ import pytest
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import Frontmatter, LineNumber, parse_frontmatter
 
-from ..frontmatter_problem import MissingFieldProblem, UnknownFieldProblem, WrongTypeProblem
+from ..frontmatter_problem import FieldGuidance, JsonType, MissingFieldProblem, UnknownFieldProblem, WrongTypeProblem
 from ..name import parse_spec_name
 from ..schema_problems import (
     AgentSkillsSchema,
@@ -153,7 +153,9 @@ class TestLocateSchemaProblems:
                 source=StructureSpecSchema(spec=NAMESPACE_SPEC),
                 problems=(
                     LocatedProblem(
-                        problem=WrongTypeProblem('description', "3 is not of type 'string'"),
+                        problem=WrongTypeProblem(
+                            'description', "3 is not of type 'string'", (JsonType.STRING,), JsonType.INTEGER
+                        ),
                         line=LineNumber.from_int(3),
                     ),
                 ),
@@ -223,12 +225,30 @@ class TestLocateSkillSchemaProblems:
                 source=AgentSkillsSchema(),
                 problems=(
                     LocatedProblem(
-                        problem=WrongTypeProblem('description', '`description` must be a string'),
+                        problem=WrongTypeProblem(
+                            'description',
+                            '`description` must be a string',
+                            (JsonType.STRING,),
+                            JsonType.ARRAY,
+                            guidance=FieldGuidance(
+                                description=(
+                                    'What the skill does and when to use it, with the keywords that let an agent '
+                                    'match it to a task.'
+                                ),
+                                example=(
+                                    'Extracts text and tables from PDF files, fills PDF forms, and merges multiple '
+                                    'PDFs. Use when working with PDF documents or when the user mentions PDFs, '
+                                    'forms, or document extraction.'
+                                ),
+                            ),
+                        ),
                         line=LineNumber.from_int(3),
                     ),
                     LocatedProblem(
                         problem=UnknownFieldProblem(
-                            'extra', '`extra` is not a field of the Agent Skills specification'
+                            'extra',
+                            '`extra` is not a field of the Agent Skills specification',
+                            ('name', 'description', 'license', 'compatibility', 'metadata', 'allowed-tools'),
                         ),
                         line=LineNumber.from_int(4),
                     ),

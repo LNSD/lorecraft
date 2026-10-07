@@ -15,7 +15,7 @@ from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.location import Help, Subdiagnostic
 from lorecraft.rules.subject import FrontmatterRule
 
-from .__ruleset__ import GROUP_ID, schema_note, schema_spec
+from .__ruleset__ import GROUP_ID, allowed_values_help, example_note, schema_note, schema_spec
 
 
 @rule
@@ -29,6 +29,10 @@ class MissingField(FrontmatterRule):
     `frontmatter` schema names, and for skills whose frontmatter lacks a field the Agent Skills specification
     requires, `name` or `description`. A document that several specifications govern, such as a corpus and a
     namespace, is held to each schema they state, and is reported once for each schema that requires the field.
+
+    What the schema states about the field is shown as the help to write it: its `description`, the values its
+    `enum` or `const` allows, and as a note its first `examples` entry. A `required` that sits in a branch, such as
+    a `then`, leaves the field's `properties` to the schema around it, so nothing is shown for it.
 
     ## Why is this bad?
 
@@ -74,7 +78,7 @@ class MissingField(FrontmatterRule):
     Attributes:
         spec: The structure specification whose frontmatter schema found the problem, or `None` for a skill, which
             the Agent Skills specification governs.
-        problem: The field the schema requires and the frontmatter lacks.
+        problem: The field the schema requires and the frontmatter lacks, with what the schema states about it.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 6)
@@ -89,8 +93,19 @@ class MissingField(FrontmatterRule):
         return f'missing required field `{self.problem.field}`'
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Say where the schema is stated, and name the field to add."""
-        return (schema_note(self.spec), Help(f'add `{self.problem.field}` to the frontmatter'))
+        """Say where the schema is stated and name the field to add, then what the schema states about it."""
+        guidance = self.problem.guidance
+        parts: list[Subdiagnostic] = [
+            schema_note(self.spec),
+            Help(f'add `{self.problem.field}` to the frontmatter'),
+        ]
+        if guidance.description is not None:
+            parts.append(Help(guidance.description))
+        if guidance.allowed:
+            parts.append(allowed_values_help(guidance.allowed))
+        if guidance.example is not None:
+            parts.append(example_note(self.problem.field, guidance.example))
+        return tuple(parts)
 
     @classmethod
     def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:
