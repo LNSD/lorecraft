@@ -90,12 +90,29 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 
 from .frontmatter_problem import (
+    BlockLimit,
     BlockProblem,
     FrontmatterProblem,
     InvalidValueProblem,
+    JsonType,
+    MaxFields,
+    MinFields,
     MissingFieldProblem,
+    OneOfValues,
+    OtherBlockConstraint,
+    OtherValueConstraint,
+    PatternMismatch,
     UnknownFieldProblem,
+    ValueConstraint,
     WrongTypeProblem,
+)
+from .schema_guidance import (
+    json_type_of,
+    known_fields,
+    property_guidance,
+    schema_guidance,
+    schema_reason,
+    value_text,
 )
 from .section_name import SectionName
 from .spec_file import SpecFileType, StructureSpecFile, spec_filename
@@ -506,6 +523,10 @@ def _frontmatter_problems(
 ) -> list[FrontmatterProblem]:
     """The problems one `jsonschema` error in `data` reports, each on the top-level field it concerns.
 
+    Besides what is wrong, each problem carries what the schema states that tells a reader how to put it right: the
+    field's description and example, the values it allows, the fields the schema defines, the reason a subschema
+    gives in its `$comment`.
+
     Args:
         validator: The validator that reported the error, holding the whole schema.
         error: One error from validating `data` against the schema; its path and validator pick the problems.
@@ -515,8 +536,20 @@ def _frontmatter_problems(
         # Anything wrong below the top-level field, such as a key its value lacks, is that field's value at fault.
         field = str(error.path[0])
         if len(error.path) == 1 and error.validator == 'type':
-            return [WrongTypeProblem(field, error.message)]
-        return [InvalidValueProblem(field, error.message)]
+            return [
+                WrongTypeProblem(
+                    field,
+                    error.message,
+                    _expected_types(error.validator_value),
+                    json_type_of(error.instance),
+                    guidance=property_guidance(validator.schema, field),
+                )
+            ]
+        return [_invalid_value(validator, error, field)]
+    # `jsonschema` reports a key `propertyNames` rejects as the error of the keyword inside it, with the key as the
+    # instance and no path, so it is told apart by the schema path. The key is written, so it has a line.
+    if 'propertyNames' in error.relative_schema_path:
+        return [_invalid_value(validator, error, str(error.instance))]
     # Past this point the error has no path, so the value it is about is `data` itself: read that rather than
     # `error.instance`, which `jsonschema` types as `Any`.
     if error.validator == 'required':
@@ -528,20 +561,132 @@ def _frontmatter_problems(
             field = str(required)
             if field not in data:
                 message = f'{field!r} is a required property'
-                problems.append(MissingFieldProblem(field, message))
+                # The schema the keyword sits in, which holds no `properties` when `required` is a branch's.
+                problems.append(MissingFieldProblem(field, message, guidance=property_guidance(error.schema, field)))
         return problems
+    if error.validator == 'dependentRequired':
+        return _dependency_problems(validator, error, data)
     if error.validator == 'additionalProperties':
         # `jsonschema` types `error.schema` to allow a boolean schema, but a keyword only fires inside an object one.
+        schema = _schema_object(error.schema)
         problems = []
-        for key in _additional_keys(_schema_object(error.schema), data):
+        for key in _additional_keys(schema, data):
             # `jsonschema`'s wording for one unexpected key.
             message = f'Additional properties are not allowed ({key!r} was unexpected)'
-            problems.append(UnknownFieldProblem(key, message))
+            problems.append(UnknownFieldProblem(key, message, known_fields(schema)))
         return problems
     if error.validator == 'unevaluatedProperties':
         return _unevaluated_problems(validator, _schema_object(error.schema), data)
     # A rule over the whole block, such as `minProperties`, concerns no field.
-    return [BlockProblem(error.message)]
+    return [
+        BlockProblem(
+            error.message,
+            _block_constraint(error),
+            len(data),
+            description=schema_guidance(validator.schema).description,
+        )
+    ]
+
+
+def _invalid_value(validator: Validator, error: SchemaValidationError, field: str) -> InvalidValueProblem:
+    """The problem of a value breaking a constraint, on the field it is written at.
+
+    Args:
+        validator: The validator that reported the error, holding the whole schema the field's property is read from.
+        error: The error the value's constraint reported; its schema is the subschema that states the constraint.
+        field: The top-level field at fault.
+    """
+    return InvalidValueProblem(
+        field,
+        error.message,
+        _value_constraint(error, nested=len(error.path) > 1),
+        reason=schema_reason(error.schema),
+        guidance=property_guidance(validator.schema, field),
+    )
+
+
+def _dependency_problems(
+    validator: Validator, error: SchemaValidationError, data: Mapping[str, object]
+) -> list[FrontmatterProblem]:
+    """One problem per written field whose `dependentRequired` fields are not all written, on the written field.
+
+    `jsonschema` words one error for each missing dependency, naming only the dependency in its record, so the
+    pairs are found the way the keyword finds them, and a pair two errors report is reported once.
+
+    Args:
+        validator: The validator that reported the error, holding the whole schema.
+        error: The `dependentRequired` error, whose value maps each field to the fields it requires.
+        data: The frontmatter that was validated, as plain data.
+    """
+    problems: list[FrontmatterProblem] = []
+    for field, dependencies in _schema_object(error.validator_value).items():
+        if field not in data:
+            continue
+        # The meta-schema proved each value is an array of field names.
+        if not isinstance(dependencies, list):
+            raise AssertionError('unreachable: `dependentRequired` maps a field to an array of field names')
+        for dependency in dependencies:
+            if dependency not in data:
+                message = f'{dependency!r} is a dependency of {field!r}'
+                problems.append(
+                    InvalidValueProblem(
+                        field,
+                        message,
+                        OtherValueConstraint(),
+                        reason=schema_reason(error.schema),
+                        guidance=property_guidance(validator.schema, field),
+                    )
+                )
+    return problems
+
+
+def _expected_types(value: object) -> tuple[JsonType, ...]:
+    """The types a `type` keyword accepts, from its value: one name or an array of names.
+
+    Args:
+        value: The `type` keyword's value, which the meta-schema proved is a type name or an array of them.
+    """
+    if isinstance(value, str):
+        return (JsonType(value),)
+    if isinstance(value, list):
+        return tuple(JsonType(str(name)) for name in value)
+    # The meta-schema accepts a `type` only as a name or an array of names, and a schema is checked against it when
+    # loaded, so no other value reaches here.
+    raise AssertionError('unreachable: `type` is a type name or an array of them')
+
+
+def _value_constraint(error: SchemaValidationError, *, nested: bool) -> ValueConstraint:
+    """The constraint a value broke, as far as a typed one describes the keyword that reported it.
+
+    Args:
+        error: The error the value's constraint reported.
+        nested: Whether the constraint sits below the field's own value, such as on the items of a list. The allowed
+            values and the pattern then are not the field's, so no typed constraint names them.
+    """
+    if nested:
+        return OtherValueConstraint()
+    limit = error.validator_value
+    if error.validator == 'enum' and isinstance(limit, list):
+        return OneOfValues(tuple(value_text(allowed) for allowed in limit))
+    if error.validator == 'const':
+        return OneOfValues((value_text(limit),))
+    if error.validator == 'pattern' and isinstance(limit, str):
+        return PatternMismatch(limit)
+    return OtherValueConstraint()
+
+
+def _block_constraint(error: SchemaValidationError) -> BlockLimit:
+    """The constraint over the whole block, as far as a typed one describes the keyword that reported it.
+
+    Args:
+        error: The error the block's constraint reported.
+    """
+    limit = error.validator_value
+    if error.validator == 'minProperties' and isinstance(limit, int):
+        return MinFields(limit)
+    if error.validator == 'maxProperties' and isinstance(limit, int):
+        return MaxFields(limit)
+    return OtherBlockConstraint()
 
 
 def _additional_keys(schema: Mapping[str, object], instance: Mapping[str, object]) -> list[str]:
@@ -590,11 +735,21 @@ def _unevaluated_problems(
         if rule is False:
             # `jsonschema`'s wording for one unexpected key.
             message = f'Unevaluated properties are not allowed ({key!r} was unexpected)'
-            problems.append(UnknownFieldProblem(key, message))
+            problems.append(UnknownFieldProblem(key, message, known_fields(schema)))
         elif isinstance(rule, Mapping):
             reason = best_match(validator.evolve(schema=rule).iter_errors(data[key]))
             if reason is not None:
-                problems.append(InvalidValueProblem(key, reason.message))
+                # The rule describes every field it evaluates, so its description is the key's.
+                problems.append(
+                    InvalidValueProblem(
+                        key,
+                        reason.message,
+                        # The error is about the key's value itself, so a path in it leads inside that value.
+                        _value_constraint(reason, nested=len(reason.path) > 0),
+                        reason=schema_reason(reason.schema),
+                        guidance=schema_guidance(rule),
+                    )
+                )
         # A rule of `true` accepts every value, so it never fires.
     return problems
 
@@ -610,6 +765,7 @@ def _schema_object(value: object) -> Mapping[str, object]:
         value: A value read from a schema a `FrontmatterSchema` holds, or from an error validating against one.
     """
     if not isinstance(value, Mapping):
+        # Every caller passes a value the meta-schema, checked when the schema was loaded, requires to be an object.
         raise AssertionError('unreachable: the meta-schema proved this schema value is an object')
     return value
 

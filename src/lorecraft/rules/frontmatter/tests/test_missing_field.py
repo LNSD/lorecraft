@@ -9,7 +9,7 @@ from typing import Final
 import pytest
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.schemas import MissingFieldProblem
+from lorecraft.project.schemas import FieldGuidance, MissingFieldProblem
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Note
 from lorecraft.rules.tests.fake_context import (
@@ -38,6 +38,15 @@ TEXT: Final[str] = '---\nname: setup\n---\n# Setup\n'
 
 PROBLEM: Final[MissingFieldProblem] = MissingFieldProblem('description', "'description' is a required property")
 """A required field missing: the rule's condition."""
+
+SKILL_DESCRIPTION: Final[FieldGuidance] = FieldGuidance(
+    description='What the skill does and when to use it, with the keywords that let an agent match it to a task.',
+    example=(
+        'Extracts text and tables from PDF files, fills PDF forms, and merges multiple PDFs. Use when working'
+        ' with PDF documents or when the user mentions PDFs, forms, or document extraction.'
+    ),
+)
+"""What the Agent Skills specification states about a skill's `description`."""
 
 LINE: Final[LineNumber] = LineNumber.from_int(1)
 """The line a missing field is reported on: it is written on none."""
@@ -95,7 +104,11 @@ class TestMissingField:
 
         #: Then
         assert occurrences == (
-            MissingField(spec=None, line=LINE, problem=MissingFieldProblem('description', '`description` is required')),
+            MissingField(
+                spec=None,
+                line=LINE,
+                problem=MissingFieldProblem('description', '`description` is required', guidance=SKILL_DESCRIPTION),
+            ),
         ), "the package states the Agent Skills schema, so a skill's occurrence names no specification file"
 
     def test_check_with_a_block_that_is_not_a_mapping_reports_nothing(self) -> None:
@@ -147,3 +160,69 @@ class TestMissingField:
             Note("the Agent Skills specification states a SKILL.md's frontmatter schema"),
             Help('add `description` to the frontmatter'),
         ), 'the Agent Skills specification is no file, so its note has no location'
+
+    def test_check_with_a_property_the_schema_describes_carries_its_guidance(self) -> None:
+        #: Given
+        structure = (
+            '{"frontmatter": {"type": "object", "required": ["type"], "properties": {"type": '
+            '{"enum": ["rule", "pattern"], "description": "The kind of document.", "examples": ["rule"]}}}}'
+        )
+        subject = FakeDocumentContext('---\nname: setup\n---\n', corpus='guide', structure=structure)
+
+        #: When
+        occurrences = MissingField.check(subject)
+
+        #: Then
+        guidance = FieldGuidance(description='The kind of document.', example='rule', allowed=('rule', 'pattern'))
+        assert occurrences == (
+            MissingField(
+                spec=CORPUS_SPEC,
+                line=LINE,
+                problem=MissingFieldProblem('type', "'type' is a required property", guidance=guidance),
+            ),
+        ), "the property's description, first example and values reach the occurrence"
+
+    def test_children_with_a_described_field_give_the_description_the_values_and_the_example(self) -> None:
+        #: Given
+        guidance = FieldGuidance(description='The kind of document.', example='rule', allowed=('rule', 'pattern'))
+        problem = MissingFieldProblem('type', "'type' is a required property", guidance=guidance)
+        occurrence = MissingField(spec=CORPUS_SPEC, line=LINE, problem=problem)
+
+        #: When
+        children = occurrence.children()
+
+        #: Then
+        assert children == (
+            Note('the frontmatter schema is set here', at=Elsewhere(CORPUS_SPEC)),
+            Help('add `type` to the frontmatter'),
+            Help('The kind of document.'),
+            Help('write one of: rule, pattern'),
+            Note('for example:\ntype: rule'),
+        ), 'the description is shown as the schema wrote it, then the values allowed, then the example verbatim'
+
+    def test_children_with_a_single_value_allowed_name_it_alone(self) -> None:
+        #: Given
+        problem = MissingFieldProblem(
+            'type', "'type' is a required property", guidance=FieldGuidance(allowed=('rule',))
+        )
+        occurrence = MissingField(spec=CORPUS_SPEC, line=LINE, problem=problem)
+
+        #: When
+        children = occurrence.children()
+
+        #: Then
+        assert children == (
+            Note('the frontmatter schema is set here', at=Elsewhere(CORPUS_SPEC)),
+            Help('add `type` to the frontmatter'),
+            Help('write rule'),
+        ), 'a const allows one value, so the help names it rather than offering a choice'
+
+    def test_labels_with_an_occurrence_label_nothing(self) -> None:
+        #: Given
+        occurrence = MissingField(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM)
+
+        #: When
+        labels = occurrence.labels()
+
+        #: Then
+        assert labels == (), 'the field is written nowhere, so line 1 has nothing to say of it'

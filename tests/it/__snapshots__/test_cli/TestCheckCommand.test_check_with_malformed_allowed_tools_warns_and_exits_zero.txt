@@ -1,3 +1,4 @@
-.agents/skills/review/SKILL.md:4: warning[FM011]: malformed `allowed-tools` entry 'Read,'
+.agents/skills/review/SKILL.md:4: warning[FM011]: `allowed-tools` is not a list of tool entries
+  --> .agents/skills/review/SKILL.md:4: `Read,` is not `Tool` or `Tool(pattern)`
   = note: the Agent Skills specification's experimental `allowed-tools` field: https://agentskills.io/specification#allowed-tools-field
-  = help: separate tools with spaces, not commas
+  = help: write `Read`

@@ -120,7 +120,9 @@ summary:
 
 ```text
 docs/code/guide.md:1: error[FM001]: no `---` delimited frontmatter block
+  --> docs/code/guide.md:1: a `---` delimited block is expected here
   = note: the frontmatter schema is set here (docs/__meta__/code.structure.json)
+  = help: open the file with a `---` line, the fields, and a closing `---` line
 
 docs/code/guide.md:1: error[OUT006]: missing required section `Checklist`
   --> docs/code/guide.md:1: expected `Checklist` before the end of the document

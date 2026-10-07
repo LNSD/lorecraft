@@ -7,12 +7,15 @@ from lorecraft.project.context import FrontmatterContext
 from lorecraft.project.schemas import (
     BlockProblem,
     InvalidValueProblem,
+    MaxFields,
+    MinFields,
     MissingFieldProblem,
+    OtherBlockConstraint,
     UnknownFieldProblem,
     WrongTypeProblem,
 )
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.location import Note, Subdiagnostic
+from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.subject import FrontmatterRule
 
 from .__ruleset__ import GROUP_ID, schema_note, schema_spec
@@ -26,9 +29,16 @@ class BlockConstraint(FrontmatterRule):
     ## What it does
 
     Checks for documents whose frontmatter breaks a constraint their structure specification's `frontmatter`
-    schema sets on the block rather than on one field, such as `minProperties`, `maxProperties` or a
-    `dependentRequired` pair. It is reported on line 1, since it concerns no one field. A skill's frontmatter is
-    reported here only when the Agent Skills specification rejects it without naming a field.
+    schema sets on the block rather than on one field, such as `minProperties` or `maxProperties`. It is reported
+    on line 1, since it concerns no one field. A skill's frontmatter is reported here only when the Agent Skills
+    specification rejects it without naming a field.
+
+    A constraint that names a key is not the block's: a key `propertyNames` rejects, and a field whose
+    `dependentRequired` fields are missing, are reported by `invalid-value` on that key's line.
+
+    The label says how many fields the block holds against the limit, for `minProperties` and `maxProperties`, and
+    the help is the description the schema states for the block, when it states one. The validator's own wording
+    is shown as a note only for another keyword.
 
     ## Why is this bad?
 
@@ -74,7 +84,7 @@ class BlockConstraint(FrontmatterRule):
     Attributes:
         spec: The structure specification whose frontmatter schema found the problem, or `None` for a skill, which
             the Agent Skills specification governs.
-        problem: The constraint over the whole block that the frontmatter breaks.
+        problem: The constraint over the whole block that the frontmatter breaks, with the number of fields it holds.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 10)
@@ -85,12 +95,40 @@ class BlockConstraint(FrontmatterRule):
     problem: BlockProblem
 
     def message(self) -> str:
-        """Say the block breaks a constraint on the whole of it; the schema's wording, a note, names the constraint."""
+        """Say the block breaks a constraint on the whole of it; the label names the constraint."""
         return 'frontmatter breaks a constraint of the schema on the whole block'
 
+    def labels(self) -> tuple[Label, ...]:
+        """Say how many fields the block holds against the limit, for a limit on their number; else none."""
+        constraint = self.problem.constraint
+        fields = _fields(self.problem.field_count)
+        match constraint:
+            case MinFields():
+                return (
+                    Label(Here(self.line), f'has {fields}; the schema requires at least {_fields(constraint.limit)}'),
+                )
+            case MaxFields():
+                return (Label(Here(self.line), f'has {fields}; the schema allows at most {_fields(constraint.limit)}'),)
+            case OtherBlockConstraint():
+                return ()
+            case _:
+                assert_never(constraint)
+
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Give the schema's own wording, which names the constraint, and say where the schema is stated."""
-        return (Note(self.problem.message), schema_note(self.spec))
+        """Say where the schema is stated and what it describes, then for another keyword its own wording."""
+        problem = self.problem
+        parts: list[Subdiagnostic] = [schema_note(self.spec)]
+        if problem.description is not None:
+            parts.append(Help(problem.description))
+        constraint = problem.constraint
+        match constraint:
+            case OtherBlockConstraint():
+                parts.append(Note(problem.message))
+            case MinFields() | MaxFields():
+                pass  # the label says it
+            case _:
+                assert_never(constraint)
+        return tuple(parts)
 
     @classmethod
     def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:
@@ -111,3 +149,14 @@ class BlockConstraint(FrontmatterRule):
                     case _:
                         assert_never(problem)
         return tuple(occurrences)
+
+
+def _fields(count: int) -> str:
+    """A number of fields, in the singular for one.
+
+    Args:
+        count: The number of fields.
+    """
+    if count == 1:
+        return '1 field'
+    return f'{count} fields'

@@ -1,10 +1,14 @@
-.agents/skills/beta/SKILL.md:2: error[FM004]: `name` is 'alpha', expected 'beta'
+.agents/skills/beta/SKILL.md:2: error[FM004]: `name` is 'alpha', which is not the name it is found under
+  --> .agents/skills/beta/SKILL.md:2: expected `beta`
   = note: the Agent Skills specification requires `name` to match the skill directory name
-  = note: 'beta' is a link to '.agents/skills/alpha'
   = help: set `name` to 'beta'
+  = help: or rename the skill directory to 'alpha'
+  = note: 'beta' is a link to '.agents/skills/alpha'
 
 docs/code/logging.md:1: error[FM001]: no `---` delimited frontmatter block
+  --> docs/code/logging.md:1: a `---` delimited block is expected here
   = note: the frontmatter schema is set here (docs/__meta__/code.structure.json)
+  = help: open the file with a `---` line, the fields, and a closing `---` line
 
 docs/code/logging.md:1: error[OUT004]: section `Logging` is empty
   = note: the document structure is set here (docs/__meta__/code.structure.json)
@@ -24,7 +28,9 @@ docs/code/logging.md:1: error[OUT006]: missing required section `Checklist`
           - [ ] Every log call inside an `except` block uses `logger.exception(...)`
 
 docs/code/python-typing.md:1: error[FM001]: no `---` delimited frontmatter block
+  --> docs/code/python-typing.md:1: a `---` delimited block is expected here
   = note: the frontmatter schema is set here (docs/__meta__/code.structure.json)
+  = help: open the file with a `---` line, the fields, and a closing `---` line
 
 docs/code/python-typing.md:1: error[LEN001]: too many tokens (4 > 3)
   = note: the budget is set here (docs/__meta__/code-python.structure.json)

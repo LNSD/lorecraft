@@ -6,13 +6,14 @@ from typing import ClassVar, Self, assert_never
 from lorecraft.project.context import FrontmatterContext
 from lorecraft.project.syntax import (
     Frontmatter,
+    FrontmatterKey,
     InvalidYamlFrontmatter,
     LineNumber,
     MissingFrontmatter,
     NonMappingFrontmatter,
 )
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
+from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.subject import FrontmatterRule
 
 from .__ruleset__ import GROUP_ID, owner_spec, spec_note
@@ -79,6 +80,7 @@ class DuplicateKey(FrontmatterRule):
             which the Agent Skills specification governs.
         key: The key written again, as decoded.
         first_line: The line the key's first occurrence is written on.
+        kept_line: The line of the key's last occurrence, whose value YAML keeps.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 5)
@@ -88,22 +90,32 @@ class DuplicateKey(FrontmatterRule):
 
     key: str
     first_line: LineNumber
+    kept_line: LineNumber
 
     def message(self) -> str:
-        """Name the key, and the line of its first occurrence.
+        """Name the key.
 
         The key is printed as its `repr`: a key holding a newline would otherwise split the message, and an escape
         sequence would vanish into the character it stands for.
         """
-        return f'duplicate key {self.key!r}, already written on line {self.first_line}'
+        return f'duplicate key {self.key!r}'
 
     def labels(self) -> tuple[Label, ...]:
-        """Point at the key's first occurrence."""
-        return (Label(Here(self.first_line), 'first written here'),)
+        """Mark this occurrence, and point at the key's first."""
+        return (
+            Label(Here(self.line), 'written again here'),
+            Label(Here(self.first_line), 'first written here'),
+        )
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Name the specification that governs the frontmatter, and the key to write once."""
-        return (spec_note(self.spec), Help(f'write {self.key!r} once, with the value meant'))
+        """Name the specification, the key to write once, and the line whose value YAML keeps, unless it is this one."""
+        parts: list[Subdiagnostic] = [
+            spec_note(self.spec),
+            Help(f'write {self.key!r} once, with the value meant'),
+        ]
+        if self.kept_line != self.line:
+            parts.append(Note('the value written last is the one YAML keeps', at=Here(self.kept_line)))
+        return tuple(parts)
 
     @classmethod
     def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:
@@ -126,11 +138,24 @@ class DuplicateKey(FrontmatterRule):
 
         spec = owner_spec(subject.frontmatter_owner())
         first_lines: dict[str, LineNumber] = {}
-        occurrences: list[Self] = []
+        last_lines: dict[str, LineNumber] = {}
+        repeats: list[FrontmatterKey] = []
         for key in frontmatter.keys:
-            first_line = first_lines.get(key.name)
-            if first_line is None:
-                first_lines[key.name] = key.line
+            if key.name in first_lines:
+                repeats.append(key)
             else:
-                occurrences.append(cls(spec=spec, line=key.line, key=key.name, first_line=first_line))
+                first_lines[key.name] = key.line
+            last_lines[key.name] = key.line
+
+        occurrences: list[Self] = []
+        for key in repeats:
+            occurrences.append(
+                cls(
+                    spec=spec,
+                    line=key.line,
+                    key=key.name,
+                    first_line=first_lines[key.name],
+                    kept_line=last_lines[key.name],
+                )
+            )
         return tuple(occurrences)

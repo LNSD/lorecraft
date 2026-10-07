@@ -3,9 +3,11 @@
 import pytest
 
 from lorecraft.project.syntax import LineNumber
+from lorecraft.rules.location import Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import FakeSkillContext
 
 from ..allowed_tools_too_long import AllowedToolsTooLong
+from .test_malformed_allowed_tools import SPECIFICATION_NOTE
 
 
 @pytest.mark.unit
@@ -68,13 +70,44 @@ class TestAllowedToolsTooLong:
         #: Then
         assert message == '`allowed-tools` value too long (501 > 500)', 'the value and recommendation are explicit'
 
-    def test_labels_and_children_are_empty(self) -> None:
+    def test_labels_say_how_far_the_value_is_over_the_recommendation_on_the_field_line(self) -> None:
+        #: Given
+        occurrence = AllowedToolsTooLong(line=LineNumber.from_int(4), character_count=520)
+
+        #: When
+        labels = occurrence.labels()
+
+        #: Then
+        assert labels == (Label(Here(LineNumber.from_int(4)), '20 characters over'),), (
+            'the label counts the characters beyond the 500 recommended'
+        )
+
+    def test_labels_with_one_character_over_use_the_singular(self) -> None:
         #: Given
         occurrence = AllowedToolsTooLong(line=LineNumber.from_int(4), character_count=501)
 
         #: When
         labels = occurrence.labels()
+
+        #: Then
+        assert labels == (Label(Here(LineNumber.from_int(4)), '1 character over'),), 'one is not many'
+
+    def test_children_say_how_to_shorten_the_value_and_where_the_limit_comes_from(self) -> None:
+        #: Given
+        occurrence = AllowedToolsTooLong(line=LineNumber.from_int(4), character_count=501)
+
+        #: When
         children = occurrence.children()
 
         #: Then
-        assert (labels, children) == ((), ()), 'the recommendation has no external specification or extra location'
+        assert children == (
+            SPECIFICATION_NOTE,
+            Help(
+                'keep only the tools the skill needs, and merge patterns such as '
+                '`Bash(git diff *) Bash(git log *)` into `Bash(git *)`'
+            ),
+            Note(
+                'Lorecraft recommends at most 500 characters, the `compatibility` limit; '
+                'the Agent Skills specification sets none for `allowed-tools`'
+            ),
+        ), "the specification note, then the help, then the note that the limit is the package's"
