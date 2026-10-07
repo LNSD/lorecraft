@@ -1,0 +1,3 @@
+docs/code/guide.md:1: error[OUT006]: missing required section `Checklist`
+  --> docs/code/guide.md:1: expected `Checklist` before the end of the document
+  = note: the document structure is set here (docs/__meta__/code.structure.json)
