@@ -1,26 +1,64 @@
 """`FM011`: a skill's `allowed-tools` is not a list of tool entries."""
 
 from dataclasses import dataclass
-from enum import Enum
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.project.context import SkillContext
 from lorecraft.project.schemas import field_line
 from lorecraft.project.syntax import Frontmatter, InvalidYamlFrontmatter, MissingFrontmatter, NonMappingFrontmatter
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.location import Help, Note, Subdiagnostic
+from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
 from lorecraft.rules.subject import SkillRule
 
-from .__ruleset__ import GROUP_ID
+from .__ruleset__ import GROUP_ID, allowed_tools_note
 
 
-class MalformedAllowedToolsProblem(Enum):
-    """The structural reason an allowed-tools entry is malformed."""
+@dataclass(frozen=True, slots=True)
+class EmptyValue:
+    """The field is written, but holds no tool entry at all."""
 
-    EMPTY = 'empty'
-    COMMA = 'comma'
-    PARENTHESES = 'parentheses'
-    ENTRY = 'entry'
+
+@dataclass(frozen=True, slots=True)
+class CommaSeparated:
+    """An entry separates tools with a comma, where the specification separates them with whitespace.
+
+    Attributes:
+        entry: The entry, exactly as read from the field.
+        suggested: The entry with the commas that separate tools turned to spaces; a comma inside parentheses
+            belongs to a pattern and is kept. It is never empty.
+    """
+
+    entry: str
+    suggested: str
+
+
+@dataclass(frozen=True, slots=True)
+class UnbalancedParentheses:
+    """An entry opens a parenthesised pattern it does not close, or closes one it did not open.
+
+    Attributes:
+        entry: The entry, exactly as read from the field.
+    """
+
+    entry: str
+
+
+@dataclass(frozen=True, slots=True)
+class NotATool:
+    """An entry is neither a tool name nor a tool name followed by one balanced parenthesised pattern.
+
+    Attributes:
+        entry: The entry, exactly as read from the field.
+    """
+
+    entry: str
+
+
+type MalformedEntry = CommaSeparated | UnbalancedParentheses | NotATool
+"""What is wrong with one entry of the field; the empty value has no entry."""
+
+type MalformedAllowedToolsProblem = EmptyValue | MalformedEntry
+"""What is wrong with the field's value: it holds no entry, or one of its entries is malformed."""
 
 
 @rule
@@ -63,8 +101,8 @@ class MalformedAllowedTools(SkillRule):
 
     Attributes:
         spec: Always `None`: the package states this rule, after the Agent Skills specification.
-        entry: The malformed entry, exactly as read from the field.
-        problem: The structural reason the entry does not parse.
+        problem: What is wrong with the value: it holds no entry, or one entry is malformed in the way it states,
+            with the entry exactly as read from the field.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 11)
@@ -73,31 +111,38 @@ class MalformedAllowedTools(SkillRule):
     SINCE: ClassVar[Release] = Release('0.3.0')
 
     spec: None = None
-    entry: str
     problem: MalformedAllowedToolsProblem
 
     def message(self) -> str:
-        """Name the malformed entry."""
-        return f'malformed `allowed-tools` entry {self.entry!r}'
+        """Say the field is not a list of tool entries; the label names the entry."""
+        return '`allowed-tools` is not a list of tool entries'
+
+    def labels(self) -> tuple[Label, ...]:
+        """Name the entry, or say the field holds none, on the field's line."""
+        problem = self.problem
+        match problem:
+            case EmptyValue():
+                return (Label(Here(self.line), 'no tool is written here'),)
+            case CommaSeparated() | UnbalancedParentheses() | NotATool():
+                return (Label(Here(self.line), f'`{problem.entry}` is not `Tool` or `Tool(pattern)`'),)
+            case _:
+                assert_never(problem)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Point at the specification and give the correction for this entry."""
-        match self.problem:
-            case MalformedAllowedToolsProblem.EMPTY:
-                fix = 'write one or more tool names separated by spaces'
-            case MalformedAllowedToolsProblem.COMMA:
-                fix = 'separate tools with spaces, not commas'
-            case MalformedAllowedToolsProblem.PARENTHESES:
+        problem = self.problem
+        match problem:
+            case EmptyValue():
+                fix = 'write one or more tool names separated by spaces, or remove `allowed-tools`'
+            case CommaSeparated():
+                fix = f'write `{problem.suggested}`'
+            case UnbalancedParentheses():
                 fix = 'balance the parentheses around the pattern'
-            case MalformedAllowedToolsProblem.ENTRY:
+            case NotATool():
                 fix = 'write the entry as `Tool` or `Tool(pattern)`'
-        return (
-            Note(
-                "the Agent Skills specification's experimental `allowed-tools` field: "
-                'https://agentskills.io/specification#allowed-tools-field'
-            ),
-            Help(fix),
-        )
+            case _:
+                assert_never(problem)
+        return (allowed_tools_note(), Help(fix))
 
     @classmethod
     def check(cls, subject: SkillContext) -> tuple[Self, ...]:
@@ -122,13 +167,13 @@ class MalformedAllowedTools(SkillRule):
         line = field_line(frontmatter, 'allowed-tools')
         entries = _split_entries(value)
         if not entries:
-            return (cls(line=line, entry='', problem=MalformedAllowedToolsProblem.EMPTY),)
+            return (cls(line=line, problem=EmptyValue()),)
 
         occurrences: list[Self] = []
         for entry in entries:
             problem = _problem(entry)
             if problem is not None:
-                occurrences.append(cls(line=line, entry=entry, problem=problem))
+                occurrences.append(cls(line=line, problem=problem))
         return tuple(occurrences)
 
 
@@ -156,12 +201,14 @@ def _split_entries(value: str) -> tuple[str, ...]:
     return tuple(entries)
 
 
-def _problem(entry: str) -> MalformedAllowedToolsProblem | None:
-    """Return the kind of malformed entry, or `None` when it has the allowed shape."""
-    if not entry:
-        return MalformedAllowedToolsProblem.EMPTY
+def _problem(entry: str) -> MalformedEntry | None:
+    """Return the kind of malformed entry, or `None` when it has the allowed shape.
+
+    Args:
+        entry: One entry of the field, which holds at least one character: whitespace separates entries.
+    """
     if ',' in entry and '(' not in entry:
-        return MalformedAllowedToolsProblem.COMMA
+        return _comma_separated_or_not_a_tool(entry)
 
     name_end = 0
     for character in entry:
@@ -171,14 +218,14 @@ def _problem(entry: str) -> MalformedAllowedToolsProblem | None:
             break
     if name_end == 0:
         if entry.count('(') != entry.count(')'):
-            return MalformedAllowedToolsProblem.PARENTHESES
-        return MalformedAllowedToolsProblem.COMMA if ',' in entry else MalformedAllowedToolsProblem.ENTRY
+            return UnbalancedParentheses(entry)
+        return _comma_separated_or_not_a_tool(entry)
     if name_end == len(entry):
         return None
     if entry[name_end] == ')':
-        return MalformedAllowedToolsProblem.PARENTHESES
+        return UnbalancedParentheses(entry)
     if entry[name_end] != '(':
-        return MalformedAllowedToolsProblem.COMMA if ',' in entry else MalformedAllowedToolsProblem.ENTRY
+        return _comma_separated_or_not_a_tool(entry)
 
     depth = 0
     close_position: int | None = None
@@ -192,10 +239,48 @@ def _problem(entry: str) -> MalformedAllowedToolsProblem | None:
                 close_position = position
                 break
     if depth != 0 or close_position is None:
-        return MalformedAllowedToolsProblem.PARENTHESES
+        return UnbalancedParentheses(entry)
     if close_position != len(entry) - 1:
         suffix = entry[close_position + 1 :]
         if suffix.count('(') != suffix.count(')'):
-            return MalformedAllowedToolsProblem.PARENTHESES
-        return MalformedAllowedToolsProblem.ENTRY
+            return UnbalancedParentheses(entry)
+        # A balanced suffix may still hold a comma between tools, as in `Bash(git diff),Read`.
+        return _comma_separated_or_not_a_tool(entry)
     return None
+
+
+def _comma_separated_or_not_a_tool(entry: str) -> CommaSeparated | NotATool:
+    """The problem of an entry that fits no shape: commas between tools when it holds any, else no tool at all.
+
+    Only a comma outside parentheses separates tools, so an entry whose commas are all inside parentheses has no
+    correction to suggest.
+
+    Args:
+        entry: An entry that is not a tool name, optionally followed by one balanced parenthesised pattern.
+    """
+    suggested = _separate_with_spaces(entry)
+    if suggested and suggested != entry:
+        return CommaSeparated(entry, suggested)
+    return NotATool(entry)
+
+
+def _separate_with_spaces(entry: str) -> str:
+    """The entry with every comma outside parentheses turned to a space, and no space left at either end.
+
+    A comma inside parentheses belongs to a pattern, so it is kept.
+
+    Args:
+        entry: The entry whose commas separate tools.
+    """
+    separated: list[str] = []
+    depth = 0
+    for character in entry:
+        if character == '(':
+            depth += 1
+        elif character == ')' and depth > 0:
+            depth -= 1
+        if character == ',' and depth == 0:
+            separated.append(' ')
+        else:
+            separated.append(character)
+    return ''.join(separated).strip()

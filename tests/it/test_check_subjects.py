@@ -38,8 +38,13 @@ from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
 from lorecraft.project.schemas import (
     BlockProblem,
+    FieldGuidance,
     InvalidValueProblem,
+    JsonType,
+    MinFields,
     MissingFieldProblem,
+    OtherValueConstraint,
+    PatternMismatch,
     SchemaProblems,
     SectionName,
     UnknownFieldProblem,
@@ -66,10 +71,7 @@ from lorecraft.rules.frontmatter.block_constraint import BlockConstraint
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
 from lorecraft.rules.frontmatter.invalid_value import InvalidValue
 from lorecraft.rules.frontmatter.invalid_yaml import InvalidYaml
-from lorecraft.rules.frontmatter.malformed_allowed_tools import (
-    MalformedAllowedTools,
-    MalformedAllowedToolsProblem,
-)
+from lorecraft.rules.frontmatter.malformed_allowed_tools import CommaSeparated, MalformedAllowedTools
 from lorecraft.rules.frontmatter.missing_field import MissingField
 from lorecraft.rules.frontmatter.missing_frontmatter import MissingFrontmatter
 from lorecraft.rules.frontmatter.name_mismatch import DirectoryNameExpected, FilenameExpected, NameMismatch
@@ -128,6 +130,33 @@ GUIDE_SCHEMA: Final[bytes] = (
     b'"status": {"type": "string", "pattern": "^(draft|stable)$"}}, "additionalProperties": false}}'
 )
 """A structure specification whose frontmatter schema each kind of schema problem can break."""
+
+DESCRIPTION_GUIDANCE: Final[FieldGuidance] = FieldGuidance(
+    description='What the skill does and when to use it, with the keywords that let an agent match it to a task.',
+    example=(
+        'Extracts text and tables from PDF files, fills PDF forms, and merges multiple PDFs. Use when working'
+        ' with PDF documents or when the user mentions PDFs, forms, or document extraction.'
+    ),
+)
+"""What the Agent Skills specification states about a skill's `description`."""
+
+COMPATIBILITY_GUIDANCE: Final[FieldGuidance] = FieldGuidance(
+    description=(
+        'The environment the skill needs: the product it is meant for, the system packages it runs, or network '
+        'access. Most skills need none, and leave it out.'
+    ),
+    example='Designed for Claude Code (or similar products)',
+)
+"""What the Agent Skills specification states about a skill's `compatibility`."""
+
+METADATA_GUIDANCE: Final[FieldGuidance] = FieldGuidance(
+    description=(
+        'Properties the specification does not define, for clients to read: string keys to string values, so a '
+        "number is quoted. Keys are best made unique enough not to collide with another client's."
+    ),
+    example='{"author": "example-org", "version": "1.0"}',
+)
+"""What the Agent Skills specification states about a skill's `metadata`."""
 
 SAMPLE: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('SMP'), 'Sample rules')
 """The group of the sample rules this module declares."""
@@ -435,7 +464,8 @@ class TestCheckSubjects:
                     RuleDiagnostic(
                         skill_file,
                         MalformedAllowedTools(
-                            line=LineNumber.from_int(4), entry=value, problem=MalformedAllowedToolsProblem.COMMA
+                            line=LineNumber.from_int(4),
+                            problem=CommaSeparated(entry=value, suggested='A' * 500),
                         ),
                         Severity.WARNING,
                     ),
@@ -465,7 +495,7 @@ class TestCheckSubjects:
 
         #: Then
         occurrence = MalformedAllowedTools(
-            line=LineNumber.from_int(4), entry='Read,', problem=MalformedAllowedToolsProblem.COMMA
+            line=LineNumber.from_int(4), problem=CommaSeparated(entry='Read,', suggested='Read')
         )
         skill_file = RootRelativePath.parse('.agents/skills/review/SKILL.md')
         assert reports == (
@@ -876,7 +906,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = MissingFrontmatter(spec=CODE_SPEC, line=LineNumber.from_int(1))
+        occurrence = MissingFrontmatter(spec=CODE_SPEC, line=LineNumber.from_int(1), directory_name=None)
         assert reports == (
             CheckedSubject(
                 GUIDE,
@@ -896,7 +926,12 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = InvalidYaml(spec=CODE_SPEC, line=LineNumber.from_int(3), problem=_invalid_yaml_problem(guide))
+        occurrence = InvalidYaml(
+            spec=CODE_SPEC,
+            line=LineNumber.from_int(3),
+            problem=_invalid_yaml_problem(guide),
+            stopped_at=LineNumber.from_int(3),
+        )
         assert reports == (
             CheckedSubject(
                 GUIDE,
@@ -956,7 +991,11 @@ class TestCheckSubjects:
 
         #: Then
         occurrence = DuplicateKey(
-            spec=CODE_SPEC, line=LineNumber.from_int(3), key='name', first_line=LineNumber.from_int(2)
+            spec=CODE_SPEC,
+            line=LineNumber.from_int(3),
+            key='name',
+            first_line=LineNumber.from_int(2),
+            kept_line=LineNumber.from_int(3),
         )
         assert reports == (
             CheckedSubject(
@@ -976,7 +1015,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
-        occurrence = MissingFrontmatter(spec=None, line=LineNumber.from_int(1))
+        occurrence = MissingFrontmatter(spec=None, line=LineNumber.from_int(1), directory_name='review')
         assert reports == (
             CheckedSubject(
                 REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),), ungoverned=()
@@ -994,7 +1033,12 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
-        occurrence = InvalidYaml(spec=None, line=LineNumber.from_int(3), problem=_invalid_yaml_problem(review))
+        occurrence = InvalidYaml(
+            spec=None,
+            line=LineNumber.from_int(3),
+            problem=_invalid_yaml_problem(review),
+            stopped_at=LineNumber.from_int(3),
+        )
         assert reports == (
             CheckedSubject(
                 REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),), ungoverned=()
@@ -1058,7 +1102,13 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
-        occurrence = DuplicateKey(spec=None, line=LineNumber.from_int(3), key='name', first_line=LineNumber.from_int(2))
+        occurrence = DuplicateKey(
+            spec=None,
+            line=LineNumber.from_int(3),
+            key='name',
+            first_line=LineNumber.from_int(2),
+            kept_line=LineNumber.from_int(3),
+        )
         assert reports == (
             CheckedSubject(
                 REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),), ungoverned=()
@@ -1184,24 +1234,34 @@ class TestCheckSubjects:
         unknown_field = UnknownField(
             spec=CODE_SPEC,
             line=LineNumber.from_int(4),
-            problem=UnknownFieldProblem('extra', "Additional properties are not allowed ('extra' was unexpected)"),
+            problem=UnknownFieldProblem(
+                'extra',
+                "Additional properties are not allowed ('extra' was unexpected)",
+                ('name', 'description', 'status'),
+            ),
         )
         wrong_type = WrongType(
             spec=CODE_SPEC,
             line=LineNumber.from_int(3),
-            problem=WrongTypeProblem('description', "['a'] is not of type 'string'"),
+            problem=WrongTypeProblem(
+                'description', "['a'] is not of type 'string'", (JsonType.STRING,), JsonType.ARRAY
+            ),
         )
         invalid_value = InvalidValue(
             spec=CODE_SPEC,
             line=LineNumber.from_int(5),
-            problem=InvalidValueProblem('status', "'Final' does not match '^(draft|stable)$'"),
+            problem=InvalidValueProblem(
+                'status', "'Final' does not match '^(draft|stable)$'", PatternMismatch('^(draft|stable)$')
+            ),
         )
         block_constraint = BlockConstraint(
             spec=CODE_SPEC,
             line=line_1,
             problem=BlockProblem(
                 "{'name': 'guide', 'description': ['a'], 'extra': 'y', 'status': 'Final'} "
-                'does not have enough properties'
+                'does not have enough properties',
+                MinFields(6),
+                4,
             ),
         )
         assert reports == (
@@ -1235,23 +1295,38 @@ class TestCheckSubjects:
         #: Then
         line_1 = LineNumber.from_int(1)
         missing_field = MissingField(
-            spec=None, line=line_1, problem=MissingFieldProblem('description', '`description` is required')
+            spec=None,
+            line=line_1,
+            problem=MissingFieldProblem('description', '`description` is required', guidance=DESCRIPTION_GUIDANCE),
         )
         unknown_field = UnknownField(
             spec=None,
             line=LineNumber.from_int(5),
-            problem=UnknownFieldProblem('extra', '`extra` is not a field of the Agent Skills specification'),
+            problem=UnknownFieldProblem(
+                'extra',
+                '`extra` is not a field of the Agent Skills specification',
+                ('name', 'description', 'license', 'compatibility', 'metadata', 'allowed-tools'),
+            ),
         )
         wrong_type = WrongType(
             spec=None,
             line=LineNumber.from_int(4),
-            problem=WrongTypeProblem('metadata', '`metadata` must be a mapping of strings to strings'),
+            problem=WrongTypeProblem(
+                'metadata',
+                '`metadata` must be a mapping of strings to strings',
+                (JsonType.OBJECT,),
+                JsonType.STRING,
+                guidance=METADATA_GUIDANCE,
+            ),
         )
         invalid_value = InvalidValue(
             spec=None,
             line=LineNumber.from_int(3),
             problem=InvalidValueProblem(
-                'compatibility', 'skill compatibility cannot be empty; leave the field out instead'
+                'compatibility',
+                'skill compatibility cannot be empty; leave the field out instead',
+                OtherValueConstraint(),
+                guidance=COMPATIBILITY_GUIDANCE,
             ),
         )
         assert reports == (
@@ -1885,7 +1960,12 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
-        invalid_yaml = InvalidYaml(spec=None, line=LineNumber.from_int(3), problem=_invalid_yaml_problem(review))
+        invalid_yaml = InvalidYaml(
+            spec=None,
+            line=LineNumber.from_int(3),
+            problem=_invalid_yaml_problem(review),
+            stopped_at=LineNumber.from_int(3),
+        )
         absolute_link = AbsoluteLink(line=LineNumber.from_int(4), url='/x.md')
         assert reports == (
             CheckedSubject(

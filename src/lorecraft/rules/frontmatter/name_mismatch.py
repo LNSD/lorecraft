@@ -1,18 +1,23 @@
 """`FM004`: a frontmatter `name` differs from the name its document or skill is found under."""
 
+import re
 from dataclasses import dataclass
-from typing import ClassVar, Self, assert_never
+from typing import ClassVar, Final, Self, assert_never
 
 from lorecraft.core.path import ROOT
 from lorecraft.project.context import DocumentFrontmatterOwner, FrontmatterContext, SkillFrontmatterOwner
+from lorecraft.project.layout import DOCUMENT_SUFFIX
 from lorecraft.project.schemas import field_line
 from lorecraft.project.syntax import Frontmatter, InvalidYamlFrontmatter, MissingFrontmatter, NonMappingFrontmatter
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.location import Help, Note, Subdiagnostic
+from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.subject import FrontmatterRule
 from lorecraft.vfs import ResolvedPath
 
-from .__ruleset__ import GROUP_ID, owner_spec, spec_note
+from .__ruleset__ import GROUP_ID, owner_spec
+
+_SKILL_NAME: Final[re.Pattern[str]] = re.compile(r'[a-z0-9]+(-[a-z0-9]+)*')
+"""The Agent Skills specification's `name`: lowercase letters, digits and single hyphens between them."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,9 +45,11 @@ class DirectoryNameExpected:
     link_target: ResolvedPath | None
 
 
-# What a `name` is held to: a document's filename, or a skill's listed directory name. A union of two records, so a
-# document's occurrence can never carry a link target.
 type NameExpectation = FilenameExpected | DirectoryNameExpected
+"""What a `name` is held to: a document's filename, or a skill's listed directory name.
+
+A union of two records, so a document's occurrence can never carry a link target.
+"""
 
 
 @rule
@@ -102,7 +109,8 @@ class NameMismatch(FrontmatterRule):
 
     Attributes:
         spec: The structure specification whose frontmatter schema governs the document, or `None` for a skill,
-            whose frontmatter the package governs after the Agent Skills specification.
+            whose frontmatter the package governs after the Agent Skills specification. It tells which kind of
+            subject is governed; no note renders it, since no schema states this rule.
         name: The `name` the frontmatter writes.
         expectation: What the name is held to: the document's filename, or the skill's directory name with where
             a linked directory leads.
@@ -117,25 +125,40 @@ class NameMismatch(FrontmatterRule):
     expectation: NameExpectation
 
     def message(self) -> str:
-        """Name the `name` written against the one expected."""
-        return f'`name` is {self.name!r}, expected {_expected_name(self.expectation)!r}'
+        """Name the `name` written; the name expected is the label's."""
+        return f'`name` is {self.name!r}, which is not the name it is found under'
+
+    def labels(self) -> tuple[Label, ...]:
+        """Say the name expected, on the `name` line."""
+        return (Label(Here(self.line), f'expected `{_expected_name(self.expectation)}`'),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Say which name is expected and why, where a linked skill directory leads, and the name to write."""
+        """Say which name is expected and why, the two ways to make the names agree, and where a link leads.
+
+        No schema states this rule, so no note points at the specification file: the document's `name` is held to its
+        filename by the package, and a skill's to its directory by the Agent Skills specification.
+        """
         expectation = self.expectation
         match expectation:
             case FilenameExpected():
-                return (
+                parts: list[Subdiagnostic] = [
                     Note("a document's `name` must be its filename"),
-                    spec_note(self.spec),
                     Help(f'set `name` to {expectation.filename!r}'),
-                )
+                ]
+                # A `name` with a path separator cannot be a filename.
+                if '/' not in self.name:
+                    parts.append(Help(f'or rename the file to {self.name + DOCUMENT_SUFFIX!r}'))
+                return tuple(parts)
             case DirectoryNameExpected():
-                return (
+                parts = [
                     Note('the Agent Skills specification requires `name` to match the skill directory name'),
-                    *_link_notes(expectation),
                     Help(f'set `name` to {expectation.directory_name!r}'),
-                )
+                ]
+                # Renaming the directory to a `name` the specification rejects would trade this finding for another.
+                if _SKILL_NAME.fullmatch(self.name):
+                    parts.append(Help(f'or rename the skill directory to {self.name!r}'))
+                parts.extend(_link_notes(expectation))
+                return tuple(parts)
             case _:
                 assert_never(expectation)
 

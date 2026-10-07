@@ -5,10 +5,15 @@ from typing import ClassVar, Self, assert_never
 
 # The module, not its classes: this rule's own name is the syntax's `MissingFrontmatter`.
 from lorecraft.project import syntax
-from lorecraft.project.context import FrontmatterContext
+from lorecraft.project.context import (
+    DocumentFrontmatterOwner,
+    FrontmatterContext,
+    FrontmatterOwner,
+    SkillFrontmatterOwner,
+)
 from lorecraft.project.schemas import FIRST_LINE
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.location import Subdiagnostic
+from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.subject import FrontmatterRule
 
 from .__ruleset__ import GROUP_ID, owner_spec, spec_note
@@ -72,6 +77,8 @@ class MissingFrontmatter(FrontmatterRule):
     Attributes:
         spec: The structure specification whose frontmatter schema governs the document, or `None` for a skill,
             which the Agent Skills specification governs.
+        directory_name: The name of the skill's directory, as an agent lists it, which its `name` must equal; or
+            `None` for a document, whose required fields are the schema's and not this rule's input.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 1)
@@ -79,13 +86,28 @@ class MissingFrontmatter(FrontmatterRule):
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
 
+    directory_name: str | None
+
     def message(self) -> str:
         """Name the block that is missing."""
         return 'no `---` delimited frontmatter block'
 
+    def labels(self) -> tuple[Label, ...]:
+        """Say where the block is expected: line 1, which an empty file does not have, so a renderer may clamp it.
+
+        The wording holds for a file that never opens a block and for one that opens it and never closes it.
+        """
+        return (Label(Here(self.line), 'a `---` delimited block is expected here'),)
+
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Name the specification that governs the frontmatter."""
-        return (spec_note(self.spec),)
+        """Name the specification, say how to open the block, and for a skill show the fields it opens with."""
+        parts: list[Subdiagnostic] = [
+            spec_note(self.spec),
+            Help('open the file with a `---` line, the fields, and a closing `---` line'),
+        ]
+        if self.directory_name is not None:
+            parts.append(Note(f'for example:\n---\nname: {self.directory_name}\ndescription: …\n---'))
+        return tuple(parts)
 
     @classmethod
     def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:
@@ -97,8 +119,24 @@ class MissingFrontmatter(FrontmatterRule):
         frontmatter = subject.frontmatter()
         match frontmatter:
             case syntax.MissingFrontmatter():
-                return (cls(spec=owner_spec(subject.frontmatter_owner()), line=FIRST_LINE),)
+                owner = subject.frontmatter_owner()
+                return (cls(spec=owner_spec(owner), line=FIRST_LINE, directory_name=_directory_name(owner)),)
             case syntax.InvalidYamlFrontmatter() | syntax.NonMappingFrontmatter() | syntax.Frontmatter():
                 return ()
             case _:
                 assert_never(frontmatter)
+
+
+def _directory_name(owner: FrontmatterOwner) -> str | None:
+    """The name of a skill's directory, which its `name` must equal; `None` for a document.
+
+    Args:
+        owner: The document or the skill whose frontmatter is missing.
+    """
+    match owner:
+        case DocumentFrontmatterOwner():
+            return None
+        case SkillFrontmatterOwner():
+            return owner.directory_name
+        case _:
+            assert_never(owner)
