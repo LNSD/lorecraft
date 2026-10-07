@@ -6,10 +6,12 @@ import pytest
 
 from lorecraft import rules
 from lorecraft.rules.declaration import Rule, RuleCode, Severity
+from lorecraft.rules.frontmatter.allowed_tools_too_long import AllowedToolsTooLong
 from lorecraft.rules.frontmatter.block_constraint import BlockConstraint
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
 from lorecraft.rules.frontmatter.invalid_value import InvalidValue
 from lorecraft.rules.frontmatter.invalid_yaml import InvalidYaml
+from lorecraft.rules.frontmatter.malformed_allowed_tools import MalformedAllowedTools
 from lorecraft.rules.frontmatter.missing_field import MissingField
 from lorecraft.rules.frontmatter.missing_frontmatter import MissingFrontmatter
 from lorecraft.rules.frontmatter.name_mismatch import NameMismatch
@@ -154,9 +156,11 @@ class TestRuleTableFromRegistry:
         table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
-        assert table.skill_rules == (EnabledRule(TooManyLines, Severity.ERROR),), (
-            "the package's line budget is enabled by default as an error"
-        )
+        assert table.skill_rules == (
+            EnabledRule(MalformedAllowedTools, Severity.WARNING),
+            EnabledRule(AllowedToolsTooLong, Severity.WARNING),
+            EnabledRule(TooManyLines, Severity.ERROR),
+        ), "the package's allowed-tools rules are enabled as warnings, and its line budget as an error"
 
     def test_from_registry_with_the_package_registry_enables_the_link_rules_in_code_order(self) -> None:
         #: Given

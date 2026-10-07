@@ -157,7 +157,8 @@ beside the parse tree.
 **A rule over what both subject kinds share reads the shared context.** `FrontmatterRule` is the base of a rule over
 a document's or a skill's frontmatter alike: its `check` takes a `FrontmatterContext`, so one check judges both
 kinds, and a document runs its rules and the frontmatter rules, a skill its rules and the frontmatter rules. The
-frontmatter rules, `FM001` to `FM010`, derive from it. A rule over the frontmatter inherits
+frontmatter rules over both subject kinds, `FM001` to `FM010`, derive from it. `FM011` and `FM012`, which check a
+skill's `allowed-tools` structure and recommended length, derive from `SkillRule`. A rule over the frontmatter inherits
 `GOVERNED_BY = Facet.FRONTMATTER` from its base, so the runner gates it on a document as it gates a rule over a
 document, and a skill is governed for it by the package. `FM006` to `FM010` stay filters, each
 picking its own problem type out of the one `schema_problems()` answer. Where a key repeats and which line `name` is

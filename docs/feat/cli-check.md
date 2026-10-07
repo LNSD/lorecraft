@@ -151,6 +151,9 @@ errors and warnings, and `coverage` lists each subject with an ungoverned part:
 - The command takes no paths, and no option sets a level: every rule runs at its default level, and a selection
   only narrows which run.
 - A warning does not fail the run: a skill frontmatter field outside the six, `FM007`, exits 0.
+- A malformed skill `allowed-tools` entry, `FM011`, is a warning and exits 0; its pattern is kept intact inside parentheses.
+- An `allowed-tools` value over 500 characters, `FM012`, is a warning and exits 0. This is Lorecraft's recommendation,
+  matching the `compatibility` limit; the Agent Skills specification sets no limit for `allowed-tools`.
 - A repository with skills and no `docs/__meta__/` needs `--root`.
 - A key repeated inside a nested frontmatter mapping is not reported as repeated.
 - A fragment after a path, such as `guide.md#usage`, is not checked against the file it names.
@@ -163,7 +166,7 @@ reference, not to this document.
 
 | Rule | Reported when |
 |------|---------------|
-| `FM` | Frontmatter checks: a document's frontmatter against its schemas, a skill's against the Agent Skills specification. `FM001` missing-frontmatter, `FM002` invalid-yaml, `FM003` non-mapping-frontmatter, `FM004` name-mismatch, `FM005` duplicate-key, `FM006` missing-field, `FM007` unknown-field (a warning), `FM008` wrong-type, `FM009` invalid-value, `FM010` block-constraint |
+| `FM` | Frontmatter checks: a document's frontmatter against its schemas, a skill's against the Agent Skills specification and Lorecraft's recommendations. `FM001` missing-frontmatter, `FM002` invalid-yaml, `FM003` non-mapping-frontmatter, `FM004` name-mismatch, `FM005` duplicate-key, `FM006` missing-field, `FM007` unknown-field (a warning), `FM008` wrong-type, `FM009` invalid-value, `FM010` block-constraint, `FM011` malformed-allowed-tools (a warning; pattern whitespace stays intact), `FM012` allowed-tools-too-long (a warning over 500 characters) |
 | `OUT` | Outline checks: a document's H1 title and sections against its structure specifications. `OUT001` missing-title, `OUT002` extra-title, `OUT003` title-not-first, `OUT004` empty-section, `OUT005` forbidden-section, `OUT006` missing-section, `OUT007` section-out-of-order, `OUT008` unexpected-section, `OUT009` invalid-title |
 | `LEN` | Length limits: a document's tokens, a section's or its title's words or characters, a `SKILL.md`'s lines. `LEN001` too-many-tokens, `LEN002` too-many-lines, `LEN003` too-many-words, `LEN004` title-too-many-words, `LEN005` title-too-long |
 | `LINK` | Links in Markdown files: a document governed for its structure, a `SKILL.md` and each resource, a skill's relative link read from the skill root. `LINK001` absolute-link, `LINK002` missing-fragment, `LINK003` broken-link, `LINK004` escaping-link |
