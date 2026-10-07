@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Self
 
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.declaration import AliasCode, Level, Release, RuleCode, RuleName, rule
+from lorecraft.rules.declaration import AliasCode, Level, LinterName, Release, RuleCode, RuleName, UpstreamCode, rule
 from lorecraft.rules.tests.sample_subject import SampleLines, SampleLinesRule
 
 from ..groups import SAMPLE
@@ -19,7 +19,7 @@ class TrailingSpace(SampleLinesRule):
     NAME: ClassVar[RuleName] = RuleName('trailing-space')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('1.2.0')
-    ALIASES: ClassVar[tuple[AliasCode, ...]] = (AliasCode('markdownlint', 'MD009'),)
+    ALIASES: ClassVar[tuple[AliasCode, ...]] = (AliasCode(LinterName('markdownlint'), UpstreamCode('MD009')),)
 
     def message(self) -> str:
         """Name the condition."""

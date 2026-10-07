@@ -16,10 +16,10 @@ from typing import Final, assert_never
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentFrontmatterOwner, FrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.schemas import AgentSkillsSchema, SchemaSource, StructureSpecSchema
-from lorecraft.rules.declaration import RuleGroup
+from lorecraft.rules.declaration import RuleGroup, RuleGroupPrefix
 from lorecraft.rules.location import Elsewhere, Note
 
-GROUP_ID: Final[RuleGroup] = RuleGroup('FM', 'Frontmatter checks')
+GROUP_ID: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('FM'), 'Frontmatter checks')
 """The group of the rules over a subject's frontmatter: the block itself, and the schema that governs it."""
 
 

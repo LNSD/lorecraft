@@ -63,12 +63,12 @@ what it is handed.
   never a rule its unit tests declare.
 - The registry is built once, with `Registry.load`, where a command starts, and passed down to what reads it.
   Nothing below that composition root imports a registry instance or memoizes one.
-- A code bound twice, a declaration left incomplete, a group, code or alias code written out of form, or a code
+- A code bound twice, a declaration left incomplete, a group with no title, a code numbered out of range, or a code
   in a group its kind may not use is a defect in this package. It is raised when the package loads, never reported
   as the user's fault.
 - The `LC` group holds engine conditions alone, and every engine condition is in it.
-- A release and a rule name are value objects a user's input will also build, so a malformed one raises an
-  `Error` variant, whoever wrote it.
+- A release, a rule name, a group's prefix, and an alias code's linter and upstream code are value objects a
+  user's input will also build, so a malformed one raises an `Error` variant, whoever wrote it.
 
 ## Examples
 
