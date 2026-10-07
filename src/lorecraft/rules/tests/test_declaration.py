@@ -8,24 +8,30 @@ from lorecraft.project.syntax import LineNumber
 from ..declaration import (
     AliasCode,
     DoubledHyphenRuleNameError,
-    EmptyAliasLinterError,
+    EmptyLinterNameError,
+    EmptyRuleGroupPrefixError,
     EmptyRuleGroupTitleError,
     EmptyRuleNameError,
-    InvalidAliasCodeError,
-    InvalidRuleGroupPrefixError,
+    EmptyUpstreamCodeError,
+    InvalidRuleGroupPrefixCharacterError,
     InvalidRuleNameCharacterError,
+    InvalidUpstreamCodeCharacterError,
     LeadingHyphenRuleNameError,
     LeadingZeroReleaseError,
     Level,
+    LinterName,
     MalformedReleaseError,
     Release,
+    ReservedRuleGroupPrefixError,
     Rule,
     RuleCode,
     RuleGroup,
+    RuleGroupPrefix,
     RuleName,
     RuleNumberOutOfRangeError,
     Severity,
     TrailingHyphenRuleNameError,
+    UpstreamCode,
     declared_rules,
 )
 from ..location import Here, WholeSubject
@@ -286,57 +292,136 @@ class TestRuleName:
 
 
 @pytest.mark.unit
+class TestRuleGroupPrefix:
+    def test_parse_with_uppercase_letters_returns_the_prefix(self) -> None:
+        #: Given
+        raw = 'OUT'
+
+        #: When
+        prefix = RuleGroupPrefix.parse(raw)
+
+        #: Then
+        assert str(prefix) == raw, 'a prefix is kept exactly as spelled'
+
+    def test_parse_with_a_single_letter_returns_the_prefix(self) -> None:
+        #: Given
+        raw = 'A'
+
+        #: When
+        prefix = RuleGroupPrefix.parse(raw)
+
+        #: Then
+        assert str(prefix) == raw, 'one letter is the shortest prefix that is not empty'
+
+    def test_parse_with_an_empty_prefix_raises_empty_rule_group_prefix_error(self) -> None:
+        #: Given
+        raw = ''
+
+        #: When
+        with pytest.raises(EmptyRuleGroupPrefixError) as exc_info:
+            RuleGroupPrefix.parse(raw)
+
+        #: Then
+        assert type(exc_info.value).__bases__ == (Error,), 'the variant derives from Error directly, not a family'
+        assert str(exc_info.value) == 'rule group prefix cannot be empty', 'the error explains the empty case'
+
+    def test_rule_group_prefix_constructed_directly_with_an_empty_prefix_raises_empty_rule_group_prefix_error(
+        self,
+    ) -> None:
+        #: Given
+        raw = ''
+
+        #: When
+        with pytest.raises(EmptyRuleGroupPrefixError) as exc_info:
+            RuleGroupPrefix(raw)
+
+        #: Then
+        assert str(exc_info.value) == 'rule group prefix cannot be empty', (
+            'direct construction checks the same invariant'
+        )
+
+    def test_parse_with_a_lowercase_letter_raises_invalid_rule_group_prefix_character_error(self) -> None:
+        #: Given
+        raw = 'Out'
+
+        #: When
+        with pytest.raises(InvalidRuleGroupPrefixCharacterError) as exc_info:
+            RuleGroupPrefix.parse(raw)
+
+        #: Then
+        assert type(exc_info.value).__bases__ == (Error,), 'the variant derives from Error directly, not a family'
+        assert exc_info.value.value == raw, 'the error keeps the prefix with a lowercase letter'
+        assert exc_info.value.position == 1, 'the error locates the first lowercase letter'
+        assert exc_info.value.character == 'u', 'the error names the lowercase letter'
+
+    def test_parse_with_a_digit_raises_invalid_rule_group_prefix_character_error(self) -> None:
+        #: Given
+        raw = 'OUT2'
+
+        #: When
+        with pytest.raises(InvalidRuleGroupPrefixCharacterError) as exc_info:
+            RuleGroupPrefix.parse(raw)
+
+        #: Then
+        assert exc_info.value.value == raw, 'the error keeps the prefix with a digit'
+        assert exc_info.value.position == 3, 'the error locates the digit'
+        assert exc_info.value.character == '2', 'a digit belongs to a code, not a prefix'
+
+    def test_parse_with_a_non_ascii_letter_raises_invalid_rule_group_prefix_character_error(self) -> None:
+        #: Given
+        raw = 'ÉT'
+
+        #: When
+        with pytest.raises(InvalidRuleGroupPrefixCharacterError) as exc_info:
+            RuleGroupPrefix.parse(raw)
+
+        #: Then
+        assert exc_info.value.character == 'É', 'an uppercase letter outside ASCII is refused'
+
+    def test_parse_with_all_raises_reserved_rule_group_prefix_error(self) -> None:
+        #: Given
+        raw = 'ALL'
+
+        #: When
+        with pytest.raises(ReservedRuleGroupPrefixError) as exc_info:
+            RuleGroupPrefix.parse(raw)
+
+        #: Then
+        assert type(exc_info.value).__bases__ == (Error,), 'the variant derives from Error directly, not a family'
+        assert exc_info.value.value == raw, 'the error keeps the prefix the selector for every rule takes'
+
+    def test_rule_group_prefix_constructed_directly_with_all_raises_reserved_rule_group_prefix_error(self) -> None:
+        #: Given
+        raw = 'ALL'
+
+        #: When
+        with pytest.raises(ReservedRuleGroupPrefixError) as exc_info:
+            RuleGroupPrefix(raw)
+
+        #: Then
+        assert exc_info.value.value == raw, 'direct construction checks the same reservation'
+
+
+@pytest.mark.unit
 class TestRuleGroup:
-    def test_rule_group_with_an_empty_prefix_raises_invalid_rule_group_prefix_error(self) -> None:
-        #: Given
-        prefix = ''
-
-        #: When
-        with pytest.raises(InvalidRuleGroupPrefixError) as exc_info:
-            RuleGroup(prefix, 'Outline')
-
-        #: Then
-        assert exc_info.value.prefix == prefix, 'the error keeps the empty prefix'
-
-    def test_rule_group_with_a_lowercase_prefix_raises_invalid_rule_group_prefix_error(self) -> None:
-        #: Given
-        prefix = 'Out'
-
-        #: When
-        with pytest.raises(InvalidRuleGroupPrefixError) as exc_info:
-            RuleGroup(prefix, 'Outline')
-
-        #: Then
-        assert exc_info.value.prefix == prefix, 'the error keeps the prefix with a lowercase letter'
-
-    def test_rule_group_with_a_digit_in_the_prefix_raises_invalid_rule_group_prefix_error(self) -> None:
-        #: Given
-        prefix = 'OUT2'
-
-        #: When
-        with pytest.raises(InvalidRuleGroupPrefixError) as exc_info:
-            RuleGroup(prefix, 'Outline')
-
-        #: Then
-        assert exc_info.value.prefix == prefix, 'the error keeps the prefix with a digit'
-
     def test_rule_group_with_an_empty_title_raises_empty_rule_group_title_error(self) -> None:
         #: Given
-        title = ''
+        prefix = RuleGroupPrefix('OUT')
 
         #: When
         with pytest.raises(EmptyRuleGroupTitleError) as exc_info:
-            RuleGroup('OUT', title)
+            RuleGroup(prefix, '')
 
         #: Then
-        assert exc_info.value.prefix == 'OUT', 'the error names the group with no title'
+        assert type(exc_info.value).__bases__ == (ValueError,), 'an empty title is a defect in the package'
+        assert exc_info.value.prefix == prefix, 'the error names the group with no title'
 
 
 @pytest.mark.unit
 class TestRuleCode:
     def test_str_with_a_one_digit_number_pads_it_to_three_digits(self) -> None:
         #: Given
-        code = RuleCode(RuleGroup('OUT', 'Outline'), 2)
+        code = RuleCode(RuleGroup(RuleGroupPrefix('OUT'), 'Outline'), 2)
 
         #: When
         printed = str(code)
@@ -346,7 +431,7 @@ class TestRuleCode:
 
     def test_str_with_the_largest_number_prints_it_unpadded(self) -> None:
         #: Given
-        code = RuleCode(RuleGroup('OUT', 'Outline'), 999)
+        code = RuleCode(RuleGroup(RuleGroupPrefix('OUT'), 'Outline'), 999)
 
         #: When
         printed = str(code)
@@ -379,50 +464,112 @@ class TestRuleCode:
 
 
 @pytest.mark.unit
+class TestLinterName:
+    def test_parse_with_a_name_returns_the_name(self) -> None:
+        #: Given
+        raw = 'markdownlint'
+
+        #: When
+        name = LinterName.parse(raw)
+
+        #: Then
+        assert str(name) == raw, 'a linter name is kept exactly as spelled'
+
+    def test_parse_with_an_empty_name_raises_empty_linter_name_error(self) -> None:
+        #: Given
+        raw = ''
+
+        #: When
+        with pytest.raises(EmptyLinterNameError) as exc_info:
+            LinterName.parse(raw)
+
+        #: Then
+        assert type(exc_info.value).__bases__ == (Error,), 'the variant derives from Error directly, not a family'
+        assert str(exc_info.value) == 'linter name cannot be empty', 'the error explains the empty case'
+
+    def test_linter_name_constructed_directly_with_an_empty_name_raises_empty_linter_name_error(self) -> None:
+        #: Given
+        raw = ''
+
+        #: When
+        with pytest.raises(EmptyLinterNameError) as exc_info:
+            LinterName(raw)
+
+        #: Then
+        assert str(exc_info.value) == 'linter name cannot be empty', 'direct construction checks the same invariant'
+
+
+@pytest.mark.unit
+class TestUpstreamCode:
+    def test_parse_with_one_word_returns_the_code(self) -> None:
+        #: Given
+        raw = 'MD040'
+
+        #: When
+        code = UpstreamCode.parse(raw)
+
+        #: Then
+        assert str(code) == raw, 'an upstream code is kept exactly as the linter prints it'
+
+    def test_parse_with_punctuation_returns_the_code(self) -> None:
+        #: Given
+        raw = 'no-trailing-spaces'
+
+        #: When
+        code = UpstreamCode.parse(raw)
+
+        #: Then
+        assert str(code) == raw, 'any character but whitespace may spell an upstream code'
+
+    def test_parse_with_an_empty_code_raises_empty_upstream_code_error(self) -> None:
+        #: Given
+        raw = ''
+
+        #: When
+        with pytest.raises(EmptyUpstreamCodeError) as exc_info:
+            UpstreamCode.parse(raw)
+
+        #: Then
+        assert type(exc_info.value).__bases__ == (Error,), 'the variant derives from Error directly, not a family'
+        assert str(exc_info.value) == 'upstream code cannot be empty', 'the error explains the empty case'
+
+    def test_parse_with_a_space_raises_invalid_upstream_code_character_error(self) -> None:
+        #: Given
+        raw = 'MD 040'
+
+        #: When
+        with pytest.raises(InvalidUpstreamCodeCharacterError) as exc_info:
+            UpstreamCode.parse(raw)
+
+        #: Then
+        assert type(exc_info.value).__bases__ == (Error,), 'the variant derives from Error directly, not a family'
+        assert exc_info.value.value == raw, 'the error keeps the code holding a space'
+        assert exc_info.value.position == 2, 'the error locates the space'
+        assert exc_info.value.character == ' ', 'the error names the space'
+
+    def test_upstream_code_constructed_directly_with_a_tab_raises_invalid_upstream_code_character_error(self) -> None:
+        #: Given
+        raw = 'MD040\t'
+
+        #: When
+        with pytest.raises(InvalidUpstreamCodeCharacterError) as exc_info:
+            UpstreamCode(raw)
+
+        #: Then
+        assert exc_info.value.character == '\t', 'direct construction refuses any whitespace, a tab included'
+
+
+@pytest.mark.unit
 class TestAliasCode:
     def test_str_with_a_linter_and_a_code_prints_the_code_alone(self) -> None:
         #: Given
-        alias = AliasCode('markdownlint', 'MD040')
+        alias = AliasCode(LinterName('markdownlint'), UpstreamCode('MD040'))
 
         #: When
         printed = str(alias)
 
         #: Then
         assert printed == 'MD040', 'an alias code prints as the upstream code a user types'
-
-    def test_alias_code_with_an_empty_linter_raises_empty_alias_linter_error(self) -> None:
-        #: Given
-        linter = ''
-
-        #: When
-        with pytest.raises(EmptyAliasLinterError) as exc_info:
-            AliasCode(linter, 'MD040')
-
-        #: Then
-        assert exc_info.value.code == 'MD040', 'the error names the code with no linter'
-
-    def test_alias_code_with_an_empty_code_raises_invalid_alias_code_error(self) -> None:
-        #: Given
-        code = ''
-
-        #: When
-        with pytest.raises(InvalidAliasCodeError) as exc_info:
-            AliasCode('markdownlint', code)
-
-        #: Then
-        assert exc_info.value.linter == 'markdownlint', 'the error names the linter'
-        assert exc_info.value.code == code, 'the error keeps the empty code'
-
-    def test_alias_code_with_whitespace_in_the_code_raises_invalid_alias_code_error(self) -> None:
-        #: Given
-        code = 'MD 040'
-
-        #: When
-        with pytest.raises(InvalidAliasCodeError) as exc_info:
-            AliasCode('markdownlint', code)
-
-        #: Then
-        assert exc_info.value.code == code, 'the error keeps the code holding a space'
 
 
 @pytest.mark.unit

@@ -1,4 +1,4 @@
-"""The registry: a walk of a rules package, its rejections, and a lookup by code, name or alias code."""
+"""The registry: a walk of a rules package, its rejections, a lookup by code, name or alias code, and one by prefix."""
 
 import pytest
 
@@ -34,7 +34,7 @@ from lorecraft.rules.outline.section_out_of_order import SectionOutOfOrder
 from lorecraft.rules.outline.title_not_first import TitleNotFirst
 from lorecraft.rules.outline.unexpected_section import UnexpectedSection
 
-from ..declaration import RuleName
+from ..declaration import RuleGroupPrefix, RuleName
 from ..registry import (
     AbstractRuleError,
     ConditionOutsideEngineGroupError,
@@ -74,6 +74,7 @@ from .sample_rules.duplicate_alias.aliased import FirstAliased, SecondAliased
 from .sample_rules.duplicate_code.first import FirstRule
 from .sample_rules.duplicate_code.second import SecondRule
 from .sample_rules.duplicate_name.shared import InService, Retired
+from .sample_rules.groups import LAYOUT, SAMPLE
 from .sample_rules.removed_rule_in_engine.retired import RetiredTrespasser
 from .sample_rules.rule_in_engine.trespassing import Trespassing
 from .sample_rules.token_count.any_tokens import AnyTokens
@@ -232,7 +233,7 @@ class TestRegistryLoad:
             Registry.load(package)
 
         #: Then
-        assert exc_info.value.prefix == 'SMP', 'the error names the prefix given two groups'
+        assert exc_info.value.prefix == RuleGroupPrefix('SMP'), 'the error names the prefix given two groups'
         assert exc_info.value.first is Titled, 'the rule earlier in code order bound the prefix first'
         assert exc_info.value.second is Retitled, 'the later rule gave it another title'
 
@@ -372,6 +373,107 @@ class TestRegistryFind:
 
         #: Then
         assert found is None, 'a key no rule has finds nothing'
+
+
+@pytest.mark.unit
+class TestRegistryRulesInService:
+    def test_rules_in_service_with_a_removed_rule_and_an_engine_condition_holds_neither(self) -> None:
+        #: Given
+        registry = Registry.load(token_count)
+
+        #: When
+        in_service = registry.rules_in_service
+
+        #: Then
+        assert in_service == (OverHalfBudget, EmptyDocument, AnyTokens), (
+            'the rules a run may enable, in code order, without the removed rule or the engine condition'
+        )
+
+
+@pytest.mark.unit
+class TestRegistryFindGroup:
+    def test_find_group_with_a_prefix_returns_its_group(self, registry: Registry) -> None:
+        #: Given
+        prefix = 'SMP'
+
+        #: When
+        found = registry.find_group(prefix)
+
+        #: Then
+        assert found == SAMPLE, 'a prefix finds the group its rules are declared in'
+
+    def test_find_group_with_the_prefix_of_a_rule_in_a_subpackage_returns_its_group(self, registry: Registry) -> None:
+        #: Given
+        prefix = 'LAYS'
+
+        #: When
+        found = registry.find_group(prefix)
+
+        #: Then
+        assert found == LAYOUT, 'every group a declaration is in is found, wherever the declaration is'
+
+    def test_find_group_with_a_code_returns_none(self, registry: Registry) -> None:
+        #: Given
+        prefix = 'SMP002'
+
+        #: When
+        found = registry.find_group(prefix)
+
+        #: Then
+        assert found is None, 'a code is no prefix'
+
+    def test_find_group_with_an_unknown_prefix_returns_none(self, registry: Registry) -> None:
+        #: Given
+        prefix = 'XYZ'
+
+        #: When
+        found = registry.find_group(prefix)
+
+        #: Then
+        assert found is None, 'a prefix no declaration is in finds nothing'
+
+    def test_find_group_with_text_no_prefix_could_be_returns_none(self, registry: Registry) -> None:
+        #: Given
+        prefix = 'smp'
+
+        #: When
+        found = registry.find_group(prefix)
+
+        #: Then
+        assert found is None, 'text out of the prefix format finds nothing, rather than failing'
+
+    def test_find_group_with_the_prefix_of_removed_rules_alone_returns_none(self) -> None:
+        #: Given
+        registry = Registry((Retired,))
+
+        #: When
+        found = registry.find_group('SMP')
+
+        #: Then
+        assert found is None, 'a group with no rule in service holds nothing a run could select'
+
+
+@pytest.mark.unit
+class TestRegistryIsEngineGroup:
+    def test_is_engine_group_with_the_engine_conditions_group_returns_true(self) -> None:
+        #: Given
+        group = InvalidUtf8.CODE.group
+
+        #: When
+        is_engine = Registry.load(rules).is_engine_group(group)
+
+        #: Then
+        assert is_engine, 'the group every engine condition is in is the engine group'
+
+    def test_is_engine_group_with_a_rule_group_returns_false(self, registry: Registry) -> None:
+        #: Given
+        group = SAMPLE
+
+        #: When
+        is_engine = registry.is_engine_group(group)
+
+        #: Then
+        assert not is_engine, "a rule's group is not the engine group"
 
 
 @pytest.mark.unit
