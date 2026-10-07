@@ -4,10 +4,12 @@ import pytest
 
 from lorecraft import rules
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
+from lorecraft.rules.frontmatter.allowed_tools_too_long import AllowedToolsTooLong
 from lorecraft.rules.frontmatter.block_constraint import BlockConstraint
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
 from lorecraft.rules.frontmatter.invalid_value import InvalidValue
 from lorecraft.rules.frontmatter.invalid_yaml import InvalidYaml
+from lorecraft.rules.frontmatter.malformed_allowed_tools import MalformedAllowedTools
 from lorecraft.rules.frontmatter.missing_field import MissingField
 from lorecraft.rules.frontmatter.missing_frontmatter import MissingFrontmatter
 from lorecraft.rules.frontmatter.name_mismatch import NameMismatch
@@ -497,6 +499,8 @@ class TestPackageRegistry:
             WrongType,
             InvalidValue,
             BlockConstraint,
+            MalformedAllowedTools,
+            AllowedToolsTooLong,
             OutsideSymlink,
             InvalidUtf8,
             TooManyTokens,
