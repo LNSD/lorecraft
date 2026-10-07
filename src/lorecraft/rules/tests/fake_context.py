@@ -42,6 +42,7 @@ from lorecraft.project.schemas import (
 )
 from lorecraft.project.syntax import (
     FrontmatterNode,
+    Heading,
     ParsedDocument,
     count_lines,
     count_tokens,
@@ -74,6 +75,25 @@ def structure_spec_path(name: str) -> RootRelativePath:
         InvalidAspectNamespaceCharacterError: If a character of the namespace token falls outside kebab case.
     """
     return SPECS_DIR / spec_filename(parse_spec_name(name), SpecFileType.STRUCTURE)
+
+
+def heading_in(text: str, heading_text: str) -> Heading:
+    """The first top-level heading with this text, as the real parser reads it from a document's text.
+
+    A rule that carries a heading is tested against the parser's own, so the test cannot hand it one no document
+    would produce.
+
+    Args:
+        text: Markdown document to parse, frontmatter included.
+        heading_text: The heading's plain text.
+
+    Raises:
+        AssertionError: If the document holds no such heading.
+    """
+    for heading in parse_document(text).headings:
+        if heading.text == heading_text:
+            return heading
+    raise AssertionError(f'the document holds a heading `{heading_text}`')
 
 
 def namespace_spec(corpus: str, namespace: str, structure: str) -> NamespaceSpec:

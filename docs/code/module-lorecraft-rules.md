@@ -123,14 +123,16 @@ A rule is named for what is wrong, as the established linters name theirs, so th
   occurrences from two specifications read apart. A rule every governed document is held to, with no key stating
   it, points its `Note` at the corpus's structure specification that governs the document, unless no schema in
   that specification states the rule either, as for a document's `name` held to its filename: that rule carries no
-  `Note` pointing at a schema, and says in its own words what it requires. A rule the package
+  `Note` pointing at a schema, and says in its own words what it requires. A title rule, held to by every governed
+  document, has `spec` `None` and carries no specification `Note`: no specification states it. A rule the package
   itself states has `spec` `None`: its `Note` names the external specification that sets the limit in its text,
   with no `at`. A rule the package states that no external specification sets, such as a link rule, carries no
   `Note`: nothing outside the diagnostic states the rule.
 - **A `Help` gives the fix for this occurrence** when its fields make it concrete, such as the description an
   outline gives a section the document lacks. A limit's message already names the value found against the limit,
-  so a `Help` restating the difference adds nothing. The general fix is the docstring's, but a rule the package
-  states may add a `Help` with the fix the external specification itself prescribes.
+  so a `Help` restating the difference adds nothing. The general fix is the docstring's, but a rule may give it as
+  a fixed `Help` too, such as "move the title above every section", and a rule the package states may add a
+  `Help` with the fix the external specification itself prescribes.
 
 ## Documenting a Rule
 
@@ -193,8 +195,8 @@ Before committing code, verify:
 - [ ] A new rule's name states the condition it reports, and its class and module spell that name
 - [ ] A new rule's `message()` is lowercase with the value found against the limit, and `children()` points a
       `Note` at the specification that states the rule, at the corpus's structure specification when no key states
-      it, or, when the package states it, names the external specification in the `Note`'s text with no `at`;
-      one no external specification sets, or no schema states, has none
+      it, or, when the package states it, names the external specification in its text without `at`; title
+      rules, and rules no external specification sets or schema states, have none
 - [ ] A new rule's docstring opens *What it does* with "Checks for", shows the broken and the fixed input under
       *Example* and *Use instead*, and names nothing of the implementation; a rule no key states says so, and its
       *Example* shows a governing specification's excerpt, then the subject; a rule the package states names the

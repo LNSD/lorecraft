@@ -19,8 +19,8 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.schemas import SectionName
-from lorecraft.project.syntax import LineNumber
+from lorecraft.project.schemas import DocumentEnd, SectionName
+from lorecraft.project.syntax import Heading, LineNumber
 from lorecraft.rules.declaration import Severity
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
 from lorecraft.rules.layout.outside_symlink import OutsideSymlink
@@ -33,6 +33,11 @@ from ..diagnostics import render_coverage, render_diagnostics, render_json, rend
 
 _CODE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
 _FEAT_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/feat.structure.json')
+
+
+def _options_heading() -> Heading:
+    """The `Options` section, on line 5, before which the missing `Usage` section belongs."""
+    return Heading(level=2, text='Options', line=_line(5), empty=False, words=3)
 
 
 def _document(corpus: str, filename: str) -> DocumentRef:
@@ -57,7 +62,7 @@ def _every_kind_of_report() -> tuple[SubjectReport, ...]:
         spec=_FEAT_SPEC,
         line=_line(5),
         section=SectionName.parse('Usage'),
-        before='Options',
+        before=_options_heading(),
         description='How to invoke the command.',
         example='Run `lorecraft check` from the repository root:\n\n```console\n$ lorecraft check\n```',
     )
@@ -119,7 +124,7 @@ class TestRenderDiagnostics:
             spec=_FEAT_SPEC,
             line=_line(9),
             section=SectionName.parse('Usage'),
-            before=None,
+            before=DocumentEnd(last_line=_line(9), after=None),
             description=None,
             example='Run it:  \n   \n    lorecraft check\n',
         )
@@ -152,7 +157,7 @@ class TestRenderDiagnostics:
             spec=_FEAT_SPEC,
             line=_line(9),
             section=SectionName.parse('Usage'),
-            before=None,
+            before=DocumentEnd(last_line=_line(9), after=None),
             description=None,
             example='Run it:\r\n    lorecraft check',
         )

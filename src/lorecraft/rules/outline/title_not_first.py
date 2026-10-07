@@ -3,14 +3,13 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
-from lorecraft.project.syntax import HeadingLevel
+from lorecraft.project.syntax import HeadingLevel, LineNumber, find_title
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.location import Subdiagnostic
+from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
 from lorecraft.rules.subject import DocumentRule, Facet
 
-from .__ruleset__ import GROUP_ID, spec_note
+from .__ruleset__ import GROUP_ID
 
 
 @rule
@@ -25,10 +24,10 @@ class TitleNotFirst(DocumentRule):
     title at all. Only a heading at the top level of the document counts: one inside a list or a blockquote does
     not.
 
-    A document with no heading at all is not reported here: it is missing its title, and adding one fixes both.
+    A document with no H1 title is not reported here, whatever its headings: it is missing its title, which
+    `missing-title` reports, and adding one fixes both.
 
-    A document that more than one specification governs, such as a corpus and a namespace, is reported once, under
-    its corpus's structure specification.
+    A document that more than one specification governs, such as a corpus and a namespace, is reported once.
 
     ## Why is this bad?
 
@@ -68,8 +67,9 @@ class TitleNotFirst(DocumentRule):
     ```
 
     Attributes:
-        spec: The corpus's structure specification, which governs the document.
+        spec: Always `None`: the package states the rule.
         level: The level of the heading the document opens with.
+        title_line: The line of the document's H1 title, which the heading above it should follow.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 3)
@@ -78,28 +78,34 @@ class TitleNotFirst(DocumentRule):
     SINCE: ClassVar[Release] = Release('0.3.0')
     GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
 
-    spec: RootRelativePath
+    spec: None = None
     level: HeadingLevel
+    title_line: LineNumber
 
     def message(self) -> str:
         """Name the level of the heading found where the title belongs."""
         return f'first heading is not the H1 title (found H{self.level})'
 
+    def labels(self) -> tuple[Label, ...]:
+        """Point at the document's title."""
+        return (Label(Here(self.title_line), 'the title is written here'),)
+
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the corpus's structure specification."""
-        return (spec_note(self.spec),)
+        """Say where the title belongs."""
+        return (Help('move the title above every section'),)
 
     @classmethod
     def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
-        """One occurrence, at the first heading, under the corpus's structure specification, when it is not an H1.
+        """One occurrence, at the first heading, when the document has an H1 title and the first heading is not it.
 
         Args:
-            subject: The document, governed by its corpus's structure specification.
+            subject: The document, governed by a structure specification.
         """
         headings = subject.parse().headings
-        if not headings:
+        title = find_title(headings)
+        if title is None:
             return ()
         first = headings[0]
         if first.level == 1:
             return ()
-        return (cls(spec=subject.corpus_structure().path, line=first.line, level=first.level),)
+        return (cls(line=first.line, level=first.level, title_line=title.line),)

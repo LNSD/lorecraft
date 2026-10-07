@@ -5,9 +5,9 @@ from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
-from lorecraft.project.schemas import AbsentSection, MisplacedSection, SectionName, UnlistedSection
+from lorecraft.project.schemas import AbsentSection, ExpectedSection, LeftOver, MisplacedSection, UnlistedSection
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.location import Here, Label, Subdiagnostic
+from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
 from lorecraft.rules.subject import DocumentRule, Facet
 
 from .__ruleset__ import GROUP_ID, spec_note
@@ -81,8 +81,9 @@ class SectionOutOfOrder(DocumentRule):
     Attributes:
         spec: The structure specification whose outline sets the order.
         section: The heading text of the section written out of order, which the occurrence is reported at.
-        expected: The section the outline places there instead, which the document writes further down; or
-            `None` when the section is left over after every section the outline matched.
+        placement: The section the outline places there instead, with the heading where the document writes it
+            further down; or the section left over after every section the outline matched, with the heading it
+            repeats when it is written twice.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 7)
@@ -93,21 +94,46 @@ class SectionOutOfOrder(DocumentRule):
 
     spec: RootRelativePath
     section: str
-    expected: SectionName | None
+    placement: ExpectedSection | LeftOver
 
     def message(self) -> str:
         """Name the section written out of order."""
         return f'section `{self.section}` is out of order'
 
     def labels(self) -> tuple[Label, ...]:
-        """Mark the section, with the section the outline places there instead, or that none is left to place it."""
-        if self.expected is None:
-            return (Label(Here(self.line), 'left over after every section the outline matched'),)
-        return (Label(Here(self.line), f'expected `{self.expected}` here'),)
+        """Mark the section, and where the section the outline places there is written or this one was before.
+
+        A section left over after every section the outline matched has none placed there; a second heading of the
+        same text is labelled with the first.
+        """
+        placement = self.placement
+        match placement:
+            case ExpectedSection():
+                return (
+                    Label(Here(self.line), f'expected `{placement.name}` here'),
+                    Label(Here(placement.written_at.line), f'`{placement.name}` is written here'),
+                )
+            case LeftOver():
+                labels = [Label(Here(self.line), 'left over after every section the outline matched')]
+                if placement.earlier is not None:
+                    labels.append(Label(Here(placement.earlier.line), 'already written here'))
+                return tuple(labels)
+            case _:
+                assert_never(placement)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the specification whose outline sets the order."""
-        return (spec_note(self.spec),)
+        """Point at the specification whose outline sets the order, then say to move the section the outline expects.
+
+        A section left over has none to move, so the specification note is all it gives.
+        """
+        placement = self.placement
+        match placement:
+            case ExpectedSection():
+                return (spec_note(self.spec), Help(f'move `{placement.name}` above `{self.section}`'))
+            case LeftOver():
+                return (spec_note(self.spec),)
+            case _:
+                assert_never(placement)
 
     @classmethod
     def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
@@ -126,7 +152,7 @@ class SectionOutOfOrder(DocumentRule):
                             spec=outline_spec.spec,
                             line=divergence.section.line,
                             section=divergence.section.text,
-                            expected=divergence.expected,
+                            placement=divergence.placement,
                         )
                     )
                 case AbsentSection() | UnlistedSection() | None:

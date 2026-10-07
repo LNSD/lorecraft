@@ -8,10 +8,10 @@ from lorecraft.project.context import DocumentContext
 from lorecraft.project.schemas import AbsentSection, DocumentEnd, MisplacedSection, SectionName, UnlistedSection
 from lorecraft.project.syntax import Heading
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
+from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
 from lorecraft.rules.subject import DocumentRule, Facet
 
-from .__ruleset__ import GROUP_ID, spec_note
+from .__ruleset__ import GROUP_ID, example_note, spec_note
 
 
 @rule
@@ -78,9 +78,8 @@ class MissingSection(DocumentRule):
     Attributes:
         spec: The structure specification whose outline requires the section.
         section: The heading text of the section the document lacks.
-        before: The heading text of the section it should come before, which the occurrence is reported at; or
-            `None` when it belongs at the end of the document, and the occurrence is reported at the document's
-            last line.
+        before: The heading of the section it should come before, which the occurrence is reported at; or the end
+            of the document, when it belongs there, and the occurrence is reported at the document's last line.
         description: What the section holds, as the outline entry states it, or `None` when it states none.
         example: The first sample of the section's body the outline entry gives, or `None` when it gives none.
     """
@@ -93,7 +92,7 @@ class MissingSection(DocumentRule):
 
     spec: RootRelativePath
     section: SectionName
-    before: str | None
+    before: Heading | DocumentEnd
     description: str | None
     example: str | None
 
@@ -102,10 +101,29 @@ class MissingSection(DocumentRule):
         return f'missing required section `{self.section}`'
 
     def labels(self) -> tuple[Label, ...]:
-        """Mark where the section is expected: before the section reported at, or at the end of the document."""
-        if self.before is None:
-            return (Label(Here(self.line), f'expected `{self.section}` before the end of the document'),)
-        return (Label(Here(self.line), f'expected `{self.section}` before `{self.before}`'),)
+        """Mark where the section is expected: before the section reported at, or after the document's last section.
+
+        A section expected at the end is reported at the document's last line, which may be a blank line or the end
+        of a code block, so the last section is labelled too, when the document has one.
+        """
+        before = self.before
+        match before:
+            case Heading():
+                return (Label(Here(self.line), f'expected `{self.section}` before `{before.text}`'),)
+            case DocumentEnd():
+                after = before.after
+                if after is None:
+                    return (Label(Here(self.line), f'expected `{self.section}` before the end of the document'),)
+                after_label = Label(Here(after.line), f'expected `{self.section}` after `{after.text}`')
+                if after.line == self.line:
+                    # The last section's heading is the document's last line: one label says it all.
+                    return (after_label,)
+                return (
+                    Label(Here(self.line), f'expected `{self.section}` before the end of the document'),
+                    after_label,
+                )
+            case _:
+                assert_never(before)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Point at the specification, then give the entry's description and its first example, when it states them.
@@ -116,7 +134,7 @@ class MissingSection(DocumentRule):
         if self.description is not None:
             parts.append(Help(self.description))
         if self.example is not None:
-            parts.append(Note(f'for example:\n## {self.section}\n\n{self.example}'))
+            parts.append(example_note(self.section.value, self.example))
         return tuple(parts)
 
     @classmethod
@@ -152,22 +170,16 @@ class MissingSection(DocumentRule):
         before = absent.before
         match before:
             case Heading():
-                return cls(
-                    spec=spec,
-                    line=before.line,
-                    section=absent.name,
-                    before=before.text,
-                    description=absent.description,
-                    example=absent.example,
-                )
+                line = before.line
             case DocumentEnd():
-                return cls(
-                    spec=spec,
-                    line=before.last_line,
-                    section=absent.name,
-                    before=None,
-                    description=absent.description,
-                    example=absent.example,
-                )
+                line = before.last_line
             case _:
                 assert_never(before)
+        return cls(
+            spec=spec,
+            line=line,
+            section=absent.name,
+            before=before,
+            description=absent.description,
+            example=absent.example,
+        )

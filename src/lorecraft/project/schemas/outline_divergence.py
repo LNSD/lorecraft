@@ -22,9 +22,12 @@ class DocumentEnd:
 
     Attributes:
         last_line: The document's last line, or line 1 for an empty document.
+        after: The document's last H2 section, which a section expected at the end would follow; or `None` when
+            the document holds no H2 section.
     """
 
     last_line: LineNumber
+    after: Heading | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,17 +50,53 @@ class AbsentSection:
 
 
 @dataclass(frozen=True, slots=True)
+class ExpectedSection:
+    """The section the outline places where another stands, which the document holds later.
+
+    Attributes:
+        name: The section's heading text, as the outline entry names it.
+        written_at: The heading where the document writes it, after the section standing in its place.
+    """
+
+    name: SectionName
+    written_at: Heading
+
+
+@dataclass(frozen=True, slots=True)
+class LeftOver:
+    """A section the outline names, left once the outline is used up.
+
+    Attributes:
+        earlier: The heading of the same text the outline matched before, when the section is written twice; or
+            `None` when this is its only heading, an optional section the document skipped and wrote late.
+    """
+
+    earlier: Heading | None
+
+
+@dataclass(frozen=True, slots=True)
+class OutlineEnd:
+    """The end of the outline, past which the document still writes a section.
+
+    Attributes:
+        last_matched: The last section the outline matched or skipped over, or `None` when it matched none.
+    """
+
+    last_matched: Heading | None
+
+
+@dataclass(frozen=True, slots=True)
 class MisplacedSection:
     """A section the outline names, written where the outline places a different section.
 
     Attributes:
         section: The section's H2 heading.
-        expected: The section the outline places there instead, which the document holds later; or `None` when
-            the section is left over once the outline is used up.
+        placement: The section the outline places there instead, which the document holds later; or the section
+            left over once the outline is used up.
     """
 
     section: Heading
-    expected: SectionName | None
+    placement: ExpectedSection | LeftOver
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,12 +105,12 @@ class UnlistedSection:
 
     Attributes:
         section: The section's H2 heading.
-        expected: The section the outline places there instead, which the document holds later; or `None` when
-            the section comes after the outline's end.
+        placement: The section the outline places there instead, which the document holds later; or the end of
+            the outline, when the section comes after it.
     """
 
     section: Heading
-    expected: SectionName | None
+    placement: ExpectedSection | OutlineEnd
 
 
 # The first place a document's sections stop matching an outline: a required section absent from the document, a
@@ -115,7 +154,9 @@ def match_outlines(
     sections = tuple(heading for heading in headings if heading.level == SECTION_LEVEL)
     # An empty document has no line at all, so its end is reported on line 1. A count is never negative, so
     # `from_int` cannot raise here.
-    document_end = DocumentEnd(last_line=LineNumber.from_int(max(line_count, 1)))
+    document_end = DocumentEnd(
+        last_line=LineNumber.from_int(max(line_count, 1)), after=sections[-1] if sections else None
+    )
     specs: list[OutlineDivergenceSpec] = []
     for structure_spec in structure_specs:
         divergence = _first_divergence(structure_spec, sections, document_end)
@@ -164,8 +205,10 @@ def _first_divergence(
         # past the point where the document should have ended.
         left = sections[at]
         if left.text in named:
-            return MisplacedSection(section=left, expected=None)
-        return UnlistedSection(section=left, expected=None)
+            earlier = next((section for section in sections[:at] if section.text == left.text), None)
+            return MisplacedSection(section=left, placement=LeftOver(earlier=earlier))
+        last_matched = sections[at - 1] if at > 0 else None
+        return UnlistedSection(section=left, placement=OutlineEnd(last_matched=last_matched))
     return None
 
 
@@ -187,14 +230,15 @@ def _divergence_at_entry(
     """
     # Every section before `at` was matched by its own entry or skipped by an `any` run, which skips no named
     # section, so searching the whole document finds the expected section only at `at` or later.
-    held = any(section.text == entry.name.value for section in sections)
-    if not held:
+    held = next((section for section in sections if section.text == entry.name.value), None)
+    if held is None:
         before = sections[at] if at < len(sections) else document_end
         example = entry.examples[0] if entry.examples else None
         return AbsentSection(name=entry.name, description=entry.description, example=example, before=before)
 
     # The expected section is held later, so a section stands in its place.
     found = sections[at]
+    expected = ExpectedSection(name=entry.name, written_at=held)
     if found.text in named:
-        return MisplacedSection(section=found, expected=entry.name)
-    return UnlistedSection(section=found, expected=entry.name)
+        return MisplacedSection(section=found, placement=expected)
+    return UnlistedSection(section=found, placement=expected)
