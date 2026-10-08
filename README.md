@@ -94,6 +94,7 @@ Keep the rule documents in shape, from the repository root:
 ```sh
 lorecraft inspect  # which specifications govern which rule document
 lorecraft check    # check every rule document against them, and every agent skill
+lorecraft rule     # every rule, in code order; `lorecraft rule OUT006` explains one
 ```
 
 `lorecraft check` exits 0 when it reports no error, 1 when it reports one, and 2 when it could not run, so it

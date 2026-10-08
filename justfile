@@ -84,10 +84,11 @@ check-docs *EXTRA_FLAGS:
 ## Codegen
 
 GEN_SCHEMAS_OUTDIR := "docs/schemas"
+GEN_RULEBOOK_OUTDIR := "docs/rulebook"
 
 # Run all code generation tasks
 [group: 'codegen']
-gen: gen-schemas
+gen: gen-schemas gen-rulebook
 
 # Generate the JSON Schemas of the package's pydantic models into docs/schemas/ (pydantic, in a uv script)
 [group: 'codegen']
@@ -149,6 +150,36 @@ gen-schemas:
     print('Generating the specification schemas...')
     write_schema(StructureFile, 'structure.spec.json')
     write_schema(SkillFrontmatter, 'skill-frontmatter.spec.json')
+
+
+# Generate one page per rule, removed rules and engine conditions included, from the rules' docstrings into docs/rulebook/ (the rule registry, in a uv script)
+[group: 'codegen']
+gen-rulebook:
+    #!/usr/bin/env -S uv run python
+    # Runs in the workspace environment: run `just sync` first.
+    #
+    # Each page is rendered by the function `lorecraft rule` prints it with, from the docstring of the rule's class,
+    # so a rule is documented once, beside its declaration. A page of a code or a name that no longer exists is
+    # deleted, so the directory holds exactly the registry's pages.
+    from pathlib import Path
+
+    from lorecraft import rules
+    from lorecraft.cli.rulebook import page_name, render_page
+    from lorecraft.rules.registry import Registry
+
+    outdir = Path('{{GEN_RULEBOOK_OUTDIR}}')
+    outdir.mkdir(parents=True, exist_ok=True)
+    registry = Registry.load(rules)
+
+    print('Generating the rulebook...')
+    pages = {outdir / f'{page_name(declaration)}.md': render_page(declaration) for declaration in registry.rules}
+    for path, page in pages.items():
+        path.write_text(page, encoding='utf-8')
+        print(f'  {path}')
+    for stale_path in sorted(outdir.glob('*.md')):
+        if stale_path not in pages:
+            stale_path.unlink()
+            print(f'  {stale_path} (removed)')
 
 
 ## Build

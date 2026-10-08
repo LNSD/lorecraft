@@ -139,9 +139,10 @@ A rule is named for what is wrong, as the established linters name theirs, so th
 
 ## Documenting a Rule
 
-The docstring is the rule's page in the rulebook, the one a user opens when a diagnostic prints its code. Write
-it as Ruff and Clippy write theirs, for a user who knows their documents, skills and specifications, and nothing
-of this package.
+The docstring is the rule's page in the rulebook, the one a user opens when a diagnostic prints its code. `just gen`
+renders it into `docs/rulebook/`. The pages are generated output, kept current by `gen-check`, and no specification
+governs them. Write the docstring as Ruff and Clippy write theirs, for a user who knows their documents, skills and
+specifications, and nothing of this package.
 
 - **The summary line states the condition**, about the user's subject.
 - **What it does** opens with "Checks for" and the subjects the rule reports, then names the specification key
