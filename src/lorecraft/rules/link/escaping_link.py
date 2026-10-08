@@ -9,7 +9,7 @@ from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.location import Help, Subdiagnostic
 from lorecraft.rules.subject import SkillFileRule
 
-from .__ruleset__ import GROUP_ID
+from .__ruleset__ import GROUP_ID, skill_note
 
 
 @rule
@@ -74,11 +74,11 @@ class EscapingLink(SkillFileRule):
         """Name the destination, percent-decoded as the author wrote it."""
         # The parser percent-encodes a destination, so `[x](<../a b>)` arrives as `../a%20b`; the message shows
         # `../a b`.
-        return f'`{unquote(self.url)}` leaves the skill directory'
+        return f'`{unquote(self.url)}` leaves the skill root'
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Say how to name the file instead: inside the skill, from its root."""
-        return (Help('link a file inside the skill, relative to the skill root'),)
+        """Point at the specification that reads the link from the skill root, then say how to name the file."""
+        return (skill_note(), Help('link a file inside the skill, relative to the skill root'))
 
     @classmethod
     def check(cls, subject: SkillFileContext) -> tuple[Self, ...]:

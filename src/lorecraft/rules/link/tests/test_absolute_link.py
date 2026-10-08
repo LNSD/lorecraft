@@ -91,7 +91,7 @@ class TestAbsoluteLink:
         message = occurrence.message()
 
         #: Then
-        assert message == '`/a b.md` is absolute', 'the message shows the destination as the author wrote it'
+        assert message == 'link `/a b.md` is absolute', 'the message shows the destination as the author wrote it'
 
     def test_children_with_an_occurrence_say_to_link_by_a_relative_path(self) -> None:
         #: Given
