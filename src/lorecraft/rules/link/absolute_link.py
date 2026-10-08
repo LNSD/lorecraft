@@ -66,9 +66,9 @@ class AbsoluteLink(MarkdownRule):
     url: str
 
     def message(self) -> str:
-        """Name the destination, percent-decoded as the author wrote it."""
+        """Name the link by its destination, percent-decoded as the author wrote it."""
         # The parser percent-encodes a destination, so `[x](</a b>)` arrives as `/a%20b`; the message shows `/a b`.
-        return f'`{unquote(self.url)}` is absolute'
+        return f'link `{unquote(self.url)}` is absolute'
 
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Say how to spell the link instead.

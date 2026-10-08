@@ -62,7 +62,8 @@ result is an immutable value. The queries are layered:
   document, the governance the model records, and is kept whenever they are. It finds problems, not diagnostics:
   levels apply after detection, so no diagnostic is cached.
 - **Cross-file**: `link_targets`, `skill_link_targets` and `skill_resource_link_targets`, what the snapshot holds at
-  the target of each relative link of a document, a `SKILL.md` or a resource: present, missing or outside the scope.
+  the target of each relative link of a document, a `SKILL.md` or a resource: present, missing or outside the scope,
+  each entry also keeping the root-relative path it was looked up at.
   Each takes the witness, reads the file's parse and, for each path a link names, the snapshot's records on the way to
   it and the scope, and is kept only when the parse is kept and every path it looked up, an absent target included,
   resolves the same and is in the same scope state.

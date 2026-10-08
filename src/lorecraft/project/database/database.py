@@ -137,7 +137,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.document import DocumentDecodeError, DocumentRef
 from lorecraft.project.document import Repository as DocumentRepository
 from lorecraft.project.layout import reject_linked_layout
-from lorecraft.project.link_target import DocumentDirectory, PathLookup, SkillRoot, find_link_targets
+from lorecraft.project.link_target import DocumentDirectory, LinkTarget, SkillRoot, find_link_targets
 from lorecraft.project.schemas import (
     OutlineDivergenceSpec,
     SchemaProblems,
@@ -198,9 +198,9 @@ class Database:
         self._skill_texts: dict[SkillRef, SkillText | Undecodable] = {}
         self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
         self._skill_resource_texts: dict[SkillResourceRef, SkillResourceText | Undecodable] = {}
-        self._link_targets: dict[DocumentRef, Mapping[PurePosixPath, PathLookup]] = {}
-        self._skill_link_targets: dict[SkillRef, Mapping[PurePosixPath, PathLookup]] = {}
-        self._skill_resource_link_targets: dict[SkillResourceRef, Mapping[PurePosixPath, PathLookup]] = {}
+        self._link_targets: dict[DocumentRef, Mapping[PurePosixPath, LinkTarget]] = {}
+        self._skill_link_targets: dict[SkillRef, Mapping[PurePosixPath, LinkTarget]] = {}
+        self._skill_resource_link_targets: dict[SkillResourceRef, Mapping[PurePosixPath, LinkTarget]] = {}
         # The derived queries' caches.
         self._frontmatters: dict[DocumentRef, FrontmatterNode] = {}
         self._parses: dict[DocumentRef, ParsedDocument] = {}
@@ -397,8 +397,8 @@ class Database:
             self._scope_index = ScopeIndex(self._snapshot)
         return self._scope_index
 
-    def link_targets(self, source: DocumentText) -> Mapping[PurePosixPath, PathLookup]:
-        """What the snapshot holds at the target of each relative link of one document, found on the first call.
+    def link_targets(self, source: DocumentText) -> Mapping[PurePosixPath, LinkTarget]:
+        """Where each relative link of one document leads and what the snapshot holds there, found on the first call.
 
         Each link is read from the document's own directory, as `find_link_targets` states, and looked up through the
         snapshot's view and scope. Raises nothing.
@@ -418,8 +418,8 @@ class Database:
             self._link_targets[source.ref] = targets
         return targets
 
-    def skill_link_targets(self, source: SkillText) -> Mapping[PurePosixPath, PathLookup]:
-        """What the snapshot holds at each relative link's target in a skill's `SKILL.md`, on the first call.
+    def skill_link_targets(self, source: SkillText) -> Mapping[PurePosixPath, LinkTarget]:
+        """Where each relative link in a skill's `SKILL.md` leads and what the snapshot holds there, on the first call.
 
         Each link is read from the skill root, the skill directory where an agent reaches it, as `find_link_targets`
         states, and looked up through the snapshot's view and scope. Raises nothing.
@@ -440,8 +440,8 @@ class Database:
             self._skill_link_targets[source.ref] = targets
         return targets
 
-    def skill_resource_link_targets(self, source: SkillResourceText) -> Mapping[PurePosixPath, PathLookup]:
-        """What the snapshot holds at each relative link's target in a resource of a skill, on the first call.
+    def skill_resource_link_targets(self, source: SkillResourceText) -> Mapping[PurePosixPath, LinkTarget]:
+        """Where each relative link in a resource of a skill leads and what the snapshot holds there, on the first call.
 
         Each link is read from the root of the resource's skill, where an agent reaches it, as `find_link_targets`
         states, and looked up through the snapshot's view and scope. Raises nothing.
