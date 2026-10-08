@@ -198,7 +198,7 @@ def test_check_corpus_forwards_every_document_to_the_checker() -> None:
 ## 6. A New Checker Gets the Shared Suite Before It Gets Bespoke Tests
 
 A new checker's first test file subclasses the shared checker suites and supplies the checker's test
-configuration — the conforming document, the violating document, the spec it reads, the findings it is
+configuration — the conforming document, the violating document, the meta spec it reads, the findings it is
 expected to produce. Only once those pass does the checker get tests written specifically for it.
 
 The shared suite is the executable definition of what "a checker" means: it returns findings rather than

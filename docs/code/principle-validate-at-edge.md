@@ -1,6 +1,6 @@
 ---
 name: "principle-validate-at-edge"
-description: "Validate at the Edge (hard shell, soft core) — parse untrusted input once at the boundary. Load when writing a command handler, loading a format spec or schema, decoding frontmatter, or reading any value from outside the process"
+description: "Validate at the Edge (hard shell, soft core) — parse untrusted input once at the boundary. Load when writing a command handler, loading a meta spec or schema, decoding frontmatter, or reading any value from outside the process"
 type: "principle"
 scope: "global"
 ---
@@ -9,7 +9,7 @@ scope: "global"
 
 ## Rule
 
-Every value that enters from outside — a CLI argument, an environment variable, a JSON format specification,
+Every value that enters from outside — a CLI argument, an environment variable, a JSON structure file,
 a document's YAML frontmatter, a `SKILL.md`, a path walked off disk — arrives untrusted and typed wider than
 reality. Parse it **once**, at the boundary, into a type the rest of the code can trust. Past that point, no
 function re-checks. The boundary is the hard shell; the domain is the soft core. Concretely:
@@ -23,7 +23,7 @@ function re-checks. The boundary is the hard shell; the domain is the soft core.
   decoded YAML and JSON. A `TypedDict` or an `Any` that asserts a shape nobody checked is a trusted type on
   untrusted data.
 - Malformed input degrades into a typed error at the edge — a rejected argument, a finding for that one
-  document, a spec that fails to load — never a `KeyError` or an `AttributeError` three calls down.
+  document, a meta spec that fails to load — never a `KeyError` or an `AttributeError` three calls down.
 - Unit and convention conversions happen once, at the boundary: `str` to `Path`, 1-based line number to
   0-based index, inclusive last line to exclusive end.
 
@@ -107,13 +107,13 @@ def excerpt(lines: Sequence[str], span: LineSpan) -> list[str]:
     return list(lines[span.first - 1 : span.end - 1])
 ```
 
-3. **A specification is decoded into validated types, once**
-   A spec value checked wherever it is consumed is a spec value that is eventually consumed somewhere new.
+3. **A meta spec is decoded into validated types, once**
+   A meta spec value checked wherever it is consumed is a meta spec value that is eventually consumed somewhere new.
 
 ```python
 # ❌ Bad — the decoded JSON is trusted, and every consumer re-checks the parts it uses.
 # The section check added last did not, and a budget of 0 flagged every section of every
-# document with a finding that blamed the documents, not the spec.
+# document with a finding that blamed the documents, not the meta spec.
 @dataclass(frozen=True, slots=True)
 class BudgetSpec:
     default: int
@@ -128,7 +128,7 @@ def is_over_budget(spec: BudgetSpec, section: str, words: int) -> bool:
 ```
 
 ```python
-# ✅ Good — loading is the boundary. An invalid spec fails at load, naming the file and the
+# ✅ Good — loading is the boundary. An invalid meta spec fails at load, naming the file and the
 # reason, before a single document is read.
 @dataclass(frozen=True, slots=True)
 class WordBudget:
@@ -163,7 +163,7 @@ def is_over_budget(spec: BudgetSpec, section: str, words: int) -> bool:
 ```
 
 4. **A malformed document degrades; it does not take the run down**
-   A document is user-authored. It will eventually hold something its specification does not describe.
+   A document is user-authored. It will eventually hold something its meta spec does not describe.
 
 ```python
 # ❌ Bad — the parsed YAML is trusted to have the shape the schema promises. One document
@@ -186,13 +186,13 @@ def document_name(path: Path, frontmatter: Mapping[str, object]) -> DocumentName
 
 ## Why It Matters
 
-This toolkit reads user-authored documents, hand-written JSON specifications and command-line arguments, any
+This toolkit reads user-authored documents, hand-written JSON structure files and command-line arguments, any
 of which can hold a value the types do not describe: a `null` where a string was promised, a budget of zero, a
 span whose end precedes its start. Trusted where they land, the failure surfaces somewhere else entirely — a
-traceback from a checker caused by a spec loaded seconds earlier, with nothing in the output tying the two
+traceback from a checker caused by a meta spec loaded seconds earlier, with nothing in the output tying the two
 together.
 
-A single narrow point also localizes the fix. When a specification gains a field, the one decode site is what
+A single narrow point also localizes the fix. When a meta spec gains a field, the one decode site is what
 changes, and a malformed document is one finding rather than a dead run. Because the invariant lives in the
 type, every entry point that reaches the same domain — the command, the watch loop, a test building a value by
 hand — enforces it identically, for free. Scattered per-layer checks buy the opposite: three partial
@@ -203,8 +203,8 @@ contracts, and the union of them is nobody's job.
 The signal for where a check belongs is what it depends on:
 
 - **Depends only on the incoming value → the edge**: shape, required fields, formats, ranges, and cross-field
-  constraints within one document or spec.
-- **Depends on external state → the domain**: "does a spec govern this corpus?", "does the linked document
+  constraints within one document or meta spec.
+- **Depends on external state → the domain**: "does a meta spec govern this corpus?", "does the linked document
   exist?", "is this skill name already taken?". These need the rest of the workspace, and the edge does not
   have it.
 
@@ -222,7 +222,7 @@ Before committing code, verify:
 - [ ] Command handlers parse their arguments into domain types; domain functions never take the raw input
 - [ ] Unparsed input is annotated `object` or `Mapping[str, object]`, not `Any` or an unchecked `TypedDict`
 - [ ] Cross-field constraints are invariants of a composite type, not checks in one function that needed them
-- [ ] Specifications and schemas are decoded into validated types at load; consumers do not re-check
+- [ ] Meta specs and schemas are decoded into validated types at load; consumers do not re-check
 - [ ] A malformed document raises a typed error naming the path and field, never a bare `KeyError` or
       `AttributeError`
 - [ ] Downstream functions contain zero re-validation of what the boundary guaranteed

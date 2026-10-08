@@ -17,7 +17,7 @@ changing that contract is the decorator's stated purpose.
 For a function wrapper, use `functools.wraps` so introspection retains the wrapped function's name,
 documentation, and `__wrapped__` link. On Python 3.12+, use `ParamSpec`-style type parameters to preserve
 the callable's parameter and return types. A registration decorator that returns its input unchanged has a
-different purpose: it belongs to the registry pattern, not this rule.
+different purpose: it belongs to the registry pattern, not this one.
 
 ## Examples
 
@@ -76,7 +76,7 @@ the extra behavior runs, make that choice explicit at the call site.
 - [ ] The wrapper forwards arguments and returns the wrapped result without changing the contract unexpectedly
 - [ ] The wrapper uses `functools.wraps` and preserves parameter and return types
 - [ ] Exceptions propagate unless translation is part of the decorator's documented contract
-- [ ] Registration-only decorators follow the registry rule instead
+- [ ] Registration-only decorators follow the registry pattern instead
 
 ## References
 

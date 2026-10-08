@@ -96,7 +96,7 @@ class CorpusIndex:
 
 ```python
 # ❌ Bad — attribute syntax over a file read and a full section parse. The debug log below
-# runs once per document, so checking a corpus of six hundred rule documents re-reads and
+# runs once per document, so checking a corpus of six hundred code specs re-reads and
 # re-parses every one of them just to build a log line, and nobody reading the log can see
 # why the run takes minutes.
 class RuleDocument:

@@ -41,15 +41,15 @@ shorter still: the checker reports errors and warnings, and they act on them.
 | **Removed rule** | A retired code, with the release that removed it and its replacement. Never has an occurrence |
 | **Subject** | What is checked: a document, a skill, a skill resource or a layout entry |
 | **Context** | The read-only view of one decoded subject a rule asks for the facts it reads, each a query of the database |
-| **Facet** | What part of a document a specification governs, which a rule over a document or the frontmatter is gated on |
+| **Facet** | What part of a document a meta spec governs, which a rule over a document or the frontmatter is gated on |
 | **Diagnostic** | An occurrence located at a subject's path, with a severity |
 | **Level** | `allow`, `warn` or `deny`: how a rule is configured |
 | **Severity** | `error` or `warning`: what a diagnostic carries, and what a user acts on |
 | **Label** | Text attached to a location: the primary label says what is wrong there, a secondary one points at a related place |
 | **Help**, **note** | A sub-diagnostic: help says how to fix this occurrence, a note gives the context that explains it. Either may point at a location |
-| **Location** | A line in the subject, the whole subject when it has no lines, or a place in another file, such as the specification. The runner supplies the subject's path |
+| **Location** | A line in the subject, the whole subject when it has no lines, or a place in another file, such as the meta spec. The runner supplies the subject's path |
 | **Engine diagnostic** | A diagnostic no rule produced: an undecodable file, an error; an alias code in the configuration, a warning |
-| **Coverage** | Which facets of a subject no specification governs. Never a diagnostic |
+| **Coverage** | Which facets of a subject no meta spec governs. Never a diagnostic |
 | **Failure** | What stops a run before any subject is checked: raised, and exit code 2 |
 
 ## Decision
@@ -75,7 +75,7 @@ shorter still: the checker reports errors and warnings, and they act on them.
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
 class EmptySection(DocumentRule):
-    """A section holds no content, under a structure specification that forbids empty sections.
+    """A section holds no content, under a structure file that forbids empty sections.
 
     ## What it does
     ## Why is this bad?
@@ -110,7 +110,7 @@ class EmptySection(DocumentRule):
         return tuple(occurrences)
 ```
 
-- **`Rule`** carries what every occurrence has: the specification file that states the rule (or none, for a
+- **`Rule`** carries what every occurrence has: the meta spec file that states the rule (or none, for a
   rule the package states). The line is not on it: every base whose subject has lines derives from
   `ContentRule`, which carries the line, and `LayoutRule`, for a layout entry, carries none. A subclass
   adds the data of its own condition and the context its diagnostic needs, as
@@ -168,7 +168,7 @@ instance is one occurrence of it.
   | Prefix (illustrative) | Rules |
   |---|---|
   | `FM` | The frontmatter block and its schema |
-  | `OUT` | The sections a structure specification states |
+  | `OUT` | The sections a structure file states |
   | `LEN` | Every length limit: a document's token budget, a skill's line budget, a section's word cap |
   | `LINK` | Links in any Markdown file: a document, a skill's `SKILL.md` and its resources |
   | `LAY` | The skill layout: a symlink an agent follows whose chain leaves the repository |
@@ -187,13 +187,13 @@ instance is one occurrence of it.
   decided rule by rule, outside this design.
 - **Documents and skills share the frontmatter codes.** A skill's frontmatter is judged against the Agent Skills
   schema and a document's against its corpus schemas. The governing schema and the name the subject is found
-  under are data of the context, so one rule serves both and a later specifications corpus for skills retires no
+  under are data of the context, so one rule serves both and a later meta spec for skills retires no
   code. A `name` that differs from a document's filename and one that differs from a skill's directory are one
   code.
 - **The set of codes is fixed by the package** (FR-011). A schema field never creates a code.
-- **Codes identify the engine's rules alone.** A code rule under `docs/code/`, and any rule a repository's own
-  documents state, keeps its document's kebab-case name and never takes a code: agents read and apply those
-  rules, and the engine reports none of them.
+- **Codes identify the engine's rules alone.** A code spec under `docs/code/`, or any other document that states a
+  convention, keeps its kebab-case name and never takes a code: agents read and apply those documents, and the
+  engine reports none of them.
 - **Life cycle is a type.** A rule in service is a rule class, with `SINCE`. A retired rule becomes a
   `RemovedRule`: its code, its name, `REMOVED_IN`, `REPLACED_BY` and its docstring, registered by `@rule` in the
   same file. It is not a `Rule`, so it can never be built as one or reported. Its code is never free to
@@ -243,12 +243,12 @@ docs/rulebook/
   frontmatter `name` is the same `<code>-<name>`, so a page's frontmatter names it as its file does. An alias code has
   no page: the rule's page lists it, and the lookup resolves it.
 - **A `gen-*` recipe writes the pages**, and the generation check fails on a stale one. Nothing in the directory is
-  written by hand, and it defines no specification: the pages are generated output, kept current by the
+  written by hand, and it defines no meta spec: the pages are generated output, kept current by the
   generation check, not documents `lorecraft check` governs.
 - **The directory listing is the index**, in code order and grouped by prefix; no index document is kept. The
   command line is the other: it lists every rule in code order, and prints one page by code, by name or by alias
   (FR-029), from the same rendering function, so a user without this repository reads the same text.
-- **Feature docs link to a page** and restate no rule.
+- **Feat specs link to a page** and restate no rule.
 
 ### Tests
 
@@ -274,9 +274,9 @@ docs/rulebook/
   shape, and this design's previous draft. Class and function are then two declarations tied at runtime: a rule
   in service can lack its check, and a removed rule is still a violation that can be built. The classmethod
   rejects the first at load, makes the second unrepresentable, and removes the engine's only type parameter.
-- **"Lint" for the engine's unit, keeping "rule" for what a specification or a code rule states.** Not chosen: a
-  user acts on errors and warnings, and the code rules are the only other rules they meet, which the context
-  tells apart.
+- **"Lint" for the engine's unit, keeping "rule" for what a meta spec or a code spec states.** Not chosen: a
+  user acts on errors and warnings, and code rules, the alias of code specs, are the only other "rules" they meet,
+  which the context tells apart.
 - **An absorbed rule keeps its upstream code**, in a group per upstream linter under upstream's prefix, as some
   established linters do. Not chosen: a condition two absorbed linters check needs two groups and a choice
   between their codes, rules sit by provenance rather than by mechanism, and the codes stop being one scheme.
@@ -286,7 +286,7 @@ docs/rulebook/
 - **One code per identifier of today, the condition as data.** It gives about 25 codes instead of about 45, and
   a `message()` that branches on a kind field. Linters that take this shape do so because a rule's options carry
   the user's specification, such as the list of required headings, so the rule must be one. Here the
-  specification is data the rule reads, a rule takes no options, and the prefix already gives the coarse handle.
+  meta spec is data the rule reads, a rule takes no options, and the prefix already gives the coarse handle.
   The coarse code would only cost a page that explains several fixes, conditions that cannot be configured
   apart, and the kind field [python-typing](../code/python-typing.md) rules out.
 
@@ -294,7 +294,7 @@ docs/rulebook/
 
 - **Every rule takes a new identity.** Dotted identifiers become codes, and the release notes carry the mapping
   from one to the other. The `just` recipes and CI, the README, the project skills shipped to users and the
-  feature docs change with it.
+  feat specs change with it.
 - **More files, each smaller.** About 45 rule modules replace today's check modules.
 - **`AGENTS.md` and the release skill gain an exception** for a rule's `Release` literals, in the change that
   first adds one.

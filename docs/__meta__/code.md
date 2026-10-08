@@ -1,13 +1,13 @@
 ---
 name: "code"
-description: "Code rules documentation format specification. Load when creating or editing rule documents in docs/code/"
+description: "Code corpus meta spec. Load when creating or editing code specs in docs/code/"
 type: "meta"
 scope: "global"
 ---
 
-# Code Rules Documentation Format
+# Code Documentation Format
 
-**MANDATORY for ALL rule documents in `docs/code/`**
+**MANDATORY for ALL code specs in `docs/code/`**
 
 ## Table of Contents
 
@@ -24,30 +24,30 @@ scope: "global"
 
 ## 1. Core Principles
 
-The corpus in `docs/code/` is **the code rules**, also called the code guidelines; the two names mean the same thing, and a single member of it is a **rule document**.
+The corpus in `docs/code/` is **the code specs**, also called the code rules or the code guidelines; the names mean the same thing, and a single member of it is a **code spec**.
 
-### Rule Documents Are Authoritative
+### Code Specs Are Authoritative
 
-**CRITICAL**: The code rules are the **ground truth** for how code should be written.
+**CRITICAL**: The code specs are the **ground truth** for how code should be written.
 
-- If a rule document exists, the implementation **MUST** follow it
+- If a code spec exists, the implementation **MUST** follow it
 - If code diverges from a documented rule, the code is wrong OR the rule must be updated
-- Engineers **MUST** keep rule documents accurate - outdated rules are unacceptable
-- When rules evolve, update the rule document in the same change
+- Engineers **MUST** keep code specs accurate - outdated rules are unacceptable
+- When rules evolve, update the code spec in the same change
 
-### Rules Describe This Codebase
+### Code Specs Describe This Codebase
 
-Rule documents describe conventions that **exist in `src/`**, not conventions imported from other ecosystems or aspirational ones.
+Code specs describe conventions that **exist in `src/`**, not conventions imported from other ecosystems or aspirational ones.
 
 - Before writing a rule, find the code that already demonstrates it — then write the example from scratch, without citing that code ([§6](#6-content-guidelines))
 - Do not document tooling the repository does not use
-- If a rule proposes a new convention, apply it to the code in the same change
+- If a code spec proposes a new convention, apply it to the code in the same change
 
 The demonstrator is a check the **author** performs, not a citation the **doc** carries. A convention nothing demonstrates is not a convention this repository has; a doc that proves it by quoting a module has merely made a copy that will drift.
 
 ### One Document, One Responsibility
 
-**A rule document has exactly one reason to change.** The Single Responsibility Principle applies to these documents as it does to the modules they govern.
+**A code spec has exactly one reason to change.** The Single Responsibility Principle applies to these documents as it does to the modules they govern.
 
 Decide a rule's home by asking what would force it to be rewritten:
 
@@ -61,11 +61,11 @@ Decide a rule's home by asking what would force it to be rewritten:
 
 **Each rule has exactly one home.** Siblings **link**; they do not restate. A rule stated in two docs has two places to rot and no authority when they disagree — the reader cannot tell which one is stale. Cross-reference with a one-line pointer instead of repeating the rule or its example.
 
-A group's parent doc (`python-modules`, `logging`) is itself a **rule document with content**, not an index. Do not add a doc whose only job is to route to its siblings: frontmatter discovery already does that, and a hand-maintained routing table is a second source of truth that goes stale silently.
+A group's parent doc (`python-modules`, `logging`) is itself a **code spec with content**, not an index. Do not add a doc whose only job is to route to its siblings: frontmatter discovery already does that, and a hand-maintained routing table is a second source of truth that goes stale silently.
 
 ### A Group's Prefix Names Its Subject
 
-A rule filed under a prefix must be **about that subject**. `error-*` is about how this project declares and surfaces its errors; a rule that merely _raises_ one does not belong there. Ask what the rule is about, not what it touches — a doc about rendering findings into a report is about reports, however much `dataclasses` appears in it.
+A code spec filed under a prefix must be **about that subject**. `error-*` is about how this project declares and surfaces its errors; a code spec that merely _raises_ one does not belong there. Ask what the code spec is about, not what it touches — a doc about rendering findings into a report is about reports, however much `dataclasses` appears in it.
 
 ### Rules Are Conventions, Not Module Facts
 
@@ -75,9 +75,9 @@ The test is where a reader needs it. Someone editing the section-outline checker
 
 Promote a module fact to a rule only when it recurs across packages and a reader must apply it to code they have not seen yet.
 
-### Rule Documents State Rules, Not Records
+### Code Specs State Rules, Not Records
 
-**A rule document states the rule in the imperative present.** It is not a record of how the codebase got here.
+**A code spec states the rule in the imperative present.** It is not a record of how the codebase got here.
 
 Write "untrusted input is validated at the boundary", not "we are adopting X" or "this replaces the hand-written guards we used to carry". Migration narrative, the case for a past decision, and rebuttals of the alternatives are **commit messages and PR descriptions**, not rules. A reader arriving in a year needs to know what to type, not what was argued.
 
@@ -90,58 +90,58 @@ Rules must be **independent of project status** — anything true only of today'
 | Whether a tool is installed, or its install command | Setup state, not a coding rule                   | Commit message or PR description |
 | An inventory of every site a rule applies to        | Must be edited whenever a site is added          | One fabricated example        |
 
-**Enumerating every instance** of a convention is an inventory, and an inventory is a maintenance burden that a rule document does not need: show one fabricated example and state the test the reader applies to their own case.
+**Enumerating every instance** of a convention is an inventory, and an inventory is a maintenance burden that a code spec does not need: show one fabricated example and state the test the reader applies to their own case.
 
 Linking to an external source (a paper, a spec, a canonical blog post) is fine — see the `External References` section in the `principle-*` docs. Linking to a dependency's release notes, migration map, or install instructions is status.
 
-### A Document's Path Selects Its Specification
+### A Document's Path Selects Its Meta Specs
 
-Nothing registers a rule document with a specification: the document's own path resolves it.
+Nothing registers a code spec with a meta spec: the document's own path resolves it.
 
 - A document at `docs/<corpus>/<name>.md` is governed by `docs/__meta__/<corpus>.md`, the **corpus
-  specification**, which applies to every document directly in that directory; the checks ignore a
+  meta spec**, which applies to every document directly in that directory; the checks ignore a
   subdirectory, and §3 forbids one.
 - It is **additionally** governed by every `docs/__meta__/<corpus>-<namespace>.md` whose namespace equals the
   document's name or is a hyphen-delimited prefix of it; a `<corpus>-<a>-<b>.md` would govern `<a>-<b>.md` and
   `<a>-<b>-*.md`. So a `principle-*` document answers to `code.md` and to the extension its prefix selects,
-  which `ls docs/__meta__/code-*` shows. This specification names none of its extensions: a base does not know
+  which `ls docs/__meta__/code-*` shows. This meta spec names none of its extensions: a base does not know
   what extends it.
-- **The layers stack, broad to narrow.** The corpus specification is a whole rule set applied on its own; the
-  namespace specification states only what it adds or narrows, and it cannot release a document from what the
-  corpus specification already said. That is what a namespace specification is for: a rule that holds for a
+- **The layers stack, broad to narrow.** The corpus meta spec is a whole rule set applied on its own; the
+  namespace meta spec states only what it adds or narrows, and it cannot release a document from what the
+  corpus meta spec already said. That is what a namespace meta spec is for: a rule that holds for a
   group but not for the corpus goes there, and stays out of the corpus file rather than becoming a condition
   inside it.
-- **A namespace is a group only once a specification names it.** Documents no `code-<namespace>.md` matches,
+- **A namespace is a group only once a meta spec names it.** Documents no `code-<namespace>.md` matches,
   `error-*`, `tests-*` and the unprefixed `logging` today, are governed by `code.md` alone. That is the normal case, not a
-  gap to fill. Add a namespace specification when a group's members genuinely share rules the rest of the
+  gap to fill. Add a namespace meta spec when a group's members genuinely share rules the rest of the
   corpus does not.
-- **Matching is by name and nothing else.** A specification starts governing the moment its name resolves, and
-  a group renamed under `docs/code/` stops matching the specification it used to — rename both in the same
+- **Matching is by name and nothing else.** A meta spec starts governing the moment its name resolves, and
+  a group renamed under `docs/code/` stops matching the meta spec it used to — rename both in the same
   change.
 
 Read the relationship in either direction from the shell:
 
 ```bash
-ls docs/code/<namespace>.md docs/code/<namespace>-*.md   # from a specification, the documents it governs
-ls docs/__meta__/code*                                    # from a document, the specifications that govern it
+ls docs/code/<namespace>.md docs/code/<namespace>-*.md   # from a meta spec, the documents it governs
+ls docs/__meta__/code*                                    # from a document, the meta specs that govern it
 ```
 
 ### Discoverability Through Frontmatter
 
-Rule documents use YAML frontmatter for lazy loading - AI agents query frontmatter to determine which rules to load based on the current task context.
+Code specs use YAML frontmatter for lazy loading - AI agents query frontmatter to determine which code specs to load based on the current task context.
 
 ### Consistency and Machine Readability
 
-This format specification ensures:
+This corpus meta spec ensures:
 
-- **Uniform structure** across all rule documents
+- **Uniform structure** across all code specs
 - **Machine-readable metadata** for automated discovery
-- **Clear categorization** via rule types and scopes for organized access
-- **Scalability** - easy to add new rules following established format
+- **Clear categorization** via code spec types and scopes for organized access
+- **Scalability** - easy to add new code specs following established format
 
 ### Avoid Context Bloat
 
-Keep rule documents focused and concise. Agent entrypoint docs should NOT hardcode rule lists - use dynamic discovery instead.
+Keep code specs focused and concise. Agent entrypoint docs should NOT hardcode lists of code specs - use dynamic discovery instead.
 
 [code.structure.json](code.structure.json) makes "focused and concise" decidable with two measures:
 
@@ -160,14 +160,14 @@ Keep rule documents focused and concise. Agent entrypoint docs should NOT hardco
 This section is the operative rule, and the `frontmatter` key of [code.structure.json](code.structure.json)
 beside it is the same rule in a form a checker applies — `lorecraft check` validates every document's
 frontmatter against it with the `FM` rules, and `just check-docs` runs that over this corpus. A document is additionally
-narrowed by every `code-<namespace>.md` specification whose namespace matches its name
+narrowed by every `code-<namespace>.md` meta spec whose namespace matches its name
 ([§1](#1-core-principles)); the narrowing adds to what this section requires and never relaxes it.
 
-**CRITICAL**: Every rule document MUST begin with valid YAML frontmatter:
+**CRITICAL**: Every code spec MUST begin with valid YAML frontmatter:
 
 ```yaml
 ---
-name: "rule-name-kebab-case"
+name: "spec-name-kebab-case"
 description: "Brief description. Load when [trigger conditions]"
 type: "principle|core|pkg|meta"
 scope: "global|pkg:<name>|<purl>"
@@ -180,7 +180,7 @@ scope: "global|pkg:<name>|<purl>"
 |---------------|----------|------------------------------|------------------------------------------------------------------------|
 | `name`        | YES      | `^[a-z0-9]+(-[a-z0-9]+)*$`   | Unique identifier matching filename (minus .md)                        |
 | `description` | YES      | Single line, succinct        | Discovery-optimized description (see Description Guidelines below)     |
-| `type`        | YES      | `principle`, `core`, `pkg`, or `meta` | Rule category (see Type Definitions below)              |
+| `type`        | YES      | `principle`, `core`, `pkg`, or `meta` | Code spec category (see Type Definitions below)              |
 | `scope`       | YES      | `global`, `pkg:<name>`, or a purl | Application scope: global, one package of the project, or one dependency |
 
 **All four values are double-quoted**, as the block above writes them. YAML accepts a bare `type: core`, so
@@ -194,9 +194,9 @@ of value, never a change of style.
 | `principle` | Universal software principles | Always `global` | Best practices for optimal code quality              |
 | `core` | Fundamental coding patterns      | `global`, or a dependency's purl | Applicable across entire codebase |
 | `pkg`  | Package-specific patterns        | `pkg:<name>`    | Patterns for individual packages or modules          |
-| `meta` | Documentation about documentation| Always `global` | Format specifications and conventions                |
+| `meta` | Documentation about documentation| Always `global` | Meta specs and conventions                           |
 
-#### `principle` - Principle Rules
+#### `principle` - Principle Code Specs
 
 Universal software principles and best practices for optimal code quality. These are language-agnostic design principles that guide all implementation decisions.
 
@@ -204,22 +204,22 @@ The `principle-*` prefix is reserved for them, and they follow the template of t
 selects. A rule that
 only holds for one language, one layer, or one dependency is not a principle.
 
-#### `core` - Core Rules
+#### `core` - Core Code Specs
 
 Fundamental coding standards applicable across the entire codebase: how exceptions are raised and reported, how
 modules and imports are laid out, how code is documented, how tests are organized, how logging is written.
-Most rules are `core`.
+Most code specs are `core`.
 
-A `core` rule about using one third-party dependency is scoped to that dependency's package URL, a
+A `core` code spec about using one third-party dependency is scoped to that dependency's package URL, a
 [purl](https://github.com/package-url/purl-spec), written whole as its specification defines it: its
 ecosystem decides the rest, as in `pkg:pypi/typer`, `pkg:cargo/serde` or `pkg:docker/library/nginx`. A purl
 always holds a `/`, which tells it from a `pkg:<name>` scope naming a package of this project. The scope
-says which dependency the rule is about, so the rule is found from the dependency, and a change that drops
-the dependency knows which rules go with it.
+says which dependency the code spec is about, so the code spec is found from the dependency, and a change that drops
+the dependency knows which code specs go with it.
 
-#### `pkg` - Package-Specific Rules
+#### `pkg` - Package-Specific Code Specs
 
-Rules scoped to individual packages, named with a group prefix followed by the package's full import path:
+Code specs scoped to individual packages, named with a group prefix followed by the package's full import path:
 `pkg-` for the patterns code in the package follows, or the prefix of a group whose every member is scoped to
 one package. Two layers can hold a subpackage of the same name, so the path always starts at the import package: a doc
 governing `lorecraft/project/syntax/` is scoped `pkg:lorecraft.project.syntax`. A security companion takes the same name plus `-security`.
@@ -234,9 +234,9 @@ A document governing a family of sibling subpackages names the family, not one m
 Reach for this type only when a rule genuinely cannot generalize; a fact about a single module belongs in that
 module, not in `docs/code/` ([§1](#1-core-principles)).
 
-#### `meta` - Meta Rules
+#### `meta` - Meta Specs
 
-Documentation format specifications — this document and the per-kind templates that extend it. Meta rules
+Meta specs — this document and the per-kind templates that extend it. Meta specs
 live in `docs/__meta__/`, not `docs/code/`, and are the only type that may reference each other.
 
 ### Type and Scope Are Paired
@@ -246,14 +246,14 @@ The two fields are not independent. A document that breaks one of these pairings
 | Constraint | Meaning |
 |------------|---------|
 | `type: principle` | ⇒ `scope: "global"` |
-| `type: core` | ⇒ `scope: "global"`, or the purl of the one dependency the rule is about |
+| `type: core` | ⇒ `scope: "global"`, or the purl of the one dependency the code spec is about |
 | `type: pkg` | ⇒ `scope: "pkg:<name>"` |
 | `name: pkg-<x>` | ⇒ `type: pkg` (a `pkg-` name implies the type; a group of package-scoped documents may carry it under its own prefix) |
 | `type: meta` | ⇒ `scope: "global"`, and the file lives in `docs/__meta__/` |
 
 ### Description Guidelines
 
-Write descriptions optimized for dynamic discovery. Unlike skills (which are executed), rule documents are loaded to guide implementation. Your description must answer two questions:
+Write descriptions optimized for dynamic discovery. Unlike skills (which are executed), code specs are loaded to guide implementation. Your description must answer two questions:
 
 1. **What does this document explain?** - List specific rules or concepts covered
 2. **When should an agent load it?** - Include trigger terms via a "Load when" clause
@@ -274,7 +274,7 @@ Write descriptions optimized for dynamic discovery. Unlike skills (which are exe
 
 ### Discovery Command
 
-The discovery command extracts the frontmatter fields of every rule document for lazy loading:
+The discovery command extracts the frontmatter fields of every code spec for lazy loading:
 
 ```bash
 grep -m 3 -E '^(description|type|scope):' docs/code/*.md
@@ -291,7 +291,7 @@ grep -m 3 -E '^(description|type|scope):' docs/code/*.md
 
 ### Group Shape
 
-**This document does not list the rule documents.** The corpus is discovered by reading frontmatter (see
+**This document does not list the code specs.** The corpus is discovered by reading frontmatter (see
 [§2](#2-frontmatter-requirements)); an inventory here would be a second source of truth that goes stale on the
 first rename, and nothing would fail when it did.
 
@@ -309,7 +309,7 @@ The groups in use are `principle-*` (universal principles), `pattern-*` (design 
 (language conventions), `error-*` (how this project declares and handles its errors), `tests-*`,
 `module-*` (one package's responsibility), and unprefixed standalone documents
 such as `logging`. A
-rule document that fits none of them is standalone, and a new group is created by writing its first member.
+code spec that fits none of them is standalone, and a new group is created by writing its first member.
 
 ### A Prefix Names The Subject, Not The Language
 
@@ -319,12 +319,12 @@ organized is about tests. Prefixing them `python-logging` and `python-test-files
 subject they are not about, and would claim the `python-*` group owns everything written in Python — which is
 everything.
 
-The `python-*` group is reserved for rules whose subject genuinely **is** the language and its tooling: how a
+The `python-*` group is reserved for code specs whose subject genuinely **is** the language and its tooling: how a
 type annotation is spelled, how modules and imports are laid out, how `pyproject.toml` is written. Only one
 language prefix exists in this repository, so there is nothing to disambiguate it against.
 
 Specialization nests by name, not by directory: a `python-modules-imports` would refine `python-modules`, and
-a `python-docstrings-params` would refine `python-docstrings`. The parent is a rule document with its own
+a `python-docstrings-params` would refine `python-docstrings`. The parent is a code spec with its own
 content, never a router to its children.
 
 ### Naming Rules
@@ -334,12 +334,12 @@ content, never a router to its children.
 3. **Progressively specific** - Add specificity per segment
 4. **Match filename** - `name` in frontmatter MUST match filename (minus `.md`)
 5. **Flat directory** - All files at `docs/code/` root (no subdirectories)
-6. **Package rules** - Use a group prefix, `pkg-` by default, followed by the package's full import path, with
+6. **Package code specs** - Use a group prefix, `pkg-` by default, followed by the package's full import path, with
    underscores and dots converted to hyphens
 
 ### Benefits
 
-- **Discoverable** - Searching a prefix finds all related rule documents
+- **Discoverable** - Searching a prefix finds all related code specs
 - **Grouped** - Related documents sort together alphabetically
 - **Scalable** - Easy to add new documents within a group
 - **Organized** - Natural grouping when listing files
@@ -348,16 +348,16 @@ content, never a router to its children.
 
 ## 4. Cross-Reference Rules
 
-Rule documents may reference other rule documents to establish relationships. Cross-references use defined relationship types and follow directional rules based on document type.
+Code specs may reference other code specs to establish relationships. Cross-references use defined relationship types and follow directional rules based on document type.
 
 ### Relationship Types
 
 | Type | Meaning | Example |
 |---|---|---|
 | `Related` | Sibling in same prefix group | tests-organization <-> tests-functions |
-| `Foundation` | Principle or core rule, or an accepted ADR in `docs/arch/`, a rule builds on | module-lorecraft-project -> pattern-repository |
+| `Foundation` | Principle or core code spec, or an accepted ADR in `docs/arch/`, a code spec builds on | module-lorecraft-project -> pattern-repository |
 | `Companion` | Paired doc for same package | pkg-lorecraft-project-syntax <-> pkg-lorecraft-project-syntax-security |
-| `Extends` | Specializes/refines another rule document | python-async-tasks -> python-async |
+| `Extends` | Specializes/refines another code spec | python-async-tasks -> python-async |
 
 ### Direction Rules
 
@@ -366,13 +366,13 @@ Rule documents may reference other rule documents to establish relationships. Cr
 | `principle` | Other principle patterns (`Related`) |
 | `core` | Principle patterns (`Foundation`), other core patterns (`Related`, `Extends`) |
 | `pkg` | Principle/core patterns and accepted ADRs (`Foundation`), own companion (`Companion`), a pkg doc it specializes (`Extends`) |
-| `meta` | Other meta rules only (`Extends`) |
+| `meta` | Other meta specs only (`Extends`) |
 
 **Key principles:**
-- Principle rules are standalone and link laterally to other principle rules
-- Core rules link laterally to related or parent core rules, and may reference principle rules as foundation
-- Package rules reference the principle/core rules and the accepted ADRs they depend on, plus a companion or the package doc they specialize
-- Meta rules only reference the base format spec they extend
+- Principle code specs are standalone and link laterally to other principle code specs
+- Core code specs link laterally to related or parent core code specs, and may reference principle code specs as foundation
+- Package code specs reference the principle/core code specs and the accepted ADRs they depend on, plus a companion or the package doc they specialize
+- Meta specs only reference the corpus meta spec they extend
 
 ### References Section Format
 
@@ -390,8 +390,8 @@ Rule documents may reference other rule documents to establish relationships. Cr
 - ✅ `module-lorecraft-project-syntax` -> `module-lorecraft-project` (Extends: pkg to pkg)
 - ✅ `pkg-lorecraft-project-syntax` <-> `pkg-lorecraft-project-syntax-security` (Companion: bidirectional)
 - ✅ `tests-organization` <-> `tests-functions` (Related: core siblings)
-- ❌ `code` -> `python-modules` (meta rules only reference other meta rules)
-- ❌ `python-modules` -> `module-lorecraft-project` (core cannot reference pkg rules)
+- ❌ `code` -> `python-modules` (meta specs only reference other meta specs)
+- ❌ `python-modules` -> `module-lorecraft-project` (core cannot reference pkg code specs)
 
 ---
 
@@ -402,12 +402,12 @@ Rule documents may reference other rule documents to establish relationships. Cr
 [code.structure.json](code.structure.json) beside this file holds the outline below in machine-checkable
 form, together with the word caps and token budget of [§1](#1-core-principles). `lorecraft check` applies the
 outline with the `OUT` rules, and the caps and the budget with the `LEN` rules. A
-document that a namespace specification matches takes its section outline from the narrowest
-`code-<namespace>.md` specification that matches its name instead of the general shape below; the general
-shape governs every document no namespace specification matches, `error-*`, `tests-*` and `logging` today
+document that a namespace meta spec matches takes its section outline from the narrowest
+`code-<namespace>.md` meta spec that matches its name instead of the general shape below; the general
+shape governs every document no namespace meta spec matches, `error-*`, `tests-*` and `logging` today
 ([§1](#1-core-principles)).
 
-Every rule document should follow this general structure:
+Every code spec should follow this general structure:
 
 | Section | Required | Description |
 |---------|:--------:|-------------|
@@ -415,7 +415,7 @@ Every rule document should follow this general structure:
 | Scope line | Optional | Bold line naming what the document governs; written only where `scope` cannot say it |
 | Main content sections | Yes | Rule content organized by topic |
 | Checklist | Yes | Verification checklist for rule compliance |
-| References | No | Cross-references to related rule documents (follow type rules) |
+| References | No | Cross-references to related code specs (follow type rules) |
 | External References | No | Links to external articles, books, or specs |
 
 **The order above is the order on the page.** The Checklist is the last thing a reader *does* in the
@@ -425,8 +425,8 @@ External References section.
 
 ### The Scope Line Is Written Only When It Narrows
 
-A bold line under the H1 is warranted **only when it says something the `scope` field cannot**. Every rule
-document is mandatory — [§1](#1-core-principles) establishes that for the whole corpus — so a line announcing
+A bold line under the H1 is warranted **only when it says something the `scope` field cannot**. Every code
+spec is mandatory — [§1](#1-core-principles) establishes that for the whole corpus — so a line announcing
 that a `scope: "global"` document applies to all code states three facts already stated by the frontmatter,
 the title, and the corpus's own authority. It is ceremony, and ceremony drifts: it is not read, so nobody
 notices when it stops matching.
@@ -472,7 +472,7 @@ on its own.
 This is deliberate, and it is the opposite of what a citation buys. A `# ✅ Good — lorecraft/project/x/y.py`
 attribution makes a doc feel checkable, but it is a **copy of a module living in a second file**, and
 it rots exactly like any other copy: the package is renamed, the helper moves, the signature grows an
-argument, the code the doc quotes is deleted — and now the rule document is wrong about the repository
+argument, the code the doc quotes is deleted — and now the code spec is wrong about the repository
 in a way nobody notices, because nobody re-reads a doc when they edit the code it quotes.
 
 A fabricated example cannot drift, because it makes no claim about the codebase. It says "here is
@@ -559,13 +559,13 @@ must contain is governed above: the failure mode and what it cost, never where t
 
 ### DON'T
 
-- Duplicate content from feature docs (link instead)
+- Duplicate content from feat specs (link instead)
 - Restate a rule that another document already owns (link instead)
 - Restate a single module's contract (document it in that module instead)
 - Cite a module in an example, or point at one in prose as evidence (it is a copy, and it drifts on the next rename)
 - Transcribe real code into an example, verbatim or lightly edited
 - Document a convention no package in `src/` demonstrates (a convention nothing demonstrates is not one)
-- File a rule under a prefix whose subject it is not
+- File a code spec under a prefix whose subject it is not
 - Cover more than one responsibility in a doc, or add a doc that only routes to its siblings
 - Narrate a migration, or argue the case for a decision already made
 - Record dependency versions, release/beta status, benchmark figures, or tool install state
@@ -581,11 +581,11 @@ must contain is governed above: the failure mode and what it cost, never where t
 
 ## 7. Template
 
-Use this template when creating new rule documents:
+Use this template when creating new code specs:
 
 ````markdown
 ---
-name: "{{rule-name-kebab-case}}"
+name: "{{spec-name-kebab-case}}"
 description: "{{Brief summary. Load when [trigger conditions], no period}}"
 type: "{{principle|core|pkg|meta}}"
 scope: "{{global, pkg:<name>, or a dependency's purl}}"
@@ -634,7 +634,7 @@ Before committing code, verify:
 
 ## References {{OPTIONAL - follow cross-reference rules}}
 
-- [rule-name](rule-name.md) - Relationship: Brief description
+- [spec-name](spec-name.md) - Relationship: Brief description
 
 ## External References {{OPTIONAL}}
 
@@ -645,7 +645,7 @@ Before committing code, verify:
 
 ## 8. Checklist
 
-Before committing a rule document:
+Before committing a code spec:
 
 ### Frontmatter
 
@@ -678,9 +678,9 @@ Before committing a rule document:
 ### Cross-References
 
 - [ ] References use defined relationship types (`Related`, `Foundation`, `Companion`, `Extends`)
-- [ ] Package rules reference foundation core rules
+- [ ] Package code specs reference foundation core code specs
 - [ ] Security companions are bidirectionally linked
-- [ ] Meta rules only reference other meta rules
+- [ ] Meta specs only reference other meta specs
 
 ### Content
 
@@ -715,4 +715,4 @@ Before committing a rule document:
 ### Review
 
 `just check-docs` decides the frontmatter, section and length items; read the rest of this checklist by hand,
-together with every `code-<namespace>.md` specification that matches the document's name.
+together with every `code-<namespace>.md` meta spec that matches the document's name.

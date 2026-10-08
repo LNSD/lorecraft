@@ -60,8 +60,8 @@ enforced privacy. A leading underscore is a convention, and a caller can deliber
 ordinary constructor can still uphold the invariant: when direct construction must be safe, check the field in
 `__post_init__` and let `parse` delegate to `cls(raw)`. The practical guarantee has two parts:
 
-- **Constructed at the boundary only.** Call `parse` where the value enters the process — CLI argument, format
-  specification load, parsed frontmatter, a path walked off disk — and pass the object onward thereafter. A
+- **Constructed at the boundary only.** Call `parse` where the value enters the process — CLI argument, meta spec
+  load, parsed frontmatter, a path walked off disk — and pass the object onward thereafter. A
   value object constructed all over the domain is a value object whose invariant nobody can locate. The
   `__post_init__` guard prevents an ordinary direct constructor call from bypassing validation.
 - **`frozen=True`, so nothing mutates past the check.** The invariant is verified once and cannot be

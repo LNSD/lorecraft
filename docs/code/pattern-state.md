@@ -83,7 +83,7 @@ must support visible, while the owner retains one clear delegation path.
 
 For a small, fixed lifecycle with one state-dependent operation, an enum and a branch are easier to read.
 Do not create a class for every boolean flag. This pattern also does not replace resource cleanup:
-acquisition and release still follow the resource lifecycle rule, regardless of how states are represented.
+acquisition and release still follow the resource lifecycle pattern, regardless of how states are represented.
 When a transition establishes a prerequisite for later operations, use distinct types to make that order
 visible to a static checker instead.
 
