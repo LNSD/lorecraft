@@ -5,7 +5,8 @@ specification reads it from the skill root, the skill directory where an agent r
 a document, it is read from the document's own directory, as Markdown renders it. `LinkBase` states which.
 
 `find_link_targets` joins each link's relative path to that directory and looks the result up through a view: present,
-missing, or in a directory the scan never read, so the snapshot cannot tell. It is a fact of the revision, never a
+missing, or in a directory the scan never read, so the snapshot cannot tell. Each entry keeps the root-relative path
+it joined beside the lookup, so a reader says where a link really leads. It is a fact of the revision, never a
 judgment: whether a missing target makes a link broken is a rule's to decide. A link spelling no relative path has no
 entry, and neither has one that climbs past its bound: above the skill root in a file of a skill, which names nothing
 the skill carries once it is installed elsewhere, or above the repository root in a document, which names nothing the
@@ -68,10 +69,24 @@ class PathLookup(Enum):
     """A path in a directory the scan never read, so the snapshot cannot tell what is there."""
 
 
+@dataclass(frozen=True, slots=True)
+class LinkTarget:
+    """Where a relative link leads, read from its base, and what the snapshot holds there.
+
+    Attributes:
+        path: The root-relative path the link names once joined to its base, which differs from the path as written
+            when the link is read from a directory other than its own file's.
+        lookup: What the snapshot holds at `path`.
+    """
+
+    path: RootRelativePath
+    lookup: PathLookup
+
+
 def find_link_targets(
     links: tuple[Link, ...], base: LinkBase, view: VirtualFileSystem, scope: ScopeIndex
-) -> Mapping[PurePosixPath, PathLookup]:
-    """What the snapshot holds at the target of each relative link, keyed by its normalised path. Raises nothing.
+) -> Mapping[PurePosixPath, LinkTarget]:
+    """Where each relative link leads and what the snapshot holds there, keyed by its normalised path. Raises nothing.
 
     The key is `Link.to_normalised_relative_path`'s, so a reader finds a link's entry from the link alone: two links
     spelling one path share an entry. A link spelling no relative path, or climbing past its bound, has none.
@@ -82,7 +97,7 @@ def find_link_targets(
         view: The snapshot's view each target is looked up through, every recorded link on the way followed.
         scope: The scope the snapshot was taken of, which tells a path the scan never read.
     """
-    targets: dict[PurePosixPath, PathLookup] = {}
+    targets: dict[PurePosixPath, LinkTarget] = {}
     for link in links:
         normalised = link.to_normalised_relative_path()
         if normalised is None:
@@ -90,7 +105,7 @@ def find_link_targets(
         path = _joined_path(normalised, base)
         if path is None:
             continue
-        targets[normalised] = _look_up(path, view, scope)
+        targets[normalised] = LinkTarget(path=path, lookup=_look_up(path, view, scope))
     return FrozenMapping(targets)
 
 

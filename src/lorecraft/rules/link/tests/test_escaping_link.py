@@ -7,7 +7,7 @@ reads what any of a skill's files has, so a `SKILL.md` is judged the same way.
 import pytest
 
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.location import Help
+from lorecraft.rules.location import Help, Note
 from lorecraft.rules.tests.fake_context import FakeSkillResourceContext
 
 from ..escaping_link import EscapingLink
@@ -122,7 +122,7 @@ class TestEscapingLink:
         message = occurrence.message()
 
         #: Then
-        assert message == '`../a b.md` leaves the skill directory', (
+        assert message == '`../a b.md` leaves the skill root', (
             'the message shows the destination as the author wrote it'
         )
 
@@ -134,6 +134,7 @@ class TestEscapingLink:
         children = occurrence.children()
 
         #: Then
-        assert children == (Help('link a file inside the skill, relative to the skill root'),), (
-            'a help says to name a file the skill carries, by its path from the skill root'
-        )
+        assert children == (
+            Note("the Agent Skills specification reads a skill's relative links from the skill root"),
+            Help('link a file inside the skill, relative to the skill root'),
+        ), 'the specification note comes first, then a help saying to name a file by its path from the skill root'

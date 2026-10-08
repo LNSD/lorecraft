@@ -13,7 +13,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.vfs import EntryRecord, FileTree, ScopeIndex, Snapshot, SymlinkRecord, VirtualFileSystem
 
 from ..layout import SNAPSHOT_SCOPE
-from ..link_target import DocumentDirectory, PathLookup, SkillRoot, find_link_targets
+from ..link_target import DocumentDirectory, LinkTarget, PathLookup, SkillRoot, find_link_targets
 from ..syntax import LineNumber, Link
 
 REVIEW_ROOT: SkillRoot = SkillRoot(RootRelativePath.parse('.agents/skills/review'))
@@ -49,7 +49,17 @@ def _snapshot(*links: tuple[str, str]) -> Snapshot:
     return Snapshot(FrozenMapping(records), scope=SNAPSHOT_SCOPE)
 
 
-def _find(urls: tuple[str, ...], base: SkillRoot | DocumentDirectory, snapshot: Snapshot) -> dict[str, PathLookup]:
+def _link_target(path: str, lookup: PathLookup) -> LinkTarget:
+    """The target of a link: the root-relative path it leads to, and what the snapshot holds there.
+
+    Args:
+        path: The root-relative path the link leads to.
+        lookup: What the snapshot holds at the path.
+    """
+    return LinkTarget(path=RootRelativePath.parse(path), lookup=lookup)
+
+
+def _find(urls: tuple[str, ...], base: SkillRoot | DocumentDirectory, snapshot: Snapshot) -> dict[str, LinkTarget]:
     """The link targets of a file holding one link per destination, keyed by each normalised path as a string.
 
     Args:
@@ -61,9 +71,9 @@ def _find(urls: tuple[str, ...], base: SkillRoot | DocumentDirectory, snapshot: 
     for url in urls:
         links.append(Link(url, LineNumber.from_int(1)))
     targets = find_link_targets(tuple(links), base, VirtualFileSystem(snapshot), ScopeIndex(snapshot))
-    found: dict[str, PathLookup] = {}
-    for path, lookup in targets.items():
-        found[str(path)] = lookup
+    found: dict[str, LinkTarget] = {}
+    for path, target in targets.items():
+        found[str(path)] = target
     return found
 
 
@@ -77,9 +87,10 @@ class TestFindLinkTargetsInASkill:
         found = _find(urls, REVIEW_ROOT, _snapshot())
 
         #: Then
-        assert found == {'references/a.md': PathLookup.PRESENT, 'references': PathLookup.PRESENT}, (
-            'a file and a directory the skill holds are both present, keyed by the normalised path'
-        )
+        assert found == {
+            'references/a.md': _link_target('.agents/skills/review/references/a.md', PathLookup.PRESENT),
+            'references': _link_target('.agents/skills/review/references', PathLookup.PRESENT),
+        }, 'a file and a directory the skill holds are both present, keyed by the normalised path'
 
     def test_find_link_targets_with_nothing_at_the_path_finds_it_missing(self) -> None:
         #: Given
@@ -89,7 +100,9 @@ class TestFindLinkTargetsInASkill:
         found = _find(urls, REVIEW_ROOT, _snapshot())
 
         #: Then
-        assert found == {'references/b.md': PathLookup.MISSING}, 'nothing in a directory of the skill is missing'
+        assert found == {
+            'references/b.md': _link_target('.agents/skills/review/references/b.md', PathLookup.MISSING)
+        }, 'nothing in a directory of the skill is missing, and the entry keeps the path it was looked up at'
 
     def test_find_link_targets_reads_a_link_from_the_skill_root_whichever_file_holds_it(self) -> None:
         #: Given
@@ -100,9 +113,10 @@ class TestFindLinkTargetsInASkill:
         found = _find(urls, REVIEW_ROOT, _snapshot())
 
         #: Then
-        assert found == {'a.md': PathLookup.MISSING, 'SKILL.md': PathLookup.PRESENT}, (
-            'every link is read from the skill root, and a `..` cancels the directory written before it'
-        )
+        assert found == {
+            'a.md': _link_target('.agents/skills/review/a.md', PathLookup.MISSING),
+            'SKILL.md': _link_target('.agents/skills/review/SKILL.md', PathLookup.PRESENT),
+        }, 'every link is read from the skill root, and a `..` cancels the directory written before it'
 
     def test_find_link_targets_with_a_link_climbing_above_the_skill_root_gives_it_no_entry(self) -> None:
         #: Given
@@ -133,9 +147,10 @@ class TestFindLinkTargetsInASkill:
         found = _find(urls, REVIEW_ROOT, snapshot)
 
         #: Then
-        assert found == {'guides/d.md': PathLookup.PRESENT, 'guides/e.md': PathLookup.MISSING}, (
-            'the symlink inside the skill is followed to the files it leads to'
-        )
+        assert found == {
+            'guides/d.md': _link_target('.agents/skills/review/guides/d.md', PathLookup.PRESENT),
+            'guides/e.md': _link_target('.agents/skills/review/guides/e.md', PathLookup.MISSING),
+        }, 'the symlink inside the skill is followed to the files it leads to'
 
 
 @pytest.mark.unit
@@ -149,9 +164,9 @@ class TestFindLinkTargetsInADocument:
 
         #: Then
         assert found == {
-            'setup.md': PathLookup.PRESENT,
-            'install.md': PathLookup.MISSING,
-            '../code/rules.md': PathLookup.PRESENT,
+            'setup.md': _link_target('docs/guide/setup.md', PathLookup.PRESENT),
+            'install.md': _link_target('docs/guide/install.md', PathLookup.MISSING),
+            '../code/rules.md': _link_target('docs/code/rules.md', PathLookup.PRESENT),
         }, "a document's links are read from its own directory, and a `..` may climb out of it"
 
     def test_find_link_targets_with_a_path_the_scan_never_read_finds_it_outside_the_scope(self) -> None:
@@ -162,7 +177,7 @@ class TestFindLinkTargetsInADocument:
         found = _find(urls, GUIDE_DIRECTORY, _snapshot())
 
         #: Then
-        assert found == {'../../shared/guides/d.md': PathLookup.OUTSIDE_SCOPE}, (
+        assert found == {'../../shared/guides/d.md': _link_target('shared/guides/d.md', PathLookup.OUTSIDE_SCOPE)}, (
             'a path in a directory the scan never read is outside the scope, whatever the snapshot holds there'
         )
 

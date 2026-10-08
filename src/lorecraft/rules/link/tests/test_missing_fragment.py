@@ -7,6 +7,7 @@ reads what any Markdown file has, so a document and a `SKILL.md` are judged the 
 import pytest
 
 from lorecraft.project.syntax import LineNumber
+from lorecraft.rules.location import Note
 from lorecraft.rules.tests.fake_context import FakeSkillResourceContext
 
 from ..missing_fragment import MissingFragment
@@ -22,8 +23,20 @@ class TestMissingFragment:
         occurrences = MissingFragment.check(subject)
 
         #: Then
-        assert occurrences == (MissingFragment(line=LineNumber.from_int(3), url='#usage'),), (
+        assert occurrences == (MissingFragment(line=LineNumber.from_int(3), url='#usage', has_headings=True),), (
             'a fragment naming no heading of the file is one occurrence, on the line the link is on'
+        )
+
+    def test_check_with_a_file_holding_no_heading_reports_it_as_having_none(self) -> None:
+        #: Given
+        subject = FakeSkillResourceContext('See [usage](#usage).\n')
+
+        #: When
+        occurrences = MissingFragment.check(subject)
+
+        #: Then
+        assert occurrences == (MissingFragment(line=LineNumber.from_int(1), url='#usage', has_headings=False),), (
+            'the occurrence records that the file has no heading to name'
         )
 
     def test_check_with_a_fragment_naming_a_heading_of_the_file_reports_nothing(self) -> None:
@@ -55,7 +68,7 @@ class TestMissingFragment:
         occurrences = MissingFragment.check(subject)
 
         #: Then
-        assert occurrences == (MissingFragment(line=LineNumber.from_int(3), url='#a%20b'),), (
+        assert occurrences == (MissingFragment(line=LineNumber.from_int(3), url='#a%20b', has_headings=True),), (
             'a fragment that is no anchor at all names no heading, so it is reported'
         )
 
@@ -98,14 +111,14 @@ class TestMissingFragment:
 
         #: Then
         assert occurrences == (
-            MissingFragment(line=LineNumber.from_int(3), url='#b'),
-            MissingFragment(line=LineNumber.from_int(5), url='#a'),
+            MissingFragment(line=LineNumber.from_int(3), url='#b', has_headings=True),
+            MissingFragment(line=LineNumber.from_int(5), url='#a', has_headings=True),
         ), 'each missing fragment is its own occurrence, in file order, and the one naming the title none'
 
     def test_message_with_a_percent_encoded_fragment_shows_it_decoded(self) -> None:
         #: Given
         # The destination of `[x](#Straße)`, as the parser percent-encodes it.
-        occurrence = MissingFragment(line=LineNumber.from_int(1), url='#Stra%C3%9Fe')
+        occurrence = MissingFragment(line=LineNumber.from_int(1), url='#Stra%C3%9Fe', has_headings=True)
 
         #: When
         message = occurrence.message()
@@ -115,12 +128,22 @@ class TestMissingFragment:
             'the message shows the destination as the author wrote it'
         )
 
-    def test_children_with_an_occurrence_are_none(self) -> None:
+    def test_children_with_a_file_holding_headings_are_none(self) -> None:
         #: Given
-        occurrence = MissingFragment(line=LineNumber.from_int(3), url='#usage')
+        occurrence = MissingFragment(line=LineNumber.from_int(3), url='#usage', has_headings=True)
 
         #: When
         children = occurrence.children()
 
         #: Then
         assert children == (), 'the message names the fragment, and the fix depends on which heading was meant'
+
+    def test_children_with_a_file_holding_no_heading_note_that_it_has_none(self) -> None:
+        #: Given
+        occurrence = MissingFragment(line=LineNumber.from_int(3), url='#usage', has_headings=False)
+
+        #: When
+        children = occurrence.children()
+
+        #: Then
+        assert children == (Note('this file has no headings'),), 'no heading was meant when the file has none'

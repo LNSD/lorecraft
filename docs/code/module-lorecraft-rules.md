@@ -126,8 +126,9 @@ A rule is named for what is wrong, as the established linters name theirs, so th
   `Note` pointing at a schema, and says in its own words what it requires. A title rule, held to by every governed
   document, has `spec` `None` and carries no specification `Note`: no specification states it. A rule the package
   itself states has `spec` `None`: its `Note` names the external specification that sets the limit in its text,
-  with no `at`. A rule the package states that no external specification sets, such as a link rule, carries no
-  `Note`: nothing outside the diagnostic states the rule.
+  with no `at`. A link rule that depends on the Agent Skills specification names it in a group-level `Note`,
+  written once in the group's `__ruleset__.py` and placed first in `children()`. A rule the package states that no
+  external specification sets carries no specification `Note`: nothing outside the diagnostic states the rule.
 - **A `Help` gives the fix for this occurrence** when its fields make it concrete, such as the description an
   outline gives a section the document lacks. A limit's message already names the value found against the limit,
   so a `Help` restating the difference adds nothing; a `Label` places the overrun at a line, and may name what it
@@ -187,7 +188,7 @@ class TooManyWords(DocumentRule):
 
 ## Checklist
 
-Before committing code, verify:
+Before committing:
 
 - [ ] Nothing added to `lorecraft.rules` reads the disk, a view, a query or a configuration
 - [ ] A new rule's `check` takes the one context its base class fixes and returns occurrences that name no
@@ -197,9 +198,9 @@ Before committing code, verify:
 - [ ] A new rule's name states its condition; its class and module spell it
 - [ ] A new rule's `message()` is lowercase with the value found against the limit; `children()` puts a
       `Note` at the specification that states the rule (the corpus's structure one when no key does; the external
-      one named without `at` when the package states it; none for title rules and rules no external
-      specification or schema states), then the `Help`, then other `Note`s; a `Label` stating an overrun needs
-      no plural
+      one named without `at` when the package states it, or the group's `Note` for a link rule on the Agent
+      Skills specification; none for title rules and rules no specification states), then the `Help`, then other
+      `Note`s
 - [ ] A new rule's docstring opens *What it does* with "Checks for", shows the broken and the fixed input under
       *Example* and *Use instead*, and names nothing of the implementation; a rule no key states says so, and its
       *Example* shows a governing specification's excerpt, then the subject; a rule the package states names the

@@ -11,9 +11,10 @@ from pathlib import PurePosixPath
 import pytest
 
 from lorecraft.core.mapping import FrozenMapping
-from lorecraft.project.link_target import DocumentDirectory, PathLookup, SkillRoot
+from lorecraft.core.path import RootRelativePath
+from lorecraft.project.link_target import DocumentDirectory, LinkTarget, PathLookup, SkillRoot
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.location import Help
+from lorecraft.rules.location import Help, Note
 from lorecraft.rules.tests.fake_context import (
     DEFAULT_DOCUMENT_DIRECTORY,
     DEFAULT_SKILL_DIRECTORY,
@@ -30,14 +31,17 @@ DOCUMENT_DIRECTORY: DocumentDirectory = DocumentDirectory(DEFAULT_DOCUMENT_DIREC
 """Where a fake document's relative links are read from."""
 
 
-def _targets(path: str, lookup: PathLookup) -> FrozenMapping[PurePosixPath, PathLookup]:
-    """The link targets of a file with one relative path, holding what the snapshot holds there.
+def _targets(
+    base: SkillRoot | DocumentDirectory, path: str, lookup: PathLookup
+) -> FrozenMapping[PurePosixPath, LinkTarget]:
+    """The link targets of a file with one relative path, holding what the snapshot holds where it leads.
 
     Args:
+        base: Where the file's relative links are read from, which the path is joined to.
         path: The link's normalised relative path, as the key of its entry.
         lookup: What the snapshot holds at the link's target.
     """
-    return FrozenMapping({PurePosixPath(path): lookup})
+    return FrozenMapping({PurePosixPath(path): LinkTarget(path=base.directory / path, lookup=lookup)})
 
 
 @pytest.mark.unit
@@ -45,21 +49,28 @@ class TestBrokenLinkInASkill:
     def test_check_with_a_link_whose_target_is_missing_reports_it_on_its_line(self) -> None:
         #: Given
         subject = FakeSkillResourceContext(
-            '# Guide\n\nSee [a](references/a.md).\n', link_targets=_targets('references/a.md', PathLookup.MISSING)
+            '# Guide\n\nSee [a](references/a.md).\n',
+            link_targets=_targets(SKILL_ROOT, 'references/a.md', PathLookup.MISSING),
         )
 
         #: When
         occurrences = BrokenLink.check(subject)
 
         #: Then
-        assert occurrences == (BrokenLink(line=LineNumber.from_int(3), url='references/a.md', base=SKILL_ROOT),), (
-            'a link whose target holds nothing is one occurrence, on the line the link is on'
-        )
+        assert occurrences == (
+            BrokenLink(
+                line=LineNumber.from_int(3),
+                url='references/a.md',
+                base=SKILL_ROOT,
+                target=RootRelativePath.parse('.agents/skills/review/references/a.md'),
+            ),
+        ), 'a link whose target holds nothing is one occurrence, on the line the link is on'
 
     def test_check_with_a_link_whose_target_is_present_reports_nothing(self) -> None:
         #: Given
         subject = FakeSkillResourceContext(
-            '# Guide\n\nSee [a](references/a.md).\n', link_targets=_targets('references/a.md', PathLookup.PRESENT)
+            '# Guide\n\nSee [a](references/a.md).\n',
+            link_targets=_targets(SKILL_ROOT, 'references/a.md', PathLookup.PRESENT),
         )
 
         #: When
@@ -71,7 +82,8 @@ class TestBrokenLinkInASkill:
     def test_check_with_a_link_whose_target_is_outside_the_scope_reports_nothing(self) -> None:
         #: Given
         subject = FakeSkillResourceContext(
-            '# Guide\n\nSee [x](shared/x.md).\n', link_targets=_targets('shared/x.md', PathLookup.OUTSIDE_SCOPE)
+            '# Guide\n\nSee [x](shared/x.md).\n',
+            link_targets=_targets(SKILL_ROOT, 'shared/x.md', PathLookup.OUTSIDE_SCOPE),
         )
 
         #: When
@@ -108,30 +120,41 @@ class TestBrokenLinkInASkill:
     def test_check_with_a_link_spelled_unnormalised_finds_its_entry_by_the_normalised_path(self) -> None:
         #: Given
         subject = FakeSkillResourceContext(
-            '# Guide\n\nSee [a](references/./a.md).\n', link_targets=_targets('references/a.md', PathLookup.MISSING)
+            '# Guide\n\nSee [a](references/./a.md).\n',
+            link_targets=_targets(SKILL_ROOT, 'references/a.md', PathLookup.MISSING),
         )
 
         #: When
         occurrences = BrokenLink.check(subject)
 
         #: Then
-        assert occurrences == (BrokenLink(line=LineNumber.from_int(3), url='references/./a.md', base=SKILL_ROOT),), (
-            'the entry is keyed by the normalised path, and the occurrence keeps the destination as written'
-        )
+        assert occurrences == (
+            BrokenLink(
+                line=LineNumber.from_int(3),
+                url='references/./a.md',
+                base=SKILL_ROOT,
+                target=RootRelativePath.parse('.agents/skills/review/references/a.md'),
+            ),
+        ), 'the entry is keyed by the normalised path, and the occurrence keeps the destination as written'
 
     def test_check_with_a_query_after_a_missing_path_reports_the_whole_destination(self) -> None:
         #: Given
         subject = FakeSkillResourceContext(
-            '# Guide\n\nSee [b](b.md?raw=1).\n', link_targets=_targets('b.md', PathLookup.MISSING)
+            '# Guide\n\nSee [b](b.md?raw=1).\n', link_targets=_targets(SKILL_ROOT, 'b.md', PathLookup.MISSING)
         )
 
         #: When
         occurrences = BrokenLink.check(subject)
 
         #: Then
-        assert occurrences == (BrokenLink(line=LineNumber.from_int(3), url='b.md?raw=1', base=SKILL_ROOT),), (
-            'the query is no part of the path, and the occurrence keeps the destination as written'
-        )
+        assert occurrences == (
+            BrokenLink(
+                line=LineNumber.from_int(3),
+                url='b.md?raw=1',
+                base=SKILL_ROOT,
+                target=RootRelativePath.parse('.agents/skills/review/b.md'),
+            ),
+        ), 'the query is no part of the path, and the occurrence keeps the destination as written'
 
 
 @pytest.mark.unit
@@ -139,21 +162,28 @@ class TestBrokenLinkInADocument:
     def test_check_with_a_link_whose_target_is_missing_reports_it_on_its_line(self) -> None:
         #: Given
         subject = FakeDocumentMarkdownContext(
-            '# Setup\n\nRun [install](install.md) first.\n', link_targets=_targets('install.md', PathLookup.MISSING)
+            '# Setup\n\nRun [install](install.md) first.\n',
+            link_targets=_targets(DOCUMENT_DIRECTORY, 'install.md', PathLookup.MISSING),
         )
 
         #: When
         occurrences = BrokenLink.check(subject)
 
         #: Then
-        assert occurrences == (BrokenLink(line=LineNumber.from_int(3), url='install.md', base=DOCUMENT_DIRECTORY),), (
-            "a document's link whose target holds nothing is one occurrence, read from the document's directory"
-        )
+        assert occurrences == (
+            BrokenLink(
+                line=LineNumber.from_int(3),
+                url='install.md',
+                base=DOCUMENT_DIRECTORY,
+                target=RootRelativePath.parse('docs/guide/install.md'),
+            ),
+        ), "a document's link whose target holds nothing is one occurrence, read from the document's directory"
 
     def test_check_with_a_link_whose_target_is_present_reports_nothing(self) -> None:
         #: Given
         subject = FakeDocumentMarkdownContext(
-            '# Setup\n\nRun [install](install.md) first.\n', link_targets=_targets('install.md', PathLookup.PRESENT)
+            '# Setup\n\nRun [install](install.md) first.\n',
+            link_targets=_targets(DOCUMENT_DIRECTORY, 'install.md', PathLookup.PRESENT),
         )
 
         #: When
@@ -165,48 +195,69 @@ class TestBrokenLinkInADocument:
 
 @pytest.mark.unit
 class TestBrokenLinkDiagnostic:
-    def test_message_with_a_link_in_a_skill_names_the_decoded_destination_and_the_skill(self) -> None:
+    def test_message_with_a_percent_encoded_destination_shows_it_decoded(self) -> None:
         #: Given
-        occurrence = BrokenLink(line=LineNumber.from_int(3), url='a%20b.md', base=SKILL_ROOT)
+        occurrence = BrokenLink(
+            line=LineNumber.from_int(3),
+            url='a%20b.md',
+            base=SKILL_ROOT,
+            target=RootRelativePath.parse('.agents/skills/review/a b.md'),
+        )
 
         #: When
         message = occurrence.message()
 
         #: Then
-        assert message == '`a b.md` names nothing in the skill', 'the destination shows percent-decoded'
+        assert message == '`a b.md` names nothing', 'the destination shows percent-decoded'
 
-    def test_message_with_a_link_in_a_document_names_the_repository(self) -> None:
+    def test_message_with_a_link_in_a_document_is_the_same_template(self) -> None:
         #: Given
-        occurrence = BrokenLink(line=LineNumber.from_int(3), url='install.md', base=DOCUMENT_DIRECTORY)
+        occurrence = BrokenLink(
+            line=LineNumber.from_int(3),
+            url='install.md',
+            base=DOCUMENT_DIRECTORY,
+            target=RootRelativePath.parse('docs/guide/install.md'),
+        )
 
         #: When
         message = occurrence.message()
 
         #: Then
-        assert message == '`install.md` names nothing in the repository', (
-            'a document names files of the repository, not of a skill'
-        )
+        assert message == '`install.md` names nothing', 'where the link was read from is the note, not the message'
 
-    def test_children_with_a_link_in_a_skill_say_to_link_relative_to_the_skill_root(self) -> None:
+    def test_children_with_a_link_in_a_skill_say_where_it_was_read_from_and_what_it_names(self) -> None:
         #: Given
-        occurrence = BrokenLink(line=LineNumber.from_int(3), url='a.md', base=SKILL_ROOT)
+        occurrence = BrokenLink(
+            line=LineNumber.from_int(3),
+            url='a.md',
+            base=SKILL_ROOT,
+            target=RootRelativePath.parse('.agents/skills/review/a.md'),
+        )
 
         #: When
         children = occurrence.children()
 
         #: Then
-        assert children == (Help('link a file or a directory the skill holds, relative to the skill root'),), (
-            'a help says what a link in a skill may name, and where it is read from'
-        )
+        assert children == (
+            Note("the Agent Skills specification reads a skill's relative links from the skill root"),
+            Help('link a file or a directory the skill holds, relative to the skill root'),
+            Note('read from the skill root, it names `.agents/skills/review/a.md`'),
+        ), 'the specification note comes first, then the help, then where the link really leads'
 
-    def test_children_with_a_link_in_a_document_say_to_link_relative_to_the_file(self) -> None:
+    def test_children_with_a_link_in_a_document_say_where_it_was_read_from_and_what_it_names(self) -> None:
         #: Given
-        occurrence = BrokenLink(line=LineNumber.from_int(3), url='install.md', base=DOCUMENT_DIRECTORY)
+        occurrence = BrokenLink(
+            line=LineNumber.from_int(3),
+            url='../code/gone.md',
+            base=DOCUMENT_DIRECTORY,
+            target=RootRelativePath.parse('docs/code/gone.md'),
+        )
 
         #: When
         children = occurrence.children()
 
         #: Then
-        assert children == (Help('link a file or a directory the repository holds, relative to this file'),), (
-            'a help says what a link in a document may name, and where it is read from'
-        )
+        assert children == (
+            Help('link a file or a directory the repository holds, relative to this file'),
+            Note('read from `docs/guide`, it names `docs/code/gone.md`'),
+        ), 'a document names no specification; the note shows where the written path really leads'

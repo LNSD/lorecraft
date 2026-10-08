@@ -7,6 +7,7 @@ from urllib.parse import unquote
 from lorecraft.project.context import MarkdownContext
 from lorecraft.project.syntax import Anchor
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
+from lorecraft.rules.location import Note, Subdiagnostic
 from lorecraft.rules.subject import MarkdownRule
 
 from .__ruleset__ import GROUP_ID
@@ -61,6 +62,7 @@ class MissingFragment(MarkdownRule):
     Attributes:
         spec: Always `None`: the package states the rule.
         url: The link's destination as the Markdown parser encodes it, which the message shows percent-decoded.
+        has_headings: Whether the file has any heading, which a note says when it has none: no fragment can name one.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 2)
@@ -70,12 +72,19 @@ class MissingFragment(MarkdownRule):
 
     spec: None = None
     url: str
+    has_headings: bool
 
     def message(self) -> str:
         """Name the destination, percent-decoded as the author wrote it."""
         # The parser percent-encodes a destination, so `[x](#Straße)` arrives as `#Stra%C3%9Fe`; the message shows
         # `#Straße`.
         return f'`{unquote(self.url)}` names a heading this file does not have'
+
+    def children(self) -> tuple[Subdiagnostic, ...]:
+        """Say that the file has no headings, when it has none: which heading was meant is the author's to say."""
+        if self.has_headings:
+            return ()
+        return (Note('this file has no headings'),)
 
     @classmethod
     def check(cls, subject: MarkdownContext) -> tuple[Self, ...]:
@@ -85,6 +94,8 @@ class MissingFragment(MarkdownRule):
             subject: The Markdown file whose links are judged against its own headings.
         """
         parsed = subject.parse()
+        # Every heading takes an anchor, so the file has a heading exactly when it has an anchor.
+        has_headings = len(parsed.anchors) > 0
         occurrences: list[Self] = []
         for link in parsed.links:
             if not link.url.startswith('#'):
@@ -97,5 +108,5 @@ class MissingFragment(MarkdownRule):
             # file's headings are.
             anchor = Anchor.from_fragment(fragment)
             if anchor is None or anchor not in parsed.anchors:
-                occurrences.append(cls(line=link.line, url=link.url))
+                occurrences.append(cls(line=link.line, url=link.url, has_headings=has_headings))
         return tuple(occurrences)
