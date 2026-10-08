@@ -47,7 +47,7 @@ Add an `include` key under `[tool.hatch.build.targets.sdist]`.
 Intent:
 
 ```
-fix(build): stop publishing the code spec corpus to the package index
+fix(build): stop publishing the code rule corpus to the package index
 
 hatchling ships the whole tracked tree by default, so every source distribution
 carried `docs/`, `.agents/` and `.github/` to package users despite only making
@@ -80,7 +80,7 @@ gather it before writing a word. Read what exists, in this order:
    command and its wrong output, is usually the summary's first sentence.
 3. **The series the change belongs to.** `git log main..HEAD` and the recent `main` history show the
    rule an earlier commit settled, which this one extends or corrects. Say which.
-4. **The user-facing documents the change edits.** A feat spec under `docs/feat/` states the
+4. **The user-facing documents the change edits.** A feat doc under `docs/feat/` states the
    behaviour in the project's own words; borrow them.
 
 Then answer three questions, one sentence each, before drafting:
@@ -97,7 +97,7 @@ inventing one.
 ## The User's Seat
 
 Write from the seat of whoever the change reaches: a repository author running `lorecraft check`, an
-agent following a skill, a contributor reading a code spec. Their vocabulary is the message's
+agent following a skill, a contributor reading a code rule. Their vocabulary is the message's
 vocabulary.
 
 - **Visible names are fine; internal names are not the story.** A command, an option, a rule code such as
@@ -108,7 +108,7 @@ vocabulary.
   the old behaviour from it. "Following the entry's own link selected every entry that shares its
   directory" is true and opaque; "naming `.agents/skills/beta`, a link to `alpha`, checked `alpha` too"
   is the same defect, stated so it can be checked.
-- **Do not inventory the change.** "Update the feat spec" and "add integration and end-to-end tests"
+- **Do not inventory the change.** "Update the feat doc" and "add integration and end-to-end tests"
   are in the diff. Name a document only for the promise it now makes to its reader.
 
 ## The Draft Gate
@@ -128,8 +128,8 @@ project is for.
 
 - `refactor(checks): extract parse_frontmatter into a helper` transplants to `extract parse_config into
   a helper`, still sensible anywhere. **Fail.**
-- `fix(build): stop publishing the code spec corpus to the package index` does not transplant: only a
-  project that has a code spec corpus and ships it can stop. **Pass.**
+- `fix(build): stop publishing the code rule corpus to the package index` does not transplant: only a
+  project that has a code rule corpus and ships it can stop. **Pass.**
 
 ### Gate 2: the so-what test (every bullet)
 
@@ -360,9 +360,9 @@ A change to modules directly in `src/lorecraft/` scopes to `lorecraft`.
 
 | Scope | Covers |
 |---|---|
-| `docs(code)` | code specs under `docs/code/` |
+| `docs(code)` | code rules under `docs/code/` |
 | `docs(meta)` | meta specs under `docs/__meta__/` |
-| `docs(feat)` | feat specs under `docs/feat/` |
+| `docs(feat)` | feat docs under `docs/feat/` |
 | `docs` | documentation outside those named corpora when a narrower scope adds useful information |
 | `skills` | `skills/`, `.agents/skills/`, and the `.claude/skills` symlink |
 | `agents` | `AGENTS.md` |

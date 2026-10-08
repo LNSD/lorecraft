@@ -7,12 +7,12 @@ allowed-tools: Bash(git diff *) Bash(git status *) Bash(git merge-base *) Bash(g
 # Code Review
 
 A thorough review of the current branch, run locally. It performs `/code-rules-check` at review depth — fanned
-out across groups of code specs — and adds what a compliance check cannot see: logic gaps, regressions, security,
+out across groups of code rules — and adds what a compliance check cannot see: logic gaps, regressions, security,
 safety, and soundness.
 
 The subject is the uncommitted work by default (`git diff HEAD`, `git status`). For a whole branch use
 `git diff $(git merge-base HEAD main)...HEAD`. Review only what the diff touches — an unchanged file that
-breaks a code spec is not this change's finding.
+breaks a code rule is not this change's finding.
 
 ## When to Use This Skill
 
@@ -42,7 +42,7 @@ Review for security vulnerabilities:
 
 ### 2. Principles Violations
 
-The `principle-*` code specs are the design principles, and the `/code-rules` catalog states each one in full — work
+The `principle-*` code rules are the design principles, and the `/code-rules` catalog states each one in full — work
 from the catalog rather than a list here, which would cover a subset and go stale on the next edit.
 
 Judge the change against all of them. Read a full principle spec when you need to *argue* a finding: the
@@ -84,15 +84,15 @@ Verify backwards compatibility is maintained:
 - A renamed check identifier, or a changed finding shape, that a caller parsing the output depends on
 - A renamed or removed public name in a package `__init__.py`
 
-### 6. Code Spec Compliance
+### 6. Code Rule Compliance
 
-Run `/code-rules-check`, forcing its fan-out path regardless of diff size: one agent per group of code specs,
+Run `/code-rules-check`, forcing its fan-out path regardless of diff size: one agent per group of code rules,
 spawned in a single message, each applying its specs' `## Checklist` items to the diff. That skill owns the
-procedure — which code specs govern a change, how groups are derived, and the report format. Do not restate
-the code specs here; they change when `docs/code/` changes.
+procedure — which code rules govern a change, how groups are derived, and the report format. Do not restate
+the code rules here; they change when `docs/code/` changes.
 
-A finding in this dimension is a violation with a code spec behind it. Anything a reviewer notices that no
-code spec states belongs in the dimensions above and below, not here.
+A finding in this dimension is a violation with a code rule behind it. Anything a reviewer notices that no
+code rule states belongs in the dimensions above and below, not here.
 
 ### 7. Testing
 
@@ -141,9 +141,9 @@ Look for inconsistencies between comments and code:
 - Misleading variable names or comments
 - Outdated comments after refactoring
 
-### 12. Code Spec Validation
+### 12. Code Rule Validation
 
-If the change touches `docs/code/` or `docs/__meta__/`, check the code specs against the meta specs that govern
+If the change touches `docs/code/` or `docs/__meta__/`, check the code rules against the meta specs that govern
 them: the corpus meta spec `docs/__meta__/code.md`, narrowed by the `code-<prefix>.md` namespace meta spec for
 the spec's prefix. No checker is wired up, so this is done by reading.
 
@@ -156,16 +156,16 @@ the spec's prefix. No checker is wired up, so this is done by reading.
 - Reference specific file paths and line numbers
 - Suggest concrete improvements
 
-### Code Spec Compliance is Critical
+### Code Rule Compliance is Critical
 
-Code spec violations should be treated seriously as they:
+Code rule violations should be treated seriously as they:
 - Reduce codebase consistency
 - Make maintenance harder
 - May introduce security vulnerabilities, in the code that parses documents from outside this repository
   above all
 - Conflict with established architectural decisions
 
-Always run the code spec compliance review (section 6) as part of every code review.
+Always run the code rule compliance review (section 6) as part of every code review.
 
 ### Review Priority
 
@@ -174,7 +174,7 @@ Sections are ordered by priority — review from top to bottom:
 2. **Principles violations** (§2)
 3. **Potential bugs** and **unhandled failure paths** (§3–4)
 4. **Backwards compatibility** (§5)
-5. **Code spec violations** (§6)
+5. **Code rule violations** (§6)
 6. **Testing** (§7)
 7. **Performance** (§8)
 8. **Documentation**, **dead code**, and **inconsistencies** (§9–11)

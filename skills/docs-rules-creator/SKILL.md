@@ -7,7 +7,7 @@ allowed-tools: Bash(lorecraft check*) Bash(lorecraft inspect*) Bash(uvx lorecraf
 
 # Docs Rules Creator
 
-A meta spec is the set of conventions for one group of specs under `docs/` — code specs, feat specs, or any
+A meta spec is the set of conventions for one group of documents under `docs/` — code rules (code specs), feat docs (feat specs), or any
 other corpus — kept in `docs/__meta__/` as a prose file and the machine-checkable file beside it. This skill is
 the **writing path** for meta specs: the files, their names, and the dialect the checks read.
 `/docs-rules-check` is the review pass that validates the result.

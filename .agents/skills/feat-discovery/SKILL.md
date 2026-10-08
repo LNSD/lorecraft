@@ -1,13 +1,13 @@
 ---
 name: feat-discovery
-description: Load the feat specs (feature docs) from docs/feat/ that match the user's query, frontmatter first. Use when the user asks what a part of the toolkit is, how it works, or what the project can do, or before implementing against a feature that may already be documented.
-compatibility: Requires the feat spec corpus in docs/feat/. Reads only - no task runner, interpreter, container or network access is involved.
+description: Load the feat docs from docs/feat/ that match the user's query, frontmatter first. Use when the user asks what a part of the toolkit is, how it works, or what the project can do, or before implementing against a feature that may already be documented.
+compatibility: Requires the feat doc corpus in docs/feat/. Reads only - no task runner, interpreter, container or network access is involved.
 allowed-tools: Bash(awk *) Read
 ---
 
 # Feature Discovery
 
-Lazy-loads this repository's feat specs from `docs/feat/` against a user query, by matching YAML
+Lazy-loads this repository's feat docs from `docs/feat/` against a user query, by matching YAML
 frontmatter before reading any spec in full.
 
 ## When to Use
@@ -22,7 +22,7 @@ document is well-formed, `/code-rules` for how to write the code.
 
 ## Prefetched Feature Catalog
 
-The frontmatter of all feat specs (loaded at skill start):
+The frontmatter of all feat docs (loaded at skill start):
 
 !`awk '/^---$/{p=!p; print FILENAME": "$0; next} p{print FILENAME": "$0}' docs/feat/*.md 2>/dev/null`
 
@@ -49,7 +49,7 @@ Compare query against frontmatter fields:
   a command surface, a meta spec. The corpus meta spec, `docs/__meta__/feat.md`, fixes that
   vocabulary; match on the identifier itself rather than on its prefix.
 
-Load multiple feat specs when:
+Load multiple feat docs when:
 
 - The query spans several features
 - Features cross-reference each other (`References` section)
@@ -64,7 +64,7 @@ Load multiple feat specs when:
 | whether a document is well-formed | `/docs-rules-check` |
 | how mature a feature is | `/feat-status` |
 
-Whether the code actually does what a feat spec says is no skill's job here: read the spec and the
+Whether the code actually does what a feat doc says is no skill's job here: read the spec and the
 code and compare them by hand.
 
 Simple file edits that do not need feature context need no discovery at all.
