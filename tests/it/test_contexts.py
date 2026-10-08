@@ -37,7 +37,7 @@ from lorecraft.project.database import (
 )
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
-from lorecraft.project.link_target import DocumentDirectory, PathLookup, SkillRoot
+from lorecraft.project.link_target import DocumentDirectory, LinkTarget, PathLookup, SkillRoot
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef
 from lorecraft.project.syntax import count_lines, count_tokens
 from lorecraft.vfs import EntryRecord, FileTree, RootExit, Snapshot, SymlinkRecord, take_snapshot
@@ -110,6 +110,16 @@ def _document_text(database: Database) -> DocumentText:
     source = database.text(TYPING)
     assert isinstance(source, DocumentText), f'{TYPING.path} was written as UTF-8, so it decodes'
     return source
+
+
+def _link_target(path: str, lookup: PathLookup) -> LinkTarget:
+    """The target of a link: the root-relative path it leads to, and what the snapshot holds there.
+
+    Args:
+        path: The root-relative path the link leads to.
+        lookup: What the snapshot holds at the path.
+    """
+    return LinkTarget(path=RootRelativePath.parse(path), lookup=lookup)
 
 
 def _document_context(database: Database) -> DocumentContext:
@@ -354,9 +364,9 @@ class TestDatabaseDocumentContext:
             'the targets are the ones the database memoizes, not ones the context looked up again'
         )
         assert dict(targets) == {
-            PurePosixPath('../__meta__/code.md'): PathLookup.PRESENT,
-            PurePosixPath('gone.md'): PathLookup.MISSING,
-            PurePosixPath('../../src/main.py'): PathLookup.OUTSIDE_SCOPE,
+            PurePosixPath('../__meta__/code.md'): _link_target('docs/__meta__/code.md', PathLookup.PRESENT),
+            PurePosixPath('gone.md'): _link_target('docs/code/gone.md', PathLookup.MISSING),
+            PurePosixPath('../../src/main.py'): _link_target('src/main.py', PathLookup.OUTSIDE_SCOPE),
         }, "each link is read from the document's directory, and the one climbing above the repository has no entry"
 
 
@@ -487,8 +497,12 @@ class TestDatabaseSkillContext:
             'the targets are the ones the database memoizes, not ones the context looked up again'
         )
         assert dict(targets) == {
-            PurePosixPath('references/checklist.md'): PathLookup.PRESENT,
-            PurePosixPath('references/gone.md'): PathLookup.MISSING,
+            PurePosixPath('references/checklist.md'): _link_target(
+                '.agents/skills/review/references/checklist.md', PathLookup.PRESENT
+            ),
+            PurePosixPath('references/gone.md'): _link_target(
+                '.agents/skills/review/references/gone.md', PathLookup.MISSING
+            ),
         }, 'each link is read from the skill root, and the one climbing above it has no entry'
 
 
@@ -530,8 +544,8 @@ class TestDatabaseSkillResourceContext:
             'the targets are the ones the database memoizes, not ones the context looked up again'
         )
         assert dict(targets) == {
-            PurePosixPath('SKILL.md'): PathLookup.PRESENT,
-            PurePosixPath('gone.md'): PathLookup.MISSING,
+            PurePosixPath('SKILL.md'): _link_target('.agents/skills/review/SKILL.md', PathLookup.PRESENT),
+            PurePosixPath('gone.md'): _link_target('.agents/skills/review/gone.md', PathLookup.MISSING),
         }, "a resource's links are read from the skill root, so `SKILL.md` names the skill's own"
 
 

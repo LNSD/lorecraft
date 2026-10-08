@@ -1,5 +1,5 @@
-.agents/skills/review/SKILL.md:7: error[LINK001]: `/steps.md` is absolute
+.agents/skills/review/SKILL.md:7: error[LINK001]: link `/steps.md` is absolute
   = help: link by a relative path, which holds wherever the files are placed
 
-.agents/skills/review/references/guide.md:3: error[LINK001]: `/docs/guide.md` is absolute
+.agents/skills/review/references/guide.md:3: error[LINK001]: link `/docs/guide.md` is absolute
   = help: link by a relative path, which holds wherever the files are placed

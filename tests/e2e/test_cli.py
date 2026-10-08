@@ -488,15 +488,27 @@ class TestCheckSnapshots:
                     'severity': 'error',
                     'code': 'LINK003',
                     'name': 'broken-link',
-                    'message': '`references/missing.md` names nothing in the skill',
+                    'message': '`references/missing.md` names nothing',
                     'labels': [],
                     'children': [
+                        {
+                            'kind': 'note',
+                            'text': "the Agent Skills specification reads a skill's relative links from the skill root",
+                            'path': None,
+                            'line': None,
+                        },
                         {
                             'kind': 'help',
                             'text': 'link a file or a directory the skill holds, relative to the skill root',
                             'path': None,
                             'line': None,
-                        }
+                        },
+                        {
+                            'kind': 'note',
+                            'text': 'read from the skill root, it names `.agents/skills/review/references/missing.md`',
+                            'path': None,
+                            'line': None,
+                        },
                     ],
                 },
                 {

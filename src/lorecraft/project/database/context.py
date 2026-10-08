@@ -21,7 +21,7 @@ from pathlib import PurePosixPath
 from lorecraft.core.num import UnsignedInt
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
-from lorecraft.project.link_target import DocumentDirectory, PathLookup, SkillRoot
+from lorecraft.project.link_target import DocumentDirectory, LinkTarget, SkillRoot
 from lorecraft.project.schemas import OutlineDivergenceSpec, SchemaProblems, StructureSpec
 from lorecraft.project.skill import OutsideSymlink, SkillLocation
 from lorecraft.project.syntax import FrontmatterNode, ParsedDocument
@@ -78,8 +78,8 @@ class DatabaseDocumentContext:
         """The directory holding the document, read from its ref."""
         return DocumentDirectory(self._source.ref.path.parent)
 
-    def link_targets(self) -> Mapping[PurePosixPath, PathLookup]:
-        """What the snapshot holds at the target of each relative link, from the `link_targets` query."""
+    def link_targets(self) -> Mapping[PurePosixPath, LinkTarget]:
+        """Where each relative link leads and what the snapshot holds there, from the `link_targets` query."""
         return self._database.link_targets(self._source)
 
     def tokens(self) -> UnsignedInt:
@@ -154,8 +154,8 @@ class DatabaseSkillContext:
         """The skill directory where an agent reaches it, read from its ref, never where a link there leads."""
         return SkillRoot(self._source.ref.directory)
 
-    def link_targets(self) -> Mapping[PurePosixPath, PathLookup]:
-        """What the snapshot holds at the target of each relative link, from the `skill_link_targets` query."""
+    def link_targets(self) -> Mapping[PurePosixPath, LinkTarget]:
+        """Where each relative link leads and what the snapshot holds there, from the `skill_link_targets` query."""
         return self._database.skill_link_targets(self._source)
 
     def lines(self) -> UnsignedInt:
@@ -186,8 +186,8 @@ class DatabaseSkillResourceContext:
         """The directory of the resource's skill where an agent reaches it, read from its ref."""
         return SkillRoot(self._source.ref.skill.directory)
 
-    def link_targets(self) -> Mapping[PurePosixPath, PathLookup]:
-        """What the snapshot holds at the target of each relative link, from `skill_resource_link_targets`."""
+    def link_targets(self) -> Mapping[PurePosixPath, LinkTarget]:
+        """Where each relative link leads and what the snapshot holds there, from `skill_resource_link_targets`."""
         return self._database.skill_resource_link_targets(self._source)
 
 

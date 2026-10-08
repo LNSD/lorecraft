@@ -2042,7 +2042,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = MissingFragment(line=LineNumber.from_int(3), url='#install')
+        occurrence = MissingFragment(line=LineNumber.from_int(3), url='#install', has_headings=True)
         assert reports == (
             CheckedSubject(
                 GUIDE,
@@ -2062,7 +2062,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
-        occurrence = MissingFragment(line=LineNumber.from_int(7), url='#steps')
+        occurrence = MissingFragment(line=LineNumber.from_int(7), url='#steps', has_headings=True)
         assert reports == (
             CheckedSubject(
                 REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),), ungoverned=()
@@ -2086,7 +2086,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW), *_resources(database, REVIEW)), package_table)
 
         #: Then
-        occurrence = MissingFragment(line=LineNumber.from_int(3), url='#usage')
+        occurrence = MissingFragment(line=LineNumber.from_int(3), url='#usage', has_headings=True)
         checklist_path = RootRelativePath.parse('.agents/skills/review/references/checklist.md')
         assert reports == (
             CheckedSubject(REVIEW, diagnostics=(), ungoverned=()),
@@ -2254,12 +2254,16 @@ def _write_code_corpus(root: Path, guide: bytes) -> None:
 def _broken_in_skill(path: str, line: int, url: str) -> RuleDiagnostic:
     """The `LINK003` diagnostic of a link in a file of `REVIEW`, read from the skill root.
 
+    The link names its target by a normalised path, so the target is that path under the skill root.
+
     Args:
         path: Where an agent reaches the file holding the link, root-relative.
         line: The line the link is on.
         url: The link's destination, as the parser encodes it.
     """
-    occurrence = BrokenLink(line=LineNumber.from_int(line), url=url, base=SkillRoot(REVIEW.directory))
+    occurrence = BrokenLink(
+        line=LineNumber.from_int(line), url=url, base=SkillRoot(REVIEW.directory), target=REVIEW.directory / url
+    )
     return RuleDiagnostic(RootRelativePath.parse(path), occurrence, Severity.ERROR)
 
 
@@ -2414,7 +2418,10 @@ class TestCheckSubjectsBrokenLink:
 
         #: Then
         occurrence = BrokenLink(
-            line=LineNumber.from_int(3), url='setup.md', base=DocumentDirectory(RootRelativePath.parse('docs/code'))
+            line=LineNumber.from_int(3),
+            url='setup.md',
+            base=DocumentDirectory(RootRelativePath.parse('docs/code')),
+            target=RootRelativePath.parse('docs/code/setup.md'),
         )
         assert reports == (
             CheckedSubject(GUIDE, diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),), ungoverned=()),
