@@ -7,4 +7,6 @@
   = help: a `..` on the chain climbs above the repository root; move what it links to into the repository
   = note: leaves the repository at .agents/skills/review/shared -> ../../../../shared
 
-docs/code/broken.md: error[LC001]: file is not valid UTF-8
+docs/code/broken.md:1: error[LC001]: file is not valid UTF-8
+  --> docs/code/broken.md:1: 0xFF at byte offset 0 cannot start a character
+  = help: save the file as UTF-8

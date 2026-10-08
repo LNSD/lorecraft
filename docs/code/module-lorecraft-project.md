@@ -37,7 +37,8 @@ from a snapshot, and one that never outlives its snapshot. The layout it derives
 - The database of one revision: each query over it, such as the model, a file's decoded text, a parse tree, a count
   or a shared analysis, memoized on first use, and each question answered fresh from the snapshot, such as where a
   symlink leads.
-- The witness a decode query returns, a file's ref and its decoded text, and the undecodable marker.
+- The witness a decode query returns, a file's ref and its decoded text, and the undecodable marker, which keeps where
+  the bytes first stop being UTF-8: its line, offset, bytes and reason.
 - The carry-over rule: which change to a revision's inputs invalidates which query; and what a persisted result is
   keyed by, and its validation before the database keeps it.
 - A context implemented over the database: each fact of one decoded subject answered by its memoized query, each

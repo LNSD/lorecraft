@@ -15,6 +15,7 @@ from lorecraft.rules.tests.sample_rules.token_count.sample_condition import Samp
 from lorecraft.rules.tests.sample_rules.valid.outline.empty_line import EmptyLine
 from lorecraft.rules.tests.sample_rules.valid.trailing_space import TrailingSpace
 from lorecraft.rules.tests.sample_rules.valid.uppercase_entry import UppercaseEntry
+from lorecraft.vfs import Utf8Failure, Utf8Reason
 
 from ..report import (
     CheckedLayoutEntry,
@@ -24,6 +25,15 @@ from ..report import (
     UndecodableSubject,
     diagnostic_order,
 )
+
+
+def _failure(line: int) -> Utf8Failure:
+    return Utf8Failure(
+        line=line,
+        offset=31,
+        invalid=b'\xe9',
+        reason=Utf8Reason.INVALID_CONTINUATION_BYTE,
+    )
 
 
 @pytest.mark.unit
@@ -139,11 +149,11 @@ class TestDiagnosticOrder:
         )
         assert backward == forward, 'the order is total, so the input order never shows in the output'
 
-    def test_diagnostic_order_with_an_engine_condition_and_a_rule_puts_the_whole_subject_first(self) -> None:
+    def test_diagnostic_order_with_an_engine_condition_and_a_rule_sorts_them_by_line(self) -> None:
         #: Given
         path = RootRelativePath.parse('docs/code/a.md')
-        at_line = RuleDiagnostic(path, TrailingSpace(spec=None, line=LineNumber.from_int(1)), Severity.ERROR)
-        condition = EngineDiagnostic(path, InvalidUtf8())
+        at_line = RuleDiagnostic(path, TrailingSpace(spec=None, line=LineNumber.from_int(2)), Severity.ERROR)
+        condition = EngineDiagnostic(path, InvalidUtf8(failure=_failure(1)))
 
         #: When
         ordered = sorted([at_line, condition], key=diagnostic_order)
@@ -200,24 +210,26 @@ class TestCheckedLayoutEntry:
 class TestUndecodableSubject:
     def test_diagnostics_of_an_undecodable_subject_are_invalid_utf8_at_its_path(self) -> None:
         #: Given
-        subject = UndecodableSubject(DocumentRef(CorpusName.parse('code'), AspectFilename.parse('latin')))
-
-        #: When
-        diagnostics = subject.diagnostics
-
-        #: Then
-        assert diagnostics == (EngineDiagnostic(RootRelativePath.parse('docs/code/latin.md'), InvalidUtf8()),), (
-            "the subject's one diagnostic is the engine's, at the document's path"
-        )
-
-    def test_diagnostics_of_an_undecodable_skill_are_invalid_utf8_at_its_skill_file(self) -> None:
-        #: Given
-        subject = UndecodableSubject(SkillRef(RootRelativePath.parse('.agents/skills/review')))
+        subject = UndecodableSubject(DocumentRef(CorpusName.parse('code'), AspectFilename.parse('latin')), _failure(4))
 
         #: When
         diagnostics = subject.diagnostics
 
         #: Then
         assert diagnostics == (
-            EngineDiagnostic(RootRelativePath.parse('.agents/skills/review/SKILL.md'), InvalidUtf8()),
+            EngineDiagnostic(RootRelativePath.parse('docs/code/latin.md'), InvalidUtf8(failure=_failure(4))),
+        ), "the subject's one diagnostic is the engine's, at the document's path"
+
+    def test_diagnostics_of_an_undecodable_skill_are_invalid_utf8_at_its_skill_file(self) -> None:
+        #: Given
+        subject = UndecodableSubject(SkillRef(RootRelativePath.parse('.agents/skills/review')), _failure(4))
+
+        #: When
+        diagnostics = subject.diagnostics
+
+        #: Then
+        assert diagnostics == (
+            EngineDiagnostic(
+                RootRelativePath.parse('.agents/skills/review/SKILL.md'), InvalidUtf8(failure=_failure(4))
+            ),
         ), "a skill's one diagnostic is the engine's, at its SKILL.md, the file that did not decode"

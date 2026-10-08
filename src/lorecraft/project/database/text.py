@@ -14,6 +14,7 @@ from dataclasses import dataclass
 
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.skill import SkillRef, SkillResourceRef
+from lorecraft.vfs import Utf8Failure
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +62,8 @@ class Undecodable:
 
     Attributes:
         ref: The document, skill or resource whose file did not decode.
+        failure: Where the file's bytes first stop being UTF-8, and why.
     """
 
     ref: DocumentRef | SkillRef | SkillResourceRef
+    failure: Utf8Failure
