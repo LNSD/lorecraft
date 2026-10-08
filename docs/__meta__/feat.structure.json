@@ -1,6 +1,6 @@
 {
   "$schema": "../schemas/structure.spec.json",
-  "description": "Frontmatter, section structure, section word caps and token budget for a feature document in docs/feat/. The prose authorities are docs/__meta__/feat.md section 2 for the frontmatter, section 4 for the structure and section 6 for the caps and the budget; this file is their machine-checkable half. It is the base layer: a namespace layer, feat-<namespace>.structure.json, is applied on its own beside it and can only add to it. It states what every feature document carries whatever its type or namespace: Summary, Table of Contents and Key Concepts open it, the optional sections keep their relative order, sections the document invents for itself follow them, and References then Code References close it, both being references: one to other documents, one to the code. Usage and Code References are optional here for every type; which type requires or forbids them is a prose rule in feat.md section 4, checked by review, never a condition here. The word caps keep each section's prose concise: a word is a whitespace-delimited token of prose, and fenced code blocks and table rows are not counted, since examples and reference tables are what a feature document is for. A section's cap covers its H3 children, and the cap on the `any` run applies to each of its sections alone. Table of Contents, References and Code References carry no cap: each is a list of links. Each named section also carries a `description`, what the section holds, and `examples`, samples of its body drawn from the corpus's own documents: an author whose document lacks the section is shown the description and the first example, and the rest serve a reader of this file. The token budget is on the whole file, frontmatter, code and tables included: what loading it costs an agent, in o200k_base tokens whichever agent reads it.",
+  "description": "Frontmatter, section structure, section word caps and token budget for a feat spec in docs/feat/. The prose authorities are docs/__meta__/feat.md section 2 for the frontmatter, section 4 for the structure and section 6 for the caps and the budget; this file is their machine-checkable half. It is the base layer: a namespace layer, feat-<namespace>.structure.json, is applied on its own beside it and can only add to it. It states what every feat spec carries whatever its type or namespace: Summary, Table of Contents and Key Concepts open it, the optional sections keep their relative order, sections the document invents for itself follow them, and References then Code References close it, both being references: one to other documents, one to the code. Usage and Code References are optional here for every type; which type requires or forbids them is a prose rule in feat.md section 4, checked by review, never a condition here. The word caps keep each section's prose concise: a word is a whitespace-delimited token of prose, and fenced code blocks and table rows are not counted, since examples and reference tables are what a feat spec is for. A section's cap covers its H3 children, and the cap on the `any` run applies to each of its sections alone. Table of Contents, References and Code References carry no cap: each is a list of links. Each named section also carries a `description`, what the section holds, and `examples`, samples of its body drawn from the corpus's own documents: an author whose document lacks the section is shown the description and the first example, and the rest serve a reader of this file. The token budget is on the whole file, frontmatter, code and tables included: what loading it costs an agent, in o200k_base tokens whichever agent reads it.",
   "frontmatter": {
     "type": "object",
     "required": ["name", "description", "type", "status", "components"],
@@ -36,7 +36,7 @@
       "components": {
         "type": "string",
         "pattern": "^\\s*(?:module:lorecraft\\.[a-z0-9_]+|(?:skill|spec):[a-z0-9_]+(?:[-._][a-z0-9_]+)*)(?:\\s*,\\s*(?:module:lorecraft\\.[a-z0-9_]+|(?:skill|spec):[a-z0-9_]+(?:[-._][a-z0-9_]+)*))*\\s*$",
-        "description": "Comma-separated, each entry prefixed module: (a top-level package of lorecraft, as in lorecraft.project, and nothing deeper), skill: (a skill directory, kebab-case), or spec: (a specification name under docs/__meta__/, kebab-case). The pattern fixes the prefix vocabulary, the character set, and that a module: entry is lorecraft.<package>; that a skill: or spec: entry is kebab-case is stated in feat.md section 2 and verified by reading, because one regular expression covering every prefix's spelling is less readable than the rule it encodes."
+        "description": "Comma-separated, each entry prefixed module: (a top-level package of lorecraft, as in lorecraft.project, and nothing deeper), skill: (a skill directory, kebab-case), or spec: (a meta spec name under docs/__meta__/, kebab-case). The pattern fixes the prefix vocabulary, the character set, and that a module: entry is lorecraft.<package>; that a skill: or spec: entry is kebab-case is stated in feat.md section 2 and verified by reading, because one regular expression covering every prefix's spelling is less readable than the rule it encodes."
       }
     }
   },
@@ -47,7 +47,7 @@
       "section": "Summary",
       "words": 80,
       "description": "Two to four sentences expanding on the frontmatter description: what the feature does, why it exists and its primary use.",
-      "examples": ["`lorecraft check` checks the whole workspace in one run: every document under `docs/` against the specifications\nin `docs/__meta__/`, and every agent skill against the Agent Skills specification. Each rule has a code, such as\n`FM001`, in a group named by its prefix. It prints a diagnostic per rule broken, and exits `1` when any is an error."]
+      "examples": ["`lorecraft check` checks the whole workspace in one run: every document under `docs/` against the meta specs\nin `docs/__meta__/`, and every agent skill against the Agent Skills specification. Each rule has a code, such as\n`FM001`, in a group named by its prefix. It prints a diagnostic per rule broken, and exits `1` when any is an error."]
     },
     {
       "section": "Table of Contents",
@@ -58,14 +58,14 @@
       "section": "Key Concepts",
       "words": 200,
       "description": "The terms the document uses, defined once, in one line each; a term the whole toolkit uses is linked to the glossary instead of defined again.",
-      "examples": ["- **Root**: The directory that holds `docs/__meta__/`; every path lorecraft prints is relative to it.\n- **Corpus**: A directory directly under `docs/` whose documents specifications govern, named by the\n  directory.\n- **Document**: A Markdown file directly inside a corpus directory.\n- **Workspace model**: The corpora, their specifications and their documents, as found in one snapshot."]
+      "examples": ["- **Root**: The directory that holds `docs/__meta__/`; every path lorecraft prints is relative to it.\n- **Corpus**: A directory directly under `docs/` whose documents meta specs govern, named by the\n  directory.\n- **Document**: A Markdown file directly inside a corpus directory.\n- **Workspace model**: The corpora, their meta specs and their documents, as found in one snapshot."]
     },
     {
       "section": "Architecture",
       "optional": true,
       "words": 400,
       "description": "How the feature fits together: data flow and component interaction. Included only when the flow is not obvious from the usage examples.",
-      "examples": ["### Root Discovery\n\nWithout `--root`, the root is the nearest of the working directory and its parents that holds a\n`docs/__meta__/` directory. With `--root`, the given directory is the root, and it must exist. Either way it is\nresolved with symlinks followed, and every path printed is relative to it.\n\n### One Run, One Snapshot\n\nEvery rule reads the same snapshot, through one database, so a file is read and parsed once however many rules\nread it. Every specification is loaded and validated before any subject is checked, so one malformed\nspecification stops the whole run."]
+      "examples": ["### Root Discovery\n\nWithout `--root`, the root is the nearest of the working directory and its parents that holds a\n`docs/__meta__/` directory. With `--root`, the given directory is the root, and it must exist. Either way it is\nresolved with symlinks followed, and every path printed is relative to it.\n\n### One Run, One Snapshot\n\nEvery rule reads the same snapshot, through one database, so a file is read and parsed once however many rules\nread it. Every meta spec is loaded and validated before any subject is checked, so one malformed\nmeta spec stops the whole run."]
     },
     {
       "section": "Configuration",
@@ -80,7 +80,7 @@
       "words": 400,
       "description": "How to invoke the feature, with working examples in fenced blocks: the command a reader types and what it prints. Required for a feature document, forbidden for a meta document.",
       "examples": [
-        "```bash\n# Every rule over the workspace around the working directory\nlorecraft check\n\n# Another repository, as JSON\nlorecraft check --root ../other-repo --format json\n```\n\nA document with no frontmatter, under a corpus whose structure specification states a frontmatter schema:\n\n```text\ndocs/code/guide.md:1: error[FM001]: no `---` delimited frontmatter block\n  = note: the frontmatter schema is set here (docs/__meta__/code.structure.json)\nchecked 1 subject(s): 1 error(s), 0 warning(s)\n```",
+        "```bash\n# Every rule over the workspace around the working directory\nlorecraft check\n\n# Another repository, as JSON\nlorecraft check --root ../other-repo --format json\n```\n\nA document with no frontmatter, under a corpus whose structure file states a frontmatter schema:\n\n```text\ndocs/code/guide.md:1: error[FM001]: no `---` delimited frontmatter block\n  = note: the frontmatter schema is set here (docs/__meta__/code.structure.json)\nchecked 1 subject(s): 1 error(s), 0 warning(s)\n```",
         "### Caps and a Budget\n\n```json\n{\n  \"$schema\": \"../schemas/structure.spec.json\",\n  \"tokens\": 5000,\n  \"outline\": [\n    { \"any\": true, \"words\": 350 },\n    { \"section\": \"Checklist\", \"words\": 250 },\n    { \"section\": \"References\", \"optional\": true }\n  ]\n}\n```\n\nEach section a document names for itself holds at most 350 words, `Checklist` at most 250, and `References`\nis not capped. The whole file holds at most 5000 tokens."
       ]
     },
@@ -95,8 +95,8 @@
     {
       "section": "References",
       "optional": true,
-      "description": "Cross-references to other feature documents, one per line with the relationship named first (Dependency, Alternative, Related, Extended by or Base), linking up to the base and never down to an extension.",
-      "examples": ["- [cli](cli.md) - Base: the command line and the options every command shares\n- [workspace](workspace.md) - Dependency: the documents, skills and snapshot the command reads\n- [spec](spec.md) - Dependency: the specification files the rules read"]
+      "description": "Cross-references to other feat specs, one per line with the relationship named first (Dependency, Alternative, Related, Extended by or Base), linking up to the base and never down to an extension.",
+      "examples": ["- [cli](cli.md) - Base: the command line and the options every command shares\n- [workspace](workspace.md) - Dependency: the documents, skills and snapshot the command reads\n- [spec](spec.md) - Dependency: the meta spec files the rules read"]
     },
     {
       "section": "Code References",

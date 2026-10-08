@@ -40,7 +40,7 @@ returns at its subject, as a diagnostic.
 | Declares a rule, its identity or its group, or the base a rule derives from | `lorecraft.rules` |
 | Declares what a context of a subject holds | `lorecraft.project` |
 | Adds a query, a decode witness, a carry-over rule, or a context implemented over the database | `lorecraft.project` |
-| Parses text, decodes a specification, or builds the model | `lorecraft.project` |
+| Parses text, decodes a meta spec, or builds the model | `lorecraft.project` |
 | Reads the disk | `lorecraft.vfs` |
 
 ## Invariants
@@ -98,7 +98,7 @@ Before committing code, verify:
 - [adr-012-database-derivation](../arch/adr-012-database-derivation.md) - Foundation: The Analysis role, the database
   apart
 - [adr-004-database](../arch/adr-004-database.md) - Foundation: One report reads one revision
-- [adr-006-specifications](../arch/adr-006-specifications.md) - Foundation: A rule applies the governing structure specifications its context hands it
+- [adr-006-specifications](../arch/adr-006-specifications.md) - Foundation: A rule applies the governing structure files its context hands it
 - [adr-007-findings](../arch/adr-007-findings.md) - Foundation: Findings apart from failures
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One reason to change
 - [pattern-memoization](pattern-memoization.md) - Foundation: How a query is memoized

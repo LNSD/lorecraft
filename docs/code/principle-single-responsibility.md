@@ -25,12 +25,12 @@ When a signal fires, split into focused units and compose them.
 ## Examples
 
 1. **One concern per module in a package**
-   A corpus checker is four modules, each with exactly one job: a registry (which format spec governs which
-   corpus, is it declared), a reader (one document, one parse), a cache (one compiled schema per spec,
+   A corpus checker is four modules, each with exactly one job: a registry (which meta spec governs which
+   corpus, is it declared), a reader (one document, one parse), a cache (one compiled schema per meta spec,
    compiled lazily, cleared together), and the adapter that exposes the cache to the checking pipeline.
 
 ```python
-# ❌ Bad — one class owns the spec registry, the schema compilation, the parsing, and the pipeline surface.
+# ❌ Bad — one class owns the meta spec registry, the schema compilation, the parsing, and the pipeline surface.
 # Signals 1 and 2 both fire: it touches the filesystem + the schema store + the checker protocol, and
 # `_specs`/`_declared` are never read by the same methods that read `_validators`/`_open_docs`.
 class CorpusService:
@@ -56,7 +56,7 @@ class CorpusService:
 ```python
 # ✅ Good — four units, each describable in one sentence, composed by the caller.
 
-# The registry module — "which format spec governs this corpus, and is it declared"
+# The registry module — "which meta spec governs this corpus, and is it declared"
 def spec_for(corpus: str) -> SpecRef | None: ...
 
 
@@ -71,7 +71,7 @@ class DocumentReader:
     def read(self) -> Document: ...
 
 
-# The cache module — "one compiled schema per spec, compiled lazily, cleared together"
+# The cache module — "one compiled schema per meta spec, compiled lazily, cleared together"
 class SchemaCache:
     def validator_for(self, spec: SpecRef) -> Validator: ...
 
@@ -131,7 +131,7 @@ def report_sections(sink: ReportSink, path: Path) -> list[Finding]:
 
     Args:
         sink: Report sink the findings are written to.
-        path: Rule document to read.
+        path: Code spec to read.
 
     Returns:
         The emitted findings, in section order.
@@ -173,7 +173,7 @@ Before committing code, verify:
 - [ ] Each class or module can be described in one sentence without "and"
 - [ ] No class both performs I/O and holds a non-trivial pure algorithm — the algorithm is a module-level function
 - [ ] Attributes partition into one cohesive group, not two groups touched by disjoint method sets
-- [ ] A change to one concern (spec registry, frontmatter schema, lifecycle) touches one module
+- [ ] A change to one concern (meta spec registry, frontmatter schema, lifecycle) touches one module
 - [ ] Deliberate co-location of concerns is explained in the module docstring
 
 ## References

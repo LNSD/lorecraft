@@ -147,7 +147,7 @@ Scenario: A sample rule
   kebab-case name.
 - **FR-010:** THE SYSTEM SHALL show a diagnostic's code in the text and in the machine-readable output.
 - **FR-011:** THE SYSTEM SHALL keep the same set of codes whatever corpora a repository declares, the corpus,
-  the field and the governing specification travelling as data of the diagnostic.
+  the field and the governing meta spec travelling as data of the diagnostic.
 - **FR-012:** THE SYSTEM SHALL give one code to each condition a rule reports.
 - **FR-013:** THE SYSTEM SHALL name each prefix after the mechanism that states its rules, never after a
   subject kind.
@@ -156,10 +156,10 @@ Scenario: A sample rule
   and the code that replaces it.
 - **FR-016:** THE SYSTEM SHALL report every subject kind in one shape, presented per file.
 - **FR-017:** THE SYSTEM SHALL report each diagnostic with its code, severity, location, message, notes and the
-  specification it comes from.
+  meta spec it comes from.
 - **FR-018:** THE SYSTEM SHALL order a report by file path, then by location, then by severity, then by code,
   then by message.
-- **FR-019:** THE SYSTEM SHALL report a subject no specification governs as coverage, not as a diagnostic.
+- **FR-019:** THE SYSTEM SHALL report a subject no meta spec governs as coverage, not as a diagnostic.
 - **FR-020:** IF a file cannot be decoded, THEN THE SYSTEM SHALL report one diagnostic for it, under a fixed
   code, and fail the run whatever the configuration.
 - **FR-021:** WHERE the user asks for machine-readable output, THE SYSTEM SHALL write one document holding the
@@ -200,7 +200,7 @@ Scenario: A sample rule
 - **Level:** How a rule is configured: `allow` hides its diagnostics, `warn` reports them as warnings, `deny`
   reports them as errors, which fail the run.
 - **Diagnostic:** One rule's occurrence at a location in a subject, reported as an error or a warning.
-- **Coverage:** Which subjects were checked, and which no specification governs.
+- **Coverage:** Which subjects were checked, and which no meta spec governs.
 - **Revision:** The workspace as it stands at one moment; a change produces the next one.
 
 ## Success Criteria
@@ -218,7 +218,7 @@ Scenario: A sample rule
 - A user of today's checks accepts changed output and commands, given a documented migration.
 - The rules of later milestones read inputs of the kinds the ported rules already read, or add one new kind
   at a time.
-- A specification's layers reach a rule by conjunction: each governing specification applies on its own, and a rule
+- A meta spec's layers reach a rule by conjunction: each governing meta spec applies on its own, and a rule
   reports each one a subject breaks ([adr-006](adr-006-specifications.md)).
 
 ## Open Questions
@@ -229,7 +229,7 @@ Scenario: A sample rule
 ## References
 
 - [#315](https://github.com/LNSD/lorecraft/issues/315) - Source: The exploration this PRD consolidates
-- [adr-006](adr-006-specifications.md) - Foundation: How a document's specifications layer onto each other
+- [adr-006](adr-006-specifications.md) - Foundation: How a document's meta specs layer onto each other
 - [adr-009](adr-009-rules.md) - Leads to: How a rule is declared and identified
 - [adr-010](adr-010-diagnostics.md) - Leads to: What a rule reports, and how it reaches the user
 - [adr-011](adr-011-rules-engine.md) - Leads to: How a run judges subjects

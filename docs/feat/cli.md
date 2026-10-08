@@ -11,8 +11,8 @@ components: "module:lorecraft.cli"
 ## Summary
 
 `lorecraft` is the console script the `lorecraft` package installs, with `lc` as a shorter name for it. It checks a repository's agent-facing
-documentation against the specifications that repository declares under `docs/__meta__/`, and shows what those
-specifications govern. The application itself only routes: each command is its own subcommand, and a bare
+documentation against the meta specs that repository declares under `docs/__meta__/`, and shows what those
+meta specs govern. The application itself only routes: each command is its own subcommand, and a bare
 `lorecraft` prints its help on stdout and exits `2`.
 
 ## Table of Contents
@@ -72,4 +72,4 @@ The version printed is the one the installed package was built with, the same li
 
 ## References
 
-- [spec](spec.md) - Related: the specification files the commands read
+- [spec](spec.md) - Related: the meta spec files the commands read

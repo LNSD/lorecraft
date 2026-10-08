@@ -70,10 +70,10 @@ The level is chosen from what an operator must do about the line, not from how i
 
 | Level | For | Examples in this domain |
 |---|---|---|
-| `error` | A failure someone must act on; results at risk | A document was skipped and never checked, a report was abandoned half-written, a format spec cannot be loaded |
-| `warning` | Degraded but self-correcting | A schema fell back to the bundled copy, a spec load was retried, a document was re-read with a relaxed parser |
+| `error` | A failure someone must act on; results at risk | A document was skipped and never checked, a report was abandoned half-written, a meta spec cannot be loaded |
+| `warning` | Degraded but self-correcting | A schema fell back to the bundled copy, a meta spec load was retried, a document was re-read with a relaxed parser |
 | `info` | Lifecycle and state changes worth one line in production | Corpus opened, a check run started and finished, a report written |
-| `debug` | Diagnostics, off in production | Per-document finding counts, the resolved spec path, the section index built for a document |
+| `debug` | Diagnostics, off in production | Per-document finding counts, the resolved meta spec path, the section index built for a document |
 
 The cost of getting this wrong runs both ways and both ways are expensive: routine events at `error` train an
 operator to ignore the level that pages them, and a real failure at `debug` is invisible in the one
@@ -122,7 +122,7 @@ level and attaches the active traceback, which is the only part of a failure tha
 names a symptom and nothing that locates it. Outside a handler there is no active exception, so
 `logger.exception` there logs a bare "NoneType: None" and is a bug.
 
-A handler that logs at a level other than `error` — a retried spec load is a `warning` — uses
+A handler that logs at a level other than `error` — a retried meta spec load is a `warning` — uses
 `logger.warning(..., exc_info=True)` to keep the traceback at the level it belongs.
 
 ```python
