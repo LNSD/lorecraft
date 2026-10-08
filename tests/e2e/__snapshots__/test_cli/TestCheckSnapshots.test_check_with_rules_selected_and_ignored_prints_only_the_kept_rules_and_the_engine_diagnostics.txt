@@ -1,5 +1,5 @@
 .agents/skills/review/shared: error[LAY001]: symlink leads outside the repository
+  = help: a `..` on the chain climbs above the repository root; move what it links to into the repository
   = note: leaves the repository at .agents/skills/review/shared -> ../../../../shared
-  = help: keep every file a skill loads inside the repository
 
 docs/code/broken.md: error[LC001]: file is not valid UTF-8
