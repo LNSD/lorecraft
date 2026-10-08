@@ -1,17 +1,17 @@
 ---
 name: "code-principle"
-description: "Structure template for `docs/code/principle-*.md` rule documents. Load when creating or editing principle docs in docs/code/"
+description: "Structure template for `docs/code/principle-*.md` code specs. Load when creating or editing principle docs in docs/code/"
 type: "meta"
 scope: "global"
 ---
 
-# Principle Rule Document Template
+# Principle Code Spec Template
 
 **MANDATORY structure for ALL `docs/code/principle-*.md` documents**
 
 ## Structure
 
-Every principle rule document contains the following sections in order.
+Every principle code spec contains the following sections in order.
 
 ### Frontmatter (required)
 
@@ -137,7 +137,7 @@ Not project-internal.
 
 ## Template
 
-Every principle rule document MUST follow this template:
+Every principle code spec MUST follow this template:
 
 ```markdown
 ---
@@ -183,4 +183,4 @@ scope: "global"
 
 ## References
 
-- [code](code.md) - Extends: Base code rules documentation format specification
+- [code](code.md) - Extends: Base code corpus meta spec

@@ -31,9 +31,9 @@ the returned value is that collaborator's own answer.
    A registry owns a `dict[str, FormatSpec]`, the key scheme, and the "is this corpus specified" decision.
 
 ```python
-# ❌ Bad — reaches through the registry into its dict and through the spec into its schema.
-# This caller now depends on the key being the corpus name (not the document type), on specs
-# being stored in a plain dict, and on the spec exposing a raw schema. Any of the three
+# ❌ Bad — reaches through the registry into its dict and through the meta spec into its schema.
+# This caller now depends on the key being the corpus name (not the document type), on meta specs
+# being stored in a plain dict, and on the meta spec exposing a raw schema. Any of the three
 # changing breaks it, and nothing in the type system says this caller exists.
 def check_frontmatter(registry: SpecRegistry, document: Document) -> list[Finding]:
     spec = registry._specs[document.corpus]
@@ -44,17 +44,17 @@ def check_frontmatter(registry: SpecRegistry, document: Document) -> list[Findin
 # ✅ Good — one call to the immediate collaborator, which answers the question completely.
 # This caller knows two things: ask the registry for a binding, or report why it cannot have one.
 def check_frontmatter(registry: SpecRegistry, document: Document) -> list[Finding]:
-    """Check a document's frontmatter against the spec its corpus declares.
+    """Check a document's frontmatter against the meta spec its corpus declares.
 
     Args:
-        registry: Spec registry owning the format spec for this corpus.
+        registry: Meta spec registry owning the corpus meta spec.
         document: Document whose frontmatter is checked.
 
     Returns:
-        One finding per frontmatter field that violates the spec.
+        One finding per frontmatter field that violates the meta spec.
 
     Raises:
-        UnspecifiedCorpusError: If the registry has no spec for this corpus.
+        UnspecifiedCorpusError: If the registry has no meta spec for this corpus.
     """
     binding = registry.spec_for(document.corpus)
     if binding.status is SpecStatus.UNSPECIFIED:
@@ -69,7 +69,7 @@ def check_frontmatter(registry: SpecRegistry, document: Document) -> list[Findin
 ```python
 # ❌ Bad — the resolver is handed the whole checker session and digs for what it needs. It is
 # coupled to the session's shape three levels down, and it cannot be unit tested without
-# standing up a full session: spec registry, skill loader, settings parser and all.
+# standing up a full session: meta spec registry, skill loader, settings parser and all.
 class SchemaResolver:
     def __init__(self, session: CheckerSession) -> None:
         self._session = session

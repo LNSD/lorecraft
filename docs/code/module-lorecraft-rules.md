@@ -48,7 +48,7 @@ what it is handed.
 | Runs the rules over a subject | `lorecraft.checks` |
 | Applies a level, files an occurrence under its subject, or holds a report | `lorecraft.checks` |
 | Prints, renders a report, or sets an exit code | `lorecraft.cli` |
-| Parses text, or decodes a specification | `lorecraft.project` |
+| Parses text, or decodes a meta spec | `lorecraft.project` |
 | Reads the disk | `lorecraft.vfs` |
 
 ## Invariants
@@ -118,50 +118,50 @@ A rule is named for what is wrong, as the established linters name theirs, so th
 ## Writing the Diagnostic
 
 - **`message()` states the condition in lowercase, without a trailing period**, with the value found against the
-  limit in parentheses where there is one: `too many tokens (5200 > 4000)`. It names no path and no specification.
-- **`children()` points a `Note` at the specification** that states the rule, at `Elsewhere(spec)`, so two
-  occurrences from two specifications read apart. A rule every governed document is held to, with no key stating
-  it, points its `Note` at the corpus's structure specification that governs the document, unless no schema in
-  that specification states the rule either, as for a document's `name` held to its filename: that rule carries no
+  limit in parentheses where there is one: `too many tokens (5200 > 4000)`. It names no path and no meta spec.
+- **`children()` points a `Note` at the meta spec** that states the rule, at `Elsewhere(spec)`, so two
+  occurrences from two meta specs read apart. A rule every governed document is held to, with no key stating
+  it, points its `Note` at the corpus's structure file that governs the document, unless no schema in
+  that file states the rule either, as for a document's `name` held to its filename: that rule carries no
   `Note` pointing at a schema, and says in its own words what it requires. A title rule, held to by every governed
-  document, has `spec` `None` and carries no specification `Note`: no specification states it. A rule the package
+  document, has `spec` `None` and carries no meta spec `Note`: no meta spec states it. A rule the package
   itself states has `spec` `None`: its `Note` names the external specification that sets the limit in its text,
   with no `at`. A link rule that depends on the Agent Skills specification names it in a group-level `Note`,
   written once in the group's `__ruleset__.py` and placed first in `children()`. A rule the package states that no
-  external specification sets carries no specification `Note`: nothing outside the diagnostic states the rule.
+  external specification sets carries no meta spec `Note`: nothing outside the diagnostic states the rule.
 - **A `Help` gives the fix for this occurrence** when its fields make it concrete, such as the description an
   outline gives a section the document lacks. A limit's message already names the value found against the limit,
   so a `Help` restating the difference adds nothing; a `Label` places the overrun at a line, and may name what it
   overruns, in a template that needs no plural. The general fix is the docstring's, but a rule may give it as a
   fixed `Help` too, such as "move the title above every section", and a rule the package states may add a `Help`
-  with the fix the external specification itself prescribes. `children()` orders the specification `Note` first,
+  with the fix the external specification itself prescribes. `children()` orders the meta spec `Note` first,
   then the `Help`, then the other `Note`s.
 
 ## Documenting a Rule
 
-The docstring is the rule's page in the rulebook, the one a user opens when a diagnostic prints its code. `just gen`
-renders it into `docs/rulebook/`. The pages are generated output, kept current by `gen-check`, and no specification
-governs them. Write the docstring as Ruff and Clippy write theirs, for a user who knows their documents, skills and
-specifications, and nothing of this package.
+The docstring is the rule's rulebook page, which a user opens when a diagnostic prints its code. `just gen`
+renders it into `docs/rulebook/`. The pages are generated, kept current by `gen-check`, and no meta spec governs
+them. Write it as Ruff and Clippy write theirs, for a user who knows their documents, skills and
+meta specs, and nothing of this package.
 
 - **The summary line states the condition**, about the user's subject.
-- **What it does** opens with "Checks for" and the subjects the rule reports, then names the specification key
+- **What it does** opens with "Checks for" and the subjects the rule reports, then names the meta spec key
   that sets the limit or states the rule; a rule every governed document is held to says that no key states it,
   and a rule the package states names the external specification and its figure instead. It adds each case a user would not guess: what counts, what does not, how several
-  specifications combine.
+  meta specs combine.
 - **Why is this bad?** is one or two sentences on what the condition costs the agent that loads the subject, never
-  only that a specification forbids it.
+  only that a meta spec forbids it.
 - **Example** is the input that breaks the rule, under invented paths, in fenced blocks in each file's language:
-  the specification excerpt, then the subject. For a rule every governed document is held to, the excerpt is of a
-  governing specification that states some other rule; for a rule the package states, the subject alone. A subject whose
+  the meta spec excerpt, then the subject. For a rule every governed document is held to, the excerpt is of a
+  governing meta spec that states some other rule; for a rule the package states, the subject alone. A subject whose
   length is the point is cut short with a comment, such as `<!-- ... 1800 more tokens -->`.
 - **Use instead** is the same subject fixed, in a fenced block, after at most one sentence naming the change. It
   never shows raising the limit.
 - *Known problems* follows only when the rule misfires on a case a user meets, and *Deviations from upstream* only
   on a rule with alias codes.
 - **Nothing of the implementation.** No section names a tokenizer, a parser, a query, an input, a class or a
-  field: a user acts only on what they can see or configure. The fields are documented in the `Attributes:` block
-  after the sections, for the maintainer.
+  field: a user acts only on what they can see or configure. The `Attributes:` block after the sections documents
+  the fields, for the maintainer.
 
 ```python
 # ❌ Bad — the page describes the machinery: a user over the cap learns which parser counts and which input the
@@ -176,13 +176,13 @@ class WordCap(DocumentRule):
 ```
 
 ```python
-# ✅ Good — the name states what is wrong, and the page speaks of the user's section and specification
+# ✅ Good — the name states what is wrong, and the page speaks of the user's section and meta spec
 class TooManyWords(DocumentRule):
     """A section is longer than its word cap allows.
 
     ## What it does
 
-    Checks for sections longer than the `words` cap their outline entry sets in the structure specification.
+    Checks for sections longer than the `words` cap their outline entry sets in the structure file.
     Subsections count toward it; fenced code blocks and table rows do not.
     """
 ```
@@ -191,20 +191,20 @@ class TooManyWords(DocumentRule):
 
 Before committing:
 
-- [ ] Nothing added to `lorecraft.rules` reads the disk, a view, a query or a configuration
+- [ ] Nothing added to `lorecraft.rules` reads the disk, a view, a query or configuration
 - [ ] A new rule's `check` takes the one context its base class fixes and returns occurrences that name no
       subject; a rule over a document declares its facet in `GOVERNED_BY`
-- [ ] A new rule is declared with `@rule` in its own module, in its group's subpackage, and listed nowhere else
+- [ ] A new rule is declared with `@rule` in its own module in its group's subpackage, listed nowhere else
 - [ ] Decoding, answering a context, running the rules, applying a level and rendering stay out of the package
 - [ ] A new rule's name states its condition; its class and module spell it
 - [ ] A new rule's `message()` is lowercase with the value found against the limit; `children()` puts a
-      `Note` at the specification that states the rule (the corpus's structure one when no key does; the external
-      one named without `at` when the package states it, or the group's `Note` for a link rule on the Agent
-      Skills specification; none for title rules and rules no specification states), then the `Help`, then other
+      `Note` at the meta spec that states the rule (the corpus's structure file when no key does; the external
+      one, without `at`, when the package states it, or the group's `Note` for a link rule on the Agent
+      Skills specification; none for title rules and rules no meta spec states), then the `Help` and other
       `Note`s
 - [ ] A new rule's docstring opens *What it does* with "Checks for", shows the broken and the fixed input under
       *Example* and *Use instead*, and names nothing of the implementation; a rule no key states says so, and its
-      *Example* shows a governing specification's excerpt, then the subject; a rule the package states names the
+      *Example* shows a governing meta spec's excerpt, then the subject; a rule the package states names the
       external specification and its figure, its *Example* the subject alone
 
 ## References

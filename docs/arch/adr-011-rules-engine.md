@@ -39,7 +39,7 @@ What it replaces is everything around the checks:
    tree. An analysis several rules share is a query of the database, never a rule with several codes.
 2. **One runner** builds each subject's context once and runs every enabled rule over it, with one hand-written
    branch per subject kind. A context asks the database only for what a rule reads.
-3. **A subject's status is the engine's, not a rule's.** Whether a file decodes, and whether a specification
+3. **A subject's status is the engine's, not a rule's.** Whether a file decodes, and whether a meta spec
    governs each facet, is resolved before any rule runs.
 4. **Levels are applied after detection.** The configuration is an input of the revision, and a rule's result
    never depends on it.
@@ -71,7 +71,7 @@ per run            configuration (a query of the revision) ──▶ levels
                        decode → witness, or an undecodable engine diagnostic
                        build its context once, bound to the witness
                        for each facet an enabled rule over a document declares:
-                         governed or ungoverned, from the specifications
+                         governed or ungoverned, from the meta specs
                          for each rule in that partition: rule.check(context) → occurrences
                        locate the occurrences into diagnostics with the table's severities
                        │
@@ -106,12 +106,12 @@ many rules read it, so a scan two rules need is a query. A new fact is one conte
 carry-over rule: that is where a new cost enters and is reviewed, and the runner never changes for it.
 
 **A shared analysis is a query.** Schema validation and outline matching each find several conditions in one
-pass. Each is a pure function of the revision's per-file queries and the specifications that govern the subject, so
+pass. Each is a pure function of the revision's per-file queries and the meta specs that govern the subject, so
 it is memoized on the database like any other query, with its own carry-over rule: `schema_problems` and
 `skill_schema_problems` are kept whenever the frontmatter is and, for a document, the model is, and
 `outline_divergences` whenever the parse and the line count are and the model is. It is computed once per subject,
 as a tuple of typed problems, however many rules ask for it, and only when an enabled rule reads it and a
-specification governs the subject for it, so an ungoverned subject never pays for it. Each condition is then a rule
+meta spec governs the subject for it, so an ungoverned subject never pays for it. Each condition is then a rule
 that projects its own problem type into its occurrences. The analysis finds problems, never diagnostics: levels are
 applied after detection, so no diagnostic is cached and a rule's result still is not.
 
@@ -131,16 +131,16 @@ with its parse tree; a skill's Markdown file is its `SKILL.md` alone. The last t
 what one of a skill's files has, since every file of a skill names another from the skill root.
 `lorecraft.project.database` implements them over the database, bound to the decode witness: each fact one memoized
 query, each identity value read from the subject's ref or location, and a document's governance as the model stated
-it. A document context is built only for a document whose corpus states a structure specification, since no facet
-governs one whose corpus does not, so it always hands out that specification, `corpus_structure()`: the one the
+it. A document context is built only for a document whose corpus states a structure file, since no facet
+governs one whose corpus does not, so it always hands out that structure file, `corpus_structure()`: the one the
 document's corpus states, which every rule over the document's structure is gated on.
 
 **A rule may read its subject's context.** `lorecraft.rules` gives each subject kind a rule base whose `check` takes
 the context: `DocumentRule` over a document, `SkillRule` over a skill, `MarkdownRule` over any one Markdown file,
 `SkillFileRule` over one of a skill's files, its `SKILL.md` or a resource, never a document, and `LayoutEntryRule`
 over a layout entry. A rule over a document declares the facet it reads in `GOVERNED_BY`, one of `Facet.FRONTMATTER`
-(a frontmatter schema governs it), `STRUCTURE` (its corpus states a structure specification), `OUTLINE` (a
-specification states an outline) and `BUDGET` (a specification sets a token budget). A rule over a Markdown file
+(a frontmatter schema governs it), `STRUCTURE` (its corpus states a structure file), `OUTLINE` (a
+meta spec states an outline) and `BUDGET` (a meta spec sets a token budget). A rule over a Markdown file
 declares none: it judges a document governed for `STRUCTURE`, the facet under which a document has a context at
 all, and every skill's `SKILL.md` and every resource, which the package governs; a rule over a skill's file or a
 layout entry declares none either. The token budget, `LEN001`, is a document rule governed by `BUDGET`, and the line
@@ -187,7 +187,7 @@ it is never decoded, and the package governs the layout, so it is never ungovern
   ungoverned.
 - **Undecodable is an engine diagnostic**, not a rule (FR-020). It has a fixed code under the engine's prefix
   and a rulebook page, and no level. It always fails the run, and a configuration that names its code fails.
-- **Ungoverned is coverage**, not a diagnostic (FR-019). It describes the specifications, not the subject.
+- **Ungoverned is coverage**, not a diagnostic (FR-019). It describes the meta specs, not the subject.
 
 Decoding is a type boundary, as it is in established linters, which report a file they cannot read as the
 engine's diagnostic and hand their rules only a value that exists after a successful read. Three traits are
@@ -231,7 +231,7 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
     diagnostics: list[Diagnostic] = []
     ungoverned: list[Facet] = []
 
-    context = _find_document_context(database, source)  # None when its corpus states no structure specification
+    context = _find_document_context(database, source)  # None when its corpus states no structure file
     for facet in Facet:
         rules = table.document_rules_governed_by(facet)
         if not rules:  # a facet no enabled rule reads is never looked at
@@ -287,7 +287,7 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
 - **Detection never reads the configuration.** Two rules that overlap are made disjoint in their own logic. The
   name rule compares `name` only when it is a string, so a missing or mistyped `name` belongs to the schema
   rule alone (FR-022).
-- **A rule's options are specification data**, read through its context: a line length or a list marker style is
+- **A rule's options are meta spec data**, read through its context: a line length or a list marker style is
   stated beside the outline and caps, so corpora can differ. The established linters read rule options from
   their settings; this design departs from them because a rule that read the configuration would break the
   invariant above.
@@ -363,7 +363,7 @@ rule count is not today's cost, and the queries are.
 
 Two measurements keep that true:
 
-- **Before and after**, for NFR-002. The stages are timed apart on this repository: the snapshot, specification
+- **Before and after**, for NFR-002. The stages are timed apart on this repository: the snapshot, meta spec
   loading, decoding, parsing, token counting, schema validation, the rules and the rendering. The comparison is
   the median of repeated runs on one machine, with the noise stated. Query counts show that no query is computed
   twice for a subject.
@@ -385,14 +385,14 @@ A more elaborate engine waits for a profile that asks for one.
   short tuples, and loops over them on its own. One base per subject kind, which the runner matches on, stays typed
   and readable.
 - **Undecodable and ungoverned as rules.** A rule can be turned off. A file that cannot be read must not be,
-  and a missing specification is not a fact about the document.
+  and a missing meta spec is not a fact about the document.
 - **Caching a subject's diagnostics as a query.** Not needed while rules are cheap and a run is one revision.
 
 ## Consequences
 
 - **The per-check subcommands go.** One `check` command runs every rule over the workspace, and over the files
   and directories it is given once selection by path lands ([#442](https://github.com/LNSD/lorecraft/issues/442)).
-- **Rule documents change in the same change**, since each states something this design makes untrue:
+- **Specs change in the same change**, since each states something this design makes untrue:
   [module-lorecraft-checks](../code/module-lorecraft-checks.md) (the run and the shared
   analysis boundary) and [adr-004-database](adr-004-database.md) (decoding as a value, cross-file queries).
 - **A projecting rule is thin.** A schema rule is a few lines over a problem type, and the validation it
@@ -416,7 +416,7 @@ The PRD defers the IDE-like, long-lived mode. The design builds none of it and c
 | Rejecting a superseded revision's results | One report reads one revision; a diagnostic names no revision-bound object |
 | Warm starts | No store is built: caching is in memory, for one revision. Query results stay persistable data, the new queries included, and the registry stays out of them, so the store of [adr-005-incremental](adr-005-incremental.md) is an addition. A cross-file query's carry-over rule names the paths it looked up; recording them waits for the store or for the next revision's carry-over |
 | Cached diagnostics | Levels are applied after detection, so a cached result would not depend on the configuration |
-| Inline suppression | Its shape is fixed, its syntax Lorecraft's own and modelled on the HTML-comment directives of the Markdown linters, with no compatibility with theirs: `<!-- lorecraft-disable CODE … -->` and `lorecraft-enable` around a block, and `lorecraft-disable-line`, `lorecraft-disable-next-line` and `lorecraft-disable-file`. A directive names its codes, never none, and never a name; an alias code resolves to its rule's code, with a warning. There is no state capture and no in-file configuration: options are specification data and levels are the repository's. The directives are a per-file query, applied after detection where levels are. A directive naming an unknown code, or one that suppressed nothing, is an engine diagnostic, and no engine diagnostic can be suppressed |
+| Inline suppression | Its shape is fixed, its syntax Lorecraft's own and modelled on the HTML-comment directives of the Markdown linters, with no compatibility with theirs: `<!-- lorecraft-disable CODE … -->` and `lorecraft-enable` around a block, and `lorecraft-disable-line`, `lorecraft-disable-next-line` and `lorecraft-disable-file`. A directive names its codes, never none, and never a name; an alias code resolves to its rule's code, with a warning. There is no state capture and no in-file configuration: options are meta spec data and levels are the repository's. The directives are a per-file query, applied after detection where levels are. A directive naming an unknown code, or one that suppressed nothing, is an engine diagnostic, and no engine diagnostic can be suppressed |
 | Parallel checking | Output order is sorted, never completion order; the cache is still filled from one thread |
 
 ## References

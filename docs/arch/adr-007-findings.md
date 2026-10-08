@@ -1,6 +1,6 @@
 ---
 name: "adr-007-findings"
-description: "What a check reports and how it reaches the user: violations as values, located into findings by the run, stable dotted rule identifiers, the specification behind each rule, findings apart from failures, and deterministic text, JSON and exit codes. Load when adding a rule or a check, changing what a check reports, or changing the text output, the JSON output or the exit codes"
+description: "What a check reports and how it reaches the user: violations as values, located into findings by the run, stable dotted rule identifiers, the meta spec behind each rule, findings apart from failures, and deterministic text, JSON and exit codes. Load when adding a rule or a check, changing what a check reports, or changing the text output, the JSON output or the exit codes"
 type: "adr"
 status: "accepted"
 ---
@@ -16,7 +16,7 @@ and only the command line turns it into text.
 
 ### From Violation to Output
 
-A check returns violations: the line, the rule, the message, the specification that states the rule, or none
+A check returns violations: the line, the rule, the message, the meta spec that states the rule, or none
 for a rule the check holds itself, and any notes: help or context for fixing it, kept apart from the message. A
 violation names no document. The run knows which document it checked, and locates each violation there as a
 finding. It collects one report per document or skill, in the order it was
@@ -33,7 +33,7 @@ output's contract, so a rule keeps it, and a new rule takes one of its own rathe
 
 What is wrong with a document is a finding: an unreadable frontmatter block, a missing section, a broken Markdown link. It
 is a value the check returns, and the run goes on. What stops Lorecraft from judging at all is a failure: a root
-that cannot be found, a specification that cannot be decoded, a directory that cannot be listed. It is raised, and
+that cannot be found, a meta spec that cannot be decoded, a directory that cannot be listed. It is raised, and
 the command line reports it instead of any finding.
 
 ### The Output Is Deterministic
@@ -69,7 +69,7 @@ def validate_title(block: FrontmatterBlock | MissingBlock) -> tuple[Violation, .
 
 Before committing code, verify:
 
-- [ ] A violation names the specification file that states its rule, or none for a rule the check holds
+- [ ] A violation names the meta spec file that states its rule, or none for a rule the check holds
 - [ ] A new rule has a dotted identifier of its own, and no existing identifier changes
 - [ ] Help or context for fixing a violation travels as a note, never inside its message
 - [ ] A problem in a document is a finding; only what stops judging at all is raised

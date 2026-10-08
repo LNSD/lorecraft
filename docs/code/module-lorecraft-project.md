@@ -1,6 +1,6 @@
 ---
 name: "module-lorecraft-project"
-description: "The lorecraft.project package's responsibility, role, boundary and invariants: the project model, specifications and parse trees derived through a view, and the database of one revision that memoizes them. Load when adding or moving code in lorecraft.project, adding a specification dialect, a parse-tree node or a query, or deciding whether code derives a value or judges one"
+description: "The lorecraft.project package's responsibility, role, boundary and invariants: the project model, meta specs and parse trees derived through a view, and the database of one revision that memoizes them. Load when adding or moving code in lorecraft.project, adding a meta spec dialect, a parse-tree node or a query, or deciding whether code derives a value or judges one"
 type: "pkg"
 scope: "pkg:lorecraft.project"
 ---
@@ -10,7 +10,7 @@ scope: "pkg:lorecraft.project"
 ## Responsibility
 
 Derive what a repository declares from a view of it. It changes when what a repository can declare, or what is
-derived from it, changes: the specification dialect, the shape of a document and its parse tree, or a query.
+derived from it, changes: the meta spec dialect, the shape of a document and its parse tree, or a query.
 
 ## Role
 
@@ -21,11 +21,11 @@ from a snapshot, and one that never outlives its snapshot. The layout it derives
 
 ## Belongs Here
 
-- The project model and the loader that builds it from listings and specifications.
+- The project model and the loader that builds it from listings and meta specs.
 - A repository that lists entries or reads text through a view, and decides what an entry is to Lorecraft.
-- The decoding of a specification into rules that are proved usable when they are built.
+- The decoding of a meta spec into rules that are proved usable when they are built.
 - The parse tree, the token count and the line count: pure functions of one document's text.
-- A shared analysis of one document's parsed values against the specifications handed to it, such as the problems
+- A shared analysis of one document's parsed values against the meta specs handed to it, such as the problems
   each frontmatter schema finds, each placed on its field's line, or where the sections first stop matching an
   outline. It finds the facts several rules read; whether one is reported, and how, is a rule's.
 - A document's, a skill's or a skill resource's identity, kept apart from its content and from where its symlinks
@@ -59,24 +59,24 @@ from a snapshot, and one that never outlives its snapshot. The layout it derives
 
 - Every read goes through a view: the one a function is handed, or the one the database builds over its snapshot.
   Nothing here reads a workspace file, lists a directory or resolves a symlink by itself.
-- The model holds structure and configuration: corpora, specifications, document and skill refs, and where each
+- The model holds structure and configuration: corpora, meta specs, document and skill refs, and where each
   skill's symlinks lead. It never holds a document's content, and the loader never reads one.
 - A parse tree, a token count and a line count read one document's text and nothing else, and return immutable
   values. No third-party parser type leaves the package.
-- A shared analysis reads the parsed values and the specifications it is handed, never a view, and returns
+- A shared analysis reads the parsed values and the meta specs it is handed, never a view, and returns
   immutable values.
 - A memoized query is an input query or a derived one. An input query reads one input from the snapshot, one
   file's bytes or the structure, and states its own carry-over rule. A derived query reads only other queries,
   never the snapshot, and hands them to one function of the package, so its arguments are its read set and it
   carries over whenever they do. A shared analysis is derived: it reads one file's per-file queries and the
-  specifications the model says govern that file. A value drawn from several files is a query of its own, with its
+  meta specs the model says govern that file. A value drawn from several files is a query of its own, with its
   own carry-over rule, which its docstring states.
 - A per-file query takes its decode query's witness, never a bare ref, is keyed by the ref, and carries over only
   when the next revision locates the ref at the same resolved file and its bytes are unchanged. Only the database
   builds a witness.
 - Nothing derived from a snapshot is cached outside a database, or across revisions but by a carry-over rule. The
   database alone reads and writes the store of persisted results, through the store the Composition package hands it.
-- A broken document is a value the parse returns, not an exception. A repository or specification error names
+- A broken document is a value the parse returns, not an exception. A repository or meta spec error names
   its path and propagates.
 
 ## Examples
@@ -120,7 +120,7 @@ Before committing code, verify:
 - [adr-005-incremental](../arch/adr-005-incremental.md) - Foundation: The carry-over rule and persisted results
 - [adr-003-project-model](../arch/adr-003-project-model.md) - Foundation: Declared scope against captured content, identity
   against location
-- [adr-006-specifications](../arch/adr-006-specifications.md) - Foundation: Specifications decoded and proved usable at load
+- [adr-006-specifications](../arch/adr-006-specifications.md) - Foundation: Meta specs decoded and proved usable at load
 - [adr-002-vfs](../arch/adr-002-vfs.md) - Foundation: Every read of the workspace goes through the snapshot
 - [adr-007-findings](../arch/adr-007-findings.md) - Foundation: A broken document is a finding, not a failure
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One reason to change

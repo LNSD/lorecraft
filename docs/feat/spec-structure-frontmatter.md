@@ -1,6 +1,6 @@
 ---
 name: "spec-structure-frontmatter"
-description: "The frontmatter key of a structure specification: a Draft 2020-12 JSON Schema for a document's YAML frontmatter whose root states type object, checked against the meta-schema on load, with corpus and namespace schemas applied each on its own. Load when writing or changing a frontmatter schema, adding a frontmatter field, or a frontmatter schema is reported invalid"
+description: "The frontmatter key of a structure file: a Draft 2020-12 JSON Schema for a document's YAML frontmatter whose root states type object, checked against the meta-schema on load, with corpus and namespace schemas applied each on its own. Load when writing or changing a frontmatter schema, adding a frontmatter field, or a frontmatter schema is reported invalid"
 type: "feature"
 status: "experimental"
 components: "module:lorecraft.project,module:lorecraft.checks,spec:feat,spec:code"
@@ -27,9 +27,9 @@ value is JSON Schema Draft 2020-12 itself, so any editor and any JSON Schema too
 
 - **Frontmatter schema**: The value of the `frontmatter` key; its root describes the frontmatter as one
   object, and must say `"type": "object"` outright.
-- **Corpus schema**: The frontmatter schema at the corpus specification name, which states the whole field set,
+- **Corpus schema**: The frontmatter schema at the corpus meta spec name, which states the whole field set,
   usually with `required` and `additionalProperties: false`. Without it the corpus's frontmatter is unchecked.
-- **Namespace schema**: A frontmatter schema at a namespace specification name. It is applied beside the corpus
+- **Namespace schema**: A frontmatter schema at a namespace meta spec name. It is applied beside the corpus
   schema, never in place of it, so it states only the constraints it adds.
 
 ## Usage
@@ -76,7 +76,7 @@ repository is loaded, each frontmatter schema is checked against the Draft 2020-
 when its root does not state `"type": "object"`, when any schema in it carries `$id`, which would change how
 a relative `$ref` resolves, or names another dialect in `$schema`. A value under `enum` or `const` is data, not
 a schema, so it is not searched. `description` and `$comment` are allowed
-anywhere. A refused schema stops the command with an error naming the structure specification:
+anywhere. A refused schema stops the command with an error naming the structure file:
 both `lorecraft check` and `lorecraft inspect` exit `2`.
 
 ## Limitations

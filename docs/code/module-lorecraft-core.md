@@ -21,7 +21,7 @@ for. The rest of the project specializes it. It never specializes the rest of th
 
 ## Belongs Here
 
-- Generic code that you can describe without naming a document, a specification, a skill, an agent, a check or
+- Generic code that you can describe without naming a document, a meta spec, a skill, an agent, a check or
   the disk.
 - A value type the other packages spell their arguments and answers in, together with the rule that proves it
   valid when it is constructed.
@@ -37,7 +37,7 @@ generic building block for one domain belongs in the package that owns that doma
 | Code that… | Belongs in |
 |---|---|
 | Specializes it for a fixed directory or suffix of the layout | `lorecraft.layout` |
-| Specializes it for documents, corpora, specifications or skills | `lorecraft.project` |
+| Specializes it for documents, corpora, meta specs or skills | `lorecraft.project` |
 | Specializes it for an agent or a directory an agent reads | `lorecraft.agents` |
 | Specializes it for the disk, even only to check that a path exists | `lorecraft.vfs` |
 | Specializes it for the command line, its output or its exit codes | `lorecraft.cli` |
@@ -84,7 +84,7 @@ def is_document_path(path: WorkspacePath) -> bool:
 Before committing code, verify:
 
 - [ ] Everything added to `lorecraft.core` is generic: you can describe it without naming a document, a
-      specification, a skill, an agent, a check or the disk
+      meta spec, a skill, an agent, a check or the disk
 - [ ] Nothing added imports a package that builds on `lorecraft.core`, performs I/O, or keeps state between calls
 - [ ] A new value type is immutable and validates when it is constructed
 - [ ] Nothing added specializes a building block for one domain; that specialization lives in the domain's package

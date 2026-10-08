@@ -1,13 +1,13 @@
 ---
 name: "feat-cli"
-description: "Naming, hierarchy, option tables, output and exit status rules for feature documents about the lorecraft command line. Load when writing or reviewing docs/feat/cli.md or docs/feat/cli-*.md"
+description: "Naming, hierarchy, option tables, output and exit status rules for feat specs about the lorecraft command line. Load when writing or reviewing docs/feat/cli.md or docs/feat/cli-*.md"
 type: "meta"
 scope: "global"
 ---
 
-# CLI Feature Document Specification
+# Meta Spec for CLI Feat Specs
 
-**Applies to every feature document in `docs/feat/` named `cli.md` or `cli-*.md`.** It is a namespace layer
+**Applies to every feat spec in `docs/feat/` named `cli.md` or `cli-*.md`.** It is a namespace layer
 on [feat.md](feat.md): every rule there still holds, and this document states only what it adds.
 
 ## Table of Contents
@@ -31,7 +31,7 @@ The name is the command path in kebab-case, with `cli` standing for `lorecraft`:
 `lorecraft --help` is that list.
 
 A command's options, output and exit status belong to the command's document. A concept that is not a
-command — a specification dialect, the workspace model, a corpus — is not documented in this namespace, even
+command — a meta spec dialect, the workspace model, a corpus — is not documented in this namespace, even
 when a command is how a reader meets it; it takes a document in its own domain, and the command links to it.
 
 The machine-checkable half of this layer is [feat-cli.structure.json](feat-cli.structure.json), its
@@ -132,8 +132,8 @@ them.
   exit code it cannot return.
 - **Show real output.** An example of output is copied from a run, with only machine-specific paths
   shortened.
-- **Keep the command's behaviour and the concept's apart.** How a check reads a specification is the
-  specification's document; the check's document says which specification it reads and links there.
+- **Keep the command's behaviour and the concept's apart.** How a check reads a meta spec is the
+  meta spec's document; the check's document says which meta spec it reads and links there.
 
 ---
 

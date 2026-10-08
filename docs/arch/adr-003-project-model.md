@@ -9,7 +9,7 @@ status: "accepted"
 
 ## Context
 
-The project model is what a repository declares: its corpora, specifications, documents and skills. It answers
+The project model is what a repository declares: its corpora, meta specs, specs and skills. It answers
 from the declaration and the structure of the snapshot, never from what a document says.
 
 ## Decision

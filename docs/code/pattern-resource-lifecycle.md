@@ -11,9 +11,9 @@ scope: "global"
 
 A type that acquires something the process cannot leak — a worker pool, an index holding a file handle per
 document, a schema cache read from disk, a report file being streamed to — has two phases with two distinct
-failure modes. **Acquisition** fails for configuration reasons: a corpus root that does not exist, a format
-specification that cannot be read, a schema that does not parse. **Use** fails for runtime reasons: a document
-whose frontmatter is malformed, a section outline the spec cannot describe, a write that fails mid-report. The
+failure modes. **Acquisition** fails for configuration reasons: a corpus root that does not exist, a corpus
+meta spec that cannot be read, a schema that does not parse. **Use** fails for runtime reasons: a document
+whose frontmatter is malformed, a section outline the meta spec cannot describe, a write that fails mid-report. The
 phases must be separable by the caller, and release must happen on both paths.
 
 Express that separation with the **context manager protocol** plus an explicit **`connect` / `disconnect`**
@@ -69,7 +69,7 @@ class CorpusSession:
 # ✅ Good — `__init__` only validates and stores configuration; nothing is acquired until
 # `connect`, so a construction failure has nothing to leak.
 class CorpusSession:
-    """Checks the rule documents of one corpus against its format specification."""
+    """Checks the specs of one corpus against its corpus meta spec."""
 
     def __init__(self, root: Path, parallelism: int) -> None:
         """Configure the session. Acquires nothing; call `connect` to open the corpus.

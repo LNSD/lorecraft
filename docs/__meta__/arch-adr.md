@@ -5,11 +5,11 @@ type: "meta"
 scope: "global"
 ---
 
-# Architecture Decision Record Specification
+# Architecture Decision Record Meta Spec
 
 **Applies to every document in `docs/arch/` named `adr-*.md`.** The namespace also matches a bare `adr.md`, and no
 such file may exist: every ADR is about one decision, and its name says which. It is a namespace layer on the
-[arch](arch.md) corpus specification, and states only what it adds to it. Its machine-checkable half is
+[arch](arch.md) corpus meta spec, and states only what it adds to it. Its machine-checkable half is
 [arch-adr.structure.json](arch-adr.structure.json), applied on its own beside the corpus file.
 
 An ADR states **how** something is built and **why**: the context that forced a decision, the decision, and what
@@ -49,7 +49,7 @@ The change that accepts the replacement turns its callout into `Supersedes …`,
 > Superseded by [adr-010-diagnostics](adr-010-diagnostics.md). It binds no code.
 ```
 
-**An accepted ADR binds code.** It is a rule like any in `docs/code/`: agents load it by its `description`, so the
+**An accepted ADR binds code.** It binds like any code spec in `docs/code/`: agents load it by its `description`, so the
 description ends with a trigger clause, `Load when …`, naming the work it governs, and a `## Checklist` of
 `- [ ]` items, one per verifiable statement, is what a code review walks. A `proposed`, `rejected`,
 `superseded` or `deprecated` ADR binds nothing.

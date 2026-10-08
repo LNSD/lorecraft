@@ -175,7 +175,7 @@ fact about the file, not about any one signature.
 
 ```python
 # ✅ Good — says why the module exists and states the invariant its functions rely on
-"""Match a document's heading outline against the structure specification for its corpus.
+"""Match a document's heading outline against the structure file for its corpus.
 
 A section runs from its own heading to the next heading at the same level or above. Spans
 here are half-open (`start` inclusive, `end` exclusive) so that the last section ends at
@@ -274,30 +274,30 @@ each of its variants, since a variant is what a caller names in an `except`. Whe
 at all is owned by [error-boundaries](error-boundaries.md): a propagated one `error-boundaries` §2 has not
 cleared is a finding against its source, not a line to add.
 
-This is the strongest rule in the document, because Python gives a caller **no other way to find out**: no
-checked exceptions, no `Result` in the return type. A caller who does not know that loading a specification
+This is the strongest rule here, because Python gives a caller **no other way to find out**: no
+checked exceptions, no `Result` in the return type. A caller who does not know that loading a meta spec
 raises `MalformedSpecError` guards the wrong call, and a whole-corpus check dies on the first drifted document.
 
-An exception the code's own invariants make unreachable is not documented — documenting a raise a caller
-cannot trigger sends them writing handlers for it. Such a spot carries a `#` comment saying why it cannot
+An exception the code's invariants make unreachable is not documented — documenting a raise a caller
+cannot trigger sends them writing needless handlers. Such a spot carries a `#` comment saying why it cannot
 happen, at the line.
 
 ```python
 # ❌ Bad — three reachable exception types, none documented; the caller learns them from a failed run
 def load_spec(self, corpus: str) -> StructureSpec:
-    """Load the structure specification for a corpus."""
+    """Load the structure file for a corpus."""
 ```
 
 ```python
 # ✅ Good — each type paired with the condition that reaches it
 def load_spec(self, corpus: str) -> StructureSpec:
-    """Load a corpus's structure specification, resolving the schema it names.
+    """Load a corpus's structure file, resolving the schema it names.
 
     Raises:
-        SpecNotFoundError: No specification is declared for the corpus.
-        MalformedSpecError: The specification's frontmatter is not valid YAML, or omits a
+        SpecNotFoundError: No meta spec is declared for the corpus.
+        MalformedSpecError: The meta spec's frontmatter is not valid YAML, or omits a
             field the format requires.
-        SchemaResolutionError: The specification names a JSON Schema that cannot be read or
+        SchemaResolutionError: The meta spec names a JSON Schema that cannot be read or
             does not parse. Nothing is cached; a later call retries.
     """
 ```
@@ -370,7 +370,7 @@ class CheckConfig:
             summarised as a count. Must be at least 1.
         fail_on_warning: Whether a warning fails the check; when false it is only reported.
         corpus_root: Corpus directory, relative to the workspace root.
-        spec_path: Structure specification to check against. Resolved relative to
+        spec_path: Structure file to check against. Resolved relative to
             `corpus_root` when it is not absolute.
     """
 

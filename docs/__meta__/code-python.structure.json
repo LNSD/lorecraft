@@ -6,7 +6,7 @@
     "properties": {
       "type": {
         "const": "core",
-        "$comment": "A python-* document says how Python source is written, which is always core. A rule about packaging, distribution shape, or build configuration governs where code lives instead, and belongs under a prefix that names that subject."
+        "$comment": "A python-* document says how Python source is written, which is always core. A code spec about packaging, distribution shape, or build configuration governs where code lives instead, and belongs under a prefix that names that subject."
       },
       "scope": {
         "pattern": "^(?:global|pkg:pypi/[a-z0-9]+(?:[-._][a-z0-9]+)*)$",

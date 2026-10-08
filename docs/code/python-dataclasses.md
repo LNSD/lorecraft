@@ -91,7 +91,7 @@ class RuleFrontmatter(BaseModel):
 ```python
 # ✅ Good — the helper lives beside the generated module and takes the model
 def qualified_name(frontmatter: RuleFrontmatter) -> str:
-    """Return the `corpus/name` identifier for a rule document."""
+    """Return the `corpus/name` identifier for a code spec."""
     return f'{frontmatter.corpus}/{frontmatter.name}'
 ```
 
@@ -170,7 +170,7 @@ def open_corpus_check(config: CheckerConfig) -> CorpusCheck:
 ```
 
 ```python
-# 🔶 Acceptable — genuinely absent, not deferred: a rule document that specializes
+# 🔶 Acceptable — genuinely absent, not deferred: a code spec that specializes
 # nothing has no parent, and every reader must decide what to do about that
 @dataclass
 class RuleDocumentRef:
@@ -288,10 +288,10 @@ class OutlineCheckConfig:
 # ✅ Good — units and bounds stated where the caller reads them
 @dataclass
 class OutlineCheckConfig:
-    """Configuration for checking a corpus against its structure specification.
+    """Configuration for checking a corpus against its structure file.
 
     Attributes:
-        corpus: Corpus name, matching the format specification that governs it.
+        corpus: Corpus name, matching the corpus meta spec that governs it.
         max_depth: Deepest heading level checked, counting the H1 as level 1.
             Must be at least 1.
         budget: Prose length budget per document, in lines. Must be at least 1; there is

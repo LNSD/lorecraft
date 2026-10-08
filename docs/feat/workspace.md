@@ -11,7 +11,7 @@ components: "module:lorecraft.project"
 ## Summary
 
 lorecraft reads one opinionated layout, and it cannot be configured: documentation lives in `docs/`, its
-specifications in `docs/__meta__/`, and each directory beside them is a corpus of flat Markdown documents. A
+meta specs in `docs/__meta__/`, and each directory beside them is a corpus of flat Markdown documents. A
 repository adopts lorecraft by arranging its documentation this way; nothing else registers a corpus or a
 document. What lorecraft finds in that layout is the workspace model, which every command that reads a
 repository works from.
@@ -27,10 +27,10 @@ repository works from.
 
 - **Root**: The directory that holds `docs/__meta__/`; every path a finding or the model names is relative to
   it, the root itself is printed absolute, and a refused path argument is echoed as typed.
-- **Corpus**: A directory directly under `docs/` whose documents specifications govern, named by the
+- **Corpus**: A directory directly under `docs/` whose documents meta specs govern, named by the
   directory.
 - **Document**: A Markdown file directly inside a corpus directory.
-- **Workspace model**: The corpora, their specifications and their documents, as found in one snapshot.
+- **Workspace model**: The corpora, their meta specs and their documents, as found in one snapshot.
 
 ## Architecture
 
@@ -39,7 +39,7 @@ repository works from.
 ```text
 <root>/
 └── docs/
-    ├── __meta__/            specifications: <corpus>.md, <corpus>-<namespace>.md, their .structure.json files
+    ├── __meta__/            meta specs: <corpus>.md, <corpus>-<namespace>.md, their .structure.json files
     ├── feat/                a corpus, governed by docs/__meta__/feat.*
     │   ├── cli.md           a document
     │   └── cli-check.md     a document
@@ -50,10 +50,10 @@ repository works from.
 ### Corpora
 
 A directory directly under `docs/` is a corpus when it is a real directory, not a symlink, and at least one
-specification file in `docs/__meta__/` sits at its name. A corpus name is lowercase letters, digits and
+meta spec file in `docs/__meta__/` sits at its name. A corpus name is lowercase letters, digits and
 underscores, starting with a letter or an underscore: `docs/cli_specs/`, never `docs/cli-specs/`, since a
-hyphen in a specification's name separates the corpus from a namespace. `docs/__meta__/` is never a corpus.
-How the specification files are named and layered is [spec](spec.md)'s subject.
+hyphen in a meta spec's name separates the corpus from a namespace. `docs/__meta__/` is never a corpus.
+How the meta spec files are named and layered is [spec](spec.md)'s subject.
 
 ### Documents
 
@@ -64,7 +64,7 @@ in directories: a corpus is flat.
 ### Left Out, Not Reported
 
 What the layout does not place is not part of the model, and lorecraft passes over it silently: a directory
-under `docs/` that no specification names, a Markdown file at `docs/` itself or in a subdirectory of a corpus,
+under `docs/` that no meta spec names, a Markdown file at `docs/` itself or in a subdirectory of a corpus,
 a symlinked file or corpus directory, and a file whose name does not parse. Only a path named on the command
 line is refused with a reason, since it was asked for.
 
@@ -80,7 +80,7 @@ outside the repository is not, and [check](cli-check.md) reports it. The model r
 directory and `SKILL.md` lead.
 
 `docs/` and `docs/__meta__/` themselves must be real directories. Behind a symlink the snapshot would hold no
-specification, so a command stops with an error naming the linked directory rather than read an empty model.
+meta spec, so a command stops with an error naming the linked directory rather than read an empty model.
 
 ## Limitations
 
@@ -96,5 +96,5 @@ specification, so a command stops with an error naming the linked directory rath
 
 ## References
 
-- [spec](spec.md) - Related: the specification files in `docs/__meta__/` and how they govern documents
+- [spec](spec.md) - Related: the meta spec files in `docs/__meta__/` and how they govern documents
 - [cli](cli.md) - Related: the command line that reads the workspace

@@ -1,6 +1,6 @@
 {
   "$schema": "../schemas/structure.spec.json",
-  "description": "Narrows code.structure.json for docs/code/module-*.md, which is applied as well. The prose authority is docs/__meta__/code-module.md. The frontmatter fixes type, and the form of name and scope: both spell a package under the lorecraft import package, and that they spell the same one is checked by hand. The six rule sections open the document, in this order, with a tighter cap on Responsibility and Role, which each state one thing; the Checklist follows as code.structure.json places it, and References follows, required here though optional in the corpus, since every module document links the architecture document it takes its role from; an optional External References closes it. The token budget is tighter than the corpus one, since a module document is loaded beside the rules for the code being written.",
+  "description": "Narrows code.structure.json for docs/code/module-*.md, which is applied as well. The prose authority is docs/__meta__/code-module.md. The frontmatter fixes type, and the form of name and scope: both spell a package under the lorecraft import package, and that they spell the same one is checked by hand. The six rule sections open the document, in this order, with a tighter cap on Responsibility and Role, which each state one thing; the Checklist follows as code.structure.json places it, and References follows, required here though optional in the corpus, since every module document links the architecture document it takes its role from; an optional External References closes it. The token budget is tighter than the corpus one, since a module document is loaded beside the code specs for the code being written.",
   "frontmatter": {
     "type": "object",
     "properties": {
@@ -20,7 +20,7 @@
     {
       "section": "Role",
       "words": 150,
-      "description": "The one role the package plays, named in bold, from the role vocabulary of the architecture rules, followed by what that role means for this package and nothing more about the role in general.",
+      "description": "The one role the package plays, named in bold, from the role vocabulary of the accepted architecture decision records, followed by what that role means for this package and nothing more about the role in general.",
       "examples": ["**Input.** It reads the disk once, into a snapshot, and every package above it reads through a view that answers\nfrom that snapshot. It reads what its caller declares: the scope arrives as scan roots that the caller passes in,\nand the package never knows why those directories matter or what the files in them mean."]
     },
     {
@@ -31,7 +31,7 @@
     {
       "section": "Belongs Elsewhere",
       "description": "A table of the code a reader is tempted to put here and the package it goes in instead, one row per case; each row points to the neighbour and does not restate its rules.",
-      "examples": ["| Code that… | Belongs in |\n|---|---|\n| Names `docs/`, a skills directory or any other fixed directory | `lorecraft.layout` |\n| Decides what an entry is to Lorecraft: a document, a specification, a skill | `lorecraft.project` |\n| Parses or decodes the bytes of a file | `lorecraft.project` |\n| Keeps a value derived from a file for the snapshot's lifetime | `lorecraft.project` |\n| Finds the workspace root, or maps a command-line argument onto it | `lorecraft.cli` |"]
+      "examples": ["| Code that… | Belongs in |\n|---|---|\n| Names `docs/`, a skills directory or any other fixed directory | `lorecraft.layout` |\n| Decides what an entry is to Lorecraft: a document, a meta spec, a skill | `lorecraft.project` |\n| Parses or decodes the bytes of a file | `lorecraft.project` |\n| Keeps a value derived from a file for the snapshot's lifetime | `lorecraft.project` |\n| Finds the workspace root, or maps a command-line argument onto it | `lorecraft.cli` |"]
     },
     {
       "section": "Invariants",
