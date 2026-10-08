@@ -2,23 +2,33 @@
 
 A glossary of documentation framework terminology used throughout Lorecraft.
 
-## Documents and collections
+Lorecraft governs two kinds of document: a [meta spec](#meta-spec) states the rules, and a [spec](#spec) follows them. One word names one thing: where an older name is still in use, an entry gives it as an alias or a former name.
+
+## Specs and collections
 
 ### Corpus
 
-A collection of documents of one kind under `docs/`, such as `docs/code/` or `docs/feat/`. A corpus has a format specification that governs its documents.
+A collection of specs of one kind under `docs/`, such as `docs/code/` or `docs/feat/`. A corpus is governed by its [corpus meta spec](#corpus-meta-spec), and the kind of spec it holds is named after it.
 
-### Code rules
+### Spec
 
-The collection of conventions that applies across the codebase, documented in `docs/code/`.
+A document in a [corpus](#corpus), governed by the [meta specs](#meta-spec) its path selects. It is authoritative for what it states and uses [frontmatter](#frontmatter) for discovery. Each corpus holds one kind: a [code spec](#code-spec), a [feat spec](#feat-spec) or an [arch spec](#arch-spec).
 
-### Code rule document
+### Code spec
 
-A Markdown document in `docs/code/` stating a code convention. It is authoritative for that convention and uses [frontmatter](#frontmatter) for discovery.
+A spec in `docs/code/` stating a code convention. Its user-facing alias is **code rule**, the name the `/code-rules` skill keeps; a code rule is a document, not a [rule](#rule). Formerly *code rule document*.
 
-### Feature document
+### Feat spec
 
-A document in `docs/feat/` describing existing toolkit behavior, such as a capability or component. It is authoritative for the behavior it describes.
+A spec in `docs/feat/` describing a toolkit feature from its user's point of view, such as a capability or a component. Because it is authoritative for the behavior it describes, it is also the reference that end-to-end test coverage can be measured against. Its alias is **feature doc**; formerly *feature document*.
+
+### Arch spec
+
+A spec in `docs/arch/`: a PRD, stating what a capability must do and why, or an ADR, stating how something is built and why. PRD and ADR stay the everyday names of its two namespaces. An accepted arch spec binds code as a code spec does.
+
+### Base and extension
+
+Within a corpus, a name's **base** is the longest existing name it continues with a hyphen, and the name **extends** it: `spec-structure-outline` extends `spec-structure`, which extends `spec`. A name's bases, followed to the shortest, form its **chain**. The terms hold for specs and for meta specs alike, where the [corpus meta spec](#corpus-meta-spec) is the base of every [namespace meta spec](#namespace-meta-spec) in its corpus. An extension adds or tightens, and never relaxes its base.
 
 ### Agent skill
 
@@ -28,53 +38,57 @@ A reusable set of agent instructions, sometimes with supporting scripts.
 
 A Markdown file inside an [agent skill](#agent-skill) other than its top-level `SKILL.md`, at any depth, such as a reference the skill loads on demand. It is named where an agent reaches it, through any symlink inside the skill, and located at the [resolved](#resolved-path) file that path leads to.
 
-## Metadata and specifications
+## Metadata and meta specs
 
 ### Frontmatter
 
 YAML metadata at the start of a Markdown document, between `---` delimiters. Fields such as `name`, `description`, `type`, and `status` help classify and discover documents.
 
-### Format specification
+### Meta spec
 
-A document in `docs/__meta__/` that defines the metadata, structure, and content rules for a corpus or document group.
+A spec that governs other specs: a document in `docs/__meta__/` stating the metadata, structure and content rules for a corpus or a namespace in it, together with the [machine-checkable](#machine-checkable-companion) files beside it at the same [meta spec name](#meta-spec-name). Formerly *format specification*, or just *specification*.
 
-### Namespace specification
+### Corpus meta spec
 
-An additional specification selected by a document's filename, when a namespace equals the name or is a hyphen-delimited prefix of it: `code-python.md` for `python-*` code rule documents, `feat-cli.md` for `cli-*` feature documents. It adds to the corpus specification and cannot relax it.
+The meta spec whose name is a corpus alone, such as `code`. It governs every spec in its corpus, and is the base of every namespace meta spec there. Formerly *corpus specification*.
 
-### Specification name
+### Namespace meta spec
 
-What a specification file's name says it governs: the filename with its [file type](#file-type)'s pattern suffix stripped, so `code.md` and `code.structure.json` are both at the name `code`. It is `<corpus>`, the name of a corpus specification, or `<corpus>-<namespace>`, the name of a [namespace specification](#namespace-specification), such as `code-python`.
+A meta spec selected by a spec's filename, when a namespace equals the name or is a hyphen-delimited prefix of it: `code-python.md` for `python-*` code specs, `feat-cli.md` for `cli-*` feat specs. It extends its base, the corpus meta spec or a shorter namespace meta spec it continues, and cannot relax it. Formerly *namespace specification*.
+
+### Meta spec name
+
+What a meta spec file's name says it governs: the filename with its [file type](#file-type)'s pattern suffix stripped, so `code.md` and `code.structure.json` are both at the name `code`. It is `<corpus>`, the name of a corpus meta spec, or `<corpus>-<namespace>`, the name of a [namespace meta spec](#namespace-meta-spec), such as `code-python`. Formerly *specification name*.
 
 ### Aspect
 
-The part of a name after its corpus: in `docs/code/python-fn.md`, or the [specification name](#specification-name) `code-python-fn`, the corpus is `code` and the aspect is `python-fn`. An aspect splits into a namespace and a [facet](#facet): `python-fn` is the namespace `python` plus the facet `fn`. The middle of a specification filename, `structure` in `code.structure.json`, is not an aspect: what that file is comes from its [file type](#file-type).
+The part of a name after its corpus: in `docs/code/python-fn.md`, or the [meta spec name](#meta-spec-name) `code-python-fn`, the corpus is `code` and the aspect is `python-fn`. An aspect splits into a namespace and a [facet](#facet): `python-fn` is the namespace `python` plus the facet `fn`. The middle of a meta spec filename, `structure` in `code.structure.json`, is not an aspect: what that file is comes from its [file type](#file-type).
 
 ### Facet
 
-What a document's name adds to a namespace that matches it: name = namespace + facet. The name `python-typing` is the namespace `python` plus the facet `typing`. A facet is relative to the namespace chosen: `python-typing-unreachable` has the facet `typing-unreachable` under `python`, and would have `unreachable` under a `python-typing` namespace. It is empty when the namespace is the whole name.
+What a spec's name adds to a namespace that matches it: name = namespace + facet. The name `python-typing` is the namespace `python` plus the facet `typing`. A facet is relative to the namespace chosen: `python-typing-unreachable` has the facet `typing-unreachable` under `python`, and would have `unreachable` under a `python-typing` namespace. It is empty when the namespace is the whole name.
 
 ### Components
 
-A feature document's frontmatter list of related modules, skills, or specifications, each identified by a type prefix.
+A feat spec's frontmatter list of related modules, skills, or meta specs, each identified by a type prefix.
 
 ### Status
 
-A feature document's maturity label: `development`, `unstable`, `experimental`, or `stable`.
+A feat spec's maturity label: `development`, `unstable`, `experimental`, or `stable`.
 
 ## Validation
 
 ### Machine-checkable companion
 
-A JSON file beside a format specification that holds the rules a checker can decide: the structure specification, `<name>.structure.json`, holding the section structure with its word caps, the token budget and the frontmatter schema.
+A JSON file of a meta spec, beside its prose, that holds the rules a checker can decide: the structure file, `<name>.structure.json`, holding the section structure with its word caps, the token budget and the frontmatter schema. Formerly *structure specification*.
 
 ### File type
 
-What a file in `docs/__meta__/` is, claimed by a file name pattern: `*.md` claims a specification's prose and `*.structure.json` its structure specification. A file's extension is only what follows its last dot, so `code.structure.json` is a JSON file the structure file type claims; a file no pattern claims is not a specification file.
+What a file in `docs/__meta__/` is, claimed by a file name pattern: `*.md` claims a meta spec's prose and `*.structure.json` its structure file. A file's extension is only what follows its last dot, so `code.structure.json` is a JSON file the structure file type claims; a file no pattern claims is not part of a meta spec.
 
 ### Rule
 
-One judgment `lorecraft check` makes of a subject, a document, a skill, a resource of a skill or a symlink of the skill layout, identified by a code in a group named by its prefix, such as `FM001`, and a kebab-case name, such as `missing-frontmatter`. A rule over a document reads the keys of a machine-checkable companion, and runs only when the document is governed for what it reads.
+One judgment `lorecraft check` makes of a subject, a spec, a skill, a resource of a skill or a symlink of the skill layout, identified by a code in a group named by its prefix, such as `FM001`, and a kebab-case name, such as `missing-frontmatter`. A rule over a spec reads the keys of a machine-checkable companion, and runs only when the spec is governed for what it reads. "Rule" names a check and nothing else: a [code rule](#code-spec) is a spec.
 
 ### Diagnostic
 
@@ -82,11 +96,11 @@ One occurrence of a rule, located at the root-relative path of the subject it wa
 
 ### Word cap
 
-The maximum prose words one section of a document may hold, its subsections included, as set by a `words` key on an outline entry of a structure specification and checked by `lorecraft check` as `LEN003`. It keeps the section concise; code and tables are not counted.
+The maximum prose words one section of a document may hold, its subsections included, as set by a `words` key on an outline entry of a structure file and checked by `lorecraft check` as `LEN003`. It keeps the section concise; code and tables are not counted.
 
 ### Token budget
 
-The maximum tokens a whole document file may hold, frontmatter, code and tables included, as set by the `tokens` key of a structure specification and checked by `lorecraft check` as `LEN001`. It keeps the document cheap to load; tokens are OpenAI's `o200k_base`, counted the same whichever agent reads the document.
+The maximum tokens a whole document file may hold, frontmatter, code and tables included, as set by the `tokens` key of a structure file and checked by `lorecraft check` as `LEN001`. It keeps the document cheap to load; tokens are OpenAI's `o200k_base`, counted the same whichever agent reads the document.
 
 ## Toolkit internals
 
@@ -116,4 +130,4 @@ One set of inputs, the snapshot and the declarations, and the database built fro
 
 ### Project model
 
-What a repository declares, as Lorecraft reads it: its corpora, specifications, documents and skills, and where each one's symlinks lead. It is derived from the declarations and the structure of the snapshot, never from what a document says. The code calls it the workspace model.
+What a repository declares, as Lorecraft reads it: its corpora, meta specs, specs and skills, and where each one's symlinks lead. It is derived from the declarations and the structure of the snapshot, never from what a document says. The code calls it the workspace model.
