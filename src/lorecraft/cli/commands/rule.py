@@ -67,4 +67,4 @@ def rule(
     if declaration is None:
         report_failure(UnknownRuleError(key))
         raise typer.Exit(code=ExitStatus.FAILURE)
-    typer.echo(render_page(declaration, registry), nl=False)
+    typer.echo(render_page(declaration), nl=False)

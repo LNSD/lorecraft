@@ -225,10 +225,9 @@ The rulebook is the reference manual of the engine's rules: the page a user read
 `error[OUT006]` and they want to know what it means and how to fix it. It lives in this repository alone, never in
 a repository that uses Lorecraft, and every word of it is generated from the rules' classes.
 
-One function renders a rule's page from its class: the code, the name, the prefix, the default level, the
-release it is stable since, the docstring's sections, a link to the declaring module, and the rule's origin:
-the specification that states it or the package, and each alias with its upstream linter. A removed
-rule's page states the release that removed it and its replacement.
+One function renders a rule's page from its class: the code and name; the release it is stable since; each alias
+with its upstream linter; then the docstring's sections. The facts are the page's frontmatter. A removed rule's
+page states the release that removed it and its replacement.
 
 ```text
 docs/rulebook/
@@ -238,16 +237,14 @@ docs/rulebook/
 └── LEN001-too-many-tokens.md
 ```
 
-- **`docs/rulebook/` is a flat corpus**, one page per code, removed rules included (FR-028). A page is named
-  `<code>-<name>.md`, as in `OUT006-missing-section.md`: the code first, the identity a diagnostic prints, so the
-  listing sorts in code order, then the rule's kebab-case name, so the file says what the rule is. The page's
-  frontmatter `name` is the same `<code>-<name>`, as the corpus convention that `name` matches the filename
-  asks. An alias code has no page: the rule's page lists it, and the lookup resolves it.
-- **A `gen-*` recipe writes the pages**, and the generation check fails on a stale one. Nothing in the corpus is
-  written by hand but its specification, `docs/__meta__/rulebook.md` and its structure, whose outline is the
-  docstring's sections.
-- **The engine checks its own rulebook.** A rule whose docstring lacks a required section renders a page that
-  fails this repository's document gate.
+- **`docs/rulebook/` is a flat directory of generated pages**, one per code, removed rules included (FR-028). A page
+  is named `<code>-<name>.md`, as in `OUT006-missing-section.md`: the code first, the identity a diagnostic prints, so
+  the listing sorts in code order, then the rule's kebab-case name, so the file says what the rule is. The page's
+  frontmatter `name` is the same `<code>-<name>`, so a page's frontmatter names it as its file does. An alias code has
+  no page: the rule's page lists it, and the lookup resolves it.
+- **A `gen-*` recipe writes the pages**, and the generation check fails on a stale one. Nothing in the directory is
+  written by hand, and it defines no specification: the pages are generated output, kept current by the
+  generation check, not documents `lorecraft check` governs.
 - **The directory listing is the index**, in code order and grouped by prefix; no index document is kept. The
   command line is the other: it lists every rule in code order, and prints one page by code, by name or by alias
   (FR-029), from the same rendering function, so a user without this repository reads the same text.

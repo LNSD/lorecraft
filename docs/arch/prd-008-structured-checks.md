@@ -175,8 +175,7 @@ Scenario: A sample rule
   [NEEDS CLARIFICATION: is there an option that fails on warnings?].
 - **FR-027:** THE SYSTEM SHALL report no diagnostic of a rule whose level is `allow`.
 - **FR-028:** THE SYSTEM SHALL publish a reference page per rule, generated from the rule's own declaration:
-  its code, name, prefix, default level, the release it is stable since, what it checks, how to fix it, and
-  its origin.
+  its code, name, the release it is stable since, what it checks, and how to fix it.
 - **FR-029:** WHEN a user asks for a rule by code or name, THE SYSTEM SHALL print that rule's reference page.
 - **NFR-001:** THE SYSTEM SHALL produce identical output for the same workspace revision and configuration.
 - **NFR-002:** THE SYSTEM SHALL check this repository, with no path, no slower than v0.2 does.
