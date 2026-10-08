@@ -1,17 +1,17 @@
 ---
 name: code-rules
-description: Load the repository's code rules that apply to the work at hand, from the rule documents in docs/code/, reading their frontmatter first and only the documents whose triggers match. Use before planning or writing code, or when asked about the repository's conventions, standards, or design principles. Not for checking finished code; see /code-rules-check
-compatibility: Reads files only. Requires the code rules to be kept as Markdown documents in docs/code/ with name and description frontmatter
+description: Load the repository's code rules that apply to the work at hand, from the code specs in docs/code/, reading their frontmatter first and only the specs whose triggers match. Use before planning or writing code, or when asked about the repository's conventions, standards, or design principles. Not for checking finished code; see /code-rules-check
+compatibility: Reads files only. Requires the code specs to be kept as Markdown documents in docs/code/ with name and description frontmatter
 allowed-tools: Bash(grep *) Bash(ls docs/*)
 ---
 
 # Code Rules
 
-A repository that uses Lorecraft keeps the rules for how its code is written as a corpus of rule documents in
-`docs/code/`, one rule or topic per document. This skill loads only their frontmatter, and you choose what to
-read from it. Selecting well is the whole job: read what the task needs, nothing more.
+A repository that uses Lorecraft keeps its code rules, the conventions for how its code is written, as a corpus
+of code specs in `docs/code/`, one convention or topic per spec. This skill loads only their frontmatter, and you
+choose what to read from it. Selecting well is the whole job: read what the task needs, nothing more.
 
-If `docs/code/` does not exist, say so: the repository has no code rules to load. Its specification, if one
+If `docs/code/` does not exist, say so: the repository has no code rules to load. Its corpus meta spec, if one
 exists, is `docs/__meta__/code.md`; `/docs-rules-creator` sets one up.
 
 ## 1. The catalog
@@ -23,14 +23,14 @@ grep -m 3 -E '^(description|type|scope):' docs/code/*.md
 ```
 
 Where the repository also keeps architecture decision records in `docs/arch/`, an **accepted** one binds code as
-a rule document does: it states how the code is built. List them too, and treat only those whose `status` is
-`accepted` as rules:
+a code spec does: it states how the code is built. List them too, and treat only those whose `status` is
+`accepted` as binding:
 
 ```bash
 grep -m 4 -E '^(description|status):' docs/arch/adr-*.md
 ```
 
-Each `description` says what its document covers and, where the corpus specification asks for one, a trigger
+Each `description` says what its document covers and, where the corpus meta spec asks for one, a trigger
 clause — `Load when …` or similar — naming the situations the document governs. Other fields, such as `type`
 or `scope`, are whatever `docs/__meta__/code.md` defines; read its frontmatter section once if their meaning is
 not obvious.
@@ -46,20 +46,20 @@ Match the task against the trigger clauses, then:
   matching topics instead of triggers.
 - **Break ties by specificity**: a document scoped to the package or directory being changed over a global
   one, where the frontmatter says which is which.
-- **Read nothing adjacent.** If no trigger matches, say so: a gap in the rules is worth reporting.
+- **Read nothing adjacent.** If no trigger matches, say so: a gap in the code specs is worth reporting.
 
 Read selections at `docs/code/<name>.md`, or `docs/arch/<name>.md` for a decision record. Do not re-read what is
 already in context.
 
-## 3. Rules that apply to all design work
+## 3. Code specs that apply to all design work
 
-Some rules — design principles, usually a `principle-*` group — govern every change, so no task will match
-their triggers. Treat their catalog `description`s as the rules themselves and design against every one. Read
+Some code specs — design principles, usually a `principle-*` group — govern every change, so no task will match
+their triggers. Treat their catalog `description`s as the principles themselves and design against every one. Read
 a full principle document only to argue one: to justify a decision, settle a disagreement, or cite it in a
 review. Asked for the principles, read them all and summarise.
 
 ## 4. Applying
 
-The rules are the repository's decisions, and they outrank general practice and your defaults. Where a rule
-seems wrong for the task, follow it and raise the conflict; do not silently deviate. Each rule document usually
+The code specs are the repository's decisions, and they outrank general practice and your defaults. Where one
+seems wrong for the task, follow it and raise the conflict; do not silently deviate. Each code spec usually
 ends with a checklist: hold it while writing, since `/code-rules-check` checks the result against it.

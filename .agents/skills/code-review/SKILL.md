@@ -1,18 +1,18 @@
 ---
 name: code-review
-description: Deep review of the working branch — rule compliance, bugs, regressions, security, soundness. Use before opening a PR, or when a change needs scrutiny beyond /code-rules-check.
+description: Deep review of the working branch — code rules compliance, bugs, regressions, security, soundness. Use before opening a PR, or when a change needs scrutiny beyond /code-rules-check.
 allowed-tools: Bash(git diff *) Bash(git status *) Bash(git merge-base *) Bash(grep *)
 ---
 
 # Code Review
 
 A thorough review of the current branch, run locally. It performs `/code-rules-check` at review depth — fanned
-out across rule groups — and adds what a compliance check cannot see: logic gaps, regressions, security,
+out across groups of code specs — and adds what a compliance check cannot see: logic gaps, regressions, security,
 safety, and soundness.
 
 The subject is the uncommitted work by default (`git diff HEAD`, `git status`). For a whole branch use
 `git diff $(git merge-base HEAD main)...HEAD`. Review only what the diff touches — an unchanged file that
-breaks a rule is not this change's finding.
+breaks a code spec is not this change's finding.
 
 ## When to Use This Skill
 
@@ -21,7 +21,7 @@ breaks a rule is not this change's finding.
 - Reviewing someone else's branch locally
 - When `/code-rules-check` is clean but the change still warrants scrutiny
 
-For the routine "does this follow the rules?" pass after finishing a piece of work, use `/code-rules-check`
+For the routine "does this follow the code rules?" pass after finishing a piece of work, use `/code-rules-check`
 alone — it is a fraction of the cost and is the gate in the development workflow.
 
 ## Review Checklist
@@ -42,10 +42,10 @@ Review for security vulnerabilities:
 
 ### 2. Principles Violations
 
-The `principle-*` documents are the design rules, and the `/code-rules` catalog states each one in full — work
+The `principle-*` code specs are the design principles, and the `/code-rules` catalog states each one in full — work
 from the catalog rather than a list here, which would cover a subset and go stale on the next edit.
 
-Judge the change against all of them. Read a full principle document when you need to *argue* a finding: the
+Judge the change against all of them. Read a full principle spec when you need to *argue* a finding: the
 examples and the Pragmatism Caveat are what separate a violation from a deliberate, documented exception, and
 a principle finding that ignores the caveat will be rejected.
 
@@ -79,20 +79,20 @@ Verify compliance with the project's error handling standards.
 Verify backwards compatibility is maintained:
 - A changed public dataclass field — a rename, a removed default, a narrowed type — breaks every caller that
   constructs it by keyword
-- A tightened frontmatter schema or structure rule that documents already in a consuming repository cannot
+- A tightened frontmatter schema or structure file that specs already in a consuming repository cannot
   satisfy, turning a clean corpus into a wall of findings
 - A renamed check identifier, or a changed finding shape, that a caller parsing the output depends on
 - A renamed or removed public name in a package `__init__.py`
 
-### 6. Code Rules Compliance
+### 6. Code Spec Compliance
 
-Run `/code-rules-check`, forcing its fan-out path regardless of diff size: one agent per rule group, spawned
-in a single message, each applying its documents' `## Checklist` items to the diff. That skill owns the
-procedure — which documents govern a change, how groups are derived, and the report format. Do not restate
-its rules here; they change when `docs/code/` changes.
+Run `/code-rules-check`, forcing its fan-out path regardless of diff size: one agent per group of code specs,
+spawned in a single message, each applying its specs' `## Checklist` items to the diff. That skill owns the
+procedure — which code specs govern a change, how groups are derived, and the report format. Do not restate
+the code specs here; they change when `docs/code/` changes.
 
-A finding in this dimension is a rule violation with a document behind it. Anything a reviewer notices that no
-document states belongs in the dimensions above and below, not here.
+A finding in this dimension is a violation with a code spec behind it. Anything a reviewer notices that no
+code spec states belongs in the dimensions above and below, not here.
 
 ### 7. Testing
 
@@ -123,8 +123,8 @@ Ensure documentation is up-to-date:
 - `README.md` and `docs/` reflect current behaviour, and the `justfile` recipes they quote still exist
 - `AGENTS.md` marks planned things as planned: a section that calls something "planned, not created" must be
   updated in the same change that creates it
-- A new or changed check is reflected in the format specification it enforces, under `docs/__meta__/` — the
-  rule a checker applies and the prose stating it change together
+- A new or changed check is reflected in the meta spec it enforces, under `docs/__meta__/` — the
+  requirement a check applies and the prose stating it change together
 
 ### 10. Dead Code
 
@@ -141,11 +141,11 @@ Look for inconsistencies between comments and code:
 - Misleading variable names or comments
 - Outdated comments after refactoring
 
-### 12. Rule Document Validation
+### 12. Code Spec Validation
 
-If the change touches `docs/code/` or `docs/__meta__/`, check the documents against their own format
-contract: `docs/__meta__/code.md`, narrowed by the `code-<prefix>.md` specification for the document's
-prefix. No checker is wired up, so this is done by reading.
+If the change touches `docs/code/` or `docs/__meta__/`, check the code specs against the meta specs that govern
+them: the corpus meta spec `docs/__meta__/code.md`, narrowed by the `code-<prefix>.md` namespace meta spec for
+the spec's prefix. No checker is wired up, so this is done by reading.
 
 ## Notes
 
@@ -156,16 +156,16 @@ prefix. No checker is wired up, so this is done by reading.
 - Reference specific file paths and line numbers
 - Suggest concrete improvements
 
-### Rule Compliance is Critical
+### Code Spec Compliance is Critical
 
-Rule violations should be treated seriously as they:
+Code spec violations should be treated seriously as they:
 - Reduce codebase consistency
 - Make maintenance harder
 - May introduce security vulnerabilities, in the code that parses documents from outside this repository
   above all
 - Conflict with established architectural decisions
 
-Always run the rule compliance review (section 6) as part of every code review.
+Always run the code spec compliance review (section 6) as part of every code review.
 
 ### Review Priority
 
@@ -174,7 +174,7 @@ Sections are ordered by priority — review from top to bottom:
 2. **Principles violations** (§2)
 3. **Potential bugs** and **unhandled failure paths** (§3–4)
 4. **Backwards compatibility** (§5)
-5. **Code rule violations** (§6)
+5. **Code spec violations** (§6)
 6. **Testing** (§7)
 7. **Performance** (§8)
 8. **Documentation**, **dead code**, and **inconsistencies** (§9–11)

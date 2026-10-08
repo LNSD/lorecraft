@@ -8,7 +8,7 @@ allowed-tools: Bash(just gen*) Bash(just sync) Bash(git status *) Bash(git diff 
 # Code Generation Skill
 
 Some files in this repository are generated and committed: the JSON Schemas under `docs/schemas/`, which
-editors validate the specification files against, and the rulebook pages under `docs/rulebook/`, one per rule
+editors validate the meta spec files against, and the rulebook pages under `docs/rulebook/`, one per rule
 code. Each is rendered from what the package declares, so a change to it leaves the committed file stale until it
 is regenerated.
 
@@ -47,7 +47,7 @@ git diff docs/schemas docs/rulebook
 ```
 
 A description that reads badly in the diff reads badly in an editor too: fix the docstring, not the output. A
-rulebook page is generated output too: fix its rule's docstring and regenerate, never the page. No specification
+rulebook page is generated output too: fix its rule's docstring and regenerate, never the page. No meta spec
 governs the pages, so `just check-docs` does not read them; `gen-check` keeps them current.
 
 ## Rules
