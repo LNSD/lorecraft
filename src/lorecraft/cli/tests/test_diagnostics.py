@@ -27,7 +27,7 @@ from lorecraft.rules.layout.outside_symlink import OutsideSymlink
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.outline.missing_section import MissingSection
 from lorecraft.rules.subject import Facet
-from lorecraft.vfs import RootExit
+from lorecraft.vfs import RootExit, Utf8Failure, Utf8Reason
 
 from ..diagnostics import render_coverage, render_diagnostics, render_json, render_summary
 
@@ -46,6 +46,15 @@ def _document(corpus: str, filename: str) -> DocumentRef:
 
 def _line(number: int) -> LineNumber:
     return LineNumber.from_int(number)
+
+
+def _latin_failure() -> Utf8Failure:
+    return Utf8Failure(
+        line=4,
+        offset=31,
+        invalid=b'\xe9',
+        reason=Utf8Reason.INVALID_CONTINUATION_BYTE,
+    )
 
 
 def _every_kind_of_report() -> tuple[SubjectReport, ...]:
@@ -78,7 +87,7 @@ def _every_kind_of_report() -> tuple[SubjectReport, ...]:
             ungoverned=(Facet.FRONTMATTER, Facet.BUDGET),
         ),
         CheckedLayoutEntry(review, diagnostics=(RuleDiagnostic(review, outside, Severity.ERROR),)),
-        UndecodableSubject(_document('code', 'latin')),
+        UndecodableSubject(_document('code', 'latin'), _latin_failure()),
         CheckedSubject(
             a,
             diagnostics=(
@@ -201,7 +210,7 @@ class TestRenderCoverage:
         a = _document('code', 'a')
         reports: tuple[SubjectReport, ...] = (
             CheckedSubject(a, diagnostics=(), ungoverned=()),
-            UndecodableSubject(_document('code', 'latin')),
+            UndecodableSubject(_document('code', 'latin'), _latin_failure()),
         )
 
         #: When
@@ -327,13 +336,19 @@ class TestRenderJson:
                 },
                 {
                     'path': 'docs/code/latin.md',
-                    'line': None,
+                    'line': 4,
                     'severity': 'error',
                     'code': 'LC001',
                     'name': 'invalid-utf8',
                     'message': 'file is not valid UTF-8',
-                    'labels': [],
-                    'children': [],
+                    'labels': [
+                        {
+                            'path': 'docs/code/latin.md',
+                            'line': 4,
+                            'text': '0xE9 at byte offset 31 starts a character the next byte does not continue',
+                        }
+                    ],
+                    'children': [{'kind': 'help', 'text': 'save the file as UTF-8', 'path': None, 'line': None}],
                 },
                 {
                     'path': 'docs/feat/check.md',

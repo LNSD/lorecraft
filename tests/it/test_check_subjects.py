@@ -104,7 +104,7 @@ from lorecraft.rules.outline.title_not_first import TitleNotFirst
 from lorecraft.rules.outline.unexpected_section import UnexpectedSection
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.subject import DocumentRule, Facet
-from lorecraft.vfs import EntryRecord, ResolvedPath, Snapshot, SymlinkRecord, take_snapshot
+from lorecraft.vfs import EntryRecord, ResolvedPath, Snapshot, SymlinkRecord, Utf8Failure, Utf8Reason, take_snapshot
 
 GUIDE: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('guide'))
 """A document of corpus `code`."""
@@ -120,6 +120,16 @@ GUIDE_TEXT: Final[str] = '# Guide\n\nInstall the toolkit, then run it once over 
 
 CODE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
 """The corpus structure specification."""
+
+_CAFE_TITLE_FAILURE: Final[Utf8Failure] = Utf8Failure(
+    line=1, offset=5, invalid=b'\xe9', reason=Utf8Reason.INVALID_CONTINUATION_BYTE
+)
+"""Where `# Caf\xe9\n` stops being UTF-8: the Latin-1 `é`, on the first line, followed by a line feed."""
+
+_CAFE_NAME_FAILURE: Final[Utf8Failure] = Utf8Failure(
+    line=2, offset=13, invalid=b'\xe9', reason=Utf8Reason.INVALID_CONTINUATION_BYTE
+)
+"""Where `---\nname: caf\xe9\n---\n` stops being UTF-8: the Latin-1 `é` in the frontmatter's second line."""
 
 REVIEW_FILE: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills/review/SKILL.md')
 """Where `REVIEW` is reported: its `SKILL.md`, under the skills directory an agent lists it in."""
@@ -724,7 +734,9 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        assert reports == (UndecodableSubject(GUIDE),), 'a document that is not UTF-8 is judged by no rule'
+        assert reports == (UndecodableSubject(GUIDE, _CAFE_TITLE_FAILURE),), (
+            'a document that is not UTF-8 is judged by no rule, and says where its bytes stop being UTF-8'
+        )
 
     def test_check_subjects_with_an_undecodable_ungoverned_document_reports_it_undecodable(
         self, package_table: RuleTable
@@ -736,7 +748,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        assert reports == (UndecodableSubject(GUIDE),), (
+        assert reports == (UndecodableSubject(GUIDE, _CAFE_TITLE_FAILURE),), (
             'a document is decoded before governance is read, so it is undecodable whatever governs it'
         )
 
@@ -879,7 +891,9 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
-        assert reports == (UndecodableSubject(REVIEW),), 'a skill whose SKILL.md is not UTF-8 is judged by no rule'
+        assert reports == (UndecodableSubject(REVIEW, _CAFE_NAME_FAILURE),), (
+            'a skill whose SKILL.md is not UTF-8 is judged by no rule'
+        )
 
     def test_check_subjects_with_documents_and_skills_reports_them_in_the_order_given(
         self, package_table: RuleTable
@@ -1947,7 +1961,9 @@ class TestCheckSubjects:
         reports = check_subjects(database, _resources(database, REVIEW), package_table)
 
         #: Then
-        assert reports == (UndecodableSubject(cafe),), 'a resource that is not UTF-8 is judged by no rule'
+        assert reports == (UndecodableSubject(cafe, _CAFE_TITLE_FAILURE),), (
+            'a resource that is not UTF-8 is judged by no rule'
+        )
 
     def test_check_subjects_with_an_undecodable_skill_file_still_judges_its_resources(
         self, package_table: RuleTable
@@ -1971,7 +1987,7 @@ class TestCheckSubjects:
         #: Then
         occurrence = AbsoluteLink(line=LineNumber.from_int(1), url='/x.md')
         assert reports == (
-            UndecodableSubject(REVIEW),
+            UndecodableSubject(REVIEW, _CAFE_NAME_FAILURE),
             CheckedSubject(
                 resource, diagnostics=(RuleDiagnostic(resource.path, occurrence, Severity.ERROR),), ungoverned=()
             ),

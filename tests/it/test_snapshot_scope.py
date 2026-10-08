@@ -31,6 +31,8 @@ from lorecraft.vfs import (
     ResolvedPath,
     Snapshot,
     SymlinkRecord,
+    Utf8Failure,
+    Utf8Reason,
     take_snapshot,
 )
 
@@ -408,7 +410,15 @@ class TestDatabaseSkillResources:
         source = database.skill_resource_text(location)
 
         #: Then
-        assert source == Undecodable(ref), 'a decode failure is an answer naming the resource, not an error'
+        failure = Utf8Failure(
+            line=1,
+            offset=3,
+            invalid=b'\xe9',
+            reason=Utf8Reason.INVALID_CONTINUATION_BYTE,
+        )
+        assert source == Undecodable(ref, failure), (
+            'a decode failure is an answer naming the resource and where its bytes stop being UTF-8, not an error'
+        )
 
     def test_skill_resource_text_of_a_resource_that_is_not_utf8_called_twice_returns_the_first_answer(
         self, tmp_path: Path

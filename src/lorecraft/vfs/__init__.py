@@ -31,6 +31,7 @@ from .snapshot import (
     SymlinkRecord,
     VirtualFileSystem,
 )
+from .utf8_failure import Utf8Failure, Utf8Reason
 from .view import (
     DirEntry,
     DirListError,
@@ -76,6 +77,8 @@ __all__: list[str] = [
     'FileReadError',
     'UnrecordedFileError',
     'TextDecodeError',
+    'Utf8Failure',
+    'Utf8Reason',
     'EntryInspectError',
     'DirResolveError',
     'FileResolveError',
