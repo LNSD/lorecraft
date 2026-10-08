@@ -130,9 +130,11 @@ A rule is named for what is wrong, as the established linters name theirs, so th
   `Note`: nothing outside the diagnostic states the rule.
 - **A `Help` gives the fix for this occurrence** when its fields make it concrete, such as the description an
   outline gives a section the document lacks. A limit's message already names the value found against the limit,
-  so a `Help` restating the difference adds nothing. The general fix is the docstring's, but a rule may give it as
-  a fixed `Help` too, such as "move the title above every section", and a rule the package states may add a
-  `Help` with the fix the external specification itself prescribes.
+  so a `Help` restating the difference adds nothing; a `Label` places the overrun at a line, and may name what it
+  overruns, in a template that needs no plural. The general fix is the docstring's, but a rule may give it as a
+  fixed `Help` too, such as "move the title above every section", and a rule the package states may add a `Help`
+  with the fix the external specification itself prescribes. `children()` orders the specification `Note` first,
+  then the `Help`, then the other `Note`s.
 
 ## Documenting a Rule
 
@@ -192,15 +194,16 @@ Before committing code, verify:
       subject; a rule over a document declares its facet in `GOVERNED_BY`
 - [ ] A new rule is declared with `@rule` in its own module, in its group's subpackage, and listed nowhere else
 - [ ] Decoding, answering a context, running the rules, applying a level and rendering stay out of the package
-- [ ] A new rule's name states the condition it reports, and its class and module spell that name
-- [ ] A new rule's `message()` is lowercase with the value found against the limit, and `children()` points a
-      `Note` at the specification that states the rule, at the corpus's structure specification when no key states
-      it, or, when the package states it, names the external specification in its text without `at`; title
-      rules, and rules no external specification sets or schema states, have none
+- [ ] A new rule's name states its condition; its class and module spell it
+- [ ] A new rule's `message()` is lowercase with the value found against the limit; `children()` puts a
+      `Note` at the specification that states the rule (the corpus's structure one when no key does; the external
+      one named without `at` when the package states it; none for title rules and rules no external
+      specification or schema states), then the `Help`, then other `Note`s; a `Label` stating an overrun needs
+      no plural
 - [ ] A new rule's docstring opens *What it does* with "Checks for", shows the broken and the fixed input under
       *Example* and *Use instead*, and names nothing of the implementation; a rule no key states says so, and its
       *Example* shows a governing specification's excerpt, then the subject; a rule the package states names the
-      external specification and its figure, and its *Example* shows the subject alone
+      external specification and its figure, its *Example* the subject alone
 
 ## References
 

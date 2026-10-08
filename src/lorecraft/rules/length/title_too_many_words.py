@@ -7,10 +7,10 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
 from lorecraft.project.syntax import count_words, find_title
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.location import Elsewhere, Note, Subdiagnostic
+from lorecraft.rules.location import Here, Label, Subdiagnostic
 from lorecraft.rules.subject import DocumentRule, Facet
 
-from .__ruleset__ import GROUP_ID
+from .__ruleset__ import GROUP_ID, TITLE_HELP, spec_note
 
 
 @rule
@@ -76,9 +76,13 @@ class TitleTooManyWords(DocumentRule):
         """Name the title's words against the cap they exceed."""
         return f'too many words in the title ({self.word_count} > {self.cap})'
 
+    def labels(self) -> tuple[Label, ...]:
+        """Say how many words the title runs past its cap, at the title."""
+        return (Label(Here(self.line), f'words over the cap: {self.word_count - self.cap}'),)
+
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the specification that sets the cap."""
-        return (Note('the cap is set here', at=Elsewhere(self.spec)),)
+        """Point at the specification that sets the cap, then say what a title holds."""
+        return (spec_note(self.spec), TITLE_HELP)
 
     @classmethod
     def check(cls, subject: DocumentContext) -> tuple[Self, ...]:

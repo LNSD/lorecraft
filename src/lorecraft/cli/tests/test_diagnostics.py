@@ -273,12 +273,30 @@ class TestRenderJson:
                     'code': 'LEN001',
                     'name': 'too-many-tokens',
                     'message': 'too many tokens (2400 > 2000)',
-                    'labels': [],
+                    'labels': [{'path': 'docs/code/a.md', 'line': 1, 'text': 'tokens over the budget: 400'}],
                     'children': [
                         {
                             'kind': 'note',
-                            'text': 'the budget is set here',
+                            'text': 'the limit is set here',
                             'path': 'docs/__meta__/code.structure.json',
+                            'line': None,
+                        },
+                        {
+                            'kind': 'help',
+                            'text': (
+                                'split the document, or move what an agent needs only some of the time into a '
+                                'document of its own and link to it'
+                            ),
+                            'path': None,
+                            'line': None,
+                        },
+                        {
+                            'kind': 'note',
+                            'text': (
+                                'tokens are counted as o200k_base over the whole file: frontmatter, code blocks and '
+                                'tables included'
+                            ),
+                            'path': None,
                             'line': None,
                         },
                     ],

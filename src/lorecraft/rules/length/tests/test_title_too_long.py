@@ -10,7 +10,7 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.location import Elsewhere, Note
+from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
 
 from ..title_too_long import TitleTooLong
@@ -168,7 +168,19 @@ class TestTitleTooLong:
             'the message sets the character count against the cap'
         )
 
-    def test_children_with_an_occurrence_point_at_the_spec(self) -> None:
+    def test_labels_with_an_occurrence_say_how_many_characters_it_runs_over_the_cap(self) -> None:
+        #: Given
+        occurrence = TitleTooLong(spec=CORPUS_SPEC, line=LineNumber.from_int(1), char_count=39, cap=30)
+
+        #: When
+        labels = occurrence.labels()
+
+        #: Then
+        assert labels == (Label(Here(LineNumber.from_int(1)), 'characters over the cap: 9'),), (
+            'the label sits on the title and gives the overrun'
+        )
+
+    def test_children_with_an_occurrence_point_at_the_spec_then_help_then_say_how_characters_are_counted(self) -> None:
         #: Given
         occurrence = TitleTooLong(spec=CORPUS_SPEC, line=LineNumber.from_int(1), char_count=39, cap=30)
 
@@ -176,6 +188,10 @@ class TestTitleTooLong:
         children = occurrence.children()
 
         #: Then
-        assert children == (Note('the cap is set here', at=Elsewhere(CORPUS_SPEC)),), (
-            'a note points at the specification that sets the cap'
-        )
+        assert children == (
+            Note('the limit is set here', at=Elsewhere(CORPUS_SPEC)),
+            Help('name what the document is about, and leave the rest to its first paragraph'),
+            Note(
+                "characters are counted as the code points of the title's text, without its # marker or inline markup"
+            ),
+        ), 'the specification note comes first, then the help, then how the characters are counted'

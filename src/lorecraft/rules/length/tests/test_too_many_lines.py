@@ -9,7 +9,7 @@ from typing import Final
 import pytest
 
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.location import Help, Note
+from lorecraft.rules.location import Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import FakeSkillContext
 
 from ..too_many_lines import TooManyLines
@@ -29,7 +29,7 @@ def _skill_of(lines: int) -> str:
 
 @pytest.mark.unit
 class TestTooManyLines:
-    def test_check_with_a_skill_over_the_budget_reports_it_on_line_1(self) -> None:
+    def test_check_with_a_skill_over_the_budget_reports_it_on_the_first_line_past_it(self) -> None:
         #: Given
         subject = FakeSkillContext(_skill_of(501))
 
@@ -37,8 +37,8 @@ class TestTooManyLines:
         occurrences = TooManyLines.check(subject)
 
         #: Then
-        assert occurrences == (TooManyLines(line=LineNumber.from_int(1), line_count=501),), (
-            'a SKILL.md one line over the budget is one occurrence, on line 1'
+        assert occurrences == (TooManyLines(line=LineNumber.from_int(501), line_count=501),), (
+            'a SKILL.md one line over the budget is one occurrence, on line 501, the first line past it'
         )
 
     def test_check_with_a_skill_at_the_budget_reports_nothing(self) -> None:
@@ -53,7 +53,7 @@ class TestTooManyLines:
 
     def test_message_with_an_occurrence_names_the_lines_and_the_budget(self) -> None:
         #: Given
-        occurrence = TooManyLines(line=LineNumber.from_int(1), line_count=612)
+        occurrence = TooManyLines(line=LineNumber.from_int(501), line_count=612)
 
         #: When
         message = occurrence.message()
@@ -61,16 +61,28 @@ class TestTooManyLines:
         #: Then
         assert message == 'too many lines (612 > 500)', 'the message sets the line count against the budget'
 
+    def test_labels_with_an_occurrence_mark_where_the_budget_ends_and_the_lines_past_it(self) -> None:
+        #: Given
+        occurrence = TooManyLines(line=LineNumber.from_int(501), line_count=612)
+
+        #: When
+        labels = occurrence.labels()
+
+        #: Then
+        assert labels == (
+            Label(Here(LineNumber.from_int(501)), 'the budget ends before this line; lines past it: 112'),
+        ), 'the label sits on line 501 and gives the lines past the budget'
+
     def test_children_with_an_occurrence_name_the_budget_and_say_where_to_move_the_lines(self) -> None:
         #: Given
-        occurrence = TooManyLines(line=LineNumber.from_int(1), line_count=612)
+        occurrence = TooManyLines(line=LineNumber.from_int(501), line_count=612)
 
         #: When
         children = occurrence.children()
 
         #: Then
         assert children == (
-            Note('the Agent Skills specification keeps a SKILL.md under 500 lines'),
+            Note('the Agent Skills specification keeps a SKILL.md to at most 500 lines'),
             Help(
                 'move what most activations do not need into files under references/, and say in SKILL.md when to '
                 'read each'

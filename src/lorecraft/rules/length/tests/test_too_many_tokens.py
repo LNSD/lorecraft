@@ -10,7 +10,7 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber, count_tokens
-from lorecraft.rules.location import Elsewhere, Note
+from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
 
 from ..too_many_tokens import TooManyTokens
@@ -136,7 +136,19 @@ class TestTooManyTokens:
         #: Then
         assert message == 'too many tokens (7 > 6)', 'the message sets the token count against the budget'
 
-    def test_children_with_an_occurrence_point_at_the_spec(self) -> None:
+    def test_labels_with_an_occurrence_say_how_many_tokens_it_runs_over_the_budget(self) -> None:
+        #: Given
+        occurrence = TooManyTokens(spec=CORPUS_SPEC, line=LineNumber.from_int(1), token_count=7, budget=5)
+
+        #: When
+        labels = occurrence.labels()
+
+        #: Then
+        assert labels == (Label(Here(LineNumber.from_int(1)), 'tokens over the budget: 2'),), (
+            'the label sits on the reported line and gives the overrun'
+        )
+
+    def test_children_with_an_occurrence_point_at_the_spec_then_help_then_say_how_tokens_are_counted(self) -> None:
         #: Given
         occurrence = TooManyTokens(spec=CORPUS_SPEC, line=LineNumber.from_int(1), token_count=7, budget=5)
 
@@ -144,6 +156,11 @@ class TestTooManyTokens:
         children = occurrence.children()
 
         #: Then
-        assert children == (Note('the budget is set here', at=Elsewhere(CORPUS_SPEC)),), (
-            'a note points at the specification that sets the budget'
-        )
+        assert children == (
+            Note('the limit is set here', at=Elsewhere(CORPUS_SPEC)),
+            Help(
+                'split the document, or move what an agent needs only some of the time into a document of its own '
+                'and link to it'
+            ),
+            Note('tokens are counted as o200k_base over the whole file: frontmatter, code blocks and tables included'),
+        ), 'the specification note comes first, then the help, then how the tokens are counted'

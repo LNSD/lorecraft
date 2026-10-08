@@ -33,7 +33,10 @@ docs/code/python-typing.md:1: error[FM001]: no `---` delimited frontmatter block
   = help: open the file with a `---` line, the fields, and a closing `---` line
 
 docs/code/python-typing.md:1: error[LEN001]: too many tokens (4 > 3)
-  = note: the budget is set here (docs/__meta__/code-python.structure.json)
+  --> docs/code/python-typing.md:1: tokens over the budget: 1
+  = note: the limit is set here (docs/__meta__/code-python.structure.json)
+  = help: split the document, or move what an agent needs only some of the time into a document of its own and link to it
+  = note: tokens are counted as o200k_base over the whole file: frontmatter, code blocks and tables included
 
 docs/code/python-typing.md:1: error[OUT004]: section `Python typing` is empty
   = note: the document structure is set here (docs/__meta__/code.structure.json)
