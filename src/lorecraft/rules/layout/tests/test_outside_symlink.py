@@ -78,7 +78,7 @@ class TestOutsideSymlink:
         #: Then
         assert message == 'symlink leads outside the repository', 'the message names the condition alone'
 
-    def test_children_with_an_occurrence_name_where_the_chain_leaves_and_what_to_keep_inside(self) -> None:
+    def test_children_with_an_absolute_target_say_it_resolves_differently_in_every_checkout(self) -> None:
         #: Given
         occurrence = OutsideSymlink(leaves_at=RootExit(RootRelativePath.parse('hop'), PurePosixPath('/home/alex')))
 
@@ -87,6 +87,39 @@ class TestOutsideSymlink:
 
         #: Then
         assert children == (
+            EntryHelp(
+                'an absolute target resolves differently in every checkout; move what it links to into the repository'
+            ),
             EntryNote('leaves the repository at hop -> /home/alex'),
-            EntryHelp('keep every file a skill loads inside the repository'),
-        ), 'a note names the link the chain leaves through and its target, and a help what to keep inside'
+        ), 'a help comes first and says why an absolute target breaks, then a note names the link and its target'
+
+    def test_children_with_a_relative_target_say_it_climbs_above_the_root(self) -> None:
+        #: Given
+        occurrence = OutsideSymlink(leaves_at=RootExit(RootRelativePath.parse('hop'), PurePosixPath('../../x')))
+
+        #: When
+        children = occurrence.children()
+
+        #: Then
+        assert children == (
+            EntryHelp(
+                'a `..` on the chain climbs above the repository root; move what it links to into the repository'
+            ),
+            EntryNote('leaves the repository at hop -> ../../x'),
+        ), 'a relative target gets the help for a climb above the root'
+
+    def test_children_with_a_relative_target_without_a_climb_blame_the_chain_not_the_named_link(self) -> None:
+        #: Given
+        # `inner -> sub`, and `shared -> inner/../../../x`: the named link is `inner`, whose target climbs nothing
+        occurrence = OutsideSymlink(leaves_at=RootExit(RootRelativePath.parse('inner'), PurePosixPath('sub')))
+
+        #: When
+        children = occurrence.children()
+
+        #: Then
+        assert children == (
+            EntryHelp(
+                'a `..` on the chain climbs above the repository root; move what it links to into the repository'
+            ),
+            EntryNote('leaves the repository at inner -> sub'),
+        ), 'the help blames a `..` on the chain, so it does not send the writer to the named link as the climber'

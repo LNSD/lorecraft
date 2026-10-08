@@ -521,14 +521,17 @@ class TestCheckSnapshots:
                     'labels': [],
                     'children': [
                         {
-                            'kind': 'note',
-                            'text': 'leaves the repository at .agents/skills/review/shared -> ../../../../shared',
+                            'kind': 'help',
+                            'text': (
+                                'a `..` on the chain climbs above the repository root; '
+                                'move what it links to into the repository'
+                            ),
                             'path': None,
                             'line': None,
                         },
                         {
-                            'kind': 'help',
-                            'text': 'keep every file a skill loads inside the repository',
+                            'kind': 'note',
+                            'text': 'leaves the repository at .agents/skills/review/shared -> ../../../../shared',
                             'path': None,
                             'line': None,
                         },

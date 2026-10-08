@@ -253,14 +253,17 @@ class TestRenderJson:
                     'labels': [],
                     'children': [
                         {
-                            'kind': 'note',
-                            'text': 'leaves the repository at .agents/skills/review -> /home/alex/review',
+                            'kind': 'help',
+                            'text': (
+                                'an absolute target resolves differently in every checkout; '
+                                'move what it links to into the repository'
+                            ),
                             'path': None,
                             'line': None,
                         },
                         {
-                            'kind': 'help',
-                            'text': 'keep every file a skill loads inside the repository',
+                            'kind': 'note',
+                            'text': 'leaves the repository at .agents/skills/review -> /home/alex/review',
                             'path': None,
                             'line': None,
                         },
