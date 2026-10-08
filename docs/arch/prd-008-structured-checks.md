@@ -218,7 +218,8 @@ Scenario: A sample rule
 - A user of today's checks accepts changed output and commands, given a documented migration.
 - The rules of later milestones read inputs of the kinds the ported rules already read, or add one new kind
   at a time.
-- A specification's layers reach a rule the same way whether an extension layers onto its base or overrides it.
+- A specification's layers reach a rule by conjunction: each governing specification applies on its own, and a rule
+  reports each one a subject breaks ([adr-006](adr-006-specifications.md)).
 
 ## Open Questions
 
@@ -228,6 +229,7 @@ Scenario: A sample rule
 ## References
 
 - [#315](https://github.com/LNSD/lorecraft/issues/315) - Source: The exploration this PRD consolidates
+- [adr-006](adr-006-specifications.md) - Foundation: How a document's specifications layer onto each other
 - [adr-009](adr-009-rules.md) - Leads to: How a rule is declared and identified
 - [adr-010](adr-010-diagnostics.md) - Leads to: What a rule reports, and how it reaches the user
 - [adr-011](adr-011-rules-engine.md) - Leads to: How a run judges subjects
