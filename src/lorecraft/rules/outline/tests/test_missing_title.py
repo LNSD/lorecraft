@@ -8,15 +8,11 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.location import Elsewhere, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
+from lorecraft.rules.location import Help
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec
 
 from ..missing_title import MissingTitle
-
-CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
-"""The corpus structure specification."""
 
 STRUCTURE: Final[str] = '{"forbidden": ["Changelog"]}'
 """A structure specification that states a rule other than the title, which no key states."""
@@ -35,8 +31,8 @@ class TestMissingTitle:
         occurrences = MissingTitle.check(subject)
 
         #: Then
-        assert occurrences == (MissingTitle(spec=CORPUS_SPEC, line=LineNumber.from_int(1)),), (
-            'a document with no H1 is one occurrence, on line 1, naming the corpus structure specification'
+        assert occurrences == (MissingTitle(line=LineNumber.from_int(1)),), (
+            'a document with no H1 is one occurrence, on line 1'
         )
 
     def test_check_with_a_document_carrying_its_title_reports_nothing(self) -> None:
@@ -67,7 +63,7 @@ class TestMissingTitle:
         occurrences = MissingTitle.check(subject)
 
         #: Then
-        assert occurrences == (MissingTitle(spec=CORPUS_SPEC, line=LineNumber.from_int(1)),), (
+        assert occurrences == (MissingTitle(line=LineNumber.from_int(1)),), (
             'only a heading at the top level of the document counts, so an H1 in a blockquote is no title'
         )
 
@@ -81,13 +77,13 @@ class TestMissingTitle:
         occurrences = MissingTitle.check(subject)
 
         #: Then
-        assert occurrences == (MissingTitle(spec=CORPUS_SPEC, line=LineNumber.from_int(1)),), (
-            'every specification agrees on one title, so the document is reported once, under its corpus'
+        assert occurrences == (MissingTitle(line=LineNumber.from_int(1)),), (
+            'every specification agrees on one title, so the document is reported once'
         )
 
     def test_message_with_an_occurrence_states_the_missing_title(self) -> None:
         #: Given
-        occurrence = MissingTitle(spec=CORPUS_SPEC, line=LineNumber.from_int(1))
+        occurrence = MissingTitle(line=LineNumber.from_int(1))
 
         #: When
         message = occurrence.message()
@@ -95,14 +91,14 @@ class TestMissingTitle:
         #: Then
         assert message == 'missing H1 title', 'the message states that the title is missing'
 
-    def test_children_with_an_occurrence_point_at_the_specification(self) -> None:
+    def test_children_with_an_occurrence_say_how_to_write_the_title(self) -> None:
         #: Given
-        occurrence = MissingTitle(spec=CORPUS_SPEC, line=LineNumber.from_int(1))
+        occurrence = MissingTitle(line=LineNumber.from_int(1))
 
         #: When
         children = occurrence.children()
 
         #: Then
-        assert children == (Note('the document structure is set here', at=Elsewhere(CORPUS_SPEC)),), (
-            'a note points at the corpus structure specification that governs the document'
+        assert children == (Help('open the document with an H1 title, `# <title>`'),), (
+            'help shows the title to write, and no note points at a specification that does not state the rule'
         )

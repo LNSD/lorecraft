@@ -891,6 +891,19 @@ class StructureSpec:
                     assert_never(entry)
         return names
 
+    def find_required_entry(self, name: str) -> SectionEntry | None:
+        """The outline entry that requires the section called `name`, or `None` when none does.
+
+        An optional entry requires nothing.
+
+        Args:
+            name: The heading text of the section.
+        """
+        for entry in self.outline:
+            if isinstance(entry, SectionEntry) and entry.name.value == name and not entry.optional:
+                return entry
+        return None
+
     @classmethod
     def parse(cls, file: StructureSpecFile, schema: StructureSchema) -> Self:
         """Deserialize a structure specification's text into its rules.

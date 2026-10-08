@@ -7,7 +7,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
 from lorecraft.project.syntax import SECTION_LEVEL
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.location import Subdiagnostic
+from lorecraft.rules.location import Help, Subdiagnostic
 from lorecraft.rules.subject import DocumentRule, Facet
 
 from .__ruleset__ import GROUP_ID, spec_note
@@ -59,7 +59,7 @@ class ForbiddenSection(DocumentRule):
 
     ## Use instead
 
-    Remove the section, and keep what it held where the specification places it:
+    Remove the section:
 
     ```markdown
     # Setup
@@ -88,8 +88,8 @@ class ForbiddenSection(DocumentRule):
         return f'section `{self.section}` is forbidden'
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the specification that forbids the section."""
-        return (spec_note(self.spec),)
+        """Point at the specification that forbids the section, and say to remove it."""
+        return (spec_note(self.spec), Help('remove the section'))
 
     @classmethod
     def check(cls, subject: DocumentContext) -> tuple[Self, ...]:

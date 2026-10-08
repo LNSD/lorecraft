@@ -10,7 +10,7 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.location import Elsewhere, Note
+from lorecraft.rules.location import Elsewhere, Help, Note
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
 
 from ..forbidden_section import ForbiddenSection
@@ -153,7 +153,7 @@ class TestForbiddenSection:
         #: Then
         assert message == 'section `Changelog` is forbidden', 'the message names the forbidden section'
 
-    def test_children_with_an_occurrence_point_at_the_specification(self) -> None:
+    def test_children_with_an_occurrence_point_at_the_specification_and_say_to_remove_it(self) -> None:
         #: Given
         occurrence = ForbiddenSection(spec=CORPUS_SPEC, line=LineNumber.from_int(7), section='Changelog')
 
@@ -161,6 +161,7 @@ class TestForbiddenSection:
         children = occurrence.children()
 
         #: Then
-        assert children == (Note('the document structure is set here', at=Elsewhere(CORPUS_SPEC)),), (
-            'a note points at the specification that forbids the section'
-        )
+        assert children == (
+            Note('the document structure is set here', at=Elsewhere(CORPUS_SPEC)),
+            Help('remove the section'),
+        ), 'a note points at the specification that forbids the section, and a help says to remove it'

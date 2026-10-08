@@ -3,14 +3,13 @@
 from dataclasses import dataclass
 from typing import ClassVar, Final, Self
 
-from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
 from lorecraft.project.syntax import LineNumber, find_title
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.location import Subdiagnostic
+from lorecraft.rules.location import Help, Subdiagnostic
 from lorecraft.rules.subject import DocumentRule, Facet
 
-from .__ruleset__ import GROUP_ID, spec_note
+from .__ruleset__ import GROUP_ID
 
 _FIRST_LINE: Final[LineNumber] = LineNumber.from_int(1)
 """Where an occurrence is reported: the document's first line, since a missing title has no heading of its own."""
@@ -27,8 +26,7 @@ class MissingTitle(DocumentRule):
     with no key to state it: the specification need not mention the title at all. Only a heading at the top level
     of the document counts: one inside a list or a blockquote does not.
 
-    A document that more than one specification governs, such as a corpus and a namespace, is reported once, under
-    its corpus's structure specification.
+    A document that more than one specification governs, such as a corpus and a namespace, is reported once.
 
     ## Why is this bad?
 
@@ -66,7 +64,7 @@ class MissingTitle(DocumentRule):
     ```
 
     Attributes:
-        spec: The corpus's structure specification, which governs the document.
+        spec: Always `None`: the package states the rule.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 1)
@@ -75,23 +73,23 @@ class MissingTitle(DocumentRule):
     SINCE: ClassVar[Release] = Release('0.3.0')
     GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
 
-    spec: RootRelativePath
+    spec: None = None
 
     def message(self) -> str:
         """State that the title is missing."""
         return 'missing H1 title'
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the corpus's structure specification."""
-        return (spec_note(self.spec),)
+        """Say how to write the title."""
+        return (Help('open the document with an H1 title, `# <title>`'),)
 
     @classmethod
     def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
-        """One occurrence, on line 1, under the corpus's structure specification, when the document has no H1 title.
+        """One occurrence, on line 1, when the document has no H1 title.
 
         Args:
-            subject: The document, governed by its corpus's structure specification.
+            subject: The document, governed by a structure specification.
         """
         if find_title(subject.parse().headings) is not None:
             return ()
-        return (cls(spec=subject.corpus_structure().path, line=_FIRST_LINE),)
+        return (cls(line=_FIRST_LINE),)

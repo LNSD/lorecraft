@@ -5,9 +5,9 @@ from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
-from lorecraft.project.schemas import AbsentSection, MisplacedSection, SectionName, UnlistedSection
+from lorecraft.project.schemas import AbsentSection, ExpectedSection, MisplacedSection, OutlineEnd, UnlistedSection
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.location import Here, Label, Subdiagnostic
+from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
 from lorecraft.rules.subject import DocumentRule, Facet
 
 from .__ruleset__ import GROUP_ID, spec_note
@@ -86,8 +86,9 @@ class UnexpectedSection(DocumentRule):
     Attributes:
         spec: The structure specification whose outline does not allow the section.
         section: The heading text of the section the outline does not name, which the occurrence is reported at.
-        expected: The section the outline places there instead, which the document writes further down; or `None`
-            when the section comes after the outline's end.
+        placement: The section the outline places there instead, with the heading where the document writes it
+            further down; or the end of the outline, with the last section it matched, when the section comes
+            after it.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 8)
@@ -98,21 +99,35 @@ class UnexpectedSection(DocumentRule):
 
     spec: RootRelativePath
     section: str
-    expected: SectionName | None
+    placement: ExpectedSection | OutlineEnd
 
     def message(self) -> str:
         """Name the section the outline does not name."""
         return f'unexpected section `{self.section}`'
 
     def labels(self) -> tuple[Label, ...]:
-        """Mark the section, with the section the outline places there instead, or that the outline ends before it."""
-        if self.expected is None:
-            return (Label(Here(self.line), 'the outline ends before it'),)
-        return (Label(Here(self.line), f'expected `{self.expected}` here'),)
+        """Mark the section, and where the section the outline places there is written or where the outline ends.
+
+        An outline that matched no section ends before the first one, so it has no section to mark.
+        """
+        placement = self.placement
+        match placement:
+            case ExpectedSection():
+                return (
+                    Label(Here(self.line), f'expected `{placement.name}` here'),
+                    Label(Here(placement.written_at.line), f'`{placement.name}` is written here'),
+                )
+            case OutlineEnd():
+                labels = [Label(Here(self.line), 'the outline ends before it')]
+                if placement.last_matched is not None:
+                    labels.append(Label(Here(placement.last_matched.line), 'the outline ends here'))
+                return tuple(labels)
+            case _:
+                assert_never(placement)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the specification whose outline does not allow the section."""
-        return (spec_note(self.spec),)
+        """Point at the specification whose outline does not allow the section, and say where its content goes."""
+        return (spec_note(self.spec), Help('move its content under a section the outline names, or remove it'))
 
     @classmethod
     def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
@@ -131,7 +146,7 @@ class UnexpectedSection(DocumentRule):
                             spec=outline_spec.spec,
                             line=divergence.section.line,
                             section=divergence.section.text,
-                            expected=divergence.expected,
+                            placement=divergence.placement,
                         )
                     )
                 case AbsentSection() | MisplacedSection() | None:

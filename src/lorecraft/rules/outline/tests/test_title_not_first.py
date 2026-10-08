@@ -8,15 +8,11 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.location import Elsewhere, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
+from lorecraft.rules.location import Help, Here, Label
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec
 
 from ..title_not_first import TitleNotFirst
-
-CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
-"""The corpus structure specification."""
 
 STRUCTURE: Final[str] = '{"forbidden": ["Changelog"]}'
 """A structure specification that states a rule other than the title, which no key states."""
@@ -35,11 +31,11 @@ class TestTitleNotFirst:
         occurrences = TitleNotFirst.check(subject)
 
         #: Then
-        assert occurrences == (TitleNotFirst(spec=CORPUS_SPEC, line=LineNumber.from_int(1), level=2),), (
-            'the heading opening the document in place of the title is one occurrence, at that heading'
-        )
+        assert occurrences == (
+            TitleNotFirst(line=LineNumber.from_int(1), level=2, title_line=LineNumber.from_int(5)),
+        ), 'the heading opening the document in place of the title is one occurrence, at that heading'
 
-    def test_check_with_sections_and_no_title_reports_the_first_section(self) -> None:
+    def test_check_with_sections_and_no_title_reports_nothing(self) -> None:
         #: Given
         subject = FakeDocumentContext(
             '## Install\n\nInstall it.\n\n## Usage\n\nRun it.\n', corpus='guide', structure=STRUCTURE
@@ -49,9 +45,7 @@ class TestTitleNotFirst:
         occurrences = TitleNotFirst.check(subject)
 
         #: Then
-        assert occurrences == (TitleNotFirst(spec=CORPUS_SPEC, line=LineNumber.from_int(1), level=2),), (
-            'a document opening with a section is reported even when it carries no title at all'
-        )
+        assert occurrences == (), 'a document with no title is missing it, which `missing-title` reports instead'
 
     def test_check_with_a_subsection_opening_the_document_reports_its_level(self) -> None:
         #: Given
@@ -63,9 +57,9 @@ class TestTitleNotFirst:
         occurrences = TitleNotFirst.check(subject)
 
         #: Then
-        assert occurrences == (TitleNotFirst(spec=CORPUS_SPEC, line=LineNumber.from_int(1), level=3),), (
-            'the occurrence carries the level of the heading the document opens with, not a fixed one'
-        )
+        assert occurrences == (
+            TitleNotFirst(line=LineNumber.from_int(1), level=3, title_line=LineNumber.from_int(5)),
+        ), 'the occurrence carries the level of the heading the document opens with, not a fixed one'
 
     def test_check_with_the_title_first_reports_nothing(self) -> None:
         #: Given
@@ -99,14 +93,13 @@ class TestTitleNotFirst:
         occurrences = TitleNotFirst.check(subject)
 
         #: Then
-        assert occurrences == (TitleNotFirst(spec=CORPUS_SPEC, line=LineNumber.from_int(1), level=2),), (
-            'every specification agrees the title opens the document, so the opening heading is reported once, '
-            'under the corpus'
-        )
+        assert occurrences == (
+            TitleNotFirst(line=LineNumber.from_int(1), level=2, title_line=LineNumber.from_int(5)),
+        ), 'every specification agrees the title opens the document, so the opening heading is reported once'
 
     def test_message_with_an_occurrence_names_the_heading_level_found(self) -> None:
         #: Given
-        occurrence = TitleNotFirst(spec=CORPUS_SPEC, line=LineNumber.from_int(1), level=2)
+        occurrence = TitleNotFirst(line=LineNumber.from_int(1), level=2, title_line=LineNumber.from_int(5))
 
         #: When
         message = occurrence.message()
@@ -118,7 +111,7 @@ class TestTitleNotFirst:
 
     def test_message_with_a_subsection_occurrence_names_h3(self) -> None:
         #: Given
-        occurrence = TitleNotFirst(spec=CORPUS_SPEC, line=LineNumber.from_int(1), level=3)
+        occurrence = TitleNotFirst(line=LineNumber.from_int(1), level=3, title_line=LineNumber.from_int(5))
 
         #: When
         message = occurrence.message()
@@ -128,14 +121,26 @@ class TestTitleNotFirst:
             'the message is formatted from the level found, so an H3 reads as H3'
         )
 
-    def test_children_with_an_occurrence_point_at_the_specification(self) -> None:
+    def test_labels_with_an_occurrence_point_at_the_title(self) -> None:
         #: Given
-        occurrence = TitleNotFirst(spec=CORPUS_SPEC, line=LineNumber.from_int(1), level=2)
+        occurrence = TitleNotFirst(line=LineNumber.from_int(1), level=2, title_line=LineNumber.from_int(5))
+
+        #: When
+        labels = occurrence.labels()
+
+        #: Then
+        assert labels == (Label(Here(LineNumber.from_int(5)), 'the title is written here'),), (
+            "a label points at the document's title, on its line"
+        )
+
+    def test_children_with_an_occurrence_say_to_move_the_title_above_every_section(self) -> None:
+        #: Given
+        occurrence = TitleNotFirst(line=LineNumber.from_int(1), level=2, title_line=LineNumber.from_int(5))
 
         #: When
         children = occurrence.children()
 
         #: Then
-        assert children == (Note('the document structure is set here', at=Elsewhere(CORPUS_SPEC)),), (
-            'a note points at the corpus structure specification that governs the document'
+        assert children == (Help('move the title above every section'),), (
+            'help says where the title belongs, and no note points at a specification that does not state the rule'
         )
