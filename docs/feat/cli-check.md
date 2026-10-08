@@ -152,10 +152,8 @@ errors and warnings, and `coverage` lists each subject with an ungoverned part:
 
 - The command takes no paths, and no option sets a level: every rule runs at its default level, and a selection
   only narrows which run.
-- A warning does not fail the run: a skill frontmatter field outside the six, `FM007`, exits 0.
-- A malformed skill `allowed-tools` entry, `FM011`, is a warning and exits 0; its pattern is kept intact inside parentheses.
-- An `allowed-tools` value over 500 characters, `FM012`, is a warning and exits 0. This is Lorecraft's recommendation,
-  matching the `compatibility` limit; the Agent Skills specification sets no limit for `allowed-tools`.
+- A warning does not fail the run: a rule whose default level is `warn`, such as
+  [`FM007`](../rulebook/FM007-unknown-field.md), exits 0.
 - A repository with skills and no `docs/__meta__/` needs `--root`.
 - A key repeated inside a nested frontmatter mapping is not reported as repeated.
 - A fragment after a path, such as `guide.md#usage`, is not checked against the file it names.
@@ -163,8 +161,9 @@ errors and warnings, and `coverage` lists each subject with an ungoverned part:
 
 ## Findings
 
-Each group is one area of the specifications. What each rule reports, and why, belongs to the generated rule
-reference, not to this document.
+Each group is one area of the specifications. What each rule checks, why it matters and how to fix it is in its page
+of the [rulebook](../rulebook/), in this repository, and `lorecraft rule <code>` anywhere, as
+[cli-rule](cli-rule.md) describes.
 
 | Rule | Reported when |
 |------|---------------|
@@ -181,6 +180,7 @@ reference, not to this document.
 - [workspace](workspace.md) - Dependency: the documents, skills and snapshot the command reads
 - [spec](spec.md) - Dependency: the specification files the rules read
 - [cli-inspect](cli-inspect.md) - Related: shows the subjects this command checks
+- [cli-rule](cli-rule.md) - Related: prints the page of a rule by the code a diagnostic prints
 
 ## Code References
 
