@@ -24,7 +24,7 @@ valid. A change that breaks this shape can leave every finding right and still m
 review holds it to the accepted ADRs in `docs/arch/` rather than to the tests.
 
 Each layer of the model has a document of its own: the snapshot, the project model, the database, and incremental
-computation across revisions. Two more cover how specifications govern documents and what a check reports.
+computation across revisions. Two more cover how meta specs govern documents and what a check reports.
 
 Two words are kept apart throughout: a **symlink** is a link in the filesystem, which the snapshot records and the
 Input package follows, and a **Markdown link** is a link node in a document's parse tree.
@@ -66,7 +66,7 @@ Before committing code, verify:
 - [adr-003-project-model](adr-003-project-model.md) - Related: The declared scope, apart from the captured content
 - [adr-004-database](adr-004-database.md) - Related: Revisions, the view and the queries
 - [adr-005-incremental](adr-005-incremental.md) - Related: Results carried over between revisions and processes
-- [adr-006-specifications](adr-006-specifications.md) - Related: How specifications govern documents
+- [adr-006-specifications](adr-006-specifications.md) - Related: How meta specs govern documents
 - [adr-007-findings](adr-007-findings.md) - Related: What a check reports, and how it reaches the user
 - [adr-012-database-derivation](adr-012-database-derivation.md) - Superseded in part by: The Derivation and Analysis
   rows of the role table

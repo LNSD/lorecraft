@@ -10,7 +10,7 @@ components: "module:lorecraft.cli,module:lorecraft.checks,module:lorecraft.rules
 
 ## Summary
 
-`lorecraft check` checks the whole workspace in one run: every document under `docs/` against the specifications
+`lorecraft check` checks the workspace in one run: every document under `docs/` against the meta specs
 in `docs/__meta__/`, and every agent skill against the Agent Skills specification. Each rule has a code, such as
 `FM001`, in a group named by its prefix. It prints a diagnostic per rule broken, and exits `1` when any is an error.
 
@@ -59,9 +59,9 @@ the same output.
 
 ### One Run, One Snapshot
 
-Every rule reads the same [snapshot](workspace.md#one-snapshot), through one database, so a file is read and
-parsed once however many rules read it. Every specification is loaded and validated before any subject is checked,
-so one malformed specification stops the whole run. A file that is not UTF-8 is reported as `LC001`, and no rule
+Every rule reads one [snapshot](workspace.md#one-snapshot), through one database, so a file is read and
+parsed once however many rules read it. Every meta spec is loaded and validated before any subject is checked,
+so one malformed meta spec stops the whole run. A file that is not UTF-8 is reported as `LC001`, and no rule
 judges it.
 
 ### Selecting Rules
@@ -146,7 +146,7 @@ errors and warnings, and `coverage` lists each subject with an ungoverned part:
 |------|---------|
 | `0`  | No diagnostic is an error; warnings and ungoverned parts do not count |
 | `1`  | At least one diagnostic is an error, `LC001` included |
-| `2`  | The run could not start: no root, a symlinked `docs/` or `docs/__meta__/`, an unreadable file, an entry that changed kind while read, a malformed specification, a selector that cannot be used, or a usage error. Only the error is printed, on stderr, as [cli](cli.md) describes |
+| `2`  | The run could not start: no root, a symlinked `docs/` or `docs/__meta__/`, an unreadable file, an entry that changed kind while read, a malformed meta spec, a selector that cannot be used, or a usage error. Only the error is printed, on stderr, as [cli](cli.md) describes |
 
 ## Limitations
 
@@ -161,14 +161,14 @@ errors and warnings, and `coverage` lists each subject with an ungoverned part:
 
 ## Findings
 
-Each group is one area of the specifications. What each rule checks, why it matters and how to fix it is in its page
+Each group is one area of the meta specs. What each rule checks, why it matters and how to fix it is in its page
 of the [rulebook](../rulebook/), in this repository, and `lorecraft rule <code>` anywhere, as
 [cli-rule](cli-rule.md) describes.
 
 | Rule | Reported when |
 |------|---------------|
 | `FM` | Frontmatter checks: a document's frontmatter against its schemas, a skill's against the Agent Skills specification and Lorecraft's recommendations. `FM001` missing-frontmatter, `FM002` invalid-yaml, `FM003` non-mapping-frontmatter, `FM004` name-mismatch, `FM005` duplicate-key, `FM006` missing-field, `FM007` unknown-field (a warning), `FM008` wrong-type, `FM009` invalid-value, `FM010` block-constraint, `FM011` malformed-allowed-tools (a warning; pattern whitespace stays intact), `FM012` allowed-tools-too-long (a warning over 500 characters) |
-| `OUT` | Outline checks: a document's H1 title and sections against its structure specifications. `OUT001` missing-title, `OUT002` extra-title, `OUT003` title-not-first, `OUT004` empty-section, `OUT005` forbidden-section, `OUT006` missing-section, `OUT007` section-out-of-order, `OUT008` unexpected-section, `OUT009` invalid-title |
+| `OUT` | Outline checks: a document's H1 title and sections against its structure files. `OUT001` missing-title, `OUT002` extra-title, `OUT003` title-not-first, `OUT004` empty-section, `OUT005` forbidden-section, `OUT006` missing-section, `OUT007` section-out-of-order, `OUT008` unexpected-section, `OUT009` invalid-title |
 | `LEN` | Length limits: a document's tokens, a section's or its title's words or characters, a `SKILL.md`'s lines. `LEN001` too-many-tokens, `LEN002` too-many-lines, `LEN003` too-many-words, `LEN004` title-too-many-words, `LEN005` title-too-long |
 | `LINK` | Links in Markdown files: a document governed for its structure, a `SKILL.md` and each resource, a skill's relative link read from the skill root. `LINK001` absolute-link, `LINK002` missing-fragment, `LINK003` broken-link, `LINK004` escaping-link |
 | `LAY` | Skill layout checks: `LAY001` outside-symlink, a symlink an agent reaches whose chain leaves the repository |
@@ -178,7 +178,7 @@ of the [rulebook](../rulebook/), in this repository, and `lorecraft rule <code>`
 
 - [cli](cli.md) - Base: the command line and the options every command shares
 - [workspace](workspace.md) - Dependency: the documents, skills and snapshot the command reads
-- [spec](spec.md) - Dependency: the specification files the rules read
+- [spec](spec.md) - Dependency: the meta spec files the rules read
 - [cli-inspect](cli-inspect.md) - Related: shows the subjects this command checks
 - [cli-rule](cli-rule.md) - Related: prints the page of a rule by the code a diagnostic prints
 

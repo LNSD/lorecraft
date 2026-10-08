@@ -1,17 +1,17 @@
 ---
 name: "code-pattern"
-description: "Structure template for `docs/code/pattern-*.md` rule documents. Load when creating or editing pattern docs in docs/code/"
+description: "Structure template for `docs/code/pattern-*.md` code specs. Load when creating or editing pattern docs in docs/code/"
 type: "meta"
 scope: "global"
 ---
 
-# Pattern Rule Document Template
+# Pattern Code Spec Template
 
 **MANDATORY structure for ALL `docs/code/pattern-*.md` documents**
 
 ## Structure
 
-Every pattern rule document contains the following sections in order.
+Every pattern code spec contains the following sections in order.
 
 ### Frontmatter (required)
 
@@ -124,7 +124,7 @@ Each item is a concrete check to confirm the pattern is applied correctly.
 
 #### References (optional)
 
-Cross-references to related rule documents within the project.
+Cross-references to related code specs within the project.
 Pattern docs may link to principle docs as `Foundation` and to other pattern docs as `Related`.
 See [code.md §4](code.md#4-cross-reference-rules) for relationship types and direction rules.
 
@@ -135,7 +135,7 @@ Not project-internal.
 
 ## Template
 
-Every pattern rule document MUST follow this template:
+Every pattern code spec MUST follow this template:
 
 ```markdown
 ---
@@ -182,4 +182,4 @@ scope: "global"
 
 ## References
 
-- [code](code.md) - Extends: Base code rules documentation format specification
+- [code](code.md) - Extends: Base code corpus meta spec

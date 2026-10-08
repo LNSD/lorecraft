@@ -1,11 +1,11 @@
 ---
 name: "code-module"
-description: "Structure template for `docs/code/module-*.md` rule documents, one per package, each stating the package's single responsibility, its role, what belongs in it and what does not, and the invariants that keep it in its role. Load when creating or editing a module document in docs/code/, or adding a package under src/"
+description: "Structure template for `docs/code/module-*.md` code specs, one per package, each stating the package's single responsibility, its role, what belongs in it and what does not, and the invariants that keep it in its role. Load when creating or editing a module document in docs/code/, or adding a package under src/"
 type: "meta"
 scope: "global"
 ---
 
-# Module Rule Document Template
+# Module Code Spec Template
 
 **MANDATORY structure for ALL `docs/code/module-*.md` documents**
 
@@ -14,7 +14,7 @@ changes, the one role the package plays in the architecture, where the boundary 
 invariants a change must keep for the package to stay in that role. It is written for someone who has new code
 in hand and must decide which package it goes in, and for a reviewer deciding whether a change fits.
 
-## Why a Package Has a Rule Document
+## Why a Package Has a Code Spec
 
 [code.md §1](code.md#1-core-principles) sends a fact about one module into that module's docstring. A package's
 responsibility is different, because a reader applies it to code that is not yet in the package. They are
@@ -41,7 +41,7 @@ has a boundary of its own worth defending against its siblings. Otherwise its pa
 
 ## Structure
 
-Every module rule document contains the following sections in order.
+Every module code spec contains the following sections in order.
 
 ### Frontmatter (required)
 
@@ -129,7 +129,7 @@ See [code.md §4](code.md#4-cross-reference-rules) for relationship types and di
 #### External References (optional)
 
 Links to the outside sources the package is built on, such as the documentation of the system calls it makes.
-[code.md §1](code.md#1-core-principles) states which external links a rule document may carry.
+[code.md §1](code.md#1-core-principles) states which external links a code spec may carry.
 
 ## Template
 
@@ -185,4 +185,4 @@ scope: "pkg:{{import.path}}"
 
 ## References
 
-- [code](code.md) - Extends: Base code rules documentation format specification
+- [code](code.md) - Extends: Base code corpus meta spec

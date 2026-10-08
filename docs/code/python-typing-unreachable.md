@@ -31,7 +31,7 @@ a path that does not exist.
 
 ```python
 # ❌ Bad — `-> None` says the call returns, so ty reports `load_spec` as able to return None, and the dummy
-# `return` added to silence it hands a caller an empty spec if `reject` ever stops raising
+# `return` added to silence it hands a caller an empty meta spec if `reject` ever stops raising
 def reject(path: RootRelativePath, detail: str) -> None:
     raise InvalidSpecError(path, detail)
 

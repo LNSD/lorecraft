@@ -67,9 +67,9 @@ witness and every per-file query takes one; a context is a thin adapter over the
   the context implementations from the second to the first.
 - What stays true: every value derived from the snapshot is a query on the database
   ([adr-004](adr-004-database.md)), a check and a rule are pure, and a rule's result is never cached.
-- adr-001 keeps `status: accepted`. The ADR specification defines supersession of a whole record only, and the
+- adr-001 keeps `status: accepted`. The ADR meta spec defines supersession of a whole record only, and the
   roles this record leaves untouched must keep binding code, so the partial relation is carried by the callouts
-  and the References entries alone: a deliberate reading of the specification, not a gap in following it.
+  and the References entries alone: a deliberate reading of the meta spec, not a gap in following it.
 
 ## Checklist
 

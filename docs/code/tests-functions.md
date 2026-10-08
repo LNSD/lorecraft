@@ -194,7 +194,7 @@ class TestReportWriterLifecycle:
 ## 4. Fixtures Declare Their Scope
 
 Every `@pytest.fixture` states its scope explicitly, including `scope='function'`. A fixture that parses the
-checked-in fixture corpus, compiles a JSON Schema, or builds a spec registry is `scope='session'` or
+checked-in fixture corpus, compiles a JSON Schema, or builds a meta spec registry is `scope='session'` or
 `scope='module'`; a fixture producing per-test state — a temp document, a findings list, a writer with its own
 open file — is `scope='function'`.
 
@@ -323,7 +323,7 @@ Three things are never written in a test, in any tier.
   and removes it, or gets it from a fixture that does.
 
 ```python
-# ❌ Bad — a sleep guessing at the writer thread, a spec fetched from a live host, and a fixture
+# ❌ Bad — a sleep guessing at the writer thread, a meta spec fetched from a live host, and a fixture
 # directory this test relies on a sibling having populated
 @pytest.mark.unit
 def test_corpus_check_reports_every_finding() -> None:
@@ -335,7 +335,7 @@ def test_corpus_check_reports_every_finding() -> None:
 ```
 
 ```python
-# ✅ Good — the writer is joined by the fixture, the spec is the checked-in copy, and the
+# ✅ Good — the writer is joined by the fixture, the meta spec is the checked-in copy, and the
 # corpus is this test's own
 @pytest.mark.unit
 def test_check_corpus_with_twelve_malformed_documents_reports_twelve_findings(

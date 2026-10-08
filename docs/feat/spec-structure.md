@@ -1,6 +1,6 @@
 ---
 name: "spec-structure"
-description: "The structure specification file: <name>.structure.json as the machine-checkable half of a specification, its $schema and description keys, the rule that a file states at least one rule, how a namespace file adds to the corpus file, what is refused on load, and editor validation with the generated docs/schemas/structure.spec.json. Load when creating a structure specification, pointing an editor at the dialect's schema, or one is reported invalid"
+description: "The structure file: <name>.structure.json as the machine-checkable half of a meta spec, its $schema and description keys, the rule that a file states at least one rule, how a namespace file adds to the corpus file, what is refused on load, and editor validation with the generated docs/schemas/structure.spec.json. Load when creating a structure file, pointing an editor at the dialect's schema, or one is reported invalid"
 type: "feature"
 status: "experimental"
 components: "module:lorecraft.project,spec:feat,spec:code"
@@ -10,7 +10,7 @@ components: "module:lorecraft.project,spec:feat,spec:code"
 
 ## Summary
 
-A `<name>.structure.json` file holds the rules of a specification that a check can decide, for the documents
+A `<name>.structure.json` file holds the rules of a meta spec that a check can decide, for the documents
 its name governs. It is a small JSON dialect: each key states one kind of rule, every key is optional, and a
 check reads only the keys it applies. A generated JSON Schema of the dialect lets an editor validate a file as
 it is written.
@@ -26,10 +26,10 @@ it is written.
 
 ## Key Concepts
 
-- **Structure specification**: A `<name>.structure.json` file in `docs/__meta__/`, the machine-checkable half
+- **Structure file**: A `<name>.structure.json` file in `docs/__meta__/`, the machine-checkable half
   of the prose `<name>.md` beside it.
 - **Rule key**: A top-level key that states one kind of rule. A file holds any subset of them.
-- **Layer**: Each structure specification that applies to a document: the corpus file, then every namespace
+- **Layer**: Each structure file that applies to a document: the corpus file, then every namespace
   file whose name matches, as [spec](spec.md#base-and-extension) resolves them. Every layer is applied on its
   own.
 - **Editor schema**: `structure.spec.json`, the JSON Schema of the dialect's shape, generated from the model
@@ -83,7 +83,7 @@ document could satisfy or that contradicts another.
 The dialect's shape is published as a JSON Schema, `docs/schemas/structure.spec.json` in the lorecraft
 repository, generated from the same model the checks read a file with. Keep a copy at the same path in your
 repository, where the `$schema` value above points from `docs/__meta__/`, and an editor validates a structure
-specification as it is written. It states the shape only; a rule that no shape can state is checked on load.
+file as it is written. It states the shape only; a rule that no shape can state is checked on load.
 
 ## Limitations
 
@@ -93,8 +93,8 @@ specification as it is written. It states the shape only; a rule that no shape c
 
 ## References
 
-- [spec](spec.md) - Base: specification names, file types and how layers apply
-- [cli-check](cli-check.md) - Related: the command whose rules read a structure specification
+- [spec](spec.md) - Base: meta spec names, file types and how layers apply
+- [cli-check](cli-check.md) - Related: the command whose rules read a structure file
 
 ## Code References
 

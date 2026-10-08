@@ -1,6 +1,6 @@
 ---
 name: "cli-inspect"
-description: "lorecraft inspect: printing the workspace model a repository root declares, its corpora, their specification names and files, the specifications governing each document, and the agent skills with the agents that read them, as a tree or as JSON. Load when asking which specifications govern a document, why a document is not checked, which agents read a skill, or scripting against the workspace model"
+description: "lorecraft inspect: printing the workspace model a repository root declares, its corpora, their meta spec names and files, the meta specs governing each document, and the agent skills with the agents that read them, as a tree or as JSON. Load when asking which meta specs govern a document, why a document is not checked, which agents read a skill, or scripting against the workspace model"
 type: "feature"
 status: "experimental"
 components: "module:lorecraft.cli,module:lorecraft.project"
@@ -11,8 +11,8 @@ components: "module:lorecraft.cli,module:lorecraft.project"
 ## Summary
 
 `lorecraft inspect` shows what a repository declares, as the checks see it: each corpus under `docs/`, the
-specification names in `docs/__meta__/` that belong to it with their files, and every document with the names of
-the specifications that govern it; then each agent's skills directory and every skill with the agents that read
+meta spec names in `docs/__meta__/` that belong to it with their files, and every document with the names of
+the meta specs that govern it; then each agent's skills directory and every skill with the agents that read
 it. It answers why a document is or is not checked, and which agents see a skill, without running a check.
 
 ## Table of Contents
@@ -28,9 +28,9 @@ it. It answers why a document is or is not checked, and which agents see a skill
 
 - **Workspace model**: The corpora a root declares and their documents, loaded from one snapshot, as
   [workspace](workspace.md) lays out.
-- **Specification name**: A filename in `docs/__meta__/` with its file type's pattern suffix stripped, such as
+- **Meta spec name**: A filename in `docs/__meta__/` with its file type's pattern suffix stripped, such as
   `feat-cli`, with the files that share it.
-- **Governed by**: The specifications whose rules apply to a document, broad to narrow: their names in the
+- **Governed by**: The meta specs whose rules apply to a document, broad to narrow: their names in the
   tree, and every file at those names in the JSON.
 - **Agent skills directory**: A directory an agent reads skills from, such as `.claude/skills`, shown only when
   the root has it, with the resolved directory it leads to when it is a symlink.
@@ -58,8 +58,8 @@ lorecraft inspect ../other-repo --format json
 
 ### Output
 
-The text form is a tree on stdout, rooted at the absolute root path. A document's specification names follow it
-in brackets. An excerpt, from a repository with two feature documents and two skills:
+The text form is a tree on stdout, rooted at the absolute root path. A document's meta spec names follow it
+in brackets. An excerpt, from a repository with two feat specs and two skills:
 
 ```text
 └── feat (docs/feat)
@@ -72,9 +72,9 @@ in brackets. An excerpt, from a repository with two feature documents and two sk
 ```
 
 With `--format json`, stdout is one object. It holds `root`, and `corpora`, each with `name`, `directory`, `specs`
-(each a `stem`, which is the specification name, and its `files`), and `documents` as `path` and `governed_by`.
-`governed_by` lists the files of each governing specification, broad to narrow, so a reader opens a document's
-specifications without mapping a name to its files. `root` is absolute, and every other path is root-relative.
+(each a `stem`, which is the meta spec name, and its `files`), and `documents` as `path` and `governed_by`.
+`governed_by` lists the files of each governing meta spec, broad to narrow, so a reader opens a document's
+meta specs without mapping a name to its files. `root` is absolute, and every other path is root-relative.
 
 ```json
 {
@@ -112,7 +112,7 @@ skills, and both exit `0`.
 | Code | Meaning |
 |------|---------|
 | `0`  | The model was printed |
-| `2`  | The command could not run: the model could not be loaded (an entry that cannot be read, or that changed kind while read, under `docs/` or a skills directory, a `docs/` or `docs/__meta__/` that is a [symlink](workspace.md#one-snapshot), or a specification file that cannot be decoded or states no usable rules), or a usage error, including a `ROOT` that is not an existing directory, or both `--format` and `--json`. A load error goes to stderr, prefixed `error:` and followed by its causes ([cli](cli.md)) |
+| `2`  | The command could not run: the model could not be loaded (an entry that cannot be read, or that changed kind while read, under `docs/` or a skills directory, a `docs/` or `docs/__meta__/` that is a [symlink](workspace.md#one-snapshot), or a meta spec file that cannot be decoded or states no usable rules), or a usage error, including a `ROOT` that is not an existing directory, or both `--format` and `--json`. A load error goes to stderr, prefixed `error:` and followed by its causes ([cli](cli.md)) |
 
 ```text
 error: invalid structure schema docs/__meta__/feat.structure.json: Invalid JSON: key must be a string at line 2 column 3
@@ -132,7 +132,7 @@ error: invalid structure schema docs/__meta__/feat.structure.json: Invalid JSON:
 
 - [cli](cli.md) - Base: the command line and the options every command shares
 - [workspace](workspace.md) - Dependency: the layout the model is read from
-- [spec](spec.md) - Related: how a specification name selects the corpus and the documents it governs
+- [spec](spec.md) - Related: how a meta spec name selects the corpus and the documents it governs
 - [cli-check](cli-check.md) - Related: the rules that read the same model
 
 ## Code References

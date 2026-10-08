@@ -1,11 +1,11 @@
 ---
 name: "code-python"
-description: "Structure template for `docs/code/python-*.md` rule documents. Load when creating or editing Python convention docs in docs/code/"
+description: "Structure template for `docs/code/python-*.md` code specs. Load when creating or editing Python convention docs in docs/code/"
 type: "meta"
 scope: "global"
 ---
 
-# Python Convention Rule Document Template
+# Python Convention Code Spec Template
 
 **MANDATORY structure for ALL `docs/code/python-*.md` documents**
 
@@ -15,7 +15,7 @@ owns one construct.
 
 ## Structure
 
-Every python rule document contains the following parts in order.
+Every python code spec contains the following parts in order.
 
 ### Frontmatter (required)
 
@@ -29,7 +29,7 @@ Every python rule document contains the following parts in order.
 Every value is **quoted**, `type` included. This is the form [code.md §2](code.md#2-frontmatter-requirements)
 writes and the form the sibling templates pin; a bare `type: core` is a defect to fix, not a variant.
 
-A `python-*` document is `"core"`. A rule about packaging, distribution shape, or build configuration governs
+A `python-*` document is `"core"`. A code spec about packaging, distribution shape, or build configuration governs
 where code lives rather than how it is written, which is a different subject and takes `"arch"`
 ([code.md §2](code.md#2-frontmatter-requirements)).
 
@@ -191,7 +191,7 @@ shared prefix is what groups them. Do not add a parent purely so that one exists
 
 ## Template
 
-Every python rule document MUST follow this template:
+Every python code spec MUST follow this template:
 
 ````markdown
 ---
@@ -243,4 +243,4 @@ Before committing code, verify:
 
 ## References
 
-- [code](code.md) - Extends: Base code rules documentation format specification
+- [code](code.md) - Extends: Base code corpus meta spec

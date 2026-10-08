@@ -56,7 +56,7 @@ thought to check cannot change unnoticed.
 assert occurrences == (
     DuplicateKey(spec=SPEC, line=LineNumber.from_int(3), key='name', first_line=LineNumber.from_int(2)),
 ), 'a key written twice is one occurrence, on the line that repeats it'
-assert report.diagnostics == (), 'a document that conforms to its specifications carries no diagnostic'
+assert report.diagnostics == (), 'a document that conforms to its meta specs carries no diagnostic'
 ```
 
 ## 3. Project Only When the Sequence Is the Fact

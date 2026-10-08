@@ -22,7 +22,7 @@ the shapes are the decision.
 
 Today a check returns violations whose message is free text, with notes built as strings inside the check. The
 run locates them into findings, collects them per check into a report type per subject kind, and orders them as
-the paths were given and the checks happened to state them. A document no specification governs prints in the
+the paths were given and the checks happened to state them. A document no meta spec governs prints in the
 shape of a rule. [adr-007-findings](adr-007-findings.md) states that contract.
 
 What a user needs from a diagnostic is what the established compilers and linters give: what is wrong, where,
@@ -38,7 +38,7 @@ not change between two runs over the same revision.
 2. **One report per subject**, the same shape for every subject kind. A diagnostic holds its occurrence.
 3. **The order is a contract**, total over one revision: path, location, severity, code, message.
 4. **Only a rule's occurrence is a rule diagnostic.** A file that cannot be decoded is an engine diagnostic, a
-   subject no specification governs is coverage, and what stops a run is a failure: none of them takes a level.
+   subject no meta spec governs is coverage, and what stops a run is a failure: none of them takes a level.
 
 ## Design
 
@@ -78,7 +78,7 @@ class MissingSection(DocumentRule):
     spec: RootRelativePath
     section: SectionName
     before: str | None                # the heading it should precede; None at the end, reported at the last line
-    description: str | None           # the specification's guidance, through the context
+    description: str | None           # the meta spec's guidance, through the context
     example: str | None
 
     def message(self) -> str:
@@ -110,7 +110,7 @@ class WholeSubject:            # a subject without lines, such as a layout entry
 
 
 @dataclass(frozen=True, slots=True)
-class Elsewhere:               # another file: the specification, a link's target, a first definition
+class Elsewhere:               # another file: the meta spec, a link's target, a first definition
     path: RootRelativePath
     line: int | None = None
 
@@ -211,8 +211,8 @@ class LayoutRule(Rule):         # the base of the rule base over a layout entry
 - **Context is data, never prose built in `check`.** An occurrence stores what the check saw, and the methods turn
   it into text. A persisted or machine-read diagnostic keeps the structured values, and the text can always be
   rendered again from them.
-- **The specification authors its own guidance.** An outline entry's description and example reach the
-  occurrence through the context, and `children()` presents them; the rule writes no guidance a specification
+- **The meta spec authors its own guidance.** An outline entry's description and example reach the
+  occurrence through the context, and `children()` presents them; the rule writes no guidance a meta spec
   states.
 - **An occurrence still names no subject.** `Here` is a line of the subject, and `WholeSubject` the subject itself;
   the runner adds the path. `Elsewhere` names another file. Ranged locations, when they come, widen `Here` and
@@ -254,7 +254,7 @@ type SubjectReport = CheckedSubject | UndecodableSubject
 ```
 
 - **A diagnostic holds its occurrence** and copies none of its fields. The code, the message, the labels, the
-  help and notes, and the specification reach the text and the machine-readable output through it (FR-017).
+  help and notes, and the meta spec reach the text and the machine-readable output through it (FR-017).
 - **An engine diagnostic's severity cannot be set.** It is read from the condition's class, so an engine
   condition reported at a severity its class does not fix cannot be built. Renderers and the order take the one
   name `Diagnostic`, and read the same attributes on both kinds.
@@ -276,7 +276,7 @@ type SubjectReport = CheckedSubject | UndecodableSubject
   presented per file (FR-016), and the machine-readable output is one document holding the diagnostics, the
   summary and the coverage (FR-021).
 - **Exit codes** are 0 for a clean run, warnings included, 1 for any error diagnostic or undecodable file, and 2
-  for a failure. A failure, such as a specification that cannot be loaded, is raised before any subject is
+  for a failure. A failure, such as a meta spec that cannot be loaded, is raised before any subject is
   checked and is outside every level and selection.
 
 ### Tests
