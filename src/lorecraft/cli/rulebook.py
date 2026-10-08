@@ -1,26 +1,22 @@
 """Render the rulebook: one page per rule from its class's docstring, and the listing of every rule.
 
-Pure: the registry arrives as a value and each function returns the text a command prints, so nothing here reads the
-disk or writes to a stream. `lorecraft rule <rule>` prints a page from the one function, `render_page`, so a user
-without this repository reads the same text as anyone.
+Pure: the registry arrives as a value and each function returns the text a command prints or a recipe writes, so
+nothing here reads the disk or writes to a stream. A page is what `docs/rulebook/` holds and what `lorecraft rule
+<rule>` prints, from the one function, `render_page`, so a user without this repository reads the same text.
 
-A page is the docstring's sections, in the order the docstring writes them, under a title and a list of what the
-declaration states: the code, the group, the level, the release it is stable since, where it comes from and where it
-is declared. Nothing is written by hand. The renderer checks no section: a docstring that lacks one renders a page
-without it.
+A page is the docstring's sections, in the order the docstring writes them, under a title and a summary. What the
+declaration states, the code, the release it is stable since and the alias codes, is the page's
+frontmatter. Nothing is written by hand. The renderer checks no section: a docstring that lacks one renders a page
+without it. The pages are generated output, kept current by `gen-check`, and no specification governs them.
 """
 
 import inspect
 import json
-from dataclasses import dataclass, fields
+from dataclasses import dataclass
 from typing import Final, assert_never
 
-from lorecraft.core.path import RootRelativePath
 from lorecraft.rules.declaration import EngineCondition, RemovedRule, Rule, RuleDeclaration
 from lorecraft.rules.registry import Registry
-
-_SOURCE_URL: Final[str] = 'https://github.com/LNSD/lorecraft/blob/main/src/'
-"""Where the package's source is published, so a page links a rule's module for a reader without the repository."""
 
 _SECTION_MARKER: Final[str] = '## '
 """What starts a section in a docstring, as it would in a page."""
@@ -108,23 +104,18 @@ def page_name(declaration: RuleDeclaration) -> str:
     return f'{declaration.CODE}-{declaration.NAME}'
 
 
-def render_page(declaration: RuleDeclaration, registry: Registry) -> str:
+def render_page(declaration: RuleDeclaration) -> str:
     """The page of a rule, a removed rule or an engine condition, as the file in `docs/rulebook/` holds it.
+
+    What the declaration states is the page's frontmatter; the body is the title, the summary and the docstring's
+    sections.
 
     Args:
         declaration: The rule, removed rule or engine condition.
-        registry: The registry that holds it, which names the rule a removed rule links to.
     """
     doc = _parse_docstring(declaration.__doc__)
-    # A JSON string is a valid YAML double-quoted scalar, so a summary with a quote or a backslash needs no escaping
-    # of its own.
-    description = json.dumps(doc.summary.removesuffix('.'), ensure_ascii=False)
-    blocks = [
-        f'---\nname: "{page_name(declaration)}"\ndescription: {description}\n---',
-        f'# {declaration.NAME} ({declaration.CODE})',
-        doc.summary,
-        '\n'.join(_facts(declaration, registry)),
-    ]
+    frontmatter = '\n'.join(['---', *_frontmatter_lines(declaration, doc.summary), '---'])
+    blocks = [frontmatter, f'# {declaration.NAME} ({declaration.CODE})', doc.summary]
     for section in doc.sections:
         blocks.append(f'{_SECTION_MARKER}{section.heading}\n\n{section.body}')
     return '\n\n'.join(blocks) + '\n'
@@ -170,78 +161,42 @@ def _level_column(declaration: RuleDeclaration) -> str:
         assert_never(declaration)
 
 
-def _facts(declaration: RuleDeclaration, registry: Registry) -> list[str]:
-    """The bullets a page lists under its summary: what the declaration states, by the kind of declaration.
+def _frontmatter_lines(declaration: RuleDeclaration, summary: str) -> list[str]:
+    """The `key: value` lines of a page's frontmatter: its name and description, then what the declaration states.
+
+    Every string is written as a JSON string, which is a valid YAML double-quoted scalar, so a summary with a quote or
+    a backslash needs no escaping of its own.
 
     Args:
         declaration: The rule, removed rule or engine condition.
-        registry: The registry that holds it.
+        summary: The docstring's first paragraph, which is the description once its final period is dropped.
     """
-    group = declaration.CODE.group
+    lines = [
+        f'name: {_quoted(page_name(declaration))}',
+        f'description: {_quoted(summary.removesuffix("."))}',
+        f'code: {_quoted(str(declaration.CODE))}',
+    ]
     # An `issubclass` chain, closed by `assert_never`, for the reason `_level_column` gives.
-    facts = [f'- **Code:** `{declaration.CODE}`', f'- **Group:** `{group.prefix}`, {group.title}']
     if issubclass(declaration, Rule):
-        facts.append(f'- **Default level:** `{declaration.LEVEL.value}`')
-        facts.append(f'- **Stable since:** `{declaration.SINCE}`')
-        facts.append(f'- **Origin:** {_origin(declaration)}')
+        lines.append(f'since: {_quoted(str(declaration.SINCE))}')
         if declaration.ALIASES:
-            aliases = ', '.join(f'`{alias}` of {alias.linter}' for alias in declaration.ALIASES)
-            facts.append(f'- **Aliases:** {aliases}')
+            aliases = ', '.join(_quoted(f'{alias} ({alias.linter})') for alias in declaration.ALIASES)
+            lines.append(f'aliases: [{aliases}]')
     elif issubclass(declaration, RemovedRule):
-        facts.append(f'- **Removed in:** `{declaration.REMOVED_IN}`')
-        facts.append(f'- **Replaced by:** {_replacement(declaration, registry)}')
+        lines.append(f'removed-in: {_quoted(str(declaration.REMOVED_IN))}')
+        if declaration.REPLACED_BY is not None:
+            lines.append(f'replaced-by: {_quoted(str(declaration.REPLACED_BY))}')
     elif issubclass(declaration, EngineCondition):
-        facts.append(f'- **Severity:** `{declaration.SEVERITY.value}`, always: it has no level')
-        facts.append(f'- **Stable since:** `{declaration.SINCE}`')
-        facts.append("- **Origin:** Lorecraft's engine, which reports it before any rule judges the subject")
+        lines.append(f'since: {_quoted(str(declaration.SINCE))}')
     else:
         assert_never(declaration)
-    facts.append(f'- **Declared in:** {_source_link(declaration)}')
-    return facts
+    return lines
 
 
-def _origin(rule_class: type[Rule]) -> str:
-    """Where a rule's condition is stated: a specification of the repository, or Lorecraft itself.
-
-    The type of the rule's `spec` field says it, so no second declaration can disagree: a rule whose every occurrence
-    names the specification file that states it is declared `RootRelativePath`, a rule the package states `None`, and
-    a rule that is either, as one over a document and a skill, keeps the type of the base.
+def _quoted(text: str) -> str:
+    """The text as a YAML double-quoted scalar.
 
     Args:
-        rule_class: The rule in service.
+        text: The text to quote.
     """
-    spec_type = next(field.type for field in fields(rule_class) if field.name == 'spec')
-    if spec_type is RootRelativePath:
-        return 'a specification of the repository states it, and the diagnostic points at the file that does'
-    if spec_type is None:
-        return 'Lorecraft states it, as no specification of the repository does'
-    return 'a specification of the repository states it, or Lorecraft does where none does'
-
-
-def _replacement(removed_rule: type[RemovedRule], registry: Registry) -> str:
-    """What replaced a removed rule: a link to the page of the rule, or that nothing did.
-
-    Args:
-        removed_rule: The removed rule.
-        registry: The registry that holds the rule that replaced it.
-    """
-    replaced_by = removed_rule.REPLACED_BY
-    if replaced_by is None:
-        return 'nothing'
-    replacement = registry.find(str(replaced_by))
-    if replacement is None:
-        # The registry rejects, as it loads, a removed rule replaced by a code no rule declares.
-        raise AssertionError(
-            f'unreachable: {removed_rule.__qualname__} is replaced by {replaced_by}, which no rule declares'
-        )
-    return f'[`{replaced_by}`]({page_name(replacement)}.md)'
-
-
-def _source_link(declaration: RuleDeclaration) -> str:
-    """A link to the module that declares the rule, at the published source.
-
-    Args:
-        declaration: The rule, removed rule or engine condition.
-    """
-    path = declaration.__module__.replace('.', '/') + '.py'
-    return f'[`src/{path}`]({_SOURCE_URL}{path})'
+    return json.dumps(text, ensure_ascii=False)

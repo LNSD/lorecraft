@@ -6,7 +6,6 @@ from lorecraft import rules
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.rules.frontmatter.missing_field import MissingField
 from lorecraft.rules.outline.empty_section import EmptySection
-from lorecraft.rules.outline.missing_title import MissingTitle
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.tests.sample_rules import valid as valid_rules
 from lorecraft.rules.tests.sample_rules.valid.retired import TabIndent
@@ -131,148 +130,98 @@ class TestPageName:
 
 @pytest.mark.unit
 class TestRenderPage:
-    def test_render_page_with_a_rule_returns_its_frontmatter_title_facts_and_sections(
-        self, package_registry: Registry
-    ) -> None:
+    def test_render_page_with_a_rule_returns_its_frontmatter_title_summary_and_sections(self) -> None:
         #: Given
         declaration = EmptySection
 
         #: When
-        page = render_page(declaration, package_registry)
+        page = render_page(declaration)
 
         #: Then
         assert page.startswith(
             '---\n'
             'name: "OUT004-empty-section"\n'
             'description: "A section holds no content, under a structure specification that forbids empty sections"\n'
+            'code: "OUT004"\n'
+            'since: "0.3.0"\n'
             '---\n\n'
             '# empty-section (OUT004)\n\n'
             'A section holds no content, under a structure specification that forbids empty sections.\n\n'
-            '- **Code:** `OUT004`\n'
-            '- **Group:** `OUT`, Outline checks\n'
-            '- **Default level:** `deny`\n'
-            '- **Stable since:** `0.3.0`\n'
-        ), 'the page opens with its frontmatter, its title, its summary and what the class declares'
-        assert '\n## What it does\n\nChecks for headings whose section holds nothing' in page, (
-            'the docstring sections follow, each under its heading'
-        )
+            '## What it does\n\n'
+            'Checks for headings whose section holds nothing'
+        ), 'the page opens with the frontmatter the class declares, then its title, summary and first section'
         assert page.endswith('\n'), 'the file ends with one newline'
 
-    def test_render_page_with_a_rule_leaves_the_attributes_block_out(self, package_registry: Registry) -> None:
+    def test_render_page_with_a_rule_leaves_the_attributes_block_out(self) -> None:
         #: Given
         declaration = EmptySection
 
         #: When
-        page = render_page(declaration, package_registry)
+        page = render_page(declaration)
 
         #: Then
         assert 'Attributes:' not in page, 'the fields are documented for the maintainer, not on the page'
 
-    def test_render_page_with_a_rule_links_the_module_that_declares_it(self, package_registry: Registry) -> None:
-        #: Given
-        declaration = EmptySection
-
-        #: When
-        page = render_page(declaration, package_registry)
-
-        #: Then
-        assert (
-            '- **Declared in:** [`src/lorecraft/rules/outline/empty_section.py`]'
-            '(https://github.com/LNSD/lorecraft/blob/main/src/lorecraft/rules/outline/empty_section.py)'
-        ) in page, 'the link is the published source, which a reader without the repository can open'
-
-    def test_render_page_with_a_rule_every_occurrence_of_which_names_a_specification_says_one_states_it(
-        self, package_registry: Registry
-    ) -> None:
-        #: Given
-        declaration = EmptySection
-
-        #: When
-        page = render_page(declaration, package_registry)
-
-        #: Then
-        assert '- **Origin:** a specification of the repository states it, and the diagnostic points' in page, (
-            'a rule whose spec is always a file is stated by a specification'
-        )
-
-    def test_render_page_with_a_rule_the_package_states_says_lorecraft_states_it(
-        self, package_registry: Registry
-    ) -> None:
-        #: Given
-        declaration = MissingTitle
-
-        #: When
-        page = render_page(declaration, package_registry)
-
-        #: Then
-        assert '- **Origin:** Lorecraft states it, as no specification of the repository does' in page, (
-            'a rule whose spec is always None is stated by the package'
-        )
-
-    def test_render_page_with_a_rule_over_a_document_and_a_skill_says_a_specification_or_lorecraft_states_it(
-        self, package_registry: Registry
-    ) -> None:
+    def test_render_page_with_a_rule_names_neither_its_module_nor_its_origin(self) -> None:
         #: Given
         declaration = MissingField
 
         #: When
-        page = render_page(declaration, package_registry)
+        page = render_page(declaration)
 
         #: Then
-        assert '- **Origin:** a specification of the repository states it, or Lorecraft does where none does' in page, (
-            'a rule whose spec is a file or None is stated by either'
-        )
+        assert 'missing_field' not in page, 'the page names no declaring module'
+        assert 'src/lorecraft' not in page, 'the page links no source path'
+        assert 'Origin' not in page, 'the page states no origin'
+        assert 'Declared in' not in page, 'the page states no declaring module'
 
-    def test_render_page_with_an_alias_code_lists_it_with_its_linter(self, sample_registry: Registry) -> None:
+    def test_render_page_with_an_alias_code_lists_it_in_the_frontmatter_with_its_linter(self) -> None:
         #: Given
         declaration = TrailingSpace
 
         #: When
-        page = render_page(declaration, sample_registry)
+        page = render_page(declaration)
 
         #: Then
-        assert '- **Aliases:** `MD009` of markdownlint\n' in page, 'the alias code points at the rule, with its linter'
+        assert 'aliases: ["MD009 (markdownlint)"]\n' in page, 'the alias code points at the rule, with its linter'
 
-    def test_render_page_with_a_rule_without_an_alias_code_lists_none(self, package_registry: Registry) -> None:
+    def test_render_page_with_a_rule_without_an_alias_code_lists_none(self) -> None:
         #: Given
         declaration = EmptySection
 
         #: When
-        page = render_page(declaration, package_registry)
+        page = render_page(declaration)
 
         #: Then
-        assert 'Aliases' not in page, 'a rule absorbed from no linter lists no alias'
+        assert 'aliases' not in page, 'a rule absorbed from no linter lists no alias'
 
-    def test_render_page_with_a_removed_rule_gives_its_release_and_links_its_replacement(
-        self, sample_registry: Registry
-    ) -> None:
+    def test_render_page_with_a_removed_rule_gives_its_release_and_replacement_in_the_frontmatter(self) -> None:
         #: Given
         declaration = TabIndent
 
         #: When
-        page = render_page(declaration, sample_registry)
+        page = render_page(declaration)
 
         #: Then
-        assert '- **Removed in:** `1.3.0`\n' in page, 'the page states the release that removed the rule'
-        assert '- **Replaced by:** [`SMP002`](SMP002-trailing-space.md)\n' in page, (
-            'the page links the page of the rule that replaced it'
+        assert 'removed-in: "1.3.0"\nreplaced-by: "SMP002"\n---\n' in page, (
+            'the frontmatter ends with the release that removed the rule and the code that replaced it'
         )
-        assert 'Default level' not in page, 'a removed rule has no level'
+        assert '\nlevel:' not in page, 'a removed rule has no level'
+        assert '\nsince:' not in page, 'a removed rule has no stable release'
 
-    def test_render_page_with_an_engine_condition_gives_its_severity_and_no_level(
-        self, package_registry: Registry
-    ) -> None:
+    def test_render_page_with_an_engine_condition_gives_its_stable_release_and_no_level(self) -> None:
         #: Given
         declaration = InvalidUtf8
 
         #: When
-        page = render_page(declaration, package_registry)
+        page = render_page(declaration)
 
         #: Then
-        assert '- **Severity:** `error`, always: it has no level\n' in page, (
-            'the page states the severity every occurrence is reported at'
+        assert 'code: "LC001"\nsince: "0.3.0"\n---\n' in page, (
+            'the frontmatter ends with the release it is stable since'
         )
-        assert 'Default level' not in page, 'an engine condition has no level'
+        assert '\nlevel:' not in page, 'an engine condition has no level'
+        assert '\nseverity:' not in page, 'an engine condition states no severity on its page'
 
 
 @pytest.mark.unit

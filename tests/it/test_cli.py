@@ -515,8 +515,7 @@ class TestRuleCommand:
         #: Given
         app = build_app()
         arguments = ['rule', 'OUT004']
-        registry = Registry.load(rules)
-        expected = render_page(EmptySection, registry)
+        expected = render_page(EmptySection)
 
         #: When
         result = runner.invoke(app, arguments)
@@ -529,8 +528,7 @@ class TestRuleCommand:
         #: Given
         app = build_app()
         arguments = ['rule', 'empty-section']
-        registry = Registry.load(rules)
-        expected = render_page(EmptySection, registry)
+        expected = render_page(EmptySection)
 
         #: When
         result = runner.invoke(app, arguments)

@@ -28,6 +28,8 @@ process: the arguments, the working directory, standard output and the exit code
   warning on stderr of what a selection cannot do.
 - Registering commands so a new one is a new module.
 - Rendering diagnostics and the model as text or JSON, and choosing the exit code.
+- Rendering the rulebook: a rule's page from its docstring, for `lorecraft rule` and for the recipe that writes
+  `docs/rulebook/`, and the listing of every rule.
 - The output formats and the exit statuses every command shares, in `output.py`.
 - Writing out a failure chain, and the version.
 
