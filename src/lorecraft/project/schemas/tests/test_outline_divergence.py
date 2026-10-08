@@ -16,8 +16,11 @@ from ..name import parse_spec_name
 from ..outline_divergence import (
     AbsentSection,
     DocumentEnd,
+    ExpectedSection,
+    LeftOver,
     MisplacedSection,
     OutlineDivergenceSpec,
+    OutlineEnd,
     UnlistedSection,
     match_outlines,
 )
@@ -153,17 +156,17 @@ class TestMatchOutlines:
     def test_match_outlines_with_a_section_absent_at_the_end_holds_the_last_line(self) -> None:
         #: Given
         outline = '{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}, {"section": "See Also"}]}'
+        absent = AbsentSection(
+            name=SectionName.parse('See Also'),
+            description=None,
+            example=None,
+            before=DocumentEnd(last_line=LineNumber.from_int(13), after=_section(RULE_ASIDE_CHECKLIST, 'Checklist')),
+        )
 
         #: When
         found = _match_corpus_outline(outline, RULE_ASIDE_CHECKLIST)
 
         #: Then
-        absent = AbsentSection(
-            name=SectionName.parse('See Also'),
-            description=None,
-            example=None,
-            before=DocumentEnd(last_line=LineNumber.from_int(13)),
-        )
         assert found == (OutlineDivergenceSpec(spec=CORPUS_SPEC, divergence=absent),), (
             "a required section expected after every section is absent at the end, the document's last line"
         )
@@ -171,17 +174,17 @@ class TestMatchOutlines:
     def test_match_outlines_with_a_section_absent_from_an_empty_document_holds_line_1(self) -> None:
         #: Given
         outline = '{"outline": [{"section": "Rule"}]}'
+        absent = AbsentSection(
+            name=SectionName.parse('Rule'),
+            description=None,
+            example=None,
+            before=DocumentEnd(last_line=LineNumber.from_int(1), after=None),
+        )
 
         #: When
         found = _match_corpus_outline(outline, '')
 
         #: Then
-        absent = AbsentSection(
-            name=SectionName.parse('Rule'),
-            description=None,
-            example=None,
-            before=DocumentEnd(last_line=LineNumber.from_int(1)),
-        )
         assert found == (OutlineDivergenceSpec(spec=CORPUS_SPEC, divergence=absent),), (
             'an empty document has no line, so its end is placed on line 1'
         )
@@ -191,12 +194,13 @@ class TestMatchOutlines:
         # `Rule` is written, but after `Checklist`, which the outline names and so is out of order where it stands
         text = '# Typing\n\n## Checklist\n\n- [ ] Annotated.\n\n## Rule\n\nAnnotate every signature.\n'
         outline = '{"outline": [{"section": "Rule"}, {"section": "Checklist"}]}'
+        expected = ExpectedSection(name=SectionName.parse('Rule'), written_at=_section(text, 'Rule'))
+        misplaced = MisplacedSection(section=_section(text, 'Checklist'), placement=expected)
 
         #: When
         found = _match_corpus_outline(outline, text)
 
         #: Then
-        misplaced = MisplacedSection(section=_section(text, 'Checklist'), expected=SectionName.parse('Rule'))
         assert found == (OutlineDivergenceSpec(spec=CORPUS_SPEC, divergence=misplaced),), (
             'a named section standing where an expected section held later belongs is out of order'
         )
@@ -205,14 +209,15 @@ class TestMatchOutlines:
         #: Given
         # `Aside` stands between `Rule` and `Checklist`, where no `any` run allows a section the outline does not name
         outline = '{"outline": [{"section": "Rule"}, {"section": "Checklist"}]}'
+        expected = ExpectedSection(
+            name=SectionName.parse('Checklist'), written_at=_section(RULE_ASIDE_CHECKLIST, 'Checklist')
+        )
+        unlisted = UnlistedSection(section=_section(RULE_ASIDE_CHECKLIST, 'Aside'), placement=expected)
 
         #: When
         found = _match_corpus_outline(outline, RULE_ASIDE_CHECKLIST)
 
         #: Then
-        unlisted = UnlistedSection(
-            section=_section(RULE_ASIDE_CHECKLIST, 'Aside'), expected=SectionName.parse('Checklist')
-        )
         assert found == (OutlineDivergenceSpec(spec=CORPUS_SPEC, divergence=unlisted),), (
             'an unnamed section standing where an expected section held later belongs is unexpected'
         )
@@ -222,28 +227,61 @@ class TestMatchOutlines:
         # the optional `Rule` is skipped where `Checklist` stands, so the `Rule` written after it is left over
         text = '# Typing\n\n## Checklist\n\n- [ ] Annotated.\n\n## Rule\n\nAnnotate every signature.\n'
         outline = '{"outline": [{"section": "Rule", "optional": true}, {"section": "Checklist"}]}'
+        misplaced = MisplacedSection(section=_section(text, 'Rule'), placement=LeftOver(earlier=None))
 
         #: When
         found = _match_corpus_outline(outline, text)
 
         #: Then
-        misplaced = MisplacedSection(section=_section(text, 'Rule'), expected=None)
         assert found == (OutlineDivergenceSpec(spec=CORPUS_SPEC, divergence=misplaced),), (
-            'a named section left over once the outline is used up is out of order, with no section expected there'
+            'a named section left over once the outline is used up is out of order, with no section expected there '
+            'and none written before it'
+        )
+
+    def test_match_outlines_with_a_named_section_written_twice_holds_the_first_as_earlier(self) -> None:
+        #: Given
+        text = '# Typing\n\n## Rule\n\nAnnotate every signature.\n\n## Rule\n\nAnnotate again.\n'
+        outline = '{"outline": [{"section": "Rule"}]}'
+        first = _section(text, 'Rule')
+        second = next(h for h in parse_document(text).headings if h.text == 'Rule' and h.line != first.line)
+        misplaced = MisplacedSection(section=second, placement=LeftOver(earlier=first))
+
+        #: When
+        found = _match_corpus_outline(outline, text)
+
+        #: Then
+        assert found == (OutlineDivergenceSpec(spec=CORPUS_SPEC, divergence=misplaced),), (
+            'a named section written again after the outline is used up is left over, with its first heading earlier'
         )
 
     def test_match_outlines_with_an_unnamed_section_left_over_holds_it_unlisted(self) -> None:
         #: Given
         text = '# Typing\n\n## Rule\n\nAnnotate every signature.\n\n## Aside\n\nRead the rationale once.\n'
         outline = '{"outline": [{"section": "Rule"}]}'
+        unlisted = UnlistedSection(
+            section=_section(text, 'Aside'), placement=OutlineEnd(last_matched=_section(text, 'Rule'))
+        )
 
         #: When
         found = _match_corpus_outline(outline, text)
 
         #: Then
-        unlisted = UnlistedSection(section=_section(text, 'Aside'), expected=None)
         assert found == (OutlineDivergenceSpec(spec=CORPUS_SPEC, divergence=unlisted),), (
-            'an unnamed section left over once the outline is used up is unexpected, past the outline end'
+            'an unnamed section left over once the outline is used up is unexpected, past the last section matched'
+        )
+
+    def test_match_outlines_with_an_outline_that_matched_nothing_holds_no_last_section(self) -> None:
+        #: Given
+        text = '# Typing\n\n## Aside\n\nRead the rationale once.\n'
+        outline = '{"outline": [{"section": "Rule", "optional": true}]}'
+        unlisted = UnlistedSection(section=_section(text, 'Aside'), placement=OutlineEnd(last_matched=None))
+
+        #: When
+        found = _match_corpus_outline(outline, text)
+
+        #: Then
+        assert found == (OutlineDivergenceSpec(spec=CORPUS_SPEC, divergence=unlisted),), (
+            'an outline that matched no section ends before the first one, so none is the last matched'
         )
 
     def test_match_outlines_with_two_outlines_matches_each_on_its_own_in_the_order_given(self) -> None:
@@ -253,14 +291,17 @@ class TestMatchOutlines:
             _structure_spec('code', '{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}]}'),
             _structure_spec('code-python', '{"outline": [{"section": "Rule"}]}'),
         )
-
-        #: When
-        found = match_outlines(
-            structure_specs, parse_document(RULE_ASIDE_CHECKLIST).headings, count_lines(RULE_ASIDE_CHECKLIST)
+        headings = parse_document(RULE_ASIDE_CHECKLIST).headings
+        line_count = count_lines(RULE_ASIDE_CHECKLIST)
+        unlisted = UnlistedSection(
+            section=_section(RULE_ASIDE_CHECKLIST, 'Aside'),
+            placement=OutlineEnd(last_matched=_section(RULE_ASIDE_CHECKLIST, 'Rule')),
         )
 
+        #: When
+        found = match_outlines(structure_specs, headings, line_count)
+
         #: Then
-        unlisted = UnlistedSection(section=_section(RULE_ASIDE_CHECKLIST, 'Aside'), expected=None)
         assert found == (
             OutlineDivergenceSpec(spec=CORPUS_SPEC, divergence=None),
             OutlineDivergenceSpec(spec=NAMESPACE_SPEC, divergence=unlisted),

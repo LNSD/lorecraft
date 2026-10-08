@@ -154,7 +154,7 @@ class DocumentContext(FrontmatterContext, MarkdownContext, Protocol):
     def corpus_structure(self) -> StructureSpec:
         """The structure specification of the document's corpus.
 
-        It is the one a rule reports under when no specification key states it, as the title rules do.
+        It is the one the document's corpus states, which every rule over the document's structure is gated on.
 
         Never absent: a document's context exists only for a document whose corpus states one.
         """

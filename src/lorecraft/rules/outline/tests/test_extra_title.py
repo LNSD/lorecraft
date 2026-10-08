@@ -8,15 +8,11 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.path import RootRelativePath
-from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.location import Elsewhere, Here, Label, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
+from lorecraft.project.syntax import Heading, LineNumber
+from lorecraft.rules.location import Help, Here, Label
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, heading_in, namespace_spec
 
 from ..extra_title import ExtraTitle
-
-CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
-"""The corpus structure specification."""
 
 STRUCTURE: Final[str] = '{"forbidden": ["Changelog"]}'
 """A structure specification that states a rule other than the title, which no key states."""
@@ -26,6 +22,9 @@ ONE_TITLE: Final[str] = '# Setup\n\n## Install\n\nInstall the toolkit, then run 
 
 SECOND_TITLE: Final[str] = ONE_TITLE + '\n# Usage\n\nRun it over the repository.\n'
 """`ONE_TITLE`, followed by a second H1 title on line 7."""
+
+FIRST_TITLE: Final[Heading] = heading_in(ONE_TITLE, 'Setup')
+"""The H1 title of `ONE_TITLE`, on line 1."""
 
 
 @pytest.mark.unit
@@ -38,9 +37,9 @@ class TestExtraTitle:
         occurrences = ExtraTitle.check(subject)
 
         #: Then
-        assert occurrences == (
-            ExtraTitle(spec=CORPUS_SPEC, line=LineNumber.from_int(7), first_line=LineNumber.from_int(1)),
-        ), 'the second title is one occurrence, at its own heading, pointing back at the first'
+        assert occurrences == (ExtraTitle(line=LineNumber.from_int(7), first_title=FIRST_TITLE),), (
+            'the second title is one occurrence, at its own heading, pointing back at the first'
+        )
 
     def test_check_with_two_titles_after_the_first_reports_each(self) -> None:
         #: Given
@@ -51,8 +50,8 @@ class TestExtraTitle:
 
         #: Then
         assert occurrences == (
-            ExtraTitle(spec=CORPUS_SPEC, line=LineNumber.from_int(7), first_line=LineNumber.from_int(1)),
-            ExtraTitle(spec=CORPUS_SPEC, line=LineNumber.from_int(11), first_line=LineNumber.from_int(1)),
+            ExtraTitle(line=LineNumber.from_int(7), first_title=FIRST_TITLE),
+            ExtraTitle(line=LineNumber.from_int(11), first_title=FIRST_TITLE),
         ), 'every title after the first is its own occurrence, in document order, each pointing back at the first'
 
     def test_check_with_one_title_reports_nothing(self) -> None:
@@ -85,42 +84,40 @@ class TestExtraTitle:
         occurrences = ExtraTitle.check(subject)
 
         #: Then
-        assert occurrences == (
-            ExtraTitle(spec=CORPUS_SPEC, line=LineNumber.from_int(7), first_line=LineNumber.from_int(1)),
-        ), 'every specification agrees on one title, so the extra title is reported once, under the corpus'
+        assert occurrences == (ExtraTitle(line=LineNumber.from_int(7), first_title=FIRST_TITLE),), (
+            'every specification agrees on one title, so the extra title is reported once'
+        )
 
-    def test_message_with_an_occurrence_names_the_line_of_the_first_title(self) -> None:
+    def test_message_with_an_occurrence_states_the_extra_title(self) -> None:
         #: Given
-        occurrence = ExtraTitle(spec=CORPUS_SPEC, line=LineNumber.from_int(7), first_line=LineNumber.from_int(1))
+        occurrence = ExtraTitle(line=LineNumber.from_int(7), first_title=FIRST_TITLE)
 
         #: When
         message = occurrence.message()
 
         #: Then
-        assert message == 'extra H1 title, the document is titled on line 1', (
-            'the message names the line of the title the document already carries'
-        )
+        assert message == 'extra H1 title', 'the message is one template; the label shows the title already written'
 
     def test_labels_with_an_occurrence_point_at_the_first_title(self) -> None:
         #: Given
-        occurrence = ExtraTitle(spec=CORPUS_SPEC, line=LineNumber.from_int(7), first_line=LineNumber.from_int(1))
+        occurrence = ExtraTitle(line=LineNumber.from_int(7), first_title=FIRST_TITLE)
 
         #: When
         labels = occurrence.labels()
 
         #: Then
-        assert labels == (Label(Here(LineNumber.from_int(1)), 'title written here'),), (
-            "a label points at the document's own title, on its line"
+        assert labels == (Label(Here(LineNumber.from_int(1)), 'the document is titled `Setup` here'),), (
+            "a label points at the document's own title, on its line, and names it"
         )
 
-    def test_children_with_an_occurrence_point_at_the_specification(self) -> None:
+    def test_children_with_an_occurrence_say_where_the_extra_title_belongs(self) -> None:
         #: Given
-        occurrence = ExtraTitle(spec=CORPUS_SPEC, line=LineNumber.from_int(7), first_line=LineNumber.from_int(1))
+        occurrence = ExtraTitle(line=LineNumber.from_int(7), first_title=FIRST_TITLE)
 
         #: When
         children = occurrence.children()
 
         #: Then
-        assert children == (Note('the document structure is set here', at=Elsewhere(CORPUS_SPEC)),), (
-            'a note points at the corpus structure specification that governs the document'
+        assert children == (Help('make it an H2 section, or move it into a document of its own'),), (
+            'help says to make the extra title a section or a document, and no note points at a specification'
         )

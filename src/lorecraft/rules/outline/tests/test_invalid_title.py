@@ -4,13 +4,15 @@ Every case is a document written as text, read through a fake context that parse
 structure specifications decoded from JSON; no document is read from disk.
 """
 
+import re
 from typing import Final
 
 import pytest
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.schemas import TitlePattern
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.location import Elsewhere, Note
+from lorecraft.rules.location import Elsewhere, Here, Label, Note
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
 
 from ..invalid_title import InvalidTitle
@@ -30,6 +32,12 @@ CAPITALIZED: Final[str] = '{"title": {"pattern": "^[A-Z]"}}'
 NO_COLON: Final[str] = '{"title": {"pattern": "^[^:]+$"}}'
 """A structure specification holding the title to hold no colon."""
 
+CAPITAL: Final[TitlePattern] = TitlePattern(re.compile('^[A-Z]'))
+"""The pattern `CAPITALIZED` sets."""
+
+COLONLESS: Final[TitlePattern] = TitlePattern(re.compile('^[^:]+$'))
+"""The pattern `NO_COLON` sets."""
+
 NO_PATTERN: Final[str] = '{"empty_sections": "forbidden"}'
 """A structure specification that sets no pattern on the title."""
 
@@ -45,7 +53,7 @@ class TestInvalidTitle:
 
         #: Then
         assert occurrences == (
-            InvalidTitle(spec=CORPUS_SPEC, line=LineNumber.from_int(1), title='setup: first steps', pattern='^[A-Z]'),
+            InvalidTitle(spec=CORPUS_SPEC, line=LineNumber.from_int(1), title='setup: first steps', pattern=CAPITAL),
         ), 'a title failing its pattern is one occurrence, at its heading, naming the specification and the pattern'
 
     def test_check_with_a_title_matching_its_pattern_reports_nothing(self) -> None:
@@ -113,7 +121,7 @@ class TestInvalidTitle:
         #: Then
         assert occurrences == (
             InvalidTitle(
-                spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), title='setup: first steps', pattern='^[^:]+$'
+                spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), title='setup: first steps', pattern=COLONLESS
             ),
         ), 'a namespace pattern does not replace the corpus one, so the title is held to it on its own'
 
@@ -128,16 +136,16 @@ class TestInvalidTitle:
 
         #: Then
         assert occurrences == (
-            InvalidTitle(spec=CORPUS_SPEC, line=LineNumber.from_int(1), title='setup: first steps', pattern='^[A-Z]'),
+            InvalidTitle(spec=CORPUS_SPEC, line=LineNumber.from_int(1), title='setup: first steps', pattern=CAPITAL),
             InvalidTitle(
-                spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), title='setup: first steps', pattern='^[^:]+$'
+                spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), title='setup: first steps', pattern=COLONLESS
             ),
         ), 'each specification applies on its own, so the title is reported once for each pattern, in order'
 
     def test_message_with_an_occurrence_names_the_title(self) -> None:
         #: Given
         occurrence = InvalidTitle(
-            spec=CORPUS_SPEC, line=LineNumber.from_int(1), title='setup: first steps', pattern='^[A-Z]'
+            spec=CORPUS_SPEC, line=LineNumber.from_int(1), title='setup: first steps', pattern=CAPITAL
         )
 
         #: When
@@ -146,17 +154,30 @@ class TestInvalidTitle:
         #: Then
         assert message == 'title `setup: first steps` does not match the pattern', 'the message names the title'
 
-    def test_children_with_an_occurrence_point_at_the_spec_and_give_the_pattern(self) -> None:
+    def test_labels_with_an_occurrence_mark_the_title_with_the_pattern(self) -> None:
         #: Given
         occurrence = InvalidTitle(
-            spec=CORPUS_SPEC, line=LineNumber.from_int(1), title='setup: first steps', pattern='^[A-Z]'
+            spec=CORPUS_SPEC, line=LineNumber.from_int(1), title='setup: first steps', pattern=CAPITAL
+        )
+
+        #: When
+        labels = occurrence.labels()
+
+        #: Then
+        assert labels == (Label(Here(LineNumber.from_int(1)), 'does not match `^[A-Z]`'),), (
+            'the label marks the title and gives the pattern exactly as the specification wrote it'
+        )
+
+    def test_children_with_an_occurrence_point_at_the_specification_alone(self) -> None:
+        #: Given
+        occurrence = InvalidTitle(
+            spec=CORPUS_SPEC, line=LineNumber.from_int(1), title='setup: first steps', pattern=CAPITAL
         )
 
         #: When
         children = occurrence.children()
 
         #: Then
-        assert children == (
-            Note('the document structure is set here', at=Elsewhere(CORPUS_SPEC)),
-            Note('the title must match `^[A-Z]`'),
-        ), 'a note points at the specification that sets the pattern, and another gives the pattern'
+        assert children == (Note('the document structure is set here', at=Elsewhere(CORPUS_SPEC)),), (
+            'a note points at the specification that sets the pattern, which the label gives'
+        )

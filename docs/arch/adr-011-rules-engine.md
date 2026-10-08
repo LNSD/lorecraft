@@ -131,8 +131,8 @@ what one of a skill's files has, since every file of a skill names another from 
 `lorecraft.project.database` implements them over the database, bound to the decode witness: each fact one memoized
 query, each identity value read from the subject's ref or location, and a document's governance as the model stated
 it. A document context is built only for a document whose corpus states a structure specification, since no facet
-governs one whose corpus does not, so it always hands out that specification, `corpus_structure()`: the one a rule
-reports under when no specification key states it, as the title rules do.
+governs one whose corpus does not, so it always hands out that specification, `corpus_structure()`: the one the
+document's corpus states, which every rule over the document's structure is gated on.
 
 **A rule may read its subject's context.** `lorecraft.rules` gives each subject kind a rule base whose `check` takes
 the context: `DocumentRule` over a document, `SkillRule` over a skill, `MarkdownRule` over any one Markdown file,

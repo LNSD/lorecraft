@@ -5,9 +5,10 @@ from typing import ClassVar, Self
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
+from lorecraft.project.schemas import TitlePattern
 from lorecraft.project.syntax import find_title
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.location import Note, Subdiagnostic
+from lorecraft.rules.location import Here, Label, Subdiagnostic
 from lorecraft.rules.subject import DocumentRule, Facet
 
 from .__ruleset__ import GROUP_ID, spec_note
@@ -60,7 +61,7 @@ class InvalidTitle(DocumentRule):
     Attributes:
         spec: The structure specification that sets the pattern.
         title: The text of the title's heading.
-        pattern: The pattern the title does not match, exactly as written.
+        pattern: The pattern the title does not match, which prints exactly as written.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 9)
@@ -71,15 +72,19 @@ class InvalidTitle(DocumentRule):
 
     spec: RootRelativePath
     title: str
-    pattern: str
+    pattern: TitlePattern
 
     def message(self) -> str:
-        """Name the title that does not match; the pattern is a note."""
+        """Name the title that does not match; the label gives the pattern."""
         return f'title `{self.title}` does not match the pattern'
 
+    def labels(self) -> tuple[Label, ...]:
+        """Mark the title with the pattern it misses."""
+        return (Label(Here(self.line), f'does not match `{self.pattern}`'),)
+
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the specification that sets the pattern, and give the pattern."""
-        return (spec_note(self.spec), Note(f'the title must match `{self.pattern}`'))
+        """Point at the specification that sets the pattern."""
+        return (spec_note(self.spec),)
 
     @classmethod
     def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
@@ -101,6 +106,6 @@ class InvalidTitle(DocumentRule):
             if title_checks.pattern.is_found_in(title.text):
                 continue
             occurrences.append(
-                cls(spec=structure_spec.path, line=title.line, title=title.text, pattern=str(title_checks.pattern))
+                cls(spec=structure_spec.path, line=title.line, title=title.text, pattern=title_checks.pattern)
             )
         return tuple(occurrences)

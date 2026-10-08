@@ -11,10 +11,10 @@ from typing import Final
 import pytest
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.schemas import SectionName
-from lorecraft.project.syntax import LineNumber
+from lorecraft.project.schemas import DocumentEnd, SectionName
+from lorecraft.project.syntax import Heading, LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, heading_in, namespace_spec, structure_spec_path
 
 from ..missing_section import MissingSection
 
@@ -51,6 +51,19 @@ FOLLOWS: Final[str] = '# Check\n\n## Usage\n\nRun it.\n\n## Options\n\nPass a fl
 OUT_OF_ORDER: Final[str] = '# Check\n\n## Options\n\nPass a flag.\n\n## Usage\n\nRun it.\n'
 """A document writing `Options`, then `Usage`."""
 
+BEFORE_OPTIONS: Final[Heading] = heading_in(OPTIONS_ONLY, 'Options')
+"""The `Options` section of `OPTIONS_ONLY`, on line 3, before which `Usage` belongs."""
+
+END_AFTER_USAGE: Final[DocumentEnd] = DocumentEnd(
+    last_line=LineNumber.from_int(5), after=heading_in(USAGE_ONLY, 'Usage')
+)
+"""The end of `USAGE_ONLY`, on line 5, after its last section `Usage`."""
+
+END_AFTER_OPTIONS: Final[DocumentEnd] = DocumentEnd(
+    last_line=LineNumber.from_int(5), after=heading_in(OPTIONS_ONLY, 'Options')
+)
+"""The end of `OPTIONS_ONLY`, on line 5, after its last section `Options`."""
+
 
 @pytest.mark.unit
 class TestMissingSection:
@@ -67,7 +80,7 @@ class TestMissingSection:
                 spec=CORPUS_SPEC,
                 line=LineNumber.from_int(3),
                 section=USAGE,
-                before='Options',
+                before=BEFORE_OPTIONS,
                 description='How to invoke the command.',
                 example='Run `lorecraft check`.',
             ),
@@ -86,7 +99,7 @@ class TestMissingSection:
                 spec=CORPUS_SPEC,
                 line=LineNumber.from_int(5),
                 section=SectionName.parse('Options'),
-                before=None,
+                before=END_AFTER_USAGE,
                 description=None,
                 example=None,
             ),
@@ -140,7 +153,7 @@ class TestMissingSection:
                 spec=CORPUS_SPEC,
                 line=LineNumber.from_int(3),
                 section=USAGE,
-                before='Options',
+                before=BEFORE_OPTIONS,
                 description=None,
                 example=None,
             ),
@@ -148,7 +161,7 @@ class TestMissingSection:
                 spec=NAMESPACE_SPEC,
                 line=LineNumber.from_int(5),
                 section=USAGE,
-                before=None,
+                before=END_AFTER_OPTIONS,
                 description=None,
                 example=None,
             ),
@@ -160,7 +173,7 @@ class TestMissingSection:
             spec=CORPUS_SPEC,
             line=LineNumber.from_int(3),
             section=USAGE,
-            before='Options',
+            before=BEFORE_OPTIONS,
             description=None,
             example=None,
         )
@@ -177,7 +190,7 @@ class TestMissingSection:
             spec=CORPUS_SPEC,
             line=LineNumber.from_int(3),
             section=USAGE,
-            before='Options',
+            before=BEFORE_OPTIONS,
             description=None,
             example=None,
         )
@@ -190,18 +203,63 @@ class TestMissingSection:
             'the label marks the section the missing one should come before, and names it'
         )
 
-    def test_labels_at_the_end_of_the_document_mark_its_last_line(self) -> None:
+    def test_labels_at_the_end_of_the_document_mark_its_last_line_and_its_last_section(self) -> None:
         #: Given
         occurrence = MissingSection(
-            spec=CORPUS_SPEC, line=LineNumber.from_int(9), section=USAGE, before=None, description=None, example=None
+            spec=CORPUS_SPEC,
+            line=LineNumber.from_int(5),
+            section=SectionName.parse('Options'),
+            before=END_AFTER_USAGE,
+            description=None,
+            example=None,
         )
 
         #: When
         labels = occurrence.labels()
 
         #: Then
-        assert labels == (Label(Here(LineNumber.from_int(9)), 'expected `Usage` before the end of the document'),), (
-            'the label marks the last line of the document, which the missing section should end'
+        assert labels == (
+            Label(Here(LineNumber.from_int(5)), 'expected `Options` before the end of the document'),
+            Label(Here(LineNumber.from_int(3)), 'expected `Options` after `Usage`'),
+        ), 'the labels mark the last line, where the section would end, and the last section it follows'
+
+    def test_labels_at_the_end_of_a_document_without_a_section_mark_its_last_line_alone(self) -> None:
+        #: Given
+        occurrence = MissingSection(
+            spec=CORPUS_SPEC,
+            line=LineNumber.from_int(1),
+            section=USAGE,
+            before=DocumentEnd(last_line=LineNumber.from_int(1), after=None),
+            description=None,
+            example=None,
+        )
+
+        #: When
+        labels = occurrence.labels()
+
+        #: Then
+        assert labels == (Label(Here(LineNumber.from_int(1)), 'expected `Usage` before the end of the document'),), (
+            'a document with no section has none to follow, so only its last line is marked'
+        )
+
+    def test_labels_at_the_end_of_a_document_ending_on_its_last_heading_mark_it_once(self) -> None:
+        #: Given
+        document = '# Check\n\n## Usage'
+        occurrence = MissingSection(
+            spec=CORPUS_SPEC,
+            line=LineNumber.from_int(3),
+            section=SectionName.parse('Options'),
+            before=DocumentEnd(last_line=LineNumber.from_int(3), after=heading_in(document, 'Usage')),
+            description=None,
+            example=None,
+        )
+
+        #: When
+        labels = occurrence.labels()
+
+        #: Then
+        assert labels == (Label(Here(LineNumber.from_int(3)), 'expected `Options` after `Usage`'),), (
+            'when the last heading is the last line, one label says where the section follows'
         )
 
     def test_children_with_a_description_and_an_example_give_both_after_the_specification_note(self) -> None:
@@ -210,7 +268,7 @@ class TestMissingSection:
             spec=CORPUS_SPEC,
             line=LineNumber.from_int(3),
             section=USAGE,
-            before='Options',
+            before=BEFORE_OPTIONS,
             description='How to invoke the command.',
             example='Run `lorecraft check`.',
         )
@@ -231,7 +289,7 @@ class TestMissingSection:
             spec=CORPUS_SPEC,
             line=LineNumber.from_int(3),
             section=USAGE,
-            before='Options',
+            before=BEFORE_OPTIONS,
             description='How to invoke the command.',
             example=None,
         )
@@ -251,7 +309,7 @@ class TestMissingSection:
             spec=CORPUS_SPEC,
             line=LineNumber.from_int(3),
             section=USAGE,
-            before='Options',
+            before=BEFORE_OPTIONS,
             description=None,
             example='Run `lorecraft check`.',
         )
@@ -271,7 +329,7 @@ class TestMissingSection:
             spec=CORPUS_SPEC,
             line=LineNumber.from_int(3),
             section=USAGE,
-            before='Options',
+            before=BEFORE_OPTIONS,
             description=None,
             example=None,
         )
