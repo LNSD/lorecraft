@@ -19,10 +19,13 @@ from syrupy.assertion import SnapshotAssertion
 from typer.testing import CliRunner
 
 from lib.snapshot import TextSnapshotExtension
-from lorecraft import __version__
+from lorecraft import __version__, rules
 from lorecraft.cli import build_app
 from lorecraft.cli.commands.version import version as version_handler
 from lorecraft.cli.registry import DuplicateCommandError, register
+from lorecraft.cli.rulebook import render_listing, render_page
+from lorecraft.rules.outline.empty_section import EmptySection
+from lorecraft.rules.registry import Registry
 
 runner = CliRunner()
 
@@ -479,6 +482,76 @@ class TestInspectCommand:
         assert result.stdout.splitlines()[1] == '├── corpora (0)', (
             'a root that declares no specification is a model with no corpora, not an error'
         )
+
+
+@pytest.mark.it
+class TestRuleCommand:
+    def test_rule_with_help_prints_the_description_and_stops_before_raises(self, snapshot: SnapshotAssertion) -> None:
+        #: Given
+        app = build_app()
+        expected = snapshot.use_extension(TextSnapshotExtension)
+
+        #: When
+        result = runner.invoke(app, ['rule', '--help'], env=PLAIN_TERMINAL)
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stdout == expected, 'the rule help matches the reviewed snapshot, with no docstring section'
+
+    def test_rule_without_an_argument_lists_every_rule_in_code_order(self) -> None:
+        #: Given
+        app = build_app()
+        arguments = ['rule']
+        expected = render_listing(Registry.load(rules)) + '\n'
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stdout == expected, 'every rule is listed, in code order, one line each'
+
+    def test_rule_with_a_code_prints_the_rules_page(self) -> None:
+        #: Given
+        app = build_app()
+        arguments = ['rule', 'OUT004']
+        registry = Registry.load(rules)
+        expected = render_page(EmptySection, registry)
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stdout == expected, 'the page is the one the rendering function returns, with no extra line'
+
+    def test_rule_with_a_name_prints_the_same_page_as_its_code(self) -> None:
+        #: Given
+        app = build_app()
+        arguments = ['rule', 'empty-section']
+        registry = Registry.load(rules)
+        expected = render_page(EmptySection, registry)
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert result.stdout == expected, 'the name finds the page the code finds'
+
+    def test_rule_with_an_unknown_key_exits_two_and_names_it(self) -> None:
+        #: Given
+        app = build_app()
+        # No rule will ever have this as a code, a name or an alias code.
+        arguments = ['rule', 'NOPE001']
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 2, f'no rule has the key, so the command fails, got exit {result.exit_code}'
+        assert result.stdout == '', 'a failure prints nothing on stdout'
+        assert "error: no rule has the code, name or alias code 'NOPE001'" in result.stderr, 'the key is named'
 
 
 @pytest.mark.it
