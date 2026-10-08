@@ -68,10 +68,18 @@ class OutsideSymlink(LayoutEntryRule):
         return 'symlink leads outside the repository'
 
     def children(self) -> tuple[EntrySubdiagnostic, ...]:
-        """Name the link the chain leaves through and its target, then say what to keep inside."""
+        """Say what to do about the target, then name the link the chain leaves through and its target."""
+        if self.leaves_at.target.is_absolute():
+            help_text = (
+                'an absolute target resolves differently in every checkout; move what it links to into the repository'
+            )
+        else:
+            help_text = (
+                'a `..` on the chain climbs above the repository root; move what it links to into the repository'
+            )
         return (
+            EntryHelp(help_text),
             EntryNote(f'leaves the repository at {self.leaves_at.link} -> {self.leaves_at.target}'),
-            EntryHelp('keep every file a skill loads inside the repository'),
         )
 
     @classmethod

@@ -1,6 +1,6 @@
 .agents/skills/review: error[LAY001]: symlink leads outside the repository
+  = help: an absolute target resolves differently in every checkout; move what it links to into the repository
   = note: leaves the repository at .agents/skills/review -> /home/alex/review
-  = help: keep every file a skill loads inside the repository
 
 docs/code/a.md:1: warning[LEN001]: too many tokens (2400 > 2000)
   --> docs/code/a.md:1: tokens over the budget: 400
