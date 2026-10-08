@@ -1,7 +1,7 @@
 """`LEN003`: a section of a document holds more prose words than its word cap allows."""
 
 from dataclasses import dataclass
-from typing import ClassVar, Self, assert_never
+from typing import ClassVar, Final, Self, assert_never
 
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
@@ -9,10 +9,31 @@ from lorecraft.project.context import DocumentContext
 from lorecraft.project.schemas import AnySections, OutlineEntry, SectionEntry
 from lorecraft.project.syntax import SECTION_LEVEL
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.location import Elsewhere, Note, Subdiagnostic
+from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.subject import DocumentRule, Facet
 
-from .__ruleset__ import GROUP_ID
+from .__ruleset__ import GROUP_ID, spec_note
+
+
+@dataclass(frozen=True, slots=True)
+class NamedSectionCap:
+    """The cap is the `words` of the outline entry that names the section."""
+
+
+@dataclass(frozen=True, slots=True)
+class AnyRunCap:
+    """The cap is the `words` of the `any` run the section falls in, since no outline entry names the section."""
+
+
+type CapSource = NamedSectionCap | AnyRunCap
+"""Where a section's cap comes from: the entry naming it, or the run of unnamed sections it falls in."""
+
+
+_SPLIT_HELP: Final[Help] = Help(
+    'split the section, or move its detail into a document of its own; code blocks and table rows do not count '
+    'toward the cap'
+)
+"""How to bring a section under its cap, and what the cap leaves out of its count."""
 
 
 @rule
@@ -73,8 +94,10 @@ class TooManyWords(DocumentRule):
 
     Attributes:
         spec: The structure specification that sets the exceeded cap.
+        section: The heading text of the section, which the occurrence is reported at.
         word_count: The prose words in the section, its subsections included.
         cap: The cap it exceeds, in words.
+        cap_source: Whether the cap is the section's own entry's or that of the `any` run it falls in.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 3)
@@ -86,16 +109,33 @@ class TooManyWords(DocumentRule):
     GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
 
     spec: RootRelativePath
+    section: str
     word_count: int
     cap: int
+    cap_source: CapSource
 
     def message(self) -> str:
-        """Name the words found against the cap they exceed."""
-        return f'too many words ({self.word_count} > {self.cap})'
+        """Name the section's words found against the cap they exceed."""
+        return f'too many words in the section ({self.word_count} > {self.cap})'
+
+    def labels(self) -> tuple[Label, ...]:
+        """Say how far past its cap the section runs, at its heading."""
+        over = self.word_count - self.cap
+        return (Label(Here(self.line), f'`{self.section}` holds {self.word_count} prose words, {over} over its cap'),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the specification that sets the cap."""
-        return (Note('the cap is set here', at=Elsewhere(self.spec)),)
+        """Point at the specification that sets the cap, say how to shorten the section, and whose cap it is."""
+        return (spec_note(self.spec), _SPLIT_HELP, self._cap_source_note())
+
+    def _cap_source_note(self) -> Note:
+        """The note saying which entry of the outline the cap is."""
+        match self.cap_source:
+            case NamedSectionCap():
+                return Note(f"the cap is the `{self.section}` entry's")
+            case AnyRunCap():
+                return Note("the cap is the `any` run's, which caps each section the outline does not name")
+            case _:
+                assert_never(self.cap_source)
 
     @classmethod
     def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
@@ -112,6 +152,7 @@ class TooManyWords(DocumentRule):
             outline = structure_spec.outline
             last_named_at = -1  # the outline index of the last named section passed; -1 before any
             for section in sections:
+                cap_source: CapSource  # declared once, so each branch below may assign either variant
                 # A section the outline names takes the cap of the entry naming it, which may be none. Any other
                 # section takes the cap of the `any` run it falls in: the first `any` entry after the entry naming
                 # the last named section before it. In a document that follows the outline, that is the run which
@@ -119,12 +160,21 @@ class TooManyWords(DocumentRule):
                 entry_at = _find_entry_index(outline, section.text)
                 if entry_at is None:
                     cap = _find_run_cap(outline, last_named_at)
+                    cap_source = AnyRunCap()
                 else:
                     last_named_at = entry_at
                     cap = outline[entry_at].words
+                    cap_source = NamedSectionCap()
                 if cap is not None and section.words > cap.value:
                     occurrences.append(
-                        cls(spec=structure_spec.path, line=section.line, word_count=section.words, cap=cap.value)
+                        cls(
+                            spec=structure_spec.path,
+                            line=section.line,
+                            section=section.text,
+                            word_count=section.words,
+                            cap=cap.value,
+                            cap_source=cap_source,
+                        )
                     )
         return tuple(occurrences)
 

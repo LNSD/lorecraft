@@ -7,10 +7,10 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.location import Elsewhere, Note, Subdiagnostic
+from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.subject import DocumentRule, Facet
 
-from .__ruleset__ import GROUP_ID
+from .__ruleset__ import GROUP_ID, spec_note
 
 # A budget concerns the whole file, not one of its lines, but an occurrence under `ContentRule` carries a line, so
 # it is reported at the first line.
@@ -95,9 +95,20 @@ class TooManyTokens(DocumentRule):
         """Name the tokens found against the budget they exceed."""
         return f'too many tokens ({self.token_count} > {self.budget})'
 
+    def labels(self) -> tuple[Label, ...]:
+        """Say how far past the budget the document runs, on the line the occurrence is reported at."""
+        return (Label(Here(self.line), f'tokens over the budget: {self.token_count - self.budget}'),)
+
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the specification that sets the budget."""
-        return (Note('the budget is set here', at=Elsewhere(self.spec)),)
+        """Point at the specification that sets the budget, say how to cut tokens, and how they are counted."""
+        return (
+            spec_note(self.spec),
+            Help(
+                'split the document, or move what an agent needs only some of the time into a document of its own '
+                'and link to it'
+            ),
+            Note('tokens are counted as o200k_base over the whole file: frontmatter, code blocks and tables included'),
+        )
 
     @classmethod
     def check(cls, subject: DocumentContext) -> tuple[Self, ...]:

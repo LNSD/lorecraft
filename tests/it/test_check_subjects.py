@@ -88,7 +88,7 @@ from lorecraft.rules.length.title_too_long import TitleTooLong
 from lorecraft.rules.length.title_too_many_words import TitleTooManyWords
 from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
-from lorecraft.rules.length.too_many_words import TooManyWords
+from lorecraft.rules.length.too_many_words import NamedSectionCap, TooManyWords
 from lorecraft.rules.link.absolute_link import AbsoluteLink
 from lorecraft.rules.link.broken_link import BrokenLink
 from lorecraft.rules.link.escaping_link import EscapingLink
@@ -828,7 +828,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
-        occurrence = TooManyLines(line=LineNumber.from_int(1), line_count=501)
+        occurrence = TooManyLines(line=LineNumber.from_int(501), line_count=501)
         skill_file = RootRelativePath.parse('.agents/skills/review/SKILL.md')
         assert reports == (
             CheckedSubject(
@@ -851,7 +851,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
-        occurrence = TooManyLines(line=LineNumber.from_int(1), line_count=501)
+        occurrence = TooManyLines(line=LineNumber.from_int(501), line_count=501)
         skill_file = RootRelativePath.parse('.agents/skills/review/SKILL.md')
         assert reports == (
             CheckedSubject(
@@ -1621,7 +1621,14 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = TooManyWords(spec=CODE_SPEC, line=LineNumber.from_int(3), word_count=5, cap=3)
+        occurrence = TooManyWords(
+            spec=CODE_SPEC,
+            line=LineNumber.from_int(3),
+            section='Run',
+            word_count=5,
+            cap=3,
+            cap_source=NamedSectionCap(),
+        )
         assert reports == (
             CheckedSubject(
                 GUIDE,
