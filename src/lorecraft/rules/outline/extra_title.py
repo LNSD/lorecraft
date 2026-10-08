@@ -3,14 +3,13 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
-from lorecraft.project.syntax import Heading, LineNumber
+from lorecraft.project.syntax import Heading
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.location import Here, Label, Subdiagnostic
+from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
 from lorecraft.rules.subject import DocumentRule, Facet
 
-from .__ruleset__ import GROUP_ID, spec_note
+from .__ruleset__ import GROUP_ID
 
 
 @rule
@@ -27,7 +26,7 @@ class ExtraTitle(DocumentRule):
     not.
 
     A document that more than one specification governs, such as a corpus and a namespace, has each extra title
-    reported once, under its corpus's structure specification.
+    reported once.
 
     ## Why is this bad?
 
@@ -75,8 +74,8 @@ class ExtraTitle(DocumentRule):
     ```
 
     Attributes:
-        spec: The corpus's structure specification, which governs the document.
-        first_line: The line of the document's first H1 title, its own.
+        spec: Always `None`: the package states the rule.
+        first_title: The document's first H1 heading, its own title.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 2)
@@ -85,27 +84,27 @@ class ExtraTitle(DocumentRule):
     SINCE: ClassVar[Release] = Release('0.3.0')
     GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
 
-    spec: RootRelativePath
-    first_line: LineNumber
+    spec: None = None
+    first_title: Heading
 
     def message(self) -> str:
-        """Name the line of the document's own title."""
-        return f'extra H1 title, the document is titled on line {self.first_line}'
+        """State that the document has a title already."""
+        return 'extra H1 title'
 
     def labels(self) -> tuple[Label, ...]:
-        """Point at the document's own title."""
-        return (Label(Here(self.first_line), 'title written here'),)
+        """Point at the document's own title, and name it."""
+        return (Label(Here(self.first_title.line), f'the document is titled `{self.first_title.text}` here'),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the corpus's structure specification."""
-        return (spec_note(self.spec),)
+        """Say where the extra title belongs."""
+        return (Help('make it an H2 section, or move it into a document of its own'),)
 
     @classmethod
     def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
-        """One occurrence per H1 title after the first, at its heading, under the corpus's structure specification.
+        """One occurrence per H1 title after the first, at its heading.
 
         Args:
-            subject: The document, governed by its corpus's structure specification.
+            subject: The document, governed by a structure specification.
         """
         titles: list[Heading] = []
         for heading in subject.parse().headings:
@@ -114,8 +113,7 @@ class ExtraTitle(DocumentRule):
         if not titles:
             return ()
         first = titles[0]
-        corpus_spec = subject.corpus_structure().path
         occurrences: list[Self] = []
         for extra in titles[1:]:
-            occurrences.append(cls(spec=corpus_spec, line=extra.line, first_line=first.line))
+            occurrences.append(cls(line=extra.line, first_title=first))
         return tuple(occurrences)

@@ -11,6 +11,7 @@ A snapshot built in memory scans nothing, so no path is in its scope and no link
 `LINK003`, which judges what a link names, open the database on a scan of a real tree instead.
 """
 
+import re
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import ClassVar, Final, Self
@@ -38,6 +39,8 @@ from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
 from lorecraft.project.schemas import (
     BlockProblem,
+    DocumentEnd,
+    ExpectedSection,
     FieldGuidance,
     InvalidValueProblem,
     JsonType,
@@ -47,6 +50,7 @@ from lorecraft.project.schemas import (
     PatternMismatch,
     SchemaProblems,
     SectionName,
+    TitlePattern,
     UnknownFieldProblem,
     WrongTypeProblem,
 )
@@ -59,10 +63,12 @@ from lorecraft.project.skill import (
 )
 from lorecraft.project.syntax import (
     FrontmatterNode,
+    Heading,
     InvalidYamlFrontmatter,
     LineNumber,
     ParsedDocument,
     count_tokens,
+    parse_document,
     parse_frontmatter,
 )
 from lorecraft.rules.declaration import Level, Release, Rule, RuleCode, RuleGroup, RuleGroupPrefix, RuleName, Severity
@@ -407,6 +413,22 @@ def _invalid_yaml_problem(text: str) -> str:
     frontmatter = parse_frontmatter(text)
     assert isinstance(frontmatter, InvalidYamlFrontmatter), 'the test wrote a block that is not YAML'
     return frontmatter.problem
+
+
+def _heading(text: bytes, heading_text: str) -> Heading:
+    """The first top-level heading with this text, as the real parser reads it from a document's text.
+
+    Args:
+        text: The document's UTF-8 text.
+        heading_text: The heading's plain text.
+
+    Raises:
+        AssertionError: If the document holds no such heading.
+    """
+    for heading in parse_document(text.decode()).headings:
+        if heading.text == heading_text:
+            return heading
+    raise AssertionError(f'the document holds a heading `{heading_text}`')
 
 
 def _budget(tokens: int) -> bytes:
@@ -1456,15 +1478,11 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        missing = MissingTitle(spec=CODE_SPEC, line=LineNumber.from_int(1))
-        not_first = TitleNotFirst(spec=CODE_SPEC, line=LineNumber.from_int(1), level=2)
+        missing = MissingTitle(line=LineNumber.from_int(1))
         assert reports == (
             CheckedSubject(
                 GUIDE,
-                diagnostics=(
-                    RuleDiagnostic(GUIDE.path, missing, Severity.ERROR),
-                    RuleDiagnostic(GUIDE.path, not_first, Severity.ERROR),
-                ),
+                diagnostics=(RuleDiagnostic(GUIDE.path, missing, Severity.ERROR),),
                 ungoverned=(
                     Facet.FRONTMATTER,
                     Facet.OUTLINE,
@@ -1473,7 +1491,7 @@ class TestCheckSubjects:
             ),
         ), (
             'OUT001 runs at deny over a document a structure specification governs, under that specification, and '
-            'OUT003 reports the section the untitled document opens with'
+            'OUT003 leaves the untitled document to it'
         )
 
     def test_check_subjects_with_a_document_carrying_a_second_title_reports_extra_title(
@@ -1481,13 +1499,15 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         structure_spec = b'{"empty_sections": "forbidden"}'
-        database = Database(_snapshot(structure_spec, guide=b'# Guide\n\nRun it once.\n\n# Again\n\nRun it twice.\n'))
+        guide = b'# Guide\n\nRun it once.\n\n# Again\n\nRun it twice.\n'
+        database = Database(_snapshot(structure_spec, guide=guide))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = ExtraTitle(spec=CODE_SPEC, line=LineNumber.from_int(5), first_line=LineNumber.from_int(1))
+        first_title = _heading(guide, 'Guide')
+        occurrence = ExtraTitle(line=LineNumber.from_int(5), first_title=first_title)
         assert reports == (
             CheckedSubject(
                 GUIDE,
@@ -1505,15 +1525,14 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         structure_spec = b'{"empty_sections": "forbidden"}'
-        database = Database(
-            _snapshot(structure_spec, guide=b'## Install\n\nRun it once.\n\n# Guide\n\nWhat the guide covers.\n')
-        )
+        guide = b'## Install\n\nRun it once.\n\n# Guide\n\nWhat the guide covers.\n'
+        database = Database(_snapshot(structure_spec, guide=guide))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = TitleNotFirst(spec=CODE_SPEC, line=LineNumber.from_int(1), level=2)
+        occurrence = TitleNotFirst(line=LineNumber.from_int(1), level=2, title_line=LineNumber.from_int(5))
         assert reports == (
             CheckedSubject(
                 GUIDE,
@@ -1556,7 +1575,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = EmptySection(spec=CODE_SPEC, line=LineNumber.from_int(3), section='Install')
+        occurrence = EmptySection(spec=CODE_SPEC, line=LineNumber.from_int(3), section='Install', role=None)
         assert reports == (
             CheckedSubject(
                 GUIDE,
@@ -1671,7 +1690,10 @@ class TestCheckSubjects:
 
         #: Then
         occurrence = InvalidTitle(
-            spec=CODE_SPEC, line=LineNumber.from_int(1), title='setting up the guide', pattern='^[A-Z]'
+            spec=CODE_SPEC,
+            line=LineNumber.from_int(1),
+            title='setting up the guide',
+            pattern=TitlePattern(re.compile('^[A-Z]')),
         )
         assert reports == (
             CheckedSubject(
@@ -1702,7 +1724,8 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         outline = b'{"outline": [{"section": "Install"}, {"section": "Usage", "description": "How to run it."}]}'
-        database = Database(_snapshot(outline, guide=b'# Guide\n\n## Install\n\nRun it once.\n'))
+        guide = b'# Guide\n\n## Install\n\nRun it once.\n'
+        database = Database(_snapshot(outline, guide=guide))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -1712,7 +1735,7 @@ class TestCheckSubjects:
             spec=CODE_SPEC,
             line=LineNumber.from_int(5),
             section=SectionName.parse('Usage'),
-            before=None,
+            before=DocumentEnd(last_line=LineNumber.from_int(5), after=_heading(guide, 'Install')),
             description='How to run it.',
             example=None,
         )
@@ -1736,9 +1759,8 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = SectionOutOfOrder(
-            spec=CODE_SPEC, line=LineNumber.from_int(3), section='Usage', expected=SectionName.parse('Install')
-        )
+        expected = ExpectedSection(name=SectionName.parse('Install'), written_at=_heading(guide, 'Install'))
+        occurrence = SectionOutOfOrder(spec=CODE_SPEC, line=LineNumber.from_int(3), section='Usage', placement=expected)
         assert reports == (
             CheckedSubject(
                 GUIDE,
@@ -1759,9 +1781,8 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = UnexpectedSection(
-            spec=CODE_SPEC, line=LineNumber.from_int(7), section='Tips', expected=SectionName.parse('Usage')
-        )
+        expected = ExpectedSection(name=SectionName.parse('Usage'), written_at=_heading(guide, 'Usage'))
+        occurrence = UnexpectedSection(spec=CODE_SPEC, line=LineNumber.from_int(7), section='Tips', placement=expected)
         assert reports == (
             CheckedSubject(
                 GUIDE,

@@ -1,4 +1,4 @@
-"""What the `OUT` group's rules share: the group, and the note naming the specification that states a rule.
+"""What the `OUT` group's rules share: the group, and the notes naming a specification and giving an example.
 
 A document's sections are governed by every structure specification that governs the document, each on its own: a
 document governed by a corpus and a namespace specification is reported once for each one it breaks. Every rule of
@@ -6,9 +6,9 @@ the group says which specification an occurrence breaks through `spec_note`, so 
 specifications read apart.
 
 The title is the exception: no specification states it, since every governed document carries exactly one H1 title
-that opens it. A rule over its being there reports a document once, under its corpus's structure specification. A
-pattern a specification sets on the title is that specification's own, so a title failing it is reported once per
-specification setting it, as a section is.
+that opens it. A rule over its being there reports a document once, with `spec` `None` and no note pointing at a
+specification. A pattern a specification sets on the title is that specification's own, so a title
+failing it is reported once per specification setting it, as a section is.
 
 The rules over the headings are governed by `Facet.STRUCTURE`, so they judge every document whose corpus states a
 structure specification; the rules over where the sections stop matching an outline are governed by `Facet.OUTLINE`,
@@ -33,3 +33,15 @@ def spec_note(spec: RootRelativePath) -> Note:
         spec: The structure specification file that states the rule.
     """
     return Note('the document structure is set here', at=Elsewhere(spec))
+
+
+def example_note(section: str, example: str) -> Note:
+    """The note giving a section's example, written under the section's heading as a document would write it.
+
+    The example is the outline entry's, printed as the specification wrote it.
+
+    Args:
+        section: The heading text of the section the example is for.
+        example: The sample of the section's body, without its heading.
+    """
+    return Note(f'for example:\n## {section}\n\n{example}')

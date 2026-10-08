@@ -16,7 +16,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, DocumentText
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import AbsentSection, DocumentEnd, OutlineDivergenceSpec, SectionName
-from lorecraft.project.syntax import LineNumber, ParsedDocument
+from lorecraft.project.syntax import Heading, LineNumber, ParsedDocument, parse_document
 from lorecraft.vfs import Snapshot
 
 TYPING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
@@ -84,6 +84,18 @@ def _snapshot(corpus_spec: bytes | None, namespace_spec: bytes | None, text: str
     return Snapshot.from_tree({'docs': {'__meta__': meta, 'code': {'python-typing.md': text.encode()}}})
 
 
+def _checklist_heading() -> Heading:
+    """The `Checklist` section of `RULE_ASIDE_CHECKLIST`, as the real parser reads it.
+
+    Raises:
+        AssertionError: If the document holds no such heading.
+    """
+    for heading in parse_document(RULE_ASIDE_CHECKLIST).headings:
+        if heading.text == 'Checklist':
+            return heading
+    raise AssertionError('the document holds a `Checklist` section')
+
+
 def _document_text(database: Database, ref: DocumentRef) -> DocumentText:
     """The witness of a document the test wrote as UTF-8, as the database decodes it.
 
@@ -114,7 +126,7 @@ class TestOutlineDivergences:
             name=SectionName.parse('See Also'),
             description=None,
             example=None,
-            before=DocumentEnd(last_line=LineNumber.from_int(13)),
+            before=DocumentEnd(last_line=LineNumber.from_int(13), after=_checklist_heading()),
         )
         assert divergences == (OutlineDivergenceSpec(spec=CORPUS_SPEC, divergence=absent),), (
             "the sections come from the parse and the end from the line count, the document's last line"

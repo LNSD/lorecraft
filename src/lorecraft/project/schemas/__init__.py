@@ -26,8 +26,11 @@ from .name import CorpusSpecName, NamespaceSpecName, SpecName, parse_spec_name
 from .outline_divergence import (
     AbsentSection,
     DocumentEnd,
+    ExpectedSection,
+    LeftOver,
     MisplacedSection,
     OutlineDivergenceSpec,
+    OutlineEnd,
     UnlistedSection,
     match_outlines,
 )
@@ -177,6 +180,9 @@ __all__: list[str] = [
     'locate_schema_problems',
     'locate_skill_schema_problems',
     'DocumentEnd',
+    'ExpectedSection',
+    'LeftOver',
+    'OutlineEnd',
     'AbsentSection',
     'MisplacedSection',
     'UnlistedSection',

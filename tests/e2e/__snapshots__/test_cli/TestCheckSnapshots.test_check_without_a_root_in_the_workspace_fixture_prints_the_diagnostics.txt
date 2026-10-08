@@ -12,7 +12,7 @@ docs/code/logging.md:1: error[FM001]: no `---` delimited frontmatter block
 
 docs/code/logging.md:1: error[OUT004]: section `Logging` is empty
   = note: the document structure is set here (docs/__meta__/code.structure.json)
-  = help: omit the section rather than leave it empty
+  = help: write the document's content under its title
 
 docs/code/logging.md:1: error[OUT006]: missing required section `Checklist`
   --> docs/code/logging.md:1: expected `Checklist` before the end of the document
@@ -37,7 +37,7 @@ docs/code/python-typing.md:1: error[LEN001]: too many tokens (4 > 3)
 
 docs/code/python-typing.md:1: error[OUT004]: section `Python typing` is empty
   = note: the document structure is set here (docs/__meta__/code.structure.json)
-  = help: omit the section rather than leave it empty
+  = help: write the document's content under its title
 
 docs/code/python-typing.md:1: error[OUT006]: missing required section `Checklist`
   --> docs/code/python-typing.md:1: expected `Checklist` before the end of the document
