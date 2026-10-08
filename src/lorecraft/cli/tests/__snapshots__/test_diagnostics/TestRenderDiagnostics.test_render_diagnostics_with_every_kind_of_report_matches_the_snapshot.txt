@@ -14,7 +14,9 @@ docs/code/a.md:3: error[FM005]: duplicate key 'name'
   = note: the frontmatter schema is set here (docs/__meta__/code.structure.json)
   = help: write 'name' once, with the value meant
 
-docs/code/latin.md: error[LC001]: file is not valid UTF-8
+docs/code/latin.md:4: error[LC001]: file is not valid UTF-8
+  --> docs/code/latin.md:4: 0xE9 at byte offset 31 starts a character the next byte does not continue
+  = help: save the file as UTF-8
 
 docs/feat/check.md:5: error[OUT006]: missing required section `Usage`
   --> docs/feat/check.md:5: expected `Usage` before `Options`

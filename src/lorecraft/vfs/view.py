@@ -22,6 +22,8 @@ from typing import NewType
 from lorecraft.core.error import Error
 from lorecraft.core.path import PathComponent, RootRelativePath
 
+from .utf8_failure import Utf8Failure
+
 ResolvedPath = NewType('ResolvedPath', RootRelativePath)
 """A path relative to the workspace root with every symlink on the way followed: no symlink is on the way to it
 or at it.
@@ -170,14 +172,17 @@ class TextDecodeError(Error):
 
     Attributes:
         path: The root-relative file that could not be decoded.
-        source: The decoder's failure, which locates the first byte that does not decode.
+        failure: Where the first byte that does not decode is, and why, classified once from the decoder's failure.
+        source: The decoder's failure.
     """
 
     path: RootRelativePath
+    failure: Utf8Failure
     source: UnicodeDecodeError
 
     def __init__(self, path: RootRelativePath, *, source: UnicodeDecodeError) -> None:
         self.path = path
+        self.failure = Utf8Failure.from_error(source)
         self.source = source
         super().__init__(f'file {path} is not UTF-8')
         self.__cause__ = source

@@ -282,8 +282,8 @@ class Database:
         if source is None:
             try:
                 source = DocumentText(ref, self._documents.get_document(ref).text)
-            except DocumentDecodeError:
-                source = Undecodable(ref)
+            except DocumentDecodeError as exc:
+                source = Undecodable(ref, exc.source.failure)
             self._texts[ref] = source
         return source
 
@@ -313,8 +313,8 @@ class Database:
         if source is None:
             try:
                 source = SkillText(ref, self._skills.get_skill(ref).text)
-            except SkillDecodeError:
-                source = Undecodable(ref)
+            except SkillDecodeError as exc:
+                source = Undecodable(ref, exc.source.failure)
             self._skill_texts[ref] = source
         return source
 
@@ -386,8 +386,8 @@ class Database:
         if source is None:
             try:
                 source = SkillResourceText(resource.ref, self._skills.get_skill_resource(resource).text)
-            except SkillResourceDecodeError:
-                source = Undecodable(resource.ref)
+            except SkillResourceDecodeError as exc:
+                source = Undecodable(resource.ref, exc.source.failure)
             self._skill_resource_texts[resource.ref] = source
         return source
 

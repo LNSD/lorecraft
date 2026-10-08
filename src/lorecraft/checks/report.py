@@ -14,10 +14,10 @@ that order as the fields it compares, and `diagnostic_order` builds it as the so
 Each subject the runner checks, a document, a skill or a skill's resource, gets one report, and either kind of
 report gives its diagnostics as `diagnostics`. A `CheckedSubject` decoded, and holds its diagnostics, in their output
 order however it is built, and the facets no specification governs it for. An `UndecodableSubject` did
-not, so no rule judged it: it holds only its ref, and its one diagnostic, the engine's, is built from that ref, at the
-subject's path. A layout entry, one symlink of the skill layout whose chain leaves the repository, has no text to
-decode and no specification to be ungoverned by, so it gets a report of its own, a `CheckedLayoutEntry`: its path
-and its diagnostics, in their output order.
+not, so no rule judged it: it holds its ref and where the bytes stopped being UTF-8, and its one diagnostic, the
+engine's, is built from them, at the subject's path. A layout entry, one symlink of the skill layout whose chain
+leaves the repository, has no text to decode and no specification to be ungoverned by, so it gets a report of its
+own, a `CheckedLayoutEntry`: its path and its diagnostics, in their output order.
 """
 
 from dataclasses import dataclass
@@ -30,6 +30,7 @@ from lorecraft.rules.declaration import EngineCondition, Rule, Severity
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.rules.location import Here, WholeSubject
 from lorecraft.rules.subject import Facet
+from lorecraft.vfs import Utf8Failure
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,14 +162,16 @@ class UndecodableSubject:
 
     Attributes:
         ref: The document, skill or resource whose file did not decode, and the path its diagnostic is reported at.
+        failure: Where the file's bytes first stop being UTF-8, and why.
     """
 
     ref: SubjectRef
+    failure: Utf8Failure
 
     @property
     def diagnostics(self) -> tuple[EngineDiagnostic]:
         """The subject's one diagnostic: `InvalidUtf8` at its path, which for a skill is its `SKILL.md`."""
-        return (EngineDiagnostic(self.ref.path, InvalidUtf8()),)
+        return (EngineDiagnostic(self.ref.path, InvalidUtf8(failure=self.failure)),)
 
 
 @dataclass(frozen=True, slots=True)

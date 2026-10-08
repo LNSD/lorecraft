@@ -539,13 +539,19 @@ class TestCheckSnapshots:
                 },
                 {
                     'path': 'docs/code/broken.md',
-                    'line': None,
+                    'line': 1,
                     'severity': 'error',
                     'code': 'LC001',
                     'name': 'invalid-utf8',
                     'message': 'file is not valid UTF-8',
-                    'labels': [],
-                    'children': [],
+                    'labels': [
+                        {
+                            'path': 'docs/code/broken.md',
+                            'line': 1,
+                            'text': '0xFF at byte offset 0 cannot start a character',
+                        }
+                    ],
+                    'children': [{'kind': 'help', 'text': 'save the file as UTF-8', 'path': None, 'line': None}],
                 },
             ],
             'summary': {'subjects': 5, 'errors': 3, 'warnings': 0},

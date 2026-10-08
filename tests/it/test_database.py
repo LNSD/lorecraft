@@ -35,6 +35,8 @@ from lorecraft.vfs import (
     ScanRoot,
     Snapshot,
     SymlinkRecord,
+    Utf8Failure,
+    Utf8Reason,
 )
 
 GUIDE: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('guide'))
@@ -311,7 +313,15 @@ class TestDatabase:
         source = database.text(GUIDE)
 
         #: Then
-        assert source == Undecodable(GUIDE), 'a decode failure is an answer naming the document, not an error'
+        failure = Utf8Failure(
+            line=2,
+            offset=13,
+            invalid=b'\xff',
+            reason=Utf8Reason.INVALID_START_BYTE,
+        )
+        assert source == Undecodable(GUIDE, failure), (
+            'a decode failure is an answer naming the document and where its bytes stop being UTF-8, not an error'
+        )
 
     def test_text_of_a_document_that_is_not_utf8_called_twice_returns_the_first_answer(self) -> None:
         #: Given
@@ -425,7 +435,15 @@ class TestDatabase:
         source = database.skill_text(REVIEW)
 
         #: Then
-        assert source == Undecodable(REVIEW), 'a decode failure is an answer naming the skill, not an error'
+        failure = Utf8Failure(
+            line=2,
+            offset=13,
+            invalid=b'\xe9',
+            reason=Utf8Reason.INVALID_CONTINUATION_BYTE,
+        )
+        assert source == Undecodable(REVIEW, failure), (
+            'a decode failure is an answer naming the skill and where its bytes stop being UTF-8, not an error'
+        )
 
     def test_skill_text_of_a_skill_that_is_not_utf8_called_twice_returns_the_first_answer(self) -> None:
         #: Given

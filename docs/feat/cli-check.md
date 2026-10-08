@@ -137,7 +137,7 @@ and `children` as `{"kind", "text", "path", "line"}`, `kind` being `help` or `no
 errors and warnings, and `coverage` lists each subject with an ungoverned part:
 
 ```json
-{"diagnostics": [{"path": "docs/notes/broken.md", "line": null, "severity": "error", "code": "LC001", "name": "invalid-utf8", "message": "file is not valid UTF-8", "labels": [], "children": []}], "summary": {"subjects": 3, "errors": 1, "warnings": 0}, "coverage": [{"path": "docs/notes/todo.md", "ungoverned": ["outline", "budget"]}]}
+{"diagnostics": [{"path": "docs/notes/broken.md", "line": 4, "severity": "error", "code": "LC001", "name": "invalid-utf8", "message": "file is not valid UTF-8", "labels": [{"path": "docs/notes/broken.md", "line": 4, "text": "0xE9 at byte offset 31 starts a character the next byte does not continue"}], "children": [{"kind": "help", "text": "save the file as UTF-8", "path": null, "line": null}]}], "summary": {"subjects": 3, "errors": 1, "warnings": 0}, "coverage": [{"path": "docs/notes/todo.md", "ungoverned": ["outline", "budget"]}]}
 ```
 
 ### Exit Status
@@ -173,7 +173,7 @@ reference, not to this document.
 | `LEN` | Length limits: a document's tokens, a section's or its title's words or characters, a `SKILL.md`'s lines. `LEN001` too-many-tokens, `LEN002` too-many-lines, `LEN003` too-many-words, `LEN004` title-too-many-words, `LEN005` title-too-long |
 | `LINK` | Links in Markdown files: a document governed for its structure, a `SKILL.md` and each resource, a skill's relative link read from the skill root. `LINK001` absolute-link, `LINK002` missing-fragment, `LINK003` broken-link, `LINK004` escaping-link |
 | `LAY` | Skill layout checks: `LAY001` outside-symlink, a symlink an agent reaches whose chain leaves the repository |
-| `LC` | Engine conditions, which no configuration or selection turns off: `LC001` invalid-utf8, a file that is not UTF-8 |
+| `LC` | Engine conditions, which no configuration or selection turns off: `LC001` invalid-utf8, a file that is not UTF-8, reported at its first invalid byte |
 
 ## References
 
