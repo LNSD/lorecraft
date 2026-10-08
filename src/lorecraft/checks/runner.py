@@ -169,7 +169,7 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
     source = database.text(ref)
     match source:
         case Undecodable():
-            return UndecodableSubject(ref)
+            return UndecodableSubject(ref, source.failure)
         case DocumentText():
             return _check_document_text(database, source, table)
         case _:
@@ -262,7 +262,7 @@ def _check_skill(database: Database, location: SkillLocation, table: RuleTable) 
     source = database.skill_text(ref)
     match source:
         case Undecodable():
-            return UndecodableSubject(ref)
+            return UndecodableSubject(ref, source.failure)
         case SkillText():
             return _check_skill_text(database, source, location, table)
         case _:
@@ -322,7 +322,7 @@ def _check_skill_resource(database: Database, location: SkillResourceLocation, t
     source = database.skill_resource_text(location)
     match source:
         case Undecodable():
-            return UndecodableSubject(location.ref)
+            return UndecodableSubject(location.ref, source.failure)
         case SkillResourceText():
             return _check_skill_resource_text(database, source, table)
         case _:

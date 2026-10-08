@@ -26,6 +26,7 @@ and the package never knows why those directories matter or what the files in th
 - Following a chain of symlinks to where it leads, and refusing the ones that leave the root.
 - The shape of a scan root, and questions answered from a scope plus the symlink chains a snapshot recorded.
 - The difference between two snapshots.
+- Decoding a file's bytes as UTF-8, and the record of where that fails.
 
 ## Belongs Elsewhere
 
@@ -34,7 +35,7 @@ and the package never knows why those directories matter or what the files in th
 | Names `docs/`, a skills directory or any other fixed directory | `lorecraft.layout` |
 | Decides which directories a snapshot reads | `lorecraft.layout`, as the scope it declares |
 | Decides what an entry is to Lorecraft: a document, a specification, a skill | `lorecraft.project` |
-| Parses or decodes the bytes of a file | `lorecraft.project` |
+| Parses the text of a file | `lorecraft.project` |
 | Keeps a value derived from a file for the snapshot's lifetime | `lorecraft.project` |
 | Finds the workspace root, or maps a command-line argument onto it | `lorecraft.cli` |
 

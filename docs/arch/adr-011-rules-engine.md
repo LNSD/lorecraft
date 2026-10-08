@@ -225,7 +225,7 @@ diagnostics.
 def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> SubjectReport:
     source = database.text(ref)
     if isinstance(source, Undecodable):
-        return UndecodableSubject(ref)
+        return UndecodableSubject(ref, source.failure)
     # `source` is a `DocumentText` from here on: the witness every per-file query takes
 
     diagnostics: list[Diagnostic] = []

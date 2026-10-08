@@ -695,9 +695,11 @@ class TestCheckCommand:
 
         #: Then
         assert result.exit_code == 1, result.output
-        assert result.stdout == 'docs/code/guide.md: error[LC001]: file is not valid UTF-8\n', (
-            'a file that does not decode is reported at its path, with no line'
-        )
+        assert result.stdout == (
+            'docs/code/guide.md:1: error[LC001]: file is not valid UTF-8\n'
+            '  --> docs/code/guide.md:1: 0xFF at byte offset 0 cannot start a character\n'
+            '  = help: save the file as UTF-8\n'
+        ), 'a file that does not decode is reported at the line of its first invalid byte, with the bytes and the fix'
         assert result.stderr == 'checked 1 subject(s): 1 error(s), 0 warning(s)\n', 'the engine error is counted'
 
     def test_check_with_json_format_prints_one_document_and_nothing_on_stderr(self, tmp_path: Path) -> None:
@@ -750,13 +752,19 @@ class TestCheckCommand:
                 },
                 {
                     'path': 'docs/code/broken.md',
-                    'line': None,
+                    'line': 1,
                     'severity': 'error',
                     'code': 'LC001',
                     'name': 'invalid-utf8',
                     'message': 'file is not valid UTF-8',
-                    'labels': [],
-                    'children': [],
+                    'labels': [
+                        {
+                            'path': 'docs/code/broken.md',
+                            'line': 1,
+                            'text': '0xFF at byte offset 0 cannot start a character',
+                        }
+                    ],
+                    'children': [{'kind': 'help', 'text': 'save the file as UTF-8', 'path': None, 'line': None}],
                 },
             ],
             'summary': {'subjects': 3, 'errors': 1, 'warnings': 1},
