@@ -1,18 +1,18 @@
 ---
 name: feat-status
-description: Report the maturity each feat spec (feature doc) declares. Use when asked about project status, feature readiness, which features are stable, experimental, unstable or in development, or which feat specs are missing a status field.
-compatibility: Requires the feat spec corpus in docs/feat/ and a python3 interpreter on PATH. The report script reads only - no task runner, container, network access or credentials are involved.
+description: Report the maturity each feat doc declares. Use when asked about project status, feature readiness, which features are stable, experimental, unstable or in development, or which feat docs are missing a status field.
+compatibility: Requires the feat doc corpus in docs/feat/ and a python3 interpreter on PATH. The report script reads only - no task runner, container, network access or credentials are involved.
 allowed-tools: Bash(python3 .agents/skills/feat-status/report.py)
 ---
 
 # Feature Status Skill
 
 This skill generates status reports for this repository's features based on their maturity level. It reads
-the `status` field from feat spec frontmatter and organizes features by maturity.
+the `status` field from feat doc frontmatter and organizes features by maturity.
 
 ## When to Use This Skill
 
-Reports the maturity **declared** in each feat spec's frontmatter. It does not read code, so a feature
+Reports the maturity **declared** in each feat doc's frontmatter. It does not read code, so a feature
 documented as `stable` and never implemented still reports `stable`; confirming that the code matches the
 spec is a manual read, and no skill here covers it.
 
@@ -75,7 +75,7 @@ Summary: 3 stable, 2 experimental (5 total)
 
 ### When There Is Nothing to Report
 
-Until `docs/feat/` holds its first feat spec the script has two quiet ways of saying there is nothing to
+Until `docs/feat/` holds its first feat doc the script has two quiet ways of saying there is nothing to
 report. Report the answer and stop: neither is a broken script, and neither is worth a retry.
 
 | The script prints | What it means |
@@ -100,8 +100,8 @@ The skill should be invoked for queries about:
 Do NOT use this skill for:
 - "How does feature X work?" -> Use `/feat-discovery`
 - "What features are available?" -> Use `/feat-discovery`
-- "Check feature doc format" -> Use `/docs-rules-check`
-- "Does the code do what the doc says?" -> No skill covers this; read the feat spec and the code
+- "Check feat doc format" -> Use `/docs-rules-check`
+- "Does the code do what the doc says?" -> No skill covers this; read the feat doc and the code
 
 ## Notes
 
@@ -114,7 +114,7 @@ The `status` field in feature frontmatter should be one of:
 - `development` - Under active development, not for production
 - Missing/unknown - Flagged in report with ⚠ marker
 
-### When to Load Full Feat Specs
+### When to Load Full Feat Docs
 
 After running the status report, if user wants details about specific features:
 1. Note which features the user is interested in
@@ -146,7 +146,7 @@ After running the status report, if user wants details about specific features:
 1. Run the status report
 2. Look for features grouped under "⚠ unknown"
 3. List features that need `status` field added to frontmatter
-4. Suggest updating those feat specs
+4. Suggest updating those feat docs
 
 ### Example 4: User Filters by Maturity Level
 
@@ -155,7 +155,7 @@ After running the status report, if user wants details about specific features:
 1. Run the status report
 2. Extract features from the "experimental" section
 3. Present the list with descriptions
-4. If user wants more details, use `/feat-discovery` to load specific feat specs
+4. If user wants more details, use `/feat-discovery` to load specific feat docs
 
 ## Common Mistakes to Avoid
 
@@ -166,7 +166,7 @@ After running the status report, if user wants details about specific features:
 | Manually list features by status | List becomes stale | Always run report.py |
 | Guess status from feature name | Inaccurate | Read actual `status` field |
 | Skip unknown status features | Missing metadata | Highlight for updates |
-| Load all feat specs for status | Bloats context | Use report for overview only |
+| Load all feat docs for status | Bloats context | Use report for overview only |
 | Read a declared `stable` as working code | The script never opens a source file | Say the status is declared, not verified |
 
 ### Best Practices

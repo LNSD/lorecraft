@@ -27,7 +27,7 @@ the function. That is fine for wiring; for pure logic it says the unit tests are
 Each survivor is one of three things. Decide which before changing anything:
 
 1. **A missing assertion.** The behaviour the fault changes matters, and no test checks it. Write the test
-   that fails on the mutant, following the test code specs in `docs/code/`: assert on the behaviour a caller sees,
+   that fails on the mutant, following the test code rules in `docs/code/`: assert on the behaviour a caller sees,
    not on mutmut's diff. One test often kills several survivors in the same function.
 2. **An equivalent mutant.** The change cannot alter behaviour: a value nothing reads, a cache that only
    changes speed. Leave it. If it keeps recurring, `# pragma: no mutate` on the line excludes it, with a

@@ -1,7 +1,7 @@
 ---
 name: feat-validate
-description: Verify that a feat spec (feature doc) aligns with the implementation. Use when asking about feature implementation status, or to check that documented functionality exists in code and has test coverage
-compatibility: Requires the feat spec corpus in docs/feat/ and the checker sources in src/lorecraft/. Reads code and tests; runs only the repository's own gates through just.
+description: Verify that a feat doc aligns with the implementation. Use when asking about feature implementation status, or to check that documented functionality exists in code and has test coverage
+compatibility: Requires the feat doc corpus in docs/feat/ and the checker sources in src/lorecraft/. Reads code and tests; runs only the repository's own gates through just.
 allowed-tools: Read Grep Glob Bash(just typecheck *) Bash(just test-unit *) Bash(just test *)
 ---
 
@@ -13,14 +13,14 @@ functionality.
 
 ## When to Use This Skill
 
-Verifies a feat spec against the code: does the documented behaviour actually exist, and is it tested?
+Verifies a feat doc against the code: does the documented behaviour actually exist, and is it tested?
 For the *declared* maturity of a feature, which is a frontmatter field rather than a fact about the code,
 use `/feat-status`. For whether the spec has the right frontmatter, sections and length — its **form** rather
 than its **truth** — use `/docs-rules-check`, which runs the checks `just check-docs` wires up.
 
 Use this skill when:
-- User explicitly asks to verify a feature doc against implementation
-- Auditing existing feat specs for accuracy
+- User explicitly asks to verify a feat doc against implementation
+- Auditing existing feat docs for accuracy
 - Checking if documented functionality has test coverage
 - Validating that code matches what's documented
 
@@ -88,15 +88,15 @@ Aim for sufficient coverage without over-testing:
 
 ## Verification Workflow
 
-### Step 1: Parse the Feat Spec
+### Step 1: Parse the Feat Doc
 
-Extract from the feat spec:
+Extract from the feat doc:
 - Documented capabilities from the Usage section (functions, flags, behaviors)
 - Component interactions from the Architecture section
 - Documented constraints and limitations
 - File paths from the Architecture and Code References sections
 
-`docs/__meta__/feat.md` fixes which sections a feat spec of each type carries, so read it when a section you
+`docs/__meta__/feat.md` fixes which sections a feat doc of each type carries, so read it when a section you
 expect is absent: a `meta` spec has no Usage section by design, and its concrete usage lives in its children.
 
 ### Step 2: Verify Production Code
@@ -327,4 +327,4 @@ After verification:
 
 1. **If misalignments found** - Either fix the docs or fix the implementation
 2. **If test coverage warnings** - Consider adding tests or documenting the gap
-3. **If all passes** - The feat spec is verified and ready for commit
+3. **If all passes** - The feat doc is verified and ready for commit

@@ -57,7 +57,7 @@ the run still exits 0: treat a `warning` at a skill path as a finding to fix, no
 **The `description` is the only part of the skill an agent reads before deciding to load it**, so it carries
 the whole discovery burden:
 
-- Name the task in the words a user would say. "Helps with documents" matches nothing; "check a code spec's
+- Name the task in the words a user would say. "Helps with documents" matches nothing; "check a code rule's
   frontmatter, section outline, and length budget" matches the request.
 - Say when to use it: the triggers, the error messages, the moment in a workflow.
 - Say what it is not for, when a sibling skill covers the neighboring task.
