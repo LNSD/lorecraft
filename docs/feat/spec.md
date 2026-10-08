@@ -96,8 +96,9 @@ follows the rule above: `feat-cli` governs `cli` and would be extended by a `fea
 
 A document is governed by its corpus specification, then by each namespace specification whose namespace equals
 its filename or is a hyphen-delimited prefix of it, broad to narrow: `feat-cli` governs `cli.md` and
-`cli-check.md`, not `client.md`. Each is applied on its own, so an extension only adds rules and cannot relax
-its base.
+`cli-check.md`, not `client.md`. Each is applied on its own: an extension adds or tightens rules and cannot
+relax its base. The order fixes only the order of the report; a document passes only when it passes every
+specification, and each diagnostic names the specification it breaks.
 
 ### References Point to the Base
 
