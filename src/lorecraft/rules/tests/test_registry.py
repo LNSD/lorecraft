@@ -46,6 +46,7 @@ from ..registry import (
     DuplicateRuleNameError,
     Registry,
     RuleInEngineGroupError,
+    UnknownReplacementError,
     UnsetRuleAttributeError,
 )
 from .sample_rules import (
@@ -61,6 +62,7 @@ from .sample_rules import (
     removed_rule_in_engine,
     rule_in_engine,
     token_count,
+    unknown_replacement,
     unset_attribute,
     unset_condition_attribute,
     unset_facet,
@@ -84,6 +86,7 @@ from .sample_rules.token_count.empty_document import EmptyDocument
 from .sample_rules.token_count.over_half_budget import OverHalfBudget
 from .sample_rules.token_count.retired import NearBudget
 from .sample_rules.token_count.sample_condition import SampleCondition
+from .sample_rules.unknown_replacement.orphaned import Orphaned
 from .sample_rules.unset_attribute.unreleased import Unreleased
 from .sample_rules.unset_condition_attribute.unsevere import Unsevere
 from .sample_rules.unset_facet.unfaceted import Unfaceted
@@ -309,6 +312,18 @@ class TestRegistryLoad:
 
         #: Then
         assert exc_info.value.declaration is RetiredTrespasser, 'the error names the removed rule in the engine group'
+
+    def test_load_with_a_removed_rule_replaced_by_an_undeclared_code_raises_unknown_replacement_error(self) -> None:
+        #: Given
+        package = unknown_replacement
+
+        #: When
+        with pytest.raises(UnknownReplacementError) as exc_info:
+            Registry.load(package)
+
+        #: Then
+        assert exc_info.value.removed_rule is Orphaned, 'the error names the removed rule'
+        assert 'SMP002' in str(exc_info.value), 'the message names the code that replaces it'
 
     def test_load_with_a_module_that_fails_to_import_propagates_the_failure(self) -> None:
         #: Given
