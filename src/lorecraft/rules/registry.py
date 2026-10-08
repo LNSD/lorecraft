@@ -6,10 +6,10 @@ tests left out, and keeps the declarations whose module lies in that package out
 that walks a package of sample rules sees only those, and the package's own registry never sees them.
 
 The registry is package data: it reads no workspace and is not a query. A rejection, a code, a name or an alias
-code bound twice, a prefix given two groups, a class attribute left unbound, a rule over a document that declares
-no facet among them, a rule or a condition still abstract, or a code in a group its kind may not use, is a defect in
-`lorecraft.rules`, never in the user's repository, so it raises a `RuntimeError` whose traceback locates the
-declaration.
+code bound twice, a removed rule replaced by a code no rule declares, a prefix given two groups, a class attribute
+left unbound, a rule over a document that declares no facet among them, a rule or a condition still abstract, or a
+code in a group its kind may not use, is a defect in `lorecraft.rules`, never in the user's repository, so it raises
+a `RuntimeError` whose traceback locates the declaration.
 
 A command's composition root builds the registry with `Registry.load(rules)`, once per invocation, and hands it to
 what reads it; nothing below the composition root imports a registry or keeps one. A long-lived process builds it
@@ -115,6 +115,23 @@ class DuplicateRuleCodeError(RuntimeError):
         self.first = first
         self.second = second
         super().__init__(f'rule code {code!r} of {second.__qualname__} is already bound to {first.__qualname__}')
+
+
+class UnknownReplacementError(RuntimeError):
+    """A removed rule names, as the rule that replaced it, a code that no declaration holds.
+
+    Attributes:
+        removed_rule: The removed rule.
+    """
+
+    removed_rule: type[RemovedRule]
+
+    def __init__(self, removed_rule: type[RemovedRule]) -> None:
+        self.removed_rule = removed_rule
+        super().__init__(
+            f'removed rule {removed_rule.__qualname__} is replaced by {removed_rule.REPLACED_BY}, '
+            'which no rule declares'
+        )
 
 
 class DuplicateRuleNameError(RuntimeError):
@@ -242,6 +259,7 @@ class Registry:
             RuleInEngineGroupError: If a rule's or a removed rule's code is in the engine's group.
             ConditionOutsideEngineGroupError: If an engine condition's code is outside the engine's group.
             DuplicateRuleCodeError: If a code is bound twice.
+            UnknownReplacementError: If a removed rule is replaced by a code no declaration holds.
             ConflictingRuleGroupError: If two codes give one prefix two different groups.
             DuplicateRuleNameError: If a name is bound twice.
             DuplicateAliasCodeError: If an alias code is bound twice, or is already bound as a code or a name.
@@ -299,6 +317,12 @@ class Registry:
             elif bound[0] != group:
                 raise ConflictingRuleGroupError(group.prefix, bound[1], declaration)
 
+        # Every code is bound, so a replacement is checked against all of them, whichever order the rules sit in.
+        for removed_rule in removed_rules:
+            replaced_by = removed_rule.REPLACED_BY
+            if replaced_by is not None and str(replaced_by) not in self._by_key:
+                raise UnknownReplacementError(removed_rule)
+
         # A group whose every code is a removed rule holds nothing a run could select, so it is not found by its prefix.
         # Keyed by the prefix as text: `find_group` looks up what a user typed, which need not be a valid prefix.
         for declaration in (*rule_classes, *conditions):
@@ -333,6 +357,7 @@ class Registry:
             RuleInEngineGroupError: If a rule's or a removed rule's code is in the engine's group.
             ConditionOutsideEngineGroupError: If an engine condition's code is outside the engine's group.
             DuplicateRuleCodeError: If a code is bound twice.
+            UnknownReplacementError: If a removed rule is replaced by a code no declaration holds.
             ConflictingRuleGroupError: If two codes give one prefix two different groups.
             DuplicateRuleNameError: If a name is bound twice.
             DuplicateAliasCodeError: If an alias code is bound twice, or is already bound as a code or a name.
