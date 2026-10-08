@@ -23,7 +23,7 @@ outward.
 
 | Blast radius | Command |
 |---|---|
-| None (docs, comments, rule documents only) | Skip; state why |
+| None (docs, comments, code specs only) | Skip; state why |
 | Pure logic — a dataclass, a helper, one check, one parser | `just test-unit` |
 | A CLI command, a module seam, wiring several units together | `just test-unit` then `just test-it` |
 | Packaging, the console script, the entry point, anything the installed artifact exposes | `just test-e2e` |

@@ -46,7 +46,7 @@ most often, and neither is negotiable in a diff:
 
 `just fmt` covers every Python file in the repository. The one exclusion is Markdown: ruff also
 formats Python code blocks inside Markdown, and the documents under `docs/` are written to
-illustrate a rule — bad examples included — so `extend-exclude = ["*.md"]` keeps the formatter
+illustrate a convention — bad examples included — so `extend-exclude = ["*.md"]` keeps the formatter
 off them.
 
 ### Format before checks and commits

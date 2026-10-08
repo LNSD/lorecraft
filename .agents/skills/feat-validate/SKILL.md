@@ -1,7 +1,7 @@
 ---
 name: feat-validate
-description: Verify feature doc alignment with implementation. Use when asking about feature implementation status, or to check that documented functionality exists in code and has test coverage
-compatibility: Requires the feature corpus in docs/feat/ and the checker sources in src/lorecraft/. Reads code and tests; runs only the repository's own gates through just.
+description: Verify that a feat spec (feature doc) aligns with the implementation. Use when asking about feature implementation status, or to check that documented functionality exists in code and has test coverage
+compatibility: Requires the feat spec corpus in docs/feat/ and the checker sources in src/lorecraft/. Reads code and tests; runs only the repository's own gates through just.
 allowed-tools: Read Grep Glob Bash(just typecheck *) Bash(just test-unit *) Bash(just test *)
 ---
 
@@ -13,14 +13,14 @@ functionality.
 
 ## When to Use This Skill
 
-Verifies a feature doc against the code: does the documented behaviour actually exist, and is it tested?
+Verifies a feat spec against the code: does the documented behaviour actually exist, and is it tested?
 For the *declared* maturity of a feature, which is a frontmatter field rather than a fact about the code,
-use `/feat-status`. For whether the doc has the right frontmatter, sections and length — its **form** rather
+use `/feat-status`. For whether the spec has the right frontmatter, sections and length — its **form** rather
 than its **truth** — use `/docs-rules-check`, which runs the checks `just check-docs` wires up.
 
 Use this skill when:
 - User explicitly asks to verify a feature doc against implementation
-- Auditing existing feature docs for accuracy
+- Auditing existing feat specs for accuracy
 - Checking if documented functionality has test coverage
 - Validating that code matches what's documented
 
@@ -34,10 +34,10 @@ Features can be implemented in many forms - not just functions. Verify ALL docum
 |------|----------|----------------|
 | **Functions/Methods** | Frontmatter parser, budget counter | Signature, args, return type |
 | **CLI surfaces** | A check script's flags, its exit codes | Flag names, defaults, exit status |
-| **Spec dialects** | Frontmatter schema keys, section-outline rules | Which rules the checker actually enforces |
+| **Structure file dialect** | Frontmatter schema keys, section-outline keys | Which keys the checker actually enforces |
 | **Reporter contracts** | Text and JSON finding output | Field names, severity vocabulary, stream |
 | **Data flows** | Corpus discovery → parse → check → report | Components involved, data transformations |
-| **Configuration** | `pyproject.toml` settings, spec file locations | Config keys, defaults, validation |
+| **Configuration** | `pyproject.toml` settings, meta spec file locations | Config keys, defaults, validation |
 | **Components** | Checker modules, the check registry | Initialization, lifecycle, interactions |
 
 ### 1. Functionality Verification
@@ -88,16 +88,16 @@ Aim for sufficient coverage without over-testing:
 
 ## Verification Workflow
 
-### Step 1: Parse Feature Doc
+### Step 1: Parse the Feat Spec
 
-Extract from the feature doc:
+Extract from the feat spec:
 - Documented capabilities from the Usage section (functions, flags, behaviors)
 - Component interactions from the Architecture section
 - Documented constraints and limitations
 - File paths from the Architecture and Code References sections
 
-`docs/__meta__/feat.md` fixes which sections a doc of each type carries, so read it when a section you expect
-is absent: a `meta` doc has no Usage section by design, and its concrete usage lives in its children.
+`docs/__meta__/feat.md` fixes which sections a feat spec of each type carries, so read it when a section you
+expect is absent: a `meta` spec has no Usage section by design, and its concrete usage lives in its children.
 
 ### Step 2: Verify Production Code
 
@@ -118,10 +118,10 @@ is absent: a `meta` doc has no Usage section by design, and its concrete usage l
 - Does the command exit with the documented status — 0 clean, 1 findings, 2 usage error?
 - Do the positional paths and the root-discovery behaviour match the doc?
 
-**For spec dialects**:
-- Does the checker enforce every rule the doc claims it enforces?
+**For the structure file dialect**:
+- Does the checker enforce every key the doc claims it enforces?
 - Are the documented severities the ones the code emits?
-- Does a rule the doc does not mention get enforced anyway?
+- Does a key the doc does not mention get enforced anyway?
 
 **For reporter contracts**:
 - Do the documented output fields exist with those names?
@@ -327,4 +327,4 @@ After verification:
 
 1. **If misalignments found** - Either fix the docs or fix the implementation
 2. **If test coverage warnings** - Consider adding tests or documenting the gap
-3. **If all passes** - Feature doc is verified and ready for commit
+3. **If all passes** - The feat spec is verified and ready for commit

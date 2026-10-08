@@ -1,20 +1,20 @@
 ---
 name: feat-status
-description: Report the maturity each feature doc declares. Use when asked about project status, feature readiness, which features are stable, experimental, unstable or in development, or which docs are missing a status field.
-compatibility: Requires the feature-doc corpus in docs/feat/ and a python3 interpreter on PATH. The report script reads only - no task runner, container, network access or credentials are involved.
+description: Report the maturity each feat spec (feature doc) declares. Use when asked about project status, feature readiness, which features are stable, experimental, unstable or in development, or which feat specs are missing a status field.
+compatibility: Requires the feat spec corpus in docs/feat/ and a python3 interpreter on PATH. The report script reads only - no task runner, container, network access or credentials are involved.
 allowed-tools: Bash(python3 .agents/skills/feat-status/report.py)
 ---
 
 # Feature Status Skill
 
 This skill generates status reports for this repository's features based on their maturity level. It reads
-the `status` field from feature documentation frontmatter and organizes features by maturity.
+the `status` field from feat spec frontmatter and organizes features by maturity.
 
 ## When to Use This Skill
 
-Reports the maturity **declared** in each feature doc's frontmatter. It does not read code, so a feature
+Reports the maturity **declared** in each feat spec's frontmatter. It does not read code, so a feature
 documented as `stable` and never implemented still reports `stable`; confirming that the code matches the
-document is a manual read, and no skill here covers it.
+spec is a manual read, and no skill here covers it.
 
 Use this skill when:
 - User asks "What's the project status?"
@@ -57,7 +57,7 @@ stable (3)
 ├───────────────────┼─────────┼──────────────────────────────────────────────────────────┤
 │ budget-check      │ feature │ Prose checked against a per-section length budget        │
 │ frontmatter-check │ feature │ Frontmatter checked against the schema a corpus declares │
-│ structure-check   │ feature │ Section outline checked against a structure spec         │
+│ structure-check   │ feature │ Section outline checked against a structure file         │
 └───────────────────┴─────────┴──────────────────────────────────────────────────────────┘
 
 experimental (2)
@@ -65,7 +65,7 @@ experimental (2)
 │ Name         │ Type      │ Description                                           │
 ├──────────────┼───────────┼───────────────────────────────────────────────────────┤
 │ skill-check  │ feature   │ Skills checked against the Agent Skills specification │
-│ spec-dialect │ component │ Per-prefix specs narrowing the corpus-wide spec       │
+│ spec-dialect │ component │ Namespace meta specs narrowing the corpus meta spec   │
 └──────────────┴───────────┴───────────────────────────────────────────────────────┘
 
 Summary: 3 stable, 2 experimental (5 total)
@@ -75,7 +75,7 @@ Summary: 3 stable, 2 experimental (5 total)
 
 ### When There Is Nothing to Report
 
-Until `docs/feat/` holds its first document the script has two quiet ways of saying there is nothing to
+Until `docs/feat/` holds its first feat spec the script has two quiet ways of saying there is nothing to
 report. Report the answer and stop: neither is a broken script, and neither is worth a retry.
 
 | The script prints | What it means |
@@ -101,7 +101,7 @@ Do NOT use this skill for:
 - "How does feature X work?" -> Use `/feat-discovery`
 - "What features are available?" -> Use `/feat-discovery`
 - "Check feature doc format" -> Use `/docs-rules-check`
-- "Does the code do what the doc says?" -> No skill covers this; read the document and the code
+- "Does the code do what the doc says?" -> No skill covers this; read the feat spec and the code
 
 ## Notes
 
@@ -114,7 +114,7 @@ The `status` field in feature frontmatter should be one of:
 - `development` - Under active development, not for production
 - Missing/unknown - Flagged in report with ⚠ marker
 
-### When to Load Full Feature Docs
+### When to Load Full Feat Specs
 
 After running the status report, if user wants details about specific features:
 1. Note which features the user is interested in
@@ -146,7 +146,7 @@ After running the status report, if user wants details about specific features:
 1. Run the status report
 2. Look for features grouped under "⚠ unknown"
 3. List features that need `status` field added to frontmatter
-4. Suggest updating those feature docs
+4. Suggest updating those feat specs
 
 ### Example 4: User Filters by Maturity Level
 
@@ -155,7 +155,7 @@ After running the status report, if user wants details about specific features:
 1. Run the status report
 2. Extract features from the "experimental" section
 3. Present the list with descriptions
-4. If user wants more details, use `/feat-discovery` to load specific docs
+4. If user wants more details, use `/feat-discovery` to load specific feat specs
 
 ## Common Mistakes to Avoid
 
@@ -166,7 +166,7 @@ After running the status report, if user wants details about specific features:
 | Manually list features by status | List becomes stale | Always run report.py |
 | Guess status from feature name | Inaccurate | Read actual `status` field |
 | Skip unknown status features | Missing metadata | Highlight for updates |
-| Load all feature docs for status | Bloats context | Use report for overview only |
+| Load all feat specs for status | Bloats context | Use report for overview only |
 | Read a declared `stable` as working code | The script never opens a source file | Say the status is declared, not verified |
 
 ### Best Practices

@@ -45,17 +45,17 @@ the one unchanged case says why it stayed.
 | | |
 |---|---|
 | Before | `build: add sdist include list to pyproject.toml` |
-| After | `fix(build): stop publishing the rule corpus to the package index` |
+| After | `fix(build): stop publishing the code spec corpus to the package index` |
 
 The first names a key added to a config file, which the diff shows in one line. The second names what
 the project stopped doing to everyone downstream of a release.
 
-**The rule corpus arrived from an existing setup, deliberately vendored.**
+**The code spec corpus arrived from an existing setup, deliberately vendored.**
 
 | | |
 |---|---|
-| Before | `docs(code): copy in 17 rule documents` |
-| After | `docs(code): adopt the rule corpus this toolkit exists to check` |
+| Before | `docs(code): copy in 17 code specs` |
+| After | `docs(code): adopt the code spec corpus this toolkit exists to check` |
 
 Counting files is the diff's job. The second says the project now holds the corpus the unwritten
 checker is being built against, which is why copying rather than abstracting was correct.
@@ -80,15 +80,15 @@ suggestion written in prose.
 The first is a move. The second is the invalid state the move made unrepresentable, which is the part
 worth protecting from a well-meaning future edit.
 
-**A pattern document's structure specification and schema landed under `docs/__meta__/`.**
+**The pattern namespace meta spec's structure file and schema landed under `docs/__meta__/`.**
 
 | | |
 |---|---|
 | Before | `docs(meta): add code-pattern.structure.json and code-pattern.header.json` |
-| After | `docs(meta): make a pattern document fail a check instead of a reviewer` |
+| After | `docs(meta): make a pattern code spec fail a check instead of a reviewer` |
 
 The first lists two filenames. The second says what moved out of human review and into a gate, which is
-the whole reason a format specification exists.
+the whole reason a meta spec exists.
 
 **A command that validates skills against the Agent Skills specification.**
 
@@ -124,9 +124,9 @@ Keep each summary and bullet on one physical line. Do not hard-wrap the body; th
 limit and GitHub wraps text to fit the display.
 
 ```
-feat(lorecraft): fail a malformed rule document at the parse boundary
+feat(lorecraft): fail a malformed code spec at the parse boundary
 
-A rule document missing a frontmatter key failed inside whichever check read it first, so the report blamed that check and its author went looking in the wrong place.
+A code spec missing a frontmatter key failed inside whichever check read it first, so the report blamed that check and its author went looking in the wrong place.
 
 - Reject a malformed document before any check runs, so it gets one verdict instead of a different failure per check
 - Name the offending key and document together, which tells the author what to fix
@@ -134,13 +134,13 @@ A rule document missing a frontmatter key failed inside whichever check read it 
 ```
 
 ```
-docs(code): let a typing task load the typing rules alone
+docs(code): let a typing task load the typing conventions alone
 
-The annotation rules lived inside the module-layout document, so an agent that needed them also loaded unrelated layout rules against a fixed context budget.
+The annotation conventions lived inside the module-layout code spec, so an agent that needed them also loaded unrelated layout conventions against a fixed context budget.
 
-- Give typing its own document, which `/code-rules` loads on its own
+- Give typing its own code spec, which `/code-rules` loads on its own
 - Leave the module document to layout, imports and `__init__.py` contents, so neither answers questions about the other
-- Cross-link both, so arriving at either one still leads to the rule actually wanted
+- Cross-link both, so arriving at either one still leads to the convention actually wanted
 ```
 
 ```

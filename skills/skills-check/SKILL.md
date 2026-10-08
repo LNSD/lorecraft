@@ -41,7 +41,7 @@ skills` reads the skills where agents list them, so it checks a linked skill onc
 `SKILL.md` opens with YAML frontmatter between `---` lines. It must parse as basic YAML, with string keys and no
 anchors, aliases or tags: a value containing `: ` must be quoted, and a value containing `"` is quoted with `'`.
 
-| Field | Required | Rule |
+| Field | Required | Requirement |
 |---|---|---|
 | `name` | Yes | 1-64 characters: lowercase `a-z`, `0-9`, and hyphens. No leading, trailing, or consecutive hyphens. Must equal the name of the directory an agent lists the skill by, through any symlink |
 | `description` | Yes | 1-1024 characters. What the skill does, then when to use it |
@@ -57,7 +57,7 @@ the run still exits 0: treat a `warning` at a skill path as a finding to fix, no
 **The `description` is the only part of the skill an agent reads before deciding to load it**, so it carries
 the whole discovery burden:
 
-- Name the task in the words a user would say. "Helps with documents" matches nothing; "check a rule document's
+- Name the task in the words a user would say. "Helps with documents" matches nothing; "check a code spec's
   frontmatter, section outline, and length budget" matches the request.
 - Say when to use it: the triggers, the error messages, the moment in a workflow.
 - Say what it is not for, when a sibling skill covers the neighboring task.
@@ -192,5 +192,5 @@ Violations, per skill, most severe first, one per line, with the fix:
 > `.agents/skills/review/SKILL.md:41` — **restates**: says the unit tier is selected with `-k unit`;
 > `pyproject.toml` marks it `-m unit`. Update the value or link the section.
 
-Every finding cites the specification's rule or a rule in this skill. A finding with neither behind it is a
+Every finding cites a requirement of the specification or of this skill. A finding with neither behind it is a
 style opinion: drop it.
