@@ -10,7 +10,7 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.location import Elsewhere, Note
+from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
 
 from ..title_too_many_words import TitleTooManyWords
@@ -153,7 +153,19 @@ class TestTitleTooManyWords:
         #: Then
         assert message == 'too many words in the title (8 > 5)', 'the message sets the word count against the cap'
 
-    def test_children_with_an_occurrence_point_at_the_spec(self) -> None:
+    def test_labels_with_an_occurrence_say_how_many_words_it_runs_over_the_cap(self) -> None:
+        #: Given
+        occurrence = TitleTooManyWords(spec=CORPUS_SPEC, line=LineNumber.from_int(1), word_count=8, cap=5)
+
+        #: When
+        labels = occurrence.labels()
+
+        #: Then
+        assert labels == (Label(Here(LineNumber.from_int(1)), 'words over the cap: 3'),), (
+            'the label sits on the title and gives the overrun'
+        )
+
+    def test_children_with_an_occurrence_point_at_the_spec_then_say_what_a_title_holds(self) -> None:
         #: Given
         occurrence = TitleTooManyWords(spec=CORPUS_SPEC, line=LineNumber.from_int(1), word_count=8, cap=5)
 
@@ -161,6 +173,7 @@ class TestTitleTooManyWords:
         children = occurrence.children()
 
         #: Then
-        assert children == (Note('the cap is set here', at=Elsewhere(CORPUS_SPEC)),), (
-            'a note points at the specification that sets the cap'
-        )
+        assert children == (
+            Note('the limit is set here', at=Elsewhere(CORPUS_SPEC)),
+            Help('name what the document is about, and leave the rest to its first paragraph'),
+        ), 'the specification note comes first, then the help'

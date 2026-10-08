@@ -6,7 +6,7 @@ from typing import ClassVar, Final, Self
 from lorecraft.project.context import SkillContext
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.location import Help, Note, Subdiagnostic
+from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.subject import SkillRule
 
 from .__ruleset__ import GROUP_ID
@@ -15,13 +15,12 @@ _LINE_BUDGET: Final[int] = 500
 """The most lines a `SKILL.md` may hold, frontmatter included.
 
 The specification says "Keep your main `SKILL.md` under 500 lines"
-(https://agentskills.io/specification#progressive-disclosure); a file of exactly 500 lines is within it.
+(https://agentskills.io/specification#progressive-disclosure); a file of exactly 500 lines is within it, and
+its line 501 is the first past the budget.
 """
 
-# A budget concerns the whole file, not one of its lines, but an occurrence under `ContentRule` carries a line, so
-# it is reported at the first line.
-_FIRST_LINE: Final[LineNumber] = LineNumber.from_int(1)
-"""Where an occurrence is reported: the subject's first line."""
+_FIRST_LINE_PAST_BUDGET: Final[LineNumber] = LineNumber.from_int(_LINE_BUDGET + 1)
+"""Where an occurrence is reported: the first line the budget does not allow."""
 
 
 @rule
@@ -80,7 +79,7 @@ class TooManyLines(SkillRule):
 
     Attributes:
         spec: Always `None`: the package states the rule, after the Agent Skills specification.
-        line_count: The lines in the skill's whole `SKILL.md`.
+        line_count: The lines in the skill's whole `SKILL.md`; always past the budget, so line 501 exists.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 2)
@@ -95,10 +94,19 @@ class TooManyLines(SkillRule):
         """Name the lines found against the budget they exceed."""
         return f'too many lines ({self.line_count} > {_LINE_BUDGET})'
 
+    def labels(self) -> tuple[Label, ...]:
+        """Mark where the budget ends, and how many lines the file runs past it."""
+        return (
+            Label(
+                Here(self.line),
+                f'the budget ends before this line; lines past it: {self.line_count - _LINE_BUDGET}',
+            ),
+        )
+
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Say where the budget comes from, and where to move the lines over it."""
         return (
-            Note(f'the Agent Skills specification keeps a SKILL.md under {_LINE_BUDGET} lines'),
+            Note(f'the Agent Skills specification keeps a SKILL.md to at most {_LINE_BUDGET} lines'),
             Help(
                 'move what most activations do not need into files under references/, and say in SKILL.md when to '
                 'read each'
@@ -107,7 +115,7 @@ class TooManyLines(SkillRule):
 
     @classmethod
     def check(cls, subject: SkillContext) -> tuple[Self, ...]:
-        """The one occurrence, on line 1, when the `SKILL.md` holds more lines than the budget; none otherwise.
+        """The one occurrence, on the first line past the budget, when the `SKILL.md` runs over it; none otherwise.
 
         Args:
             subject: The skill, whose whole `SKILL.md` is counted.
@@ -115,4 +123,4 @@ class TooManyLines(SkillRule):
         line_count = subject.lines().value
         if line_count <= _LINE_BUDGET:
             return ()
-        return (cls(line=_FIRST_LINE, line_count=line_count),)
+        return (cls(line=_FIRST_LINE_PAST_BUDGET, line_count=line_count),)

@@ -7,10 +7,10 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
 from lorecraft.project.syntax import find_title
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.location import Elsewhere, Note, Subdiagnostic
+from lorecraft.rules.location import Here, Label, Note, Subdiagnostic
 from lorecraft.rules.subject import DocumentRule, Facet
 
-from .__ruleset__ import GROUP_ID
+from .__ruleset__ import GROUP_ID, TITLE_HELP, spec_note
 
 
 @rule
@@ -77,9 +77,19 @@ class TitleTooLong(DocumentRule):
         """Name the title's characters against the cap they exceed."""
         return f'too many characters in the title ({self.char_count} > {self.cap})'
 
+    def labels(self) -> tuple[Label, ...]:
+        """Say how many characters the title runs past its cap, at the title."""
+        return (Label(Here(self.line), f'characters over the cap: {self.char_count - self.cap}'),)
+
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the specification that sets the cap."""
-        return (Note('the cap is set here', at=Elsewhere(self.spec)),)
+        """Point at the specification that sets the cap, say what a title holds, and how its characters are counted."""
+        return (
+            spec_note(self.spec),
+            TITLE_HELP,
+            Note(
+                "characters are counted as the code points of the title's text, without its # marker or inline markup"
+            ),
+        )
 
     @classmethod
     def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
