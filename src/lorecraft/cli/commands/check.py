@@ -64,7 +64,7 @@ def check(
 
     As text, the diagnostics go to stdout, and the ungoverned subjects and a summary to stderr.
 
-    As JSON, one document goes to stdout.
+    As JSON, one compact document goes to stdout.
 
     --select never enables a rule its level leaves off; each such rule, and each alias code, is warned of on stderr.
 

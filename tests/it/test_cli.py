@@ -787,6 +787,7 @@ class TestCheckCommand:
         #: Then
         assert result.exit_code == 1, result.output
         assert result.stderr == '', 'the JSON run writes nothing beside its document'
+        assert result.stdout.count('\n') == 1, 'the document is one compact line, ended by the echo'
         assert json.loads(result.stdout) == {
             'diagnostics': [
                 {

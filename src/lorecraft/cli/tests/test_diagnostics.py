@@ -247,6 +247,34 @@ class TestRenderSummary:
 
 @pytest.mark.unit
 class TestRenderJson:
+    def test_render_json_with_every_kind_of_report_prints_one_compact_line(self) -> None:
+        #: Given
+        reports = _every_kind_of_report()
+
+        #: When
+        text = render_json(reports)
+
+        #: Then
+        assert text == json.dumps(json.loads(text), separators=(',', ':'), ensure_ascii=False), (
+            'the document holds no indentation, no line break and no blank after a separator'
+        )
+
+    def test_render_json_with_a_non_ascii_key_writes_it_as_utf8(self) -> None:
+        #: Given
+        a = _document('code', 'a')
+        duplicate_key = DuplicateKey(
+            spec=_CODE_SPEC, line=_line(3), key='nom é', first_line=_line(2), kept_line=_line(3)
+        )
+        reports: tuple[SubjectReport, ...] = (
+            CheckedSubject(a, diagnostics=(RuleDiagnostic(a.path, duplicate_key, Severity.ERROR),), ungoverned=()),
+        )
+
+        #: When
+        text = render_json(reports)
+
+        #: Then
+        assert 'nom é' in text, 'a non-ASCII character is written as it is, not as a \\u escape'
+
     def test_render_json_with_every_kind_of_report_encodes_the_whole_run(self) -> None:
         #: Given
         reports = _every_kind_of_report()
