@@ -116,6 +116,6 @@ Before committing code, verify:
 - [adr-001-snapshot-model](../arch/adr-001-snapshot-model.md) - Foundation: The Composition role
 - [adr-004-database](../arch/adr-004-database.md) - Foundation: One report, one revision
 - [adr-002-vfs](../arch/adr-002-vfs.md) - Foundation: The disk is read only to take the snapshot and find the root
-- [adr-007-findings](../arch/adr-007-findings.md) - Foundation: Deterministic output and exit codes
+- [adr-010-diagnostics](../arch/adr-010-diagnostics.md) - Foundation: Deterministic output and exit codes
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One reason to change
 - [pattern-registry](pattern-registry.md) - Foundation: A command joins by registering

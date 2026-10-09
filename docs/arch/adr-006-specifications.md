@@ -125,7 +125,7 @@ Before committing code, verify:
   overrides it
 - [adr-001-snapshot-model](adr-001-snapshot-model.md) - Related: The model and the package roles
 - [adr-003-project-model](adr-003-project-model.md) - Related: The project model that decodes meta specs
-- [adr-007-findings](adr-007-findings.md) - Related: What a check reports, and how
+- [adr-010-diagnostics](adr-010-diagnostics.md) - Related: What a rule reports, and how it reaches the user
 - [prd-008-structured-checks](prd-008-structured-checks.md) - Related: The requirements that assume layers apply by
   conjunction
 - [adr-013-namespace-extension](adr-013-namespace-extension.md) - Related: The same conjunction for code specs and

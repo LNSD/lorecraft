@@ -2,10 +2,14 @@
 name: "adr-007-findings"
 description: "What a check reports and how it reaches the user: violations as values, located into findings by the run, stable dotted rule identifiers, the meta spec behind each rule, findings apart from failures, and deterministic text, JSON and exit codes. Load when adding a rule or a check, changing what a check reports, or changing the text output, the JSON output or the exit codes"
 type: "adr"
-status: "accepted"
+status: "superseded"
 ---
 
 # Findings
+
+> [!NOTE]
+> Superseded by [adr-010-diagnostics](adr-010-diagnostics.md). It binds no code, and records what Lorecraft v0.2
+> reports.
 
 ## Context
 
@@ -78,6 +82,7 @@ Before committing code, verify:
 
 ## References
 
+- [adr-010-diagnostics](adr-010-diagnostics.md) - Superseded by: Diagnostics, their order and the exit codes
 - [adr-001-snapshot-model](adr-001-snapshot-model.md) - Related: The model and the package roles
 - [adr-006-specifications](adr-006-specifications.md) - Related: Where the rules a finding cites come from
 - [adr-004-database](adr-004-database.md) - Related: The revision every finding in one report comes from
