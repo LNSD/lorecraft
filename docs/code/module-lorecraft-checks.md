@@ -99,6 +99,6 @@ Before committing code, verify:
   apart
 - [adr-004-database](../arch/adr-004-database.md) - Foundation: One report reads one revision
 - [adr-006-specifications](../arch/adr-006-specifications.md) - Foundation: A rule applies the governing structure files its context hands it
-- [adr-007-findings](../arch/adr-007-findings.md) - Foundation: Findings apart from failures
+- [adr-010-diagnostics](../arch/adr-010-diagnostics.md) - Foundation: Diagnostics apart from failures
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One reason to change
 - [pattern-memoization](pattern-memoization.md) - Foundation: How a query is memoized

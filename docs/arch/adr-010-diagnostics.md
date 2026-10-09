@@ -2,14 +2,14 @@
 name: "adr-010-diagnostics"
 description: "What a rule of the structured checks reports and how it reaches the user: a diagnostic with labelled locations, help and notes rendered from the context the check captured, two severities, one report per subject in one shape, a total output order, and exit codes. Load when changing what a rule reports, adding a label, a help or a note, or changing the text output, the machine-readable output, the order or the exit codes"
 type: "adr"
-status: "proposed"
+status: "accepted"
 ---
 
 # Diagnostics: What a Rule Reports
 
 > [!NOTE]
-> Proposed to supersede [adr-007-findings](adr-007-findings.md): its identifiers, notes, report types and order.
-> The command line now reports as this record states; the record stays proposed until the engine is complete.
+> Supersedes [adr-007-findings](adr-007-findings.md): its identifiers, notes, report types, order, output and exit
+> codes. What adr-007 states that still holds is restated here, and adr-007 binds no code.
 
 This record is one of three that state how the structured checks of [prd-008](prd-008-structured-checks.md) are
 built: [adr-009](adr-009-rules.md) how a rule is declared and identified, [adr-010](adr-010-diagnostics.md) what a
@@ -20,10 +20,11 @@ the shapes are the decision.
 
 ## Context
 
-Today a check returns violations whose message is free text, with notes built as strings inside the check. The
-run locates them into findings, collects them per check into a report type per subject kind, and orders them as
-the paths were given and the checks happened to state them. A document no meta spec governs prints in the
-shape of a rule. [adr-007-findings](adr-007-findings.md) states that contract.
+Before this record, a check returned violations whose message is free text, with notes built as strings inside the
+check. The run located them into findings, collected them per check into a report type per subject kind, and
+ordered them as the paths were given and the checks happened to state them. A document no meta spec governs
+printed in the shape of a rule. [adr-007-findings](adr-007-findings.md) stated that contract, and Lorecraft v0.2
+shipped it.
 
 What a user needs from a diagnostic is what the established compilers and linters give: what is wrong, where,
 why, and how to fix this occurrence, with the related places in other files pointed at, in an order that does
@@ -35,10 +36,13 @@ not change between two runs over the same revision.
    location, labelled secondary locations in any file, and help and notes that may each point somewhere. The
    check captures the context it saw as typed data on the occurrence, and the occurrence renders every part from
    that data.
-2. **One report per subject**, the same shape for every subject kind. A diagnostic holds its occurrence.
+2. **One report per subject**, and one diagnostic shape for every subject kind. A diagnostic holds its occurrence.
 3. **The order is a contract**, total over one revision: path, location, severity, code, message.
 4. **Only a rule's occurrence is a rule diagnostic.** A file that cannot be decoded is an engine diagnostic, a
    subject no meta spec governs is coverage, and what stops a run is a failure: none of them takes a level.
+5. **Only the command line prints.** A rule returns its occurrences as values, the run locates them into
+   diagnostics, and the command line alone renders them and chooses the exit code. A problem in a subject is a
+   diagnostic and the run goes on; only what stops Lorecraft from judging at all is raised.
 
 ## Design
 
@@ -225,9 +229,16 @@ class LayoutRule(Rule):         # the base of the rule base over a layout entry
   `:::` pointer to each other file, and help and notes as `=` lines. It draws with Unicode box-drawing characters:
   the gutter is one connected `│` line, the primary label's underline a thin `─` line, and a secondary label's in
   the same file a dotted `┄` line. Where the output cannot carry Unicode, such as a stream whose encoding is not
-  UTF-8, the gutter falls back to `|`, the primary underline to `^` and the secondary one to `-`. It renders the source lines from the same revision's text query. The machine-readable output carries the message, the labels and the children as
-  structured entries. A language-server client receives the primary label on the diagnostic's range, and the
-  secondary labels and located notes as related information.
+  UTF-8, the gutter falls back to `|`, the primary underline to `^` and the secondary one to `-`. It renders the
+  source lines from the same revision's text query. The machine-readable output carries the code, the rule's name,
+  the severity, the message, the labels and the children as structured entries. A language-server client receives
+  the primary label on the diagnostic's range, and the secondary labels and located notes as related information.
+- **Three output formats, one order.** `check --format` takes `text`, the layout above for a person; `short`, one
+  line per diagnostic, `path:line: severity[CODE]: message`, for an editor or `grep` to match; and `json`, one
+  compact UTF-8 document for a script. All three print the diagnostics in the order below. Only `text` is coloured,
+  as `--color` chooses: `auto` colours a terminal unless `NO_COLOR` is set, and `FORCE_COLOR` forces it. With
+  `text` and `short`, the diagnostics go to stdout and the coverage and the summary to stderr, so a pipe reads the
+  diagnostics alone. [cli-check](../feat/cli-check.md) documents each format.
 
 ### Diagnostics and the Report
 
@@ -250,7 +261,7 @@ class EngineDiagnostic:
 
 
 type Diagnostic = RuleDiagnostic | EngineDiagnostic
-type SubjectReport = CheckedSubject | UndecodableSubject
+type SubjectReport = CheckedSubject | UndecodableSubject | CheckedLayoutEntry
 ```
 
 - **A diagnostic holds its occurrence** and copies none of its fields. The code, the message, the labels, the
@@ -261,6 +272,9 @@ type SubjectReport = CheckedSubject | UndecodableSubject
 - **`Severity` is not `Level`.** A level has three values, and a diagnostic at `allow` does not exist, so a
   diagnostic carries one of two severities.
 - **An undecodable subject has no diagnostics and no coverage**, which the union states.
+- **A layout entry is reported by its path, and has no coverage.** It is not a document, a skill or a resource, so
+  it has no subject reference, and no meta spec governs it, so it can never be ungoverned. Its diagnostics take the
+  same shape as every other subject's.
 - **Order is a documented output contract** (FR-018), the established linters' source order grouped by file:
   1. the subject's root-relative POSIX path, compared by code point, never by locale and never by how the paths
      were typed;
@@ -276,8 +290,10 @@ type SubjectReport = CheckedSubject | UndecodableSubject
   presented per file (FR-016), and the machine-readable output is one document holding the diagnostics, the
   summary and the coverage (FR-021).
 - **Exit codes** are 0 for a clean run, warnings included, 1 for any error diagnostic or undecodable file, and 2
-  for a failure. A failure, such as a meta spec that cannot be loaded, is raised before any subject is
-  checked and is outside every level and selection.
+  for a failure or invalid input. A failure, such as a meta spec that cannot be loaded or a file missing from the
+  snapshot, is outside every level and selection. Most are raised before any subject is checked, and one raised
+  during the run discards what the run found: the command line prints the failure alone, never a partial report.
+  Invalid input, such as an unknown selector or a usage error, also exits 2, before the run starts.
 
 ### Tests
 
@@ -302,9 +318,11 @@ type SubjectReport = CheckedSubject | UndecodableSubject
   severity, and the order changes. The release notes carry the migration.
 - **Names change in the code.** `Finding` becomes `Diagnostic`, and the parallel report and run types collapse
   into `SubjectReport`.
-- **[adr-007-findings](adr-007-findings.md) is superseded once this record is accepted**: its identifiers, its
-  notes, now labels and sub-diagnostics a rule renders, its order, and its own name, since a finding is now a
-  diagnostic. Until then it stays binding, since the code still does what it states.
+- **[adr-007-findings](adr-007-findings.md) is superseded**: its dotted identifiers, now codes; its notes, now
+  labels and sub-diagnostics a rule renders; its run per check, now one report per subject; its order; its exit
+  code 1 for any finding, now for an error only; and its own name, since a finding is now a diagnostic. Its
+  violations as values, its findings apart from failures and its command line as the only printer carry over as
+  Decisions 4 and 5. It stays the record of what Lorecraft v0.2 reports.
 
 ## Deferred
 
@@ -313,11 +331,33 @@ type SubjectReport = CheckedSubject | UndecodableSubject
 | Ranged locations | `Here` and `Elsewhere` widen from a line to a range, and no rule's signature names either |
 | Fixes | `Help` gains an optional edit with its applicability: whether a tool may apply it unattended |
 
+## Checklist
+
+Before committing code, verify:
+
+- [ ] A rule's `message()` names the condition and never branches; context reaches the diagnostic through typed
+  fields and `labels()` and `children()`, never as prose built in `check`
+- [ ] Guidance a meta spec states reaches `children()` through the context, and the rule does not restate it
+- [ ] A layout rule's labels and sub-diagnostics are the `Entry*` types, and no location is read by `getattr`
+- [ ] A diagnostic holds its occurrence and copies none of its fields; an engine diagnostic's severity is its
+  condition's
+- [ ] Every output format prints the diagnostics in the one total order: path, primary location, severity, code,
+  message
+- [ ] A problem in a subject is a diagnostic or coverage, never a raised error; only what stops the run is raised
+- [ ] Nothing below the command line prints, and only `text` output is coloured
+- [ ] The exit code is 0 with no error diagnostic, 1 with any, and 2 for a failure or invalid input, after which
+  only the failure is printed
+- [ ] A change to a JSON key, the short line or the order is a breaking change, carried in the release notes
+- [ ] A rule's tests assert the labels and sub-diagnostics it renders, and their lines
+
 ## References
 
 - [prd-008-structured-checks](prd-008-structured-checks.md) - Source: The requirements this design answers
 - [#315](https://github.com/LNSD/lorecraft/issues/315) - Source: The research and the decisions behind it
 - [adr-009-rules](adr-009-rules.md) - Foundation: The rule class that renders a diagnostic, and the glossary
 - [adr-011-rules-engine](adr-011-rules-engine.md) - Related: The run that locates occurrences into diagnostics
-- [adr-007-findings](adr-007-findings.md) - Proposed to supersede: Violations, findings and failures
+- [adr-001-snapshot-model](adr-001-snapshot-model.md) - Related: The model and the package roles
+- [adr-006-specifications](adr-006-specifications.md) - Related: Where the rules a diagnostic cites come from
+- [adr-007-findings](adr-007-findings.md) - Supersedes: Violations, findings and failures
+- [cli-check](../feat/cli-check.md) - Leads to: The output formats as shipped
 - [error-boundaries](../code/error-boundaries.md) - Foundation: Where a failure is raised and where it is reported

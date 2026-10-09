@@ -304,6 +304,8 @@ Before committing code, verify:
 - [python-dataclasses](python-dataclasses.md) - Related: Owns the `__post_init__` guard of a record only code
   builds
 - [python-docstrings](python-docstrings.md) - Related: Owns the `Raises:` section a built-in is listed in
+- [adr-010-diagnostics](../arch/adr-010-diagnostics.md) - Related: A problem in a subject is a diagnostic; only what
+  stops the run is a failure
 - [principle-validate-at-edge](principle-validate-at-edge.md) - Foundation: A boundary is crossed once, at the
   edge
 

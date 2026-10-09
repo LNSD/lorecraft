@@ -67,7 +67,7 @@ Before committing code, verify:
 - [adr-004-database](adr-004-database.md) - Related: Revisions, the view and the queries
 - [adr-005-incremental](adr-005-incremental.md) - Related: Results carried over between revisions and processes
 - [adr-006-specifications](adr-006-specifications.md) - Related: How meta specs govern documents
-- [adr-007-findings](adr-007-findings.md) - Related: What a check reports, and how it reaches the user
+- [adr-010-diagnostics](adr-010-diagnostics.md) - Related: What a rule reports, and how it reaches the user
 - [adr-012-database-derivation](adr-012-database-derivation.md) - Superseded in part by: The Derivation and Analysis
   rows of the role table
 - [principle-single-responsibility](../code/principle-single-responsibility.md) - Foundation: One role per package is
