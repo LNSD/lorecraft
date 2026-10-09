@@ -1,0 +1,14 @@
+[
+  {
+    "path": "docs/guide/setup.md",
+    "line": 3,
+    "severity": "error",
+    "code": "OUT005"
+  },
+  {
+    "path": "docs/guide/setup.md",
+    "line": 11,
+    "severity": "error",
+    "code": "OUT005"
+  }
+]

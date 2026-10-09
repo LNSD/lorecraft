@@ -10,8 +10,8 @@ The parametrized tests run the checker over every case and compare the diagnosti
 whole: a second code reported on a line, or a diagnostic the case does not list, fails the case, so a pair of codes
 that fire together is allowed only where the case that holds the pair declares it. Two more check that a trigger
 expects its own code and a near miss does not. The tests that read the registry and the directory tree run nothing:
-one names every directory named for a code no rule has, and one every entry that is not a `trigger/` or `near_miss/`
-directory under a code.
+one names every code that lacks either kind, one every directory named for a code no rule has, and one every entry
+that is not a `trigger/` or `near_miss/` directory under a code.
 """
 
 import json
@@ -233,3 +233,14 @@ class TestRuleCases:
 
         #: Then
         assert unexpected == expected, f'only <CODE>/trigger and <CODE>/near_miss may exist; found: {unexpected}'
+
+    def test_rule_cases_with_the_registry_cover_every_code_with_a_trigger_and_a_near_miss(self) -> None:
+        #: Given
+        codes = reported_codes()
+        covered = {(case.code, case.kind) for case in CASES}
+
+        #: When
+        missing = [f'{code}/{kind}' for code in codes for kind in KINDS if (code, kind) not in covered]
+
+        #: Then
+        assert missing == [], f'every code needs a trigger and a near_miss case; missing: {missing}'

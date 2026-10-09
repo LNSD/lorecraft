@@ -270,8 +270,9 @@ The parametrized tests of `tests/it/test_rule_cases.py`, the one suite exempt fr
 [tests-functions](tests-functions.md#5-one-test-per-case)'s one test per case, run the checker over every case and
 compare the diagnostics with `expected.json`, whole, so a second code on a line fails the case unless the case lists
 it: an overlap of two codes is allowed where the case that holds it declares it, and nowhere else. Another test
-fails on any entry under a code's directory that is neither `trigger/` nor `near_miss/`. A change that alters what a
-rule reports updates the cases it moves.
+reads the registry and the directory tree, runs nothing, and fails naming every code that lacks either kind, and
+another fails on any entry under a code's directory that is neither `trigger/` nor `near_miss/`. A change that adds
+a rule adds both cases in the same change, and a change that alters what a rule reports updates the cases it moves.
 
 ```
 tests/it/rule_cases/OUT004/
@@ -301,6 +302,7 @@ Before committing code, verify:
       used instead
 - [ ] A new checker's tests subclass the shared checker and reporting suites before any bespoke test is added
 - [ ] Every requirement marker sits alongside a tier marker, never instead of one
+- [ ] A new rule has rule cases
 
 ## References
 
