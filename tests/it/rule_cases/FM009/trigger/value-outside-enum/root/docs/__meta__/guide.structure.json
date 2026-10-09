@@ -1,0 +1,6 @@
+{
+  "frontmatter": {
+    "type": "object",
+    "properties": {"status": {"enum": ["draft", "stable"]}}
+  }
+}

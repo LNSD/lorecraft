@@ -1,0 +1,6 @@
+{
+  "frontmatter": {
+    "type": "object",
+    "maxProperties": 1
+  }
+}

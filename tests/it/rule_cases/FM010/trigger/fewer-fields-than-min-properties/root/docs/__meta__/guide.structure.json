@@ -1,0 +1,6 @@
+{
+  "frontmatter": {
+    "type": "object",
+    "minProperties": 2
+  }
+}
