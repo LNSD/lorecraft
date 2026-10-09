@@ -29,7 +29,7 @@ from lorecraft.rules.outline.missing_section import MissingSection
 from lorecraft.rules.subject import Facet
 from lorecraft.vfs import RootExit, Utf8Failure, Utf8Reason
 
-from ..diagnostics import render_coverage, render_diagnostics, render_json, render_summary
+from ..diagnostics import render_coverage, render_diagnostics, render_json, render_short, render_summary
 
 _CODE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
 _FEAT_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/feat.structure.json')
@@ -190,6 +190,35 @@ class TestRenderDiagnostics:
             '          Run it:\n'
             '              lorecraft check'
         ), 'a CRLF line break in a note prints as a plain line break'
+
+
+@pytest.mark.unit
+class TestRenderShort:
+    def test_render_short_with_every_kind_of_report_prints_one_line_per_diagnostic(self) -> None:
+        #: Given
+        reports = _every_kind_of_report()
+
+        #: When
+        text = render_short(reports)
+
+        #: Then
+        assert text == (
+            '.agents/skills/review: error[LAY001]: symlink leads outside the repository\n'
+            'docs/code/a.md:1: warning[LEN001]: too many tokens (2400 > 2000)\n'
+            "docs/code/a.md:3: error[FM005]: duplicate key 'name'\n"
+            'docs/code/latin.md:4: error[LC001]: file is not valid UTF-8\n'
+            'docs/feat/check.md:5: error[OUT006]: missing required section `Usage`'
+        ), 'a line holds the place, the severity, the code and the message, and the layout entry has no line'
+
+    def test_render_short_with_no_report_prints_nothing(self) -> None:
+        #: Given
+        reports: tuple[SubjectReport, ...] = ()
+
+        #: When
+        text = render_short(reports)
+
+        #: Then
+        assert text == '', 'an empty run has no diagnostic to print'
 
 
 @pytest.mark.unit

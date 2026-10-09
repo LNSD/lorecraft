@@ -2,7 +2,8 @@
 
 Pure: the subject reports arrive as values, and each function returns the text a command prints, so nothing here
 reads the disk or writes to a stream. As text, the diagnostics are what a command prints on stdout, and the coverage
-lines and the summary line what it prints on stderr; as JSON, one compact document carries all three.
+lines and the summary line what it prints on stderr; as short lines, the diagnostics are one line each on stdout, for
+a tool to match; as JSON, one compact document carries all three.
 
 Every diagnostic of every report is printed in the order `diagnostic_order` states, whatever order the reports
 arrive in, so one revision always prints the same output. A diagnostic prints as its primary line, then one line per
@@ -171,6 +172,26 @@ def render_diagnostics(reports: tuple[SubjectReport, ...]) -> str:
     for diagnostic in _ordered_diagnostics(reports):
         blocks.append('\n'.join(_diagnostic_lines(diagnostic)))
     return '\n\n'.join(blocks)
+
+
+def render_short(reports: tuple[SubjectReport, ...]) -> str:
+    """Every diagnostic of the run as one line, in the order `diagnostic_order` sorts them into.
+
+    A line reads `{path}:{line}: {severity}[{code}]: {message}`, and `{path}: ...` for a diagnostic of the whole
+    subject. Labels, help and notes are left out.
+
+    Args:
+        reports: One report per subject the run checked, in any order.
+
+    Returns:
+        The lines, newline-separated, without a trailing newline; empty when the run found nothing.
+    """
+    lines: list[str] = []
+    for diagnostic in _ordered_diagnostics(reports):
+        occurrence = diagnostic.occurrence
+        head = f'{diagnostic.severity.value}[{occurrence.CODE}]: {occurrence.message()}'
+        lines.append(f'{_format_place(diagnostic.path, _primary_line(diagnostic))}: {head}')
+    return '\n'.join(lines)
 
 
 def render_coverage(reports: tuple[SubjectReport, ...]) -> str:

@@ -27,7 +27,7 @@ process: the arguments, the working directory, standard output and the exit code
 - Parsing `--select` and `--ignore` against the registry into the selection the rule table is built from, and
   warning on stderr of what a selection cannot do.
 - Registering commands so a new one is a new module.
-- Rendering diagnostics and the model as text or compact JSON, and choosing the exit code.
+- Rendering diagnostics and the model as text, short lines or compact JSON, and choosing the exit code.
 - Rendering the rulebook: a rule's page from its docstring, for `lorecraft rule` and for the recipe that writes
   `docs/rulebook/`, and the listing of every rule.
 - The output formats and the exit statuses every command shares, in `output.py`.
@@ -51,8 +51,10 @@ process: the arguments, the working directory, standard output and the exit code
 - The root is the only `Path` a command keeps. Everything handed below it is root-relative.
 - A command handler composes: it holds no rule a check or a derivation should hold.
 - Rendering is a pure function of the values a run returns.
-- A command that can print JSON takes `--format`, typed `OutputFormat`, and prints it as one compact document; a
-  command that does not succeed exits with an `ExitStatus`, `FINDINGS` when it ran and found something and `FAILURE` when it could not run.
+- A command that can print JSON takes `--format`, typed as an `Enum` of `output.py` (`OutputFormat`, or
+  `DiagnosticFormat` where there is a short form); Typer refuses a value outside the set, and no command compares a
+  raw string. JSON is one compact document. A command that does not succeed exits with an `ExitStatus`,
+  `FINDINGS` when it ran and found something and `FAILURE` when it could not run.
 - Every failure that escapes the packages below is written out here, as a chain.
 
 ## Examples
@@ -100,7 +102,7 @@ Before committing code, verify:
 - [ ] Nothing below the root is handed down as a `Path`
 - [ ] A new rule lives in `lorecraft.rules`, not in a command handler
 - [ ] A new output format renders values a run returned, and reads nothing itself
-- [ ] A command's `--format` is typed `OutputFormat`, and its exit codes are `ExitStatus` members from `output.py`
+- [ ] A command's `--format` is an `Enum` from `output.py`, and its exit codes are `ExitStatus` members
 
 ## References
 

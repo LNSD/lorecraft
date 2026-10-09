@@ -85,12 +85,13 @@ leaves off, each print a `warning:` line on stderr, and the run goes on.
 | Argument or option | Default | Description |
 |--------------------|---------|-------------|
 | `--root <path>`    | nearest parent holding `docs/__meta__/` | The repository root, as [Root Discovery](#root-discovery) describes |
-| `--format <text\|json>` | `text` | The output format, as [Output](#output) describes |
+| `--format <text\|short\|json>` | `text` | The output format, as [Output](#output) describes |
 | `--select <selectors>` | `ALL` | Run only these rules, as [Selecting Rules](#selecting-rules) describes |
 | `--ignore <selectors>` | none | Skip these rules |
 
 The command takes no paths: it always checks the whole workspace. Between `--select` and `--ignore`, the more
 specific selector wins, as [Selecting Rules](#selecting-rules) describes.
+An unlisted `--format` value is a usage error (exit `2`).
 
 ## Usage
 
@@ -100,6 +101,9 @@ lorecraft check
 
 # Another repository, as JSON
 lorecraft check --root ../other-repo --format json
+
+# One line per diagnostic, for a tool to match
+lorecraft check --format short
 
 # The frontmatter rules and one length rule; then every rule but the links
 lorecraft check --select FM,LEN003
@@ -129,6 +133,16 @@ docs/code/guide.md:1: error[OUT006]: missing required section `Checklist`
   = note: the document structure is set here (docs/__meta__/code.structure.json)
 docs/notes/todo.md: ungoverned for outline, budget
 checked 2 subject(s): 2 error(s), 0 warning(s)
+```
+
+In `short` format, stdout has one line per diagnostic:
+`path:line: severity[code]: message`, or `path: severity[code]: message` for a whole subject. It omits
+labels, help and notes, and keeps the same order and exit status as `text`. Its stderr has the ungoverned
+subject lines and only the overall count. For example:
+
+```text
+docs/code/guide.md:1: error[FM001]: no `---` delimited frontmatter block
+docs/code/guide.md:1: error[OUT006]: missing required section `Checklist`
 ```
 
 The compact form is intentional for tools that consume JSON. Pipe `lorecraft check --format json | jq .`
@@ -193,7 +207,8 @@ of the [rulebook](../rulebook/), in this repository, and `lorecraft rule <code>`
 - `src/lorecraft/cli/root.py` - Root discovery
 - `src/lorecraft/cli/subjects.py` - Selects every subject of the workspace, in path order
 - `src/lorecraft/cli/rule_selection.py` - Parses `--select` and `--ignore` against the registry
-- `src/lorecraft/cli/diagnostics.py` - Renders the diagnostics, the coverage and the summary as text or JSON
+- `src/lorecraft/cli/diagnostics.py` - Renders text, short and JSON diagnostics, coverage and summaries
+- `src/lorecraft/cli/output.py` - Declares output format choices
 - `src/lorecraft/checks/runner.py` - Runs every enabled rule over each subject
 - `src/lorecraft/checks/table.py` - The rules a run enables, each with its severity
 - `src/lorecraft/checks/selection.py` - The selection that filters the rule table

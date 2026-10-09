@@ -22,9 +22,9 @@ from lorecraft.rules.declaration import Severity
 from lorecraft.rules.registry import Registry
 from lorecraft.vfs import take_snapshot
 
-from ..diagnostics import render_coverage, render_diagnostics, render_json, render_summary
+from ..diagnostics import render_coverage, render_diagnostics, render_json, render_short, render_summary
 from ..failure import report_failure
-from ..output import ExitStatus, OutputFormat
+from ..output import DiagnosticFormat, ExitStatus
 from ..registry import register
 from ..root import establish_root
 from ..rule_selection import parse_rule_selection, print_selection_warnings
@@ -38,9 +38,13 @@ def check(
         typer.Option('--root', help='Repository root. Defaults to the nearest parent containing docs/__meta__.'),
     ] = None,
     output_format: Annotated[
-        OutputFormat,
-        typer.Option('--format', help='Output format: text or json.'),
-    ] = OutputFormat.TEXT,
+        DiagnosticFormat,
+        typer.Option(
+            '--format',
+            help='Output format: text prints each diagnostic with its labels, help and notes, short prints one line '
+            'each, json prints one document.',
+        ),
+    ] = DiagnosticFormat.TEXT,
     select: Annotated[
         list[str] | None,
         typer.Option(
@@ -63,6 +67,8 @@ def check(
     """Check every document and skill of the workspace: frontmatter, outline, length, links and layout.
 
     As text, the diagnostics go to stdout, and the ungoverned subjects and a summary to stderr.
+
+    As short, each diagnostic is one line on stdout: its path and line, severity, code and message.
 
     As JSON, one compact document goes to stdout.
 
@@ -91,14 +97,31 @@ def check(
         raise typer.Exit(code=ExitStatus.FAILURE) from exc
 
     match output_format:
-        case OutputFormat.TEXT:
+        case DiagnosticFormat.TEXT:
             _print_text(reports)
-        case OutputFormat.JSON:
+        case DiagnosticFormat.SHORT:
+            _print_short(reports)
+        case DiagnosticFormat.JSON:
             typer.echo(render_json(reports))
         case _:
             assert_never(output_format)
     if _has_error(reports):
         raise typer.Exit(code=ExitStatus.FINDINGS)
+
+
+def _print_short(reports: tuple[SubjectReport, ...]) -> None:
+    """Print one line per diagnostic on stdout, then the coverage and the summary on stderr.
+
+    Args:
+        reports: One report per subject the run checked.
+    """
+    diagnostics = render_short(reports)
+    if diagnostics:
+        typer.echo(diagnostics)
+    coverage = render_coverage(reports)
+    if coverage:
+        typer.echo(coverage, err=True)
+    typer.echo(render_summary(reports), err=True)
 
 
 def _print_text(reports: tuple[SubjectReport, ...]) -> None:

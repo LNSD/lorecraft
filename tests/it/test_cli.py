@@ -773,6 +773,36 @@ class TestCheckCommand:
         ), 'a file that does not decode is reported at the line of its first invalid byte, with the bytes and the fix'
         assert result.stderr == 'checked 1 subject(s): 1 error(s), 0 warning(s)\n', 'the engine error is counted'
 
+    def test_check_with_short_format_prints_one_line_per_diagnostic_and_the_overall_count(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(tmp_path), '--format', 'short'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert result.stdout == (
+            'docs/code/guide.md:1: error[FM001]: no `---` delimited frontmatter block\n'
+            'docs/code/guide.md:1: error[OUT006]: missing required section `Checklist`\n'
+        ), 'a diagnostic is one line without labels, help or notes'
+        assert result.stderr == 'checked 1 subject(s): 2 error(s), 0 warning(s)\n', (
+            'the short format counts the run overall'
+        )
+
+    def test_check_with_an_unknown_format_exits_with_a_usage_error(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(tmp_path), '--format', 'yaml'])
+
+        #: Then
+        assert result.exit_code == 2, result.output
+
     def test_check_with_json_format_prints_one_document_and_nothing_on_stderr(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)

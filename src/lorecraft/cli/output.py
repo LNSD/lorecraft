@@ -1,7 +1,8 @@
-"""How every command reports: the output formats it can print in, and the statuses it exits with.
+"""How every command reports: the output formats it takes, and the statuses it exits with.
 
-Each command imports both from here, so `--format` and the exit status mean the same in every command. What a
-command prints in each format is documented beside the function that prints it.
+Each command imports them from here, so `--format` and the exit status mean the same in every command.
+Each is an `Enum` Typer parses, so a value outside the set is a usage error before the command runs. What a command
+prints in each format is documented beside the function that prints it.
 """
 
 from enum import Enum, IntEnum
@@ -12,6 +13,17 @@ class OutputFormat(Enum):
 
     TEXT = 'text'
     """Text for a person to read: the result on stdout, any summary on stderr."""
+    JSON = 'json'
+    """One compact JSON document on stdout, for a script to parse."""
+
+
+class DiagnosticFormat(Enum):
+    """How `check` prints its diagnostics; the value is what `--format` accepts."""
+
+    TEXT = 'text'
+    """Each diagnostic with its labels, help and notes, for a person to read."""
+    SHORT = 'short'
+    """One line per diagnostic, for an editor or `grep` to match."""
     JSON = 'json'
     """One compact JSON document on stdout, for a script to parse."""
 
