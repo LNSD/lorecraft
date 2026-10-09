@@ -306,6 +306,13 @@ class TestSplitSections:
         assert sections == [], 'a document without headings has no sections to split'
 ```
 
+**One suite is exempt: the rule cases.** The parametrized tests of `tests/it/test_rule_cases.py` run over the
+fixtures under `tests/it/rule_cases/`. There each case is a directory on disk, not a row in a table: its name states
+the condition, its `root/` states the input and its `expected.json` states the promise, all three in the open, and a
+case is added without touching the test. The exemption covers that suite alone, and
+[tests-organization](tests-organization.md#8-every-rule-code-has-a-trigger-and-a-near-miss-case) states the cases a
+rule needs.
+
 ## 6. Forbidden — Sleeping, Real Network, Order Dependence
 
 Three things are never written in a test, in any tier.
@@ -355,7 +362,8 @@ Before committing code, verify:
 - [ ] No test exercises a second behaviour it also asserts on — those are two tests
 - [ ] Every `@pytest.fixture` states `scope=` explicitly, including `scope='function'`
 - [ ] No session- or module-scoped fixture yields mutable per-test state
-- [ ] No `for` loop over test cases and no `@pytest.mark.parametrize`; each case is its own named test
+- [ ] No `for` loop over test cases and no `@pytest.mark.parametrize`; each case is its own named test, except in the
+      parametrized tests of `tests/it/test_rule_cases.py`
 - [ ] No `time.sleep` is used to wait for anything
 - [ ] No test calls a network service it did not start, or that a fixture did not provision
 - [ ] Every test creates the documents, fixture directories, and registry entries it needs and cleans them up

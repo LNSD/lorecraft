@@ -83,7 +83,7 @@ library is to replace it too.
 | `.github/` | `workflows/ci.yml`, `workflows/release.yml` (publishes a GitHub release to PyPI), the pre-commit config, and `renovate.json5` |
 | `src/lorecraft/` | The package, the one thing released |
 | `src/**/tests/` | The unit tier: a `tests/` subpackage beside the module it tests, never shipped |
-| `tests/it/` | The integration tier, flat |
+| `tests/it/` | The integration tier, flat, and `rule_cases/`, the fixtures every rule code's trigger and near-miss test runs over |
 | `tests/e2e/`, `tests/lib/` | The end-to-end tier, driving the installed console script in a subprocess, and its helpers |
 
 ## Skill Routing

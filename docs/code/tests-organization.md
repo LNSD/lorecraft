@@ -252,6 +252,33 @@ def test_check_corpus_over_fixture_tree_reports_one_finding_per_document() -> No
 def test_check_corpus_over_fixture_tree_reports_one_finding_per_document() -> None: ...
 ```
 
+## 8. Every Rule Code Has a Trigger and a Near-Miss Case
+
+A rule code proves it fires, and proves it stays quiet, on a repository on disk. Each proof is a case, a directory
+`tests/it/rule_cases/<CODE>/<kind>/<case>/` of the `it` tier holding `root/`, the repository the checker runs over, and
+`expected.json`, the diagnostics the run reports: a `path`, a `line`, a `severity` and a `code` each.
+
+- **`trigger/`** holds a repository the code fires on, and its `expected.json` lists the code.
+- **`near_miss/`** holds the closest repository the code does not fire on, such as a value exactly at its limit or a
+  document no specification governs, and its `expected.json` does not list the code.
+
+A repository that holds symlinks declares them in a `links.json` beside `root/`, each link's path and its target,
+and the test creates them: a copy of the tests, such as mutation testing runs, cannot carry a checked-in link that
+dangles or leaves the repository.
+
+The parametrized tests of `tests/it/test_rule_cases.py`, the one suite exempt from
+[tests-functions](tests-functions.md#5-one-test-per-case)'s one test per case, run the checker over every case and
+compare the diagnostics with `expected.json`, whole, so a second code on a line fails the case unless the case lists
+it: an overlap of two codes is allowed where the case that holds it declares it, and nowhere else. Another test
+fails on any entry under a code's directory that is neither `trigger/` nor `near_miss/`. A change that alters what a
+rule reports updates the cases it moves.
+
+```
+tests/it/rule_cases/OUT004/
+    trigger/empty-section/{root/, expected.json}
+    near_miss/section-with-a-paragraph/{root/, expected.json}
+```
+
 ## Checklist
 
 Before committing code, verify:
