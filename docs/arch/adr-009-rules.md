@@ -252,14 +252,15 @@ docs/rulebook/
 
 ### Tests
 
-- **Per rule:** a triggering case and a near miss, keyed by the code and asserted on the occurrence's type
-  (NFR-006).
-- **A meta-test over the registry** names every code that lacks either case, and fails when two codes fire on
-  one line of a case unless the pair is declared.
+- **Per rule:** a triggering case and a near miss (NFR-006), each a fixture on disk under
+  `tests/it/rule_cases/<code>/trigger/` and `near_miss/`, holding the repository to check and the diagnostics the
+  checker is expected to report. The parametrized tests of `tests/it/test_rule_cases.py` run the checker over every
+  fixture and compare the diagnostics with the expected ones, whole.
+- **An overlap is declared where it occurs.** The comparison is exact, so a second code on a line fails the case
+  unless the case's expected diagnostics list it; no separate table of allowed pairs exists.
 - **The registry** is tested for the duplicate and the import failure.
 - **A rule's `Release` is checked for its format alone**, by the value object. No test compares it with the
   repository's tags: a well-formed but wrong release is the reviewer's to catch.
-- **How a test case is keyed to its code** is left to the change that adds the meta-test.
 
 ## Alternatives Considered
 
