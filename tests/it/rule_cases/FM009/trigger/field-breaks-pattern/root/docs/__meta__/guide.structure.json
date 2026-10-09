@@ -1,0 +1,6 @@
+{
+  "frontmatter": {
+    "type": "object",
+    "properties": {"slug": {"type": "string", "pattern": "^[a-z-]+$"}}
+  }
+}

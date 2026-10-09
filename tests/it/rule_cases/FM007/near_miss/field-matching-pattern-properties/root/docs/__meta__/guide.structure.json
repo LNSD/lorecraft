@@ -1,0 +1,8 @@
+{
+  "frontmatter": {
+    "type": "object",
+    "properties": {"name": {"type": "string"}, "description": {"type": "string"}},
+    "patternProperties": {"^x-": {"type": "string"}},
+    "additionalProperties": false
+  }
+}

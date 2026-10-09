@@ -1,0 +1,6 @@
+{
+  "frontmatter": {
+    "type": "object",
+    "required": ["description"]
+  }
+}
