@@ -231,7 +231,8 @@ their pattern. `FM010` and `FM012` carry counts in messages only.
 
 ## Code References
 
-- `src/lorecraft/cli/commands/check.py` - Declares the command, runs the rules and chooses the exit status
+- `src/lorecraft/cli/commands/check.py` - Declares the command and its options
+- `src/lorecraft/cli/check_run.py` - Runs rules and sets the exit status
 - `src/lorecraft/cli/root.py` - Root discovery
 - `src/lorecraft/cli/subjects.py` - Selects every subject of the workspace, in path order
 - `src/lorecraft/cli/rule_selection.py` - Parses `--select` and `--ignore` against the registry

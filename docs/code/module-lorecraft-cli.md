@@ -63,6 +63,8 @@ process: the arguments, the working directory, standard output and the exit code
   succeed exits with an `ExitStatus`, `FINDINGS` when it ran and found something and `FAILURE` when it could not
   run.
 - Every failure that escapes the packages below is written out here, as a chain.
+- A command whose flow imports the rules engine, the rules or the workspace model imports it inside the handler, so
+  `--help`, `--version` and `version` import none of them.
 
 ## Examples
 

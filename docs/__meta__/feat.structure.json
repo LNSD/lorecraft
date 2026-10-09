@@ -102,7 +102,7 @@
       "section": "Code References",
       "optional": true,
       "description": "The source files behind the feature, one entry per line and never wrapped, each naming a file and how it relates to the feature without explaining its logic. Required for a component document, forbidden for a meta document.",
-      "examples": ["- `src/lorecraft/cli/commands/check.py` - Declares the command, runs the rules and chooses the exit status\n- `src/lorecraft/cli/root.py` - Root discovery\n- `src/lorecraft/checks/runner.py` - Runs every enabled rule over each subject"]
+      "examples": ["- `src/lorecraft/cli/commands/check.py` - Declares the command and its options\n- `src/lorecraft/cli/check_run.py` - Runs rules and sets the exit status\n- `src/lorecraft/cli/root.py` - Root discovery\n- `src/lorecraft/checks/runner.py` - Runs every enabled rule over each subject"]
     }
   ]
 }

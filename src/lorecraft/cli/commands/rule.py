@@ -1,35 +1,15 @@
 """The `rule` subcommand: print a rule's page from the rulebook, or list every rule.
 
-The rules are package data, so the command reads no workspace and needs no root: it loads the registry and prints
-what `cli.rulebook` renders from it, the same page `docs/rulebook/` holds.
+The rules are package data, so the command reads no workspace and needs no root. The command declares the argument
+and the help text; the flow is in `rule_run`, which this module imports only when the command runs, so that
+`--help` and `--version` never import the rules.
 """
 
 from typing import Annotated
 
 import typer
 
-from lorecraft import rules
-from lorecraft.core.error import Error
-from lorecraft.rules.registry import Registry
-
-from ..failure import report_failure
-from ..output import ExitStatus
 from ..registry import register
-from ..rulebook import render_listing, render_page
-
-
-class UnknownRuleError(Error):
-    """No rule, removed rule or engine condition has the code, name or alias code typed.
-
-    Attributes:
-        key: What the user typed.
-    """
-
-    key: str
-
-    def __init__(self, key: str) -> None:
-        self.key = key
-        super().__init__(f'no rule has the code, name or alias code {key!r}')
 
 
 @register('rule')
@@ -58,13 +38,7 @@ def rule(
     Raises:
         typer.Exit: With code 2 when no rule has the code, name or alias code.
     """
-    registry = Registry.load(rules)
-    if key is None:
-        typer.echo(render_listing(registry))
-        return
+    # Imported here, not at the top: `rule_run` imports the rules, which `--help` and `--version` never use.
+    from ..rule_run import run_rule
 
-    declaration = registry.find(key)
-    if declaration is None:
-        report_failure(UnknownRuleError(key))
-        raise typer.Exit(code=ExitStatus.FAILURE)
-    typer.echo(render_page(declaration), nl=False)
+    run_rule(key)
