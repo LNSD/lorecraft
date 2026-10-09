@@ -256,6 +256,8 @@ docs/rulebook/
   `tests/it/rule_cases/<code>/trigger/` and `near_miss/`, holding the repository to check and the diagnostics the
   checker is expected to report. The parametrized tests of `tests/it/test_rule_cases.py` run the checker over every
   fixture and compare the diagnostics with the expected ones, whole.
+- **A meta-test over the registry** names every code that lacks either case. It reads the registry and the fixture
+  tree and runs nothing.
 - **An overlap is declared where it occurs.** The comparison is exact, so a second code on a line fails the case
   unless the case's expected diagnostics list it; no separate table of allowed pairs exists.
 - **The registry** is tested for the duplicate and the import failure.
