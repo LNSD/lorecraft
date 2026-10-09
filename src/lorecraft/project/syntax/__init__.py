@@ -20,7 +20,7 @@ from .frontmatter import (
     reads_back_as_string,
 )
 from .heading import SECTION_LEVEL, Heading, HeadingLevel, find_title
-from .lines import count_lines
+from .lines import count_lines, split_lines
 from .link import Link
 from .position import LineNumber
 from .tokens import count_tokens
@@ -47,5 +47,6 @@ __all__: list[str] = [
     'LineNumber',
     'count_tokens',
     'count_lines',
+    'split_lines',
     'count_words',
 ]

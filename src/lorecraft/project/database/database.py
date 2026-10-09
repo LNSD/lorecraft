@@ -5,8 +5,8 @@ check can see, and never changed once built. Above it sit the queries, each comp
 long as the database lives (pattern-memoization). They come in two kinds, and the kind decides how a query carries
 over to the next revision.
 
-Input queries read the snapshot. Each is the one place its part of the snapshot becomes a value, so only an input
-query builds a witness or fails to read, and each states its own carry-over rule against the change set:
+Input queries read the snapshot. Each is the one place its part of the snapshot becomes a value for a rule, so only an
+input query builds a witness or fails to read, and each states its own carry-over rule against the change set:
 
 - `model()`: the workspace model, like the IDE's project model. It reads the structure of the snapshot, the
   specifications, the corpus directories, the skills directories and the listing of each skill's directory, nothing
@@ -14,7 +14,7 @@ query builds a witness or fails to read, and each states its own carry-over rule
   entry and `SKILL.md` whose symlink chain leaves the repository.
 - `text(ref)`: one document's bytes decoded as UTF-8, like the IDE's document text for a file: a `DocumentText`
   witness, or an `Undecodable` marker when the bytes are not UTF-8. It is the one place a document's bytes become
-  text, and it reads that document's bytes and nothing else.
+  text for a rule, and it reads that document's bytes and nothing else.
 - `skill_text(ref)`: one skill's `SKILL.md` decoded, the same document text: a `SkillText` witness, or an
   `Undecodable` marker. It reads that skill's bytes and nothing else.
 - `skill_resources(skill)`: one skill's resources, the Markdown files inside it other than its top-level `SKILL.md`,
@@ -66,7 +66,7 @@ it read does:
 - `skill_resource_parse(source)`: one resource's parse tree, the same syntax tree again. It reads the text of the
   witness `skill_resource_text(resource)` returned and nothing else.
 
-Two questions are asked of the snapshot's records directly and their answers are never cached, since an answer for
+Three questions are asked of the snapshot's records directly and their answers are never cached, since an answer for
 one path is cheap:
 
 - `find_file(path)`: where a path leads in the snapshot, like a lookup in the IDE's virtual file system. It reads the
@@ -76,10 +76,15 @@ one path is cheap:
   above, built on the first call, with the path walked through the snapshot's recorded links to tell where it
   leads, and never from which directories the snapshot holds. The index is what costs, so it is kept; the
   answer for one path is cheap, so it is not.
+- `source_lines(path)`: the lines of one file for a diagnostic to excerpt, numbered as the rules number them. It is the
+  exception to the witness rule below: it takes a bare path, because it excerpts files that are not documents, such
+  as the specifications a diagnostic points at, and it decodes the bytes itself. It returns `None` for a file that is
+  missing or not UTF-8. It is for rendering excerpts only and no rule reads it, so a change to how a rule sees a
+  document's text, such as a normalisation in `text`, does not reach it unless it is made there too.
 
-Every query about one file's content takes the witness its decode query returned, never a bare ref, so a fact of a
-file that is not UTF-8 cannot be asked for: a reader matches the decode once and no later reader carries a branch for
-it. Each still caches by the witness's ref.
+Every query about one file's content, `source_lines` aside, takes the witness its decode query returned, never a
+bare ref, so a fact of a file that is not UTF-8 cannot be asked for: a reader matches the decode once and no later
+reader carries a branch for it. Each still caches by the witness's ref.
 
 Rules are pure functions of the values a subject's context reads for them through the database, like an inspection
 run over one file: the runner matches each file's decode once and hands a rule the context of the part it judges. A
@@ -162,9 +167,18 @@ from lorecraft.project.syntax import (
     count_tokens,
     parse_document,
     parse_frontmatter,
+    split_lines,
 )
 from lorecraft.project.workspace import WorkspaceModel, load_model
-from lorecraft.vfs import ResolvedPath, ScopeIndex, Snapshot, VirtualFileSystem
+from lorecraft.vfs import (
+    FileReadError,
+    ResolvedPath,
+    ScopeIndex,
+    Snapshot,
+    TextDecodeError,
+    UnrecordedFileError,
+    VirtualFileSystem,
+)
 
 from .text import DocumentText, SkillResourceText, SkillText, Undecodable
 
@@ -260,8 +274,9 @@ class Database:
     def text(self, ref: DocumentRef) -> DocumentText | Undecodable:
         """One document's bytes decoded as UTF-8, read from the snapshot on the first call for its ref.
 
-        The one place a document's bytes become text: every other query about the document takes the witness this
-        returns. A document that is not UTF-8 is cached as `Undecodable` like any answer, so it is decoded once.
+        The one place a document's bytes become text for a rule: every other query about the document takes the
+        witness this returns. A document that is not UTF-8 is cached as `Undecodable` like any answer, so it is decoded
+        once.
 
         Carry-over: kept for the next revision only when the document's bytes did not change.
 
@@ -287,10 +302,36 @@ class Database:
             self._texts[ref] = source
         return source
 
+    def source_lines(self, path: RootRelativePath) -> tuple[str, ...] | None:
+        """The lines of one file under the root, for a diagnostic to excerpt, numbered as the rules number them.
+
+        Any file the snapshot recorded can be asked for: a document, a skill's `SKILL.md`, a resource or a
+        specification. The lines are those of `split_lines` over the file's bytes decoded as UTF-8, except that a
+        byte order mark opening the first line is dropped, since it is no character of the line a reader sees.
+
+        Not cached: an excerpt asks each file once, and a cache would need a carry-over rule of its own.
+
+        Args:
+            path: The root-relative file; a symlink on the way to it, or at it, is followed.
+
+        Returns:
+            The lines, or None when the file is missing from the snapshot or is not UTF-8, so there is nothing to
+            excerpt; a file that does not decode is a diagnostic of its own, reported by `text`.
+        """
+        try:
+            text = self._fs.read_text(path)
+        except (TextDecodeError, FileReadError, UnrecordedFileError):
+            return None
+        lines = split_lines(text)
+        if lines:
+            lines = (lines[0].removeprefix('\ufeff'), *lines[1:])
+        return lines
+
     def skill_text(self, ref: SkillRef) -> SkillText | Undecodable:
         """One skill's `SKILL.md` decoded as UTF-8, read from the snapshot on the first call for its ref.
 
-        The one place a `SKILL.md`'s bytes become text: every other query about it takes the witness this returns.
+        The one place a `SKILL.md`'s bytes become text for a rule: every other query about it takes the witness this
+        returns.
         A `SKILL.md` that is not UTF-8 is cached as `Undecodable` like any answer, so it is decoded once.
 
         Carry-over: kept for the next revision only when the next model locates the ref at the same resolved `SKILL.md`
@@ -361,8 +402,8 @@ class Database:
         """One resource of a skill decoded as UTF-8, read from the snapshot on the first call for its ref.
 
         The resource is read at the resolved file its location records, as `skill_resources` lists it, never at
-        `resource.ref.path`. The one place a resource's bytes become text: every other query about it takes the
-        witness this returns. A resource that is not UTF-8 is cached as `Undecodable` like any answer, so it is
+        `resource.ref.path`. The one place a resource's bytes become text for a rule: every other query about it takes
+        the witness this returns. A resource that is not UTF-8 is cached as `Undecodable` like any answer, so it is
         decoded once.
 
         Carry-over: kept for the next revision only when the next `skill_resources` of its skill locates the ref at

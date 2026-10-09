@@ -334,6 +334,56 @@ class TestDatabase:
         #: Then
         assert second is first, 'an undecodable document is cached like any answer, so it is decoded once'
 
+    def test_source_lines_of_a_listed_document_returns_its_lines_numbered_as_the_rules_number_them(self) -> None:
+        #: Given
+        database = Database(_snapshot(b'one\r\ntwo\x0cstill two\n'))
+
+        #: When
+        lines = database.source_lines(GUIDE.path)
+
+        #: Then
+        assert lines == ('one', 'two\x0cstill two'), f'only a newline ends a line, got {lines}'
+
+    def test_source_lines_of_a_file_opening_with_a_byte_order_mark_drops_the_mark(self) -> None:
+        #: Given
+        database = Database(_snapshot(b'\xef\xbb\xbf# Guide\nBody\n'))
+
+        #: When
+        lines = database.source_lines(GUIDE.path)
+
+        #: Then
+        assert lines == ('# Guide', 'Body'), f'the mark is no character of the first line, got {lines}'
+
+    def test_source_lines_of_a_specification_returns_its_lines(self) -> None:
+        #: Given
+        database = Database(_snapshot(b'# Guide\n'))
+
+        #: When
+        lines = database.source_lines(RootRelativePath.parse('docs/__meta__/code.md'))
+
+        #: Then
+        assert lines == ('# Code',), f'a file that is no document can be excerpted too, got {lines}'
+
+    def test_source_lines_of_a_file_that_is_not_utf8_returns_none(self) -> None:
+        #: Given
+        database = Database(_snapshot(b'\xff\xfe\n'))
+
+        #: When
+        lines = database.source_lines(GUIDE.path)
+
+        #: Then
+        assert lines is None, f'a file that does not decode has nothing to excerpt, got {lines}'
+
+    def test_source_lines_of_a_path_the_snapshot_does_not_hold_returns_none(self) -> None:
+        #: Given
+        database = Database(_snapshot(b'# Guide\n'))
+
+        #: When
+        lines = database.source_lines(RootRelativePath.parse('docs/code/missing.md'))
+
+        #: Then
+        assert lines is None, f'a missing file has nothing to excerpt, got {lines}'
+
     def test_frontmatter_of_a_listed_document_returns_its_decoded_block(self) -> None:
         #: Given
         database = Database(_snapshot(b'---\nname: "guide"\n---\n'))

@@ -2,7 +2,7 @@
 
 import pytest
 
-from ..lines import count_lines
+from ..lines import count_lines, split_lines
 
 
 @pytest.mark.unit
@@ -97,3 +97,46 @@ class TestCountLines:
 
         #: Then
         assert lines == 1, f'a `\\r` without a `\\n` after it ends no line, got {lines}'
+
+
+@pytest.mark.unit
+class TestSplitLines:
+    def test_split_lines_with_a_final_newline_opens_no_line(self) -> None:
+        #: Given
+        text = 'one\ntwo\n'
+
+        #: When
+        lines = split_lines(text)
+
+        #: Then
+        assert lines == ('one', 'two'), f'the newline ending the last line opens no new one, got {lines}'
+
+    def test_split_lines_with_crlf_breaks_leaves_no_carriage_return(self) -> None:
+        #: Given
+        text = 'one\r\ntwo'
+
+        #: When
+        lines = split_lines(text)
+
+        #: Then
+        assert lines == ('one', 'two'), f'a CRLF break ends one line without its carriage return, got {lines}'
+
+    def test_split_lines_with_a_form_feed_inside_a_line_does_not_break_it(self) -> None:
+        #: Given
+        text = 'one\x0ctwo\u2028three\nfour'
+
+        #: When
+        lines = split_lines(text)
+
+        #: Then
+        assert lines == ('one\x0ctwo\u2028three', 'four'), f'only a newline ends a line, got {lines}'
+
+    def test_split_lines_with_empty_text_holds_no_line(self) -> None:
+        #: Given
+        text = ''
+
+        #: When
+        lines = split_lines(text)
+
+        #: Then
+        assert lines == (), f'empty text holds no line, got {lines}'
