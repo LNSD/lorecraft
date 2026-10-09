@@ -71,21 +71,20 @@ in brackets. An excerpt, from a repository with two feat specs and two skills:
         └── cli-check.md [feat, feat-cli]
 ```
 
-With `--format json`, stdout is one object. It holds `root`, and `corpora`, each with `name`, `directory`, `specs`
+With `--format json`, stdout is one compact object on a single line, without indentation or spaces after
+commas or colons. It holds `root`, and `corpora`, each with `name`, `directory`, `specs`
 (each a `stem`, which is the meta spec name, and its `files`), and `documents` as `path` and `governed_by`.
 `governed_by` lists the files of each governing meta spec, broad to narrow, so a reader opens a document's
 meta specs without mapping a name to its files. `root` is absolute, and every other path is root-relative.
 
+The compact form is intentional for tools that consume JSON. Pipe `lorecraft inspect --format json | jq .`
+for an indented view. Non-ASCII text, including paths and the workspace root, is written as UTF-8 characters
+instead of `\uXXXX` escapes. For `--format json`, every path, including the workspace root, must be valid UTF-8.
+
+For example, a document entry within that one-line object reads:
+
 ```json
-{
-  "path": "docs/feat/cli-check.md",
-  "governed_by": [
-    "docs/__meta__/feat.md",
-    "docs/__meta__/feat.structure.json",
-    "docs/__meta__/feat-cli.md",
-    "docs/__meta__/feat-cli.structure.json"
-  ]
-}
+{"path":"docs/feat/cli-check.md","governed_by":["docs/__meta__/feat.md","docs/__meta__/feat.structure.json","docs/__meta__/feat-cli.md","docs/__meta__/feat-cli.structure.json"]}
 ```
 
 The skills follow the corpora. An agent skills directory that is a symlink names where it leads, and a

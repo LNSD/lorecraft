@@ -183,7 +183,7 @@ class TestRenderJson:
             'a corpus carries its specs with their files, and each document the files of its governing specs'
         )
 
-    def test_render_json_with_a_code_model_indents_by_two_spaces(self) -> None:
+    def test_render_json_with_a_code_model_prints_one_compact_line(self) -> None:
         #: Given
         model = _code_model()
 
@@ -192,7 +192,9 @@ class TestRenderJson:
 
         #: Then
         # Parsing the text back would hide its layout, so the text itself is compared.
-        assert text == json.dumps(_CODE_MODEL_DOCUMENT, indent=2), 'the document is indented by two spaces'
+        assert text == json.dumps(_CODE_MODEL_DOCUMENT, separators=(',', ':'), ensure_ascii=False), (
+            'the document is compact'
+        )
 
     def test_render_json_with_a_skills_model_carries_each_directory_and_each_skill_with_its_agents(self) -> None:
         #: Given

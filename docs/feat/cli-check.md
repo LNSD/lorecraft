@@ -131,13 +131,18 @@ docs/notes/todo.md: ungoverned for outline, budget
 checked 2 subject(s): 2 error(s), 0 warning(s)
 ```
 
-In `json` format stdout is one JSON object, and stderr holds nothing but the selection's warnings. `diagnostics`
+The compact form is intentional for tools that consume JSON. Pipe `lorecraft check --format json | jq .`
+for an indented view. Non-ASCII text in paths, messages, labels and notes is written as UTF-8 characters
+instead of `\uXXXX` escapes. For `--format json`, every path, including the workspace root, must be valid UTF-8.
+
+In `json` format stdout is one compact JSON object on one line, without indentation or spaces after
+commas or colons; stderr holds nothing but the selection's warnings. `diagnostics`
 holds each diagnostic in the text order, its `line` `null` for a whole file, `labels` as `{"path", "line", "text"}`
 and `children` as `{"kind", "text", "path", "line"}`, `kind` being `help` or `note`. `summary` counts the subjects,
 errors and warnings, and `coverage` lists each subject with an ungoverned part:
 
 ```json
-{"diagnostics": [{"path": "docs/notes/broken.md", "line": 4, "severity": "error", "code": "LC001", "name": "invalid-utf8", "message": "file is not valid UTF-8", "labels": [{"path": "docs/notes/broken.md", "line": 4, "text": "0xE9 at byte offset 31 starts a character the next byte does not continue"}], "children": [{"kind": "help", "text": "save the file as UTF-8", "path": null, "line": null}]}], "summary": {"subjects": 3, "errors": 1, "warnings": 0}, "coverage": [{"path": "docs/notes/todo.md", "ungoverned": ["outline", "budget"]}]}
+{"diagnostics":[{"path":"docs/notes/broken.md","line":4,"severity":"error","code":"LC001","name":"invalid-utf8","message":"file is not valid UTF-8","labels":[{"path":"docs/notes/broken.md","line":4,"text":"0xE9 at byte offset 31 starts a character the next byte does not continue"}],"children":[{"kind":"help","text":"save the file as UTF-8","path":null,"line":null}]}],"summary":{"subjects":3,"errors":1,"warnings":0},"coverage":[{"path":"docs/notes/todo.md","ungoverned":["outline","budget"]}]}
 ```
 
 ### Exit Status

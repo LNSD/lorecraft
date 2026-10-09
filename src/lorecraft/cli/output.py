@@ -13,7 +13,7 @@ class OutputFormat(Enum):
     TEXT = 'text'
     """Text for a person to read: the result on stdout, any summary on stderr."""
     JSON = 'json'
-    """One JSON document on stdout, for a script to parse."""
+    """One compact JSON document on stdout, for a script to parse."""
 
 
 class ExitStatus(IntEnum):

@@ -58,9 +58,10 @@ class RuleFrontmatter(BaseModel):
 The boundary is where the data arrives from outside, not where it is first used. Validating deep in the call
 stack means the untrusted value travelled through several frames first.
 
-A JSON document the package writes is the one record that is neither: it is described by one `TypedDict` per
-object, every key required, so `ty` checks each key at the literal that builds it. A `TypedDict` never
-describes input, which [principle-validate-at-edge](principle-validate-at-edge.md) owns.
+A JSON document the package writes is described by one frozen `BaseModel` per object, every field required, so
+`ty` checks each key at the call that builds it and `model_dump_json()` prints the document, keys in declaration
+order. Its values come from code that already knows their types, so the models are cheap here: they are built
+once per run, not per finding.
 
 ## 2. Generated Models Are Never Hand-Edited
 
@@ -311,8 +312,8 @@ Docstring form beyond this — sections, wording, when a method needs one — is
 Before committing code, verify:
 
 - [ ] Every new record is a `@dataclass` unless it decodes data arriving from outside the process, in which
-      case it is a `BaseModel`, or describes a JSON document the package writes, in which case it is a
-      `TypedDict` with every key required
+      case it is a `BaseModel`, or describes a JSON document the package writes, in which case it is a frozen
+      `BaseModel` with every field required
 - [ ] No generated model file is edited by hand, and no helper or property was added to one
 - [ ] Every list, dict, or set default uses `field(default_factory=...)`; no module-level mutable is used as a
       default

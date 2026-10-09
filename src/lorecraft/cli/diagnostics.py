@@ -2,7 +2,7 @@
 
 Pure: the subject reports arrive as values, and each function returns the text a command prints, so nothing here
 reads the disk or writes to a stream. As text, the diagnostics are what a command prints on stdout, and the coverage
-lines and the summary line what it prints on stderr; as JSON, one document carries all three.
+lines and the summary line what it prints on stderr; as JSON, one compact document carries all three.
 
 Every diagnostic of every report is printed in the order `diagnostic_order` states, whatever order the reports
 arrive in, so one revision always prints the same output. A diagnostic prints as its primary line, then one line per
@@ -17,8 +17,9 @@ label, then its help and notes, and an empty line separates it from the next:
 A subject with no lines, such as a layout entry or a file that did not decode, prints its path without a line.
 """
 
-import json
-from typing import Literal, TypedDict, assert_never
+from typing import Literal, assert_never
+
+from pydantic import BaseModel, ConfigDict
 
 from lorecraft.checks import (
     CheckedLayoutEntry,
@@ -43,11 +44,12 @@ from lorecraft.rules.location import (
     WholeSubject,
 )
 
-# The JSON `render_json` prints, one `TypedDict` per object, so a misspelt or missing key fails the type check. The
-# keys are the command's published output: renaming one is a change to that contract, not a refactor.
+# The JSON `render_json` prints, one `BaseModel` per object, so a misspelt or missing key fails the type check. The
+# keys are the command's published output: renaming one is a change to that contract, not a refactor. A field is
+# printed in the order it is declared, and `None` is printed as `null`.
 
 
-class _LabelJson(TypedDict):
+class _LabelJson(BaseModel):
     """One label of a diagnostic.
 
     Attributes:
@@ -56,12 +58,14 @@ class _LabelJson(TypedDict):
         text: What the label says about that place.
     """
 
+    model_config = ConfigDict(frozen=True)
+
     path: str
     line: int | None
     text: str
 
 
-class _ChildJson(TypedDict):
+class _ChildJson(BaseModel):
     """One help or note of a diagnostic.
 
     Attributes:
@@ -71,13 +75,15 @@ class _ChildJson(TypedDict):
         line: The line it points at, or None when it points nowhere or at a whole file.
     """
 
+    model_config = ConfigDict(frozen=True)
+
     kind: Literal['help', 'note']
     text: str
     path: str | None
     line: int | None
 
 
-class _DiagnosticJson(TypedDict):
+class _DiagnosticJson(BaseModel):
     """One diagnostic.
 
     Attributes:
@@ -92,6 +98,8 @@ class _DiagnosticJson(TypedDict):
             rule travels as one of them, a note pointing at it.
     """
 
+    model_config = ConfigDict(frozen=True)
+
     path: str
     line: int | None
     severity: Literal['error', 'warning']
@@ -102,7 +110,7 @@ class _DiagnosticJson(TypedDict):
     children: list[_ChildJson]
 
 
-class _SummaryJson(TypedDict):
+class _SummaryJson(BaseModel):
     """What the run counted.
 
     Attributes:
@@ -111,12 +119,14 @@ class _SummaryJson(TypedDict):
         warnings: The diagnostics reported as warnings.
     """
 
+    model_config = ConfigDict(frozen=True)
+
     subjects: int
     errors: int
     warnings: int
 
 
-class _CoverageJson(TypedDict):
+class _CoverageJson(BaseModel):
     """One subject an enabled rule could not judge, for want of a specification governing it.
 
     Attributes:
@@ -124,11 +134,13 @@ class _CoverageJson(TypedDict):
         ungoverned: The facets no specification governs it for, in the order its report holds them.
     """
 
+    model_config = ConfigDict(frozen=True)
+
     path: str
     ungoverned: list[str]
 
 
-class _ReportJson(TypedDict):
+class _ReportJson(BaseModel):
     """The whole document.
 
     Attributes:
@@ -136,6 +148,8 @@ class _ReportJson(TypedDict):
         summary: What the run counted.
         coverage: Every subject with an ungoverned facet, in path order; none when every subject is governed.
     """
+
+    model_config = ConfigDict(frozen=True)
 
     diagnostics: list[_DiagnosticJson]
     summary: _SummaryJson
@@ -189,7 +203,7 @@ def render_summary(reports: tuple[SubjectReport, ...]) -> str:
 
 
 def render_json(reports: tuple[SubjectReport, ...]) -> str:
-    """The run as one JSON document: its diagnostics, its summary and its coverage, every key always present.
+    """The run as one compact JSON document: its diagnostics, its summary and its coverage, every key always present.
 
     The diagnostics are in the order `render_diagnostics` prints them, and the coverage in the order
     `render_coverage` prints it.
@@ -207,13 +221,13 @@ def render_json(reports: tuple[SubjectReport, ...]) -> str:
         facets: list[str] = []
         for facet in subject.ungoverned:
             facets.append(facet.value)
-        coverage.append({'path': str(subject.ref.path), 'ungoverned': facets})
-    document: _ReportJson = {
-        'diagnostics': diagnostic_objects,
-        'summary': {'subjects': len(reports), 'errors': errors, 'warnings': warnings},
-        'coverage': coverage,
-    }
-    return json.dumps(document)
+        coverage.append(_CoverageJson(path=str(subject.ref.path), ungoverned=facets))
+    document = _ReportJson(
+        diagnostics=diagnostic_objects,
+        summary=_SummaryJson(subjects=len(reports), errors=errors, warnings=warnings),
+        coverage=coverage,
+    )
+    return document.model_dump_json()
 
 
 def _ordered_diagnostics(reports: tuple[SubjectReport, ...]) -> list[Diagnostic]:
@@ -332,28 +346,28 @@ def _json_diagnostic(diagnostic: Diagnostic) -> _DiagnosticJson:
     labels: list[_LabelJson] = []
     for label in occurrence.labels():
         path, line = _place(diagnostic.path, label.at)
-        labels.append({'path': str(path), 'line': _json_line(line), 'text': label.text})
+        labels.append(_LabelJson(path=str(path), line=_json_line(line), text=label.text))
     children: list[_ChildJson] = []
     for child in occurrence.children():
         child_path, child_line = _child_place(diagnostic.path, child)
         children.append(
-            {
-                'kind': _child_kind(child),
-                'text': child.text,
-                'path': None if child_path is None else str(child_path),
-                'line': _json_line(child_line),
-            }
+            _ChildJson(
+                kind=_child_kind(child),
+                text=child.text,
+                path=None if child_path is None else str(child_path),
+                line=_json_line(child_line),
+            )
         )
-    return {
-        'path': str(diagnostic.path),
-        'line': _json_line(_primary_line(diagnostic)),
-        'severity': _severity_word(diagnostic.severity),
-        'code': str(occurrence.CODE),
-        'name': str(occurrence.NAME),
-        'message': occurrence.message(),
-        'labels': labels,
-        'children': children,
-    }
+    return _DiagnosticJson(
+        path=str(diagnostic.path),
+        line=_json_line(_primary_line(diagnostic)),
+        severity=_severity_word(diagnostic.severity),
+        code=str(occurrence.CODE),
+        name=str(occurrence.NAME),
+        message=occurrence.message(),
+        labels=labels,
+        children=children,
+    )
 
 
 def _primary_line(diagnostic: Diagnostic) -> LineNumber | None:

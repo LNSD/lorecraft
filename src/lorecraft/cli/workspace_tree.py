@@ -5,10 +5,11 @@ per part of the model — the corpora, the agent skills directories the root has
 form carries the same content as nested objects.
 """
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final, TypedDict
+from typing import Final
+
+from pydantic import BaseModel, ConfigDict
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.skill import SkillsDir
@@ -35,11 +36,12 @@ class _Line:
     children: tuple['_Line', ...] = ()
 
 
-# The JSON `--format json` prints, one `TypedDict` per object, so a misspelt or missing key fails the type
-# check. The keys are the command's published output: renaming one is a change to that contract, not a refactor.
+# The JSON `--format json` prints, one `BaseModel` per object, so a misspelt or missing key fails the type
+# check. The keys are the command's published output: renaming one is a change to that contract, not a refactor. A
+# field is printed in the order it is declared.
 
 
-class _SpecJson(TypedDict):
+class _SpecJson(BaseModel):
     """One specification of a corpus.
 
     Attributes:
@@ -47,13 +49,15 @@ class _SpecJson(TypedDict):
         files: The specification's files as root-relative paths, sorted.
     """
 
+    model_config = ConfigDict(frozen=True)
+
     # The key is `stem` for the specification name: the JSON is the command's published output, so it keeps the
     # word the code has since moved away from.
     stem: str
     files: list[str]
 
 
-class _DocumentJson(TypedDict):
+class _DocumentJson(BaseModel):
     """One governed document of a corpus.
 
     Attributes:
@@ -62,11 +66,13 @@ class _DocumentJson(TypedDict):
             sorted.
     """
 
+    model_config = ConfigDict(frozen=True)
+
     path: str
     governed_by: list[str]
 
 
-class _CorpusJson(TypedDict):
+class _CorpusJson(BaseModel):
     """One corpus: the directory it reads, its specifications and its governed documents.
 
     Attributes:
@@ -77,13 +83,15 @@ class _CorpusJson(TypedDict):
             govern it.
     """
 
+    model_config = ConfigDict(frozen=True)
+
     name: str
     directory: str
     specs: list[_SpecJson]
     documents: list[_DocumentJson]
 
 
-class _AgentSkillsDirJson(TypedDict):
+class _AgentSkillsDirJson(BaseModel):
     """One agent's skills directory.
 
     Attributes:
@@ -92,12 +100,14 @@ class _AgentSkillsDirJson(TypedDict):
         resolves_to: The directory it leads to: `path` itself unless `path` is a link.
     """
 
+    model_config = ConfigDict(frozen=True)
+
     agent: str
     path: str
     resolves_to: str
 
 
-class _SkillJson(TypedDict):
+class _SkillJson(BaseModel):
     """One skill and the agents that read it.
 
     Attributes:
@@ -106,11 +116,13 @@ class _SkillJson(TypedDict):
             by name; each is the `agent` of an entry in `agent_skills_dirs`.
     """
 
+    model_config = ConfigDict(frozen=True)
+
     path: str
     agents: list[str]
 
 
-class _WorkspaceJson(TypedDict):
+class _WorkspaceJson(BaseModel):
     """The whole document: the root beside one key per section of the model.
 
     Attributes:
@@ -121,6 +133,8 @@ class _WorkspaceJson(TypedDict):
         skills: Every skill directly inside a directory an entry of `agent_skills_dirs` resolves to, each once, sorted
             by its directory.
     """
+
+    model_config = ConfigDict(frozen=True)
 
     root: str
     corpora: list[_CorpusJson]
@@ -153,7 +167,7 @@ def render_text(root: Path, model: WorkspaceModel) -> str:
 
 
 def render_json(root: Path, model: WorkspaceModel) -> str:
-    """Encode the model as indented JSON, the root beside one key per section.
+    """Encode the model as one compact JSON document, the root beside one key per section.
 
     The keys are `root`, `corpora`, `agent_skills_dirs` and `skills`.
 
@@ -167,18 +181,20 @@ def render_json(root: Path, model: WorkspaceModel) -> str:
     skills_dirs: list[_AgentSkillsDirJson] = []
     for skills_dir in model.skills_dirs:
         skills_dirs.append(
-            {'agent': skills_dir.agent, 'path': str(skills_dir.path), 'resolves_to': str(skills_dir.resolves_to)}
+            _AgentSkillsDirJson(
+                agent=skills_dir.agent, path=str(skills_dir.path), resolves_to=str(skills_dir.resolves_to)
+            )
         )
     skills: list[_SkillJson] = []
     for ref in model.skills():
-        skills.append({'path': str(ref.path), 'agents': list(model.skill_agents(ref))})
-    document: _WorkspaceJson = {
-        'root': str(root),
-        'corpora': corpora,
-        'agent_skills_dirs': skills_dirs,
-        'skills': skills,
-    }
-    return json.dumps(document, indent=2)
+        skills.append(_SkillJson(path=str(ref.path), agents=list(model.skill_agents(ref))))
+    document = _WorkspaceJson(
+        root=str(root),
+        corpora=corpora,
+        agent_skills_dirs=skills_dirs,
+        skills=skills,
+    )
+    return document.model_dump_json()
 
 
 def _draw(nodes: tuple[_Line, ...], prefix: str, lines: list[str]) -> None:
@@ -267,18 +283,18 @@ def _json_corpus(corpus: Corpus) -> _CorpusJson:
     """
     specs: list[_SpecJson] = []
     for spec in (corpus.corpus_spec, *corpus.namespace_specs):
-        specs.append({'stem': str(spec.name), 'files': _paths(spec.files)})
+        specs.append(_SpecJson(stem=str(spec.name), files=_paths(spec.files)))
     documents: list[_DocumentJson] = []
     for ref in corpus.documents:
         documents.append(
-            {'path': str(ref.path), 'governed_by': _governing_files(corpus.governance(ref.filename).specs())},
+            _DocumentJson(path=str(ref.path), governed_by=_governing_files(corpus.governance(ref.filename).specs())),
         )
-    return {
-        'name': str(corpus.name),
-        'directory': str(corpus.directory),
-        'specs': specs,
-        'documents': documents,
-    }
+    return _CorpusJson(
+        name=str(corpus.name),
+        directory=str(corpus.directory),
+        specs=specs,
+        documents=documents,
+    )
 
 
 def _governing_spec_names(specs: tuple[Spec, ...]) -> list[str]:
