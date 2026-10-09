@@ -16,7 +16,7 @@ from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
 from lorecraft.rules.subject import FrontmatterRule
 
-from .__ruleset__ import GROUP_ID, schema_note, schema_spec
+from .__ruleset__ import GROUP_ID, example_note, schema_note, schema_spec
 
 _SCALARS_YAML_READS_UNQUOTED: Final[tuple[JsonType, ...]] = (JsonType.INTEGER, JsonType.NUMBER, JsonType.BOOLEAN)
 """The types YAML reads an unquoted `1`, `1.0` or `yes` as, where a string was meant."""
@@ -37,7 +37,7 @@ class WrongType(FrontmatterRule):
 
     The label says the types expected and the type found. A number or a boolean written where a string is
     expected is the usual YAML pitfall, as in `version: 1.0`, so the help says to quote it; the field's
-    `description`, when the schema states one, is shown as help too.
+    `description`, when the schema states one, is shown as help too, and its `example` as a note.
 
     ## Why is this bad?
 
@@ -104,13 +104,15 @@ class WrongType(FrontmatterRule):
         return (Label(Here(self.line), f'expected {expected}, found {self.problem.found.value}'),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Say where the schema is stated, how to write a string YAML read as another type, and what the field is."""
+        """Say where the schema is stated, how to quote a string YAML misread, then what the field is and looks like."""
         problem = self.problem
         parts: list[Subdiagnostic] = [schema_note(self.spec)]
         if JsonType.STRING in problem.expected and problem.found in _SCALARS_YAML_READS_UNQUOTED:
             parts.append(Help('quote the value, so YAML reads it as a string'))
         if problem.guidance.description is not None:
             parts.append(Help(problem.guidance.description))
+        if problem.guidance.example is not None:
+            parts.append(example_note(problem.field, problem.guidance.example))
         return tuple(parts)
 
     @classmethod

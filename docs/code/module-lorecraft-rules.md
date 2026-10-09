@@ -118,7 +118,8 @@ A rule is named for what is wrong, as the established linters name theirs, so th
 ## Writing the Diagnostic
 
 - **`message()` states the condition in lowercase, without a trailing period**, with the value found against the
-  limit in parentheses where there is one: `too many tokens (5200 > 4000)`. It names no path and no meta spec.
+  limit in parentheses where there is one: `too many tokens (5200 > 4000)`. It names no path and no meta spec, and
+  never branches on a plural.
 - **`children()` points a `Note` at the meta spec** that states the rule, at `Elsewhere(spec)`, so two
   occurrences from two meta specs read apart. A rule every governed document is held to, with no key stating
   it, points its `Note` at the corpus's structure file that governs the document, unless no schema in
@@ -132,7 +133,7 @@ A rule is named for what is wrong, as the established linters name theirs, so th
 - **A `Help` gives the fix for this occurrence** when its fields make it concrete, such as the description an
   outline gives a section the document lacks. A limit's message already names the value found against the limit,
   so a `Help` restating the difference adds nothing; a `Label` places the overrun at a line, and may name what it
-  overruns, in a template that needs no plural. The general fix is the docstring's, but a rule may give it as a
+  overruns, with no number. The general fix is the docstring's, but a rule may give it as a
   fixed `Help` too, such as "move the title above every section", and a rule the package states may add a `Help`
   with the fix the external specification itself prescribes. `children()` orders the meta spec `Note` first,
   then the `Help`, then the other `Note`s.

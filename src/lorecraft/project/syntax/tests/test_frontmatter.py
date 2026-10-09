@@ -16,6 +16,7 @@ from ..frontmatter import (
     InvalidYamlFrontmatter,
     NonMappingFrontmatter,
     decode_frontmatter,
+    reads_back_as_string,
 )
 from ..position import LineNumber
 
@@ -724,3 +725,55 @@ class TestFrontmatterFindKeyLine:
 
         #: Then
         assert line is None, f'an absent key has no line, got {line}'
+
+
+@pytest.mark.unit
+class TestReadsBackAsString:
+    def test_reads_back_as_string_with_a_decimal_returns_false(self) -> None:
+        #: When
+        result = reads_back_as_string('1.0')
+
+        #: Then
+        assert result is False, '`1.0` unquoted decodes to a number, not to itself'
+
+    def test_reads_back_as_string_with_a_boolean_returns_false(self) -> None:
+        #: When
+        result = reads_back_as_string('true')
+
+        #: Then
+        assert result is False, '`true` unquoted decodes to a boolean, not to itself'
+
+    def test_reads_back_as_string_with_an_octal_integer_returns_false(self) -> None:
+        #: When
+        result = reads_back_as_string('0o17')
+
+        #: Then
+        assert result is False, '`0o17` unquoted decodes to an integer, not to itself'
+
+    def test_reads_back_as_string_with_an_exponent_returns_false(self) -> None:
+        #: When
+        result = reads_back_as_string('1e3')
+
+        #: Then
+        assert result is False, '`1e3` unquoted decodes to a number, not to itself'
+
+    def test_reads_back_as_string_with_empty_text_returns_false(self) -> None:
+        #: When
+        result = reads_back_as_string('')
+
+        #: Then
+        assert result is False, 'an empty value decodes to null'
+
+    def test_reads_back_as_string_with_text_that_is_not_yaml_returns_false(self) -> None:
+        #: When
+        result = reads_back_as_string('[unclosed')
+
+        #: Then
+        assert result is False, 'text the frontmatter reader rejects does not read back'
+
+    def test_reads_back_as_string_with_a_plain_string_returns_true(self) -> None:
+        #: When
+        result = reads_back_as_string('guide')
+
+        #: Then
+        assert result is True, 'a plain word decodes to itself'

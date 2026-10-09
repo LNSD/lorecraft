@@ -19,7 +19,7 @@ limit, is not this rule's.
 
 The label says the types expected and the type found. A number or a boolean written where a string is
 expected is the usual YAML pitfall, as in `version: 1.0`, so the help says to quote it; the field's
-`description`, when the schema states one, is shown as help too.
+`description`, when the schema states one, is shown as help too, and its `example` as a note.
 
 ## Why is this bad?
 

@@ -589,7 +589,11 @@ class TestCheckCommand:
                     'name': 'allowed-tools-too-long',
                     'message': '`allowed-tools` value too long (501 > 500)',
                     'labels': [
-                        {'path': '.agents/skills/review/SKILL.md', 'line': 4, 'text': '1 character over'},
+                        {
+                            'path': '.agents/skills/review/SKILL.md',
+                            'line': 4,
+                            'text': 'characters over the recommended length',
+                        },
                     ],
                     'children': [
                         {
