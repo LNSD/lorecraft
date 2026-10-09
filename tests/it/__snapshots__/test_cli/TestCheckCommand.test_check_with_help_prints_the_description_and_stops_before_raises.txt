@@ -7,6 +7,9 @@
  As text, the diagnostics go to stdout, and the ungoverned subjects and a       
  summary to stderr.                                                             
                                                                                 
+ As short, each diagnostic is one line on stdout: its path and line, severity,  
+ code and message.                                                              
+                                                                                
  As JSON, one compact document goes to stdout.                                  
                                                                                 
  --select never enables a rule its level leaves off; each such rule, and each   
@@ -16,16 +19,20 @@
  specifications or selectors.                                                   
                                                                                 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --root          <path>       Repository root. Defaults to the nearest parent │
-│                              containing docs/__meta__.                       │
-│ --format        <text|json>  Output format: text or json. [default: text]    │
-│ --select        <selectors>  Run only these rules: codes, code or group      │
-│                              prefixes, or ALL, comma-separated or repeated.  │
-│                              Defaults to ALL.                                │
-│ --ignore        <selectors>  Skip these rules, unless a more specific        │
-│                              selector selects them: codes, code or group     │
-│                              prefixes, or ALL, comma-separated or repeated.  │
-│                              Defaults to none.                               │
-│ --help                       Show this message and exit.                     │
+│ --root          <path>             Repository root. Defaults to the nearest  │
+│                                    parent containing docs/__meta__.          │
+│ --format        <text|short|json>  Output format: text prints each           │
+│                                    diagnostic with its labels, help and      │
+│                                    notes, short prints one line each, json   │
+│                                    prints one document.                      │
+│                                    [default: text]                           │
+│ --select        <selectors>        Run only these rules: codes, code or      │
+│                                    group prefixes, or ALL, comma-separated   │
+│                                    or repeated. Defaults to ALL.             │
+│ --ignore        <selectors>        Skip these rules, unless a more specific  │
+│                                    selector selects them: codes, code or     │
+│                                    group prefixes, or ALL, comma-separated   │
+│                                    or repeated. Defaults to none.            │
+│ --help                             Show this message and exit.               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
