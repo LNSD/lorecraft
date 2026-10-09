@@ -576,7 +576,9 @@ class TestCheckCommand:
             'the recommendation does not fail either format'
         )
         assert text_result.stdout == expected_text, 'the warning text matches the reviewed snapshot'
-        assert text_result.stderr == 'checked 1 subject(s): 0 error(s), 1 warning(s)\n', 'the warning is counted'
+        assert text_result.stderr == 'FM  1 warning\nchecked 1 subject(s): 0 error(s), 1 warning(s)\n', (
+            'the warning is counted, under its code prefix'
+        )
         assert json.loads(json_result.stdout) == {
             'diagnostics': [
                 {
@@ -637,8 +639,8 @@ class TestCheckCommand:
         #: Then
         assert text_result.exit_code == 0, text_result.output
         assert text_result.stdout == expected_text, 'the warning text matches the reviewed snapshot'
-        assert text_result.stderr == 'checked 1 subject(s): 0 error(s), 1 warning(s)\n', (
-            'the warning is counted and does not fail the run'
+        assert text_result.stderr == 'FM  1 warning\nchecked 1 subject(s): 0 error(s), 1 warning(s)\n', (
+            'the warning is counted under its code prefix and does not fail the run'
         )
         assert json_result.exit_code == 0, json_result.output
         assert json.loads(json_result.stdout) == {
@@ -719,7 +721,9 @@ class TestCheckCommand:
         #: Then
         assert result.exit_code == 1, result.output
         assert result.stdout == expected, 'the frontmatter and outline diagnostics match the reviewed snapshot'
-        assert result.stderr == 'checked 1 subject(s): 2 error(s), 0 warning(s)\n', 'the summary counts both errors'
+        assert result.stderr == 'FM   1 error\nOUT  1 error\nchecked 1 subject(s): 2 error(s), 0 warning(s)\n', (
+            'the summary counts both errors'
+        )
 
     def test_check_with_only_a_warning_exits_zero_and_prints_it(
         self, tmp_path: Path, snapshot: SnapshotAssertion
@@ -736,7 +740,9 @@ class TestCheckCommand:
         #: Then
         assert result.exit_code == 0, result.output
         assert result.stdout == expected, 'the unknown-field warning matches the reviewed snapshot'
-        assert result.stderr == 'checked 1 subject(s): 0 error(s), 1 warning(s)\n', 'a warning is counted apart'
+        assert result.stderr == 'FM  1 warning\nchecked 1 subject(s): 0 error(s), 1 warning(s)\n', (
+            'a warning is counted apart'
+        )
 
     def test_check_with_an_ungoverned_document_prints_its_coverage_on_stderr(self, tmp_path: Path) -> None:
         #: Given
@@ -767,11 +773,14 @@ class TestCheckCommand:
         #: Then
         assert result.exit_code == 1, result.output
         assert result.stdout == (
-            'docs/code/guide.md:1: error[LC001]: file is not valid UTF-8\n'
-            '  --> docs/code/guide.md:1: 0xFF at byte offset 0 cannot start a character\n'
+            'error[LC001]: file is not valid UTF-8\n'
+            ' --> docs/code/guide.md:1\n'
+            '  = at docs/code/guide.md:1: 0xFF at byte offset 0 cannot start a character\n'
             '  = help: save the file as UTF-8\n'
         ), 'a file that does not decode is reported at the line of its first invalid byte, with the bytes and the fix'
-        assert result.stderr == 'checked 1 subject(s): 1 error(s), 0 warning(s)\n', 'the engine error is counted'
+        assert result.stderr == 'LC  1 error\nchecked 1 subject(s): 1 error(s), 0 warning(s)\n', (
+            'the engine error is counted under its code prefix'
+        )
 
     def test_check_with_short_format_prints_one_line_per_diagnostic_and_the_overall_count(self, tmp_path: Path) -> None:
         #: Given
@@ -780,17 +789,82 @@ class TestCheckCommand:
         app = build_app()
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(tmp_path), '--format', 'short'])
+        result = runner.invoke(app, ['check', '--root', str(tmp_path), '--format', 'short', '--color', 'always'])
 
         #: Then
         assert result.exit_code == 1, result.output
         assert result.stdout == (
             'docs/code/guide.md:1: error[FM001]: no `---` delimited frontmatter block\n'
             'docs/code/guide.md:1: error[OUT006]: missing required section `Checklist`\n'
-        ), 'a diagnostic is one line without labels, help or notes'
+        ), 'a diagnostic is one line without labels, help or notes, and `--color always` does not colour it'
         assert result.stderr == 'checked 1 subject(s): 2 error(s), 0 warning(s)\n', (
-            'the short format counts the run overall'
+            'the short format counts the run overall, with no breakdown by prefix'
         )
+
+    def test_check_with_color_always_colours_the_text_even_when_it_is_not_a_terminal(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(tmp_path), '--color', 'always'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert '\x1b[' in result.stdout, 'the text carries colour escape sequences'
+
+    def test_check_with_color_auto_over_a_pipe_prints_no_escape_sequence(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(tmp_path), '--color', 'auto'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert '\x1b[' not in result.stdout, 'a pipe is not coloured unless asked'
+
+    def test_check_with_color_never_over_a_pipe_prints_no_escape_sequence(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(tmp_path), '--color', 'never'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert '\x1b[' not in result.stdout, 'a pipe is not coloured unless asked'
+
+    def test_check_with_force_color_set_colours_the_text_over_a_pipe(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(tmp_path)], env={'FORCE_COLOR': '1', 'NO_COLOR': '1'})
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert '\x1b[' in result.stdout, 'FORCE_COLOR colours a pipe, and beats NO_COLOR under `--color auto`'
+
+    def test_check_with_force_color_set_and_color_never_prints_no_escape_sequence(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(tmp_path), '--color', 'never'], env={'FORCE_COLOR': '1'})
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert '\x1b[' not in result.stdout, 'an explicit `--color never` beats FORCE_COLOR'
 
     def test_check_with_an_unknown_format_exits_with_a_usage_error(self, tmp_path: Path) -> None:
         #: Given
@@ -799,6 +873,17 @@ class TestCheckCommand:
 
         #: When
         result = runner.invoke(app, ['check', '--root', str(tmp_path), '--format', 'yaml'])
+
+        #: Then
+        assert result.exit_code == 2, result.output
+
+    def test_check_with_an_unknown_color_exits_with_a_usage_error(self, tmp_path: Path) -> None:
+        #: Given
+        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(tmp_path), '--color', 'sometimes'])
 
         #: Then
         assert result.exit_code == 2, result.output
@@ -976,7 +1061,7 @@ class TestCheckCommand:
 
         #: Then
         assert result.exit_code == 1, result.output
-        assert result.stderr == 'checked 1 subject(s): 2 error(s), 0 warning(s)\n', (
+        assert result.stderr == 'FM   1 error\nOUT  1 error\nchecked 1 subject(s): 2 error(s), 0 warning(s)\n', (
             'the root found above the working directory is checked whole'
         )
 
@@ -1219,7 +1304,9 @@ class TestCheckSelection:
         #: Then
         assert result.exit_code == 1, result.output
         assert result.stdout == expected, 'the frontmatter diagnostic alone matches the reviewed snapshot'
-        assert result.stderr == 'checked 1 subject(s): 1 error(s), 0 warning(s)\n', 'the outline rule did not run'
+        assert result.stderr == 'FM  1 error\nchecked 1 subject(s): 1 error(s), 0 warning(s)\n', (
+            'the outline rule did not run'
+        )
 
     def test_check_with_a_code_selected_prints_only_that_rules_diagnostic(
         self, two_group_root: Path, snapshot: SnapshotAssertion
@@ -1234,7 +1321,7 @@ class TestCheckSelection:
         #: Then
         assert result.exit_code == 1, result.output
         assert result.stdout == expected, 'the outline diagnostic alone matches the reviewed snapshot'
-        assert result.stderr == 'checked 1 subject(s): 1 error(s), 0 warning(s)\n', 'no other rule ran'
+        assert result.stderr == 'OUT  1 error\nchecked 1 subject(s): 1 error(s), 0 warning(s)\n', 'no other rule ran'
 
     def test_check_with_a_prefix_ignored_runs_every_other_rule(
         self, two_group_root: Path, snapshot: SnapshotAssertion
@@ -1249,7 +1336,9 @@ class TestCheckSelection:
         #: Then
         assert result.exit_code == 1, result.output
         assert result.stdout == expected, 'the outline diagnostic alone matches the reviewed snapshot'
-        assert result.stderr == 'checked 1 subject(s): 1 error(s), 0 warning(s)\n', 'the outline rule still runs'
+        assert result.stderr == 'OUT  1 error\nchecked 1 subject(s): 1 error(s), 0 warning(s)\n', (
+            'the outline rule still runs'
+        )
 
     def test_check_with_a_code_selected_and_its_group_ignored_runs_that_rule(
         self, two_group_root: Path, snapshot: SnapshotAssertion
@@ -1267,7 +1356,7 @@ class TestCheckSelection:
         assert result.stdout == expected, (
             'the code, more specific than its group, runs its rule; it matches the snapshot'
         )
-        assert result.stderr == 'checked 1 subject(s): 1 error(s), 0 warning(s)\n', 'no other rule ran'
+        assert result.stderr == 'OUT  1 error\nchecked 1 subject(s): 1 error(s), 0 warning(s)\n', 'no other rule ran'
 
     def test_check_with_all_selected_and_a_prefix_ignored_runs_every_other_rule(
         self, two_group_root: Path, snapshot: SnapshotAssertion
@@ -1283,7 +1372,9 @@ class TestCheckSelection:
         #: Then
         assert result.exit_code == 1, result.output
         assert result.stdout == expected, 'the frontmatter diagnostic alone matches the reviewed snapshot'
-        assert result.stderr == 'checked 1 subject(s): 1 error(s), 0 warning(s)\n', 'the outline rules did not run'
+        assert result.stderr == 'FM  1 error\nchecked 1 subject(s): 1 error(s), 0 warning(s)\n', (
+            'the outline rules did not run'
+        )
 
     def test_check_with_a_prefix_selected_and_ignored_runs_no_rule_of_it(self, two_group_root: Path) -> None:
         #: Given
@@ -1313,7 +1404,7 @@ class TestCheckSelection:
         assert result.stdout == expected, (
             'the code prefix, more specific than its group, runs the rules it starts; it matches the snapshot'
         )
-        assert result.stderr == 'checked 1 subject(s): 1 error(s), 0 warning(s)\n', 'no other rule ran'
+        assert result.stderr == 'OUT  1 error\nchecked 1 subject(s): 1 error(s), 0 warning(s)\n', 'no other rule ran'
 
     def test_check_with_a_code_prefix_selected_and_json_format_prints_the_rules_it_starts(
         self, two_group_root: Path
@@ -1382,7 +1473,7 @@ class TestCheckSelection:
 
         #: Then
         assert result.exit_code == 1, result.output
-        assert result.stderr == 'checked 1 subject(s): 2 error(s), 0 warning(s)\n', (
+        assert result.stderr == 'FM   1 error\nOUT  1 error\nchecked 1 subject(s): 2 error(s), 0 warning(s)\n', (
             'the selectors of every value add up: the frontmatter and the outline rule both run'
         )
 

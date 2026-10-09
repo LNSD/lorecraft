@@ -1,49 +1,27 @@
-"""Render what a run of the rules engine reports: the diagnostics, the coverage, the summary, and the JSON document.
+"""Render what a run of the rules engine reports as short lines and JSON, and count it: the coverage and the summaries.
 
 Pure: the subject reports arrive as values, and each function returns the text a command prints, so nothing here
-reads the disk or writes to a stream. As text, the diagnostics are what a command prints on stdout, and the coverage
-lines and the summary line what it prints on stderr; as short lines, the diagnostics are one line each on stdout, for
-a tool to match; as JSON, one compact document carries all three.
+reads the disk or writes to a stream. The diagnostics as text for a person are drawn by `diagnostic_text`. As short
+lines, one per diagnostic, they are what a command prints on stdout for a tool to match; the coverage lines and the
+summaries are what it prints on stderr; as JSON, one compact document carries the diagnostics, the summary and the
+coverage.
 
 Every diagnostic of every report is printed in the order `diagnostic_order` states, whatever order the reports
-arrive in, so one revision always prints the same output. A diagnostic prints as its primary line, then one line per
-label, then its help and notes, and an empty line separates it from the next:
+arrive in, so one revision always prints the same output. A short line reads, with the line left out for a subject
+with no lines, such as a layout entry or a file that did not decode:
 
     docs/code/a.md:3: error[FM005]: duplicate key 'name'
-      --> docs/code/a.md:3: written again here
-      --> docs/code/a.md:2: first written here
-      = note: the frontmatter schema is set here (docs/__meta__/code.structure.json)
-      = help: write 'name' once, with the value meant
-
-A subject with no lines, such as a layout entry or a file that did not decode, prints its path without a line.
 """
 
 from typing import Literal, assert_never
 
 from pydantic import BaseModel, ConfigDict
 
-from lorecraft.checks import (
-    CheckedLayoutEntry,
-    CheckedSubject,
-    Diagnostic,
-    SubjectReport,
-    UndecodableSubject,
-    diagnostic_order,
-)
-from lorecraft.core.path import RootRelativePath
+from lorecraft.checks import CheckedLayoutEntry, CheckedSubject, Diagnostic, SubjectReport, UndecodableSubject
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import Severity
-from lorecraft.rules.location import (
-    Elsewhere,
-    EntryHelp,
-    EntryNote,
-    EntrySubdiagnostic,
-    Help,
-    Here,
-    Note,
-    Subdiagnostic,
-    WholeSubject,
-)
+
+from .diagnostic_parts import child_kind, child_place, format_place, ordered_diagnostics, place, primary_line
 
 # The JSON `render_json` prints, one `BaseModel` per object, so a misspelt or missing key fails the type check. The
 # keys are the command's published output: renaming one is a change to that contract, not a refactor. A field is
@@ -157,23 +135,6 @@ class _ReportJson(BaseModel):
     coverage: list[_CoverageJson]
 
 
-def render_diagnostics(reports: tuple[SubjectReport, ...]) -> str:
-    """Every diagnostic of the run as text, in the order `diagnostic_order` sorts them into.
-
-    Args:
-        reports: One report per subject the run checked, in any order.
-
-    Returns:
-        The diagnostics, an empty line between two of them, as the established compilers separate theirs, so a
-        note whose own text holds an empty line never runs into the next diagnostic; no trailing newline, and
-        empty when the run found nothing.
-    """
-    blocks: list[str] = []
-    for diagnostic in _ordered_diagnostics(reports):
-        blocks.append('\n'.join(_diagnostic_lines(diagnostic)))
-    return '\n\n'.join(blocks)
-
-
 def render_short(reports: tuple[SubjectReport, ...]) -> str:
     """Every diagnostic of the run as one line, in the order `diagnostic_order` sorts them into.
 
@@ -187,10 +148,11 @@ def render_short(reports: tuple[SubjectReport, ...]) -> str:
         The lines, newline-separated, without a trailing newline; empty when the run found nothing.
     """
     lines: list[str] = []
-    for diagnostic in _ordered_diagnostics(reports):
+    for diagnostic in ordered_diagnostics(reports):
         occurrence = diagnostic.occurrence
+        line = primary_line(diagnostic)
         head = f'{diagnostic.severity.value}[{occurrence.CODE}]: {occurrence.message()}'
-        lines.append(f'{_format_place(diagnostic.path, _primary_line(diagnostic))}: {head}')
+        lines.append(f'{format_place(diagnostic.path, line)}: {head}')
     return '\n'.join(lines)
 
 
@@ -219,20 +181,49 @@ def render_summary(reports: tuple[SubjectReport, ...]) -> str:
     Args:
         reports: One report per subject the run checked; each counts as one subject, whatever it held.
     """
-    errors, warnings = _count_severities(_ordered_diagnostics(reports))
+    errors, warnings = _count_severities(ordered_diagnostics(reports))
     return f'checked {len(reports)} subject(s): {errors} error(s), {warnings} warning(s)'
+
+
+def render_prefix_summary(reports: tuple[SubjectReport, ...]) -> str:
+    """One line per code prefix that reported, with its errors and warnings, in prefix order.
+
+    A line reads `{prefix}  {errors}, {warnings}`, each count left out when it is zero, such as `OUT  2 errors, 1
+    warning`.
+
+    Args:
+        reports: One report per subject the run checked, in any order.
+
+    Returns:
+        The lines, newline-separated, without a trailing newline; empty when the run found nothing.
+    """
+    by_prefix: dict[str, list[Diagnostic]] = {}
+    for diagnostic in ordered_diagnostics(reports):
+        by_prefix.setdefault(str(diagnostic.occurrence.CODE.group.prefix), []).append(diagnostic)
+
+    prefix_width = max((len(prefix) for prefix in by_prefix), default=0)
+    lines: list[str] = []
+    for prefix in sorted(by_prefix):
+        errors, warnings = _count_severities(by_prefix[prefix])
+        counts: list[str] = []
+        if errors:
+            counts.append(_count(errors, 'error'))
+        if warnings:
+            counts.append(_count(warnings, 'warning'))
+        lines.append(f'{prefix:<{prefix_width}}  {", ".join(counts)}')
+    return '\n'.join(lines)
 
 
 def render_json(reports: tuple[SubjectReport, ...]) -> str:
     """The run as one compact JSON document: its diagnostics, its summary and its coverage, every key always present.
 
-    The diagnostics are in the order `render_diagnostics` prints them, and the coverage in the order
-    `render_coverage` prints it.
+    The diagnostics are in the order `diagnostic_order` states, as `render_text` and `render_short` print them, and
+    the coverage in the order `render_coverage` prints it.
 
     Args:
         reports: One report per subject the run checked, in any order.
     """
-    diagnostics = _ordered_diagnostics(reports)
+    diagnostics = ordered_diagnostics(reports)
     diagnostic_objects: list[_DiagnosticJson] = []
     for diagnostic in diagnostics:
         diagnostic_objects.append(_json_diagnostic(diagnostic))
@@ -249,21 +240,6 @@ def render_json(reports: tuple[SubjectReport, ...]) -> str:
         coverage=coverage,
     )
     return document.model_dump_json()
-
-
-def _ordered_diagnostics(reports: tuple[SubjectReport, ...]) -> list[Diagnostic]:
-    """Every diagnostic of every report, sorted into output order across the reports.
-
-    Each report already holds its own in that order, but the reports may arrive in any order, so the whole run is
-    sorted again.
-
-    Args:
-        reports: One report per subject the run checked, in any order.
-    """
-    diagnostics: list[Diagnostic] = []
-    for report in reports:
-        diagnostics.extend(report.diagnostics)
-    return sorted(diagnostics, key=diagnostic_order)
 
 
 def _ungoverned_subjects(reports: tuple[SubjectReport, ...]) -> list[CheckedSubject]:
@@ -305,58 +281,6 @@ def _count_severities(diagnostics: list[Diagnostic]) -> tuple[int, int]:
     return errors, warnings
 
 
-def _diagnostic_lines(diagnostic: Diagnostic) -> list[str]:
-    """The lines one diagnostic prints as: its primary line, a line per label, then its help and notes.
-
-    Args:
-        diagnostic: The diagnostic to print.
-    """
-    occurrence = diagnostic.occurrence
-    head = f'{diagnostic.severity.value}[{occurrence.CODE}]: {occurrence.message()}'
-    line = _primary_line(diagnostic)
-    if line is None:
-        lines = [f'{diagnostic.path}: {head}']
-    else:
-        lines = [f'{diagnostic.path}:{line}: {head}']
-    for label in occurrence.labels():
-        path, label_line = _place(diagnostic.path, label.at)
-        lines.append(f'  --> {_format_place(path, label_line)}: {label.text}')
-    for child in occurrence.children():
-        lines.extend(_child_lines(diagnostic.path, child))
-    return lines
-
-
-def _child_lines(subject: RootRelativePath, child: Subdiagnostic | EntrySubdiagnostic) -> list[str]:
-    """The lines one help or note prints as, its kind on the first and its text aligned under itself.
-
-    The place it points at, if any, is appended to the first line in parentheses.
-
-    Args:
-        subject: The path of the subject the diagnostic was found in, which a line of the subject is reported at.
-        child: The help or note to print; each line of its text becomes one output line, a trailing line break adds
-            none, and a CRLF break counts as one.
-    """
-    prefix = f'  = {_child_kind(child)}: '
-    indent = ' ' * len(prefix)
-    # `splitlines` rather than `split('\n')`: it drops the empty piece after a trailing line break and the `\r` of a
-    # CRLF one. A text with no lines at all still prints its prefix.
-    first, *rest = child.text.splitlines() or ['']
-    # Trailing whitespace is stripped from every line, which leaves a whitespace-only line empty; leading
-    # indentation is kept, so a sample's nesting survives.
-    first_line = f'{prefix}{first}'.rstrip()
-    path, line = _child_place(subject, child)
-    if path is not None:
-        first_line = f'{first_line} ({_format_place(path, line)})'
-    lines = [first_line]
-    for text_line in rest:
-        content = text_line.rstrip()
-        if content:
-            lines.append(f'{indent}{content}')
-        else:
-            lines.append('')
-    return lines
-
-
 def _json_diagnostic(diagnostic: Diagnostic) -> _DiagnosticJson:
     """One diagnostic as a JSON object, its labels and its help and notes in the order the occurrence gives them.
 
@@ -366,14 +290,14 @@ def _json_diagnostic(diagnostic: Diagnostic) -> _DiagnosticJson:
     occurrence = diagnostic.occurrence
     labels: list[_LabelJson] = []
     for label in occurrence.labels():
-        path, line = _place(diagnostic.path, label.at)
+        path, line = place(diagnostic.path, label.at)
         labels.append(_LabelJson(path=str(path), line=_json_line(line), text=label.text))
     children: list[_ChildJson] = []
     for child in occurrence.children():
-        child_path, child_line = _child_place(diagnostic.path, child)
+        child_path, child_line = child_place(diagnostic.path, child)
         children.append(
             _ChildJson(
-                kind=_child_kind(child),
+                kind=child_kind(child),
                 text=child.text,
                 path=None if child_path is None else str(child_path),
                 line=_json_line(child_line),
@@ -381,7 +305,7 @@ def _json_diagnostic(diagnostic: Diagnostic) -> _DiagnosticJson:
         )
     return _DiagnosticJson(
         path=str(diagnostic.path),
-        line=_json_line(_primary_line(diagnostic)),
+        line=_json_line(primary_line(diagnostic)),
         severity=_severity_word(diagnostic.severity),
         code=str(occurrence.CODE),
         name=str(occurrence.NAME),
@@ -389,64 +313,6 @@ def _json_diagnostic(diagnostic: Diagnostic) -> _DiagnosticJson:
         labels=labels,
         children=children,
     )
-
-
-def _primary_line(diagnostic: Diagnostic) -> LineNumber | None:
-    """The line a diagnostic is reported at, or None when it concerns the whole subject.
-
-    Args:
-        diagnostic: The diagnostic whose primary location is read.
-    """
-    primary = diagnostic.occurrence.primary()
-    match primary:
-        case Here():
-            return primary.line
-        case WholeSubject():
-            return None
-        case _:
-            assert_never(primary)
-
-
-def _child_place(
-    subject: RootRelativePath, child: Subdiagnostic | EntrySubdiagnostic
-) -> tuple[RootRelativePath | None, LineNumber | None]:
-    """The file and the line a help or note points at; both None when it points nowhere.
-
-    Args:
-        subject: The path of the subject the diagnostic was found in, which a line of the subject is reported at.
-        child: The help or note whose place is read.
-    """
-    if child.at is None:
-        return None, None
-    return _place(subject, child.at)
-
-
-def _place(subject: RootRelativePath, at: Here | Elsewhere) -> tuple[RootRelativePath, LineNumber | None]:
-    """The file and the line a location names; the line is None for the whole of another file.
-
-    Args:
-        subject: The path of the subject the diagnostic was found in, which `Here` names a line of.
-        at: Where a label, help or note points: a line of the subject, or another file or a line in it.
-    """
-    match at:
-        case Here():
-            return subject, at.line
-        case Elsewhere():
-            return at.path, at.line
-        case _:
-            assert_never(at)
-
-
-def _format_place(path: RootRelativePath, line: LineNumber | None) -> str:
-    """A place as text: `path:line`, or the path alone for a whole file.
-
-    Args:
-        path: The file the place is in, printed as it is.
-        line: The line the place points at in that file, or None when it points at the whole file.
-    """
-    if line is None:
-        return str(path)
-    return f'{path}:{line}'
 
 
 def _severity_word(severity: Severity) -> Literal['error', 'warning']:
@@ -464,21 +330,6 @@ def _severity_word(severity: Severity) -> Literal['error', 'warning']:
             assert_never(severity)
 
 
-def _child_kind(child: Subdiagnostic | EntrySubdiagnostic) -> Literal['help', 'note']:
-    """The word a help or note is printed under.
-
-    Args:
-        child: The help or note whose kind names the word: `help` for a help, `note` for a note.
-    """
-    match child:
-        case Help() | EntryHelp():
-            return 'help'
-        case Note() | EntryNote():
-            return 'note'
-        case _:
-            assert_never(child)
-
-
 def _json_line(line: LineNumber | None) -> int | None:
     """A line as JSON writes it: its number, or null when there is none.
 
@@ -488,3 +339,15 @@ def _json_line(line: LineNumber | None) -> int | None:
     if line is None:
         return None
     return line.number
+
+
+def _count(number: int, noun: str) -> str:
+    """A count with its noun, pluralised with an `s` unless it is one.
+
+    Args:
+        number: How many there are.
+        noun: What there are, in the singular.
+    """
+    if number == 1:
+        return f'{number} {noun}'
+    return f'{number} {noun}s'

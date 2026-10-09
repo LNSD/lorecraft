@@ -28,9 +28,12 @@ process: the arguments, the working directory, standard output and the exit code
   warning on stderr of what a selection cannot do.
 - Registering commands so a new one is a new module.
 - Rendering diagnostics and the model as text, short lines or compact JSON, and choosing the exit code.
+- Asking the process about the terminal it prints to — encoding and width — and reading the colour variables of its
+  environment once into a typed value, and asking the database for the source lines an excerpt shows, so the
+  renderers stay pure.
 - Rendering the rulebook: a rule's page from its docstring, for `lorecraft rule` and for the recipe that writes
   `docs/rulebook/`, and the listing of every rule.
-- The output formats and the exit statuses every command shares, in `output.py`.
+- The output formats, the colour choices and the exit statuses every command shares, in `output.py`.
 - Writing out a failure chain, and the version.
 
 ## Belongs Elsewhere
@@ -51,10 +54,14 @@ process: the arguments, the working directory, standard output and the exit code
 - The root is the only `Path` a command keeps. Everything handed below it is root-relative.
 - A command handler composes: it holds no rule a check or a derivation should hold.
 - Rendering is a pure function of the values a run returns.
+- The colour variables are read once, in `terminal.py`, into a typed `ColorEnvironment`, and the colour decision takes
+  that value. The terminal width comes from `shutil.get_terminal_size`, which honours `COLUMNS` on a terminal. No
+  other code of ours reads `os.environ`.
 - A command that can print JSON takes `--format`, typed as an `Enum` of `output.py` (`OutputFormat`, or
-  `DiagnosticFormat` where there is a short form); Typer refuses a value outside the set, and no command compares a
-  raw string. JSON is one compact document. A command that does not succeed exits with an `ExitStatus`,
-  `FINDINGS` when it ran and found something and `FAILURE` when it could not run.
+  `DiagnosticFormat` where there is a short form), and a colour choice is a `ColorChoice`; Typer refuses a value
+  outside the set, and no command compares a raw string. JSON is one compact document. A command that does not
+  succeed exits with an `ExitStatus`, `FINDINGS` when it ran and found something and `FAILURE` when it could not
+  run.
 - Every failure that escapes the packages below is written out here, as a chain.
 
 ## Examples
@@ -102,7 +109,7 @@ Before committing code, verify:
 - [ ] Nothing below the root is handed down as a `Path`
 - [ ] A new rule lives in `lorecraft.rules`, not in a command handler
 - [ ] A new output format renders values a run returned, and reads nothing itself
-- [ ] A command's `--format` is an `Enum` from `output.py`, and its exit codes are `ExitStatus` members
+- [ ] A command's `--format` and `--color` are `Enum`s from `output.py`, and its exit codes are `ExitStatus` members
 
 ## References
 

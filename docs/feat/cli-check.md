@@ -32,7 +32,7 @@ in `docs/__meta__/`, and every agent skill against the Agent Skills specificatio
 - **Rule**: One judgment of a subject, with a code, `<prefix><digits>`, and a kebab-case name, such as `FM001`
   `missing-frontmatter`. A rule is on at its default level, `deny` for an error or `warn` for a warning.
 - **Diagnostic**: One occurrence of a rule: a path, a line when it has one, a severity, the code, a message, and
-  labels, help and notes.
+  labels, help and notes. Diagnostics sort by path, location, severity, code and message.
 - **Governed**: A document's `structure` is governed when its corpus has a structure file, its `frontmatter` when
   that file states a schema, its `outline` or `budget` when an applying file states an outline or `tokens`. A rule
   over an ungoverned part does not run; the part is reported as coverage, not a diagnostic.
@@ -82,16 +82,22 @@ leaves off, each print a `warning:` line on stderr, and the run goes on.
 
 ## Configuration
 
-| Argument or option | Default | Description |
-|--------------------|---------|-------------|
-| `--root <path>`    | nearest parent holding `docs/__meta__/` | The repository root, as [Root Discovery](#root-discovery) describes |
-| `--format <text\|short\|json>` | `text` | The output format, as [Output](#output) describes |
-| `--select <selectors>` | `ALL` | Run only these rules, as [Selecting Rules](#selecting-rules) describes |
-| `--ignore <selectors>` | none | Skip these rules |
+| Argument or option | Default | Env var | Description |
+|--------------------|---------|---------|-------------|
+| `--root <path>`    | nearest parent holding `docs/__meta__/` | — | The repository root, as [Root Discovery](#root-discovery) describes |
+| `--format <text\|short\|json>` | `text` | — | The output format, as [Output](#output) describes |
+| `--color <WHEN>` | `auto` | [`NO_COLOR`](https://no-color.org/), [`FORCE_COLOR`](https://force-color.org/) | Control when colored output is used. `auto`: colour when stdout is an interactive terminal, unless `NO_COLOR` is set; `FORCE_COLOR` forces it. `always`: colour even when stdout is not a terminal. `never`: no colour. Only the `text` format is coloured. |
+| `--select <selectors>` | `ALL` | — | Run only these rules, as [Selecting Rules](#selecting-rules) describes |
+| `--ignore <selectors>` | none | — | Skip these rules |
 
 The command takes no paths: it always checks the whole workspace. Between `--select` and `--ignore`, the more
 specific selector wins, as [Selecting Rules](#selecting-rules) describes.
-An unlisted `--format` value is a usage error (exit `2`).
+An unlisted `--format` or `--color` value is a usage error (exit `2`).
+For colour, an explicit `--color always` or `--color never` wins over both variables. Under `auto`, a non-empty
+`FORCE_COLOR` enables colour, even when piped; otherwise a non-empty `NO_COLOR` disables it; otherwise colour
+follows whether stdout is an interactive terminal. An empty variable counts as unset; any non-empty value,
+including `0`, counts as set. When colour is enabled, errors are bold red, warnings bold yellow, messages bold,
+and the gutter and location markers bold blue.
 
 ## Usage
 
@@ -116,38 +122,49 @@ lorecraft check --select OUT00
 
 ### Output
 
-In `text` format each diagnostic goes to stdout, an empty line between two. Its first line is
-`<path>:<line>: <severity>[<code>]: <message>`, with no `:<line>` when it concerns the whole file. Each label
-follows as `  --> <path>:<line>: <text>`, then each help or note as `  = help: <text>` or `  = note: <text>`, a
-multi-line text aligned under its first line. On stderr, a line per subject with an ungoverned part, then a
-summary:
+In the default `text` format, each diagnostic goes to stdout, with a blank line between diagnostics. The
+header gives the severity, code and message, followed by `--> path:line` and numbered source lines with
+labels beneath them. The reported line has a solid underline; another labelled line in the same file has a
+dotted underline. Nearby lines are shown together; an ellipsis separates lines further apart. `:::` points
+to another file, including a specification named by a note. Help and notes follow as `= help:` and
+`= note:` lines. A one-line help or note wraps at word boundaries to the terminal width; piped or redirected
+output uses 100 columns and ignores `COLUMNS`. A multi-line help or note, such as a sample, keeps each line
+intact even if it exceeds that width. Continuation lines align under the first line's text.
+
+This excerpt is from a check run (stdout):
 
 ```text
-docs/code/guide.md:1: error[FM001]: no `---` delimited frontmatter block
-  --> docs/code/guide.md:1: a `---` delimited block is expected here
-  = note: the frontmatter schema is set here (docs/__meta__/code.structure.json)
-  = help: open the file with a `---` line, the fields, and a closing `---` line
-
-docs/code/guide.md:1: error[OUT006]: missing required section `Checklist`
-  --> docs/code/guide.md:1: expected `Checklist` before the end of the document
-  = note: the document structure is set here (docs/__meta__/code.structure.json)
-docs/notes/todo.md: ungoverned for outline, budget
-checked 2 subject(s): 2 error(s), 0 warning(s)
+error[OUT006]: missing required section `Usage`
+ --> docs/feat/check.md:5
+  │
+5 │ ## Options
+  │ ────────── expected `Usage` before `Options`
+  │
+ ::: docs/__meta__/feat.structure.json
+  │
+  = note: the document structure is set here
+  = help: How to invoke the command.
 ```
 
-In `short` format, stdout has one line per diagnostic:
+On stderr, `text` prints a line per subject with an ungoverned part, then error and warning counts per
+code prefix (when there are diagnostics), then the overall `checked N subject(s): ...` line. A run with
+one subject and two errors prints:
+
+```text
+FM   1 error
+OUT  1 error
+checked 1 subject(s): 2 error(s), 0 warning(s)
+```
+
+In `short` format, stdout has one uncoloured line per diagnostic:
 `path:line: severity[code]: message`, or `path: severity[code]: message` for a whole subject. It omits
 labels, help and notes, and keeps the same order and exit status as `text`. Its stderr has the ungoverned
-subject lines and only the overall count. For example:
+subject lines and only the overall count, without the per-prefix counts. For example:
 
 ```text
 docs/code/guide.md:1: error[FM001]: no `---` delimited frontmatter block
 docs/code/guide.md:1: error[OUT006]: missing required section `Checklist`
 ```
-
-The compact form is intentional for tools that consume JSON. Pipe `lorecraft check --format json | jq .`
-for an indented view. Non-ASCII text in paths, messages, labels and notes is written as UTF-8 characters
-instead of `\uXXXX` escapes. For `--format json`, every path, including the workspace root, must be valid UTF-8.
 
 In `json` format stdout is one compact JSON object on one line, without indentation or spaces after
 commas or colons; stderr holds nothing but the selection's warnings. `diagnostics`
@@ -158,6 +175,12 @@ errors and warnings, and `coverage` lists each subject with an ungoverned part:
 ```json
 {"diagnostics":[{"path":"docs/notes/broken.md","line":4,"severity":"error","code":"LC001","name":"invalid-utf8","message":"file is not valid UTF-8","labels":[{"path":"docs/notes/broken.md","line":4,"text":"0xE9 at byte offset 31 starts a character the next byte does not continue"}],"children":[{"kind":"help","text":"save the file as UTF-8","path":null,"line":null}]}],"summary":{"subjects":3,"errors":1,"warnings":0},"coverage":[{"path":"docs/notes/todo.md","ungoverned":["outline","budget"]}]}
 ```
+
+For `--format json`, every path, including the workspace root, must be valid UTF-8. Non-ASCII text in paths,
+messages, labels and notes is written as UTF-8 characters instead of `\uXXXX` escapes.
+
+The compact form is intentional for tools that consume JSON. Pipe `lorecraft check --format json | jq .`
+for an indented view.
 
 ### Exit Status
 
@@ -173,6 +196,9 @@ errors and warnings, and `coverage` lists each subject with an ungoverned part:
   only narrows which run.
 - A warning does not fail the run: a rule whose default level is `warn`, such as
   [`FM007`](../rulebook/FM007-unknown-field.md), exits 0.
+- A whole subject, such as a layout entry, shows `--> path` without an excerpt. When source text cannot be
+  read, a label appears as `= at path:line: text`. An excerpt of a file starting with a UTF-8 byte order mark
+  shows line 1 without the mark. The gutter and underlines use `| ^ - .` when UTF-8 output is unavailable.
 - A repository with skills and no `docs/__meta__/` needs `--root`.
 - A key repeated inside a nested frontmatter mapping is not reported as repeated.
 - A fragment after a path, such as `guide.md#usage`, is not checked against the file it names.
@@ -207,8 +233,11 @@ of the [rulebook](../rulebook/), in this repository, and `lorecraft rule <code>`
 - `src/lorecraft/cli/root.py` - Root discovery
 - `src/lorecraft/cli/subjects.py` - Selects every subject of the workspace, in path order
 - `src/lorecraft/cli/rule_selection.py` - Parses `--select` and `--ignore` against the registry
-- `src/lorecraft/cli/diagnostics.py` - Renders text, short and JSON diagnostics, coverage and summaries
-- `src/lorecraft/cli/output.py` - Declares output format choices
+- `src/lorecraft/cli/diagnostics.py` - Renders short diagnostics, JSON, coverage and summaries
+- `src/lorecraft/cli/diagnostic_text.py` - Draws the full text diagnostics
+- `src/lorecraft/cli/sources.py` - Reads the source lines used by the text output
+- `src/lorecraft/cli/terminal.py` - Chooses colour, characters and width for text output
+- `src/lorecraft/cli/output.py` - Declares output and colour choices
 - `src/lorecraft/checks/runner.py` - Runs every enabled rule over each subject
 - `src/lorecraft/checks/table.py` - The rules a run enables, each with its severity
 - `src/lorecraft/checks/selection.py` - The selection that filters the rule table

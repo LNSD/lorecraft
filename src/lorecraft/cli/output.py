@@ -1,6 +1,6 @@
-"""How every command reports: the output formats it takes, and the statuses it exits with.
+"""How every command reports: the output formats and colour choices it takes, and the statuses it exits with.
 
-Each command imports them from here, so `--format` and the exit status mean the same in every command.
+Each command imports them from here, so `--format`, `--color` and the exit status mean the same in every command.
 Each is an `Enum` Typer parses, so a value outside the set is a usage error before the command runs. What a command
 prints in each format is documented beside the function that prints it.
 """
@@ -21,11 +21,22 @@ class DiagnosticFormat(Enum):
     """How `check` prints its diagnostics; the value is what `--format` accepts."""
 
     TEXT = 'text'
-    """Each diagnostic with its labels, help and notes, for a person to read."""
+    """Each diagnostic drawn in full for a person: its source lines, labels, help and notes."""
     SHORT = 'short'
     """One line per diagnostic, for an editor or `grep` to match."""
     JSON = 'json'
     """One compact JSON document on stdout, for a script to parse."""
+
+
+class ColorChoice(Enum):
+    """When a command emphasises its text with colour; the value is what `--color` accepts."""
+
+    AUTO = 'auto'
+    """Colour when `FORCE_COLOR` is set, else none when `NO_COLOR` is set, else when stdout is a terminal."""
+    ALWAYS = 'always'
+    """Colour even when stdout is a pipe or a file."""
+    NEVER = 'never'
+    """No colour."""
 
 
 class ExitStatus(IntEnum):

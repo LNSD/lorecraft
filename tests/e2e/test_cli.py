@@ -436,9 +436,9 @@ class TestCheckSnapshots:
         #: Then
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the diagnostics found from the working directory match the snapshot'
-        assert result.stderr == 'checked 5 subject(s): 9 error(s), 0 warning(s)\n', (
-            'every document and skill of the fixture is checked, and each is governed'
-        )
+        assert result.stderr == (
+            'FM   3 errors\nLEN  1 error\nOUT  5 errors\nchecked 5 subject(s): 9 error(s), 0 warning(s)\n'
+        ), 'every document and skill of the fixture is checked, and each is governed'
 
     def test_check_without_a_root_in_a_subdirectory_of_the_workspace_fixture_checks_the_whole_workspace(self) -> None:
         #: Given
@@ -467,7 +467,9 @@ class TestCheckSnapshots:
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the undecodable file, the broken link and the symlink match the snapshot'
         assert result.stderr == (
-            'docs/notes/todo.md: ungoverned for outline, budget\nchecked 5 subject(s): 3 error(s), 0 warning(s)\n'
+            'docs/notes/todo.md: ungoverned for outline, budget\n'
+            'LAY   1 error\nLC    1 error\nLINK  1 error\n'
+            'checked 5 subject(s): 3 error(s), 0 warning(s)\n'
         ), 'the coverage line and the summary go to stderr'
 
     def test_check_with_json_over_subjects_of_every_kind_prints_one_document(self, mixed_root: Path) -> None:
@@ -571,7 +573,7 @@ class TestCheckSnapshots:
         #: Then
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the symlink and the undecodable file match the snapshot, the broken link not'
-        assert result.stderr == 'checked 5 subject(s): 2 error(s), 0 warning(s)\n', (
+        assert result.stderr == 'LAY  1 error\nLC   1 error\nchecked 5 subject(s): 2 error(s), 0 warning(s)\n', (
             'no rule over a document runs, so no part of one is reported ungoverned'
         )
 
