@@ -206,9 +206,8 @@ for an indented view.
 
 ## Findings
 
-Each group is one area of the meta specs. What each rule checks, why it matters and how to fix it is in its page
-of the [rulebook](../rulebook/), in this repository, and `lorecraft rule <code>` anywhere, as
-[cli-rule](cli-rule.md) describes.
+Each group covers one area of the meta specs. The [rulebook](../rulebook/) and `lorecraft rule <code>` explain
+each rule's condition and fix, as [cli-rule](cli-rule.md) describes.
 
 | Rule | Reported when |
 |------|---------------|
@@ -218,6 +217,9 @@ of the [rulebook](../rulebook/), in this repository, and `lorecraft rule <code>`
 | `LINK` | Links in Markdown files: a document governed for its structure, a `SKILL.md` and each resource, a skill's relative link read from the skill root. `LINK001` absolute-link, `LINK002` missing-fragment, `LINK003` broken-link, `LINK004` escaping-link |
 | `LAY` | Skill layout checks: `LAY001` outside-symlink, a symlink an agent reaches whose chain leaves the repository |
 | `LC` | Engine conditions, which no configuration or selection turns off: `LC001` invalid-utf8, a file that is not UTF-8, reported at its first invalid byte |
+
+`FM008` ends with the field's example when the schema gives one. `FM009` labels malformed skill names with
+their pattern. `FM010` and `FM012` carry counts in messages only.
 
 ## References
 

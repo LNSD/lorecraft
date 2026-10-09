@@ -19,7 +19,7 @@ specification rejects it without naming a field.
 A constraint that names a key is not the block's: a key `propertyNames` rejects, and a field whose
 `dependentRequired` fields are missing, are reported by `invalid-value` on that key's line.
 
-The label says how many fields the block holds against the limit, for `minProperties` and `maxProperties`, and
+For `minProperties` and `maxProperties` the message says how many fields the block holds against the limit, and
 the help is the description the schema states for the block, when it states one. The validator's own wording
 is shown as a note only for another keyword.
 

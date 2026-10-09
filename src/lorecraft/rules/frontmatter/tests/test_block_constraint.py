@@ -105,8 +105,34 @@ class TestBlockConstraint:
         message = occurrence.message()
 
         #: Then
+        assert message == 'frontmatter has the wrong number of fields (1; at least 2)', (
+            'the message states the condition and the number found against the limit, naming no specification'
+        )
+
+    def test_message_with_too_many_fields_says_the_most_allowed(self) -> None:
+        #: Given
+        problem = BlockProblem('too many', MaxFields(1), 3)
+        occurrence = BlockConstraint(spec=CORPUS_SPEC, line=LINE, problem=problem)
+
+        #: When
+        message = occurrence.message()
+
+        #: Then
+        assert message == 'frontmatter has the wrong number of fields (3; at most 1)', (
+            'the same template is filled with the maximum'
+        )
+
+    def test_message_with_another_keyword_states_the_constraint_on_the_whole_block(self) -> None:
+        #: Given
+        problem = BlockProblem('wrong', OtherBlockConstraint(), 1)
+        occurrence = BlockConstraint(spec=CORPUS_SPEC, line=LINE, problem=problem)
+
+        #: When
+        message = occurrence.message()
+
+        #: Then
         assert message == 'frontmatter breaks a constraint of the schema on the whole block', (
-            'the message states the condition, in lowercase, naming no specification'
+            'a keyword with no typed limit has no count to state'
         )
 
     def test_check_with_a_described_schema_carries_its_description(self) -> None:
@@ -131,7 +157,7 @@ class TestBlockConstraint:
             "the root schema's description is carried with the limit and the number of fields"
         )
 
-    def test_labels_with_too_few_fields_say_how_many_the_block_has_and_how_many_it_needs(self) -> None:
+    def test_labels_with_a_limit_on_the_fields_name_what_is_out_of_limit_on_line_1(self) -> None:
         #: Given
         occurrence = BlockConstraint(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM)
 
@@ -139,21 +165,8 @@ class TestBlockConstraint:
         labels = occurrence.labels()
 
         #: Then
-        assert labels == (Label(Here(LINE), 'has 1 field; the schema requires at least 2 fields'),), (
-            'the label is on line 1, the whole block'
-        )
-
-    def test_labels_with_too_many_fields_say_how_many_the_block_has_and_how_many_it_allows(self) -> None:
-        #: Given
-        problem = BlockProblem('too many', MaxFields(1), 3)
-        occurrence = BlockConstraint(spec=CORPUS_SPEC, line=LINE, problem=problem)
-
-        #: When
-        labels = occurrence.labels()
-
-        #: Then
-        assert labels == (Label(Here(LINE), 'has 3 fields; the schema allows at most 1 field'),), (
-            'the limit is a maximum, and the singular is used for one'
+        assert labels == (Label(Here(LINE), 'number of fields'),), (
+            'the label is on line 1, the whole block, and carries no number: the message has it'
         )
 
     def test_labels_with_another_keyword_label_nothing(self) -> None:
@@ -176,7 +189,7 @@ class TestBlockConstraint:
 
         #: Then
         assert children == (Note('the frontmatter schema is set here', at=Elsewhere(CORPUS_SPEC)),), (
-            "the label states the limit, whose prose would repeat the block's whole frontmatter"
+            "the message states the limit, whose prose would repeat the block's whole frontmatter"
         )
 
     def test_children_with_a_description_give_it_as_the_help(self) -> None:

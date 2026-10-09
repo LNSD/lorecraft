@@ -26,11 +26,12 @@ from .frontmatter_problem import (
     MissingFieldProblem,
     OtherBlockConstraint,
     OtherValueConstraint,
+    PatternMismatch,
     UnknownFieldProblem,
     WrongTypeProblem,
 )
 from .schema_guidance import json_type_of, known_fields, schema_guidance
-from .skill_frontmatter import SkillFrontmatter, find_value_object_message
+from .skill_frontmatter import SKILL_NAME_PATTERN, SkillFrontmatter, find_value_object_message, is_name_format_error
 
 
 # It holds nothing, since the specification is fixed. It is an object rather than a function so that it has the
@@ -111,7 +112,9 @@ def _frontmatter_problem(detail: ErrorDetails, field_count: int) -> FrontmatterP
         return InvalidValueProblem(field, _nested_message(field, detail), OtherValueConstraint(), guidance=guidance)
     value_object_reason = find_value_object_message(detail)
     if value_object_reason is not None:
-        return InvalidValueProblem(field, value_object_reason, OtherValueConstraint(), guidance=guidance)
+        # A name's characters are the one value-object rejection a pattern states, as a document's are.
+        constraint = PatternMismatch(SKILL_NAME_PATTERN) if is_name_format_error(detail) else OtherValueConstraint()
+        return InvalidValueProblem(field, value_object_reason, constraint, guidance=guidance)
     match detail['type']:
         case 'missing':
             return MissingFieldProblem(field, f'`{field}` is required', guidance=guidance)

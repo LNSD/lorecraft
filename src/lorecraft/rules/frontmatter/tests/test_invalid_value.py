@@ -16,6 +16,7 @@ from lorecraft.project.schemas import (
     OtherValueConstraint,
     PatternMismatch,
 )
+from lorecraft.project.schemas.skill_frontmatter import SKILL_NAME_PATTERN
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import (
@@ -111,6 +112,19 @@ class TestInvalidValue:
         )
         assert occurrences == (InvalidValue(spec=None, line=LineNumber.from_int(4), problem=problem),), (
             "the package states the Agent Skills schema, so a skill's occurrence names no specification file"
+        )
+
+    def test_labels_with_a_skill_name_outside_the_allowed_format_name_the_pattern(self) -> None:
+        #: Given
+        subject = FakeSkillContext('---\nname: Review\ndescription: Review a change.\n---\n')
+        occurrences = InvalidValue.check(subject)
+
+        #: When
+        labels = occurrences[0].labels()
+
+        #: Then
+        assert labels == (Label(Here(LineNumber.from_int(2)), f'does not match the pattern `{SKILL_NAME_PATTERN}`'),), (
+            "a skill's malformed name is labelled as a document's pattern fault is"
         )
 
     def test_check_with_a_block_that_is_not_a_mapping_reports_nothing(self) -> None:

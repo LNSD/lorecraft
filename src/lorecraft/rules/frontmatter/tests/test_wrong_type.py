@@ -255,3 +255,20 @@ class TestWrongType:
             Help('quote the value, so YAML reads it as a string'),
             Help('What the field is for.'),
         ), "the quoting help comes first, then the property's description as the schema wrote it"
+
+    def test_children_with_an_example_end_with_it(self) -> None:
+        #: Given
+        guidance = FieldGuidance(description='What the field is for.', example='1.0.0')
+        problem = WrongTypeProblem('version', 'wrong', (JsonType.STRING,), JsonType.NUMBER, guidance=guidance)
+        occurrence = WrongType(spec=CORPUS_SPEC, line=LINE, problem=problem)
+
+        #: When
+        children = occurrence.children()
+
+        #: Then
+        assert children == (
+            Note('the frontmatter schema is set here', at=Elsewhere(CORPUS_SPEC)),
+            Help('quote the value, so YAML reads it as a string'),
+            Help('What the field is for.'),
+            Note('for example:\nversion: 1.0.0'),
+        ), 'the example follows the description, as for the other field rules'

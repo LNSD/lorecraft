@@ -15,10 +15,12 @@ from ..frontmatter_problem import (
     JsonType,
     MissingFieldProblem,
     OtherValueConstraint,
+    PatternMismatch,
     UnknownFieldProblem,
     WrongTypeProblem,
 )
 from ..skill import SKILL_FRONTMATTER_SCHEMA
+from ..skill_frontmatter import SKILL_NAME_PATTERN
 
 NAME_GUIDANCE: Final[FieldGuidance] = FieldGuidance(
     description=(
@@ -204,10 +206,10 @@ class TestSkillFrontmatterSchemaValidate:
                 'name',
                 "skill name 'PDF' must be lowercase letters, digits and single hyphens, "
                 'neither starting nor ending with a hyphen',
-                OtherValueConstraint(),
+                PatternMismatch(SKILL_NAME_PATTERN),
                 guidance=NAME_GUIDANCE,
             ),
-        ), 'a name outside the allowed format is worded by SkillName, not by pydantic'
+        ), 'a name outside the allowed format is worded by SkillName and carries the pattern it breaks'
 
     def test_validate_with_braces_in_a_rejected_name_returns_the_braces_unformatted(self) -> None:
         #: Given
@@ -222,7 +224,7 @@ class TestSkillFrontmatterSchemaValidate:
                 'name',
                 "skill name '{reason}' must be lowercase letters, digits and single hyphens, "
                 'neither starting nor ending with a hyphen',
-                OtherValueConstraint(),
+                PatternMismatch(SKILL_NAME_PATTERN),
                 guidance=NAME_GUIDANCE,
             ),
         ), 'pydantic formats the template once, so braces in the rejected text reach the reader as written'

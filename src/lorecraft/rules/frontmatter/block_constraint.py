@@ -36,7 +36,7 @@ class BlockConstraint(FrontmatterRule):
     A constraint that names a key is not the block's: a key `propertyNames` rejects, and a field whose
     `dependentRequired` fields are missing, are reported by `invalid-value` on that key's line.
 
-    The label says how many fields the block holds against the limit, for `minProperties` and `maxProperties`, and
+    For `minProperties` and `maxProperties` the message says how many fields the block holds against the limit, and
     the help is the description the schema states for the block, when it states one. The validator's own wording
     is shown as a note only for another keyword.
 
@@ -95,20 +95,24 @@ class BlockConstraint(FrontmatterRule):
     problem: BlockProblem
 
     def message(self) -> str:
-        """Say the block breaks a constraint on the whole of it; the label names the constraint."""
-        return 'frontmatter breaks a constraint of the schema on the whole block'
-
-    def labels(self) -> tuple[Label, ...]:
-        """Say how many fields the block holds against the limit, for a limit on their number; else none."""
+        """Say the block breaks a constraint on the whole of it; for a limit on fields, the number found against it."""
         constraint = self.problem.constraint
-        fields = _fields(self.problem.field_count)
         match constraint:
             case MinFields():
-                return (
-                    Label(Here(self.line), f'has {fields}; the schema requires at least {_fields(constraint.limit)}'),
-                )
+                return _wrong_number_of_fields(self.problem.field_count, f'at least {constraint.limit}')
             case MaxFields():
-                return (Label(Here(self.line), f'has {fields}; the schema allows at most {_fields(constraint.limit)}'),)
+                return _wrong_number_of_fields(self.problem.field_count, f'at most {constraint.limit}')
+            case OtherBlockConstraint():
+                return 'frontmatter breaks a constraint of the schema on the whole block'
+            case _:
+                assert_never(constraint)
+
+    def labels(self) -> tuple[Label, ...]:
+        """Name what is out of limit on line 1, for a limit on the number of fields; else none."""
+        constraint = self.problem.constraint
+        match constraint:
+            case MinFields() | MaxFields():
+                return (Label(Here(self.line), 'number of fields'),)
             case OtherBlockConstraint():
                 return ()
             case _:
@@ -125,7 +129,7 @@ class BlockConstraint(FrontmatterRule):
             case OtherBlockConstraint():
                 parts.append(Note(problem.message))
             case MinFields() | MaxFields():
-                pass  # the label says it
+                pass  # the message says it
             case _:
                 assert_never(constraint)
         return tuple(parts)
@@ -151,12 +155,11 @@ class BlockConstraint(FrontmatterRule):
         return tuple(occurrences)
 
 
-def _fields(count: int) -> str:
-    """A number of fields, in the singular for one.
+def _wrong_number_of_fields(found: int, limit: str) -> str:
+    """The message for a block holding a number of fields its schema does not allow.
 
     Args:
-        count: The number of fields.
+        found: The number of fields the block holds.
+        limit: The limit broken, such as `at most 1`.
     """
-    if count == 1:
-        return '1 field'
-    return f'{count} fields'
+    return f'frontmatter has the wrong number of fields ({found}; {limit})'

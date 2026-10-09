@@ -186,8 +186,11 @@ class TestJsonTypeOf:
         value = object()
 
         #: When
-        with pytest.raises(AssertionError):
+        with pytest.raises(AssertionError) as exc_info:
             json_type_of(value)
+
+        #: Then
+        assert "<class 'object'>" in str(exc_info.value), 'the message names the type that has no JSON counterpart'
 
 
 @pytest.mark.unit

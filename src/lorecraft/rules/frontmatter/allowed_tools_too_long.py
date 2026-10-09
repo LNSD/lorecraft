@@ -76,9 +76,8 @@ class AllowedToolsTooLong(SkillRule):
         return f'`allowed-tools` value too long ({self.character_count} > {_CHARACTER_LIMIT})'
 
     def labels(self) -> tuple[Label, ...]:
-        """Say how far the value is over the recommended length, on the field's line."""
-        over = self.character_count - _CHARACTER_LIMIT
-        return (Label(Here(self.line), f'{_characters(over)} over'),)
+        """Name what is over the recommended length, on the field's line."""
+        return (Label(Here(self.line), 'characters over the recommended length'),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Say where the field is specified, how to shorten the value, and whose limit this is."""
@@ -117,14 +116,3 @@ class AllowedToolsTooLong(SkillRule):
         if character_count <= _CHARACTER_LIMIT:
             return ()
         return (cls(line=field_line(frontmatter, 'allowed-tools'), character_count=character_count),)
-
-
-def _characters(count: int) -> str:
-    """A number of characters, in the singular for one.
-
-    Args:
-        count: The number of characters.
-    """
-    if count == 1:
-        return '1 character'
-    return f'{count} characters'
