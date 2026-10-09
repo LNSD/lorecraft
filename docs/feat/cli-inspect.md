@@ -136,7 +136,8 @@ error: invalid structure schema docs/__meta__/feat.structure.json: Invalid JSON:
 
 ## Code References
 
-- `src/lorecraft/cli/commands/inspect.py` - Declares the command, loads the model
+- `src/lorecraft/cli/commands/inspect.py` - Declares the command and its options
+- `src/lorecraft/cli/inspect_run.py` - Loads the model
 - `src/lorecraft/cli/workspace_tree.py` - Draws the tree and renders the JSON
 - `src/lorecraft/cli/output.py` - The output formats and the exit statuses every command shares
 - `src/lorecraft/project/workspace/` - The workspace model and its loader
