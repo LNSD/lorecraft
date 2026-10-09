@@ -22,13 +22,16 @@ from lorecraft.rules.declaration import Severity
 from lorecraft.rules.registry import Registry
 from lorecraft.vfs import take_snapshot
 
-from ..diagnostics import render_coverage, render_diagnostics, render_json, render_short, render_summary
+from ..diagnostic_text import render_text
+from ..diagnostics import render_coverage, render_json, render_prefix_summary, render_short, render_summary
 from ..failure import report_failure
-from ..output import DiagnosticFormat, ExitStatus
+from ..output import ColorChoice, DiagnosticFormat, ExitStatus
 from ..registry import register
 from ..root import establish_root
 from ..rule_selection import parse_rule_selection, print_selection_warnings
+from ..sources import read_sources
 from ..subjects import select_workspace
+from ..terminal import detect_text_style, read_color_environment
 
 
 @register('check')
@@ -41,10 +44,22 @@ def check(
         DiagnosticFormat,
         typer.Option(
             '--format',
-            help='Output format: text prints each diagnostic with its labels, help and notes, short prints one line '
-            'each, json prints one document.',
+            help='Output format: text draws each diagnostic in full, short prints one line each, json prints one '
+            'document.',
         ),
     ] = DiagnosticFormat.TEXT,
+    color: Annotated[
+        ColorChoice,
+        typer.Option(
+            '--color',
+            metavar='<WHEN>',
+            help='Control when colored output is used.\n\n'
+            'auto: colour when stdout is an interactive terminal, unless NO_COLOR is set; FORCE_COLOR forces it.\n\n'
+            'always: colour even when stdout is not a terminal.\n\n'
+            'never: no colour.\n\n'
+            'Only the text format is coloured.',
+        ),
+    ] = ColorChoice.AUTO,
     select: Annotated[
         list[str] | None,
         typer.Option(
@@ -66,9 +81,11 @@ def check(
 ) -> None:
     """Check every document and skill of the workspace: frontmatter, outline, length, links and layout.
 
-    As text, the diagnostics go to stdout, and the ungoverned subjects and a summary to stderr.
+    As text, each diagnostic is drawn on stdout with its source lines, labels, help and notes, coloured on a terminal.
 
-    As short, each diagnostic is one line on stdout: its path and line, severity, code and message.
+    As short, each diagnostic is one uncoloured line on stdout: its path and line, severity, code and message.
+
+    The ungoverned subjects and a summary go to stderr, with the errors and warnings per code prefix as text.
 
     As JSON, one compact document goes to stdout.
 
@@ -98,7 +115,7 @@ def check(
 
     match output_format:
         case DiagnosticFormat.TEXT:
-            _print_text(reports)
+            _print_text(reports, database, color)
         case DiagnosticFormat.SHORT:
             _print_short(reports)
         case DiagnosticFormat.JSON:
@@ -107,6 +124,22 @@ def check(
             assert_never(output_format)
     if _has_error(reports):
         raise typer.Exit(code=ExitStatus.FINDINGS)
+
+
+def _print_text(reports: tuple[SubjectReport, ...], database: Database, color: ColorChoice) -> None:
+    """Draw the diagnostics on stdout, then the coverage and the summaries on stderr, each only when it holds a line.
+
+    Args:
+        reports: One report per subject the run checked.
+        database: The revision the run checked, which the source lines are excerpted from.
+        color: When to emphasise the diagnostics with colour.
+    """
+    style = detect_text_style(color, read_color_environment())
+    diagnostics = render_text(reports, read_sources(database, reports), style)
+    if diagnostics:
+        # Click strips colour from a stream that is not a terminal unless told not to; `style` already decided.
+        typer.echo(diagnostics, color=style.color)
+    _print_stderr(reports, with_prefixes=True)
 
 
 def _print_short(reports: tuple[SubjectReport, ...]) -> None:
@@ -118,24 +151,23 @@ def _print_short(reports: tuple[SubjectReport, ...]) -> None:
     diagnostics = render_short(reports)
     if diagnostics:
         typer.echo(diagnostics)
-    coverage = render_coverage(reports)
-    if coverage:
-        typer.echo(coverage, err=True)
-    typer.echo(render_summary(reports), err=True)
+    _print_stderr(reports, with_prefixes=False)
 
 
-def _print_text(reports: tuple[SubjectReport, ...]) -> None:
-    """Print the diagnostics on stdout, then the coverage and the summary on stderr, each only when it holds a line.
+def _print_stderr(reports: tuple[SubjectReport, ...], *, with_prefixes: bool) -> None:
+    """Print the coverage, the per-prefix counts if asked, and the summary on stderr, each only when it holds a line.
 
     Args:
         reports: One report per subject the run checked.
+        with_prefixes: True to print the errors and warnings of each code prefix before the summary.
     """
-    diagnostics = render_diagnostics(reports)
-    if diagnostics:
-        typer.echo(diagnostics)
     coverage = render_coverage(reports)
     if coverage:
         typer.echo(coverage, err=True)
+    if with_prefixes:
+        prefixes = render_prefix_summary(reports)
+        if prefixes:
+            typer.echo(prefixes, err=True)
     typer.echo(render_summary(reports), err=True)
 
 

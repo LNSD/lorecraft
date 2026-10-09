@@ -29,10 +29,22 @@ from lorecraft.rules.outline.missing_section import MissingSection
 from lorecraft.rules.subject import Facet
 from lorecraft.vfs import RootExit, Utf8Failure, Utf8Reason
 
-from ..diagnostics import render_coverage, render_diagnostics, render_json, render_short, render_summary
+from ..diagnostic_text import SourceLines, TextStyle, render_text
+from ..diagnostics import render_coverage, render_json, render_prefix_summary, render_short, render_summary
 
 _CODE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
 _FEAT_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/feat.structure.json')
+
+
+_PLAIN: Final[TextStyle] = TextStyle(color=False, unicode=True, width=80)
+
+
+def _sources() -> SourceLines:
+    """The lines of the documents of `_every_kind_of_report` that carry a label."""
+    return {
+        RootRelativePath.parse('docs/code/a.md'): ('---', 'name: a', 'name: b', 'description: x', '---'),
+        RootRelativePath.parse('docs/feat/check.md'): ('---', 'name: check', '---', '', '## Options', '', 'Text.'),
+    }
 
 
 def _options_heading() -> Heading:
@@ -101,31 +113,110 @@ def _every_kind_of_report() -> tuple[SubjectReport, ...]:
 
 
 @pytest.mark.unit
-class TestRenderDiagnostics:
-    def test_render_diagnostics_with_every_kind_of_report_matches_the_snapshot(
-        self, snapshot: SnapshotAssertion
-    ) -> None:
+class TestRenderText:
+    def test_render_text_with_every_kind_of_report_matches_the_snapshot(self, snapshot: SnapshotAssertion) -> None:
         #: Given
         reports = _every_kind_of_report()
         expected = snapshot.use_extension(TextSnapshotExtension)
 
         #: When
-        text = render_diagnostics(reports)
+        text = render_text(reports, _sources(), _PLAIN)
 
         #: Then
         assert text == expected, 'the diagnostics of every kind of report match the reviewed snapshot'
 
-    def test_render_diagnostics_with_no_report_prints_nothing(self) -> None:
+    def test_render_text_with_no_report_prints_nothing(self) -> None:
         #: Given
         reports: tuple[SubjectReport, ...] = ()
 
         #: When
-        text = render_diagnostics(reports)
+        text = render_text(reports, {}, _PLAIN)
 
         #: Then
         assert text == '', 'an empty run has no diagnostic to print'
 
-    def test_render_diagnostics_with_a_note_of_padded_and_blank_lines_aligns_and_strips_them(self) -> None:
+    def test_render_text_without_unicode_draws_the_gutter_and_underlines_in_ascii(self) -> None:
+        #: Given
+        reports = _every_kind_of_report()
+        style = TextStyle(color=False, unicode=False, width=80)
+
+        #: When
+        text = render_text(reports, _sources(), style)
+
+        #: Then
+        assert ('2 | name: a\n  | ------- first written here\n3 | name: b\n  | ^^^^^^^ written again here') in text, (
+            'the secondary label is underlined with dashes and the primary one with carets'
+        )
+        assert '│' not in text and '─' not in text and '┄' not in text, 'no box-drawing character is left'
+
+    def test_render_text_with_colour_emphasises_the_severity_and_the_location(self) -> None:
+        #: Given
+        reports = _every_kind_of_report()
+        style = TextStyle(color=True, unicode=True, width=80)
+
+        #: When
+        text = render_text(reports, _sources(), style)
+
+        #: Then
+        assert '\x1b[31m\x1b[1merror[FM005]\x1b[0m' in text, 'an error is bold red'
+        assert '\x1b[33m\x1b[1mwarning[LEN001]\x1b[0m' in text, 'a warning is bold yellow'
+        assert '\x1b[34m\x1b[1m-->\x1b[0m' in text, 'the location arrow is bold blue'
+
+    def test_render_text_without_the_source_of_a_label_prints_it_as_an_at_line(self) -> None:
+        #: Given
+        reports = _every_kind_of_report()
+
+        #: When
+        text = render_text(reports, {}, _PLAIN)
+
+        #: Then
+        assert '  = at docs/code/a.md:3: written again here' in text, 'the label stays, without an excerpt'
+        assert '3 │' not in text, 'no source line is excerpted'
+
+    def test_render_text_with_a_long_note_wraps_it_under_its_first_line(self) -> None:
+        #: Given
+        reports = _every_kind_of_report()
+        style = TextStyle(color=False, unicode=True, width=60)
+
+        #: When
+        text = render_text(reports, _sources(), style)
+
+        #: Then
+        assert (
+            '  = help: split the document, or move what an agent needs\n'
+            '          only some of the time into a document of its own\n'
+            '          and link to it'
+        ) in text, 'the help wraps at the width and its continuation lines align under its text'
+
+    def test_render_text_with_a_long_sample_line_leaves_it_unwrapped(self) -> None:
+        #: Given
+        guide = _document('feat', 'guide')
+        sample_line = (
+            '- an item of a list whose text runs well past the width of the terminal it is drawn to, and wraps'
+        )
+        missing_usage = MissingSection(
+            spec=_FEAT_SPEC,
+            line=_line(9),
+            section=SectionName.parse('Usage'),
+            before=DocumentEnd(last_line=_line(9), after=None),
+            description=None,
+            example=f'{sample_line}\n  - and a nested one',
+        )
+        reports: tuple[SubjectReport, ...] = (
+            CheckedSubject(
+                guide, diagnostics=(RuleDiagnostic(guide.path, missing_usage, Severity.ERROR),), ungoverned=()
+            ),
+        )
+        style = TextStyle(color=False, unicode=True, width=60)
+
+        #: When
+        text = render_text(reports, {}, style)
+
+        #: Then
+        assert f'          {sample_line}\n' in text, 'a line of a sample is drawn whole, however wide the terminal'
+        assert '            - and a nested one' in text, 'the hanging indent of the sample survives'
+
+    def test_render_text_with_a_note_of_padded_and_blank_lines_aligns_and_strips_them(self) -> None:
         #: Given
         guide = _document('feat', 'guide')
         # the example's first line ends in spaces, its second holds only spaces, and its third is indented
@@ -144,13 +235,16 @@ class TestRenderDiagnostics:
         )
 
         #: When
-        text = render_diagnostics(reports)
+        text = render_text(reports, {}, _PLAIN)
 
         #: Then
         assert text == (
-            'docs/feat/guide.md:9: error[OUT006]: missing required section `Usage`\n'
-            '  --> docs/feat/guide.md:9: expected `Usage` before the end of the document\n'
-            '  = note: the document structure is set here (docs/__meta__/feat.structure.json)\n'
+            'error[OUT006]: missing required section `Usage`\n'
+            ' --> docs/feat/guide.md:9\n'
+            '  = at docs/feat/guide.md:9: expected `Usage` before the end of the document\n'
+            ' ::: docs/__meta__/feat.structure.json\n'
+            '  │\n'
+            '  = note: the document structure is set here\n'
             '  = note: for example:\n'
             '          ## Usage\n'
             '\n'
@@ -159,7 +253,7 @@ class TestRenderDiagnostics:
             '              lorecraft check'
         ), 'later lines align under the first, keep their indentation, and lose trailing whitespace'
 
-    def test_render_diagnostics_with_a_note_of_crlf_lines_leaves_no_carriage_return(self) -> None:
+    def test_render_text_with_a_note_of_crlf_lines_leaves_no_carriage_return(self) -> None:
         #: Given
         guide = _document('feat', 'guide')
         missing_usage = MissingSection(
@@ -177,19 +271,13 @@ class TestRenderDiagnostics:
         )
 
         #: When
-        text = render_diagnostics(reports)
+        text = render_text(reports, {}, _PLAIN)
 
         #: Then
-        assert text == (
-            'docs/feat/guide.md:9: error[OUT006]: missing required section `Usage`\n'
-            '  --> docs/feat/guide.md:9: expected `Usage` before the end of the document\n'
-            '  = note: the document structure is set here (docs/__meta__/feat.structure.json)\n'
-            '  = note: for example:\n'
-            '          ## Usage\n'
-            '\n'
-            '          Run it:\n'
-            '              lorecraft check'
-        ), 'a CRLF line break in a note prints as a plain line break'
+        assert '\r' not in text, 'a CRLF line break in a note prints as a plain line break'
+        assert '          Run it:\n              lorecraft check' in text, (
+            'the lines after the break keep their indentation under the note'
+        )
 
 
 @pytest.mark.unit
@@ -272,6 +360,31 @@ class TestRenderSummary:
 
         #: Then
         assert text == 'checked 0 subject(s): 0 error(s), 0 warning(s)', 'an empty run still prints its summary'
+
+
+@pytest.mark.unit
+class TestRenderPrefixSummary:
+    def test_render_prefix_summary_with_every_kind_of_report_counts_each_prefix(self) -> None:
+        #: Given
+        reports = _every_kind_of_report()
+
+        #: When
+        text = render_prefix_summary(reports)
+
+        #: Then
+        assert text == ('FM   1 error\nLAY  1 error\nLC   1 error\nLEN  1 warning\nOUT  1 error'), (
+            'each prefix is listed in order with its errors and warnings, each singular for one'
+        )
+
+    def test_render_prefix_summary_with_no_report_prints_nothing(self) -> None:
+        #: Given
+        reports: tuple[SubjectReport, ...] = ()
+
+        #: When
+        text = render_prefix_summary(reports)
+
+        #: Then
+        assert text == '', 'an empty run has no prefix to count'
 
 
 @pytest.mark.unit

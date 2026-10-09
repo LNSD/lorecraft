@@ -1,22 +1,45 @@
-.agents/skills/beta/SKILL.md:2: error[FM004]: `name` is 'alpha', which is not the name it is found under
-  --> .agents/skills/beta/SKILL.md:2: expected `beta`
+error[FM004]: `name` is 'alpha', which is not the name it is found under
+ --> .agents/skills/beta/SKILL.md:2
+  │
+2 │ name: alpha
+  │ ─────────── expected `beta`
+  │
   = note: the Agent Skills specification requires `name` to match the skill directory name
   = help: set `name` to 'beta'
   = help: or rename the skill directory to 'alpha'
   = note: 'beta' is a link to '.agents/skills/alpha'
 
-docs/code/logging.md:1: error[FM001]: no `---` delimited frontmatter block
-  --> docs/code/logging.md:1: a `---` delimited block is expected here
-  = note: the frontmatter schema is set here (docs/__meta__/code.structure.json)
+error[FM001]: no `---` delimited frontmatter block
+ --> docs/code/logging.md:1
+  │
+1 │ # Logging
+  │ ───────── a `---` delimited block is expected here
+  │
+ ::: docs/__meta__/code.structure.json
+  │
+  = note: the frontmatter schema is set here
   = help: open the file with a `---` line, the fields, and a closing `---` line
 
-docs/code/logging.md:1: error[OUT004]: section `Logging` is empty
-  = note: the document structure is set here (docs/__meta__/code.structure.json)
+error[OUT004]: section `Logging` is empty
+ --> docs/code/logging.md:1
+  │
+1 │ # Logging
+  │ ─────────
+  │
+ ::: docs/__meta__/code.structure.json
+  │
+  = note: the document structure is set here
   = help: write the document's content under its title
 
-docs/code/logging.md:1: error[OUT006]: missing required section `Checklist`
-  --> docs/code/logging.md:1: expected `Checklist` before the end of the document
-  = note: the document structure is set here (docs/__meta__/code.structure.json)
+error[OUT006]: missing required section `Checklist`
+ --> docs/code/logging.md:1
+  │
+1 │ # Logging
+  │ ───────── expected `Checklist` before the end of the document
+  │
+ ::: docs/__meta__/code.structure.json
+  │
+  = note: the document structure is set here
   = help: The items a reviewer verifies before committing a change the rule document governs.
   = note: for example:
           ## Checklist
@@ -27,24 +50,51 @@ docs/code/logging.md:1: error[OUT006]: missing required section `Checklist`
           - [ ] No logger is stored as `self.logger` or any other instance or class attribute
           - [ ] Every log call inside an `except` block uses `logger.exception(...)`
 
-docs/code/python-typing.md:1: error[FM001]: no `---` delimited frontmatter block
-  --> docs/code/python-typing.md:1: a `---` delimited block is expected here
-  = note: the frontmatter schema is set here (docs/__meta__/code.structure.json)
+error[FM001]: no `---` delimited frontmatter block
+ --> docs/code/python-typing.md:1
+  │
+1 │ # Python typing
+  │ ─────────────── a `---` delimited block is expected here
+  │
+ ::: docs/__meta__/code.structure.json
+  │
+  = note: the frontmatter schema is set here
   = help: open the file with a `---` line, the fields, and a closing `---` line
 
-docs/code/python-typing.md:1: error[LEN001]: too many tokens (4 > 3)
-  --> docs/code/python-typing.md:1: tokens over the budget: 1
-  = note: the limit is set here (docs/__meta__/code-python.structure.json)
-  = help: split the document, or move what an agent needs only some of the time into a document of its own and link to it
-  = note: tokens are counted as o200k_base over the whole file: frontmatter, code blocks and tables included
+error[LEN001]: too many tokens (4 > 3)
+ --> docs/code/python-typing.md:1
+  │
+1 │ # Python typing
+  │ ─────────────── tokens over the budget: 1
+  │
+ ::: docs/__meta__/code-python.structure.json
+  │
+  = note: the limit is set here
+  = help: split the document, or move what an agent needs only some of the time into a document of
+          its own and link to it
+  = note: tokens are counted as o200k_base over the whole file: frontmatter, code blocks and tables
+          included
 
-docs/code/python-typing.md:1: error[OUT004]: section `Python typing` is empty
-  = note: the document structure is set here (docs/__meta__/code.structure.json)
+error[OUT004]: section `Python typing` is empty
+ --> docs/code/python-typing.md:1
+  │
+1 │ # Python typing
+  │ ───────────────
+  │
+ ::: docs/__meta__/code.structure.json
+  │
+  = note: the document structure is set here
   = help: write the document's content under its title
 
-docs/code/python-typing.md:1: error[OUT006]: missing required section `Checklist`
-  --> docs/code/python-typing.md:1: expected `Checklist` before the end of the document
-  = note: the document structure is set here (docs/__meta__/code.structure.json)
+error[OUT006]: missing required section `Checklist`
+ --> docs/code/python-typing.md:1
+  │
+1 │ # Python typing
+  │ ─────────────── expected `Checklist` before the end of the document
+  │
+ ::: docs/__meta__/code.structure.json
+  │
+  = note: the document structure is set here
   = help: The items a reviewer verifies before committing a change the rule document governs.
   = note: for example:
           ## Checklist
@@ -55,7 +105,13 @@ docs/code/python-typing.md:1: error[OUT006]: missing required section `Checklist
           - [ ] No logger is stored as `self.logger` or any other instance or class attribute
           - [ ] Every log call inside an `except` block uses `logger.exception(...)`
 
-docs/code/python-typing.md:1: error[OUT006]: missing required section `References`
-  --> docs/code/python-typing.md:1: expected `References` before the end of the document
-  = note: the document structure is set here (docs/__meta__/code-python.structure.json)
+error[OUT006]: missing required section `References`
+ --> docs/code/python-typing.md:1
+  │
+1 │ # Python typing
+  │ ─────────────── expected `References` before the end of the document
+  │
+ ::: docs/__meta__/code-python.structure.json
+  │
+  = note: the document structure is set here
   = help: Links to the documents this one builds on.

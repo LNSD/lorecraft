@@ -4,11 +4,14 @@
  Check every document and skill of the workspace: frontmatter, outline, length, 
  links and layout.                                                              
                                                                                 
- As text, the diagnostics go to stdout, and the ungoverned subjects and a       
- summary to stderr.                                                             
+ As text, each diagnostic is drawn on stdout with its source lines, labels,     
+ help and notes, coloured on a terminal.                                        
                                                                                 
- As short, each diagnostic is one line on stdout: its path and line, severity,  
- code and message.                                                              
+ As short, each diagnostic is one uncoloured line on stdout: its path and line, 
+ severity, code and message.                                                    
+                                                                                
+ The ungoverned subjects and a summary go to stderr, with the errors and        
+ warnings per code prefix as text.                                              
                                                                                 
  As JSON, one compact document goes to stdout.                                  
                                                                                 
@@ -21,11 +24,19 @@
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --root          <path>             Repository root. Defaults to the nearest  │
 │                                    parent containing docs/__meta__.          │
-│ --format        <text|short|json>  Output format: text prints each           │
-│                                    diagnostic with its labels, help and      │
-│                                    notes, short prints one line each, json   │
+│ --format        <text|short|json>  Output format: text draws each diagnostic │
+│                                    in full, short prints one line each, json │
 │                                    prints one document.                      │
 │                                    [default: text]                           │
+│ --color         <WHEN>             Control when colored output is used.      │
+│                                    auto: colour when stdout is an            │
+│                                    interactive terminal, unless NO_COLOR is  │
+│                                    set; FORCE_COLOR forces it.               │
+│                                    always: colour even when stdout is not a  │
+│                                    terminal.                                 │
+│                                    never: no colour.                         │
+│                                    Only the text format is coloured.         │
+│                                    [default: auto]                           │
 │ --select        <selectors>        Run only these rules: codes, code or      │
 │                                    group prefixes, or ALL, comma-separated   │
 │                                    or repeated. Defaults to ALL.             │
