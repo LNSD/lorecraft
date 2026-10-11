@@ -71,14 +71,15 @@ specific to the most, one is `ALL`; a group's prefix, such as `OUT`; a code pref
 `OUT0`, every rule whose code starts with it; or a code, such as `OUT006`, or an alias code for it.
 Selectors are case-sensitive, and no `--select` is `ALL`.
 
-For each rule, the most specific matching selector decides, `--ignore` winning a tie: `--select OUT006 --ignore OUT`
-runs `OUT006`, `--select OUT --ignore OUT006` every `OUT` rule but it, and `--select OUT --ignore OUT` none. A
-selection only filters: a selected rule at `allow` stays off.
+For each rule, the most specific matching selector decides, with `--ignore` winning a tie. A selection cannot
+turn on a rule at `allow`.
 
-Selectors are checked before any subject; the run exits `2` on an empty selector, one no rule or group has, a code
-prefix no code starts with, a rule's name, an engine condition or `LC`, always reported, or a removed rule, naming
-the release that removed it and what replaced it. An alias code, and a rule selected by its code that its level
-leaves off, each print a `warning:` line on stderr, and the run goes on.
+Each value is checked against the rule index while the command line is read, before the registry or workspace
+loads. Empty, malformed, unknown, name, engine condition (`LC` included), and removed-rule selectors cause a
+usage error naming the option and exit `2` without checking anything, as [cli](cli.md) describes. A name error
+gives the rule's code; a removed-rule error points to `lorecraft rule <code>`, which says when it was removed and
+what replaces it, if any. Only declared aliases are accepted, with a warning naming the rule's code; selecting
+by code a rule at `allow` also warns.
 
 ## Configuration
 
@@ -188,7 +189,7 @@ for an indented view.
 |------|---------|
 | `0`  | No diagnostic is an error; warnings and ungoverned parts do not count |
 | `1`  | At least one diagnostic is an error, `LC001` included |
-| `2`  | The run could not start: no root, a symlinked `docs/` or `docs/__meta__/`, an unreadable file, an entry that changed kind while read, a malformed meta spec, a selector that cannot be used, or a usage error. Only the error is printed, on stderr, as [cli](cli.md) describes |
+| `2`  | The run could not start: no root, linked `docs/` or `docs/__meta__/`, unreadable or changed file, malformed meta spec, or usage error. Invalid `--select` and `--ignore` values report a usage error on stderr, as [cli](cli.md) describes; other failures print `error: ...` |
 
 ## Limitations
 
@@ -234,7 +235,8 @@ their pattern. `FM010` and `FM012` carry counts in messages only.
 - `src/lorecraft/cli/commands/check.py` - Declares the command, runs the rules and chooses the exit status
 - `src/lorecraft/cli/root.py` - Root discovery
 - `src/lorecraft/cli/subjects.py` - Selects every subject of the workspace, in path order
-- `src/lorecraft/cli/rule_selection.py` - Parses `--select` and `--ignore` against the registry
+- `src/lorecraft/cli/rule_arguments.py` - `SelectorValue.parse` validates selectors against the rule index
+- `src/lorecraft/cli/rule_selection.py` - Converts selectors and reports selection warnings
 - `src/lorecraft/cli/diagnostics.py` - Renders short diagnostics, JSON, coverage and summaries
 - `src/lorecraft/cli/diagnostic_text.py` - Draws the full text diagnostics
 - `src/lorecraft/cli/sources.py` - Reads the source lines used by the text output

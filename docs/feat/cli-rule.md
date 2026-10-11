@@ -41,7 +41,10 @@ order. The page is the one in `docs/rulebook/`, rendered by the same function fr
 | `[RULE]`           | none: list every rule | A rule by its code, its name or an alias code, such as `OUT006` or `missing-section` |
 
 The rules are part of the package, so the command reads no workspace and takes no `--root`. A code, a name and an
-alias code are matched exactly, with their case.
+alias code are matched exactly, with their case; surrounding whitespace is not removed. A key may name a rule in
+service, a removed rule or an engine condition. An alias code is valid exactly when a rule declares it; aliases
+have no separate required shape. `[RULE]` is validated while the command line is read, before the listing or a
+page is printed.
 
 ## Usage
 
@@ -91,7 +94,7 @@ Checks for headings whose section holds nothing, …
 | Code | Meaning |
 |------|---------|
 | `0`  | The page or the listing was printed |
-| `2`  | No rule has the code, name or alias code typed, which is printed on stderr, or a usage error |
+| `2`  | A malformed or unknown code, name or alias reports a usage error naming `[RULE]` on stderr, as [cli](cli.md) describes |
 
 ## Limitations
 
@@ -106,7 +109,8 @@ Checks for headings whose section holds nothing, …
 
 ## Code References
 
-- `src/lorecraft/cli/commands/rule.py` - Declares the command and looks the rule up in the registry
+- `src/lorecraft/cli/commands/rule.py` - Declares the command, parses `[RULE]` and prints the matching rule
+- `src/lorecraft/cli/rule_arguments.py` - `RuleKey.parse` validates rule keys against the rule index
 - `src/lorecraft/cli/rulebook.py` - Renders a rule's page and the listing, for this command and for the pages in `docs/rulebook/`
 - `src/lorecraft/rules/registry.py` - The only source of rules, found by code, name or alias code
 - `docs/rulebook/` - The generated pages, one per code
