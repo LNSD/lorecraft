@@ -31,8 +31,8 @@ process: the arguments, the working directory, standard output and the exit code
 - Asking the process about the terminal it prints to — encoding and width — and reading the colour variables of its
   environment once into a typed value, and asking the database for the source lines an excerpt shows, so the
   renderers stay pure.
-- Rendering the rulebook: a rule's page from its docstring, for `lorecraft rule` and for the recipe that writes
-  `docs/rulebook/`, and the listing of every rule.
+- Rendering the rulebook: a rule's page from its docstring, for `lorecraft rule` and for the generator that
+  writes `docs/rulebook/`, and the listing of every rule.
 - The output formats, the colour choices and the exit statuses every command shares, in `output.py`.
 - Writing out a failure chain, and the version.
 
@@ -44,6 +44,7 @@ process: the arguments, the working directory, standard output and the exit code
 | Memoizes anything derived from the snapshot | `lorecraft.project` |
 | Parses a document, or decides which meta spec governs it | `lorecraft.project` |
 | Reads a file or lists a directory under the workspace root | `lorecraft.vfs` |
+| Writes a committed generated file that no command prints | `lorecraft_gen`, as `package-lorecraft-gen` states |
 
 ## Invariants
 

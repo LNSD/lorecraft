@@ -1,8 +1,8 @@
 ---
 name: code-gen
-description: Regenerate the committed generated files, such as the JSON Schemas under docs/schemas/ and the rulebook pages under docs/rulebook/, after changing the package types or the rule docstrings they are rendered from, or a gen-* recipe in the justfile. Use after editing such a type or recipe, before running tests or committing, or when CI's `gen-check` job fails with "Generated code is out of date". Not for formatting or linting; see /code-format and /code-check.
+description: Regenerate the committed generated files, such as the JSON Schemas under docs/schemas/ and the rulebook pages under docs/rulebook/, after changing the package types or the rule docstrings they are rendered from, or a gen-* recipe in the justfile or a generator in gen/src/lorecraft_gen/. Use after editing such a type, recipe or generator, before running tests or committing, or when CI's `gen-check` job fails with "Generated code is out of date". Not for formatting or linting; see /code-format and /code-check.
 compatibility: Requires the just task runner and uv. The generators import the package, so the development environment must be synced first.
-allowed-tools: Bash(just gen*) Bash(just sync) Bash(git status *) Bash(git diff *) Bash(grep -n * justfile)
+allowed-tools: Bash(just gen*) Bash(just sync) Bash(git status *) Bash(git diff *) Bash(grep -nE * gen/src/lorecraft_gen/*.py)
 ---
 
 # Code Generation Skill
@@ -16,11 +16,13 @@ is regenerated.
 
 Run `just gen` when a change touches:
 
-- **A type a generator imports.** The generators are the `gen-*` recipes in the `justfile`. Each is a `uv`
-  script that imports what it renders from the packages, so its imports are its inputs:
+- **A type a generator imports.** The generators are the modules of the private `lorecraft_gen` package in
+  `gen/src/lorecraft_gen/`, each run by a `gen-*` recipe of the `justfile`, which installs
+  it on the fly: `just sync` does not. A generator imports what it renders
+  from the packages, so its imports are its inputs:
 
   ```bash
-  grep -n '^    from lorecraft' justfile
+  grep -nE '^from lorecraft[. ]' gen/src/lorecraft_gen/*.py
   ```
 
   A change to a module those lines import, or to anything that module's types are built from, changes the
@@ -28,7 +30,7 @@ Run `just gen` when a change touches:
   a change to the output.
 - **A rule.** The rulebook generator renders every rule's class: its code, name, release and aliases, and the
   sections of its docstring. A new, renamed or removed rule, or a reworded docstring, changes a page.
-- **A `gen-*` recipe itself.**
+- **A generator or its recipe itself**: a module of `gen/src/lorecraft_gen/`, or a `gen-*` recipe.
 
 Nothing else needs it. When unsure, run it: a generator with nothing to change leaves the tree as it was.
 
@@ -56,7 +58,13 @@ governs the pages, so `just check-docs` does not read them; `gen-check` keeps th
   any difference from the committed tree, a new file included.
 - **Never edit a generated file by hand.** The next `just gen` undoes it, and CI rejects it before that.
 - **A generator restates nothing.** It imports the types it renders; a field, a description or an example
-  written into a recipe is a second copy that drifts. Add it to the package's type instead.
+  written into a generator is a second copy that drifts. Add it to the package's type instead.
+- **Generation code lives in `lorecraft_gen`, never in `lorecraft`.** A recipe is one `uv run --with-editable
+  ./gen python -m lorecraft_gen.<module> --outdir <dir>` line, where the `justfile` variable names the directory and the module
+  keeps the same path as the default of `--outdir`. Nothing in `lorecraft` imports the generators, so none ships
+  in the wheel. The package's responsibility is `docs/code/package-lorecraft-gen.md`.
+- **A generator carries no tests.** The check on a generator is `just gen` leaving the tree clean, which CI's
+  `gen-check` job enforces. Ruff and ty cover `gen/`; pytest and coverage do not.
 - **A schema is rendered from the model that validates the file.** The package deserializes each file with the
   same pydantic model the generator renders, so the schema an editor applies and the check's validation cannot
   disagree about a shape. A test beside each model, such as
@@ -73,6 +81,8 @@ schemas, so a stale one fails them for a reason that has nothing to do with the 
 - **Fixing a failed `gen-check` job by hand-editing the file** to match what CI printed. Run `just gen`.
 - **Running a generator's code another way**, such as a copy of it in a scratch script. The recipe is the one
   place that writes the output, and the one CI checks.
+- **Adding a generator to `lorecraft`** because it is the package that holds the types. Add a module to
+  `lorecraft_gen` and a `gen-*` recipe that runs it.
 
 ## Next Steps
 

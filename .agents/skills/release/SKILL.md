@@ -94,9 +94,10 @@ shows the working tree it is actually sitting on rather than the version frozen 
 
 Do not add a version string anywhere. If you find one, delete it rather than syncing it.
 
-One exception: a rule's `SINCE` and a removed rule's `REMOVED_IN`, in `src/lorecraft/rules/`. Each is an
-immutable literal naming the release that first shipped the rule or removed it, not the current version, so a
-release never bumps, syncs or deletes one.
+Two exceptions. A rule's `SINCE` and a removed rule's `REMOVED_IN`, in `src/lorecraft/rules/`, are immutable
+literals naming the release that first shipped the rule or removed it, not the current version, so a release never
+bumps, syncs or deletes one. And the fixed `0.0.0` of the private `lorecraft-gen` in `gen/pyproject.toml`, which has
+no release, stays as it is: `just gen` needs it.
 
 ## Tag, then build
 

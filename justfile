@@ -62,11 +62,11 @@ check-fix *EXTRA_FLAGS:
 
 alias check-types := typecheck
 
-# Type-check the package source (ty check)
+# Type-check the package source and the generators (ty check)
 [group: 'check']
 typecheck *EXTRA_FLAGS:
     @echo "🔍 Type-checking code..."
-    uv run ty check src {{EXTRA_FLAGS}}
+    uv run ty check src gen/src {{EXTRA_FLAGS}}
 
 
 ## Docs
@@ -90,96 +90,15 @@ GEN_RULEBOOK_OUTDIR := "docs/rulebook"
 [group: 'codegen']
 gen: gen-schemas gen-rulebook
 
-# Generate the JSON Schemas of the package's pydantic models into docs/schemas/ (pydantic, in a uv script)
+# Generate the JSON Schemas of the package's pydantic models into docs/schemas/ (lorecraft_gen.schemas)
 [group: 'codegen']
 gen-schemas:
-    #!/usr/bin/env -S uv run python
-    # Runs in the workspace environment: run `just sync` first.
-    #
-    # Each schema is rendered from the pydantic model the package deserializes the file with, so the schema an
-    # editor applies and the validation the check runs come from one declaration; nothing here restates a field.
-    # The models carry everything an editor is shown: descriptions as field docstrings, examples and bounds in
-    # `Field`, titles and whole examples in `model_config`.
-    import json
-    from pathlib import Path
+    uv run --with-editable ./gen python -m lorecraft_gen.schemas --outdir {{GEN_SCHEMAS_OUTDIR}}
 
-    from pydantic import BaseModel
-    from pydantic.json_schema import GenerateJsonSchema
-
-    from lorecraft.project.schemas import (
-        SkillFrontmatter,
-        StructureFile,
-    )
-
-    JSON_SCHEMA_DIALECT = 'https://json-schema.org/draft/2020-12/schema'
-
-
-    class WithoutPropertyTitles(GenerateJsonSchema):
-        """pydantic's generator, without the title it gives every property: a property's key already names it."""
-
-        def field_title_should_be_set(self, schema: object) -> bool:
-            return False
-
-
-    def unwrap_descriptions(node: object) -> None:
-        """Rejoin the lines each description's docstring was wrapped at, keeping its paragraph breaks: an editor
-        wraps the text to its own width."""
-        if isinstance(node, dict):
-            for key, value in node.items():
-                if key == 'description' and isinstance(value, str):
-                    paragraphs = value.split('\n\n')
-                    node[key] = '\n\n'.join(' '.join(paragraph.split()) for paragraph in paragraphs)
-                else:
-                    unwrap_descriptions(value)
-        elif isinstance(node, list):
-            for item in node:
-                unwrap_descriptions(item)
-
-
-    def write_schema(file_model: type[BaseModel], filename: str) -> None:
-        """Write one file model's JSON Schema, led by the dialect it is written in, and print where it went."""
-        schema = file_model.model_json_schema(schema_generator=WithoutPropertyTitles)
-        unwrap_descriptions(schema)
-        path = Path('{{GEN_SCHEMAS_OUTDIR}}') / filename
-        path.parent.mkdir(parents=True, exist_ok=True)
-        document = {'$schema': JSON_SCHEMA_DIALECT, **schema}
-        path.write_text(json.dumps(document, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
-        print(f'  {path}')
-
-
-    print('Generating the specification schemas...')
-    write_schema(StructureFile, 'structure.spec.json')
-    write_schema(SkillFrontmatter, 'skill-frontmatter.spec.json')
-
-
-# Generate one page per rule, removed rules and engine conditions included, from the rules' docstrings into docs/rulebook/ (the rule registry, in a uv script)
+# Generate one page per rule, removed rules and engine conditions included, from the rules' docstrings into docs/rulebook/ (lorecraft_gen.rulebook)
 [group: 'codegen']
 gen-rulebook:
-    #!/usr/bin/env -S uv run python
-    # Runs in the workspace environment: run `just sync` first.
-    #
-    # Each page is rendered by the function `lorecraft rule` prints it with, from the docstring of the rule's class,
-    # so a rule is documented once, beside its declaration. A page of a code or a name that no longer exists is
-    # deleted, so the directory holds exactly the registry's pages.
-    from pathlib import Path
-
-    from lorecraft import rules
-    from lorecraft.cli.rulebook import page_name, render_page
-    from lorecraft.rules.registry import Registry
-
-    outdir = Path('{{GEN_RULEBOOK_OUTDIR}}')
-    outdir.mkdir(parents=True, exist_ok=True)
-    registry = Registry.load(rules)
-
-    print('Generating the rulebook...')
-    pages = {outdir / f'{page_name(declaration)}.md': render_page(declaration) for declaration in registry.rules}
-    for path, page in pages.items():
-        path.write_text(page, encoding='utf-8')
-        print(f'  {path}')
-    for stale_path in sorted(outdir.glob('*.md')):
-        if stale_path not in pages:
-            stale_path.unlink()
-            print(f'  {stale_path} (removed)')
+    uv run --with-editable ./gen python -m lorecraft_gen.rulebook --outdir {{GEN_RULEBOOK_OUTDIR}}
 
 
 ## Build
