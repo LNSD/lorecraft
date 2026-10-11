@@ -1,9 +1,10 @@
-"""The one list of rules: every declaration `@rule` registered in a rules package, in code order.
+"""The one source of rules: every declaration `@rule` registered in a rules package, in code order.
 
 A rule joins the registry by being declared with `@rule` in a module of `lorecraft.rules`; nothing lists the
-rules anywhere else. `Registry.load` imports every module of a package, its subpackages included and its unit
-tests left out, and keeps the declarations whose module lies in that package outside its unit tests, so a test
-that walks a package of sample rules sees only those, and the package's own registry never sees them.
+rules anywhere else, and `lorecraft.rules.index` is generated from this registry and held equal to it, so the walk
+never imports it. `Registry.load` imports every module of a package, its subpackages included and its unit tests
+and the rule index left out, and keeps the declarations whose module lies in that package outside its unit tests,
+so a test that walks a package of sample rules sees only those, and the package's own registry never sees them.
 
 The registry is package data: it reads no workspace and is not a query. A rejection, a code, a name or an alias
 code bound twice, a removed rule replaced by a code no rule declares, a prefix given two groups, a class attribute
@@ -41,6 +42,11 @@ from .subject import DocumentRule
 
 _UNIT_TESTS: Final[str] = 'tests'
 """The name of the subpackage beside a package's modules that holds their unit tests, fixed by the unit tier."""
+
+_RULE_INDEX: Final[str] = 'index'
+"""The name of the module, beside the root of the walk, that holds the rule index and which the walk never imports:
+the index is derived from the registry and never feeds it, so a stale or broken index cannot stop the registry nor
+the command that regenerates it."""
 
 _RULE_ATTRIBUTES: Final[tuple[str, ...]] = ('CODE', 'NAME', 'LEVEL', 'SINCE')
 """The class attributes a rule's class must bind; `ALIASES` has a default, so it is not among them."""
@@ -364,7 +370,7 @@ class Registry:
             Exception: Whatever a module of the package raises as it is imported, unchanged, since a registry
                 missing a module's rules would check less than the package declares.
         """
-        _import_modules(package)
+        _import_modules(package, f'{package.__name__}.{_RULE_INDEX}')
         return cls(
             declaration
             for declaration in declared_rules()
@@ -411,11 +417,13 @@ class Registry:
         return group.prefix == ENGINE_GROUP_ID.prefix
 
 
-def _import_modules(package: ModuleType) -> None:
-    """Import every module of a package, descending into each subpackage but its unit tests.
+def _import_modules(package: ModuleType, index_module: str) -> None:
+    """Import every module of a package, descending into each subpackage but its unit tests, and leaving out the index.
 
     Args:
         package: The package to walk; it is already imported.
+        index_module: The dotted name of the rule index, beside the root of the walk: the one module not imported.
+            A module of that name in a subpackage is a rule's module like any other.
 
     Raises:
         Exception: Whatever a module raises as it is imported, unchanged.
@@ -425,9 +433,15 @@ def _import_modules(package: ModuleType) -> None:
         # to import, so the walk of the package's own rules never enters a subpackage of tests.
         if module_info.ispkg and module_info.name == _UNIT_TESTS:
             continue
-        module = importlib.import_module(f'{package.__name__}.{module_info.name}')
+        module_name = f'{package.__name__}.{module_info.name}'
+        # The rule index declares no rule and is generated from this walk's result, so importing it could only
+        # make a stale `index.py` fail the registry that regenerates it. Only the root's is left out: a rule in
+        # `<group>/index.py` must still be found.
+        if module_name == index_module:
+            continue
+        module = importlib.import_module(module_name)
         if module_info.ispkg:
-            _import_modules(module)
+            _import_modules(module, index_module)
 
 
 def _is_in_package(module_name: str, package_name: str) -> bool:

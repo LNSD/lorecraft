@@ -85,10 +85,11 @@ check-docs *EXTRA_FLAGS:
 
 GEN_SCHEMAS_OUTDIR := "docs/schemas"
 GEN_RULEBOOK_OUTDIR := "docs/rulebook"
+GEN_RULE_INDEX_OUTDIR := "src/lorecraft/rules"
 
 # Run all code generation tasks
 [group: 'codegen']
-gen: gen-schemas gen-rulebook
+gen: gen-schemas gen-rulebook gen-rule-index
 
 # Generate the JSON Schemas of the package's pydantic models into docs/schemas/ (lorecraft_gen.schemas)
 [group: 'codegen']
@@ -99,6 +100,11 @@ gen-schemas:
 [group: 'codegen']
 gen-rulebook:
     uv run --with-editable ./gen python -m lorecraft_gen.rulebook --outdir {{GEN_RULEBOOK_OUTDIR}}
+
+# Generate the index of the rules, which a reader reads without importing the rules engine, from the rule registry (lorecraft_gen.rule_index)
+[group: 'codegen']
+gen-rule-index:
+    uv run --with-editable ./gen python -m lorecraft_gen.rule_index --outdir {{GEN_RULE_INDEX_OUTDIR}}
 
 
 ## Build

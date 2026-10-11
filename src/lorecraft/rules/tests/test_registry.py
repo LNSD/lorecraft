@@ -1,5 +1,8 @@
 """The registry: a walk of a rules package, its rejections, a lookup by code, name or alias code, and one by prefix."""
 
+import subprocess
+import sys
+
 import pytest
 
 from lorecraft import rules
@@ -59,6 +62,7 @@ from .sample_rules import (
     duplicate_code,
     duplicate_name,
     import_failure,
+    index_named_module,
     removed_rule_in_engine,
     rule_in_engine,
     token_count,
@@ -79,6 +83,7 @@ from .sample_rules.duplicate_code.first import FirstRule
 from .sample_rules.duplicate_code.second import SecondRule
 from .sample_rules.duplicate_name.shared import InService, Retired
 from .sample_rules.groups import LAYOUT, SAMPLE
+from .sample_rules.index_named_module.group.index import IndexNamed
 from .sample_rules.removed_rule_in_engine.retired import RetiredTrespasser
 from .sample_rules.rule_in_engine.trespassing import Trespassing
 from .sample_rules.token_count.any_tokens import AnyTokens
@@ -561,4 +566,45 @@ class TestPackageRegistry:
         #: Then
         assert sample_rules.isdisjoint(loaded.rules), (
             'the sample rules lie in the unit tests of `lorecraft.rules`, which its own registry leaves out'
+        )
+
+
+@pytest.mark.unit
+class TestRegistryLoadWalksAModuleNamedIndex:
+    def test_load_with_a_rule_in_a_group_module_named_index_registers_it(self) -> None:
+        #: Given
+        package = index_named_module
+
+        #: When
+        loaded = Registry.load(package)
+
+        #: Then
+        assert loaded.rules == (IndexNamed,), 'only the index beside the root is left out, never a rule module'
+
+
+LOAD_AND_REPORT_INDEX = """
+import sys
+
+import lorecraft.rules
+from lorecraft.rules.registry import Registry
+
+Registry.load(lorecraft.rules)
+print(sorted(name for name in sys.modules if name.startswith('lorecraft.rules.index')))
+"""
+
+
+@pytest.mark.unit
+class TestRegistryLoadLeavesTheIndexOut:
+    def test_load_with_the_package_rules_imports_none_of_the_rule_index(self) -> None:
+        #: Given
+        # A fresh interpreter, so nothing another test imported is in `sys.modules`
+
+        #: When
+        completed = subprocess.run(
+            [sys.executable, '-c', LOAD_AND_REPORT_INDEX], capture_output=True, text=True, check=True
+        )
+
+        #: Then
+        assert completed.stdout.strip() == '[]', (
+            'the index is derived from the registry, so a stale index must not be able to stop it loading'
         )

@@ -33,6 +33,9 @@ what it is handed.
   document is gated on.
 - A removed rule, the decorator that registers a declaration, and the registry, with every check it makes on a
   declaration as the package loads.
+- The rule index, `lorecraft.rules.index`: each declaration's identity as strings and tuples, with its lookups,
+  generated from the registry by `lorecraft_gen` and held to it by `gen-check`, for a reader that must know which
+  codes exist without the engine. It is derived output, never a source of rules, and imports none of the engine.
 - An engine condition: what the engine reports about a subject before any rule runs, such as a file that does
   not decode. It is declared and rendered like a rule, under the engine's group `LC`, with a fixed severity in
   place of a level and no `check`.
