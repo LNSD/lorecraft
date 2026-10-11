@@ -232,15 +232,16 @@ their pattern. `FM010` and `FM012` carry counts in messages only.
 
 ## Code References
 
-- `src/lorecraft/cli/commands/check.py` - Declares the command, runs the rules and chooses the exit status
+- `src/lorecraft/cli/commands/check.py` - Declares the command and parses selectors
+- `src/lorecraft/cli/check_run.py` - Runs rules and sets the exit status
 - `src/lorecraft/cli/root.py` - Root discovery
-- `src/lorecraft/cli/subjects.py` - Selects every subject of the workspace, in path order
+- `src/lorecraft/cli/subjects.py` - Selects subjects
 - `src/lorecraft/cli/rule_arguments.py` - `SelectorValue.parse` validates selectors against the rule index
 - `src/lorecraft/cli/rule_selection.py` - Converts selectors and reports selection warnings
 - `src/lorecraft/cli/diagnostics.py` - Renders short diagnostics, JSON, coverage and summaries
 - `src/lorecraft/cli/diagnostic_text.py` - Draws the full text diagnostics
 - `src/lorecraft/cli/sources.py` - Reads the source lines used by the text output
-- `src/lorecraft/cli/terminal.py` - Chooses colour, characters and width for text output
+- `src/lorecraft/cli/terminal.py` - Chooses text output style
 - `src/lorecraft/cli/output.py` - Declares output and colour choices
 - `src/lorecraft/checks/runner.py` - Runs every enabled rule over each subject
 - `src/lorecraft/checks/table.py` - The rules a run enables, each with its severity

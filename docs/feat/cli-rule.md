@@ -109,7 +109,8 @@ Checks for headings whose section holds nothing, …
 
 ## Code References
 
-- `src/lorecraft/cli/commands/rule.py` - Declares the command, parses `[RULE]` and prints the matching rule
+- `src/lorecraft/cli/commands/rule.py` - Declares the command and parses `[RULE]`
+- `src/lorecraft/cli/rule_run.py` - Loads rules and prints the page or listing
 - `src/lorecraft/cli/rule_arguments.py` - `RuleKey.parse` validates rule keys against the rule index
 - `src/lorecraft/cli/rulebook.py` - Renders a rule's page and the listing, for this command and for the pages in `docs/rulebook/`
 - `src/lorecraft/rules/registry.py` - The only source of rules, found by code, name or alias code
