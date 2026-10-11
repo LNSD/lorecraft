@@ -57,8 +57,9 @@ shorter still: the checker reports errors and warnings, and they act on them.
 1. **A rule is one class.** The class is the declaration and the check: its code, name, default level,
    documentation, and the classmethod that judges its subject. One rule has one code, one class and one file. A
    removed rule is a type of its own, which can never be reported.
-2. **One registry**, discovered by a package walk, is the only list of rules. The runner, the rulebook and the
-   tests read it.
+2. **One registry**, discovered by a package walk, is the only source of rules. The runner, the rulebook and the
+   tests read it. A generated, checked index derived from it, for the command line's edge, is not a second list: it
+   is output, as the rulebook is, and the generation check holds it equal to the registry.
 3. **The rulebook is generated from the classes**, and the command line prints the same page.
 4. **Names follow the established linters**, in the code as in the output, and a departure is stated where it
    occurs.
@@ -205,19 +206,40 @@ instance is one occurrence of it.
 - **They are immutable literals** naming a release that already happened to the rule. `AGENTS.md` and the
   release skill forbid a version literal that tracks the current release; they gain an exception for these in
   the change that first adds one.
-- **The committed rulebook is the audit.** No central table of codes exists. The registry rejects a duplicate,
-  and a reused code shows as a changed page.
+- **The committed rulebook is the audit.** No hand-written central table of codes exists. The registry rejects a
+  duplicate, and a reused code shows as a changed page.
 
 ### The Registry
 
 The registry follows [pattern-registry](../code/pattern-registry.md). It walks the rules package once, imports
-every module, and collects the rule classes and removed rules `@rule` registered.
+every module but its unit tests and [the index](#the-index), and collects the rule classes and removed rules
+`@rule` registered. The index declares no rule and is derived from the walk's result, so a stale one cannot stop the
+registry that regenerates it.
 
 - It rejects a code, an alias code or a name bound twice, and a rule class that is still abstract: a
   rule with no `check`. It propagates an import failure.
 - It lists rules in code order.
 - It is package data. It reads no workspace, is not a query, and no class from it enters a query result. A
   persisted diagnostic is its code and its fields, read back through the registry.
+
+### The Index
+
+Loading the registry imports every rule module, and through them the Markdown parser and the schema validator, so
+a reader that only needs to know which codes exist would pay for the engine. The command line's edge is such a
+reader: it validates a selection, resolves a rule by code, name or alias, and lists the rules before any run.
+
+- **The index is derived from the registry**, and holds identity alone, as strings and tuples in one generated
+  module, `lorecraft.rules.index`: each declaration's code, name, kind, level or severity and alias codes, and each
+  group's prefix and title, with four lookup functions over them. It holds no class and no type of its own, since a
+  type of the engine's would load the engine.
+- **`lorecraft_gen` writes it from `Registry.load`**, through a `gen-*` recipe, never `lorecraft` itself, so the
+  generator ships in no wheel. The generation check fails on a stale index, so a rule added, removed or renamed
+  without regenerating it is caught, as a stale rulebook page is.
+- **The generation check is its only check**, as for the rulebook: the whole module is the generator's output,
+  lookups included, so no hand-written code sits beside the data and no test beside the module.
+- **It is not a second list.** Nothing declares a rule in it: a rule joins by `@rule`, and the index follows. It is
+  checked in because it is generated output, as the rulebook is, and is never edited by hand.
+- **Only the edge reads it.** A run builds its rule table from the registry, as before.
 
 ### The Rulebook
 
@@ -284,7 +306,7 @@ docs/rulebook/
   established linters do. Not chosen: a condition two absorbed linters check needs two groups and a choice
   between their codes, rules sit by provenance rather than by mechanism, and the codes stop being one scheme.
   Alias codes keep the upstream code for recognition, while the code stays Lorecraft's.
-- **A central table of codes.** It splits a rule across two files. It pays off for a linter that ports
+- **A hand-written central table of codes.** It splits a rule across two files. It pays off for a linter that ports
   thousands of rules from upstream numbering, which Lorecraft does not have.
 - **One code per identifier of today, the condition as data.** It gives about 25 codes instead of about 45, and
   a `message()` that branches on a kind field. Linters that take this shape do so because a rule's options carry

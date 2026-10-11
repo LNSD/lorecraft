@@ -1,0 +1,33 @@
+"""A sample rule in a module named `index`, below the root of its package."""
+
+from dataclasses import dataclass
+from typing import ClassVar, Self
+
+from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
+from lorecraft.rules.tests.sample_subject import SampleLines, SampleLinesRule
+
+from ...groups import SAMPLE
+
+
+@rule
+@dataclass(frozen=True, slots=True, kw_only=True)
+class IndexNamed(SampleLinesRule):
+    """A sample rule that never fires."""
+
+    CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 1)
+    NAME: ClassVar[RuleName] = RuleName('index-named')
+    LEVEL: ClassVar[Level] = Level.DENY
+    SINCE: ClassVar[Release] = Release('1.0.0')
+
+    def message(self) -> str:
+        """Name the condition."""
+        return 'never reported'
+
+    @classmethod
+    def check(cls, subject: SampleLines) -> tuple[Self, ...]:
+        """Never reports.
+
+        Args:
+            subject: The lines judged.
+        """
+        return ()

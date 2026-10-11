@@ -108,5 +108,5 @@ Checks for headings whose section holds nothing, …
 
 - `src/lorecraft/cli/commands/rule.py` - Declares the command and looks the rule up in the registry
 - `src/lorecraft/cli/rulebook.py` - Renders a rule's page and the listing, for this command and for the pages in `docs/rulebook/`
-- `src/lorecraft/rules/registry.py` - The one list of rules, found by code, name or alias code
+- `src/lorecraft/rules/registry.py` - The only source of rules, found by code, name or alias code
 - `docs/rulebook/` - The generated pages, one per code

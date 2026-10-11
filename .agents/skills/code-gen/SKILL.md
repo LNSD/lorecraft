@@ -1,6 +1,6 @@
 ---
 name: code-gen
-description: Regenerate the committed generated files, such as the JSON Schemas under docs/schemas/ and the rulebook pages under docs/rulebook/, after changing the package types or the rule docstrings they are rendered from, or a gen-* recipe in the justfile or a generator in gen/src/lorecraft_gen/. Use after editing such a type, recipe or generator, before running tests or committing, or when CI's `gen-check` job fails with "Generated code is out of date". Not for formatting or linting; see /code-format and /code-check.
+description: Regenerate the committed generated files, such as the JSON Schemas under docs/schemas/, the rulebook pages under docs/rulebook/ and the rule index under src/lorecraft/rules/index.py, after changing the package types or the rule declarations and docstrings they are rendered from, or a gen-* recipe in the justfile or a generator in gen/src/lorecraft_gen/. Use after editing such a type, recipe or generator, before running tests or committing, or when CI's `gen-check` job fails with "Generated code is out of date". Not for formatting or linting; see /code-format and /code-check.
 compatibility: Requires the just task runner and uv. The generators import the package, so the development environment must be synced first.
 allowed-tools: Bash(just gen*) Bash(just sync) Bash(git status *) Bash(git diff *) Bash(grep -nE * gen/src/lorecraft_gen/*.py)
 ---
@@ -8,8 +8,9 @@ allowed-tools: Bash(just gen*) Bash(just sync) Bash(git status *) Bash(git diff 
 # Code Generation Skill
 
 Some files in this repository are generated and committed: the JSON Schemas under `docs/schemas/`, which
-editors validate the meta spec files against, and the rulebook pages under `docs/rulebook/`, one per rule
-code. Each is rendered from what the package declares, so a change to it leaves the committed file stale until it
+editors validate the meta spec files against, the rulebook pages under `docs/rulebook/`, one per rule
+code, and the rule index, `src/lorecraft/rules/index.py`, the identity of every rule as strings and tuples. Each is
+rendered from what the package declares, so a change to it leaves the committed file stale until it
 is regenerated.
 
 ## When to Run
@@ -29,7 +30,9 @@ Run `just gen` when a change touches:
   output. Their field docstrings and their `SchemaInfo` metadata are rendered too, so a reworded docstring is
   a change to the output.
 - **A rule.** The rulebook generator renders every rule's class: its code, name, release and aliases, and the
-  sections of its docstring. A new, renamed or removed rule, or a reworded docstring, changes a page.
+  sections of its docstring. A new, renamed or removed rule, or a reworded docstring, changes a page. The rule
+  index, written by its own generator, records each rule's code, name, kind, level or severity, aliases and group, so a
+  change to any of them changes it too.
 - **A generator or its recipe itself**: a module of `gen/src/lorecraft_gen/`, or a `gen-*` recipe.
 
 Nothing else needs it. When unsure, run it: a generator with nothing to change leaves the tree as it was.
@@ -38,14 +41,14 @@ Nothing else needs it. When unsure, run it: a generator with nothing to change l
 
 ```bash
 just sync   # first, when the environment may be stale: the generators import the package
-just gen    # every generator; `just gen-schemas` and `just gen-rulebook` run one alone
+just gen    # every generator; `just gen-schemas`, `just gen-rulebook` and `just gen-rule-index` run one alone
 ```
 
 Then look at what changed, and read the diff as a review of the change that caused it:
 
 ```bash
-git status --short docs/schemas docs/rulebook
-git diff docs/schemas docs/rulebook
+git status --short docs/schemas docs/rulebook src/lorecraft/rules/index.py
+git diff docs/schemas docs/rulebook src/lorecraft/rules/index.py
 ```
 
 A description that reads badly in the diff reads badly in an editor too: fix the docstring, not the output. A
