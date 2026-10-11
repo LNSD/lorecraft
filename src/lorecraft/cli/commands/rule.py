@@ -1,20 +1,19 @@
 """The `rule` subcommand: print a rule's page from the rulebook, or list every rule.
 
-The rules are package data, so the command reads no workspace and needs no root: it loads the registry and prints
-what `cli.rulebook` renders from it, the same page `docs/rulebook/` holds.
+The rules are package data, so the command reads no workspace and needs no root. The command declares the argument
+and the help text, and parses the argument against the rule index while the command line is read; the flow is in
+`rule_run`, which this module imports only when the command runs, so that `--help` and `--version` never import the
+rules.
 """
 
 from typing import Annotated
 
 import typer
 
-from lorecraft import rules
 from lorecraft.core.error import Error
-from lorecraft.rules.registry import Registry
 
 from ..registry import register
 from ..rule_arguments import RuleKey
-from ..rulebook import render_listing, render_page
 
 
 class _RuleKeyParser:
@@ -64,9 +63,7 @@ def rule(
     Exit 0 when the page or the listing is printed, and 2 when no rule has the code, name or alias code, or for
     invalid input.
     """
-    registry = Registry.load(rules)
-    if key is None:
-        typer.echo(render_listing(registry))
-        return
+    # Imported here, not at the top: `rule_run` imports the rules, which `--help` and `--version` never use.
+    from ..rule_run import run_rule
 
-    typer.echo(render_page(key.to_declaration(registry)), nl=False)
+    run_rule(key)
