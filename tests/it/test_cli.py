@@ -18,6 +18,7 @@ import pytest
 from syrupy.assertion import SnapshotAssertion
 from typer.testing import CliRunner
 
+from lib.cli import usage_error_message
 from lib.snapshot import TextSnapshotExtension
 from lorecraft import __version__, rules
 from lorecraft.cli import build_app
@@ -336,7 +337,7 @@ class TestInspectCommand:
         assert result.exit_code == 0, result.output
         assert json.loads(result.output)['root'] == str(workspace.resolve()), '`--json` still prints the JSON model'
 
-    def test_inspect_with_both_format_and_json_exits_with_a_usage_error(self, workspace: Path) -> None:
+    def test_inspect_with_both_format_and_json_exits_with_ausage_error_message(self, workspace: Path) -> None:
         #: Given
         app = build_app()
         arguments = ['inspect', str(workspace), '--format', 'json', '--json']
@@ -411,7 +412,7 @@ class TestInspectCommand:
         assert result.exit_code == 0, result.output
         assert result.output.splitlines()[0] == str(workspace.resolve()), 'the root defaults to the working directory'
 
-    def test_inspect_with_a_missing_root_exits_with_a_usage_error(self, tmp_path: Path) -> None:
+    def test_inspect_with_a_missing_root_exits_with_ausage_error_message(self, tmp_path: Path) -> None:
         #: Given
         app = build_app()
         arguments = ['inspect', str(tmp_path / 'missing')]
@@ -537,7 +538,7 @@ class TestRuleCommand:
         assert result.exit_code == 0, result.output
         assert result.stdout == expected, 'the name finds the page the code finds'
 
-    def test_rule_with_an_unknown_key_exits_two_and_names_it(self) -> None:
+    def test_rule_with_an_unknown_key_exits_two_with_a_usage_error_naming_it(self) -> None:
         #: Given
         app = build_app()
         # No rule will ever have this as a code, a name or an alias code.
@@ -549,7 +550,54 @@ class TestRuleCommand:
         #: Then
         assert result.exit_code == 2, f'no rule has the key, so the command fails, got exit {result.exit_code}'
         assert result.stdout == '', 'a failure prints nothing on stdout'
-        assert "error: no rule has the code, name or alias code 'NOPE001'" in result.stderr, 'the key is named'
+        assert usage_error_message(result.stderr).startswith('Usage: lorecraft rule'), 'the failure is a usage error'
+        assert "Invalid value for '[RULE]': no rule has the code, name or alias code 'NOPE001'" in usage_error_message(
+            result.stderr
+        ), 'the key is named'
+
+    def test_rule_with_an_unknown_name_exits_two_with_a_usage_error_naming_it(self) -> None:
+        #: Given
+        app = build_app()
+        arguments = ['rule', 'no-such-rule']
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert (
+            "Invalid value for '[RULE]': no rule has the code, name or alias code 'no-such-rule'"
+            in usage_error_message(result.stderr)
+        ), 'a well-formed name no rule has is unknown'
+
+    def test_rule_with_an_unknown_alias_code_exits_two_with_a_usage_error_naming_it(self) -> None:
+        #: Given
+        app = build_app()
+        arguments = ['rule', 'MD999']
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert "Invalid value for '[RULE]': no rule has the code, name or alias code 'MD999'" in usage_error_message(
+            result.stderr
+        ), 'an alias code no rule declares is unknown'
+
+    def test_rule_with_a_malformed_key_exits_two_with_a_usage_error_naming_it(self) -> None:
+        #: Given
+        app = build_app()
+        arguments = ['rule', 'OUT-1']
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stdout == '', 'a failure prints nothing on stdout'
+        assert "Invalid value for '[RULE]': 'OUT-1' is no rule code, name or alias code" in usage_error_message(
+            result.stderr
+        ), 'a key of no form is malformed, and says what a key looks like'
 
 
 @pytest.mark.it
@@ -870,7 +918,7 @@ class TestCheckCommand:
         assert result.exit_code == 1, result.output
         assert '\x1b[' not in result.stdout, 'an explicit `--color never` beats FORCE_COLOR'
 
-    def test_check_with_an_unknown_format_exits_with_a_usage_error(self, tmp_path: Path) -> None:
+    def test_check_with_an_unknown_format_exits_with_ausage_error_message(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
         app = build_app()
@@ -881,7 +929,7 @@ class TestCheckCommand:
         #: Then
         assert result.exit_code == 2, result.output
 
-    def test_check_with_an_unknown_color_exits_with_a_usage_error(self, tmp_path: Path) -> None:
+    def test_check_with_an_unknown_color_exits_with_ausage_error_message(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
         app = build_app()
@@ -1069,7 +1117,7 @@ class TestCheckCommand:
             'the root found above the working directory is checked whole'
         )
 
-    def test_check_with_a_path_argument_exits_with_a_usage_error(self, tmp_path: Path) -> None:
+    def test_check_with_a_path_argument_exits_with_ausage_error_message(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
         app = build_app()
@@ -1463,7 +1511,7 @@ class TestCheckSelection:
         #: Then
         assert result.exit_code == 2, result.output
         assert result.stdout == '', 'no subject is checked'
-        assert result.stderr == "error: --select 'OUT9' is no rule code or prefix\n", (
+        assert "Invalid value for '--select': 'OUT9' is no rule code or prefix" in usage_error_message(result.stderr), (
             'a code prefix no rule starts is named'
         )
 
@@ -1534,7 +1582,7 @@ class TestCheckSelection:
         #: Then
         assert result.exit_code == 2, result.output
         assert result.stdout == '', 'no subject is checked'
-        assert result.stderr == "error: --select 'XYZ' is no rule code or prefix\n", (
+        assert "Invalid value for '--select': 'XYZ' is no rule code or prefix" in usage_error_message(result.stderr), (
             'a selector no rule or group has is named'
         )
 
@@ -1549,9 +1597,9 @@ class TestCheckSelection:
         #: Then
         assert result.exit_code == 2, result.output
         assert result.stdout == '', 'no subject is checked'
-        assert result.stderr == "error: --ignore 'FM999' is no rule code or prefix\n", (
-            'an ignored code no rule has is named, under its option'
-        )
+        assert "Invalid value for '--ignore': 'FM999' is no rule code or prefix" in usage_error_message(
+            result.stderr
+        ), 'an ignored code no rule has is named, under its option'
 
     def test_check_with_a_rule_name_exits_two_before_checking(self, two_group_root: Path) -> None:
         #: Given
@@ -1564,8 +1612,9 @@ class TestCheckSelection:
         #: Then
         assert result.exit_code == 2, result.output
         assert result.stdout == '', 'no subject is checked'
-        assert result.stderr == (
-            "error: --select 'missing-frontmatter' is a rule name; select the rule by its code, FM001\n"
+        assert (
+            "Invalid value for '--select': 'missing-frontmatter' is a rule name; select the rule by its code, FM001"
+            in usage_error_message(result.stderr)
         ), 'a name is refused, naming the code to write instead'
 
     def test_check_with_the_engine_condition_code_ignored_exits_two_before_checking(self, two_group_root: Path) -> None:
@@ -1579,10 +1628,12 @@ class TestCheckSelection:
         #: Then
         assert result.exit_code == 2, result.output
         assert result.stdout == '', 'no subject is checked'
-        assert result.stderr == (
-            "error: --ignore 'LC001' names engine conditions, which are always reported and cannot be selected "
-            'or ignored\n'
-        ), 'a file that does not decode is always reported, so its code cannot be ignored'
+        assert (
+            "Invalid value for '--ignore': 'LC001' names engine conditions, which are always reported and cannot be "
+            'selected or ignored'
+        ) in usage_error_message(result.stderr), (
+            'a file that does not decode is always reported, so its code cannot be ignored'
+        )
 
     def test_check_with_the_engine_prefix_exits_two_before_checking(self, two_group_root: Path) -> None:
         #: Given
@@ -1595,10 +1646,10 @@ class TestCheckSelection:
         #: Then
         assert result.exit_code == 2, result.output
         assert result.stdout == '', 'no subject is checked'
-        assert result.stderr == (
-            "error: --select 'LC' names engine conditions, which are always reported and cannot be selected or "
-            'ignored\n'
-        ), "the engine group's prefix cannot be selected"
+        assert (
+            "Invalid value for '--select': 'LC' names engine conditions, which are always reported and cannot be "
+            'selected or ignored'
+        ) in usage_error_message(result.stderr), "the engine group's prefix cannot be selected"
 
     def test_check_with_a_trailing_comma_exits_two_before_checking(self, two_group_root: Path) -> None:
         #: Given
@@ -1611,9 +1662,56 @@ class TestCheckSelection:
         #: Then
         assert result.exit_code == 2, result.output
         assert result.stdout == '', 'no subject is checked'
-        assert result.stderr == "error: --select 'FM,' holds an empty selector\n", (
+        assert "Invalid value for '--select': 'FM,' holds an empty selector" in usage_error_message(result.stderr), (
             'an empty selector is refused, naming the value typed'
         )
+
+    def test_check_with_a_malformed_selector_exits_two_before_the_root_is_read(self, tmp_path: Path) -> None:
+        #: Given
+        app = build_app()
+        # The root does not exist: reading it would be a different failure, so the selector is refused first.
+        arguments = ['check', '--root', str(tmp_path / 'missing'), '--select', 'out']
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stdout == '', 'no subject is checked'
+        assert usage_error_message(result.stderr).startswith('Usage: lorecraft check'), 'the failure is a usage error'
+        assert "Invalid value for '--select': 'out' is no selector" in usage_error_message(result.stderr), (
+            'a selector of no form is malformed, and refused while the command line is parsed'
+        )
+
+    def test_check_with_a_malformed_ignored_code_exits_two_with_ausage_error_message(
+        self, two_group_root: Path
+    ) -> None:
+        #: Given
+        app = build_app()
+        selection = ['--ignore', 'OUT-1']
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(two_group_root), *selection])
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert "Invalid value for '--ignore': 'OUT-1' is no selector" in usage_error_message(result.stderr), (
+            'a malformed ignored value is named, under its option'
+        )
+
+    def test_check_with_an_unknown_alias_code_exits_two_with_ausage_error_message(self, two_group_root: Path) -> None:
+        #: Given
+        app = build_app()
+        selection = ['--select', 'MD999']
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(two_group_root), *selection])
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert "Invalid value for '--select': 'MD999' is no rule code or prefix" in usage_error_message(
+            result.stderr
+        ), 'an alias code no rule declares is unknown'
 
 
 @pytest.mark.it

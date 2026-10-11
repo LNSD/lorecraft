@@ -12,32 +12,42 @@ from lorecraft import rules
 from lorecraft.core.error import Error
 from lorecraft.rules.registry import Registry
 
-from ..failure import report_failure
-from ..output import ExitStatus
 from ..registry import register
+from ..rule_arguments import RuleKey
 from ..rulebook import render_listing, render_page
 
 
-class UnknownRuleError(Error):
-    """No rule, removed rule or engine condition has the code, name or alias code typed.
+class _RuleKeyParser:
+    """Parse the argument of `rule` while the command line is read.
 
-    Attributes:
-        key: What the user typed.
+    Typer prints the parser's `__name__` as the argument's type in `--help`, where a plain function would print its
+    own name. The argument was a `str` before it was parsed, and its help is unchanged, so this is named `str`.
     """
 
-    key: str
+    __name__ = 'str'
 
-    def __init__(self, key: str) -> None:
-        self.key = key
-        super().__init__(f'no rule has the code, name or alias code {key!r}')
+    def __call__(self, text: str) -> RuleKey:
+        """Parse the argument into a rule key.
+
+        Args:
+            text: The argument as typed.
+
+        Raises:
+            typer.BadParameter: If the argument is malformed or names no rule, which Typer prints as a usage error.
+        """
+        try:
+            return RuleKey.parse(text)
+        except Error as exc:
+            raise typer.BadParameter(str(exc)) from exc
 
 
 @register('rule')
 def rule(
     key: Annotated[
-        str | None,
+        RuleKey | None,
         typer.Argument(
             metavar='[RULE]',
+            parser=_RuleKeyParser(),
             help='A rule by its code, its name or an alias code, such as OUT004 or empty-section. Without it, every '
             'rule is listed.',
         ),
@@ -53,18 +63,10 @@ def rule(
 
     Exit 0 when the page or the listing is printed, and 2 when no rule has the code, name or alias code, or for
     invalid input.
-
-    \f
-    Raises:
-        typer.Exit: With code 2 when no rule has the code, name or alias code.
     """
     registry = Registry.load(rules)
     if key is None:
         typer.echo(render_listing(registry))
         return
 
-    declaration = registry.find(key)
-    if declaration is None:
-        report_failure(UnknownRuleError(key))
-        raise typer.Exit(code=ExitStatus.FAILURE)
-    typer.echo(render_page(declaration), nl=False)
+    typer.echo(render_page(key.to_declaration(registry)), nl=False)

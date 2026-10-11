@@ -197,10 +197,11 @@ def frontmatter_blocks(self, corpus: str) -> list[dict[str, Any]]:
 self._parser: Any = yaml_backend.make_parser(stream)  # backend exposes no parser type
 ```
 
-## 5. `TYPE_CHECKING` Guards Cycle-Only Imports and the Annotation Is a String
+## 5. `TYPE_CHECKING` Guards Type-Only Imports and the Annotation Is a String
 
-An import needed **only** for an annotation, whose eager form would create an import cycle, goes under
-`if TYPE_CHECKING:`, and every annotation that uses it is quoted.
+An import needed **only** for an annotation, whose eager form would create an import cycle or load a module the
+importer must not load when it starts, goes under `if TYPE_CHECKING:`, and every annotation that uses it is
+quoted. A one-line comment at the guard says which of the two it is.
 
 The guard removes the import at runtime, so an unquoted annotation referring to it raises `NameError` the
 moment anything evaluates annotations — a dataclass field, `typing.get_type_hints`, a runtime validator. The
@@ -233,9 +234,18 @@ class CorpusCheck:
     registry: 'SpecRegistry'
 ```
 
-The guard is for cycles, not for import cost. An import with no cycle is written normally — hiding it behind
-the guard means the module can no longer use the name in an `isinstance` check or a default, and the next
-person to need it there writes a second, unguarded import of the same thing.
+The guard is for a cycle, or for the cost of a module that must not load at start-up, such as the rules engine
+behind a command line's value objects. A name used only for type checking may be guarded for that reason when
+the comment says so. An import with neither reason is written normally — hiding it behind the guard means the
+module can no longer use the name in an `isinstance` check or a default, and the next person to need it there
+writes a second, unguarded import of the same thing.
+
+```python
+# ✅ Good — guarded for import cost, and the comment says so
+if TYPE_CHECKING:
+    # Type-only: importing the registry at start-up would load the rules engine.
+    from lorecraft.rules.registry import Registry
+```
 
 ## 6. Declare Structural Aliases With `type`
 
@@ -324,7 +334,7 @@ Before committing code, verify:
       `-> None` included
 - [ ] Each `Any` is either an opaque third-party value, a `**kwargs` passthrough, or unvalidated input, and
       the reason is stated
-- [ ] Every import under `if TYPE_CHECKING:` exists to break a cycle, and each annotation using it is quoted
+- [ ] Every `if TYPE_CHECKING:` import breaks a cycle or avoids a start-up cost, and its annotations are quoted
 - [ ] A new structural alias uses `type`, and code that needs a runtime type expression does not use the alias
       object as that expression
 - [ ] An alternative constructor that constructs `cls` returns `Self`, preserving the subclass result

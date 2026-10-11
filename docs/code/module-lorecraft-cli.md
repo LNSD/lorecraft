@@ -24,8 +24,11 @@ process: the arguments, the working directory, standard output and the exit code
 - Taking each snapshot, and building the revision every check of a report reads.
 - Choosing where the store of persisted results lives, and handing it to the database.
 - Selecting the subjects a run checks from the model, and building the rule table it runs.
-- Parsing `--select` and `--ignore` against the registry into the selection the rule table is built from, and
-  warning on stderr of what a selection cannot do.
+- Typing `--select`, `--ignore` and `rule [RULE]` as the command line's own value objects, parsed and confirmed
+  against the rule index while the line is read, so a malformed or unknown value is a usage error. They import the
+  index and none of the rules engine, and a conversion method builds the rule-side type when a command runs.
+- Building, from those values and the registry, the selection the rule table is made from, and warning on stderr of
+  what a selection cannot do.
 - Registering commands so a new one is a new module.
 - Rendering diagnostics and the model as text, short lines or compact JSON, and choosing the exit code.
 - Asking the process about the terminal it prints to — encoding and width — and reading the colour variables of its

@@ -29,7 +29,7 @@ from faker import Faker
 from syrupy.assertion import SnapshotAssertion
 
 import lorecraft
-from lib.cli import run_alias, run_cli
+from lib.cli import run_alias, run_cli, usage_error_message
 from lib.snapshot import JsonTextSnapshotExtension, TextSnapshotExtension
 from lib.workspace import Document, File, Link, RawDocument, RawFrontmatter, Skill, Spec, Workspace
 from lorecraft import __version__
@@ -577,7 +577,7 @@ class TestCheckSnapshots:
             'no rule over a document runs, so no part of one is reported ungoverned'
         )
 
-    def test_check_with_an_unknown_selector_prints_the_error_and_exits_two(self, mixed_root: Path) -> None:
+    def test_check_with_an_unknown_selector_prints_a_usage_error_and_exits_two(self, mixed_root: Path) -> None:
         #: Given
         arguments = ('check', '--root', str(mixed_root), '--select', 'NOPE', '--format', 'json')
 
@@ -587,7 +587,9 @@ class TestCheckSnapshots:
         #: Then
         assert result.returncode == 2, result.stderr
         assert result.stdout == '', 'a run refused before checking prints no document'
-        assert result.stderr == "error: --select 'NOPE' is no rule code or prefix\n", 'the selector is named'
+        assert "Invalid value for '--select': 'NOPE' is no rule code or prefix" in usage_error_message(result.stderr), (
+            "the selector is named in Typer's usage error"
+        )
 
     def test_check_with_a_key_written_twice_prints_the_duplicate_key_diagnostics(
         self, snapshot: SnapshotAssertion, duplicate_key_root: Path

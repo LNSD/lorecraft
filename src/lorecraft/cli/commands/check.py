@@ -1,9 +1,10 @@
 """The `check` command: run every enabled rule over the whole workspace, and report what the rules found.
 
-This is the composition root of the rules engine. It loads the package's rules and parses `--select` and `--ignore`
-against them, establishes the root, takes one snapshot, opens the database over it, selects every subject of the
-workspace, builds the rule table from the rules and the selection, and hands the database, the subjects and the
-table to the runner; what comes back is rendered by `diagnostics` and decides the exit code. Every `Error` escaping
+This is the composition root of the rules engine. `--select` and `--ignore` are parsed and confirmed against the rule
+index while the command line is read; the command loads the package's rules and builds the selection from them,
+establishes the root, takes one snapshot, opens the database over it, selects every subject of the workspace, builds
+the rule table from the rules and the selection, and hands the database, the subjects and the table to the runner;
+what comes back is rendered by `diagnostics` and decides the exit code. Every `Error` escaping
 that flow is reported here and exits 2; a file that does not decode is a diagnostic, not an error. A selection that
 holds an alias code, or names a rule its level leaves off, is warned of on stderr, and the run goes on.
 """
@@ -28,10 +29,27 @@ from ..failure import report_failure
 from ..output import ColorChoice, DiagnosticFormat, ExitStatus
 from ..registry import register
 from ..root import establish_root
-from ..rule_selection import parse_rule_selection, print_selection_warnings
+from ..rule_arguments import SelectorValue
+from ..rule_selection import build_rule_selection, print_selection_warnings
 from ..sources import read_sources
 from ..subjects import select_workspace
 from ..terminal import detect_text_style, read_color_environment
+
+
+def _parse_selectors(value: str) -> SelectorValue:
+    """Parse one value of `--select` or `--ignore` while the command line is read.
+
+    Args:
+        value: The value as typed: one or more selectors separated by commas.
+
+    Raises:
+        typer.BadParameter: If the value is empty, malformed or names nothing a run could select or ignore, which
+            Typer prints as a usage error naming the option.
+    """
+    try:
+        return SelectorValue.parse(value)
+    except Error as exc:
+        raise typer.BadParameter(str(exc)) from exc
 
 
 @register('check')
@@ -61,19 +79,21 @@ def check(
         ),
     ] = ColorChoice.AUTO,
     select: Annotated[
-        list[str] | None,
+        list[SelectorValue] | None,
         typer.Option(
             '--select',
             metavar='<selectors>',
+            parser=_parse_selectors,
             help='Run only these rules: codes, code or group prefixes, or ALL, comma-separated or repeated. Defaults '
             'to ALL.',
         ),
     ] = None,
     ignore: Annotated[
-        list[str] | None,
+        list[SelectorValue] | None,
         typer.Option(
             '--ignore',
             metavar='<selectors>',
+            parser=_parse_selectors,
             help='Skip these rules, unless a more specific selector selects them: codes, code or group prefixes, or '
             'ALL, comma-separated or repeated. Defaults to none.',
         ),
@@ -99,7 +119,7 @@ def check(
     """
     try:
         registry = Registry.load(rules)
-        parsed = parse_rule_selection(registry, select=select, ignore=ignore)
+        parsed = build_rule_selection(registry, select=select, ignore=ignore)
         print_selection_warnings(parsed, selected_rules_left_off(registry, parsed.selection))
         database = Database(take_snapshot(establish_root(root), SNAPSHOT_SCOPE))
         # Root discovery follows symlinks and the snapshot, under `docs/`, does not, so a linked `docs/__meta__/`
