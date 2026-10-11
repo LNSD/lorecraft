@@ -1,0 +1,78 @@
+{
+  "$schema": "../schemas/structure.spec.json",
+  "description": "Narrows code.structure.json for docs/code/package-*.md, which is applied as well. The prose authority is docs/__meta__/code-package.md. The frontmatter fixes type, and the form of name and scope: a package document names a top-level import package, such as lorecraft or lorecraft_gen. The five sections open the document, in this order, with a tighter cap on Responsibility and Publication, which each state one thing; the Checklist follows as code.structure.json places it, and References follows, required here though optional in the corpus; an optional External References closes it. The token budget is tighter than the corpus one, since a package document is loaded beside the code specs for the code being written.",
+  "frontmatter": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "pattern": "^package-[a-z0-9]+(?:-[a-z0-9]+)*$"
+      },
+      "type": {
+        "const": "pkg"
+      },
+      "scope": {
+        "type": "string",
+        "pattern": "^pkg:[a-z_][a-z0-9_]*$"
+      }
+    }
+  },
+  "tokens": 3500,
+  "outline": [
+    {
+      "section": "Responsibility",
+      "words": 120,
+      "description": "One sentence stating what the package is for, followed by the one reason it changes.",
+      "examples": [
+        "Hold the toolkit users install: the commands, the checks and the model they run over. It changes when a command, a\ncheck or a specification dialect changes."
+      ]
+    },
+    {
+      "section": "Publication",
+      "words": 150,
+      "description": "Whether the package is built and published, how it reaches its users or its environment, and what keeps it out of an artifact when it is private.",
+      "examples": [
+        "It is the only package built and published: the wheel and the source distribution hold it and nothing else, and the\nrelease workflow publishes both."
+      ]
+    },
+    {
+      "section": "Boundary",
+      "description": "A table of which packages this one may import and which may import it, one row per neighbour, with the contract, the gate or the review that enforces the direction.",
+      "examples": [
+        "| Package | It may import this package | This package may import it | Enforced by |\n|---|---|---|---|\n| `lorecraft_gen` | Yes | No | An import-linter contract, run by `just check` |"
+      ]
+    },
+    {
+      "section": "Invariants",
+      "description": "A bulleted list of the conditions a change must keep for the package to stay what it is, each verifiable against a diff: what it ships, imports, restates and configures.",
+      "examples": [
+        "- Nothing outside `src/lorecraft/` is built into the wheel.\n- No module imports a private package."
+      ]
+    },
+    {
+      "section": "Examples",
+      "description": "One to three Bad/Good pairs, Bad first: each Bad is code or configuration a plausible change puts into the wrong package, each Good the same intent placed correctly, written as a fabricated example.",
+      "examples": [
+        "```python\n# ❌ Bad — the published package imports a generator: the generator ships in the wheel\nfrom lorecraft_gen.schemas import main as write_schemas\n```\n\n```python\n# ✅ Good — the generator is a module a recipe runs, and nothing published reaches it\n```"
+      ]
+    },
+    {
+      "any": true
+    },
+    {
+      "section": "References",
+      "description": "The architecture document the package's rules build on, as Foundation; principle-single-responsibility as Foundation; and the sibling package document, as Companion.",
+      "examples": [
+        "- [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One reason to change\n- [package-lorecraft-gen](package-lorecraft-gen.md) - Companion: The package that imports this one"
+      ]
+    },
+    {
+      "section": "External References",
+      "optional": true,
+      "description": "Links to the outside sources the package's packaging rests on, such as the documentation of the build backend.",
+      "examples": [
+        "- [uv — Workspaces](https://docs.astral.sh/uv/concepts/projects/workspaces/)"
+      ]
+    }
+  ]
+}

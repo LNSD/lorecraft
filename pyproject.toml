@@ -161,6 +161,7 @@ line-length = 120
 target-version = "py312"
 src = [
     "src",
+    "gen/src",
     "tests",
 ]
 force-exclude = true
@@ -197,6 +198,7 @@ quote-style = "single"
 [tool.ty.environment]
 root = [
     "src",
+    "gen/src",
     # A unit test pins text output through `lib.snapshot`, which pytest imports from here through `pythonpath`.
     "tests",
 ]
@@ -239,6 +241,15 @@ name = "A rule reads its subject's context, never the database"
 type = "forbidden"
 source_modules = ["lorecraft.rules"]
 forbidden_modules = ["lorecraft.project.database"]
+
+# `lorecraft_gen`, in `gen/`, imports `lorecraft` to render what it declares. It is not installed in this
+# environment, so it is named as an external package: the contract reads the imports of `lorecraft` statically,
+# and a generator imported by the package would ship in the wheel.
+[[tool.importlinter.contracts]]
+name = "The package never imports the generators"
+type = "forbidden"
+source_modules = ["lorecraft"]
+forbidden_modules = ["lorecraft_gen"]
 
 # The Markdown parser is read in `project.syntax.markdown` alone, which hands the rest of the package its own frozen
 # values, so a parser upgrade changes that one module and no parser type reaches anything else.

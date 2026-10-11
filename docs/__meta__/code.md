@@ -307,7 +307,7 @@ member that specializes another adds a further segment:
 
 The groups in use are `principle-*` (universal principles), `pattern-*` (design patterns), `python-*`
 (language conventions), `error-*` (how this project declares and handles its errors), `tests-*`,
-`module-*` (one package's responsibility), and unprefixed standalone documents
+`module-*` (one layer's responsibility), `package-*` (what a package is, publishes and imports), and unprefixed standalone documents
 such as `logging`. A
 code spec that fits none of them is standalone, and a new group is created by writing its first member.
 
