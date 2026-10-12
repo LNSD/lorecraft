@@ -19,7 +19,8 @@ class InvalidUtf8(EngineCondition):
     ## What it does
 
     Checks for files whose bytes are not valid UTF-8. Such a file is reported once, at the line of its first invalid
-    byte, and no rule judges it: every rule reads the file's text, and the file has none.
+    byte, and no rule judges it: every rule reads the file's text, and the file has none. A structure file that is
+    not UTF-8 is reported the same way, and every document it governs is listed as skipped in coverage.
 
     It has no level, so no configuration turns it off, and it is always reported as an error.
 

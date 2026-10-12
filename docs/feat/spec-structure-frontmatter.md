@@ -76,8 +76,8 @@ repository is loaded, each frontmatter schema is checked against the Draft 2020-
 when its root does not state `"type": "object"`, when any schema in it carries `$id`, which would change how
 a relative `$ref` resolves, or names another dialect in `$schema`. A value under `enum` or `const` is data, not
 a schema, so it is not searched. `description` and `$comment` are allowed
-anywhere. A refused schema stops the command with an error naming the structure file:
-both `lorecraft check` and `lorecraft inspect` exit `2`.
+anywhere. For a refused schema, `lorecraft check` reports an error diagnostic at the structure file,
+skips the documents it governs, and exits `1`. `lorecraft inspect` still stops with exit `2`.
 
 ## Limitations
 

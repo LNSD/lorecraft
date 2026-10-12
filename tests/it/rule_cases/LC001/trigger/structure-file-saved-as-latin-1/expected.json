@@ -1,0 +1,8 @@
+[
+  {
+    "path": "docs/__meta__/guide.structure.json",
+    "line": 3,
+    "severity": "error",
+    "code": "LC001"
+  }
+]

@@ -63,12 +63,33 @@ def report_failure(failure: Error) -> None:
         cause = cause.__cause__
 
 
+def exit_on_unlistable_directory(model: WorkspaceModel) -> None:
+    """Report a `docs/` or `docs/__meta__/` the model could not list and exit with the failure status.
+
+    With neither a corpus nor a meta spec known, a report over what remained would read as a clean result for a
+    workspace that was never checked, so the run stops, as it does when the root cannot be found. The model records
+    the failure like any other, so the choice to stop is the command's, made before any subject is selected; every
+    other failure the model recorded is a diagnostic of the run.
+
+    Args:
+        model: The workspace model the command opened.
+
+    Raises:
+        typer.Exit: With the failure status, when the model recorded a directory that cannot be listed.
+    """
+    for failure in model.load_failures:
+        if isinstance(failure.condition, UnlistableDirectory):
+            report_load_failure(failure)
+            raise typer.Exit(code=ExitStatus.FAILURE)
+
+
 def exit_on_load_failure(model: WorkspaceModel) -> None:
     """Report the first load failure the model recorded and exit with the failure status; do nothing without one.
 
-    Until a load failure is reported as a diagnostic, a command treats a model that recorded one as it treated the
-    error the loader raised for it: the same message, the same causes, exit 2. The first failure is the first the
-    loader met, which is the one it raised before failures were recorded.
+    `lorecraft inspect` prints the model, which holds nothing of a unit that failed, so it treats a model that recorded
+    one as it treated the error the loader raised for it: the same message, the same causes, exit 2. The first
+    failure is the first the loader met, which is the one it raised before failures were recorded. `lorecraft check`
+    reports a failure as a diagnostic instead.
 
     Args:
         model: The workspace model the command opened.
