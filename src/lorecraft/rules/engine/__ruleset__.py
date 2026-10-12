@@ -11,11 +11,12 @@ rule or a removed rule inside it."""
 
 
 class RefusedOperation(Enum):
-    """What the operating system refused while a skills directory, a skill entry or a `SKILL.md` was reached.
+    """What the operating system refused while a structure file, a directory or a `SKILL.md` was reached.
 
     Each value is the verb a message states it with.
     """
 
+    READ = 'read'
     RESOLVE = 'resolve'
     INSPECT = 'inspect'
     LIST = 'list'
