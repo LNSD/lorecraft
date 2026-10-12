@@ -104,7 +104,7 @@ class TestLoadFailureConditionsOfARefusal:
         #: Then
         assert reported == [], 'a file the check can read is no failure'
 
-    def test_lc014_with_a_corpus_directory_the_operating_system_refuses_to_list_is_reported_at_the_directory(
+    def test_lc002_with_a_corpus_directory_the_operating_system_refuses_to_list_is_reported_at_the_directory(
         self, tmp_path: Path, lock: Callable[[Path], None]
     ) -> None:
         #: Given
@@ -115,9 +115,9 @@ class TestLoadFailureConditionsOfARefusal:
         reported = _reported_codes(tmp_path)
 
         #: Then
-        assert reported == [('LC014', 'docs/code')], 'the corpus directory is reported once, at the directory'
+        assert reported == [('LC002', 'docs/code')], 'the corpus directory is reported once, at the directory'
 
-    def test_lc014_with_a_corpus_directory_that_can_be_listed_is_not_reported(self, tmp_path: Path) -> None:
+    def test_lc002_with_a_corpus_directory_that_can_be_listed_is_not_reported(self, tmp_path: Path) -> None:
         #: Given
         _write_tree(tmp_path)
 
@@ -127,7 +127,7 @@ class TestLoadFailureConditionsOfARefusal:
         #: Then
         assert reported == [], 'a directory the check can list is no failure'
 
-    def test_lc015_with_a_skills_directory_the_operating_system_refuses_to_list_is_reported_at_the_directory(
+    def test_lc002_with_a_skills_directory_the_operating_system_refuses_to_list_is_reported_at_the_directory(
         self, tmp_path: Path, lock: Callable[[Path], None]
     ) -> None:
         #: Given
@@ -138,9 +138,9 @@ class TestLoadFailureConditionsOfARefusal:
         reported = _reported_codes(tmp_path)
 
         #: Then
-        assert reported == [('LC015', '.agents/skills')], 'the skills directory is reported once, as declared'
+        assert reported == [('LC002', '.agents/skills')], 'the skills directory is reported once, as declared'
 
-    def test_lc015_with_a_skills_directory_that_can_be_listed_is_not_reported(self, tmp_path: Path) -> None:
+    def test_lc002_with_a_skills_directory_that_can_be_listed_is_not_reported(self, tmp_path: Path) -> None:
         #: Given
         _write_tree(tmp_path)
 
@@ -150,7 +150,7 @@ class TestLoadFailureConditionsOfARefusal:
         #: Then
         assert reported == [], 'a skills directory the check can list is no failure'
 
-    def test_lc016_with_a_skill_entry_the_operating_system_refuses_to_list_is_reported_at_the_entry(
+    def test_lc002_with_a_skill_entry_the_operating_system_refuses_to_list_is_reported_at_the_entry(
         self, tmp_path: Path, lock: Callable[[Path], None]
     ) -> None:
         #: Given
@@ -162,9 +162,9 @@ class TestLoadFailureConditionsOfARefusal:
         reported = _reported_codes(tmp_path)
 
         #: Then
-        assert reported == [('LC016', '.agents/skills/audit')], 'the entry is reported once, and the other skills load'
+        assert reported == [('LC002', '.agents/skills/audit')], 'the entry is reported once, and the other skills load'
 
-    def test_lc016_with_a_skill_entry_that_can_be_listed_is_not_reported(self, tmp_path: Path) -> None:
+    def test_lc002_with_a_skill_entry_that_can_be_listed_is_not_reported(self, tmp_path: Path) -> None:
         #: Given
         _write_tree(tmp_path)
         (tmp_path / '.agents' / 'skills' / 'audit').mkdir()
@@ -175,7 +175,7 @@ class TestLoadFailureConditionsOfARefusal:
         #: Then
         assert reported == [], 'an entry the check can list is no failure, even when it holds no SKILL.md'
 
-    def test_lc017_with_a_skill_file_whose_link_the_operating_system_refuses_to_follow_is_reported_at_it(
+    def test_lc002_with_a_skill_file_whose_link_the_operating_system_refuses_to_follow_is_reported_at_it(
         self, tmp_path: Path, lock: Callable[[Path], None]
     ) -> None:
         #: Given
@@ -186,9 +186,9 @@ class TestLoadFailureConditionsOfARefusal:
         reported = _reported_codes(tmp_path)
 
         #: Then
-        assert reported == [('LC017', '.agents/skills/review/SKILL.md')], 'the SKILL.md is reported once, as reached'
+        assert reported == [('LC002', '.agents/skills/review/SKILL.md')], 'the SKILL.md is reported once, as reached'
 
-    def test_lc017_with_a_skill_file_whose_link_can_be_followed_is_not_reported(self, tmp_path: Path) -> None:
+    def test_lc002_with_a_skill_file_whose_link_can_be_followed_is_not_reported(self, tmp_path: Path) -> None:
         #: Given
         _write_tree(tmp_path)
 

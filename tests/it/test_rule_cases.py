@@ -13,9 +13,9 @@ expects its own code and a near miss does not. The tests that read the registry 
 one names every code that lacks either kind, one every directory named for a code no rule has, and one every entry
 that is not a `trigger/` or `near_miss/` directory under a code.
 
-A code that stands for an operating system's refusal is the one exception to a case on disk: a check run reads a
+The code that stands for an operating system's refusal is the one exception to a case on disk: a check run reads a
 snapshot, and a refusal while it is taken stops the run before any report, so no repository can make `lorecraft check`
-report it. Those codes are listed in `REFUSAL_CODES`, and their trigger and near miss are in
+report it. It is listed in `REFUSAL_CODES`, and its triggers and near misses are in
 `test_load_failure_conditions`, which loads the model through the disk, where the refusal happens.
 """
 
@@ -44,11 +44,11 @@ NEAR_MISS: Final[str] = 'near_miss'
 
 KINDS: Final[tuple[str, ...]] = (TRIGGER, NEAR_MISS)
 
-REFUSAL_CODES: Final[frozenset[str]] = frozenset({'LC002', 'LC014', 'LC015', 'LC016', 'LC017'})
-"""The codes of a load failure that stands for the operating system's refusal of a read, a listing or a lookup.
+REFUSAL_CODES: Final[frozenset[str]] = frozenset({'LC002'})
+"""The code of the load failure that stands for the operating system's refusal of a read, a listing or a lookup.
 
 A check run takes its snapshot before it reports anything, and a refusal while it is taken stops the run with an error,
-so none of these is reported by a repository `lorecraft check` runs over. `test_load_failure_conditions` holds their
+so it is not reported by a repository `lorecraft check` runs over. `test_load_failure_conditions` holds its
 cases."""
 
 runner = CliRunner()

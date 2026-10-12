@@ -49,14 +49,11 @@ from lorecraft.rules.engine import (
     malformed_structure_file,
     repeated_forbidden_section,
     repeated_outline_section,
-    unlistable_corpus_directory,
-    unreadable_skill_entry,
-    unreadable_skill_file,
-    unreadable_skills_directory,
-    unreadable_structure_file,
+    unreadable_path,
     untyped_frontmatter_schema,
 )
 from lorecraft.rules.engine.__ruleset__ import RefusedOperation
+from lorecraft.rules.engine.unreadable_path import NotARegularFile, Refused
 from lorecraft.rules.report import LoadFailureReport
 from lorecraft.vfs import OsRefusal, Utf8Failure, Utf8Reason
 
@@ -112,8 +109,8 @@ class TestReportLoadFailures:
             LoadFailureReport(_PATH, empty_structure_file.EmptyStructureFile()),
             LoadFailureReport(
                 _ENTRY,
-                unreadable_skill_entry.UnreadableSkillEntry(
-                    operation=RefusedOperation.RESOLVE, failed_at=_ENTRY, refusal=_REFUSAL
+                unreadable_path.UnreadablePath(
+                    failed_at=_ENTRY, cause=Refused(operation=RefusedOperation.RESOLVE, refusal=_REFUSAL)
                 ),
             ),
         ), 'one report per failure, in the order the model lists them, each at its own path'
@@ -136,9 +133,9 @@ class TestReportLoadFailures:
         occurrence = _condition_of(condition)
 
         #: Then
-        assert occurrence == unreadable_structure_file.UnreadableStructureFile(refusal=_REFUSAL), (
-            'the condition holds why the read was refused'
-        )
+        assert occurrence == unreadable_path.UnreadablePath(
+            failed_at=_PATH, cause=Refused(operation=RefusedOperation.READ, refusal=_REFUSAL)
+        ), 'the condition holds the read that was refused and why'
 
     def test_report_load_failures_with_an_unrecorded_structure_file_reports_it_unreadable_without_a_refusal(
         self,
@@ -150,7 +147,7 @@ class TestReportLoadFailures:
         occurrence = _condition_of(condition)
 
         #: Then
-        assert occurrence == unreadable_structure_file.UnreadableStructureFile(refusal=None), (
+        assert occurrence == unreadable_path.UnreadablePath(failed_at=_PATH, cause=NotARegularFile()), (
             'no regular file is there to read, so there is no refusal to name'
         )
 
@@ -298,9 +295,10 @@ class TestReportLoadFailures:
         occurrence = _condition_of(condition, RootRelativePath.parse('docs/code'))
 
         #: Then
-        assert occurrence == unlistable_corpus_directory.UnlistableCorpusDirectory(
-            corpus=CorpusName.parse('code'), refusal=_REFUSAL
-        ), 'the condition holds the corpus whose documents could not be listed'
+        assert occurrence == unreadable_path.UnreadablePath(
+            failed_at=RootRelativePath.parse('docs/code'),
+            cause=Refused(operation=RefusedOperation.LIST, refusal=_REFUSAL),
+        ), 'the condition holds the corpus directory whose listing was refused and why'
 
     def test_report_load_failures_with_a_skills_directory_that_cannot_be_resolved_reports_what_was_refused_where(
         self,
@@ -313,8 +311,8 @@ class TestReportLoadFailures:
         occurrence = _condition_of(condition, path)
 
         #: Then
-        assert occurrence == unreadable_skills_directory.UnreadableSkillsDirectory(
-            operation=RefusedOperation.RESOLVE, failed_at=_ENTRY, refusal=_REFUSAL
+        assert occurrence == unreadable_path.UnreadablePath(
+            failed_at=_ENTRY, cause=Refused(operation=RefusedOperation.RESOLVE, refusal=_REFUSAL)
         ), 'the condition holds the operation, the path it was refused at and why'
 
     def test_report_load_failures_with_a_skills_directory_that_cannot_be_inspected_reports_what_was_refused_where(
@@ -328,8 +326,8 @@ class TestReportLoadFailures:
         occurrence = _condition_of(condition, path)
 
         #: Then
-        assert occurrence == unreadable_skills_directory.UnreadableSkillsDirectory(
-            operation=RefusedOperation.INSPECT, failed_at=_ON_THE_WAY, refusal=_REFUSAL
+        assert occurrence == unreadable_path.UnreadablePath(
+            failed_at=_ON_THE_WAY, cause=Refused(operation=RefusedOperation.INSPECT, refusal=_REFUSAL)
         ), 'the condition holds the operation, the path it was refused at and why'
 
     def test_report_load_failures_with_a_skills_directory_that_cannot_be_listed_reports_what_was_refused_where(
@@ -343,8 +341,8 @@ class TestReportLoadFailures:
         occurrence = _condition_of(condition, path)
 
         #: Then
-        assert occurrence == unreadable_skills_directory.UnreadableSkillsDirectory(
-            operation=RefusedOperation.LIST, failed_at=_ON_THE_WAY, refusal=_REFUSAL
+        assert occurrence == unreadable_path.UnreadablePath(
+            failed_at=_ON_THE_WAY, cause=Refused(operation=RefusedOperation.LIST, refusal=_REFUSAL)
         ), 'the condition holds the operation, the path it was refused at and why'
 
     def test_report_load_failures_with_a_skill_entry_that_cannot_be_resolved_reports_what_was_refused_where(
@@ -358,8 +356,8 @@ class TestReportLoadFailures:
         occurrence = _condition_of(condition, path)
 
         #: Then
-        assert occurrence == unreadable_skill_entry.UnreadableSkillEntry(
-            operation=RefusedOperation.RESOLVE, failed_at=_ENTRY, refusal=_REFUSAL
+        assert occurrence == unreadable_path.UnreadablePath(
+            failed_at=_ENTRY, cause=Refused(operation=RefusedOperation.RESOLVE, refusal=_REFUSAL)
         ), 'the condition holds the operation, the path it was refused at and why'
 
     def test_report_load_failures_with_a_skill_entry_that_cannot_be_inspected_reports_what_was_refused_where(
@@ -373,8 +371,8 @@ class TestReportLoadFailures:
         occurrence = _condition_of(condition, path)
 
         #: Then
-        assert occurrence == unreadable_skill_entry.UnreadableSkillEntry(
-            operation=RefusedOperation.INSPECT, failed_at=_ON_THE_WAY, refusal=_REFUSAL
+        assert occurrence == unreadable_path.UnreadablePath(
+            failed_at=_ON_THE_WAY, cause=Refused(operation=RefusedOperation.INSPECT, refusal=_REFUSAL)
         ), 'the condition holds the operation, the path it was refused at and why'
 
     def test_report_load_failures_with_a_skill_entry_that_cannot_be_listed_reports_what_was_refused_where(self) -> None:
@@ -386,8 +384,8 @@ class TestReportLoadFailures:
         occurrence = _condition_of(condition, path)
 
         #: Then
-        assert occurrence == unreadable_skill_entry.UnreadableSkillEntry(
-            operation=RefusedOperation.LIST, failed_at=_ON_THE_WAY, refusal=_REFUSAL
+        assert occurrence == unreadable_path.UnreadablePath(
+            failed_at=_ON_THE_WAY, cause=Refused(operation=RefusedOperation.LIST, refusal=_REFUSAL)
         ), 'the condition holds the operation, the path it was refused at and why'
 
     def test_report_load_failures_with_a_skill_file_that_cannot_be_resolved_reports_what_was_refused_where(
@@ -401,8 +399,8 @@ class TestReportLoadFailures:
         occurrence = _condition_of(condition, path)
 
         #: Then
-        assert occurrence == unreadable_skill_file.UnreadableSkillFile(
-            operation=RefusedOperation.RESOLVE, failed_at=_ON_THE_WAY, refusal=_REFUSAL
+        assert occurrence == unreadable_path.UnreadablePath(
+            failed_at=_ON_THE_WAY, cause=Refused(operation=RefusedOperation.RESOLVE, refusal=_REFUSAL)
         ), 'the condition holds the operation, the path it was refused at and why'
 
     def test_report_load_failures_with_a_skill_file_that_cannot_be_inspected_reports_what_was_refused_where(
@@ -416,6 +414,6 @@ class TestReportLoadFailures:
         occurrence = _condition_of(condition, path)
 
         #: Then
-        assert occurrence == unreadable_skill_file.UnreadableSkillFile(
-            operation=RefusedOperation.INSPECT, failed_at=_ON_THE_WAY, refusal=_REFUSAL
+        assert occurrence == unreadable_path.UnreadablePath(
+            failed_at=_ON_THE_WAY, cause=Refused(operation=RefusedOperation.INSPECT, refusal=_REFUSAL)
         ), 'the condition holds the operation, the path it was refused at and why'

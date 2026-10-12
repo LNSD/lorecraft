@@ -25,14 +25,11 @@ from lorecraft.rules.engine import (
     malformed_structure_file,
     repeated_forbidden_section,
     repeated_outline_section,
-    unlistable_corpus_directory,
-    unreadable_skill_entry,
-    unreadable_skill_file,
-    unreadable_skills_directory,
-    unreadable_structure_file,
+    unreadable_path,
     untyped_frontmatter_schema,
 )
 from lorecraft.rules.engine.__ruleset__ import RefusedOperation
+from lorecraft.rules.engine.unreadable_path import NotARegularFile, Refused
 from lorecraft.rules.report import LoadFailureReport
 
 
@@ -63,9 +60,11 @@ def _find_occurrence(failure: workspace.LoadFailure) -> EngineCondition | None:
     condition = failure.condition
     match condition:
         case workspace.UnreadableStructureFile(refusal=refusal):
-            return unreadable_structure_file.UnreadableStructureFile(refusal=refusal)
+            return unreadable_path.UnreadablePath(
+                failed_at=failure.path, cause=Refused(operation=RefusedOperation.READ, refusal=refusal)
+            )
         case workspace.UnrecordedStructureFile():
-            return unreadable_structure_file.UnreadableStructureFile(refusal=None)
+            return unreadable_path.UnreadablePath(failed_at=failure.path, cause=NotARegularFile())
         case workspace.NonUtf8StructureFile(failure=utf8_failure):
             # The same condition as any file that does not decode, so it is reported as one, at the structure file.
             return invalid_utf8.InvalidUtf8(failure=utf8_failure)
@@ -93,39 +92,41 @@ def _find_occurrence(failure: workspace.LoadFailure) -> EngineCondition | None:
             return untyped_frontmatter_schema.UntypedFrontmatterSchema()
         case workspace.UnlistableDirectory():
             return None
-        case workspace.UnlistableCorpusDirectory(corpus=corpus, refusal=refusal):
-            return unlistable_corpus_directory.UnlistableCorpusDirectory(corpus=corpus, refusal=refusal)
+        case workspace.UnlistableCorpusDirectory(refusal=refusal):
+            return unreadable_path.UnreadablePath(
+                failed_at=failure.path, cause=Refused(operation=RefusedOperation.LIST, refusal=refusal)
+            )
         case workspace.UnresolvableSkillsDirectory(refusal=refusal):
-            return unreadable_skills_directory.UnreadableSkillsDirectory(
-                operation=RefusedOperation.RESOLVE, failed_at=failure.path, refusal=refusal
+            return unreadable_path.UnreadablePath(
+                failed_at=failure.path, cause=Refused(operation=RefusedOperation.RESOLVE, refusal=refusal)
             )
         case workspace.UninspectableSkillsDirectory(failed_at=failed_at, refusal=refusal):
-            return unreadable_skills_directory.UnreadableSkillsDirectory(
-                operation=RefusedOperation.INSPECT, failed_at=failed_at, refusal=refusal
+            return unreadable_path.UnreadablePath(
+                failed_at=failed_at, cause=Refused(operation=RefusedOperation.INSPECT, refusal=refusal)
             )
         case workspace.UnlistableSkillsDirectory(failed_at=failed_at, refusal=refusal):
-            return unreadable_skills_directory.UnreadableSkillsDirectory(
-                operation=RefusedOperation.LIST, failed_at=failed_at, refusal=refusal
+            return unreadable_path.UnreadablePath(
+                failed_at=failed_at, cause=Refused(operation=RefusedOperation.LIST, refusal=refusal)
             )
         case workspace.UnresolvableSkillEntry(refusal=refusal):
-            return unreadable_skill_entry.UnreadableSkillEntry(
-                operation=RefusedOperation.RESOLVE, failed_at=failure.path, refusal=refusal
+            return unreadable_path.UnreadablePath(
+                failed_at=failure.path, cause=Refused(operation=RefusedOperation.RESOLVE, refusal=refusal)
             )
         case workspace.UninspectableSkillEntry(failed_at=failed_at, refusal=refusal):
-            return unreadable_skill_entry.UnreadableSkillEntry(
-                operation=RefusedOperation.INSPECT, failed_at=failed_at, refusal=refusal
+            return unreadable_path.UnreadablePath(
+                failed_at=failed_at, cause=Refused(operation=RefusedOperation.INSPECT, refusal=refusal)
             )
         case workspace.UnlistableSkillDirectory(failed_at=failed_at, refusal=refusal):
-            return unreadable_skill_entry.UnreadableSkillEntry(
-                operation=RefusedOperation.LIST, failed_at=failed_at, refusal=refusal
+            return unreadable_path.UnreadablePath(
+                failed_at=failed_at, cause=Refused(operation=RefusedOperation.LIST, refusal=refusal)
             )
         case workspace.UnresolvableSkillFile(failed_at=failed_at, refusal=refusal):
-            return unreadable_skill_file.UnreadableSkillFile(
-                operation=RefusedOperation.RESOLVE, failed_at=failed_at, refusal=refusal
+            return unreadable_path.UnreadablePath(
+                failed_at=failed_at, cause=Refused(operation=RefusedOperation.RESOLVE, refusal=refusal)
             )
         case workspace.UninspectableSkillFile(failed_at=failed_at, refusal=refusal):
-            return unreadable_skill_file.UnreadableSkillFile(
-                operation=RefusedOperation.INSPECT, failed_at=failed_at, refusal=refusal
+            return unreadable_path.UnreadablePath(
+                failed_at=failed_at, cause=Refused(operation=RefusedOperation.INSPECT, refusal=refusal)
             )
         case _:
             assert_never(condition)

@@ -55,21 +55,26 @@ lorecraft rule
 # A rule's page, by its code or by its name
 lorecraft rule OUT004
 lorecraft rule empty-section
+
+# The page for paths that cannot be read, by code or name
+lorecraft rule LC002
+lorecraft rule unreadable-path
 ```
 
 ### Output
 
 The listing is a line per rule on stdout: the code, the name, the default level and the condition the rule reports.
 A removed rule shows `removed` in place of a level, and an engine condition the `error` it is always reported at,
-since it has no level. The listing includes `LC001` through `LC017`; this excerpt shows entries from it:
+since it has no level. The listing includes `LC001` through `LC013`; this excerpt shows entries from it:
 
 ```text
 FM007    unknown-field                warn   A frontmatter holds a field its schema does not define.
 LC001    invalid-utf8                 error  A file is not valid UTF-8.
-LC002    unreadable-structure-file    error  A structure file cannot be read.
-LC017    unreadable-skill-file        error  A skill's `SKILL.md` cannot be resolved.
+LC002    unreadable-path              error  A path cannot be read.
 OUT004   empty-section                deny   A section holds no content, under a structure specification that forbids empty sections.
 ```
+
+The `LC002` page covers unreadable structure files, corpus and skills directories, skill entries and `SKILL.md` files.
 
 A page is Markdown on stdout, the file `docs/rulebook/<code>-<name>.md`, so a reader without the repository reads
 the same text. This is the start of one, with its sections cut at `…`:
