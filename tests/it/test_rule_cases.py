@@ -12,6 +12,9 @@ that fire together is allowed only where the case that holds the pair declares i
 expects its own code and a near miss does not. The tests that read the registry and the directory tree run nothing:
 one names every code that lacks either kind, one every directory named for a code no rule has, and one every entry
 that is not a `trigger/` or `near_miss/` directory under a code.
+
+A code the check run does not report yet has no case on disk: `lorecraft check` still stops on any load failure, so no
+repository can make it report one. Those codes are listed in `UNREPORTED_CODES` until the run reports them.
 """
 
 import json
@@ -38,6 +41,9 @@ NEAR_MISS: Final[str] = 'near_miss'
 """The kind of case whose repository looks like the code could fire on it, and it does not."""
 
 KINDS: Final[tuple[str, ...]] = (TRIGGER, NEAR_MISS)
+
+UNREPORTED_CODES: Final[frozenset[str]] = frozenset({f'LC{number:03d}' for number in range(3, 14)})
+"""The codes of the load failures of a structure file's shape, which `lorecraft check` does not report yet."""
 
 runner = CliRunner()
 
@@ -236,7 +242,7 @@ class TestRuleCases:
 
     def test_rule_cases_with_the_registry_cover_every_code_with_a_trigger_and_a_near_miss(self) -> None:
         #: Given
-        codes = reported_codes()
+        codes = [code for code in reported_codes() if code not in UNREPORTED_CODES]
         covered = {(case.code, case.kind) for case in CASES}
 
         #: When
