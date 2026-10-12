@@ -22,6 +22,7 @@ from lorecraft.project.workspace import (
     InvalidFrontmatterSchema,
     InvalidTitlePattern,
     LoadFailure,
+    NonUtf8StructureFile,
     RepeatedForbiddenSections,
     RepeatedOutlineSections,
     UndecodableStructureSpec,
@@ -106,6 +107,8 @@ def _failure_lines(failure: LoadFailure) -> list[str]:
             return [f'cannot read the structure schema {name}', f'cannot read file {path}: {refusal.value}']
         case UnrecordedStructureFile(name=name):
             return [f'cannot read the structure schema {name}', f'cannot read file {path}: not in the snapshot']
+        case NonUtf8StructureFile():
+            return [f'file {path} is not UTF-8']
         case UndecodableStructureSpec(problems=problems):
             return [f'invalid structure schema {path}: {"; ".join(problems)}']
         case EmptyStructureSpec():

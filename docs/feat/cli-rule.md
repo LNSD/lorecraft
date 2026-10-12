@@ -61,14 +61,16 @@ lorecraft rule empty-section
 
 The listing is a line per rule on stdout: the code, the name, the default level and the condition the rule reports.
 A removed rule shows `removed` in place of a level, and an engine condition the `error` it is always reported at,
-since it has no level. The listing includes `LC003` through `LC013`, though `check` does not report them yet:
-an unusable structure file stops its run with exit `2`. This excerpt shows entries from the listing:
+since it has no level. The listing includes `LC002` through `LC017`, though `check` does not report them yet:
+an unusable structure file or snapshot refusal stops its run with exit `2`. This excerpt shows entries:
 
 ```text
 FM007    unknown-field                warn   A frontmatter holds a field its schema does not define.
 LC001    invalid-utf8                 error  A file is not valid UTF-8.
+LC002    unreadable-structure-file    error  A structure file cannot be read.
 LC003    malformed-structure-file     error  A structure file does not follow the structure format.
 LC013    untyped-frontmatter-schema   error  A structure file's frontmatter schema does not state `"type": "object"`.
+LC017    unreadable-skill-file        error  A skill's `SKILL.md` cannot be resolved.
 OUT004   empty-section                deny   A section holds no content, under a structure specification that forbids empty sections.
 ```
 

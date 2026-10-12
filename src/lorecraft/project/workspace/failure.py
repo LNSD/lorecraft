@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas.name import SpecName
-from lorecraft.vfs import OsRefusal
+from lorecraft.vfs import OsRefusal, Utf8Failure
 
 # The conditions of a structure file, which stands in its meta spec layer as a `FailedStructure`.
 
@@ -45,6 +45,17 @@ class UnrecordedStructureFile:
     """
 
     name: SpecName
+
+
+@dataclass(frozen=True, slots=True)
+class NonUtf8StructureFile:
+    """The structure file's bytes are not UTF-8, so it has no text to read.
+
+    Attributes:
+        failure: Where the file's bytes first stop being UTF-8, and why.
+    """
+
+    failure: Utf8Failure
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,6 +161,7 @@ class UntypedFrontmatterSchema:
 type StructureLoadFailure = (
     UnreadableStructureFile
     | UnrecordedStructureFile
+    | NonUtf8StructureFile
     | UndecodableStructureSpec
     | EmptyStructureSpec
     | RepeatedOutlineSections
