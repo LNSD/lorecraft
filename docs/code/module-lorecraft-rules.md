@@ -1,6 +1,6 @@
 ---
 name: "module-lorecraft-rules"
-description: "The lorecraft.rules package's responsibility, role, boundary and invariants: how a rule is declared and identified, the rule groups and their rules, and a rule as a pure judgment of one subject read through its context. Load when adding or moving code in lorecraft.rules, declaring, naming or documenting a rule, a removed rule, an engine condition or a group, or deciding whether code declares a rule or runs one"
+description: "The lorecraft.rules package's responsibility, role, boundary and invariants: how a rule is declared and identified, the rule groups and their rules, a rule as a pure judgment of one subject, and the selection, table and report of a run. Load when adding or moving code in lorecraft.rules, declaring, naming or documenting a rule or a group, changing a run's selection, table or report, or deciding whether code declares a rule or runs one"
 type: "pkg"
 scope: "pkg:lorecraft.rules"
 ---
@@ -9,69 +9,71 @@ scope: "pkg:lorecraft.rules"
 
 ## Responsibility
 
-Declare the rules a subject is judged by. It changes when a rule is added, changed or removed, or when what a
-declaration states changes: a rule's identity, the places its occurrences point at, or the context it reads.
+Declare the rules a subject is judged by, and state how a run enables and reports them. It changes when a
+rule is added, changed or removed, or when what a declaration states changes: a rule's identity, the places
+its occurrences point at, or the context it reads. It also changes with the selection, table or report of a
+run.
 
 ## Role
 
 **Analysis**, the judging half of it. A rule is a pure judgment of one subject, read through its context, and this
 package holds the rules with everything that makes one a rule: its identity, the class that declares and checks it,
-and the registry that lists them all. The run that hands over a context sits above it in `lorecraft.checks`; the
-context is a `Protocol` of `lorecraft.project`, answered by the database there, so a rule has nothing to read but
-what it is handed.
+and the registry that lists them all, with the values a run is stated in. The run that hands over a
+context sits above it in `lorecraft.checks`; the context is a `Protocol` of `lorecraft.project`, answered by
+the database there, so a rule reads nothing but what it is handed.
 
 ## Belongs Here
 
 - A value that identifies a rule: a release, a group's prefix and title, a code, a name, an alias code, a level,
   and the severity an engine condition fixes.
-- A rule class, the base class its subject kind gives it, and the places its occurrences may point
-  at. A subject kind's base takes the subject's context; a document's also requires the rule to declare the facet
-  it reads, from the facets this package states. A rule over what any Markdown file has takes the context they share,
-  and judges a document, a skill's `SKILL.md` and a skill's resource alike; a rule over one of a skill's files takes
-  the context a `SKILL.md` and a resource share, and never judges a document. A base over what both a document and a
-  skill share, such as the frontmatter, takes the context they share and declares, for every rule on it, the facet a
-  document is gated on.
+- A rule class, the base class its subject kind gives it, and the places its occurrences may point at. A subject
+  kind's base takes the subject's context; a document's also requires the rule to declare the facet it reads, from
+  the facets this package states. A rule over what any Markdown file has takes the context they share, and
+  judges a document, a skill's `SKILL.md` and a skill's resource alike; a rule over one of a skill's files
+  takes the context a `SKILL.md` and a resource share, and never judges a document. A base over what both a
+  document and a skill share, such as the frontmatter, declares, for every rule on it, the facet a document is
+  gated on.
 - A removed rule, the decorator that registers a declaration, and the registry, with every check it makes on a
   declaration as the package loads.
-- The rule index, `lorecraft.rules.index`: each declaration's identity as strings and tuples, with its lookups,
-  generated from the registry by `lorecraft_gen` and held to it by `gen-check`, for a reader that must know which
-  codes exist without the engine. It is derived output, never a source of rules, and imports none of the engine.
+- The rule index, `lorecraft.rules.index`: each declaration's identity as strings and tuples, generated from the
+  registry by `lorecraft_gen` and held to it by `gen-check`, for a reader that must know which codes exist
+  without the engine. It is derived output, never a source of rules.
 - An engine condition: what the engine reports about a subject before any rule runs, such as a file that does
-  not decode. It is declared and rendered like a rule, under the engine's group `LC`, with a fixed severity in
-  place of a level and no `check`.
+  not decode. It is declared and rendered like a rule, under the engine's group `LC`, with a fixed severity
+  in place of a level and no `check`.
+- The one-run selection, the rule table and the report of a run; their module docstrings state each.
 - A rule group, as a subpackage: its `__ruleset__.py` declares the group as `GROUP_ID` and whatever else its rules
-  share, its `__init__.py` holds only the docstring, and each of its rules is one module. The `LC` group is
-  declared the same way, and the registry imports its `GROUP_ID` to hold the reservation.
+  share, its `__init__.py` holds only the docstring, and each rule is one module. The `LC` group is declared the
+  same way, and the registry imports its `GROUP_ID` to hold the reservation.
 
 ## Belongs Elsewhere
 
 | Code that… | Belongs in |
 |---|---|
 | Answers or memoizes a query over one revision, decoding a subject included | `lorecraft.project` |
-| Runs the rules over a subject | `lorecraft.checks` |
-| Applies a level, files an occurrence under its subject, or holds a report | `lorecraft.checks` |
+| Runs the rules over a subject, and files each occurrence as a diagnostic | `lorecraft.checks` |
 | Prints, renders a report, or sets an exit code | `lorecraft.cli` |
 | Parses text, or decodes a meta spec | `lorecraft.project` |
 | Reads the disk | `lorecraft.vfs` |
 
 ## Invariants
 
-- A rule never imports `lorecraft.checks` or `lorecraft.project.database`. The layers contract puts this package
-  below the first and a forbidden contract refuses the second, so the database, a query and the run are out of a
-  rule's reach by import, not by review.
+- Nothing here imports `lorecraft.checks` or `lorecraft.project.database`. The layers contract puts this package
+  below the first and a forbidden contract refuses the second, so the database, a query and the run are out of
+  reach by import, not by review.
 - A rule reads the one context its base fixes and nothing else, and performs no I/O.
-- An occurrence names no subject. It points at a line of the subject or at the subject itself, and the run that
-  checked the subject supplies the path.
-- The registry is package data: it reads no workspace and is not a query, and it holds this package's rules,
-  never a rule its unit tests declare.
-- The registry is built once, with `Registry.load`, where a command starts, and passed down to what reads it.
-  Nothing below that composition root imports a registry instance or memoizes one.
-- A code bound twice, a declaration left incomplete, a group with no title, a code numbered out of range, or a code
-  in a group its kind may not use is a defect in this package. It is raised when the package loads, never reported
-  as the user's fault.
+- An occurrence names no subject. It points at a line of the subject or at the subject itself; the run
+  supplies the path.
+- The registry is package data: it reads no workspace, is not a query, and holds this package's rules, never
+  a rule its unit tests declare.
+- The registry is built once, with `Registry.load`, where a command starts, and passed down to what reads it;
+  nothing below imports an instance or memoizes one.
+- A code bound twice, a declaration left incomplete, a group with no title, a code numbered out of range, or a
+  code in a group its kind may not use is a defect in this package, raised when it loads, never reported as the
+  user's fault.
 - The `LC` group holds engine conditions alone, and every engine condition is in it.
-- A release, a rule name, a group's prefix, and an alias code's linter and upstream code are value objects a
-  user's input will also build, so a malformed one raises an `Error` variant, whoever wrote it.
+- A release, a rule name, a group's prefix, an alias code's linter and upstream code, and a code prefix are
+  value objects a user's input will also build, so a malformed one raises an `Error`, whoever wrote it.
 
 ## Examples
 
@@ -199,7 +201,7 @@ Before committing:
 - [ ] A new rule's `check` takes the one context its base class fixes and returns occurrences that name no
       subject; a rule over a document declares its facet in `GOVERNED_BY`
 - [ ] A new rule is declared with `@rule` in its own module in its group's subpackage, listed nowhere else
-- [ ] Decoding, answering a context, running the rules, applying a level and rendering stay out of the package
+- [ ] Decoding, answering a context, running the rules and rendering stay out of the package
 - [ ] A new rule's name states its condition; its class and module spell it
 - [ ] A new rule's `message()` is lowercase with the value found against the limit; `children()` puts a
       `Note` at the meta spec that states the rule (the corpus's structure file when no key does; the external

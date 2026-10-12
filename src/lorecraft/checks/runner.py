@@ -52,9 +52,7 @@ from lorecraft.project.database import (
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillResourceLocation
 from lorecraft.project.workspace import Governance
-from lorecraft.rules.subject import Facet, MarkdownRule
-
-from .report import (
+from lorecraft.rules.report import (
     CheckedLayoutEntry,
     CheckedSubject,
     Diagnostic,
@@ -62,7 +60,8 @@ from .report import (
     SubjectReport,
     UndecodableSubject,
 )
-from .table import EnabledRule, RuleTable
+from lorecraft.rules.subject import Facet, MarkdownRule
+from lorecraft.rules.table import EnabledRule, RuleTable
 
 # A subject the runner checks: a document, by its ref, a skill, by the location the model hands out for it, a skill's
 # resource, by the location its skill's resource listing gives, or a layout entry, by the record of a symlink whose

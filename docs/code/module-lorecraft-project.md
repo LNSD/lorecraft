@@ -52,7 +52,8 @@ from a snapshot, and one that never outlives its snapshot. The layout it derives
 | Reads the disk, or follows a symlink by asking the operating system | `lorecraft.vfs` |
 | States an agent's skills directories or guide files | `lorecraft.agents` |
 | Decides whether a document or a skill breaks a rule | `lorecraft.rules` |
-| Runs the rules over the query results, or reports what they find | `lorecraft.checks` |
+| Runs the rules over the query results | `lorecraft.checks` |
+| Declares what a run reports about what the rules find | `lorecraft.rules` |
 | Chooses which documents a run checks, or prints anything | `lorecraft.cli` |
 
 ## Invariants

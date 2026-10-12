@@ -8,13 +8,6 @@ import pytest
 from syrupy.assertion import SnapshotAssertion
 
 from lib.snapshot import TextSnapshotExtension
-from lorecraft.checks import (
-    CheckedLayoutEntry,
-    CheckedSubject,
-    RuleDiagnostic,
-    SubjectReport,
-    UndecodableSubject,
-)
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
@@ -26,6 +19,13 @@ from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
 from lorecraft.rules.layout.outside_symlink import OutsideSymlink
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.outline.missing_section import MissingSection
+from lorecraft.rules.report import (
+    CheckedLayoutEntry,
+    CheckedSubject,
+    RuleDiagnostic,
+    SubjectReport,
+    UndecodableSubject,
+)
 from lorecraft.rules.subject import Facet
 from lorecraft.vfs import RootExit, Utf8Failure, Utf8Reason
 

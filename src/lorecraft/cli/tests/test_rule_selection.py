@@ -4,9 +4,9 @@ from typing import Final
 
 import pytest
 
-from lorecraft.checks import AllRules, RuleCodePrefix, RuleSelection
 from lorecraft.rules.declaration import RuleCode
 from lorecraft.rules.registry import Registry
+from lorecraft.rules.selection import AllRules, RuleCodePrefix, RuleSelection
 from lorecraft.rules.tests.sample_rules import valid as valid_rules
 from lorecraft.rules.tests.sample_rules.groups import LAYOUT, SAMPLE
 from lorecraft.rules.tests.sample_rules.valid.outline.empty_line import EmptyLine

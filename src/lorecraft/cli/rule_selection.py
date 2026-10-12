@@ -14,9 +14,9 @@ from enum import StrEnum
 
 import typer
 
-from lorecraft.checks import AllRules, RuleSelection, RuleSelector
 from lorecraft.rules.declaration import Rule, RuleCode
 from lorecraft.rules.registry import Registry
+from lorecraft.rules.selection import AllRules, RuleSelection, RuleSelector
 
 from .rule_arguments import AliasSelector, SelectorValue
 

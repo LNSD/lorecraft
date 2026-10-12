@@ -11,13 +11,15 @@ from typing import Final
 import pytest
 
 from lorecraft import rules
-from lorecraft.checks import AllRules, RuleSelection, RuleTable, check_subjects
+from lorecraft.checks import check_subjects
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.workspace import Corpus, Governance
 from lorecraft.rules.registry import Registry
+from lorecraft.rules.selection import AllRules, RuleSelection
+from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import Snapshot
 
 TYPING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))

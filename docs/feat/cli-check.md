@@ -244,6 +244,6 @@ their pattern. `FM010` and `FM012` carry counts in messages only.
 - `src/lorecraft/cli/terminal.py` - Chooses text output style
 - `src/lorecraft/cli/output.py` - Declares output and colour choices
 - `src/lorecraft/checks/runner.py` - Runs every enabled rule over each subject
-- `src/lorecraft/checks/table.py` - The rules a run enables, each with its severity
-- `src/lorecraft/checks/selection.py` - The selection that filters the rule table
+- `src/lorecraft/rules/table.py` - The rules a run enables, each with its severity
+- `src/lorecraft/rules/selection.py` - The selection that filters the rule table
 - `src/lorecraft/rules/` - The rules, one module each, in a package per group

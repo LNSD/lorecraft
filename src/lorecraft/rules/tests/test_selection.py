@@ -61,35 +61,35 @@ class TestRuleCodePrefix:
         #: Then
         assert printed == 'SMP00', 'a prefix prints as typed'
 
-    def test_parse_with_three_digits_raises_invalid_rule_code_prefix_error(self) -> None:
+    def test_init_with_three_digits_raises_invalid_rule_code_prefix_error(self) -> None:
         #: Given
         digits = '000'
 
         #: When
         with pytest.raises(InvalidRuleCodePrefixError) as exc_info:
-            RuleCodePrefix.parse(SAMPLE, digits)
+            RuleCodePrefix(SAMPLE, digits)
 
         #: Then
         assert exc_info.value.digits == '000', 'three digits are a whole code, not a prefix'
 
-    def test_parse_with_no_digit_raises_invalid_rule_code_prefix_error(self) -> None:
+    def test_init_with_no_digit_raises_invalid_rule_code_prefix_error(self) -> None:
         #: Given
         digits = ''
 
         #: When
         with pytest.raises(InvalidRuleCodePrefixError) as exc_info:
-            RuleCodePrefix.parse(SAMPLE, digits)
+            RuleCodePrefix(SAMPLE, digits)
 
         #: Then
         assert exc_info.value.digits == '', 'no digit is the group, not a prefix of its codes'
 
-    def test_parse_with_a_letter_raises_invalid_rule_code_prefix_error(self) -> None:
+    def test_init_with_a_letter_raises_invalid_rule_code_prefix_error(self) -> None:
         #: Given
         digits = '0x'
 
         #: When
         with pytest.raises(InvalidRuleCodePrefixError) as exc_info:
-            RuleCodePrefix.parse(SAMPLE, digits)
+            RuleCodePrefix(SAMPLE, digits)
 
         #: Then
         assert exc_info.value.digits == '0x', 'a prefix holds digits only'

@@ -5,11 +5,11 @@ handed a value that names something. Two ways to refuse a value are told apart: 
 no form the option accepts (`out`, `OUT-1`, `OUT1234`), and **unknown**, which has a shape but names nothing
 (`OUT999`, `ZZZ`, `OUT9`).
 
-These values are the command line's own, decoupled from the invariant-preserving types of `lorecraft.rules` and
-`lorecraft.checks`: they hold strings and numbers, and a conversion method with a typed argument builds the rule-side
-type from them when a command runs. Parsing reads `lorecraft.rules.index` alone, which loads none of the rules
-engine, so this module imports none of `lorecraft.rules.declaration`, `lorecraft.rules.subject`,
-`lorecraft.rules.registry`, `lorecraft.project` nor `lorecraft.checks` when the command line starts. The rule-side
+These values are the command line's own, decoupled from the invariant-preserving types of `lorecraft.rules`: they
+hold strings and numbers, and a conversion method with a typed argument builds the rule-side type from them when a
+command runs. Parsing reads `lorecraft.rules.index` alone, which loads none of the rules engine, so this module
+imports none of `lorecraft.rules.declaration`, `lorecraft.rules.subject`, `lorecraft.rules.registry`,
+`lorecraft.rules.selection`, `lorecraft.project` nor `lorecraft.checks` when the command line starts. The rule-side
 types are named for the checker under `TYPE_CHECKING`, and a conversion imports what it builds where it runs.
 
 Text enters through `SelectorValue.parse` and `RuleKey.parse`, which confirm it against the rule index. The selector
@@ -33,9 +33,9 @@ from lorecraft.rules import index
 
 if TYPE_CHECKING:
     # Type-only: importing the rule side here would load the rules engine when the command line starts.
-    from lorecraft.checks import RuleSelector
     from lorecraft.rules.declaration import RuleCode, RuleDeclaration, RuleGroup
     from lorecraft.rules.registry import Registry
+    from lorecraft.rules.selection import RuleSelector
 
 _ALL: Final[str] = 'ALL'
 """The selector for every rule; no group may take it as its prefix."""
@@ -225,7 +225,7 @@ class AllSelector:
         Args:
             registry: Every rule; not read, and taken so that every selector converts alike.
         """
-        from lorecraft.checks import AllRules
+        from lorecraft.rules.selection import AllRules
 
         return AllRules()
 
@@ -275,9 +275,9 @@ class CodePrefixSelector:
         Args:
             registry: Every rule, which holds the group.
         """
-        from lorecraft.checks import RuleCodePrefix
+        from lorecraft.rules.selection import RuleCodePrefix
 
-        return RuleCodePrefix.parse(_require_group(registry, self.group_prefix), self.digits)
+        return RuleCodePrefix(_require_group(registry, self.group_prefix), self.digits)
 
     def __str__(self) -> str:
         """The selector as typed: the group's prefix, then the digits."""
