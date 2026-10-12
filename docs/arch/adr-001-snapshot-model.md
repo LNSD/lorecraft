@@ -72,3 +72,5 @@ Before committing code, verify:
   rows of the role table
 - [principle-single-responsibility](../code/principle-single-responsibility.md) - Foundation: One role per package is
   one reason to change per package
+- [adr-015-database](adr-015-database.md) - Related: The database opened with its model, proposed to supersede adr-004
+- [adr-016-specifications](adr-016-specifications.md) - Related: Meta specs and governance restated, proposed to supersede adr-006

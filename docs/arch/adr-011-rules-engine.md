@@ -417,3 +417,4 @@ Before committing code, verify:
 - [adr-006-specifications](adr-006-specifications.md) - Foundation: Governance, computed once by the model
 - [adr-012-database-derivation](adr-012-database-derivation.md) - Foundation: The database in the Derivation package
 - [module-lorecraft-checks](../code/module-lorecraft-checks.md) - Foundation: The package the engine lives in
+- [adr-015-database](adr-015-database.md) - Related: The database opened with its model, proposed to supersede adr-004

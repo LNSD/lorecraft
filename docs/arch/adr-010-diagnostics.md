@@ -357,3 +357,5 @@ Before committing code, verify:
 - [adr-006-specifications](adr-006-specifications.md) - Related: Where the rules a diagnostic cites come from
 - [adr-007-findings](adr-007-findings.md) - Supersedes: Violations, findings and failures
 - [error-boundaries](../code/error-boundaries.md) - Foundation: Where a failure is raised and where it is reported
+- [adr-015-database](adr-015-database.md) - Related: Load failures reported as engine diagnostics that exit 1
+- [adr-016-specifications](adr-016-specifications.md) - Related: Meta specs and governance restated, proposed to supersede adr-006

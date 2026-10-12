@@ -241,3 +241,5 @@ Scenario: A sample rule
 - [adr-009](adr-009-rules.md) - Leads to: How a rule is declared and identified
 - [adr-010](adr-010-diagnostics.md) - Leads to: What a rule reports, and how it reaches the user
 - [adr-011](adr-011-rules-engine.md) - Leads to: How a run judges subjects
+- [prd-014-resilient-model-loading](prd-014-resilient-model-loading.md) - Related: Load failures reported under codes and coverage
+- [adr-016-specifications](adr-016-specifications.md) - Related: Meta specs and governance restated, proposed to supersede adr-006
