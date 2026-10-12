@@ -50,15 +50,16 @@ cache that is safe to fill concurrently, added in the change that first runs que
 
 1. **`Database.open(snapshot)` is the only way to get a database for a snapshot**, and the reserved
    `advance(snapshot)` the only way to get the next one. `open` builds the view, refuses a linked layout, loads the
-   model through the view, and constructs the database from the snapshot, the view and the model. `advance` will do
-   the same for the next revision, carrying the model over or loading it again by its carry-over rule.
+   model through the view, and constructs the database from the view and the model; the view carries its snapshot,
+   so the snapshot is not passed beside it. `advance` will do the same for the next revision, carrying the model
+   over or loading it again by its carry-over rule.
 2. **A database always holds its model.** The model is not optional on the database, and `model()` returns it and
    raises nothing. A database whose model has not loaded cannot be represented. The model is the one structure value
    loaded at open; every other query is still computed on first use.
 3. **What `open` raises is limited to what makes a model impossible**: a linked `docs/` or `docs/__meta__/`, as
    today. A failure inside the declaration is never raised (see below).
 
-Python has no private constructor, so code could call the constructor with a model loaded from another snapshot. The
+Python has no private constructor, so code could call the constructor with a model loaded through another view. The
 design states the gap rather than guard it, as [adr-011](adr-011-rules-engine.md) does for a decode witness: only
 `open` and `advance` construct a database, and a test or a command that needs one calls `open`.
 

@@ -63,11 +63,10 @@ def run_check(
         registry = Registry.load(rules)
         parsed = build_rule_selection(registry, select=select, ignore=ignore)
         print_selection_warnings(parsed, selected_rules_left_off(registry, parsed.selection))
-        database = Database(take_snapshot(establish_root(root), SNAPSHOT_SCOPE))
         # Root discovery follows symlinks and the snapshot, under `docs/`, does not, so a linked `docs/__meta__/`
-        # passes the first and is empty in the second. Refused here, before a run over no documents can report
+        # passes the first and is empty in the second. `open` refuses it, before a run over no documents can report
         # success.
-        database.reject_linked_layout()
+        database = Database.open(take_snapshot(establish_root(root), SNAPSHOT_SCOPE))
         subjects = select_workspace(database)
         table = RuleTable.from_registry(registry, parsed.selection)
         reports = check_subjects(database, subjects, table)

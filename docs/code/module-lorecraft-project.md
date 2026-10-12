@@ -34,9 +34,8 @@ from a snapshot, and one that never outlives its snapshot. The layout it derives
   root, and what the snapshot holds there.
 - The contexts: a `Protocol` per subject kind stating what can be asked of one decoded document, skill or skill
   resource, or of one layout entry, the ones several kinds share, and the owner types they return.
-- The database of one revision: each query over it, such as the model, a file's decoded text, a parse tree, a count
-  or a shared analysis, memoized on first use, and each question answered fresh from the snapshot, such as where a
-  symlink leads.
+- The database of one revision, opened with its model: each query over it, such as a decoded text, a parse tree or a
+  shared analysis, memoized on first use, and each question answered fresh, such as where a symlink leads.
 - The witness a decode query returns, a file's ref and its decoded text, and the undecodable marker, which keeps where
   the bytes first stop being UTF-8: its line, offset, bytes and reason.
 - The carry-over rule: which change to a revision's inputs invalidates which query; and what a persisted result is

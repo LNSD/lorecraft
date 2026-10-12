@@ -1,10 +1,10 @@
 """The database over a hand-built snapshot.
 
 The model, each decoded text, each frontmatter, each parse tree, each token count and each skill's parse tree are
-computed once, and every query about a file's content is asked with the witness its decode query returned. The layout
-guard and the scope question read the same snapshot. The expanded scope behind the scope question is
-private to the database, so that it is built once is not observed here; that every question after the first is
-answered correctly from it is.
+computed once, and every query about a file's content is asked with the witness its decode query returned. Opening
+the database refuses a linked layout and loads the model, and the scope question reads the same snapshot. The
+expanded scope behind the scope question is private to the database, so that it is built once is not observed here;
+that every question after the first is answered correctly from it is.
 
 Every snapshot here is built in memory, so no case reads the disk: the database is what wires the virtual view,
 the model loader, the layout guard and the parser together.
@@ -25,6 +25,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, DocumentText, SkillText, Undecodable
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import LinkedLayoutError
+from lorecraft.project.schemas import EmptyStructureSpecError
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import Frontmatter, Heading, LineNumber, count_tokens
 from lorecraft.project.syntax import Link as MarkdownLink
@@ -141,7 +142,7 @@ def _climbing_chain_snapshot() -> Snapshot:
 class TestDatabase:
     def test_model_from_a_snapshot_lists_the_documents_the_snapshot_holds(self) -> None:
         #: Given
-        database = Database(_snapshot(b'---\nname: "guide"\n---\n'))
+        database = Database.open(_snapshot(b'---\nname: "guide"\n---\n'))
 
         #: When
         model = database.model()
@@ -149,43 +150,60 @@ class TestDatabase:
         #: Then
         assert model.documents() == (GUIDE,), 'the model is loaded from the snapshot alone'
 
-    def test_model_called_twice_returns_the_first_answer(self) -> None:
+    def test_model_called_twice_returns_the_model_the_database_was_opened_with(self) -> None:
         #: Given
-        database = Database(_snapshot(b'---\nname: "guide"\n---\n'))
+        database = Database.open(_snapshot(b'---\nname: "guide"\n---\n'))
         first = database.model()
 
         #: When
         second = database.model()
 
         #: Then
-        assert second is first, 'the model is loaded once per database, then cached'
+        assert second is first, 'the model is loaded once, when the database is opened'
 
-    def test_reject_linked_layout_with_a_linked_docs_directory_raises_linked_layout_error(self) -> None:
+    def test_open_with_a_linked_docs_directory_raises_linked_layout_error(self) -> None:
         #: Given
         # What a scan records for a `docs -> documentation` link: the link on the way to the scope root, and
         # nothing behind it.
-        database = Database(_snapshot_of({'docs': SymlinkRecord(PurePosixPath('documentation'))}))
+        snapshot = _snapshot_of({'docs': SymlinkRecord(PurePosixPath('documentation'))})
 
         #: When
         with pytest.raises(LinkedLayoutError) as exc_info:
-            database.reject_linked_layout()
+            Database.open(snapshot)
 
         #: Then
-        assert exc_info.value.path == RootRelativePath.parse('docs'), 'the guard reads the snapshot the database holds'
+        assert exc_info.value.path == RootRelativePath.parse('docs'), 'the layout is refused before a model is loaded'
 
-    def test_reject_linked_layout_with_real_directories_returns_without_raising(self) -> None:
+    def test_open_with_real_directories_returns_a_database(self) -> None:
         #: Given
-        database = Database(_snapshot(b'---\nname: "guide"\n---\n'))
+        snapshot = _snapshot(b'---\nname: "guide"\n---\n')
 
         #: When
-        outcome = database.reject_linked_layout()
+        database = Database.open(snapshot)
 
         #: Then
-        assert outcome is None, 'a snapshot of real directories is accepted'
+        assert database.model().documents() == (GUIDE,), 'a snapshot of real directories is accepted'
+
+    def test_open_with_a_structure_specification_that_states_no_rule_raises_empty_structure_spec_error(self) -> None:
+        #: Given
+        snapshot = Snapshot.from_tree(
+            {'docs': {'__meta__': {'code.md': b'# Code\n', 'code.structure.json': b'{}'}, 'code': {'guide.md': b''}}}
+        )
+
+        #: When
+        with pytest.raises(EmptyStructureSpecError) as exc_info:
+            Database.open(snapshot)
+
+        #: Then
+        assert exc_info.value.path == RootRelativePath.parse('docs/__meta__/code.structure.json'), (
+            'a load failure is raised from open, so no database without its model exists'
+        )
 
     def test_is_in_scope_with_a_path_the_snapshot_scope_covers_returns_true(self) -> None:
         #: Given
-        database = Database(_snapshot_of({}, scope=(ScanRoot(RootRelativePath.parse('src'), depth=UnsignedInt(0)),)))
+        database = Database.open(
+            _snapshot_of({}, scope=(ScanRoot(RootRelativePath.parse('src'), depth=UnsignedInt(0)),))
+        )
 
         #: When
         in_scope = database.is_in_scope(RootRelativePath.parse('src/tool.py'))
@@ -197,7 +215,9 @@ class TestDatabase:
 
     def test_is_in_scope_with_a_path_only_the_layout_scope_covers_returns_false(self) -> None:
         #: Given
-        database = Database(_snapshot_of({}, scope=(ScanRoot(RootRelativePath.parse('src'), depth=UnsignedInt(0)),)))
+        database = Database.open(
+            _snapshot_of({}, scope=(ScanRoot(RootRelativePath.parse('src'), depth=UnsignedInt(0)),))
+        )
 
         #: When
         in_scope = database.is_in_scope(RootRelativePath.parse('docs/code/guide.md'))
@@ -207,7 +227,7 @@ class TestDatabase:
 
     def test_is_in_scope_over_a_snapshot_from_a_tree_returns_false(self) -> None:
         #: Given
-        database = Database(_snapshot(b'---\nname: "guide"\n---\n'))
+        database = Database.open(_snapshot(b'---\nname: "guide"\n---\n'))
 
         #: When
         in_scope = database.is_in_scope(RootRelativePath.parse('docs/code/guide.md'))
@@ -225,7 +245,7 @@ class TestDatabase:
             {'.agents/skills/review': SymlinkRecord(PurePosixPath('../../skills/review'))},
             scope=(ScanRoot(RootRelativePath.parse('.agents/skills'), depth=UnsignedInt(1), follow_links=True),),
         )
-        database = Database(snapshot)
+        database = Database.open(snapshot)
         database.is_in_scope(RootRelativePath.parse('src/tool.py'))
 
         #: When
@@ -238,7 +258,7 @@ class TestDatabase:
         self,
     ) -> None:
         #: Given
-        database = Database(_climbing_chain_snapshot())
+        database = Database.open(_climbing_chain_snapshot())
         path = RootRelativePath.parse('skills/l/SKILL.md')
 
         #: When
@@ -251,7 +271,7 @@ class TestDatabase:
         self,
     ) -> None:
         #: Given
-        database = Database(_climbing_chain_snapshot())
+        database = Database.open(_climbing_chain_snapshot())
         path = RootRelativePath.parse('skills/far/SKILL.md')
 
         #: When
@@ -264,7 +284,7 @@ class TestDatabase:
 
     def test_find_file_through_a_link_climbing_out_of_a_missing_directory_returns_none(self) -> None:
         #: Given
-        database = Database(_climbing_chain_snapshot())
+        database = Database.open(_climbing_chain_snapshot())
         path = RootRelativePath.parse('skills/n/SKILL.md')
 
         #: When
@@ -275,7 +295,7 @@ class TestDatabase:
 
     def test_is_in_scope_through_a_link_climbing_out_of_a_missing_directory_returns_false(self) -> None:
         #: Given
-        database = Database(_climbing_chain_snapshot())
+        database = Database.open(_climbing_chain_snapshot())
         path = RootRelativePath.parse('skills/n/SKILL.md')
 
         #: When
@@ -286,7 +306,7 @@ class TestDatabase:
 
     def test_find_file_through_a_followed_link_returns_the_resolved_file(self) -> None:
         #: Given
-        database = Database(_climbing_chain_snapshot())
+        database = Database.open(_climbing_chain_snapshot())
         path = RootRelativePath.parse('skills/m/SKILL.md')
 
         #: When
@@ -297,7 +317,7 @@ class TestDatabase:
 
     def test_text_of_a_utf8_document_returns_its_witness(self) -> None:
         #: Given
-        database = Database(_snapshot(b'---\nname: "guide"\n---\n'))
+        database = Database.open(_snapshot(b'---\nname: "guide"\n---\n'))
 
         #: When
         source = database.text(GUIDE)
@@ -307,7 +327,7 @@ class TestDatabase:
 
     def test_text_of_a_document_that_is_not_utf8_returns_undecodable(self) -> None:
         #: Given
-        database = Database(_snapshot(b'---\nname: "gu\xffide"\n---\n'))
+        database = Database.open(_snapshot(b'---\nname: "gu\xffide"\n---\n'))
 
         #: When
         source = database.text(GUIDE)
@@ -325,7 +345,7 @@ class TestDatabase:
 
     def test_text_of_a_document_that_is_not_utf8_called_twice_returns_the_first_answer(self) -> None:
         #: Given
-        database = Database(_snapshot(b'---\nname: "gu\xffide"\n---\n'))
+        database = Database.open(_snapshot(b'---\nname: "gu\xffide"\n---\n'))
         first = database.text(GUIDE)
 
         #: When
@@ -336,7 +356,7 @@ class TestDatabase:
 
     def test_source_lines_of_a_listed_document_returns_its_lines_numbered_as_the_rules_number_them(self) -> None:
         #: Given
-        database = Database(_snapshot(b'one\r\ntwo\x0cstill two\n'))
+        database = Database.open(_snapshot(b'one\r\ntwo\x0cstill two\n'))
 
         #: When
         lines = database.source_lines(GUIDE.path)
@@ -346,7 +366,7 @@ class TestDatabase:
 
     def test_source_lines_of_a_file_opening_with_a_byte_order_mark_drops_the_mark(self) -> None:
         #: Given
-        database = Database(_snapshot(b'\xef\xbb\xbf# Guide\nBody\n'))
+        database = Database.open(_snapshot(b'\xef\xbb\xbf# Guide\nBody\n'))
 
         #: When
         lines = database.source_lines(GUIDE.path)
@@ -356,7 +376,7 @@ class TestDatabase:
 
     def test_source_lines_of_a_specification_returns_its_lines(self) -> None:
         #: Given
-        database = Database(_snapshot(b'# Guide\n'))
+        database = Database.open(_snapshot(b'# Guide\n'))
 
         #: When
         lines = database.source_lines(RootRelativePath.parse('docs/__meta__/code.md'))
@@ -366,7 +386,7 @@ class TestDatabase:
 
     def test_source_lines_of_a_file_that_is_not_utf8_returns_none(self) -> None:
         #: Given
-        database = Database(_snapshot(b'\xff\xfe\n'))
+        database = Database.open(_snapshot(b'\xff\xfe\n'))
 
         #: When
         lines = database.source_lines(GUIDE.path)
@@ -376,7 +396,7 @@ class TestDatabase:
 
     def test_source_lines_of_a_path_the_snapshot_does_not_hold_returns_none(self) -> None:
         #: Given
-        database = Database(_snapshot(b'# Guide\n'))
+        database = Database.open(_snapshot(b'# Guide\n'))
 
         #: When
         lines = database.source_lines(RootRelativePath.parse('docs/code/missing.md'))
@@ -386,7 +406,7 @@ class TestDatabase:
 
     def test_frontmatter_of_a_listed_document_returns_its_decoded_block(self) -> None:
         #: Given
-        database = Database(_snapshot(b'---\nname: "guide"\n---\n'))
+        database = Database.open(_snapshot(b'---\nname: "guide"\n---\n'))
         source = _document_text(database, GUIDE)
 
         #: When
@@ -398,7 +418,7 @@ class TestDatabase:
 
     def test_frontmatter_called_twice_returns_the_first_answer(self) -> None:
         #: Given
-        database = Database(_snapshot(b'---\nname: "guide"\n---\n'))
+        database = Database.open(_snapshot(b'---\nname: "guide"\n---\n'))
         source = _document_text(database, GUIDE)
         first = database.frontmatter(source)
 
@@ -418,7 +438,7 @@ class TestDatabase:
             # Guide
             """
         )
-        database = Database(_snapshot(text.encode()))
+        database = Database.open(_snapshot(text.encode()))
         source = _document_text(database, GUIDE)
 
         #: When
@@ -431,7 +451,7 @@ class TestDatabase:
 
     def test_parse_called_twice_returns_the_first_answer(self) -> None:
         #: Given
-        database = Database(_snapshot(b'---\nname: "guide"\n---\n'))
+        database = Database.open(_snapshot(b'---\nname: "guide"\n---\n'))
         source = _document_text(database, GUIDE)
         first = database.parse(source)
 
@@ -445,7 +465,7 @@ class TestDatabase:
         #: Given
         # no prose words at all, but an agent loading the file still pays for every character of it
         guide = '---\nname: "guide"\n---\n```python\nx = 1\n```\n'
-        database = Database(_snapshot(guide.encode()))
+        database = Database.open(_snapshot(guide.encode()))
         source = _document_text(database, GUIDE)
         expected = count_tokens(guide)
 
@@ -458,7 +478,7 @@ class TestDatabase:
     def test_document_lines_of_a_listed_document_counts_its_whole_file(self) -> None:
         #: Given
         # three lines of frontmatter and two of body, the last one ending in a newline
-        database = Database(_snapshot(b'---\nname: "guide"\n---\n# Guide\n\n'))
+        database = Database.open(_snapshot(b'---\nname: "guide"\n---\n# Guide\n\n'))
         source = _document_text(database, GUIDE)
 
         #: When
@@ -469,7 +489,7 @@ class TestDatabase:
 
     def test_skill_text_of_a_utf8_skill_returns_its_witness(self) -> None:
         #: Given
-        database = Database(_skill_snapshot(b'---\nname: review\n---\n'))
+        database = Database.open(_skill_snapshot(b'---\nname: review\n---\n'))
 
         #: When
         source = database.skill_text(REVIEW)
@@ -479,7 +499,7 @@ class TestDatabase:
 
     def test_skill_text_of_a_skill_that_is_not_utf8_returns_undecodable(self) -> None:
         #: Given
-        database = Database(_skill_snapshot(b'---\nname: caf\xe9\n---\n'))
+        database = Database.open(_skill_snapshot(b'---\nname: caf\xe9\n---\n'))
 
         #: When
         source = database.skill_text(REVIEW)
@@ -497,7 +517,7 @@ class TestDatabase:
 
     def test_skill_text_of_a_skill_that_is_not_utf8_called_twice_returns_the_first_answer(self) -> None:
         #: Given
-        database = Database(_skill_snapshot(b'---\nname: caf\xe9\n---\n'))
+        database = Database.open(_skill_snapshot(b'---\nname: caf\xe9\n---\n'))
         first = database.skill_text(REVIEW)
 
         #: When
@@ -508,7 +528,7 @@ class TestDatabase:
 
     def test_skill_parse_of_a_skill_returns_its_links(self) -> None:
         #: Given
-        database = Database(_skill_snapshot(b'---\nname: review\n---\n# Review\n\nSee [the guide](guide.md).\n'))
+        database = Database.open(_skill_snapshot(b'---\nname: review\n---\n# Review\n\nSee [the guide](guide.md).\n'))
         source = _skill_text(database, REVIEW)
 
         #: When
@@ -521,7 +541,7 @@ class TestDatabase:
 
     def test_skill_parse_called_twice_returns_the_first_answer(self) -> None:
         #: Given
-        database = Database(_skill_snapshot(b'---\nname: review\n---\n# Review\n'))
+        database = Database.open(_skill_snapshot(b'---\nname: review\n---\n# Review\n'))
         source = _skill_text(database, REVIEW)
         first = database.skill_parse(source)
 
@@ -540,7 +560,7 @@ class TestDatabase:
         )
         records: dict[RootRelativePath, EntryRecord] = dict(shipped.records)
         records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(PurePosixPath('../../skills/review'))
-        database = Database(Snapshot(FrozenMapping(records)))
+        database = Database.open(Snapshot(FrozenMapping(records)))
         source = _skill_text(database, REVIEW)
 
         #: When
@@ -554,7 +574,7 @@ class TestDatabase:
     def test_skill_lines_of_a_skill_counts_its_whole_file(self) -> None:
         #: Given
         # three lines of frontmatter and three of body, the last one ending in a newline
-        database = Database(_skill_snapshot(b'---\nname: review\n---\n# Review\n\nSee [the guide](guide.md).\n'))
+        database = Database.open(_skill_snapshot(b'---\nname: review\n---\n# Review\n\nSee [the guide](guide.md).\n'))
         source = _skill_text(database, REVIEW)
 
         #: When
@@ -565,7 +585,7 @@ class TestDatabase:
 
     def test_skill_frontmatter_called_twice_returns_the_first_answer(self) -> None:
         #: Given
-        database = Database(_skill_snapshot(b'---\nname: review\n---\n'))
+        database = Database.open(_skill_snapshot(b'---\nname: review\n---\n'))
         source = _skill_text(database, REVIEW)
         first = database.skill_frontmatter(source)
 

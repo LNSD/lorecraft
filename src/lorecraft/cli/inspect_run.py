@@ -43,11 +43,10 @@ def run_inspect(root: Path, output_format: OutputFormat | None, as_json: bool) -
         output_format = OutputFormat.TEXT
 
     try:
-        database = Database(take_snapshot(root, SNAPSHOT_SCOPE))
         # Under `docs/` the snapshot never reads through a symlink, so a linked `docs/` or `docs/__meta__/`
-        # would draw a model with no corpora. Refused instead of printed as if the root declared nothing.
-        database.reject_linked_layout()
-        model = database.model()
+        # would draw a model with no corpora. `open` refuses it instead of printing it as if the root declared
+        # nothing.
+        model = Database.open(take_snapshot(root, SNAPSHOT_SCOPE)).model()
     except Error as exc:
         report_failure(exc)
         raise typer.Exit(code=ExitStatus.FAILURE) from exc

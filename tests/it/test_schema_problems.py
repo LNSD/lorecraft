@@ -28,7 +28,8 @@ from lorecraft.project.schemas import (
 )
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import FrontmatterNode, LineNumber
-from lorecraft.vfs import Snapshot
+from lorecraft.project.workspace import WorkspaceModel
+from lorecraft.vfs import Snapshot, VirtualFileSystem
 
 TYPING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
 """A document of corpus `code` its `python` namespace governs too."""
@@ -57,13 +58,14 @@ STRING_DESCRIPTION: Final[bytes] = (
 class FrontmatterReadingDatabase(Database):
     """A database that records each document whose frontmatter it is asked for, then reads it as usual."""
 
-    def __init__(self, snapshot: Snapshot) -> None:
-        """Open the database on the snapshot, with no frontmatter read yet.
+    def __init__(self, fs: VirtualFileSystem, model: WorkspaceModel) -> None:
+        """Build the database on the view, with no frontmatter read yet.
 
         Args:
-            snapshot: The revision the database reads.
+            fs: The view of the revision the database reads.
+            model: The workspace model loaded through the view.
         """
-        super().__init__(snapshot)
+        super().__init__(fs, model)
         self.read: list[DocumentRef] = []
 
     def frontmatter(self, source: DocumentText) -> FrontmatterNode:
@@ -131,7 +133,7 @@ class TestSchemaProblems:
         #: Given
         # `description` is on line 3 and of the wrong type; `status` is missing, so it is on no line
         typing = b'---\nname: python-typing\ndescription: 3\n---\n# Typing\n'
-        database = Database(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=typing))
+        database = Database.open(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=typing))
         source = _document_text(database, TYPING)
 
         #: When
@@ -164,7 +166,7 @@ class TestSchemaProblems:
     def test_schema_problems_called_twice_returns_the_first_answer(self) -> None:
         #: Given
         typing = b'---\nname: python-typing\n---\n# Typing\n'
-        database = FrontmatterReadingDatabase(_snapshot(REQUIRE_STATUS, REQUIRE_OWNER, typing=typing))
+        database = FrontmatterReadingDatabase.open(_snapshot(REQUIRE_STATUS, REQUIRE_OWNER, typing=typing))
         source = _document_text(database, TYPING)
         first = database.schema_problems(source)
 
@@ -178,7 +180,7 @@ class TestSchemaProblems:
     def test_schema_problems_with_no_frontmatter_schema_holds_none(self) -> None:
         #: Given
         # the namespace states a schema, but a namespace narrows the corpus, which states none
-        database = Database(_snapshot(b'{"tokens": 40}', STRING_DESCRIPTION, typing=b'---\ndescription: 3\n---\n'))
+        database = Database.open(_snapshot(b'{"tokens": 40}', STRING_DESCRIPTION, typing=b'---\ndescription: 3\n---\n'))
         source = _document_text(database, TYPING)
 
         #: When
@@ -190,7 +192,7 @@ class TestSchemaProblems:
     def test_schema_problems_with_no_frontmatter_schema_never_reads_the_frontmatter(self) -> None:
         #: Given
         # the namespace states a schema, but a namespace narrows the corpus, which states none
-        database = FrontmatterReadingDatabase(
+        database = FrontmatterReadingDatabase.open(
             _snapshot(b'{"tokens": 40}', STRING_DESCRIPTION, typing=b'---\ndescription: 3\n---\n')
         )
         source = _document_text(database, TYPING)
@@ -205,7 +207,7 @@ class TestSchemaProblems:
 
     def test_schema_problems_with_a_document_without_a_block_holds_none(self) -> None:
         #: Given
-        database = Database(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'# Typing\n'))
+        database = Database.open(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'# Typing\n'))
         source = _document_text(database, TYPING)
 
         #: When
@@ -227,7 +229,7 @@ class TestSchemaProblems:
                 }
             }
         )
-        database = Database(snapshot)
+        database = Database.open(snapshot)
         source = _document_text(database, DocumentRef(CorpusName.parse('blog'), AspectFilename.parse('launch')))
 
         #: When
@@ -242,7 +244,7 @@ class TestSkillSchemaProblems:
     def test_skill_schema_problems_of_a_skill_holds_the_agent_skills_problems(self) -> None:
         #: Given
         review = b'---\nname: review\nextra: y\n---\n# Review\n'
-        database = Database(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=review))
+        database = Database.open(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=review))
         source = _skill_text(database, REVIEW)
 
         #: When
@@ -285,7 +287,7 @@ class TestSkillSchemaProblems:
 
     def test_skill_schema_problems_with_a_skill_with_no_frontmatter_holds_none(self) -> None:
         #: Given
-        database = Database(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=b'# Review\n'))
+        database = Database.open(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=b'# Review\n'))
         source = _skill_text(database, REVIEW)
 
         #: When
@@ -297,7 +299,7 @@ class TestSkillSchemaProblems:
     def test_skill_schema_problems_called_twice_returns_the_first_answer(self) -> None:
         #: Given
         review = b'---\nname: review\nextra: y\n---\n# Review\n'
-        database = Database(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=review))
+        database = Database.open(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=review))
         source = _skill_text(database, REVIEW)
         first = database.skill_schema_problems(source)
 

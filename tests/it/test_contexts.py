@@ -193,7 +193,7 @@ def _scanned(root: Path) -> Database:
         root: Directory the tree is written into, as the repository root.
     """
     _write_tree(root, _tree())
-    return Database(take_snapshot(root, SNAPSHOT_SCOPE))
+    return Database.open(take_snapshot(root, SNAPSHOT_SCOPE))
 
 
 def _write_tree(directory: Path, tree: FileTree) -> None:
@@ -215,7 +215,7 @@ def _write_tree(directory: Path, tree: FileTree) -> None:
 class TestDatabaseDocumentContext:
     def test_filename_with_a_document_returns_the_filename_of_its_ref(self) -> None:
         #: Given
-        context = _document_context(Database(_snapshot()))
+        context = _document_context(Database.open(_snapshot()))
 
         #: When
         filename = context.filename()
@@ -225,7 +225,7 @@ class TestDatabaseDocumentContext:
 
     def test_frontmatter_with_a_document_returns_the_frontmatter_query(self) -> None:
         #: Given
-        database = Database(_snapshot())
+        database = Database.open(_snapshot())
         context = _document_context(database)
 
         #: When
@@ -238,7 +238,7 @@ class TestDatabaseDocumentContext:
 
     def test_schema_problems_with_a_document_returns_the_schema_problems_query(self) -> None:
         #: Given
-        database = Database(_snapshot())
+        database = Database.open(_snapshot())
         context = _document_context(database)
 
         #: When
@@ -252,7 +252,7 @@ class TestDatabaseDocumentContext:
 
     def test_frontmatter_owner_with_a_document_returns_its_filename_and_corpus_specification(self) -> None:
         #: Given
-        context = _document_context(Database(_snapshot()))
+        context = _document_context(Database.open(_snapshot()))
 
         #: When
         owner = context.frontmatter_owner()
@@ -264,7 +264,7 @@ class TestDatabaseDocumentContext:
 
     def test_parse_with_a_document_returns_the_parse_query(self) -> None:
         #: Given
-        database = Database(_snapshot())
+        database = Database.open(_snapshot())
         context = _document_context(database)
 
         #: When
@@ -277,7 +277,7 @@ class TestDatabaseDocumentContext:
 
     def test_tokens_with_a_document_returns_the_tokens_of_its_whole_file(self) -> None:
         #: Given
-        context = _document_context(Database(_snapshot()))
+        context = _document_context(Database.open(_snapshot()))
 
         #: When
         tokens = context.tokens()
@@ -287,7 +287,7 @@ class TestDatabaseDocumentContext:
 
     def test_lines_with_a_document_returns_the_lines_of_its_whole_file(self) -> None:
         #: Given
-        context = _document_context(Database(_snapshot()))
+        context = _document_context(Database.open(_snapshot()))
 
         #: When
         lines = context.lines()
@@ -297,7 +297,7 @@ class TestDatabaseDocumentContext:
 
     def test_specifications_with_a_document_returns_the_governance_query(self) -> None:
         #: Given
-        database = Database(_snapshot())
+        database = Database.open(_snapshot())
         context = _document_context(database)
 
         #: When
@@ -309,7 +309,7 @@ class TestDatabaseDocumentContext:
 
     def test_corpus_structure_with_a_document_returns_its_corpus_structure_specification(self) -> None:
         #: Given
-        context = _document_context(Database(_snapshot()))
+        context = _document_context(Database.open(_snapshot()))
 
         #: When
         corpus_structure = context.corpus_structure()
@@ -321,7 +321,7 @@ class TestDatabaseDocumentContext:
 
     def test_outline_alignment_with_a_document_returns_the_outline_alignment_query(self) -> None:
         #: Given
-        database = Database(_snapshot())
+        database = Database.open(_snapshot())
         context = _document_context(database)
 
         #: When
@@ -335,7 +335,7 @@ class TestDatabaseDocumentContext:
 
     def test_outline_divergences_with_a_document_returns_the_outline_divergences_query(self) -> None:
         #: Given
-        database = Database(_snapshot())
+        database = Database.open(_snapshot())
         context = _document_context(database)
 
         #: When
@@ -349,7 +349,7 @@ class TestDatabaseDocumentContext:
 
     def test_link_base_with_a_document_returns_its_own_directory(self) -> None:
         #: Given
-        context = _document_context(Database(_snapshot()))
+        context = _document_context(Database.open(_snapshot()))
 
         #: When
         base = context.link_base()
@@ -382,7 +382,7 @@ class TestDatabaseDocumentContext:
 class TestDatabaseSkillContext:
     def test_directory_name_with_a_skill_returns_the_name_it_is_listed_under(self) -> None:
         #: Given
-        context = _skill_context(Database(_snapshot()))
+        context = _skill_context(Database.open(_snapshot()))
 
         #: When
         directory_name = context.directory_name()
@@ -392,7 +392,7 @@ class TestDatabaseSkillContext:
 
     def test_link_target_with_a_listed_directory_returns_none(self) -> None:
         #: Given
-        context = _skill_context(Database(_snapshot()))
+        context = _skill_context(Database.open(_snapshot()))
 
         #: When
         link_target = context.link_target()
@@ -409,7 +409,7 @@ class TestDatabaseSkillContext:
         )
         records: dict[RootRelativePath, EntryRecord] = dict(shipped.records)
         records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(PurePosixPath('../../skills/review'))
-        database = Database(Snapshot(FrozenMapping(records)))
+        database = Database.open(Snapshot(FrozenMapping(records)))
         context = _skill_context(database)
 
         #: When
@@ -422,7 +422,7 @@ class TestDatabaseSkillContext:
 
     def test_frontmatter_with_a_skill_returns_the_skill_frontmatter_query(self) -> None:
         #: Given
-        database = Database(_snapshot())
+        database = Database.open(_snapshot())
         context = _skill_context(database)
 
         #: When
@@ -435,7 +435,7 @@ class TestDatabaseSkillContext:
 
     def test_schema_problems_with_a_skill_returns_the_skill_schema_problems_query(self) -> None:
         #: Given
-        database = Database(_snapshot())
+        database = Database.open(_snapshot())
         context = _skill_context(database)
 
         #: When
@@ -449,7 +449,7 @@ class TestDatabaseSkillContext:
 
     def test_frontmatter_owner_with_a_skill_returns_its_directory_name_and_link_target(self) -> None:
         #: Given
-        context = _skill_context(Database(_snapshot()))
+        context = _skill_context(Database.open(_snapshot()))
 
         #: When
         owner = context.frontmatter_owner()
@@ -461,7 +461,7 @@ class TestDatabaseSkillContext:
 
     def test_parse_with_a_skill_returns_the_skill_parse_query(self) -> None:
         #: Given
-        database = Database(_snapshot())
+        database = Database.open(_snapshot())
         context = _skill_context(database)
 
         #: When
@@ -474,7 +474,7 @@ class TestDatabaseSkillContext:
 
     def test_lines_with_a_skill_returns_the_lines_of_its_whole_skill_file(self) -> None:
         #: Given
-        context = _skill_context(Database(_snapshot()))
+        context = _skill_context(Database.open(_snapshot()))
 
         #: When
         lines = context.lines()
@@ -484,7 +484,7 @@ class TestDatabaseSkillContext:
 
     def test_link_base_with_a_skill_returns_the_skill_directory_an_agent_reaches(self) -> None:
         #: Given
-        context = _skill_context(Database(_snapshot()))
+        context = _skill_context(Database.open(_snapshot()))
 
         #: When
         base = context.link_base()
@@ -518,7 +518,7 @@ class TestDatabaseSkillContext:
 class TestDatabaseSkillResourceContext:
     def test_parse_with_a_resource_returns_the_skill_resource_parse_query(self) -> None:
         #: Given
-        database = Database(_snapshot())
+        database = Database.open(_snapshot())
         context = _resource_context(database)
 
         #: When
@@ -531,7 +531,7 @@ class TestDatabaseSkillResourceContext:
 
     def test_link_base_with_a_resource_returns_its_skill_directory(self) -> None:
         #: Given
-        context = _resource_context(Database(_snapshot()))
+        context = _resource_context(Database.open(_snapshot()))
 
         #: When
         base = context.link_base()
@@ -585,7 +585,7 @@ class TestDatabaseLayoutContext:
         # is read.
         records: dict[RootRelativePath, EntryRecord] = dict(_snapshot().records)
         records[RootRelativePath.parse('.agents/skills/x')] = SymlinkRecord(PurePosixPath('/elsewhere/x'))
-        database = Database(Snapshot(FrozenMapping(records)))
+        database = Database.open(Snapshot(FrozenMapping(records)))
         context = _layout_context(database)
 
         #: When
