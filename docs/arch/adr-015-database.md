@@ -125,12 +125,16 @@ Names in the sketches are illustrative; the shapes are the decision.
 1. **The database hands out what loaded and what failed, and nothing more.** `governance(ref)` returns the layers
    as they are. An analysis that reads governance, such as `schema_problems` or `outline_divergences`, reads only the
    layers that loaded. That is a fact about those layers and not a verdict on the document.
-2. **The check run skips.** Its runner gives a document whose governance holds a failed layer no rule. It reports the
+2. **The check run skips.** Its entry point gives a document whose governance holds a failed layer no rule. It reports the
    document as skipped in coverage, naming each failed layer's structure file (FR-010, FR-011). The document is still
    decoded first, so a file that cannot be decoded is reported as it is today.
-3. **The LSP-style mode will judge partially.** Its runner will run the rules over the layers that loaded and label
-   the result partial (FR-012). It is not built until the mode exists. Nothing below the runner changes for it, since
-   the database already hands out both kinds of layer.
+3. **The LSP-style mode will judge partially.** It will have an entry point of its own beside the check run's, over
+   the same shared runner, that runs the rules over the layers that loaded and labels the result partial (FR-012).
+   It is not built until the mode exists. Nothing below the entry points changes for it, since the database already
+   hands out both kinds of layer.
+
+   The policy is one entry point per mode over the shared runner: no policy parameter and no callback, so a new
+   mode edits neither the shared runner nor another mode.
 
 ### The View and the Cache
 
@@ -231,7 +235,7 @@ their analyses without being looked at again.
 
 | Deferred | What the design keeps open |
 |---|---|
-| The partial policy | The LSP-style mode's runner reads the same governance and judges the layers that loaded (prd-014 FR-012); nothing below the runner changes |
+| The partial policy | An entry point of its own in the engine reads the same governance and judges the layers that loaded (prd-014 FR-012); nothing below it, and nothing it shares with the check run, changes |
 | The last good meta spec | `advance` may keep the previous revision's loaded structure beside a new failure in the same layer, and a result checked against it is labelled so (prd-014 FR-013) |
 | `advance(snapshot)` | Reserved, not built: it would carry the model over or load it again by its carry-over rule, and is the only other way to get a database |
 
@@ -247,7 +251,7 @@ Before committing code, verify:
 - [ ] Each load failure is reported once, as an engine diagnostic at its own path, with a fixed error severity
 - [ ] A documentation root or meta spec directory that cannot be listed is recorded like any load failure, and the
   check command, not the model, turns it into a failure that exits 2 before any subject is selected
-- [ ] Neither the model nor the database decides skip or partial; the check run's runner skips a document with a
+- [ ] Neither the model nor the database decides skip or partial; the check run's entry point skips a document with a
   failed layer and lists it in coverage
 - [ ] No code but the database builds a view over the snapshot; code below it reads only the view a query hands it
 - [ ] Every value derived from the snapshot is a query on the database

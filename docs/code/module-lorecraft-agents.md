@@ -33,7 +33,7 @@ directory.
 |---|---|
 | Checks whether an agent's directory exists in a repository, or lists it | `lorecraft.project`, through a view |
 | Resolves a project-scope path against a workspace root | `lorecraft.project`, through a view |
-| Judges a skill against the Agent Skills specification | `lorecraft.checks` |
+| Judges a skill against the Agent Skills specification | `lorecraft.rules` |
 | Turns an agent's directories into scan roots | `lorecraft.layout` |
 
 ## Invariants

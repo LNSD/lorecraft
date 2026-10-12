@@ -181,7 +181,7 @@ Produce a structured report listing:
 | Frontmatter checked against the frontmatter schema | `project/schemas/schema_problems.py:locate_schema_problems()` | ✅ VERIFIED |
 | Flow: discover corpus → parse → validate → findings | Multiple modules | ✅ VERIFIED |
 | Flag `--format json` emits machine-readable findings | `cli.py:build_parser()` | ✅ VERIFIED |
-| Diagnostics carry path, line, code and message | `checks/report.py:RuleDiagnostic` | ✅ VERIFIED |
+| Diagnostics carry path, line, code and message | `rules/report.py:RuleDiagnostic` | ✅ VERIFIED |
 | Flag `--root` overrides repository-root discovery | NOT FOUND | ❌ MISSING |
 
 ### Test Coverage

@@ -304,13 +304,14 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
 |---|---|
 | Rule classes and removed rules, the registry, the rule groups and their rules, the rule bases per subject kind and the facets | `lorecraft.rules` |
 | The rule table, the report types, the selection's rule-side types, level resolution | `lorecraft.rules` |
-| The runner, which hands each rule its subject's context | `lorecraft.checks` |
+| The runner, which hands each rule its subject's context | `lorecraft.engine` |
+| Each mode's policy for a document a failed layer governs: skip for the check run, partial for the LSP-style mode | `lorecraft.engine` |
 | The context protocols, what can be asked of one decoded subject | `lorecraft.project` |
 | The database, decoding, the contexts' implementations ([adr-012](adr-012-database-derivation.md)) | `lorecraft.project.database` |
 | The configuration file's dialect and its decoding, once it is designed | `lorecraft.project` |
 | Path selection, options and their parsing against the rule index, text and machine-readable rendering, the exit code, the rule lookup command | `lorecraft.cli` |
 
-`lorecraft.rules` is a layer of its own, below `lorecraft.checks` and above `lorecraft.project`. A forbidden contract
+`lorecraft.rules` is a layer of its own, below `lorecraft.engine` and above `lorecraft.project`. A forbidden contract
 refuses a rule that imports `lorecraft.project.database`, so a rule cannot reach the database by import, which the
 design could otherwise only state.
 
@@ -362,13 +363,13 @@ A more elaborate engine waits for a profile that asks for one.
 - **The per-check subcommands go.** One `check` command runs every rule over the workspace, and over the files
   and directories it is given once selection by path lands ([#442](https://github.com/LNSD/lorecraft/issues/442)).
 - **Specs change in the same change**, since each states something this design makes untrue:
-  [module-lorecraft-checks](../code/module-lorecraft-checks.md) (the runner) and
+  [module-lorecraft-engine](../code/module-lorecraft-engine.md) (the runner) and
   [adr-004-database](adr-004-database.md) (decoding as a value, cross-file queries).
 - **A projecting rule is thin.** A schema rule is a few lines over a problem type, and the validation it
   projects lives in a query.
 - **The runner is hand-written per subject kind.** That is the price of typed dispatch with no generic machinery.
 - **The database sits apart from the linter**, as the established linters keep it. The rules, with the rule
-  table, the selection and the report, sit in `lorecraft.rules`, the runner in `lorecraft.checks`, and the
+  table, the selection and the report, sit in `lorecraft.rules`, the runner in `lorecraft.engine`, and the
   database, with its witnesses and the contexts' implementations, in `lorecraft.project.database`, beside the
   derivations it memoizes ([adr-012](adr-012-database-derivation.md)). The split adds no layer to the import
   contract.
@@ -381,13 +382,13 @@ The PRD defers the IDE-like, long-lived mode. The design builds none of it and c
 
 | Deferred | What the design keeps open |
 |---|---|
-| Re-checking only what a change affects | A rule reads its context, each context method but a document's governance is one query, and a query states its carry-over rule, so the affected rules are derivable once a `governance(ref)` query records that last dependency |
+| Re-checking only what a change affects | A rule reads its context, each context method but a document's governance is one query, and a query states its carry-over rule, so the affected rules are derivable once a `governance(ref)` query records that last dependency; the long-lived mode's own entry point beside the check run's chooses what to re-check, and the shared runner does not change |
 | Unsaved content | A rule reads values, never the disk |
-| Rejecting a superseded revision's results | One report reads one revision; a diagnostic names no revision-bound object |
+| Rejecting a superseded revision's results | One report reads one revision; a diagnostic names no revision-bound object; the long-lived mode's own entry point abandons a superseded revision, and the shared runner does not change |
 | Warm starts | No store is built: caching is in memory, for one revision. Query results stay persistable data, the new queries included, and the registry stays out of them, so the store of [adr-005-incremental](adr-005-incremental.md) is an addition. A cross-file query's carry-over rule names the paths it looked up; recording them waits for the store or for the next revision's carry-over |
 | Cached diagnostics | Levels are applied after detection, so a cached result would not depend on the configuration |
 | Inline suppression | Its shape is fixed, its syntax Lorecraft's own and modelled on the HTML-comment directives of the Markdown linters, with no compatibility with theirs: `<!-- lorecraft-disable CODE … -->` and `lorecraft-enable` around a block, and `lorecraft-disable-line`, `lorecraft-disable-next-line` and `lorecraft-disable-file`. A directive names its codes, never none, and never a name; an alias code resolves to its rule's code, with a warning. There is no state capture and no in-file configuration: options are meta spec data and levels are the repository's. The directives are a per-file query, applied after detection where levels are. A directive naming an unknown code, or one that suppressed nothing, is an engine diagnostic, and no engine diagnostic can be suppressed |
-| Parallel checking | Output order is sorted, never completion order; the cache is still filled from one thread |
+| Parallel checking | Output order is sorted, never completion order; the cache is still filled from one thread; the loop is the entry point's, and the shared runner does not change |
 | Level options on the command line | Rustc-style flags that set a rule's level for one run, over the configuration's, reopen the no-level-option rule above, designed with the configuration |
 
 ## Checklist
@@ -418,5 +419,5 @@ Before committing code, verify:
 - [adr-005-incremental](adr-005-incremental.md) - Foundation: Carry-over rules and persistable results
 - [adr-006-specifications](adr-006-specifications.md) - Foundation: Governance, computed once by the model
 - [adr-012-database-derivation](adr-012-database-derivation.md) - Foundation: The database in the Derivation package
-- [module-lorecraft-checks](../code/module-lorecraft-checks.md) - Foundation: The package the runner lives in
+- [module-lorecraft-engine](../code/module-lorecraft-engine.md) - Foundation: The package the runner lives in
 - [adr-015-database](adr-015-database.md) - Related: The database opened with its model, proposed to supersede adr-004

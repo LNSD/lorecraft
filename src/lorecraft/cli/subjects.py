@@ -9,8 +9,8 @@ so a run reports the same revision in the same order however the model or a list
 
 from typing import assert_never
 
-from lorecraft.checks import Subject
 from lorecraft.core.path import RootRelativePath
+from lorecraft.engine import Subject
 from lorecraft.project.database import Database
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillResourceLocation

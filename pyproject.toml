@@ -1,7 +1,7 @@
 # The lorecraft package: one import package, `lorecraft`, in layers, each importing only those below it:
 #
 #   lorecraft.cli      the command line, console script `lorecraft`
-#   lorecraft.checks   the runner that hands each rule its subject's context
+#   lorecraft.engine   the runner that hands each rule its subject's context, and each mode's policy for a failed layer
 #   lorecraft.rules    the rules, how one is declared and identified, and the selection, table and report of a run
 #   lorecraft.project  the workspace model and the parse trees, on the filesystem boundary
 #   lorecraft.agents   the model of the coding agents: the aspects an agent has, and each agent's values
@@ -212,12 +212,12 @@ root_package = "lorecraft"
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
-name = "The command line over the checks, the rules, the model, the agents, the filesystem and the base"
+name = "The command line over the engine, the rules, the model, the agents, the filesystem and the base"
 type = "layers"
 containers = ["lorecraft"]
 layers = [
     "cli",
-    "checks",
+    "engine",
     "rules",
     "project",
     "agents",
@@ -228,9 +228,9 @@ layers = [
 # Each frontmatter schema translates its validator's errors into `FrontmatterProblem` values at its own seam in
 # `project.schemas`, so a check or a rule reads one shape whichever validator is behind it and never an error record.
 [[tool.importlinter.contracts]]
-name = "The checks and the rules read frontmatter problems, never a validator's errors"
+name = "The rules read frontmatter problems, never a validator's errors"
 type = "forbidden"
-source_modules = ["lorecraft.checks", "lorecraft.rules"]
+source_modules = ["lorecraft.rules"]
 forbidden_modules = ["jsonschema", "pydantic", "pydantic_core"]
 allow_indirect_imports = true
 
@@ -241,6 +241,14 @@ name = "A rule reads its subject's context, never the database"
 type = "forbidden"
 source_modules = ["lorecraft.rules"]
 forbidden_modules = ["lorecraft.project.database"]
+
+# A long-lived front end reaches the engine without the command line, so the engine never imports the command line's
+# toolkit. The layers contract above already stops it importing `lorecraft.cli`.
+[[tool.importlinter.contracts]]
+name = "The engine never imports the command line's toolkit"
+type = "forbidden"
+source_modules = ["lorecraft.engine"]
+forbidden_modules = ["typer"]
 
 # `lorecraft_gen`, in `gen/`, imports `lorecraft` to render what it declares. It is not installed in this
 # environment, so it is named as an external package: the contract reads the imports of `lorecraft` statically,
