@@ -7,7 +7,6 @@ reading of a diagnostic and never disagree about where it points.
 from dataclasses import dataclass
 from typing import Literal, assert_never
 
-from lorecraft.checks import Diagnostic, SubjectReport, diagnostic_order
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import (
@@ -21,6 +20,7 @@ from lorecraft.rules.location import (
     Subdiagnostic,
     WholeSubject,
 )
+from lorecraft.rules.report import Diagnostic, SubjectReport, diagnostic_order
 
 
 @dataclass(frozen=True, slots=True)

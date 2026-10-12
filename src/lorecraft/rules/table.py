@@ -19,9 +19,10 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Self, assert_never
 
-from lorecraft.rules.declaration import Level, Rule, Severity
-from lorecraft.rules.registry import Registry
-from lorecraft.rules.subject import (
+from .declaration import Level, Rule, Severity
+from .registry import Registry
+from .selection import RuleSelection
+from .subject import (
     DocumentRule,
     Facet,
     FrontmatterRule,
@@ -30,8 +31,6 @@ from lorecraft.rules.subject import (
     SkillFileRule,
     SkillRule,
 )
-
-from .selection import RuleSelection
 
 
 class UnknownRuleBaseError(TypeError):

@@ -4,9 +4,9 @@ A diagnostic points at lines of its own subject and of other files, such as the 
 The lines come from the same database as the rules' own, so an excerpt shows the text the rules numbered.
 """
 
-from lorecraft.checks import SubjectReport
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.database import Database
+from lorecraft.rules.report import SubjectReport
 
 from .diagnostic_parts import diagnostic_marks, ordered_diagnostics
 from .diagnostic_text import SourceLines

@@ -1,6 +1,6 @@
 ---
 name: "module-lorecraft-checks"
-description: "The lorecraft.checks package's responsibility, role, boundary and invariants: the runner that hands each rule its subject's context, the rule table and the report of a run. Load when adding or moving code in lorecraft.checks, changing how the rules run over a subject, or deciding how a rule gets its subject's context"
+description: "The lorecraft.checks package's responsibility, role, boundary and invariants: the runner that hands each rule its subject's context. Load when adding or moving code in lorecraft.checks, changing how the rules run over a subject, or deciding how a rule gets its subject's context"
 type: "pkg"
 scope: "pkg:lorecraft.checks"
 ---
@@ -9,15 +9,15 @@ scope: "pkg:lorecraft.checks"
 
 ## Responsibility
 
-Judge one revision. It changes when the judgment made on a revision's query results changes: the run of the rules,
-the rule table, or the shape of what a run reports.
+Judge one revision. It changes when the judgment made on a revision's query results changes: the run of the rules
+over each subject.
 
 ## Role
 
 **Analysis.** A run judges each subject by the rules of `lorecraft.rules`, the layer below, where the rules are
 declared. It hands each rule the context of the subject it judges, whose every fact is a query of the database in
 `lorecraft.project`, so a rule is a pure function of what its context answers. It locates each occurrence a rule
-returns at its subject, as a diagnostic.
+returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 
 ## Belongs Here
 
@@ -25,11 +25,6 @@ returns at its subject, as a diagnostic.
   frontmatter only when the document is governed for the facet the rule declares, each facet it is not governed for
   recorded as coverage, and a rule over a Markdown file over a document governed for its structure, a skill's
   `SKILL.md` and each resource handed over as a subject of its own.
-- The rule table: the rules a run enables, each with the severity it reports at, partitioned by the subject kind
-  each judges or the frontmatter both kinds share, and a document's rules also by the facet each declares.
-- The one-run selection, by `ALL`, group, code prefix or code, the most specific deciding, which filters the rule
-  table and never changes a level.
-- The value types a run reports in: a diagnostic per occurrence, the order they print in, and a report per subject.
 
 ## Belongs Elsewhere
 
@@ -38,6 +33,7 @@ returns at its subject, as a diagnostic.
 | Takes the snapshot, or chooses which documents or skills to check | `lorecraft.cli` |
 | Prints, writes JSON, or sets an exit code | `lorecraft.cli` |
 | Declares a rule, its identity or its group, or the base a rule derives from | `lorecraft.rules` |
+| Builds the rule table, applies a level or a one-run selection, or declares what a run reports | `lorecraft.rules` |
 | Declares what a context of a subject holds | `lorecraft.project` |
 | Adds a query, a decode witness, a carry-over rule, or a context implemented over the database | `lorecraft.project` |
 | Parses text, decodes a meta spec, or builds the model | `lorecraft.project` |

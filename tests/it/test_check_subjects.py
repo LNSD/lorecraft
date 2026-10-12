@@ -19,15 +19,7 @@ from typing import ClassVar, Final, Self
 import pytest
 
 from lorecraft import rules
-from lorecraft.checks import (
-    AllRules,
-    CheckedSubject,
-    RuleDiagnostic,
-    RuleSelection,
-    RuleTable,
-    UndecodableSubject,
-    check_subjects,
-)
+from lorecraft.checks import check_subjects
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
@@ -103,7 +95,10 @@ from lorecraft.rules.outline.section_out_of_order import SectionOutOfOrder
 from lorecraft.rules.outline.title_not_first import TitleNotFirst
 from lorecraft.rules.outline.unexpected_section import UnexpectedSection
 from lorecraft.rules.registry import Registry
+from lorecraft.rules.report import CheckedSubject, RuleDiagnostic, UndecodableSubject
+from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.subject import DocumentRule, Facet
+from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import EntryRecord, ResolvedPath, Snapshot, SymlinkRecord, Utf8Failure, Utf8Reason, take_snapshot
 
 GUIDE: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('guide'))

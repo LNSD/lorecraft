@@ -17,9 +17,9 @@ from typing import Literal, assert_never
 
 from pydantic import BaseModel, ConfigDict
 
-from lorecraft.checks import CheckedLayoutEntry, CheckedSubject, Diagnostic, SubjectReport, UndecodableSubject
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import Severity
+from lorecraft.rules.report import CheckedLayoutEntry, CheckedSubject, Diagnostic, SubjectReport, UndecodableSubject
 
 from .diagnostic_parts import child_kind, child_place, format_place, ordered_diagnostics, place, primary_line
 

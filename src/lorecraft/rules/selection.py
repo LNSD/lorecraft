@@ -12,10 +12,11 @@ and a rule's code such as `OUT006`.
 
 from dataclasses import dataclass
 from string import digits
-from typing import Self, assert_never
+from typing import assert_never
 
 from lorecraft.core.error import Error
-from lorecraft.rules.declaration import RuleCode, RuleGroup
+
+from .declaration import RuleCode, RuleGroup
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,19 +58,6 @@ class RuleCodePrefix:
 
     group: RuleGroup
     digits: str
-
-    @classmethod
-    def parse(cls, group: RuleGroup, digits: str) -> Self:
-        """Parse the digits a selector holds after its group's prefix into a prefix of that group's codes.
-
-        Args:
-            group: The group whose prefix starts the selector.
-            digits: The rest of the selector, as typed.
-
-        Raises:
-            InvalidRuleCodePrefixError: If the digits are empty, longer than two, or hold any other character.
-        """
-        return cls(group, digits)
 
     def __post_init__(self) -> None:
         """Reject digits that are not one or two ASCII digits.

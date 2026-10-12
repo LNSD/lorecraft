@@ -26,11 +26,12 @@ from typing import assert_never
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.skill import SkillRef, SkillResourceRef
-from lorecraft.rules.declaration import EngineCondition, Rule, Severity
-from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
-from lorecraft.rules.location import Here, WholeSubject
-from lorecraft.rules.subject import Facet
 from lorecraft.vfs import Utf8Failure
+
+from .declaration import EngineCondition, Rule, Severity
+from .engine.invalid_utf8 import InvalidUtf8
+from .location import Here, WholeSubject
+from .subject import Facet
 
 
 @dataclass(frozen=True, slots=True)

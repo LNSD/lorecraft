@@ -18,12 +18,14 @@ from typing import assert_never
 import typer
 
 from lorecraft import rules
-from lorecraft.checks import RuleTable, SubjectReport, check_subjects, selected_rules_left_off
+from lorecraft.checks import check_subjects
 from lorecraft.core.error import Error
 from lorecraft.project.database import Database
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.rules.declaration import Severity
 from lorecraft.rules.registry import Registry
+from lorecraft.rules.report import SubjectReport
+from lorecraft.rules.table import RuleTable, selected_rules_left_off
 from lorecraft.vfs import take_snapshot
 
 from .diagnostic_text import render_text

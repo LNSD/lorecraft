@@ -13,16 +13,7 @@ from typing import Final
 import pytest
 
 from lorecraft import rules
-from lorecraft.checks import (
-    AllRules,
-    CheckedLayoutEntry,
-    CheckedSubject,
-    RuleDiagnostic,
-    RuleSelection,
-    RuleTable,
-    Subject,
-    check_subjects,
-)
+from lorecraft.checks import Subject, check_subjects
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.database import Database
 from lorecraft.project.layout import SNAPSHOT_SCOPE
@@ -30,6 +21,9 @@ from lorecraft.project.skill import SkillRef
 from lorecraft.rules.declaration import Severity
 from lorecraft.rules.layout.outside_symlink import OutsideSymlink
 from lorecraft.rules.registry import Registry
+from lorecraft.rules.report import CheckedLayoutEntry, CheckedSubject, RuleDiagnostic
+from lorecraft.rules.selection import AllRules, RuleSelection
+from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import RootExit, take_snapshot
 
 CLEAN_SKILL_MD: Final[bytes] = b'---\nname: review\ndescription: Review a change\n---\n'
