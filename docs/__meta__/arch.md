@@ -16,7 +16,8 @@ its own, named after the kind, which adds its sections and vocabulary on top of 
 The corpus in `docs/arch/` holds the documents written **before and while** a feature is built: what it must do,
 how it is built, and the decisions taken on the way. Each document is one kind, and its kind is the prefix of its
 filename. What shipped is described in `docs/feat/`, and how the code is written in `docs/code/`. An architecture
-document restates neither; it may link the code specs, and an ADR never links a feat spec, nor a feat spec an ADR.
+document restates neither. It may link the code specs, and it never links a feat spec: a feat spec links the
+architecture documents behind it, and the link goes that way only.
 
 **What binds code is the document's kind and status.** A kind's namespace meta spec says whether its
 accepted documents bind code; where they do, an accepted document binds like any code spec in `docs/code/`, loaded by
@@ -55,9 +56,14 @@ review, not by the schema.
 
 Documents cite each other by relative link, `[adr-004](adr-004-database.md)`, and by `<kind>-<NNN>` in
 prose. A link to the code specs is relative too: `../code/module-lorecraft-vfs.md`. Citations go both ways: a
-document that leads to another names it under References, and the other names it back. Work not yet done is cited
-by its issue, never by the release it is planned for: a planned release can move, and the document would go
-stale with it.
+document that leads to another names it under References, and the other names it back.
+
+**A feat spec is the one exception.** It links the PRD and the ADRs it comes from, and they never name it back:
+what shipped keeps changing after a requirement or a decision is settled, and an architecture document that
+linked it would go stale with it.
+
+Work not yet done is cited by its issue, never by the release it is planned for: a planned release can move, and
+the document would go stale with it.
 
 ## 5. Document Structure
 
@@ -94,4 +100,5 @@ status: "{{status}}"
 - [ ] The number is the next free one in `docs/arch/`, and no other document of any kind, merged or dropped, has it
 - [ ] `type` equals the filename's kind prefix
 - [ ] The document closes with References, and every document it cites names it back
+- [ ] The document links no feat spec in `docs/feat/`, in References or inline
 - [ ] A renumbered document has every citation of it updated

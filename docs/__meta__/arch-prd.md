@@ -15,7 +15,8 @@ no such file may exist: every PRD is about one feature, and its name says which.
 A PRD states **what** a feature must do and **why**, and nothing about **how**. Its reader is an agent or a
 person who will build the feature without a follow-up conversation, so every requirement is explicit, numbered
 and checkable. How the feature is built goes in a design document, and each decision taken while building it
-goes in a decision record. What shipped goes in the feat spec. The PRD links them all.
+goes in a decision record; the PRD links them. What shipped goes in the feat spec, which links the PRD; the PRD
+never links it back, as the [arch](arch.md#4-cross-references) corpus states.
 
 ## 1. Naming
 
@@ -255,7 +256,6 @@ Scenario: {{Short title}}
 
 - [#{{issue}}]({{issue-url}}) - Source: {{The issue the PRD comes from}}
 - [{{design-document}}]({{design-document}}.md) - Leads to: {{How the feature is built}}
-- [{{feat-spec}}](../feat/{{feat-spec}}.md) - Leads to: {{What shipped}}
 ````
 
 ## 7. Checklist
@@ -271,4 +271,4 @@ Scenario: {{Short title}}
 - [ ] No identifier was renumbered or reused
 - [ ] Every success criterion is measurable
 - [ ] Every `[NEEDS CLARIFICATION]` marker is listed under Open Questions, and an `approved` PRD has none
-- [ ] A `shipped` PRD links the feat spec it led to
+- [ ] The PRD links no feat spec, whatever its status

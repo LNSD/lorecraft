@@ -68,8 +68,8 @@ document, as the corpus states. No section has a word cap and the file has no to
 
 An ADR may name languages, libraries, modules and types: how a thing is built is what it records. It states the
 design, not an inventory: which rules, commands, fields or files exist and how many is the code's to say, and an ADR
-that lists them goes stale with the next one added. An ADR never links a feat spec, and no feat spec links an ADR:
-what shipped is described once, in `docs/feat/`, and a decision stays true whatever the feat spec says.
+that lists them goes stale with the next one added. An ADR never links a feat spec, though a feat spec may link
+the ADR: what shipped is described once, in `docs/feat/`, and a decision stays true whatever the feat spec says.
 
 ## 4. Template
 

@@ -360,7 +360,7 @@ Different document types have different required sections:
 6. **Configuration** - Options, defaults, and where they are read from
 7. **Usage** - How to invoke the feature, with examples that run
 8. **Limitations** - Known constraints
-9. **References** - Cross-references to other feat specs
+9. **References** - Cross-references to other feat specs, and to the PRD and ADRs the feature comes from
 10. **Code References** - The source files behind the feature: references into the code, not an explanation
     of it. Each entry is one line, never wrapped, however long, so a path and its note stay one grep hit
 
@@ -391,9 +391,14 @@ Use a simple list, with the relationship named before the description:
 - [cli](cli.md) - Base: the command line this command belongs to
 - [workspace](workspace.md) - Dependency: the documents and skills it checks
 - [spec-structure-frontmatter](spec-structure-frontmatter.md) - Related: the dialect its `FM` rules read
+- [prd-008](../arch/prd-008-structured-checks.md) - Source: the requirements the command answers
 ```
 
-**Relationship types:** `Dependency`, `Alternative`, `Related`, `Extended by`, `Base`
+**Relationship types:** `Dependency`, `Alternative`, `Related`, `Extended by`, `Base`, `Source`
+
+`Source` names a PRD or an ADR in `docs/arch/` that the feature comes from. The link goes one way: no
+architecture document links a feat spec, so a feat spec never expects one to name it back. What the feat spec
+describes is what shipped; the PRD and ADRs record what was required and decided before it did.
 
 ### Reference Direction Rules
 
@@ -608,7 +613,9 @@ Before committing a feat spec:
 
 ### Cross-References
 
-- [ ] References use the defined relationship types (`Dependency`, `Alternative`, `Related`, `Extended by`, `Base`)
+- [ ] References use the defined relationship types (`Dependency`, `Alternative`, `Related`, `Extended by`, `Base`,
+      `Source`)
+- [ ] A `Source` entry links a PRD or an ADR in `docs/arch/`, and no other relationship does
 - [ ] The document links UP to its base with `Base`, unless it is the top of its domain
 - [ ] The document does NOT link to its extensions, in the References section or inline; only a **component** MAY link to the components it contains
 
