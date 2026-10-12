@@ -28,32 +28,6 @@ def select_workspace(database: Database) -> tuple[Subject, ...]:
             whose resource listing of each skill gives its resources and the symlinks inside it.
 
     Raises:
-        DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
-        CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
-        StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
-        StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in the
-            dialect's shape.
-        EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
-        RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
-        RepeatedForbiddenSectionError: If the model is not loaded yet and a specification forbids a section twice.
-        ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
-            outline names.
-        AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
-        InvalidTitlePatternError: If the model is not loaded yet and a title's pattern does not compile.
-        InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by the
-            meta-schema.
-        FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries `$id`.
-        ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema names
-            another dialect.
-        UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not state
-            an object.
-        DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
-        EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot be
-            inspected, or a link's target read, while looking for where it leaves the repository.
-        SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
-        SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
-        SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
-        SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
         SkillResourcesListError: If a directory inside a skill cannot be listed.
         SkillResourcesSymlinkResolveError: If a symlink inside a skill cannot be resolved.
     """

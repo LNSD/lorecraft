@@ -387,6 +387,20 @@ class TestFileSystem:
 
 
 @pytest.mark.unit
+class TestVirtualFileSystemSnapshot:
+    def test_snapshot_returns_the_snapshot_the_view_was_built_from(self) -> None:
+        #: Given
+        snapshot = Snapshot.from_tree({'docs': {'a.md': b''}})
+        virtual = VirtualFileSystem(snapshot)
+
+        #: When
+        held = virtual.snapshot
+
+        #: Then
+        assert held is snapshot, 'the view carries its snapshot, so a consumer needs no second argument for it'
+
+
+@pytest.mark.unit
 class TestVirtualFileSystemListDir:
     def test_list_dir_with_a_listed_directory_returns_its_entries_sorted_by_name(self) -> None:
         #: Given

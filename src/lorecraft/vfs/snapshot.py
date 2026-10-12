@@ -223,6 +223,7 @@ class VirtualFileSystem(FileSystem):
         Args:
             snapshot: The recorded state every answer comes from; never changed, and never re-read from disk.
         """
+        self._snapshot = snapshot
         self._listings = _derive_listings(snapshot.records)
         self._files: dict[RootRelativePath, bytes] = {}
         for path, record in snapshot.records.items():
@@ -236,6 +237,11 @@ class VirtualFileSystem(FileSystem):
         # The walk's own index of kinds and link targets; the listings and bytes above are what the answers
         # return, and the walk never reads them.
         self._entries = _SnapshotEntries(snapshot)
+
+    @property
+    def snapshot(self) -> Snapshot:
+        """The snapshot this view answers from; the same one it was built from, never changed."""
+        return self._snapshot
 
     def list_dir(self, path: RootRelativePath) -> tuple[DirEntry, ...]:
         """The recorded listing of the directory `path` leads to; see `FileSystem.list_dir`.

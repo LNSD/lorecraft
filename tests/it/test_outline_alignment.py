@@ -19,7 +19,8 @@ from lorecraft.project.database import Database, DocumentText
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import AnySections, OutlineAlignmentSpec, SectionEntry, StructureSpec, align_outlines
 from lorecraft.project.syntax import Heading, ParsedDocument
-from lorecraft.vfs import Snapshot
+from lorecraft.project.workspace import WorkspaceModel
+from lorecraft.vfs import Snapshot, VirtualFileSystem
 
 TYPING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
 """A document of corpus `code` its `python` namespace governs too."""
@@ -51,13 +52,14 @@ RULE_ASIDE_CHECKLIST: Final[str] = (
 class ParsingDatabase(Database):
     """A database that records each document it is asked to parse, then parses it as usual."""
 
-    def __init__(self, snapshot: Snapshot) -> None:
-        """Open the database on the snapshot, with nothing parsed yet.
+    def __init__(self, fs: VirtualFileSystem, model: WorkspaceModel) -> None:
+        """Build the database on the view, with nothing parsed yet.
 
         Args:
-            snapshot: The revision the database reads.
+            fs: The view of the revision the database reads.
+            model: The workspace model loaded through the view.
         """
-        super().__init__(snapshot)
+        super().__init__(fs, model)
         self.parsed: list[DocumentRef] = []
 
     def parse(self, source: DocumentText) -> ParsedDocument:
@@ -121,7 +123,7 @@ class TestOutlineAlignment:
     def test_outline_alignment_with_an_outlined_document_aligns_each_section_to_its_entry(self) -> None:
         #: Given
         outline = b'{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}]}'
-        database = Database(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
+        database = Database.open(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
         source = _document_text(database, TYPING)
 
         #: When
@@ -138,7 +140,7 @@ class TestOutlineAlignment:
     def test_outline_alignment_called_twice_returns_the_first_answer(self) -> None:
         #: Given
         outline = b'{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}]}'
-        database = ParsingDatabase(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
+        database = ParsingDatabase.open(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
         source = _document_text(database, TYPING)
         first = database.outline_alignment(source)
 
@@ -153,7 +155,7 @@ class TestOutlineAlignment:
         #: Given
         corpus_spec = b'{"forbidden": ["Aside"]}'
         namespace_spec = b'{"outline": [{"section": "Rule"}, {"any": true}]}'
-        database = Database(_snapshot(corpus_spec, namespace_spec, RULE_ASIDE_CHECKLIST))
+        database = Database.open(_snapshot(corpus_spec, namespace_spec, RULE_ASIDE_CHECKLIST))
         source = _document_text(database, TYPING)
 
         #: When
@@ -172,7 +174,7 @@ class TestOutlineAlignment:
 
     def test_outline_alignment_with_no_structure_specification_holds_none(self) -> None:
         #: Given
-        database = ParsingDatabase(_snapshot(None, None, RULE_ASIDE_CHECKLIST))
+        database = ParsingDatabase.open(_snapshot(None, None, RULE_ASIDE_CHECKLIST))
         source = _document_text(database, TYPING)
 
         #: When
@@ -193,7 +195,7 @@ class TestOutlineAlignment:
                 }
             }
         )
-        database = Database(snapshot)
+        database = Database.open(snapshot)
         source = _document_text(database, DocumentRef(CorpusName.parse('blog'), AspectFilename.parse('launch')))
 
         #: When
@@ -207,7 +209,7 @@ class TestOutlineAlignment:
     ) -> None:
         #: Given
         outline = b'{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}]}'
-        database = Database(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
+        database = Database.open(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
         source = _document_text(database, TYPING)
         aligned: list[int] = []
         monkeypatch.setattr(database_module, 'align_outlines', _counting(aligned))
@@ -224,7 +226,7 @@ class TestOutlineAlignment:
     ) -> None:
         #: Given
         outline = b'{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}]}'
-        database = Database(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
+        database = Database.open(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
         source = _document_text(database, TYPING)
         aligned: list[int] = []
         monkeypatch.setattr(database_module, 'align_outlines', _counting(aligned))

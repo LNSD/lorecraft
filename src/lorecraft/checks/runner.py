@@ -85,32 +85,6 @@ def check_subjects(database: Database, subjects: Iterable[Subject], table: RuleT
         DocumentReadError: If a document is missing from the snapshot; a decode failure is a diagnostic.
         SkillReadError: If a skill's `SKILL.md` is missing from the snapshot; a decode failure is a diagnostic.
         SkillResourceReadError: If a resource is missing from the snapshot; a decode failure is a diagnostic.
-        DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
-        CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
-        StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
-        StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in the
-            dialect's shape.
-        EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
-        RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
-        RepeatedForbiddenSectionError: If the model is not loaded yet and a specification forbids a section twice.
-        ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
-            outline names.
-        AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
-        InvalidTitlePatternError: If the model is not loaded yet and a title's pattern does not compile.
-        InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by the
-            meta-schema.
-        FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries `$id`.
-        ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema names
-            another dialect.
-        UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not state
-            an object.
-        DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
-        EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot be
-            inspected, or a link's target read, while looking for where it leaves the repository.
-        SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
-        SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
-        SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
-        SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
     """
     reports: list[SubjectReport] = []
     for subject in subjects:
@@ -138,32 +112,6 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
 
     Raises:
         DocumentReadError: If the document is missing from the snapshot; a decode failure is a diagnostic.
-        DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
-        CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
-        StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
-        StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in the
-            dialect's shape.
-        EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
-        RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
-        RepeatedForbiddenSectionError: If the model is not loaded yet and a specification forbids a section twice.
-        ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
-            outline names.
-        AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
-        InvalidTitlePatternError: If the model is not loaded yet and a title's pattern does not compile.
-        InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by the
-            meta-schema.
-        FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries `$id`.
-        ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema names
-            another dialect.
-        UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not state
-            an object.
-        DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
-        EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot be
-            inspected, or a link's target read, while looking for where it leaves the repository.
-        SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
-        SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
-        SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
-        SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
     """
     source = database.text(ref)
     match source:
@@ -182,34 +130,6 @@ def _check_document_text(database: Database, source: DocumentText, table: RuleTa
         database: The revision the document is read from.
         source: The document's text, the witness every per-file query takes.
         table: The rules the run enables.
-
-    Raises:
-        DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
-        CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
-        StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
-        StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in the
-            dialect's shape.
-        EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
-        RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
-        RepeatedForbiddenSectionError: If the model is not loaded yet and a specification forbids a section twice.
-        ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
-            outline names.
-        AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
-        InvalidTitlePatternError: If the model is not loaded yet and a title's pattern does not compile.
-        InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by the
-            meta-schema.
-        FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries `$id`.
-        ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema names
-            another dialect.
-        UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not state
-            an object.
-        DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
-        EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot be
-            inspected, or a link's target read, while looking for where it leaves the repository.
-        SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
-        SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
-        SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
-        SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
     """
     diagnostics: list[Diagnostic] = []
     ungoverned: list[Facet] = []
@@ -383,34 +303,6 @@ def _find_document_context(database: Database, source: DocumentText) -> Database
     Args:
         database: The revision the document is read from; its model decides which specifications govern it.
         source: The document's text, the witness every per-file query takes.
-
-    Raises:
-        DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
-        CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
-        StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
-        StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in the
-            dialect's shape.
-        EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
-        RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
-        RepeatedForbiddenSectionError: If the model is not loaded yet and a specification forbids a section twice.
-        ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
-            outline names.
-        AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
-        InvalidTitlePatternError: If the model is not loaded yet and a title's pattern does not compile.
-        InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by the
-            meta-schema.
-        FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries `$id`.
-        ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema names
-            another dialect.
-        UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not state
-            an object.
-        DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
-        EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot be
-            inspected, or a link's target read, while looking for where it leaves the repository.
-        SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
-        SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
-        SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
-        SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
     """
     governance = database.governance(source.ref)
     if governance is None:

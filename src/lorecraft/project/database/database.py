@@ -1,14 +1,15 @@
 """One frozen state of a workspace: its snapshot, and the cached data every check, and every command, reads through.
 
 The layering follows an IDE's. The `Snapshot` plays the virtual file system: every byte a
-check can see, and never changed once built. Above it sit the queries, each computed on first use and kept for as
-long as the database lives (pattern-memoization). They come in two kinds, and the kind decides how a query carries
-over to the next revision.
+check can see, and never changed once built. `Database.open` builds the database from a snapshot and loads the
+model; every other query sits above it, computed on first use and kept for as long as the database lives
+(pattern-memoization). Queries come in two kinds, and the kind decides how a query carries over to the next revision.
 
 Input queries read the snapshot. Each is the one place its part of the snapshot becomes a value for a rule, so only an
 input query builds a witness or fails to read, and each states its own carry-over rule against the change set:
 
-- `model()`: the workspace model, like the IDE's project model. It reads the structure of the snapshot, the
+- `model()`: the workspace model, like the IDE's project model, loaded when the database is opened, so no query that
+  reads it raises a load error. It reads the structure of the snapshot, the
   specifications, the corpus directories, the skills directories and the listing of each skill's directory, nothing
   deeper inside a skill, and no document's contents. Among that structure it records each skills directory, skill
   entry and `SKILL.md` whose symlink chain leaves the repository.
@@ -150,6 +151,7 @@ change.
 
 from collections.abc import Mapping
 from pathlib import PurePosixPath
+from typing import Self
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.document import DocumentDecodeError, DocumentRef
@@ -199,28 +201,33 @@ from .text import DocumentText, SkillResourceText, SkillText, Undecodable
 
 
 class Database:
-    """What the checks read from one snapshot, each computed once and cached for the snapshot's lifetime.
+    """What the checks read from one snapshot: its model, loaded on `open`, and every other value computed once.
 
-    That is the workspace model, the decoded text, the frontmatter, the parse trees, the token counts, the line counts,
+    `open` loads the workspace model; every other value is computed on first use and cached for the snapshot's
+    lifetime. Those are the decoded text, the frontmatter, the parse trees, the token counts, the line counts,
     the governance, the schema problems, the outline alignment and the outline divergences of the documents, the decoded
     text, the frontmatter, the parse trees, the line counts and the schema problems of the skills, the resources of each
     skill with their decoded text and their parse trees, the link targets of every one of those Markdown files, and the
     scope index `is_in_scope` answers from.
     """
 
-    def __init__(self, snapshot: Snapshot) -> None:
-        """Index the snapshot for reading; performs no I/O and computes nothing yet.
+    def __init__(self, fs: VirtualFileSystem, model: WorkspaceModel) -> None:
+        """Index the view's snapshot for reading; performs no I/O and computes nothing yet.
+
+        Only `open` calls this; `docs/arch/adr-015-database.md` states why. A caller that builds a database from a
+        model loaded through another snapshot's view answers for the mismatch.
 
         Args:
-            snapshot: The frozen state every query reads; kept for the database's lifetime and never changed.
+            fs: The view of the snapshot every query reads; the snapshot is kept for the database's lifetime and
+                never changed.
+            model: The workspace model loaded through `fs`; kept for the database's lifetime.
         """
-        self._snapshot = snapshot
-        self._fs = VirtualFileSystem(snapshot)
+        self._snapshot = fs.snapshot
+        self._fs = fs
         self._documents = DocumentRepository(self._fs)
         self._skills = SkillRepository(self._fs)
-        # `None` until the first `model()` call; a loaded model is never `None`, so the two cannot be confused.
-        self._model: WorkspaceModel | None = None
-        # `None` until the first `is_in_scope()` call, as `_model` is until the first `model()` call.
+        self._model = model
+        # `None` until the first `is_in_scope()` call, so the index is built only for a run that asks.
         self._scope_index: ScopeIndex | None = None
         # The input queries' caches.
         self._texts: dict[DocumentRef, DocumentText | Undecodable] = {}
@@ -246,23 +253,23 @@ class Database:
         self._skill_schema_problems: dict[SkillRef, tuple[SchemaProblems, ...]] = {}
         self._skill_resource_parses: dict[SkillResourceRef, ParsedDocument] = {}
 
-    # Input queries: each reads the snapshot and states its own carry-over rule.
+    @classmethod
+    def open(cls, snapshot: Snapshot) -> Self:
+        """Open the database of one snapshot: build its view, refuse a linked layout and load its model.
 
-    def model(self) -> WorkspaceModel:
-        """The workspace model the snapshot declares, loaded on the first call.
+        The one way to get a database. The model is the one structure value loaded here; every other query is still
+        computed on first use.
 
-        Carry-over: kept for the next revision unless one of these changed, as the module docstring details:
+        Behind a linked `docs/` or `docs/__meta__/` the snapshot holds no specification, so the model would have
+        no corpus, and a run over its documents would report success over nothing; the layout is refused instead.
 
-        - An entry added or deleted under `docs/`, or a changed specification.
-        - An entry added or deleted in a skills directory, in a skill's directory, or at or on the way to the
-          resolved path a skill's linked `SKILL.md` leads to.
-        - A link that changed its target on the way to a skill or its `SKILL.md`, or on the chain of a skills
-          directory an agent declares, an entry of one, or such an entry's `SKILL.md`, a chain leaving the
-          repository included; and a directory added or deleted that a `..` on such a chain climbs out of.
-
-        A load that fails is not cached, so each call raises the same error again.
+        Args:
+            snapshot: The frozen state every query reads; kept for the database's lifetime and never changed.
 
         Raises:
+            LinkedLayoutError: If `docs/` is a symlink, or else if `docs/__meta__/` is one.
+            EntryInspectError: If an entry on the way to a skills directory cannot be inspected, or a link's target
+                read, while looking for where it leaves the repository.
             DirListError: If the specification directory or docs/ cannot be listed.
             CorpusListError: If a corpus directory cannot be listed.
             StructureSchemaReadError: If any structure specification cannot be read.
@@ -278,15 +285,29 @@ class Database:
             ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
             UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
             DirResolveError: If a skills directory cannot be resolved.
-            EntryInspectError: If an entry on the way to a skills directory cannot be inspected, or a link's
-                target read, while looking for where it leaves the repository.
             SkillsDirListError: If a skills directory cannot be listed.
             SkillEntryResolveError: If a symlinked skill entry cannot be resolved.
             SkillDirListError: If a skill directory cannot be listed.
             SkillFileResolveError: If a symlinked SKILL.md cannot be resolved.
         """
-        if self._model is None:
-            self._model = load_model(self._fs)
+        fs = VirtualFileSystem(snapshot)
+        reject_linked_layout(fs)
+        return cls(fs, load_model(fs))
+
+    # Input queries: each reads the snapshot and states its own carry-over rule.
+
+    def model(self) -> WorkspaceModel:
+        """The workspace model the snapshot declares, loaded when the database was opened. Raises nothing.
+
+        Carry-over: kept for the next revision unless one of these changed, as the module docstring details:
+
+        - An entry added or deleted under `docs/`, or a changed specification.
+        - An entry added or deleted in a skills directory, in a skill's directory, or at or on the way to the
+          resolved path a skill's linked `SKILL.md` leads to.
+        - A link that changed its target on the way to a skill or its `SKILL.md`, or on the chain of a skills
+          directory an agent declares, an entry of one, or such an entry's `SKILL.md`, a chain leaving the
+          repository included; and a directory added or deleted that a `..` on such a chain climbs out of.
+        """
         return self._model
 
     def text(self, ref: DocumentRef) -> DocumentText | Undecodable:
@@ -612,36 +633,6 @@ class Database:
         Returns:
             The specifications, or `None` when the model holds no corpus named `ref.corpus`: no specification governs
             such a document, and the answer is cached like any other.
-
-        Raises:
-            DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
-            CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
-            StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
-            StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in
-                the dialect's shape.
-            EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
-            RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
-            RepeatedForbiddenSectionError: If the model is not loaded yet and a specification forbids a section
-                twice.
-            ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
-                outline names.
-            AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
-            InvalidTitlePatternError: If the model is not loaded yet and a title's pattern does not compile.
-            InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by
-                the meta-schema.
-            FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries
-                `$id`.
-            ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema
-                names another dialect.
-            UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not
-                state an object.
-            DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
-            EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot
-                be inspected, or a link's target read, while looking for where it leaves the repository.
-            SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
-            SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
-            SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
-            SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
         """
         if ref not in self._governances:
             self._governances[ref] = self.model().find_governance(ref)
@@ -665,36 +656,6 @@ class Database:
             One entry per frontmatter schema that governs the document, in the order the schemas apply, each naming
             the structure specification that states it; none when no schema governs it, or when its block is
             missing, not YAML or not a mapping, which no schema can hold.
-
-        Raises:
-            DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
-            CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
-            StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
-            StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in
-                the dialect's shape.
-            EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
-            RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
-            RepeatedForbiddenSectionError: If the model is not loaded yet and a specification forbids a section
-                twice.
-            ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
-                outline names.
-            AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
-            InvalidTitlePatternError: If the model is not loaded yet and a title's pattern does not compile.
-            InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by
-                the meta-schema.
-            FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries
-                `$id`.
-            ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema
-                names another dialect.
-            UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not
-                state an object.
-            DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
-            EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot
-                be inspected, or a link's target read, while looking for where it leaves the repository.
-            SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
-            SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
-            SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
-            SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
         """
         found = self._schema_problems.get(source.ref)
         if found is None:
@@ -725,36 +686,6 @@ class Database:
         Returns:
             One entry per structure specification that governs the document, in the order the specifications apply;
             none when none governs it.
-
-        Raises:
-            DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
-            CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
-            StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
-            StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in
-                the dialect's shape.
-            EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
-            RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
-            RepeatedForbiddenSectionError: If the model is not loaded yet and a specification forbids a section
-                twice.
-            ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
-                outline names.
-            AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
-            InvalidTitlePatternError: If the model is not loaded yet and a title's pattern does not compile.
-            InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by
-                the meta-schema.
-            FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries
-                `$id`.
-            ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema
-                names another dialect.
-            UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not
-                state an object.
-            DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
-            EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot
-                be inspected, or a link's target read, while looking for where it leaves the repository.
-            SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
-            SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
-            SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
-            SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
         """
         alignments = self._outline_alignments.get(source.ref)
         if alignments is None:
@@ -783,36 +714,6 @@ class Database:
         Returns:
             One entry per structure specification that governs the document and states an outline, in the order the
             specifications apply; none when no outline governs it.
-
-        Raises:
-            DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
-            CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
-            StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
-            StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in
-                the dialect's shape.
-            EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
-            RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
-            RepeatedForbiddenSectionError: If the model is not loaded yet and a specification forbids a section
-                twice.
-            ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
-                outline names.
-            AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
-            InvalidTitlePatternError: If the model is not loaded yet and a title's pattern does not compile.
-            InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by
-                the meta-schema.
-            FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries
-                `$id`.
-            ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema
-                names another dialect.
-            UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not
-                state an object.
-            DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
-            EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot
-                be inspected, or a link's target read, while looking for where it leaves the repository.
-            SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
-            SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
-            SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
-            SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
         """
         divergences = self._outline_divergences.get(source.ref)
         if divergences is None:
@@ -913,18 +814,6 @@ class Database:
         return parsed
 
     # Not queries: each is answered from the snapshot on every call and never cached.
-
-    def reject_linked_layout(self) -> None:
-        """Refuse a snapshot in which ``docs/`` or ``docs/__meta__/`` is a symlink; never cached.
-
-        Behind a linked ``docs/`` or ``docs/__meta__/`` the snapshot holds no specification, so the model has no
-        corpus, and a run over its documents would report success over nothing. Kept apart from ``model()``, which
-        also lists the skills: a caller that reads only skills has no reason to refuse a linked ``docs/``.
-
-        Raises:
-            LinkedLayoutError: If ``docs/`` is a symlink, or else if ``docs/__meta__/`` is one.
-        """
-        reject_linked_layout(self._fs)
 
     def find_file(self, path: RootRelativePath) -> ResolvedPath | None:
         """The file `path` leads to in the snapshot, every recorded link on the way followed; never cached.
