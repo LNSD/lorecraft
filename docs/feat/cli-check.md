@@ -87,18 +87,16 @@ by code a rule at `allow` also warns.
 |--------------------|---------|---------|-------------|
 | `--root <path>`    | nearest parent holding `docs/__meta__/` | — | The repository root, as [Root Discovery](#root-discovery) describes |
 | `--format <text\|short\|json>` | `text` | — | The output format, as [Output](#output) describes |
-| `--color <WHEN>` | `auto` | [`NO_COLOR`](https://no-color.org/), [`FORCE_COLOR`](https://force-color.org/) | Control when colored output is used. `auto`: colour when stdout is an interactive terminal, unless `NO_COLOR` is set; `FORCE_COLOR` forces it. `always`: colour even when stdout is not a terminal. `never`: no colour. Only the `text` format is coloured. |
+| `--color <WHEN>` | `auto` | [`NO_COLOR`](https://no-color.org/), [`FORCE_COLOR`](https://force-color.org/) | Control colour: `auto`, `always` or `never`. Only `text` is coloured. |
 | `--select <selectors>` | `ALL` | — | Run only these rules, as [Selecting Rules](#selecting-rules) describes |
 | `--ignore <selectors>` | none | — | Skip these rules |
 
-The command takes no paths: it always checks the whole workspace. Between `--select` and `--ignore`, the more
-specific selector wins, as [Selecting Rules](#selecting-rules) describes.
-An unlisted `--format` or `--color` value is a usage error (exit `2`).
-For colour, an explicit `--color always` or `--color never` wins over both variables. Under `auto`, a non-empty
-`FORCE_COLOR` enables colour, even when piped; otherwise a non-empty `NO_COLOR` disables it; otherwise colour
-follows whether stdout is an interactive terminal. An empty variable counts as unset; any non-empty value,
-including `0`, counts as set. When colour is enabled, errors are bold red, warnings bold yellow, messages bold,
-and the gutter and location markers bold blue.
+The command takes no paths and checks the whole workspace. The more specific selector wins between `--select`
+and `--ignore`. Unknown `--format` or `--color` values exit `2`.
+Explicit `--color always` or `never` overrides both variables. Under `auto`, non-empty `FORCE_COLOR` enables
+colour even when piped; otherwise non-empty `NO_COLOR` disables it; otherwise stdout's terminal status decides.
+Empty values count as unset; `0` counts as set. With colour, errors are bold red, warnings bold yellow,
+messages bold, and gutter and location markers bold blue.
 
 ## Usage
 
@@ -217,7 +215,7 @@ each rule's condition and fix, as [cli-rule](cli-rule.md) describes.
 | `LEN` | Length limits: a document's tokens, a section's or its title's words or characters, a `SKILL.md`'s lines. `LEN001` too-many-tokens, `LEN002` too-many-lines, `LEN003` too-many-words, `LEN004` title-too-many-words, `LEN005` title-too-long |
 | `LINK` | Links in Markdown files: a document governed for its structure, a `SKILL.md` and each resource, a skill's relative link read from the skill root. `LINK001` absolute-link, `LINK002` missing-fragment, `LINK003` broken-link, `LINK004` escaping-link |
 | `LAY` | Skill layout checks: `LAY001` outside-symlink, a symlink an agent reaches whose chain leaves the repository |
-| `LC` | Engine conditions, which no configuration or selection turns off: `LC001` invalid-utf8, a file that is not UTF-8, reported at its first invalid byte |
+| `LC` | Engine conditions, which no configuration or selection turns off: `LC001` invalid-utf8, a file that is not UTF-8, reported at its first invalid byte. The [rulebook](../rulebook/) also lists `LC003`–`LC013` for unusable structure files. `check` does not report those codes yet: an unusable structure file stops the run with exit `2`. |
 
 `FM008` ends with the field's example when the schema gives one. `FM009` labels malformed skill names with
 their pattern. `FM010` and `FM012` carry counts in messages only.
