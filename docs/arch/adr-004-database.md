@@ -42,16 +42,19 @@ it took and hands it to every check of the revision. It has two layers:
 A query is a method of the database, computed on first use and memoized until the database is dropped. Its
 result is an immutable value. The queries are layered:
 
-- **Structure**: the project model, the index of the scope the snapshot was taken of, and a skill's resource
+- **Structure**: the project model, the index of the scope the snapshot was taken of, a document's governance,
+  `governance(ref)`, what the model states governs one document, and a skill's resource
   listing, the Markdown files inside a skill beside its `SKILL.md` and its symlinks that lead outside the root. They read listings, symlink targets, the
   declared scope and meta specs, never a document's content: an edit to a document's text leaves them valid,
   and a retargeted symlink on the way to a skill does not. A resource listing reads only the listings and symlink
-  targets its skill's walk reaches, so a change the walk does not reach leaves it valid.
+  targets its skill's walk reaches, so a change the walk does not reach leaves it valid. A document's governance is
+  kept whenever it is recomputed equal, so a model change that leaves it equal leaves valid every query that reads it.
 - **Decode**: a file's text, one query per kind of file: a document, a `SKILL.md`, a resource. Each is keyed by
   the file's ref and reads the one file a structure query locates: the model locates a document or a `SKILL.md` by
   its ref, and the resource decode takes the location its skill's resource listing issued. Each returns a witness,
   the ref and its decoded text, or an undecodable marker, cached like any answer. It is the one place a file's bytes
-  become text.
+  become text: an excerpt of a document, a `SKILL.md` or a resource, rendered for a diagnostic, is cut from the
+  text its decode query returned, never from a second decode of the file.
 - **Per file**: a frontmatter node, a parse tree, a token count, a line count. Each takes the witness its decode
   query returned, never a bare ref, so a fact of an undecodable file cannot be asked for, and is keyed by the
   witness's ref.
@@ -59,7 +62,8 @@ result is an immutable value. The queries are layered:
   what each governing frontmatter schema rejects in a document's frontmatter, `skill_schema_problems`, the same for
   a skill against the Agent Skills specification, and `outline_divergences`, where a document's sections first stop
   matching each governing outline. Each takes the witness, reads the per-file queries it analyses and, for a
-  document, the governance the model records, and is kept whenever they are. It finds problems, not diagnostics:
+  document, its governance through `governance(ref)`, never the whole model, and is kept whenever they are: a model
+  change that leaves a document's governance equal keeps its analyses. It finds problems, not diagnostics:
   levels apply after detection, so no diagnostic is cached.
 - **Cross-file**: `link_targets`, `skill_link_targets` and `skill_resource_link_targets`, what the snapshot holds at
   the target of each relative link of a document, a `SKILL.md` or a resource: present, missing or outside the scope,
@@ -86,6 +90,8 @@ Before committing code, verify:
 
 - [ ] No code but the database builds a view over the snapshot; code below it reads only the view a query hands it
 - [ ] Every value derived from the snapshot is a query on the database
+- [ ] A per-document analysis reads the document's governance through `governance(ref)`, never the project model
+- [ ] A source excerpt of a document, a `SKILL.md` or a resource is cut from its decode query's text, never decoded again
 - [ ] Nothing patches a revision in place; work on an old revision is abandoned when a new one arrives
 - [ ] No database's cache is filled from two threads at once
 - [ ] An event changes an input and produces a new revision; it never updates a derived value directly
@@ -95,5 +101,6 @@ Before committing code, verify:
 - [adr-001-snapshot-model](adr-001-snapshot-model.md) - Related: The model and the package roles
 - [adr-002-vfs](adr-002-vfs.md) - Related: The snapshot the database wraps
 - [adr-005-incremental](adr-005-incremental.md) - Related: What a query's result carries over to the next revision
+- [adr-011-rules-engine](adr-011-rules-engine.md) - Related: The rule contexts that read a document's governance
 - [adr-012-database-derivation](adr-012-database-derivation.md) - Related: The package the database lives in
 - [pattern-memoization](../code/pattern-memoization.md) - Foundation: How a query is memoized
