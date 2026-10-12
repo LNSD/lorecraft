@@ -2,7 +2,7 @@
 name: "adr-009-rules"
 description: "How a rule of the structured checks is declared and identified: one class per rule with its own typed check, codes in groups named after the mechanism that states them, alias codes for rules absorbed from other linters, a removed rule as a type of its own, one registry, and a rulebook generated from the classes. Load when writing, porting, renaming or retiring a rule, or changing its code, group, default level or documentation"
 type: "adr"
-status: "proposed"
+status: "accepted"
 ---
 
 # Rules: Declaration and Identity
@@ -11,17 +11,17 @@ This record is one of three that state how the structured checks of [prd-008](pr
 built: [adr-009](adr-009-rules.md) how a rule is declared and identified, [adr-010](adr-010-diagnostics.md) what a
 rule reports and how it reaches the user, and [adr-011](adr-011-rules-engine.md) how a run judges subjects.
 Requirement identifiers such as `FR-009` cite the PRD, and the terms are those of the [glossary](#glossary) below.
-Names of types, modules, codes and prefixes in the sketches are illustrative; the shapes are the decision.
+
+It states the shape of a rule and of the registry, not the rules themselves. Which rules exist, their codes, their
+groups and how many there are change release by release; the registry and the rulebook are the authority on them,
+and every name, code and prefix below is an example.
 
 ## Context
 
-Today a rule is a string. `Violation.rule` is a literal written where the violation is built, and nothing lists
-the rules: six identifier patterns are built from a repository's own corpora, so the set is open-ended. No rule
-has a level, a page that explains it, or an identity a configuration or a suppression could name.
-
-The design has to hold what the checks carry today: 25 rules and six identifier patterns built from data, over
-documents, skills, skill resources and layout entries. A design that fits a sample rule and not that set is not
-the design.
+Before this record, a rule was a string literal written where its violation was built, and nothing listed the
+rules: some identifiers were built from a repository's own corpora, so the set was open-ended. No rule had a level,
+a page that explains it, or an identity a configuration or a suppression could name. The design had to hold every
+rule the checks carried, over documents, skills, skill resources and layout entries, and not only a sample one.
 
 ## Glossary
 
@@ -34,11 +34,12 @@ shorter still: the checker reports errors and warnings, and they act on them.
 |---|---|
 | **Rule** | What a user reads about and configures: a code, a name, a default level and a rulebook page. In the code it is one class, its declaration and its check |
 | **Occurrence** | One instance of a rule: where it fired, with the data of that place; names no subject |
-| **Rule code**, **rule name** | `OUT004` and `empty-section`. A code is a rule group's prefix and a number |
+| **Rule code**, **rule name** | Such as `OUT004` and `empty-section`. A code is a rule group's prefix and a number |
 | **Rule group** | The rules one mechanism states, under one prefix and title |
-| **Rulebook** | The reference manual of the engine's rules, one page per code in `docs/rulebook/`, generated from the rules' classes |
+| **Rulebook** | The reference manual of the engine's rules, one page per code, generated from the rules' classes |
 | **Alias code** | An upstream linter's code for a rule Lorecraft absorbed, such as `MD040`. A rule's code is always Lorecraft's; an alias code only points to it |
 | **Removed rule** | A retired code, with the release that removed it and its replacement. Never has an occurrence |
+| **Engine condition** | A condition the engine reports before any rule runs, such as an undecodable file: declared like a rule, with no level |
 | **Subject** | What is checked: a document, a skill, a skill resource or a layout entry |
 | **Context** | The read-only view of one decoded subject a rule asks for the facts it reads, each a query of the database |
 | **Facet** | What part of a document a meta spec governs, which a rule over a document or the frontmatter is gated on |
@@ -48,15 +49,15 @@ shorter still: the checker reports errors and warnings, and they act on them.
 | **Label** | Text attached to a location: the primary label says what is wrong there, a secondary one points at a related place |
 | **Help**, **note** | A sub-diagnostic: help says how to fix this occurrence, a note gives the context that explains it. Either may point at a location |
 | **Location** | A line in the subject, the whole subject when it has no lines, or a place in another file, such as the meta spec. The runner supplies the subject's path |
-| **Engine diagnostic** | A diagnostic no rule produced: an undecodable file, an error; an alias code in the configuration, a warning |
+| **Engine diagnostic** | A diagnostic no rule produced: an engine condition's occurrence, or a warning about the configuration |
 | **Coverage** | Which facets of a subject no meta spec governs. Never a diagnostic |
-| **Failure** | What stops a run before any subject is checked: raised, and exit code 2 |
+| **Failure** | What stops Lorecraft from judging at all: raised, and exit code 2 |
 
 ## Decision
 
 1. **A rule is one class.** The class is the declaration and the check: its code, name, default level,
    documentation, and the classmethod that judges its subject. One rule has one code, one class and one file. A
-   removed rule is a type of its own, which can never be reported.
+   removed rule and an engine condition are types of their own, which no rule can be built as.
 2. **One registry**, discovered by a package walk, is the only source of rules. The runner, the rulebook and the
    tests read it. A generated, checked index derived from it, for the command line's edge, is not a second list: it
    is output, as the rulebook is, and the generation check holds it equal to the registry.
@@ -96,57 +97,36 @@ class EmptySection(DocumentRule):
     def message(self) -> str:
         return f'section `{self.section}` is empty'
 
-    def children(self) -> tuple[Subdiagnostic, ...]:
-        return (spec_note(self.spec), Help('omit the section rather than leave it empty'))
-
     @classmethod
     def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
-        headings = subject.parse().headings
-        occurrences: list[Self] = []
-        for structure_spec in subject.specifications().structure_specs():
-            if structure_spec.forbid_empty_sections:
-                for heading in headings:
-                    if heading.empty:
-                        occurrences.append(cls(spec=structure_spec.path, line=heading.line, section=heading.text))
-        return tuple(occurrences)
+        ...
 ```
 
-- **`Rule`** carries what every occurrence has: the meta spec file that states the rule (or none, for a
-  rule the package states). The line is not on it: every base whose subject has lines derives from
-  `ContentRule`, which carries the line, and `LayoutRule`, for a layout entry, carries none. A subclass
-  adds the data of its own condition and the context its diagnostic needs, as
-  [adr-010-diagnostics](adr-010-diagnostics.md) states.
-- **The base class names the subject kind.** Each subject kind has one base, `DocumentRule` for a document and
-  `SkillRule` for a skill, whose abstract `check` takes the subject's context, a `Protocol` of `lorecraft.project`.
-  A rule over what any Markdown file has derives from `MarkdownRule`, whose `check` takes a `MarkdownContext`, and
-  judges a document, a skill's `SKILL.md` and a skill's resource alike. A rule over what holds of a skill's files
-  and not of a document, such as a link read from the skill root, derives from `SkillFileRule`, whose `check` takes
-  a `SkillFileContext`, and judges a skill's `SKILL.md` and its resources. What a document and a skill share has a
-  base too: `FrontmatterRule`, over a document's or a skill's frontmatter, takes the `FrontmatterContext` both
-  contexts extend, so one check judges both. A rule picks its subject by picking its base, and asks the context for
-  what it reads. A rule over a document declares the facet it reads in `GOVERNED_BY`, and the registry rejects one
-  that declares none; a rule over the frontmatter inherits `Facet.FRONTMATTER` from its base, and the package governs
-  every skill and resource, so a rule over a skill or one of its files declares none. A rule over a Markdown file
-  declares none either: its base judges a document under its structure, the facet under which a document has a
-  context at all. Every rule reads a context: `EmptySection` above derives from `DocumentRule` and is governed by
-  the structure facet.
-- **A layout entry has a base of its own.** `LayoutEntryRule` derives from `LayoutRule`, since a symlink has no
-  lines, and its `check` takes a `LayoutContext`: one symlink of the skill layout whose chain leaves the repository,
-  and where it leaves. The package governs the skill layout, so a rule over it declares no facet.
+- **An instance is one occurrence.** It carries the data of its condition and the context its diagnostic needs,
+  as [adr-010-diagnostics](adr-010-diagnostics.md) states, and the meta spec file that states the rule, or none
+  for a rule the package states. A rule over a subject with lines carries the line; one over a layout entry
+  carries none.
+- **The base class names the subject kind.** Each subject kind has a base whose abstract `check` takes that kind's
+  context, a `Protocol` of `lorecraft.project`. What several kinds share has a base too, such as the frontmatter
+  of a document and a skill alike, or any one Markdown file, so one check judges each of them. A rule picks its
+  subject by picking its base, and asks the context for what it reads.
+- **A rule over a document declares the facet it reads** in `GOVERNED_BY`, so the runner gates it on governance;
+  the registry rejects one that declares none. The package governs skills, their files and the skill layout, so a
+  rule over them declares none.
 - **`check` returns `tuple[Self, ...]`**, so a rule can only report its own occurrence, and the type checker
   rejects one that reports another's. That needs no type parameter anywhere in the engine.
 - **The message is rendered from the fields.** The corpus, the field and the section travel as data, not as
   text inside a message (FR-011), so the machine-readable output and a persisted result hold structured values.
 - **One class, one message template.** `message()` does not branch on a condition. Two conditions a writer
-  fixes differently are two classes and two codes. That is the granularity for FR-012, the established linters'
-  that identify a rule by its violation type: a missing section, a section out of order and a section past the
-  outline's end are three codes, not one. The prefix is the coarse handle: a level set on `OUT` covers the whole
-  outline, and one set on a code tunes one condition.
+  fixes differently are two classes and two codes (FR-012), the established linters' granularity, which identify
+  a rule by its violation type. The prefix is the coarse handle: a level set on a prefix covers its whole group,
+  and one set on a code tunes one condition.
 - **The docstring is the documentation**, in fixed sections: *What it does*, *Why is this bad?*, *Example*,
   *Use instead*, and optionally *Known problems* and, for a rule with an alias, *Deviations from upstream*. Nothing
   about a rule is written in a second place.
-- **`@rule` registers the class** and returns it unchanged. Its one type parameter only passes the decorated
-  class's type through; nothing in the engine is generic over what a rule reads.
+- **Every rule has a default level** (FR-023), on its class. Until a configuration sets levels, it is the level
+  every run uses.
+- **`@rule` registers the class** and returns it unchanged.
 - **One file per rule.** The class, its docstring and its check sit in one module, in a directory per group.
 
 The established linters keep a rule's check as a function beside its violation type. Here it is a classmethod
@@ -157,178 +137,156 @@ instance is one occurrence of it.
 
 ### Codes, Groups and Life Cycle
 
-- **A code is a group and a number** (FR-009). `RuleCode(GROUP_ID, 4)` prints as the group's prefix followed by
-  zero-padded digits. A group is declared once, with its prefix and title, in its directory's package. A code
-  whose prefix disagrees with its group cannot be written.
+- **A code is a group and a number** (FR-009), printed as the group's prefix followed by fixed-width digits. A
+  group is declared once, with its prefix and title, beside its rules. A code whose prefix disagrees with its group
+  cannot be written.
 - **A name is a `RuleName`** (FR-009), a value object by [pattern-value-object](../code/pattern-value-object.md):
-  one string field of one or more words of lowercase ASCII letters and digits, joined by single hyphens,
-  validated on construction. A rule's name is never a bare `str`, and it can never be spelled as a code.
-- **A prefix names the mechanism that states the rule** (FR-013), never a subject kind, and its numbers run in
-  sequence:
-
-  | Prefix (illustrative) | Rules |
-  |---|---|
-  | `FM` | The frontmatter block and its schema |
-  | `OUT` | The sections a structure file states |
-  | `LEN` | Every length limit: a document's token budget, a skill's line budget, a section's word cap |
-  | `LINK` | Links in any Markdown file: a document, a skill's `SKILL.md` and its resources |
-  | `LAY` | The skill layout: a symlink an agent follows whose chain leaves the repository |
-  | `LC` | The engine's own conditions, such as an undecodable file, and no rule |
-
-  A group for the Markdown body, such as its blocks or its inline links, is added with its first rule.
-- **Every code is Lorecraft's, and an upstream code is an alias code.** The engine absorbs other linters'
-  rules: a rule ported from one keeps a Lorecraft code in the group of its mechanism, and lists the upstream
-  codes it answers to in `ALIASES`, each naming its linter, such as `MD040` of markdownlint. A condition
-  that several linters check is one rule with several alias codes, never several rules. The rulebook page renders
-  each alias as the rule's provenance, the lookup command finds a rule by one, and the machine-readable output
-  carries them beside the code. Output prints the code alone. Configuration and suppression accept an alias code
-  and resolve it to the code, with a warning naming the code to write. Absorbing a linter adds
-  rules and aliases, and leaves the registry untouched; a fact its rules need that no context offers yet is a method
-  of the context and a query of the database, never a change to the runner. Which upstream rules are ported is
-  decided rule by rule, outside this design.
-- **Documents and skills share the frontmatter codes.** A skill's frontmatter is judged against the Agent Skills
-  schema and a document's against its corpus schemas. The governing schema and the name the subject is found
-  under are data of the context, so one rule serves both and a later meta spec for skills retires no
-  code. A `name` that differs from a document's filename and one that differs from a skill's directory are one
-  code.
+  kebab-case, validated on construction. A rule's name is never a bare `str`, and it can never be spelled as a code.
+- **A prefix names the mechanism that states the rule** (FR-013), never a subject kind: the frontmatter, the
+  sections a structure file states, a length limit, links, the skill layout. A group is added with its first rule,
+  and the rulebook lists the groups that exist. One prefix is the engine's own and holds its conditions, never a
+  rule.
+- **An engine condition is declared like a rule** (FR-020): a code in the engine's group, a name, the release it is
+  stable since, a fixed severity and a docstring, registered by `@rule`, so it has a rulebook page and its own test
+  cases. It has no level and no `check`: the engine finds it before any rule runs, and no selection or
+  configuration can turn it off.
+- **Every code is Lorecraft's, and an upstream code is an alias code.** A rule ported from another linter keeps a
+  Lorecraft code in the group of its mechanism, and lists the upstream codes it answers to in `ALIASES`, each
+  naming its linter. A condition that several linters check is one rule with several alias codes, never several
+  rules. The rulebook page renders each alias as the rule's provenance, and the lookup command finds a rule by one.
+  Output prints the code alone. A one-run selection, and later the configuration and suppression, accept an alias
+  code and resolve it to the code, with a warning naming the code to write. Absorbing a linter adds rules and
+  aliases, and leaves the registry untouched; a fact its rules need that no context offers yet is a method of the
+  context and a query of the database, never a change to the runner. Which upstream rules are ported is decided
+  rule by rule, outside this design.
+- **Documents and skills share the frontmatter codes.** The governing schema and the name the subject is found
+  under are data of the context, so one rule serves both, and a later meta spec for skills retires no code.
 - **The set of codes is fixed by the package** (FR-011). A schema field never creates a code.
 - **Codes identify the engine's rules alone.** A code spec under `docs/code/`, or any other document that states a
-  convention, keeps its kebab-case name and never takes a code: agents read and apply those documents, and the
-  engine reports none of them.
-- **Life cycle is a type.** A rule in service is a rule class, with `SINCE`. A retired rule becomes a
-  `RemovedRule`: its code, its name, `REMOVED_IN`, `REPLACED_BY` and its docstring, registered by `@rule` in the
-  same file. It is not a `Rule`, so it can never be built as one or reported. Its code is never free to
-  reuse (FR-014), and a configuration that names it fails with the release and the replacement (FR-015).
-- **`SINCE` and `REMOVED_IN` are `Release` values**, a value object by
-  [pattern-value-object](../code/pattern-value-object.md): one string field in the form `MAJOR.MINOR.PATCH`,
-  digits only, no leading zeros, no `v` prefix and no pre-release or build suffix, validated on construction. A
-  rule's release is never a bare `str`.
-- **They are immutable literals** naming a release that already happened to the rule. `AGENTS.md` and the
-  release skill forbid a version literal that tracks the current release; they gain an exception for these in
-  the change that first adds one.
+  convention, keeps its kebab-case name and never takes a code.
+- **Life cycle is a type.** A rule in service is a rule class, with the release it is stable since. A retired rule
+  becomes a `RemovedRule`: its code, its name, the release that removed it, its replacement and its docstring,
+  registered by `@rule` in the same file. It is not a `Rule`, so it can never be built as one or reported. Its code
+  is never free to reuse (FR-014). Naming it fails, and points to the release and the replacement (FR-015).
+- **A rule's releases are `Release` values**, a value object by
+  [pattern-value-object](../code/pattern-value-object.md), and immutable literals naming a release that already
+  happened to the rule. `AGENTS.md` and the release skill exempt them from the rule against a version literal that
+  tracks the current release.
 - **The committed rulebook is the audit.** No hand-written central table of codes exists. The registry rejects a
   duplicate, and a reused code shows as a changed page.
 
 ### The Registry
 
 The registry follows [pattern-registry](../code/pattern-registry.md). It walks the rules package once, imports
-every module but its unit tests and [the index](#the-index), and collects the rule classes and removed rules
-`@rule` registered. The index declares no rule and is derived from the walk's result, so a stale one cannot stop the
-registry that regenerates it.
+every rule module, and collects every declaration `@rule` registered: rules, removed rules and engine conditions.
 
-- It rejects a code, an alias code or a name bound twice, and a rule class that is still abstract: a
-  rule with no `check`. It propagates an import failure.
+- **It rejects at load every declaration the types cannot**: an identity bound twice, a rule with no `check`, a
+  declaration left incomplete, a declaration in the wrong group, a replacement no rule has. It propagates an import
+  failure. What it checks grows with the declarations, and the registry's own documentation is the list.
 - It lists rules in code order.
 - It is package data. It reads no workspace, is not a query, and no class from it enters a query result. A
   persisted diagnostic is its code and its fields, read back through the registry.
 
 ### The Index
 
-Loading the registry imports every rule module, and through them the Markdown parser and the schema validator, so
-a reader that only needs to know which codes exist would pay for the engine. The command line's edge is such a
-reader: it validates a selection, resolves a rule by code, name or alias, and lists the rules before any run.
+Loading the registry imports every rule module, and through them what the rules read, so a reader that only needs
+to know which codes exist would pay for the whole engine. The command line's edge is such a reader: it validates a
+selection, resolves a rule by code, name or alias, and lists the rules before any run.
 
-- **The index is derived from the registry**, and holds identity alone, as strings and tuples in one generated
-  module, `lorecraft.rules.index`: each declaration's code, name, kind, level or severity and alias codes, and each
-  group's prefix and title, with four lookup functions over them. It holds no class and no type of its own, since a
-  type of the engine's would load the engine.
-- **`lorecraft_gen` writes it from `Registry.load`**, through a `gen-*` recipe, never `lorecraft` itself, so the
-  generator ships in no wheel. The generation check fails on a stale index, so a rule added, removed or renamed
-  without regenerating it is caught, as a stale rulebook page is.
-- **The generation check is its only check**, as for the rulebook: the whole module is the generator's output,
-  lookups included, so no hand-written code sits beside the data and no test beside the module.
+- **The index is derived from the registry** and holds identity alone, as plain data in one generated module,
+  with the lookups over it. It holds no class and no type of the engine's, since one would load the engine.
+- **A generator outside the published package writes it**, and the generation check fails on a stale index, as on
+  a stale rulebook page.
 - **It is not a second list.** Nothing declares a rule in it: a rule joins by `@rule`, and the index follows. It is
-  checked in because it is generated output, as the rulebook is, and is never edited by hand.
-- **Only the edge reads it.** A run builds its rule table from the registry, as before.
+  never edited by hand.
+- **Only the edge reads it.** A run builds its rule table from the registry.
 
 ### The Rulebook
 
-The rulebook is the reference manual of the engine's rules: the page a user reads when the checker prints
-`error[OUT006]` and they want to know what it means and how to fix it. It lives in this repository alone, never in
-a repository that uses Lorecraft, and every word of it is generated from the rules' classes.
+The rulebook is the reference manual of the engine's rules: the page a user reads when the checker prints a code
+and they want to know what it means and how to fix it. It lives in this repository alone, never in a repository
+that uses Lorecraft, and every word of it is generated from the rules' classes.
 
-One function renders a rule's page from its class: the code and name; the release it is stable since; each alias
-with its upstream linter; then the docstring's sections. The facts are the page's frontmatter. A removed rule's
-page states the release that removed it and its replacement.
-
-```text
-docs/rulebook/
-├── FM001-missing-frontmatter.md
-├── …
-├── OUT006-missing-section.md
-└── LEN001-too-many-tokens.md
-```
-
-- **`docs/rulebook/` is a flat directory of generated pages**, one per code, removed rules included (FR-028). A page
-  is named `<code>-<name>.md`, as in `OUT006-missing-section.md`: the code first, the identity a diagnostic prints, so
-  the listing sorts in code order, then the rule's kebab-case name, so the file says what the rule is. The page's
-  frontmatter `name` is the same `<code>-<name>`, so a page's frontmatter names it as its file does. An alias code has
-  no page: the rule's page lists it, and the lookup resolves it.
-- **A `gen-*` recipe writes the pages**, and the generation check fails on a stale one. Nothing in the directory is
-  written by hand, and it defines no meta spec: the pages are generated output, kept current by the
-  generation check, not documents `lorecraft check` governs.
-- **The directory listing is the index**, in code order and grouped by prefix; no index document is kept. The
-  command line is the other: it lists every rule in code order, and prints one page by code, by name or by alias
-  (FR-029), from the same rendering function, so a user without this repository reads the same text.
+- **One page per code**, removed rules and engine conditions included (FR-028), rendered by one function from the
+  class: the code and name, the release it is stable since, each alias with its upstream linter, then the
+  docstring's sections. A removed rule's page states the release that removed it and its replacement.
+- **The pages are named by code, then name**, so a listing sorts in code order and each file says what its rule
+  is. An alias code has no page: the rule's page lists it, and the lookup resolves it.
+- **A generator writes the pages**, and the generation check fails on a stale one. Nothing in the rulebook is
+  written by hand, and no meta spec governs it.
+- **The listing is the index of the rulebook**, and the command line is the other: it lists every rule in code
+  order, and prints one page by code, by name or by alias (FR-029), from the same rendering function, so a user
+  without this repository reads the same text.
 - **Feat specs link to a page** and restate no rule.
 
 ### Tests
 
-- **Per rule:** a triggering case and a near miss (NFR-006), each a fixture on disk under
-  `tests/it/rule_cases/<code>/trigger/` and `near_miss/`, holding the repository to check and the diagnostics the
-  checker is expected to report. The parametrized tests of `tests/it/test_rule_cases.py` run the checker over every
-  fixture and compare the diagnostics with the expected ones, whole.
-- **A meta-test over the registry** names every code that lacks either case. It reads the registry and the fixture
-  tree and runs nothing.
+- **Per code:** at least one triggering case and one near miss (NFR-006), each a fixture on disk holding the
+  repository to check and the diagnostics the checker is expected to report, compared whole.
+- **A meta-test over the registry** names every code that lacks either kind of case. It reads the registry and the
+  fixtures and runs nothing.
 - **An overlap is declared where it occurs.** The comparison is exact, so a second code on a line fails the case
   unless the case's expected diagnostics list it; no separate table of allowed pairs exists.
-- **The registry** is tested for the duplicate and the import failure.
-- **A rule's `Release` is checked for its format alone**, by the value object. No test compares it with the
-  repository's tags: a well-formed but wrong release is the reviewer's to catch.
+- **The registry** is tested for each declaration it rejects and for an import failure.
+- **A rule's `Release` is checked for its format alone**, by the value object. A well-formed but wrong release is
+  the reviewer's to catch.
 
 ## Alternatives Considered
 
 - **A function that reports several codes.** One judging function declares a set of violation classes and
-  returns any of them, as the link walk reports several identifiers today. It needs no
-  intermediate problem types. It was not chosen because the type checker cannot hold a function to a declared
-  set, so the runner would need a membership check, and a rule would no longer be one file. It becomes the
-  better choice only if a shared analysis turns expensive.
+  returns any of them. It needs no intermediate problem types. Not chosen: the type checker cannot hold a function
+  to a declared set, so the runner would need a membership check, and a rule would no longer be one file. It
+  becomes the better choice only if a shared analysis turns expensive.
 - **A decorator on a function that returns code-less hits, stamped by the runner.** It was the first proposal.
   The rule class needs no stamping, and it makes a diagnostic structured data.
 - **The check as a function beside the class, registered by a generic decorator.** The established linters'
-  shape, and this design's previous draft. Class and function are then two declarations tied at runtime: a rule
-  in service can lack its check, and a removed rule is still a violation that can be built. The classmethod
-  rejects the first at load, makes the second unrepresentable, and removes the engine's only type parameter.
+  shape. Class and function are then two declarations tied at runtime: a rule in service can lack its check, and a
+  removed rule is still a violation that can be built. The classmethod rejects the first at load, makes the second
+  unrepresentable, and removes the engine's only type parameter.
 - **"Lint" for the engine's unit, keeping "rule" for what a meta spec or a code spec states.** Not chosen: a
   user acts on errors and warnings, and code rules, the alias of code specs, are the only other "rules" they meet,
   which the context tells apart.
-- **An absorbed rule keeps its upstream code**, in a group per upstream linter under upstream's prefix, as some
-  established linters do. Not chosen: a condition two absorbed linters check needs two groups and a choice
-  between their codes, rules sit by provenance rather than by mechanism, and the codes stop being one scheme.
-  Alias codes keep the upstream code for recognition, while the code stays Lorecraft's.
+- **An absorbed rule keeps its upstream code**, in a group per upstream linter, as some established linters do.
+  Not chosen: a condition two absorbed linters check needs two groups and a choice between their codes, rules sit
+  by provenance rather than by mechanism, and the codes stop being one scheme.
 - **A hand-written central table of codes.** It splits a rule across two files. It pays off for a linter that ports
   thousands of rules from upstream numbering, which Lorecraft does not have.
-- **One code per identifier of today, the condition as data.** It gives about 25 codes instead of about 45, and
-  a `message()` that branches on a kind field. Linters that take this shape do so because a rule's options carry
-  the user's specification, such as the list of required headings, so the rule must be one. Here the
-  meta spec is data the rule reads, a rule takes no options, and the prefix already gives the coarse handle.
-  The coarse code would only cost a page that explains several fixes, conditions that cannot be configured
-  apart, and the kind field [python-typing](../code/python-typing.md) rules out.
+- **One code per identifier of v0.2, the condition as data.** Fewer codes, and a `message()` that branches on a kind
+  field. Linters that take this shape do so because a rule's options carry the user's specification, so the rule
+  must be one. Here the meta spec is data the rule reads, a rule takes no options, and the prefix already gives the
+  coarse handle. The coarse code would only cost a page that explains several fixes, conditions that cannot be
+  configured apart, and the kind field [python-typing](../code/python-typing.md) rules out.
 
 ## Consequences
 
-- **Every rule takes a new identity.** Dotted identifiers become codes, and the release notes carry the mapping
-  from one to the other. The `just` recipes and CI, the README, the project skills shipped to users and the
-  feat specs change with it.
-- **More files, each smaller.** About 45 rule modules replace today's check modules.
-- **`AGENTS.md` and the release skill gain an exception** for a rule's `Release` literals, in the change that
-  first adds one.
+- **Every rule took a new identity.** Dotted identifiers became codes, and the release notes carry the mapping.
+- **More files, each smaller.** A module per rule replaced v0.2's check modules.
+- **Adding, renaming or retiring a rule regenerates the rulebook and the index**, and the generation check holds
+  both to the registry.
 
 ## Deferred
 
 | Deferred | What the design keeps open |
 |---|---|
 | Tags | A group that cuts across prefixes, such as every rule a skill can break, would be a tag carried by the class, added without touching a code |
+| Alias codes in the machine-readable output | Each diagnostic carries its rule's alias codes beside the code, added with the first rule that declares one |
+
+## Checklist
+
+Before committing code, verify:
+
+- [ ] A new rule is one class in one module of its group's directory, registered by `@rule`, with a code, a name, a
+  default level, the release it is stable since, and a `check` classmethod returning `tuple[Self, ...]`
+- [ ] A rule's docstring holds *What it does*, *Why is this bad?*, *Example* and *Use instead*, and nothing about the
+  rule is written in a second place
+- [ ] `message()` never branches; a condition fixed differently is another class and another code
+- [ ] A rule over a document declares the facet it reads in `GOVERNED_BY`
+- [ ] A code is never reused: a retired rule becomes a `RemovedRule` in the same file
+- [ ] A ported rule keeps a Lorecraft code in the group of its mechanism and lists upstream codes in `ALIASES`
+- [ ] An engine condition is declared in the engine's group, and no rule is
+- [ ] Every code has a triggering case and a near miss
+- [ ] The rulebook and the index are regenerated after a rule is added, renamed or retired, or its docstring
+  changes, and neither is edited by hand
 
 ## References
 

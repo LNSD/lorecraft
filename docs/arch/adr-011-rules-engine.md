@@ -2,7 +2,7 @@
 name: "adr-011-rules-engine"
 description: "How a run of the structured checks judges subjects: a rule table built from the registry, the levels and a one-run selection, a context per subject kind whose every fact is a memoized query, a decoded subject before any rule, one runner, and caching in memory for one revision. Load when adding a rule base, a context method or a query a rule reads, changing how subjects are selected or levels resolved, or reasoning about what a run costs"
 type: "adr"
-status: "proposed"
+status: "accepted"
 ---
 
 # Rules Engine: Running the Rules
@@ -12,7 +12,8 @@ built: [adr-009](adr-009-rules.md) how a rule is declared and identified, [adr-0
 rule reports and how it reaches the user, and [adr-011](adr-011-rules-engine.md) how a run judges subjects.
 Requirement identifiers such as `FR-009` cite the PRD, and the terms are those of [adr-009's
 glossary](adr-009-rules.md#glossary). Names of types, modules, codes and prefixes in the sketches are illustrative;
-the shapes are the decision.
+the shapes are the decision. Which rules exist, and which base and facet each takes, is the registry's and the
+rulebook's to say, never this record's.
 
 ## Context
 
@@ -63,7 +64,7 @@ per run            configuration (a query of the revision) ──▶ levels
                      · enabled rules only (allow and filtered-out rules are absent)
                      · each with its severity
                      · partitioned by base, a document's rules also by facet, in code order
-                     · any failure (unknown code, bad config) is raised here, before any subject
+                     · a bad configuration is raised here, before any subject
                        │
                        ▼
                    runner(database, subjects, table)
@@ -136,35 +137,16 @@ governs one whose corpus does not, so it always hands out that structure file, `
 document's corpus states, which every rule over the document's structure is gated on.
 
 **A rule may read its subject's context.** `lorecraft.rules` gives each subject kind a rule base whose `check` takes
-the context: `DocumentRule` over a document, `SkillRule` over a skill, `MarkdownRule` over any one Markdown file,
-`SkillFileRule` over one of a skill's files, its `SKILL.md` or a resource, never a document, and `LayoutEntryRule`
-over a layout entry. A rule over a document declares the facet it reads in `GOVERNED_BY`, one of `Facet.FRONTMATTER`
-(a frontmatter schema governs it), `STRUCTURE` (its corpus states a structure file), `OUTLINE` (a
-meta spec states an outline) and `BUDGET` (a meta spec sets a token budget). A rule over a Markdown file
-declares none: it judges a document governed for `STRUCTURE`, the facet under which a document has a context at
-all, and every skill's `SKILL.md` and every resource, which the package governs; a rule over a skill's file or a
-layout entry declares none either. The token budget, `LEN001`, is a document rule governed by `BUDGET`, and the line
-budget, `LEN002`, a skill rule; `LINK001`, `LINK002` and `LINK003` derive from `MarkdownRule`, `LINK004` from
-`SkillFileRule` and `LAY001` from `LayoutEntryRule`. The caps on a section's words and on the title's words and
-characters, `LEN003` to `LEN005`, and the rules over a document's headings, `OUT001` to `OUT005` and `OUT009`, are
-document rules governed by `STRUCTURE`; `LEN003` is governed by it rather than by `OUTLINE`, although it reads only the
-outline, so it judges the same documents as the rules over the headings. The rules over where the sections leave
-their outlines, `OUT006` to `OUT008`, are governed by `OUTLINE`, and each filters its own divergence out of the one
-`outline_divergences()` answer. Each walks the parse tree its context hands it: an analysis only one rule reads is
-that rule's own, so `LEN003` resolves each section's cap from the outline, `LEN004` and `LEN005` the title's caps, and
-`OUT009` matches the title against each pattern itself. Finding the title, the first H1, is the helper `find_title`
-beside the parse tree.
-
-**A rule over what both subject kinds share reads the shared context.** `FrontmatterRule` is the base of a rule over
-a document's or a skill's frontmatter alike: its `check` takes a `FrontmatterContext`, so one check judges both
-kinds, and a document runs its rules and the frontmatter rules, a skill its rules and the frontmatter rules. The
-frontmatter rules over both subject kinds, `FM001` to `FM010`, derive from it. `FM011` and `FM012`, which check a
-skill's `allowed-tools` structure and recommended length, derive from `SkillRule`. A rule over the frontmatter inherits
-`GOVERNED_BY = Facet.FRONTMATTER` from its base, so the runner gates it on a document as it gates a rule over a
-document, and a skill is governed for it by the package. `FM006` to `FM010` stay filters, each
-picking its own problem type out of the one `schema_problems()` answer. Where a key repeats and which line `name` is
-written on are each read by one rule only, so `FM005` walks the keys and `FM004` locates `name` itself, through the
-same `field_line` the schema query places its problems with.
+that kind's context, and a base for what several kinds share: any one Markdown file, one of a skill's files, and the
+frontmatter of a document and a skill alike, whose `check` takes the context both extend, so one check judges each.
+A rule over a document declares the facet it reads in `GOVERNED_BY`: a frontmatter schema, the structure file its
+corpus states, an outline, or a token budget. A rule over the frontmatter inherits the frontmatter facet from its
+base, so the runner gates it on a document as it gates a rule over a document, and a skill is governed for it by the
+package. A rule over a Markdown file judges a document under its structure, the facet under which a document has a
+context at all, and every skill file, which the package governs; a rule over a skill's file or a layout entry
+declares no facet. A rule over a shared analysis filters its own problem type out of the one answer the query
+gives; an analysis only one rule reads is that rule's own walk of the parse tree, and a selection from a value the
+context already holds, such as the first H1, is a helper beside the parse tree.
 
 **A layout entry is read through a context built from its record**, since it has no text. One layout entry is one
 symlink of the skill layout whose chain leaves the repository: a skills directory, an entry in one or an entry's
@@ -265,23 +247,28 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
   whose carry-over rule is the file's location and bytes; and it is decoded at the edge into a strict, closed,
   typed model, every key a `RuleCode | RuleGroup` and every value a `Level`, so nothing past the edge reads a raw
   string.
-  Whether CI can fail on warnings (FR-026) is decided with the file, since the answer may be a prefix set to
-  `deny` in it.
+  Whether a run can fail on warnings is decided with the file and the level options on the command line; until
+  then a run fails on errors alone (FR-026).
 - **Resolution order:** the class's default, then a setting by prefix, then a setting by code (FR-024). An
   unknown code, prefix or level is a failure before any subject is checked (FR-025). An alias code resolves to
   its rule's code, with an engine diagnostic at warning on the configuration file naming the code to write. A
   configuration that sets one rule under both its code and an alias code is a failure, so one rule never has two
   settings.
 - **A one-run selection filters; it never changes a level** (FR-008). `--select` and `--ignore` take `ALL`, group
-  prefixes, code prefixes and codes, alias codes resolving with a warning naming the code to write, and narrow which
-  rules run in this run. As in ruff, the most specific selector matching a rule decides, `--ignore` winning a tie.
+  prefixes, code prefixes of one or two digits and codes, alias codes resolving with a warning naming the code to
+  write, and narrow which rules run in this run. They refuse a rule's name, the `LC` group, an engine condition and a
+  removed rule, since none can narrow a run. As in ruff, the most specific selector matching a rule decides, `--ignore` winning a tie.
   There is no level option on the command line: levels live in the configuration alone, so a local run and CI agree
-  on one revision (NFR-001). A selected rule at `allow` stays off, with a warning saying the selection does not
-  enable it. Both warnings go to stderr, not into the report: they concern the command line, not a subject, so they
+  on one revision (NFR-001). A rule at `allow` that the selection names by its code stays off, with a warning saying
+  the selection does not enable it; one kept only through `ALL`, its group or a code prefix stays off silently,
+  since the selection did not name it. Both warnings go to stderr, not into the report: they concern the command line, not a subject, so they
   have no path a diagnostic could be filed under. The established linters' `--select` enables a rule, because they
   have no levels; with levels, enabling a rule is the configuration's, and this is a stated departure.
-- **A selection is typed at the boundary.** A selector parses to `AllRules | RuleGroup | RuleCodePrefix | RuleCode`,
-  and an unknown one is a failure before any subject is checked (FR-025), never a filter that matches nothing. No
+- **A selection is typed at the boundary.** A selector is parsed while the command line is read, and confirmed
+  against the rule index of [adr-009](adr-009-rules.md#the-index), before the engine loads. A malformed one, which has
+  the shape of no selector, and an unknown one, which names nothing, are each a usage error that exits 2, never a
+  filter that matches nothing (FR-025). When the command runs, a selector converts to `AllRules | RuleGroup |
+  RuleCodePrefix | RuleCode`. No
   `--select` is `{AllRules()}`, never an empty set, which keeps no rule. The selection reaches the runner only as a
   filter on the rule table, so no rule runs around it.
 - **Detection never reads the configuration.** Two rules that overlap are made disjoint in their own logic. The
@@ -291,9 +278,9 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
   stated beside the outline and caps, so corpora can differ. The established linters read rule options from
   their settings; this design departs from them because a rule that read the configuration would break the
   invariant above.
-- **What a path selects stays in the command line**, where `cli/subjects.py` chooses subjects today (FR-002 to
-  FR-007). v0.3.0 checks the whole workspace and takes no path: selection by path, the next two bullets, is
-  deferred to v0.4.0 ([#442](https://github.com/LNSD/lorecraft/issues/442)). The runner receives subjects, sorted by
+- **What a path selects stays in the command line**, which chooses the subjects (FR-002 to
+  FR-007). For now the command checks the whole workspace and takes no path: selection by path, the next two
+  bullets, is deferred to [#442](https://github.com/LNSD/lorecraft/issues/442). The runner receives subjects, sorted by
   path. The selection bounds what is reported, not what is read: a selected skill's link rule still reads the
   target it links to.
 - **A file selects every subject it is, and a directory every subject under it** (FR-003, FR-004), as the
@@ -316,35 +303,15 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
 | Piece | Package |
 |---|---|
 | Rule classes and removed rules, the registry, the rule groups and their rules, the rule bases per subject kind and the facets | `lorecraft.rules` |
-| The rule table, the runner, the report types, level resolution | `lorecraft.checks` |
+| The rule table, the runner, the report types, the selection's rule-side types, level resolution | `lorecraft.checks` |
 | The context protocols, what can be asked of one decoded subject | `lorecraft.project` |
 | The database, decoding, the contexts' implementations ([adr-012](adr-012-database-derivation.md)) | `lorecraft.project.database` |
 | The configuration file's dialect and its decoding, once it is designed | `lorecraft.project` |
-| Path selection, options, text and machine-readable rendering, the exit code, the rule lookup command | `lorecraft.cli` |
+| Path selection, options and their parsing against the rule index, text and machine-readable rendering, the exit code, the rule lookup command | `lorecraft.cli` |
 
 `lorecraft.rules` is a layer of its own, below `lorecraft.checks` and above `lorecraft.project`. A forbidden contract
 refuses a rule that imports `lorecraft.project.database`, so a rule cannot reach the database by import, which the
 design could otherwise only state.
-
-```text
-src/lorecraft/rules/
-├── subject.py           # the rule base per subject kind, and the facets
-├── registry.py
-└── <group>/
-    ├── __ruleset__.py   # the group: its prefix and title, and what its rules share
-    ├── <rule>.py        # one rule: its class, with its docstring and its check
-    └── tests/
-
-src/lorecraft/project/database/
-├── context.py           # the database-backed contexts; their protocols are in project/context.py
-├── database.py          # gains the decoded text, the cross-file queries and, later, the configuration
-└── text.py              # the decode witnesses
-
-src/lorecraft/checks/
-├── table.py             # the enabled rules, partitioned by base and by facet
-├── runner.py            # replaces run.py's four run functions
-└── report.py
-```
 
 ### Tests
 
@@ -357,21 +324,22 @@ not run, and a scan is paid once per subject whatever the number of rules. Cachi
 database, for the revision's lifetime. No result persists across runs in this release (see
 [Deferred](#deferred)).
 
-The baseline is v0.2 on this repository, at about 0.85 s per run. Under a profiler, parsing Markdown is 57% of
-the run, loading the tokenizer's vocabulary 10% and imports 17%; the checks' own logic does not register. So the
-rule count is not today's cost, and the queries are.
+The baseline is v0.2 on this repository. Under a profiler, parsing Markdown, loading the tokenizer's vocabulary and
+imports take most of a run, and the checks' own logic barely registers. So the number of rules is not the cost, and
+the queries are.
 
 Two measurements keep that true:
 
-- **Before and after**, for NFR-002. The stages are timed apart on this repository: the snapshot, meta spec
-  loading, decoding, parsing, token counting, schema validation, the rules and the rendering. The comparison is
-  the median of repeated runs on one machine, with the noise stated. Query counts show that no query is computed
-  twice for a subject.
-- **At scale.** A `just` recipe registers a large number of synthetic rules over the existing contexts and times
-  the run. The cost per added rule is stated here and stays small and flat: two hundred rules looping over
-  twenty headings each, across a hundred subjects, take about 12 ms. A slope that jumps means a query is computed
-  per rule or a rule scans. It is a recipe run on demand, not a test with a time limit, which a shared machine
-  makes flaky.
+- **Before and after**, for NFR-002 and its margin over v0.2. The comparison is the median of repeated
+  runs of both on one machine, with the noise stated; where it is close, the stages are timed apart on this
+  repository: start-up, the snapshot, meta spec loading, decoding, parsing, token counting, schema validation, the
+  rules and the rendering. Query counts show that no query is computed twice for a subject. Start-up is kept apart
+  from the engine, so a command that runs no rule loads none of it.
+- **At scale.** The cost per added rule stays small and flat: many synthetic rules over the existing contexts add
+  a few milliseconds to a run, as measured for this design. A slope that jumps means a query is computed per rule
+  or a rule scans. A `just` recipe that repeats the measurement on demand is
+  deferred until a change to the runner or the queries calls for it; it would be a recipe, not a test with a time
+  limit, which a shared machine makes flaky.
 
 One cost sits outside the engine and is a change of its own, after this one: the frontmatter query runs the
 Markdown parser, so each document is parsed twice. Reading the frontmatter by its fences instead keeps the query
@@ -418,6 +386,25 @@ The PRD defers the IDE-like, long-lived mode. The design builds none of it and c
 | Cached diagnostics | Levels are applied after detection, so a cached result would not depend on the configuration |
 | Inline suppression | Its shape is fixed, its syntax Lorecraft's own and modelled on the HTML-comment directives of the Markdown linters, with no compatibility with theirs: `<!-- lorecraft-disable CODE … -->` and `lorecraft-enable` around a block, and `lorecraft-disable-line`, `lorecraft-disable-next-line` and `lorecraft-disable-file`. A directive names its codes, never none, and never a name; an alias code resolves to its rule's code, with a warning. There is no state capture and no in-file configuration: options are meta spec data and levels are the repository's. The directives are a per-file query, applied after detection where levels are. A directive naming an unknown code, or one that suppressed nothing, is an engine diagnostic, and no engine diagnostic can be suppressed |
 | Parallel checking | Output order is sorted, never completion order; the cache is still filled from one thread |
+| Level options on the command line | Rustc-style flags that set a rule's level for one run, over the configuration's, reopen the no-level-option rule above, designed with the configuration |
+
+## Checklist
+
+Before committing code, verify:
+
+- [ ] A rule reads only its context: never the database, a view, a path or the disk
+- [ ] A scan two rules need, an analysis several rules share and a cross-file fact are queries with a carry-over
+  rule, reached through a context method, and never a rule with several codes
+- [ ] A new rule joins its base's partition through the registry, and the runner does not change for it
+- [ ] Every per-file query takes the decode witness, and only the database builds one
+- [ ] A file that cannot be decoded is an engine diagnostic and a facet no meta spec governs is coverage, both
+  resolved before any rule runs
+- [ ] A rule at `allow` is not in the rule table, and a selection only filters it, never enabling a rule
+- [ ] Neither a rule nor its detection reads the configuration or the selection; levels apply after detection
+- [ ] A selector is parsed and confirmed against the rule index at the command line's edge, and a bad one is a
+  usage error
+- [ ] Caching is in memory, in the database, for one revision; no result persists across runs
+- [ ] No module of `lorecraft.rules` imports `lorecraft.project.database`
 
 ## References
 
