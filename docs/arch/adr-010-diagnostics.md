@@ -226,19 +226,15 @@ class LayoutRule(Rule):         # the base of the rule base over a layout entry
 - **Engine diagnostics take the same shape**: an undecodable file can label where its first invalid byte is.
 - **How the parts are laid out is the command line's.** The text takes the established compilers' layout: an
   arrow to the primary location, the source lines in a numbered gutter, an underline beneath the labelled line, a
-  `:::` pointer to each other file, and help and notes as `=` lines. It draws with Unicode box-drawing characters:
-  the gutter is one connected `│` line, the primary label's underline a thin `─` line, and a secondary label's in
-  the same file a dotted `┄` line. Where the output cannot carry Unicode, such as a stream whose encoding is not
-  UTF-8, the gutter falls back to `|`, the primary underline to `^` and the secondary one to `-`. It renders the
-  source lines from the same revision's text query. The machine-readable output carries the code, the rule's name,
-  the severity, the message, the labels and the children as structured entries. A language-server client receives
-  the primary label on the diagnostic's range, and the secondary labels and located notes as related information.
-- **Three output formats, one order.** `check --format` takes `text`, the layout above for a person; `short`, one
-  line per diagnostic, `path:line: severity[CODE]: message`, for an editor or `grep` to match; and `json`, one
-  compact UTF-8 document for a script. All three print the diagnostics in the order below. Only `text` is coloured,
-  as `--color` chooses: `auto` colours a terminal unless `NO_COLOR` is set, and `FORCE_COLOR` forces it. With
-  `text` and `short`, the diagnostics go to stdout and the coverage and the summary to stderr, so a pipe reads the
-  diagnostics alone. [cli-check](../feat/cli-check.md) documents each format.
+  `:::` pointer to each other file, and help and notes as `=` lines, drawn with box-drawing characters and an ASCII
+  fallback where the output cannot carry Unicode. It renders the source lines from the same revision's text query.
+  The machine-readable output carries the diagnostic's identity, severity, message, labels and children as
+  structured entries. A language-server client receives the primary label on the diagnostic's range, and the
+  secondary labels and located notes as related information.
+- **Every output format prints the same diagnostics in the same order**, whether drawn in full for a person, one
+  line each for a tool to match, or as one machine-readable document for a script. Colour is presentation: only the
+  text drawn for a person carries it, and never when the user or the environment turns it off. The diagnostics
+  and everything else a run prints travel apart, so a pipe reads the diagnostics alone.
 
 ### Diagnostics and the Report
 
@@ -344,10 +340,11 @@ Before committing code, verify:
 - [ ] Every output format prints the diagnostics in the one total order: path, primary location, severity, code,
   message
 - [ ] A problem in a subject is a diagnostic or coverage, never a raised error; only what stops the run is raised
-- [ ] Nothing below the command line prints, and only `text` output is coloured
+- [ ] Nothing below the command line prints, and only the text drawn for a person is coloured
 - [ ] The exit code is 0 with no error diagnostic, 1 with any, and 2 for a failure or invalid input, after which
   only the failure is printed
-- [ ] A change to a JSON key, the short line or the order is a breaking change, carried in the release notes
+- [ ] A change to the machine-readable output, the one-line output or the order is a breaking change, carried in
+  the release notes
 - [ ] A rule's tests assert the labels and sub-diagnostics it renders, and their lines
 
 ## References
@@ -359,5 +356,4 @@ Before committing code, verify:
 - [adr-001-snapshot-model](adr-001-snapshot-model.md) - Related: The model and the package roles
 - [adr-006-specifications](adr-006-specifications.md) - Related: Where the rules a diagnostic cites come from
 - [adr-007-findings](adr-007-findings.md) - Supersedes: Violations, findings and failures
-- [cli-check](../feat/cli-check.md) - Leads to: The output formats as shipped
 - [error-boundaries](../code/error-boundaries.md) - Foundation: Where a failure is raised and where it is reported

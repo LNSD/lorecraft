@@ -2,7 +2,7 @@
 name: "prd-008-structured-checks"
 description: "One lint engine for the documents and skills Lorecraft governs, replacing separate checks whose rules have no stable identity, no level and no reference"
 type: "prd"
-status: "draft"
+status: "approved"
 ---
 
 # Structured Checks
@@ -21,10 +21,10 @@ identified, configured and documented the same way, and cheap to add.
 
 ## Goals
 
-- One command checks a file, a directory or the whole workspace, and reports every subject kind in one shape.
+- One command checks the whole workspace, and reports every subject kind in one shape.
 - Every rule has a stable code and a name, shown wherever a diagnostic is.
 - Every rule has a reference page, readable in the repository and from the command line.
-- A repository sets each rule's level: `allow`, `warn` or `deny`.
+- Every rule has a default level, `allow`, `warn` or `deny`, that decides whether it runs and whether it fails the run.
 - Every condition the checks report today is reported by the engine.
 - Adding a rule is one self-contained addition, and adding a corpus changes nothing in the engine.
 
@@ -37,9 +37,12 @@ identified, configured and documented the same way, and cheap to add.
 - Automatic fixes and inline suppression: a diagnostic leaves room for both, and neither ships here.
 - An IDE-like, long-lived mode: re-checking on each change, unsaved content, rejecting a superseded revision's
   results and ranged locations need a runtime a single run cannot exercise, and are deferred until it exists.
-- Selection by path in v0.3.0: the command checks the whole workspace (FR-002), and checking a file or a directory,
-  FR-003 to FR-007, is deferred to v0.4.0
-  ([#442](https://github.com/LNSD/lorecraft/issues/442)).
+- Selection by path in this release: the command checks the whole workspace (FR-002), and checking a file or a
+  directory, FR-003 to FR-007, is deferred to [#442](https://github.com/LNSD/lorecraft/issues/442).
+- Setting a rule's level in this release: every rule runs at its default level (FR-023). A repository's
+  configuration, FR-015's configuration half, FR-024 and FR-025, is deferred to where its location and format are
+  designed ([#322](https://github.com/LNSD/lorecraft/issues/322), [#205](https://github.com/LNSD/lorecraft/issues/205)),
+  together with level options on the command line and failing a run on warnings.
 
 ## User Stories
 
@@ -50,8 +53,8 @@ of file.
 
 **Independent test:** Check a file, a directory and the workspace, each holding a known violation.
 
-v0.3.0 delivers the one command over the whole workspace; checking a file or a directory, and both scenarios
-below, are deferred to v0.4.0 ([#442](https://github.com/LNSD/lorecraft/issues/442)).
+This release delivers the one command over the whole workspace; checking a file or a directory, and both scenarios
+below, are deferred to [#442](https://github.com/LNSD/lorecraft/issues/442).
 
 ```gherkin
 Scenario: A single file
@@ -87,6 +90,9 @@ As a maintainer, I want to set each rule to `allow`, `warn` or `deny`, so that a
 want stops failing its runs.
 
 **Independent test:** Check one violating document under each of the three levels.
+
+This release delivers each rule's default level; setting a level, and both scenarios below, are deferred to
+[#322](https://github.com/LNSD/lorecraft/issues/322).
 
 ```gherkin
 Scenario: A rule made advisory
@@ -132,7 +138,9 @@ Scenario: A sample rule
 
 ## Requirements
 
-- **FR-001:** THE SYSTEM SHALL report, under a rule, every condition the v0.2 checks report.
+- **FR-001:** THE SYSTEM SHALL report, under a rule, every condition the v0.2 checks report, except the three
+  conditions on a skill's `metadata` that v0.2.1 reports and that read a meaning into it the Agent Skills
+  specification does not give ([#421](https://github.com/LNSD/lorecraft/issues/421)).
 - **FR-002:** WHEN a user checks with no path, THE SYSTEM SHALL check the whole workspace.
 - **FR-003:** WHEN a user checks a file, THE SYSTEM SHALL check every subject that file is, a skill's resource
   on its own included.
@@ -168,17 +176,17 @@ Scenario: A sample rule
   they are declared to.
 - **FR-023:** THE SYSTEM SHALL give every rule a default level: `allow`, `warn` or `deny`.
 - **FR-024:** WHERE a configuration sets a level by code or by prefix, THE SYSTEM SHALL apply it, a code's own
-  setting winning over its prefix's [NEEDS CLARIFICATION: where does the configuration live?].
+  setting winning over its prefix's.
 - **FR-025:** IF a configuration names an unknown code, prefix or level, THEN THE SYSTEM SHALL fail with an
   error naming it, before checking.
-- **FR-026:** THE SYSTEM SHALL count warnings and errors apart, and fail the run only on an error
-  [NEEDS CLARIFICATION: is there an option that fails on warnings?].
+- **FR-026:** THE SYSTEM SHALL count warnings and errors apart, and fail the run only on an error.
 - **FR-027:** THE SYSTEM SHALL report no diagnostic of a rule whose level is `allow`.
 - **FR-028:** THE SYSTEM SHALL publish a reference page per rule, generated from the rule's own declaration:
   its code, name, the release it is stable since, what it checks, and how to fix it.
 - **FR-029:** WHEN a user asks for a rule by code or name, THE SYSTEM SHALL print that rule's reference page.
 - **NFR-001:** THE SYSTEM SHALL produce identical output for the same workspace revision and configuration.
-- **NFR-002:** THE SYSTEM SHALL check this repository, with no path, no slower than v0.2 does.
+- **NFR-002:** THE SYSTEM SHALL check this repository, with no path, no more than 10% slower than v0.2 does,
+  measured as the median of repeated runs of both on one machine.
 - **NFR-003:** THE SYSTEM SHALL read only what the selected subjects' enabled rules need.
 - **NFR-004:** THE SYSTEM SHALL accept a new rule over an existing input as one addition, with no other edit.
 - **NFR-005:** THE SYSTEM SHALL accept a new corpus as the repository's data, with no change to the engine.
@@ -187,9 +195,11 @@ Scenario: A sample rule
 
 ## Edge Cases
 
-- What happens when a rule set to `allow` is also selected for one run?
+- What happens when a rule set to `allow` is also selected for one run? It stays off, and the run warns that the
+  selection does not enable it.
 - What happens when a directory holds no subject?
-- What happens when two rules overlap today, as a name checked against both its filename and its schema?
+- What happens when two rules overlap today, as a name checked against both its filename and its schema? Each
+  rule takes its own part of the condition, so one condition is reported once (FR-022).
 - What happens when a rule depends on the current date?
 
 ## Key Entities
@@ -206,11 +216,12 @@ Scenario: A sample rule
 ## Success Criteria
 
 - **SC-001:** Every condition the v0.2 checks report on this repository's test cases is reported under a code.
-- **SC-002:** A sample rule is added as one addition, and is reported, configurable and documented with no
+- **SC-002:** A sample rule is added as one addition, and is reported at its default level and documented with no
   other edit.
 - **SC-003:** A writer reaches a diagnostic's reference page from its code in one step.
-- **SC-004:** This repository passes the engine under its own configuration, read like any other's.
-- **SC-005:** A run over this repository with no path takes no longer than the v0.2 run.
+- **SC-004:** This repository passes the engine at every rule's default level, as any other repository would.
+- **SC-005:** A run over this repository with no path takes no more than 10% longer than the v0.2 run, as the
+  median of repeated runs of both on one machine.
 - **SC-006:** No code lacks a triggering case or a near-miss case.
 
 ## Assumptions
@@ -221,14 +232,11 @@ Scenario: A sample rule
 - A meta spec's layers reach a rule by conjunction: each governing meta spec applies on its own, and a rule
   reports each one a subject breaks ([adr-006](adr-006-specifications.md)).
 
-## Open Questions
-
-- **FR-024:** Where does the configuration live?
-- **FR-026:** Is there an option that fails on warnings?
-
 ## References
 
 - [#315](https://github.com/LNSD/lorecraft/issues/315) - Source: The exploration this PRD consolidates
+- [#442](https://github.com/LNSD/lorecraft/issues/442) - Leads to: Checking a file or a directory
+- [#322](https://github.com/LNSD/lorecraft/issues/322) - Leads to: The configuration that sets a rule's level
 - [adr-006](adr-006-specifications.md) - Foundation: How a document's meta specs layer onto each other
 - [adr-009](adr-009-rules.md) - Leads to: How a rule is declared and identified
 - [adr-010](adr-010-diagnostics.md) - Leads to: What a rule reports, and how it reaches the user

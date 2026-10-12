@@ -20,9 +20,9 @@ the shorter one states in general. Three kinds of document extend this way:
 
 For meta specs, [adr-006](adr-006-specifications.md) decides how an extension takes effect: by conjunction,
 each governing meta spec applied on its own, so an extension adds or tightens and never relaxes. Nothing decides
-it for code specs and feat specs. [spec](../feat/spec.md) defines a name's base for every kind, and each document
-names its base under References, but nothing hands an agent a document's base: `/code-rules` tells it to take the
-most specific match and add a broader document only when the task turns on what it owns, and `/feat-discovery`
+it for code specs and feat specs. Every kind of document already has a name's base, the longest existing name it
+continues with a hyphen, and each document names its base under References, but nothing hands an agent a
+document's base: `/code-rules` tells it to take the most specific match and add a broader document only when the task turns on what it owns, and `/feat-discovery`
 follows References only when relevant. An agent loading `python-fn-names.md` can miss what `python-fn.md` states
 about every function.
 
@@ -91,4 +91,3 @@ about every function.
 - [#208](https://github.com/LNSD/lorecraft/issues/208) - Source: Whether a namespace extension layers onto its base or
   overrides it
 - [adr-006-specifications](adr-006-specifications.md) - Foundation: Conjunction for meta specs
-- [spec](../feat/spec.md) - Foundation: A name's base, and references pointing to the base
