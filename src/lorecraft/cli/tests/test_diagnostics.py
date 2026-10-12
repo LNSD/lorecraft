@@ -15,6 +15,7 @@ from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import DocumentEnd, SectionName
 from lorecraft.project.syntax import Heading, LineNumber
 from lorecraft.rules.declaration import Severity
+from lorecraft.rules.engine.malformed_structure_file import MalformedStructureFile
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
 from lorecraft.rules.layout.outside_symlink import OutsideSymlink
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
@@ -22,8 +23,10 @@ from lorecraft.rules.outline.missing_section import MissingSection
 from lorecraft.rules.report import (
     CheckedLayoutEntry,
     CheckedSubject,
+    LoadFailureReport,
     RuleDiagnostic,
-    SubjectReport,
+    RunReport,
+    SkippedSubject,
     UndecodableSubject,
 )
 from lorecraft.rules.subject import Facet
@@ -69,7 +72,7 @@ def _latin_failure() -> Utf8Failure:
     )
 
 
-def _every_kind_of_report() -> tuple[SubjectReport, ...]:
+def _every_kind_of_report() -> tuple[RunReport, ...]:
     """One report of each kind, handed over out of path order, so the output order is the renderer's own.
 
     - `docs/feat/check.md` lacks a section, with a multi-line example, and is ungoverned for two facets.
@@ -127,7 +130,7 @@ class TestRenderText:
 
     def test_render_text_with_no_report_prints_nothing(self) -> None:
         #: Given
-        reports: tuple[SubjectReport, ...] = ()
+        reports: tuple[RunReport, ...] = ()
 
         #: When
         text = render_text(reports, {}, _PLAIN)
@@ -202,7 +205,7 @@ class TestRenderText:
             description=None,
             example=f'{sample_line}\n  - and a nested one',
         )
-        reports: tuple[SubjectReport, ...] = (
+        reports: tuple[RunReport, ...] = (
             CheckedSubject(
                 guide, diagnostics=(RuleDiagnostic(guide.path, missing_usage, Severity.ERROR),), ungoverned=()
             ),
@@ -228,7 +231,7 @@ class TestRenderText:
             description=None,
             example='Run it:  \n   \n    lorecraft check\n',
         )
-        reports: tuple[SubjectReport, ...] = (
+        reports: tuple[RunReport, ...] = (
             CheckedSubject(
                 guide, diagnostics=(RuleDiagnostic(guide.path, missing_usage, Severity.ERROR),), ungoverned=()
             ),
@@ -264,7 +267,7 @@ class TestRenderText:
             description=None,
             example='Run it:\r\n    lorecraft check',
         )
-        reports: tuple[SubjectReport, ...] = (
+        reports: tuple[RunReport, ...] = (
             CheckedSubject(
                 guide, diagnostics=(RuleDiagnostic(guide.path, missing_usage, Severity.ERROR),), ungoverned=()
             ),
@@ -300,7 +303,7 @@ class TestRenderShort:
 
     def test_render_short_with_no_report_prints_nothing(self) -> None:
         #: Given
-        reports: tuple[SubjectReport, ...] = ()
+        reports: tuple[RunReport, ...] = ()
 
         #: When
         text = render_short(reports)
@@ -325,7 +328,7 @@ class TestRenderCoverage:
     def test_render_coverage_with_every_subject_governed_prints_nothing(self) -> None:
         #: Given
         a = _document('code', 'a')
-        reports: tuple[SubjectReport, ...] = (
+        reports: tuple[RunReport, ...] = (
             CheckedSubject(a, diagnostics=(), ungoverned=()),
             UndecodableSubject(_document('code', 'latin'), _latin_failure()),
         )
@@ -353,7 +356,7 @@ class TestRenderSummary:
 
     def test_render_summary_with_no_report_counts_nothing(self) -> None:
         #: Given
-        reports: tuple[SubjectReport, ...] = ()
+        reports: tuple[RunReport, ...] = ()
 
         #: When
         text = render_summary(reports)
@@ -378,7 +381,7 @@ class TestRenderPrefixSummary:
 
     def test_render_prefix_summary_with_no_report_prints_nothing(self) -> None:
         #: Given
-        reports: tuple[SubjectReport, ...] = ()
+        reports: tuple[RunReport, ...] = ()
 
         #: When
         text = render_prefix_summary(reports)
@@ -407,7 +410,7 @@ class TestRenderJson:
         duplicate_key = DuplicateKey(
             spec=_CODE_SPEC, line=_line(3), key='nom é', first_line=_line(2), kept_line=_line(3)
         )
-        reports: tuple[SubjectReport, ...] = (
+        reports: tuple[RunReport, ...] = (
             CheckedSubject(a, diagnostics=(RuleDiagnostic(a.path, duplicate_key, Severity.ERROR),), ungoverned=()),
         )
 
@@ -550,8 +553,8 @@ class TestRenderJson:
             ],
             'summary': {'subjects': 5, 'errors': 4, 'warnings': 1},
             'coverage': [
-                {'path': 'docs/arch/adr.md', 'ungoverned': ['structure']},
-                {'path': 'docs/feat/check.md', 'ungoverned': ['frontmatter', 'budget']},
+                {'path': 'docs/arch/adr.md', 'ungoverned': ['structure'], 'skipped_by': []},
+                {'path': 'docs/feat/check.md', 'ungoverned': ['frontmatter', 'budget'], 'skipped_by': []},
             ],
         }
 
@@ -565,7 +568,7 @@ class TestRenderJson:
 
     def test_render_json_with_no_report_encodes_every_key_empty(self) -> None:
         #: Given
-        reports: tuple[SubjectReport, ...] = ()
+        reports: tuple[RunReport, ...] = ()
 
         #: When
         text = render_json(reports)
@@ -576,3 +579,122 @@ class TestRenderJson:
             'summary': {'subjects': 0, 'errors': 0, 'warnings': 0},
             'coverage': [],
         }, 'an empty run still writes every key'
+
+
+def _reports_of_a_failed_meta_spec() -> tuple[RunReport, ...]:
+    """A run where the structure file of corpus `code` is malformed, handed over out of path order.
+
+    - `docs/code/b.md` and `docs/code/a.md` are skipped, since the corpus's structure file failed to load.
+    - `docs/feat/check.md` is checked, ungoverned for its budget, and holds no diagnostic.
+    - The structure file's failure is reported once, at the file, as a report of its own.
+    """
+    malformed = MalformedStructureFile(problems=('max_tokens: Extra inputs are not permitted',))
+    return (
+        SkippedSubject(_document('code', 'b'), failed_layers=(_CODE_SPEC,)),
+        LoadFailureReport(_CODE_SPEC, malformed),
+        CheckedSubject(_document('feat', 'check'), diagnostics=(), ungoverned=(Facet.BUDGET,)),
+        SkippedSubject(_document('code', 'a'), failed_layers=(_CODE_SPEC,)),
+    )
+
+
+@pytest.mark.unit
+class TestRenderLoadFailures:
+    def test_render_coverage_with_skipped_subjects_names_each_failed_structure_file_in_path_order(self) -> None:
+        #: Given
+        reports = _reports_of_a_failed_meta_spec()
+
+        #: When
+        text = render_coverage(reports)
+
+        #: Then
+        assert text == (
+            'docs/code/a.md: skipped, governed by a structure file that failed to load: '
+            'docs/__meta__/code.structure.json\n'
+            'docs/code/b.md: skipped, governed by a structure file that failed to load: '
+            'docs/__meta__/code.structure.json\n'
+            'docs/feat/check.md: ungoverned for budget'
+        ), 'a skipped document is a coverage line beside the ungoverned ones, with the file that caused it'
+
+    def test_render_coverage_with_a_document_skipped_for_two_layers_names_both_files(self) -> None:
+        #: Given
+        both = (_CODE_SPEC, RootRelativePath.parse('docs/__meta__/code-python.structure.json'))
+        reports: tuple[RunReport, ...] = (SkippedSubject(_document('code', 'python-typing'), both),)
+
+        #: When
+        text = render_coverage(reports)
+
+        #: Then
+        assert text == (
+            'docs/code/python-typing.md: skipped, governed by a structure file that failed to load: '
+            'docs/__meta__/code.structure.json, docs/__meta__/code-python.structure.json'
+        ), 'each failed layer is named, corpus spec first'
+
+    def test_render_summary_with_a_load_failure_counts_its_error_and_no_subject_for_it(self) -> None:
+        #: Given
+        reports = _reports_of_a_failed_meta_spec()
+
+        #: When
+        text = render_summary(reports)
+
+        #: Then
+        assert text == 'checked 3 subject(s): 1 error(s), 0 warning(s)', (
+            'the two skipped documents and the checked one are subjects; the failure is an error, not a subject'
+        )
+
+    def test_render_short_with_a_load_failure_prints_one_line_at_its_path(self) -> None:
+        #: Given
+        reports = _reports_of_a_failed_meta_spec()
+
+        #: When
+        text = render_short(reports)
+
+        #: Then
+        assert text == (
+            'docs/__meta__/code.structure.json: error[LC003]: structure file does not follow the structure format'
+        ), 'the failure is one line at the structure file, and the skipped documents hold no diagnostic'
+
+    def test_render_prefix_summary_with_a_load_failure_counts_it_under_the_engine_group(self) -> None:
+        #: Given
+        reports = _reports_of_a_failed_meta_spec()
+
+        #: When
+        text = render_prefix_summary(reports)
+
+        #: Then
+        assert text == 'LC  1 error', 'a load failure is an engine diagnostic, so it is counted under `LC`'
+
+    def test_render_text_with_a_load_failure_draws_it_at_the_structure_file_with_its_notes(self) -> None:
+        #: Given
+        reports = _reports_of_a_failed_meta_spec()
+
+        #: When
+        text = render_text(reports, {}, _PLAIN)
+
+        #: Then
+        assert text == (
+            'error[LC003]: structure file does not follow the structure format\n'
+            ' --> docs/__meta__/code.structure.json\n'
+            '  = note: max_tokens: Extra inputs are not permitted\n'
+            '  = help: fix each problem listed'
+        ), 'the failure is drawn like any diagnostic of a whole file, with each problem as a note'
+
+    def test_render_json_with_skipped_subjects_lists_each_with_its_failed_structure_files(self) -> None:
+        #: Given
+        reports = _reports_of_a_failed_meta_spec()
+
+        #: When
+        document = json.loads(render_json(reports))
+
+        #: Then
+        assert document['summary'] == {'subjects': 3, 'errors': 1, 'warnings': 0}, 'the failure is no subject'
+        assert document['coverage'] == [
+            {'path': 'docs/code/a.md', 'ungoverned': [], 'skipped_by': ['docs/__meta__/code.structure.json']},
+            {'path': 'docs/code/b.md', 'ungoverned': [], 'skipped_by': ['docs/__meta__/code.structure.json']},
+            {'path': 'docs/feat/check.md', 'ungoverned': ['budget'], 'skipped_by': []},
+        ], 'a skipped document names the files that caused it, and a judged one names none'
+        diagnostics = document['diagnostics']
+        assert [item['path'] for item in diagnostics] == ['docs/__meta__/code.structure.json'], (
+            'the failure is the one diagnostic, at the structure file'
+        )
+        assert [item['code'] for item in diagnostics] == ['LC003'], 'it has the code of its condition'
+        assert [item['severity'] for item in diagnostics] == ['error'], 'and no level lowers it'

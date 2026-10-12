@@ -9,8 +9,9 @@ scope: "pkg:lorecraft.engine"
 
 ## Responsibility
 
-Run the rules over one revision's subjects. It changes when the way a subject is judged changes, or when a mode's
-policy for a document governed by a failed layer changes.
+Run the rules over one revision's subjects, and report what failed to load. It changes when the way a subject is
+judged changes, when a mode's policy for a document governed by a failed layer changes, or when a load failure is
+reported differently.
 
 ## Role
 
@@ -28,7 +29,10 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
   coverage, and a rule over a Markdown file runs over a document governed for its structure, a skill's `SKILL.md` and
   each resource handed over as a subject of its own.
 - One entry point per mode, each carrying that mode's policy for a document a failed layer governs: `skip.py` for the
-  check run now, `partial.py` for the LSP-style mode later.
+  check run, which gives such a document no rule and reports it as skipped, `partial.py` for the LSP-style mode later.
+- The report of each load failure the model lists (`load_failures.py`): the engine condition of its own code, filed
+  once at the failure's path, whatever the configuration and the selection. Which failure stops a run is the
+  command's choice, never the engine's.
 
 ## Belongs Elsewhere
 
@@ -50,6 +54,8 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 - A run matches each subject's decode once, and hands a rule only the context of a decoded subject, never the
   database, a view or a path it could read through.
 - A rule returns occurrences that name no subject. The run attaches the subject's path, as a diagnostic.
+- A load failure is reported once, at its own path, and never once per subject it touches; a document a failed layer
+  governs is coverage, never a diagnostic.
 - A run's results are not cached. Every rule runs again every time, and never sees the store of persisted results.
 - The shared runner holds no mode's policy. A new mode is a new entry point that edits neither `runner.py` nor
   another mode's entry point.
@@ -110,6 +116,8 @@ Before committing code, verify:
 - [ ] A run attaches the subject's path to each occurrence; an occurrence names no subject
 - [ ] Nothing added takes a snapshot or sets an exit code
 - [ ] A mode's policy sits in that mode's own entry point; `runner.py` takes no policy parameter and no callback
+- [ ] A new load-failure condition is reported by `load_failures.py`, whose match stays exhaustive, and a skipped
+  document names each failed layer's structure file
 - [ ] A document is decoded by each mode's entry point, so its policy comes after decoding; `runner.py` decodes a
   skill and a resource only
 - [ ] Nothing here imports `lorecraft.cli` or `typer`

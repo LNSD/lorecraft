@@ -4,7 +4,8 @@ Pure: the subject reports arrive as values, and each function returns the text a
 reads the disk or writes to a stream. The diagnostics as text for a person are drawn by `diagnostic_text`. As short
 lines, one per diagnostic, they are what a command prints on stdout for a tool to match; the coverage lines and the
 summaries are what it prints on stderr; as JSON, one compact document carries the diagnostics, the summary and the
-coverage.
+coverage. The coverage lists a subject a facet of which no specification governs and a document skipped because a
+structure file that governs it failed to load, with that file.
 
 Every diagnostic of every report is printed in the order `diagnostic_order` states, whatever order the reports
 arrive in, so one revision always prints the same output. A short line reads, with the line left out for a subject
@@ -19,7 +20,15 @@ from pydantic import BaseModel, ConfigDict
 
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import Severity
-from lorecraft.rules.report import CheckedLayoutEntry, CheckedSubject, Diagnostic, SubjectReport, UndecodableSubject
+from lorecraft.rules.report import (
+    CheckedLayoutEntry,
+    CheckedSubject,
+    Diagnostic,
+    LoadFailureReport,
+    RunReport,
+    SkippedSubject,
+    UndecodableSubject,
+)
 
 from .diagnostic_parts import child_kind, child_place, format_place, ordered_diagnostics, place, primary_line
 
@@ -93,7 +102,7 @@ class _SummaryJson(BaseModel):
     """What the run counted.
 
     Attributes:
-        subjects: The subjects reported, whatever they held.
+        subjects: The subjects reported, whatever they held; a load failure is no subject, so it is not counted.
         errors: The diagnostics reported as errors.
         warnings: The diagnostics reported as warnings.
     """
@@ -106,17 +115,21 @@ class _SummaryJson(BaseModel):
 
 
 class _CoverageJson(BaseModel):
-    """One subject an enabled rule could not judge, for want of a specification governing it.
+    """One subject an enabled rule could not judge: for want of a specification governing it, or skipped.
 
     Attributes:
         path: The subject.
-        ungoverned: The facets no specification governs it for, in the order its report holds them.
+        ungoverned: The facets no specification governs it for, in the order its report holds them; none for a
+            skipped subject.
+        skipped_by: The structure files that govern the subject and failed to load, in layer order, the corpus's
+            first; none for a subject that was judged.
     """
 
     model_config = ConfigDict(frozen=True)
 
     path: str
     ungoverned: list[str]
+    skipped_by: list[str]
 
 
 class _ReportJson(BaseModel):
@@ -125,7 +138,8 @@ class _ReportJson(BaseModel):
     Attributes:
         diagnostics: Every diagnostic of the run, in output order.
         summary: What the run counted.
-        coverage: Every subject with an ungoverned facet, in path order; none when every subject is governed.
+        coverage: Every subject with an ungoverned facet and every skipped subject, in path order; none when every
+            subject was judged for every facet.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -135,7 +149,7 @@ class _ReportJson(BaseModel):
     coverage: list[_CoverageJson]
 
 
-def render_short(reports: tuple[SubjectReport, ...]) -> str:
+def render_short(reports: tuple[RunReport, ...]) -> str:
     """Every diagnostic of the run as one line, in the order `diagnostic_order` sorts them into.
 
     A line reads `{path}:{line}: {severity}[{code}]: {message}`, and `{path}: ...` for a diagnostic of the whole
@@ -156,36 +170,47 @@ def render_short(reports: tuple[SubjectReport, ...]) -> str:
     return '\n'.join(lines)
 
 
-def render_coverage(reports: tuple[SubjectReport, ...]) -> str:
-    """One line per checked subject with a facet no specification governs, in path order.
+def render_coverage(reports: tuple[RunReport, ...]) -> str:
+    """One line per subject no rule judged for some facet or at all, in path order.
 
-    A line reads `{path}: ungoverned for {facets}`, the facets comma-separated in the order the report holds them. A
-    subject that did not decode and a layout entry are never ungoverned, so they never print one.
+    A checked subject with a facet no specification governs reads `{path}: ungoverned for {facets}`, the facets
+    comma-separated in the order the report holds them. A document skipped because a structure file that governs it
+    failed to load reads `{path}: skipped, governed by a structure file that failed to load: {files}`, the files
+    comma-separated in layer order. A subject that did not decode and a layout entry are never ungoverned or skipped,
+    so they never print one.
 
     Args:
         reports: One report per subject the run checked, in any order.
 
     Returns:
-        The lines, newline-separated, without a trailing newline; empty when every subject is governed.
+        The lines, newline-separated, without a trailing newline; empty when every subject was judged in full.
     """
     lines: list[str] = []
-    for subject in _ungoverned_subjects(reports):
-        facets = ', '.join(facet.value for facet in subject.ungoverned)
-        lines.append(f'{subject.ref.path}: ungoverned for {facets}')
+    for subject in _coverage_subjects(reports):
+        match subject:
+            case CheckedSubject():
+                facets = ', '.join(facet.value for facet in subject.ungoverned)
+                lines.append(f'{subject.ref.path}: ungoverned for {facets}')
+            case SkippedSubject():
+                files = ', '.join(str(path) for path in subject.failed_layers)
+                lines.append(f'{subject.ref.path}: skipped, governed by a structure file that failed to load: {files}')
+            case _:
+                assert_never(subject)
     return '\n'.join(lines)
 
 
-def render_summary(reports: tuple[SubjectReport, ...]) -> str:
+def render_summary(reports: tuple[RunReport, ...]) -> str:
     """The one summary line: the subjects checked, then the errors and the warnings among their diagnostics.
 
     Args:
-        reports: One report per subject the run checked; each counts as one subject, whatever it held.
+        reports: One report per subject the run checked, and one per load failure; each subject counts as one,
+            whatever it held, and a load failure counts as none.
     """
     errors, warnings = _count_severities(ordered_diagnostics(reports))
-    return f'checked {len(reports)} subject(s): {errors} error(s), {warnings} warning(s)'
+    return f'checked {_count_subjects(reports)} subject(s): {errors} error(s), {warnings} warning(s)'
 
 
-def render_prefix_summary(reports: tuple[SubjectReport, ...]) -> str:
+def render_prefix_summary(reports: tuple[RunReport, ...]) -> str:
     """One line per code prefix that reported, with its errors and warnings, in prefix order.
 
     A line reads `{prefix}  {errors}, {warnings}`, each count left out when it is zero, such as `OUT  2 errors, 1
@@ -214,7 +239,7 @@ def render_prefix_summary(reports: tuple[SubjectReport, ...]) -> str:
     return '\n'.join(lines)
 
 
-def render_json(reports: tuple[SubjectReport, ...]) -> str:
+def render_json(reports: tuple[RunReport, ...]) -> str:
     """The run as one compact JSON document: its diagnostics, its summary and its coverage, every key always present.
 
     The diagnostics are in the order `diagnostic_order` states, as `render_text` and `render_short` print them, and
@@ -229,37 +254,66 @@ def render_json(reports: tuple[SubjectReport, ...]) -> str:
         diagnostic_objects.append(_json_diagnostic(diagnostic))
     errors, warnings = _count_severities(diagnostics)
     coverage: list[_CoverageJson] = []
-    for subject in _ungoverned_subjects(reports):
-        facets: list[str] = []
-        for facet in subject.ungoverned:
-            facets.append(facet.value)
-        coverage.append(_CoverageJson(path=str(subject.ref.path), ungoverned=facets))
+    for subject in _coverage_subjects(reports):
+        match subject:
+            case CheckedSubject():
+                facets: list[str] = []
+                for facet in subject.ungoverned:
+                    facets.append(facet.value)
+                coverage.append(_CoverageJson(path=str(subject.ref.path), ungoverned=facets, skipped_by=[]))
+            case SkippedSubject():
+                failed_layers: list[str] = []
+                for path in subject.failed_layers:
+                    failed_layers.append(str(path))
+                coverage.append(_CoverageJson(path=str(subject.ref.path), ungoverned=[], skipped_by=failed_layers))
+            case _:
+                assert_never(subject)
     document = _ReportJson(
         diagnostics=diagnostic_objects,
-        summary=_SummaryJson(subjects=len(reports), errors=errors, warnings=warnings),
+        summary=_SummaryJson(subjects=_count_subjects(reports), errors=errors, warnings=warnings),
         coverage=coverage,
     )
     return document.model_dump_json()
 
 
-def _ungoverned_subjects(reports: tuple[SubjectReport, ...]) -> list[CheckedSubject]:
-    """The checked subjects with at least one ungoverned facet, by their path compared by code point.
+def _coverage_subjects(reports: tuple[RunReport, ...]) -> list[CheckedSubject | SkippedSubject]:
+    """The checked subjects with at least one ungoverned facet and the skipped ones, by path compared by code point.
 
     Args:
         reports: One report per subject the run checked, in any order.
     """
-    subjects: list[CheckedSubject] = []
+    subjects: list[CheckedSubject | SkippedSubject] = []
     for report in reports:
         match report:
             case CheckedSubject():
                 if report.ungoverned:
                     subjects.append(report)
-            case UndecodableSubject() | CheckedLayoutEntry():
-                pass  # neither can be ungoverned: one was never judged, the other has no specification
+            case SkippedSubject():
+                subjects.append(report)
+            case UndecodableSubject() | CheckedLayoutEntry() | LoadFailureReport():
+                pass  # none was judged in part: one never decoded, one has no specification, one is no subject
             case _:
                 assert_never(report)
     # A path compares as its string, the way `DiagnosticOrder.path` does, so both outputs share one path order.
     return sorted(subjects, key=lambda subject: str(subject.ref.path))
+
+
+def _count_subjects(reports: tuple[RunReport, ...]) -> int:
+    """How many reports are of a subject: every one but a load failure, which is filed at a unit, not a subject.
+
+    Args:
+        reports: One report per subject the run checked, and one per load failure.
+    """
+    count = 0
+    for report in reports:
+        match report:
+            case CheckedSubject() | UndecodableSubject() | CheckedLayoutEntry() | SkippedSubject():
+                count += 1
+            case LoadFailureReport():
+                pass  # filed at a unit of the declaration, not at a subject
+            case _:
+                assert_never(report)
+    return count
 
 
 def _count_severities(diagnostics: list[Diagnostic]) -> tuple[int, int]:

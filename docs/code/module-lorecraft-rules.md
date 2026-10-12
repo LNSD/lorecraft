@@ -38,9 +38,9 @@ the database there, so a rule reads nothing but what it is handed.
 - The rule index, `lorecraft.rules.index`: each declaration's identity as strings and tuples, generated from the
   registry by `lorecraft_gen` and held to it by `gen-check`, for a reader that must know which codes exist
   without the engine. It is derived output, never a source of rules.
-- An engine condition: what the engine reports about a subject before any rule runs, such as a file that does
-  not decode. It is declared and rendered like a rule, under the engine's group `LC`, with a fixed severity
-  in place of a level and no `check`.
+- An engine condition: what the engine reports before any rule runs, such as a file that does not decode or a
+  meta spec that fails to load. Declared and rendered like a rule, under the engine's group `LC`,
+  with a fixed severity in place of a level and no `check`.
 - The one-run selection, the rule table and the report of a run; their module docstrings state each.
 - A rule group, as a subpackage: its `__ruleset__.py` declares the group as `GROUP_ID` and whatever else its rules
   share, its `__init__.py` holds only the docstring, and each rule is one module. The `LC` group is declared the

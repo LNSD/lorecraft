@@ -169,10 +169,11 @@ In `json` format stdout is one compact JSON object on one line, without indentat
 commas or colons; stderr holds nothing but the selection's warnings. `diagnostics`
 holds each diagnostic in the text order, its `line` `null` for a whole file, `labels` as `{"path", "line", "text"}`
 and `children` as `{"kind", "text", "path", "line"}`, `kind` being `help` or `note`. `summary` counts the subjects,
-errors and warnings, and `coverage` lists each subject with an ungoverned part:
+errors and warnings. `coverage` lists subjects with an ungoverned part; every item has `path`, `ungoverned`
+and `skipped_by`. The latter is always empty: `check` cannot skip a document yet.
 
 ```json
-{"diagnostics":[{"path":"docs/notes/broken.md","line":4,"severity":"error","code":"LC001","name":"invalid-utf8","message":"file is not valid UTF-8","labels":[{"path":"docs/notes/broken.md","line":4,"text":"0xE9 at byte offset 31 starts a character the next byte does not continue"}],"children":[{"kind":"help","text":"save the file as UTF-8","path":null,"line":null}]}],"summary":{"subjects":3,"errors":1,"warnings":0},"coverage":[{"path":"docs/notes/todo.md","ungoverned":["outline","budget"]}]}
+{"diagnostics":[{"path":"docs/notes/broken.md","line":4,"severity":"error","code":"LC001","name":"invalid-utf8","message":"file is not valid UTF-8","labels":[{"path":"docs/notes/broken.md","line":4,"text":"0xE9 at byte offset 31 starts a character the next byte does not continue"}],"children":[{"kind":"help","text":"save the file as UTF-8","path":null,"line":null}]}],"summary":{"subjects":3,"errors":1,"warnings":0},"coverage":[{"path":"docs/notes/todo.md","ungoverned":["outline","budget"],"skipped_by":[]}]}
 ```
 
 For `--format json`, every path, including the workspace root, must be valid UTF-8. Non-ASCII text in paths,
