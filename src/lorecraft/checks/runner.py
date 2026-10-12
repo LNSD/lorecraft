@@ -378,7 +378,8 @@ def _find_document_context(database: Database, source: DocumentText) -> Database
     """The context of a decoded document, or `None` when no facet can govern it.
 
     No facet governs a document in no corpus the database's model holds, nor one whose corpus states no structure
-    specification: without the corpus's, a namespace's governs nothing, as `structure_specs` states.
+    specification: without the corpus's, a namespace's governs nothing, as `structure_specs` states. Both are read
+    from `Database.governance`, so the specifications are looked up once for the document, not once per reader.
 
     Args:
         database: The revision the document is read from; its model decides which specifications govern it.
@@ -412,20 +413,19 @@ def _find_document_context(database: Database, source: DocumentText) -> Database
         SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
         SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
     """
-    governance = database.model().find_governance(source.ref)
+    governance = database.governance(source.ref)
     if governance is None:
         return None
-    corpus_structure = governance.corpus_spec.structure
-    if corpus_structure is None:
+    if governance.corpus_spec.structure is None:
         return None
-    return DatabaseDocumentContext(database, source, governance, corpus_structure)
+    return DatabaseDocumentContext(database, source)
 
 
 def _is_governed_for(governance: Governance, facet: Facet) -> bool:
     """Whether the specifications that govern a document govern it for a facet. Raises nothing.
 
     Args:
-        governance: The specifications that govern the document, as the model finds them.
+        governance: The specifications that govern the document, as `Database.governance` returns them.
         facet: The facet a rule over the document declares.
     """
     match facet:

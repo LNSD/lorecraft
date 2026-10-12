@@ -1,14 +1,15 @@
 """The contexts of `lorecraft.project.context`, answered by the database's queries for one decoded subject.
 
 `DatabaseDocumentContext`, `DatabaseSkillContext` and `DatabaseSkillResourceContext` implement `DocumentContext`,
-`SkillContext` and `SkillResourceContext`. Each holds the database, the decode query's witness and, for a document or
-a skill, what the model says about it, and nothing it computed: every fact is the matching memoized query of the
-database, so a fact nobody asks for is never computed, and one asked for twice is computed once. An identity value,
-such as a document's filename or a skill's directory name, is read from the subject's ref or its location.
+`SkillContext` and `SkillResourceContext`. Each holds the database, the decode query's witness and, for a skill, what
+the model says about it, and nothing it computed: every fact, a document's governance included, is the matching
+memoized query of the database, so a fact nobody asks for is never computed, and one asked for twice is computed
+once. An identity value, such as a document's filename or a skill's directory name, is read from the subject's ref or
+its location.
 
 A context is built only from a witness, so no fact of a file that does not decode can be asked for, and a document's
-context only for a document whose corpus states a structure specification, with the specifications that govern it: no
-facet governs a document whose corpus states none. The model is loaded by then, so no method raises.
+context only for a document whose corpus states a structure specification: no facet governs a document whose corpus
+states none. The model is loaded by then, so no method raises.
 
 `DatabaseLayoutContext` implements `LayoutContext`. A layout entry has no text, so it has no witness and no per-file
 query: the context holds the `OutsideSymlink` record the model's `outside_symlinks` or a skill's `skill_resources`
@@ -35,22 +36,18 @@ from .text import DocumentText, SkillResourceText, SkillText
 class DatabaseDocumentContext:
     """One decoded document of a corpus, as the database answers for it; a `DocumentContext`."""
 
-    def __init__(
-        self, database: Database, source: DocumentText, governance: Governance, corpus_structure: StructureSpec
-    ) -> None:
-        """Bind the context to one decoded document and the specifications that govern it.
+    def __init__(self, database: Database, source: DocumentText) -> None:
+        """Bind the context to one decoded document of a corpus that states a structure specification.
+
+        The caller has found, through `Database.governance`, that the document's corpus states one: without it no
+        facet governs the document, and no context is built.
 
         Args:
             database: The revision the document is read from.
             source: The document's text, as `Database.text` returns it: the witness every per-file query takes.
-            governance: The specifications that govern the document, as the database's model finds them.
-            corpus_structure: The structure specification of the document's corpus, `governance.corpus_spec.structure`
-                once the caller has found it stated; without it no facet governs the document.
         """
         self._database = database
         self._source = source
-        self._governance = governance
-        self._corpus_structure = corpus_structure
 
     def filename(self) -> AspectFilename:
         """The document's filename, without its extension, read from its ref."""
@@ -68,7 +65,7 @@ class DatabaseDocumentContext:
         """The document, with the filename its frontmatter `name` must equal and its corpus's structure spec."""
         # A schema governs a document only through its corpus's structure specification, which a namespace's schema
         # merely narrows; so that specification states every rule over the block.
-        return DocumentFrontmatterOwner(filename=self._source.ref.filename, spec=self._corpus_structure.path)
+        return DocumentFrontmatterOwner(filename=self._source.ref.filename, spec=self.corpus_structure().path)
 
     def parse(self) -> ParsedDocument:
         """The document's parse tree, from the `parse` query."""
@@ -93,12 +90,20 @@ class DatabaseDocumentContext:
         return UnsignedInt(self._database.document_lines(self._source))
 
     def specifications(self) -> Governance:
-        """The specifications that govern the document, as the model found them when the context was built."""
-        return self._governance
+        """The specifications that govern the document, from the `governance` query."""
+        governance = self._database.governance(self._source.ref)
+        # The runner builds a context only after `governance` found the document's corpus, so it is never `None` here.
+        if governance is None:
+            raise AssertionError('unreachable: a context is built only for a document in a corpus the model holds')
+        return governance
 
     def corpus_structure(self) -> StructureSpec:
-        """The structure specification of the document's corpus, as the caller found it stated."""
-        return self._corpus_structure
+        """The structure specification of the document's corpus, from the `governance` query."""
+        corpus_structure = self.specifications().corpus_spec.structure
+        # The runner builds a context only for a corpus that states a structure specification, so it is never `None`.
+        if corpus_structure is None:
+            raise AssertionError('unreachable: a context is built only for a corpus that states a structure')
+        return corpus_structure
 
     def outline_divergences(self) -> tuple[OutlineDivergenceSpec, ...]:
         """Where the document's sections stop matching each outline, from the `outline_divergences` query."""

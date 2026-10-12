@@ -36,7 +36,7 @@ input query builds a witness or fails to read, and each states its own carry-ove
 
 Derived queries read the results of other queries and never the snapshot. Each hands what it read to one function
 of this package that computes the value, so its arguments are its read set, and it carries over whenever every query
-it read does:
+it read does, `governance(ref)` excepted, as its bullet states:
 
 - `frontmatter(source)`: one document's frontmatter node, like a stub: the part of a file the IDE reads without
   building its full syntax tree. It reads the text of the witness `text(ref)` returned and nothing else.
@@ -48,12 +48,20 @@ it read does:
 - `document_lines(source)`: how many lines one document's whole file holds, like `tokens(source)`: counted from the
   raw text, frontmatter included, without a parse. It reads the text of the witness `text(ref)` returned and nothing
   else.
+- `governance(ref)`: the specifications that govern one document, its corpus's first and then each namespace's that
+  matches it, like the IDE's resolution of which inspection profile a file falls under. It reads `model()` and
+  nothing else, and it is the one place a document's governance is computed: the runner and every query that needs
+  a document's specifications ask it, so the model's corpus is searched, and the namespace specifications sorted and
+  matched, once per document for the revision. It is the exception to the rule above: the model is dropped by any
+  entry added or deleted under `docs/`, so `governance(ref)` is recomputed from the next model and kept when it
+  compares equal to the one it replaces. It can carry over when `model()` does not, and so can every analysis that
+  reads it.
 - `schema_problems(source)`: what each frontmatter schema that governs one document rejects in its frontmatter, each
   problem placed on its line, like an analysis the IDE runs once over a file and every inspection then reads. It reads
-  `frontmatter(source)` and the frontmatter schemas the model records for the document, and nothing else.
+  `frontmatter(source)` and `governance(source.ref)`, and nothing else.
 - `outline_divergences(source)`: where one document's sections first stop matching each outline that governs it, the
-  same kind of shared analysis. It reads `parse(source)`, `document_lines(source)` and the outlines the model records
-  for the document, and nothing else.
+  same kind of shared analysis. It reads `parse(source)`, `document_lines(source)` and `governance(source.ref)`, and
+  nothing else.
 - `skill_frontmatter(source)`: one skill's frontmatter node, the same stub for a `SKILL.md`. It reads the text of
   the witness `skill_text(ref)` returned and nothing else.
 - `skill_parse(source)`: one skill's parse tree, the same syntax tree for a `SKILL.md`. It reads the text of the
@@ -97,9 +105,10 @@ way the IDE drops per-file index entries on a file change event and resets struc
 Reserved, not implemented: `advance(snapshot) -> Database`, the next state. It would `diff` the two snapshots and carry
 over each cached value the change set leaves valid: the decoded text, the frontmatter, the parse, the token count and
 the line count of every document whose bytes did not change, and its schema problems and outline divergences too when
-the model carries over, the decoded text, the frontmatter, the parse, the line count and the schema problems of every
-skill whose bytes did not, the resources of every skill and the decoded text and the parse of every resource as their
-own docstrings state, and the model unless one of these changes invalidates it. An entry added or deleted under `docs/`
+its governance carries over, the governance of every document the next model governs by equal specifications, the
+decoded text, the frontmatter, the parse, the line count and the schema problems of every skill whose bytes did not,
+the resources of every skill and the decoded text and the parse of every resource as their own docstrings state, and
+the model unless one of these changes invalidates it. An entry added or deleted under `docs/`
 invalidates it. So does an entry added or deleted in a skills directory, or in a skill's directory, both where the
 skill's entry names it and where a link leads it. So does an entry added or deleted at the resolved path a skill's
 linked `SKILL.md` leads to, or on the way to it, since the loader resolves that link to find the skill. So does a link
@@ -115,10 +124,11 @@ scopes, links or climbed directories differ, compared as recorded rather than th
 scope. A change of scope invalidates nothing else: what the new scope adds or drops reaches the model and each skill's
 resources as entries in the change set. That rule holds only while the decoded text reads its own document, skill or
 resource, the frontmatter, the parse, the token count and the line count each read only the decoded text of their own,
-the schema problems and the outline divergences read only their own document's frontmatter, or parse and line count, and
-the model, a skill's schema problems only its own frontmatter, the model and each skill's resource listing read no
-document, and the scope index reads only the scope, the links and the climbed directories, so keep them that way: data
-drawn from several documents belongs in a new cache with its own rule.
+the governance reads only the model, the schema problems and the outline divergences read only their own document's
+frontmatter, or parse and line count, and its governance, a skill's schema problems only its own frontmatter, the model
+and each skill's resource listing read no document, and the scope index reads only the scope, the links and the
+climbed directories, so keep them that way: data drawn from several documents belongs in a new cache with its own
+rule.
 
 The link targets of a Markdown file are such a cache: each reads where every path its links name leads, so each
 carries over only as its own docstring states.
@@ -169,7 +179,7 @@ from lorecraft.project.syntax import (
     parse_frontmatter,
     split_lines,
 )
-from lorecraft.project.workspace import WorkspaceModel, load_model
+from lorecraft.project.workspace import Governance, WorkspaceModel, load_model
 from lorecraft.vfs import (
     FileReadError,
     ResolvedPath,
@@ -187,10 +197,10 @@ class Database:
     """What the checks read from one snapshot, each computed once and cached for the snapshot's lifetime.
 
     That is the workspace model, the decoded text, the frontmatter, the parse trees, the token counts, the line
-    counts, the schema problems and the outline divergences of the documents, the decoded text, the frontmatter, the
-    parse trees, the line counts and the schema problems of the skills, the resources of each skill with their decoded
-    text and their parse trees, the link targets of every one of those Markdown files, and the scope index
-    `is_in_scope` answers from.
+    counts, the governance, the schema problems and the outline divergences of the documents, the decoded text, the
+    frontmatter, the parse trees, the line counts and the schema problems of the skills, the resources of each skill
+    with their decoded text and their parse trees, the link targets of every one of those Markdown files, and the
+    scope index `is_in_scope` answers from.
     """
 
     def __init__(self, snapshot: Snapshot) -> None:
@@ -220,6 +230,8 @@ class Database:
         self._parses: dict[DocumentRef, ParsedDocument] = {}
         self._token_counts: dict[DocumentRef, int] = {}
         self._line_counts: dict[DocumentRef, int] = {}
+        # A document in no corpus the model holds is governed by nothing, so `None` is an answer and is cached too.
+        self._governances: dict[DocumentRef, Governance | None] = {}
         self._schema_problems: dict[DocumentRef, tuple[SchemaProblems, ...]] = {}
         self._outline_divergences: dict[DocumentRef, tuple[OutlineDivergenceSpec, ...]] = {}
         self._skill_frontmatters: dict[SkillRef, FrontmatterNode] = {}
@@ -575,13 +587,69 @@ class Database:
             self._line_counts[source.ref] = count
         return count
 
+    def governance(self, ref: DocumentRef) -> Governance | None:
+        """The specifications that govern one document, found in the model on the first call for its ref.
+
+        The corpus spec first, then each namespace spec whose namespace matches the document's filename, broad to
+        narrow. The one place a document's governance is computed: the runner and the queries that read it ask
+        this, so it is computed once per document for the revision.
+
+        Carry-over: kept for the next revision whenever the next model's governance of the ref is equal to it, as
+        compared by value: the corpus spec and every matching namespace spec, each with its files and its structure
+        specification. The model is dropped by any entry added or deleted under `docs/`, but a document added or
+        deleted in a corpus, or a specification that does not govern this document, leaves its governance equal.
+
+        Args:
+            ref: The document to look up, whether or not the model lists it; only its corpus and filename are read,
+                and it is the cache key, so one ref is looked up once.
+
+        Returns:
+            The specifications, or `None` when the model holds no corpus named `ref.corpus`: no specification governs
+            such a document, and the answer is cached like any other.
+
+        Raises:
+            DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
+            CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
+            StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
+            StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in
+                the dialect's shape.
+            EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
+            RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
+            RepeatedForbiddenSectionError: If the model is not loaded yet and a specification forbids a section
+                twice.
+            ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
+                outline names.
+            AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
+            InvalidTitlePatternError: If the model is not loaded yet and a title's pattern does not compile.
+            InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by
+                the meta-schema.
+            FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries
+                `$id`.
+            ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema
+                names another dialect.
+            UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not
+                state an object.
+            DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
+            EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot
+                be inspected, or a link's target read, while looking for where it leaves the repository.
+            SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
+            SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
+            SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
+            SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
+        """
+        if ref not in self._governances:
+            self._governances[ref] = self.model().find_governance(ref)
+        return self._governances[ref]
+
     def schema_problems(self, source: DocumentText) -> tuple[SchemaProblems, ...]:
         """What each frontmatter schema that governs one document rejects in its frontmatter, found on the first call.
 
         Each problem is placed on the line its field is written on, or line 1 when it has none. The frontmatter is
         read only when a schema governs the document.
 
-        Carry-over: kept for the next revision whenever `frontmatter(source)` is and the model is.
+        Carry-over: kept for the next revision whenever `frontmatter(source)` and `governance(source.ref)` are. A
+        change to the model that leaves the document's governance as it was, such as a document added to another
+        corpus, leaves it valid.
 
         Args:
             source: The document's text, as `text(ref)` returns it; its ref is the cache key, so one ref is
@@ -624,7 +692,8 @@ class Database:
         """
         found = self._schema_problems.get(source.ref)
         if found is None:
-            schemas = self.model().frontmatter_schemas_of(source.ref)
+            governance = self.governance(source.ref)
+            schemas = governance.frontmatter_schemas() if governance is not None else ()
             if schemas:
                 found = locate_schema_problems(self.frontmatter(source), schemas)
             else:
@@ -638,8 +707,9 @@ class Database:
         The document is parsed, and its lines counted, only when a structure specification that governs it states an
         outline.
 
-        Carry-over: kept for the next revision whenever `parse(source)` and `document_lines(source)` are and the model
-        is.
+        Carry-over: kept for the next revision whenever `parse(source)`, `document_lines(source)` and
+        `governance(source.ref)` are. A change to the model that leaves the document's governance as it was, such as
+        a document added to another corpus, leaves it valid.
 
         Args:
             source: The document's text, as `text(ref)` returns it; its ref is the cache key, so one ref is matched
@@ -681,7 +751,8 @@ class Database:
         """
         divergences = self._outline_divergences.get(source.ref)
         if divergences is None:
-            outline_specs = self.model().outline_specs_of(source.ref)
+            governance = self.governance(source.ref)
+            outline_specs = governance.outline_specs() if governance is not None else ()
             if outline_specs:
                 divergences = match_outlines(outline_specs, self.parse(source).headings, self.document_lines(source))
             else:

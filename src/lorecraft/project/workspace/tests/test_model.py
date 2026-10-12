@@ -702,60 +702,6 @@ class TestWorkspaceModel:
         #: Then
         assert governance is None, 'no specification governs a document in a corpus the model does not hold'
 
-    def test_frontmatter_schemas_of_with_a_ref_in_a_listed_corpus_returns_its_corpus_schema(
-        self, two_corpora_model: WorkspaceModel
-    ) -> None:
-        #: Given
-        ref = _ref('code', 'logging')
-
-        #: When
-        schemas = two_corpora_model.frontmatter_schemas_of(ref)
-
-        #: Then
-        assert tuple(schema.path for schema in schemas) == (SPECS_DIR / 'code.structure.json',), (
-            'the code corpus schema governs the frontmatter of a document of the code corpus'
-        )
-
-    def test_frontmatter_schemas_of_with_a_ref_of_a_corpus_the_model_lacks_returns_no_schemas(
-        self, two_corpora_model: WorkspaceModel
-    ) -> None:
-        #: Given
-        ref = _ref('blog', 'launch')
-
-        #: When
-        schemas = two_corpora_model.frontmatter_schemas_of(ref)
-
-        #: Then
-        assert schemas == (), 'no schema governs a document in a corpus the model does not hold'
-
-    def test_outline_specs_of_with_a_ref_in_an_outlined_corpus_returns_its_corpus_structure(self) -> None:
-        #: Given
-        corpus_spec = _corpus_spec('code', structure=True)
-        outlined_spec = replace(corpus_spec, structure=_outlined(corpus_spec.structure))
-        code = _code_corpus(outlined_spec, ())
-        model = WorkspaceModel(corpora=(code,), skills_dirs=(), skill_locations=(), outside_symlinks=())
-        ref = _ref('code', 'logging')
-
-        #: When
-        outline_specs = model.outline_specs_of(ref)
-
-        #: Then
-        assert tuple(structure_spec.path for structure_spec in outline_specs) == (SPECS_DIR / 'code.structure.json',), (
-            'the code corpus structure states the outline a document of the code corpus is matched against'
-        )
-
-    def test_outline_specs_of_with_a_ref_of_a_corpus_the_model_lacks_returns_no_structures(
-        self, two_corpora_model: WorkspaceModel
-    ) -> None:
-        #: Given
-        ref = _ref('blog', 'launch')
-
-        #: When
-        outline_specs = two_corpora_model.outline_specs_of(ref)
-
-        #: Then
-        assert outline_specs == (), 'no outline governs a document in a corpus the model does not hold'
-
     def test_documents_with_two_corpora_returns_refs_in_corpus_then_filename_order(
         self, two_corpora_model: WorkspaceModel
     ) -> None:

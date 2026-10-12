@@ -128,11 +128,7 @@ def _document_context(database: Database) -> DocumentContext:
     Args:
         database: The database `TYPING` is read from.
     """
-    governance = database.model().find_governance(TYPING)
-    assert governance is not None, f'{TYPING.path} is in the corpus `code`, so specifications govern it'
-    corpus_structure = governance.corpus_spec.structure
-    assert corpus_structure is not None, 'the corpus `code` states a structure specification'
-    return DatabaseDocumentContext(database, _document_text(database), governance, corpus_structure)
+    return DatabaseDocumentContext(database, _document_text(database))
 
 
 def _skill_text(database: Database) -> SkillText:
@@ -299,7 +295,7 @@ class TestDatabaseDocumentContext:
         #: Then
         assert lines == UnsignedInt(count_lines(TYPING_TEXT)), 'the lines are those the document-lines query counts'
 
-    def test_specifications_with_a_document_returns_the_governance_the_model_finds(self) -> None:
+    def test_specifications_with_a_document_returns_the_governance_query(self) -> None:
         #: Given
         database = Database(_snapshot())
         context = _document_context(database)
@@ -308,9 +304,7 @@ class TestDatabaseDocumentContext:
         governance = context.specifications()
 
         #: Then
-        assert governance == database.model().find_governance(TYPING), (
-            'the specifications are the governance the model finds for the document'
-        )
+        assert governance is database.governance(TYPING), 'the specifications are the governance query'
         assert len(governance.structure_specs()) == 2, 'the corpus and the python namespace both govern the document'
 
     def test_corpus_structure_with_a_document_returns_its_corpus_structure_specification(self) -> None:
