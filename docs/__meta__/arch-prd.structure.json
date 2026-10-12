@@ -74,8 +74,8 @@
     },
     {
       "section": "References",
-      "description": "The issue the PRD comes from, as Source, and the design documents, decision records and feat specs it leads to, as Leads to.",
-      "examples": ["- [#170](https://github.com/LNSD/lorecraft/issues/170) - Source: The issue the PRD comes from\n- [cli-check](../feat/cli-check.md) - Leads to: What shipped"]
+      "description": "The issue the PRD comes from, as Source, and the design documents and decision records it leads to, as Leads to. Never a feat spec: the feat spec links the PRD instead.",
+      "examples": ["- [#170](https://github.com/LNSD/lorecraft/issues/170) - Source: The issue the PRD comes from\n- [adr-009](adr-009-rules.md) - Leads to: How the rules are built"]
     }
   ]
 }

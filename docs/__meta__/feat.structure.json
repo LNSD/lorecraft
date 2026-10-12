@@ -95,7 +95,7 @@
     {
       "section": "References",
       "optional": true,
-      "description": "Cross-references to other feat specs, one per line with the relationship named first (Dependency, Alternative, Related, Extended by or Base), linking up to the base and never down to an extension.",
+      "description": "Cross-references to other feat specs, one per line with the relationship named first (Dependency, Alternative, Related, Extended by or Base), linking up to the base and never down to an extension; and to the PRD and ADRs in docs/arch/ the feature comes from, as Source.",
       "examples": ["- [cli](cli.md) - Base: the command line and the options every command shares\n- [workspace](workspace.md) - Dependency: the documents, skills and snapshot the command reads\n- [spec](spec.md) - Dependency: the meta spec files the rules read"]
     },
     {
