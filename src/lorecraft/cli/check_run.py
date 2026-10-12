@@ -2,11 +2,13 @@
 
 This is the composition root of the rules engine. `--select` and `--ignore` arrive parsed and confirmed against the rule
 index; it loads the package's rules and builds the selection from them, establishes the root, takes one snapshot,
-opens the database over it, selects every subject of the workspace, builds the rule table from the rules and the
-selection, and hands the database, the subjects and the
-table to the runner; what comes back is rendered by `diagnostics` and decides the exit code. Every `Error` escaping
-that flow is reported here and exits 2; a file that does not decode is a diagnostic, not an error. A selection that
-holds an alias code, or names a rule its level leaves off, is warned of on stderr, and the run goes on.
+opens the database over it, stops when `docs/` or `docs/__meta__/` could not be listed, selects every subject of the
+workspace, builds the rule table from the rules and the selection, and hands the database, the subjects and the
+table to the runner, beside the report of each unit of the declaration that failed to load; what comes back is
+rendered by `diagnostics` and decides the exit code. Every `Error` escaping that flow is reported here and exits 2; a
+file that does not decode and a unit that failed to load are diagnostics, not errors, and a run that reports one exits
+1. A selection that holds an alias code, or names a rule its level leaves off, is warned of on stderr, and the run
+goes on.
 
 It lives apart from `commands/check.py` so that importing the command, which `--help` and `--version` do, does not
 import the rules engine: the command imports this module only when it runs.
@@ -19,18 +21,18 @@ import typer
 
 from lorecraft import rules
 from lorecraft.core.error import Error
-from lorecraft.engine import check_subjects
+from lorecraft.engine import check_subjects, report_load_failures
 from lorecraft.project.database import Database
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.rules.declaration import Severity
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.report import SubjectReport
+from lorecraft.rules.report import RunReport
 from lorecraft.rules.table import RuleTable, selected_rules_left_off
 from lorecraft.vfs import take_snapshot
 
 from .diagnostic_text import render_text
 from .diagnostics import render_coverage, render_json, render_prefix_summary, render_short, render_summary
-from .failure import exit_on_load_failure, report_failure
+from .failure import exit_on_unlistable_directory, report_failure
 from .output import ColorChoice, DiagnosticFormat, ExitStatus
 from .root import establish_root
 from .rule_arguments import SelectorValue
@@ -67,11 +69,13 @@ def run_check(
         # passes the first and is empty in the second. `open` refuses it, before a run over no documents can report
         # success.
         database = Database.open(take_snapshot(establish_root(root), SNAPSHOT_SCOPE))
-        # Until a load failure is a diagnostic, a run that recorded one stops as the load that raised it did.
-        exit_on_load_failure(database.model())
+        # With no corpus and no meta spec known, nothing can be checked, so this stops before any subject is selected.
+        # Every other failure the model recorded is reported below, as a diagnostic.
+        model = database.model()
+        exit_on_unlistable_directory(model)
         subjects = select_workspace(database)
         table = RuleTable.from_registry(registry, parsed.selection)
-        reports = check_subjects(database, subjects, table)
+        reports = (*report_load_failures(model), *check_subjects(database, subjects, table))
     except Error as exc:
         report_failure(exc)
         raise typer.Exit(code=ExitStatus.FAILURE) from exc
@@ -89,7 +93,7 @@ def run_check(
         raise typer.Exit(code=ExitStatus.FINDINGS)
 
 
-def _print_text(reports: tuple[SubjectReport, ...], database: Database, color: ColorChoice) -> None:
+def _print_text(reports: tuple[RunReport, ...], database: Database, color: ColorChoice) -> None:
     """Draw the diagnostics on stdout, then the coverage and the summaries on stderr, each only when it holds a line.
 
     Args:
@@ -105,7 +109,7 @@ def _print_text(reports: tuple[SubjectReport, ...], database: Database, color: C
     _print_stderr(reports, with_prefixes=True)
 
 
-def _print_short(reports: tuple[SubjectReport, ...]) -> None:
+def _print_short(reports: tuple[RunReport, ...]) -> None:
     """Print one line per diagnostic on stdout, then the coverage and the summary on stderr.
 
     Args:
@@ -117,7 +121,7 @@ def _print_short(reports: tuple[SubjectReport, ...]) -> None:
     _print_stderr(reports, with_prefixes=False)
 
 
-def _print_stderr(reports: tuple[SubjectReport, ...], *, with_prefixes: bool) -> None:
+def _print_stderr(reports: tuple[RunReport, ...], *, with_prefixes: bool) -> None:
     """Print the coverage, the per-prefix counts if asked, and the summary on stderr, each only when it holds a line.
 
     Args:
@@ -134,7 +138,7 @@ def _print_stderr(reports: tuple[SubjectReport, ...], *, with_prefixes: bool) ->
     typer.echo(render_summary(reports), err=True)
 
 
-def _has_error(reports: tuple[SubjectReport, ...]) -> bool:
+def _has_error(reports: tuple[RunReport, ...]) -> bool:
     """True when any diagnostic of any report is an error; warnings alone let a run pass.
 
     Args:

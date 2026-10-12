@@ -1129,7 +1129,7 @@ class TestCheckCommand:
         assert result.exit_code == 2, result.output
         assert result.stdout == '', 'a usage error checks nothing'
 
-    def test_check_with_a_malformed_frontmatter_schema_exits_as_invalid_input(
+    def test_check_with_a_malformed_frontmatter_schema_reports_it_and_exits_with_the_findings_status(
         self, malformed_schema_workspace: Path
     ) -> None:
         #: Given
@@ -1139,12 +1139,18 @@ class TestCheckCommand:
         result = runner.invoke(app, ['check', '--root', str(malformed_schema_workspace)])
 
         #: Then
-        assert result.exit_code == 2, result.output
-        assert result.stdout == '', 'after an error nothing is printed but the error'
+        assert result.exit_code == 1, result.output
+        assert result.stdout == (
+            'error[LC010]: frontmatter schema is not a valid JSON Schema\n'
+            ' --> docs/__meta__/code.structure.json\n'
+            '  = note: 5 is not valid under any of the given schemas\n'
+        ), 'the specification that cannot be used is a diagnostic at it, under its code'
         assert result.stderr == (
-            'error: invalid structure schema docs/__meta__/code.structure.json: frontmatter is not a valid JSON '
-            'Schema: 5 is not valid under any of the given schemas\n'
-        ), 'the specification that cannot be used is reported, naming it'
+            'docs/code/logging.md: skipped, governed by a structure file that failed to load: '
+            'docs/__meta__/code.structure.json\n'
+            'LC  1 error\n'
+            'checked 1 subject(s): 1 error(s), 0 warning(s)\n'
+        ), 'the document it governs is listed as skipped, and the run is not clean'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores file permissions')
     def test_check_with_an_unreadable_document_exits_as_invalid_input_and_names_it(self, workspace: Path) -> None:

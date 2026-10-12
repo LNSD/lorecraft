@@ -633,10 +633,11 @@ class TestCheckSnapshots:
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the absolute link in the SKILL.md and in the resource match the snapshot'
 
-    def test_check_with_an_invalid_specification_prints_the_error_and_exits_two(
-        self, tmp_path: Path, faker: Faker
+    def test_check_with_an_invalid_specification_prints_it_as_a_diagnostic_on_stdout(
+        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
     ) -> None:
         #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
         # The model validates a specification when it loads, but only for a corpus whose directory exists, so the
         # corpus holds a document.
         workspace = Workspace(
@@ -649,12 +650,26 @@ class TestCheckSnapshots:
         result = run_cli(*arguments)
 
         #: Then
-        assert result.returncode == 2, result.stderr
-        assert result.stdout == '', 'a run that could not start prints nothing on stdout'
-        assert result.stderr == (
-            'error: invalid structure schema docs/__meta__/code.structure.json: frontmatter is not a valid JSON '
-            'Schema: 5 is not valid under any of the given schemas\n'
-        ), 'the specification that cannot be used is reported, naming it'
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, 'the specification that cannot be used is a diagnostic at it'
+
+    def test_check_with_an_invalid_specification_lists_what_it_governs_as_skipped_on_stderr(
+        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        workspace = Workspace(
+            specs=[Spec('code', structure={'frontmatter': {'type': 5}})], documents=[Document('code', 'guide')]
+        )
+        root = workspace.write(tmp_path, faker)
+        arguments = ('check', '--root', str(root))
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stderr == expected, 'the document it governs is skipped in coverage, never reported as clean'
 
 
 @pytest.mark.e2e

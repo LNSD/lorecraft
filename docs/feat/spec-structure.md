@@ -74,9 +74,11 @@ rule above for the documents its name matches:
 
 ### Refused on Load
 
-A file is refused, and the command stops with an error naming it, when it is not JSON, holds a key or a value
-type the dialect does not have, or states no rule. A rule key adds refusals of its own, for a value no
-document could satisfy or that contradicts another.
+A file is refused when it is not JSON, holds a key or a value type the dialect does not have, or states no
+rule. A rule key adds refusals of its own, for a value no document could satisfy or that contradicts
+another. `lorecraft check` reports a failure recorded in the model at the file, skips the documents it
+governs, and exits `1`; `lorecraft inspect` stops with exit `2`. A snapshot read refusal stops either
+command with exit `2` before the model can record it.
 
 ### Validating in an Editor
 

@@ -13,12 +13,10 @@ expects its own code and a near miss does not. The tests that read the registry 
 one names every code that lacks either kind, one every directory named for a code no rule has, and one every entry
 that is not a `trigger/` or `near_miss/` directory under a code.
 
-A code the check run does not report yet has no case on disk: `lorecraft check` still stops on any load failure, so no
-repository can make it report one. Those codes are listed in `UNREPORTED_CODES` until the run reports them.
-
-A code that stands for an operating system's refusal is the one exception that stays: a check run reads a snapshot, and
-a refusal while it is taken stops the run before any report, so no repository can make `lorecraft check` report it.
-Those codes are listed in `REFUSAL_CODES`.
+A code that stands for an operating system's refusal is the one exception to a case on disk: a check run reads a
+snapshot, and a refusal while it is taken stops the run before any report, so no repository can make `lorecraft check`
+report it. Those codes are listed in `REFUSAL_CODES`, and their trigger and near miss are in
+`test_load_failure_conditions`, which loads the model through the disk, where the refusal happens.
 """
 
 import json
@@ -50,10 +48,8 @@ REFUSAL_CODES: Final[frozenset[str]] = frozenset({'LC002', 'LC014', 'LC015', 'LC
 """The codes of a load failure that stands for the operating system's refusal of a read, a listing or a lookup.
 
 A check run takes its snapshot before it reports anything, and a refusal while it is taken stops the run with an error,
-so none of these is reported by a repository `lorecraft check` runs over."""
-
-UNREPORTED_CODES: Final[frozenset[str]] = frozenset({f'LC{number:03d}' for number in range(3, 14)})
-"""The codes of the load failures of a structure file's shape, which `lorecraft check` does not report yet."""
+so none of these is reported by a repository `lorecraft check` runs over. `test_load_failure_conditions` holds their
+cases."""
 
 runner = CliRunner()
 
@@ -252,7 +248,7 @@ class TestRuleCases:
 
     def test_rule_cases_with_the_registry_cover_every_code_with_a_trigger_and_a_near_miss(self) -> None:
         #: Given
-        codes = [code for code in reported_codes() if code not in UNREPORTED_CODES | REFUSAL_CODES]
+        codes = [code for code in reported_codes() if code not in REFUSAL_CODES]
         covered = {(case.code, case.kind) for case in CASES}
 
         #: When

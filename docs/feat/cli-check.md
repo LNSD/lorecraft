@@ -10,9 +10,9 @@ components: "module:lorecraft.cli,module:lorecraft.engine,module:lorecraft.rules
 
 ## Summary
 
-`lorecraft check` checks the workspace in one run: every document under `docs/` against the meta specs
-in `docs/__meta__/`, and every agent skill against the Agent Skills specification. Each rule has a code, such as
-`FM001`, in a group named by its prefix. It prints a diagnostic per rule broken, and exits `1` when any is an error.
+`lorecraft check` checks documents against their meta specs and agent skills against the Agent Skills
+specification. It reports broken rules and load failures as diagnostics with codes such as `FM001`,
+and exits `1` when any diagnostic is an error.
 
 ## Table of Contents
 
@@ -29,10 +29,10 @@ in `docs/__meta__/`, and every agent skill against the Agent Skills specificatio
 
 - **Subject**: What a rule judges: a document, a skill by its `SKILL.md`, a resource of a skill (any other
   Markdown file inside it), or a symlink of the skill layout leading outside the repository.
-- **Rule**: One judgment of a subject, with a code, `<prefix><digits>`, and a kebab-case name, such as `FM001`
-  `missing-frontmatter`. A rule is on at its default level, `deny` for an error or `warn` for a warning.
-- **Diagnostic**: One occurrence of a rule: a path, a line when it has one, a severity, the code, a message, and
-  labels, help and notes. Diagnostics sort by path, location, severity, code and message.
+- **Rule**: One judgment of a subject, with a code, `<prefix><digits>`, and a kebab-case name. Its default
+  level is `deny` for an error or `warn` for a warning.
+- **Diagnostic**: One occurrence: a path, optional line, severity, code, message, labels, help and notes.
+  Diagnostics sort by path, location, severity, code and message.
 - **Governed**: A document's `structure` is governed when its corpus has a structure file, its `frontmatter` when
   that file states a schema, its `outline` or `budget` when an applying file states an outline or `tokens`. A rule
   over an ungoverned part does not run; the part is reported as coverage, not a diagnostic.
@@ -43,60 +43,54 @@ in `docs/__meta__/`, and every agent skill against the Agent Skills specificatio
 
 ### Root Discovery
 
-Without `--root`, the root is the nearest of the working directory and its parents that holds a
-`docs/__meta__/` directory, as the [workspace layout](workspace.md#the-layout) places it. With `--root`, the
-given directory is the root, and it must exist. Either way it is resolved with symlinks followed, and every path
-printed is relative to it. Under the root, `docs/` and `docs/__meta__/` must be
-[real directories](workspace.md#one-snapshot): a root where either is a symlink is refused, however it was found.
+Without `--root`, the root is the nearest of the working directory and its parents holding `docs/__meta__/`.
+With `--root`, the given directory must exist. The root is resolved with symlinks followed; output paths are
+relative to it. `docs/` and `docs/__meta__/` must be [real directories](workspace.md#one-snapshot).
 
 ### The Subjects
 
-A run checks every subject of the [workspace](workspace.md): every document it lists, every skill in the agents'
-skills directories, each once however many agents read it, every resource of each skill, and every symlink of the
-skill layout whose chain leaves the repository, a skills directory, an entry, a `SKILL.md` or a path inside a
-skill. The subjects and the diagnostics are ordered by path, compared by code point, so one revision always prints
-the same output.
+A run checks every [workspace](workspace.md) document, skill, skill resource and skill-layout symlink leading
+outside the repository. Shared skills are checked once. Subjects and diagnostics follow path order.
 
 ### One Run, One Snapshot
 
 Every rule reads one [snapshot](workspace.md#one-snapshot), through one database, so a file is read and
-parsed once however many rules read it. Every meta spec is loaded and validated before any subject is checked,
-so one malformed meta spec stops the whole run. A file that is not UTF-8 is reported as `LC001`, and no rule
-judges it.
+parsed once however many rules read it. Meta specs are loaded before subjects are checked. A structure file
+that fails to load gets an error diagnostic at its path; documents it governs are skipped, while other
+documents are checked. A file that is not UTF-8 is reported as `LC001`, and no rule judges it.
+The same code reports an undecodable structure file and skips what it governs.
 
 ### Selecting Rules
 
 `--select` and `--ignore` take selectors, comma-separated or repeated, as ruff's rule selection does. From the least
 specific to the most, one is `ALL`; a group's prefix, such as `OUT`; a code prefix of one or two digits, such as
 `OUT0`, every rule whose code starts with it; or a code, such as `OUT006`, or an alias code for it.
-Selectors are case-sensitive, and no `--select` is `ALL`.
+Selectors are case-sensitive; without `--select`, all rules run.
 
 For each rule, the most specific matching selector decides, with `--ignore` winning a tie. A selection cannot
 turn on a rule at `allow`.
 
-Each value is checked against the rule index while the command line is read, before the registry or workspace
-loads. Empty, malformed, unknown, name, engine condition (`LC` included), and removed-rule selectors cause a
-usage error naming the option and exit `2` without checking anything, as [cli](cli.md) describes. A name error
-gives the rule's code; a removed-rule error points to `lorecraft rule <code>`, which says when it was removed and
-what replaces it, if any. Only declared aliases are accepted, with a warning naming the rule's code; selecting
-by code a rule at `allow` also warns.
+Selectors are checked before the workspace loads. Empty, malformed, unknown, name, engine condition (`LC`
+included) and removed-rule selectors exit `2` as usage errors. Name errors give the rule's code; removed-rule
+errors point to `lorecraft rule <code>`. Declared aliases are accepted with a warning naming the rule's code;
+selecting an `allow` rule also warns.
 
 ## Configuration
 
 | Argument or option | Default | Env var | Description |
 |--------------------|---------|---------|-------------|
-| `--root <path>`    | nearest parent holding `docs/__meta__/` | — | The repository root, as [Root Discovery](#root-discovery) describes |
+| `--root <path>`    | nearest of working directory and parents holding `docs/__meta__/` | — | The repository root, as [Root Discovery](#root-discovery) describes |
 | `--format <text\|short\|json>` | `text` | — | The output format, as [Output](#output) describes |
-| `--color <WHEN>` | `auto` | [`NO_COLOR`](https://no-color.org/), [`FORCE_COLOR`](https://force-color.org/) | Control colour: `auto`, `always` or `never`. Only `text` is coloured. |
+| `--color <WHEN>` | `auto` | [`NO_COLOR`](https://no-color.org/), [`FORCE_COLOR`](https://force-color.org/) | Control when colored output is used. `auto`: colour when stdout is an interactive terminal, unless `NO_COLOR` is set; `FORCE_COLOR` forces it. `always`: colour even when stdout is not a terminal. `never`: no colour. Only the `text` format is coloured. |
 | `--select <selectors>` | `ALL` | — | Run only these rules, as [Selecting Rules](#selecting-rules) describes |
 | `--ignore <selectors>` | none | — | Skip these rules |
 
-The command takes no paths and checks the whole workspace. The more specific selector wins between `--select`
-and `--ignore`. Unknown `--format` or `--color` values exit `2`.
-Explicit `--color always` or `never` overrides both variables. Under `auto`, non-empty `FORCE_COLOR` enables
-colour even when piped; otherwise non-empty `NO_COLOR` disables it; otherwise stdout's terminal status decides.
-Empty values count as unset; `0` counts as set. With colour, errors are bold red, warnings bold yellow,
-messages bold, and gutter and location markers bold blue.
+The command takes no paths. An unlisted `--format` or `--color` value exits `2`.
+For colour, an explicit `--color always` or `--color never` wins over both variables. Under `auto`, a non-empty
+`FORCE_COLOR` enables colour, even when piped; otherwise a non-empty `NO_COLOR` disables it; otherwise colour
+follows whether stdout is an interactive terminal. An empty variable counts as unset; any non-empty value,
+including `0`, counts as set. When colour is enabled, errors are bold red, warnings bold yellow, messages bold,
+and the gutter and location markers bold blue.
 
 ## Usage
 
@@ -121,14 +115,12 @@ lorecraft check --select OUT00
 
 ### Output
 
-In the default `text` format, each diagnostic goes to stdout, with a blank line between diagnostics. The
-header gives the severity, code and message, followed by `--> path:line` and numbered source lines with
-labels beneath them. The reported line has a solid underline; another labelled line in the same file has a
-dotted underline. Nearby lines are shown together; an ellipsis separates lines further apart. `:::` points
-to another file, including a specification named by a note. Help and notes follow as `= help:` and
-`= note:` lines. A one-line help or note wraps at word boundaries to the terminal width; piped or redirected
-output uses 100 columns and ignores `COLUMNS`. A multi-line help or note, such as a sample, keeps each line
-intact even if it exceeds that width. Continuation lines align under the first line's text.
+In the default `text` format, diagnostics go to stdout, separated by blank lines. A header gives severity,
+code and message; numbered source lines and labels follow. The reported line has a solid underline; another
+labelled line has a dotted one. Nearby lines are grouped, with an ellipsis between distant lines. `:::`
+points to another file. Help and notes follow as `= help:` and `= note:`. Single-line help and notes wrap
+to terminal width, or 100 columns when piped; piped output ignores `COLUMNS`. Multi-line text keeps its
+line breaks.
 
 This excerpt is from a check run (stdout):
 
@@ -145,9 +137,9 @@ error[OUT006]: missing required section `Usage`
   = help: How to invoke the command.
 ```
 
-On stderr, `text` prints a line per subject with an ungoverned part, then error and warning counts per
-code prefix (when there are diagnostics), then the overall `checked N subject(s): ...` line. A run with
-one subject and two errors prints:
+On stderr, `text` prints ungoverned and skipped coverage in path order, then counts per code prefix and an
+overall `checked N subject(s): ...` line. Skipped coverage names each failed structure file, corpus first.
+A run with one subject and two errors prints:
 
 ```text
 FM   1 error
@@ -155,10 +147,16 @@ OUT  1 error
 checked 1 subject(s): 2 error(s), 0 warning(s)
 ```
 
+A skipped document is listed as coverage, with no rule diagnostic:
+
+```text
+docs/code/python-typing.md: skipped, governed by a structure file that failed to load: docs/__meta__/code-python.structure.json
+```
+
 In `short` format, stdout has one uncoloured line per diagnostic:
-`path:line: severity[code]: message`, or `path: severity[code]: message` for a whole subject. It omits
-labels, help and notes, and keeps the same order and exit status as `text`. Its stderr has the ungoverned
-subject lines and only the overall count, without the per-prefix counts. For example:
+`path:line: severity[code]: message`, or `path: severity[code]: message` for a whole file. It omits
+labels, help and notes, and keeps `text` order and exit status. Stderr has coverage and the overall count,
+without prefix counts. For example:
 
 ```text
 docs/code/guide.md:1: error[FM001]: no `---` delimited frontmatter block
@@ -169,8 +167,9 @@ In `json` format stdout is one compact JSON object on one line, without indentat
 commas or colons; stderr holds nothing but the selection's warnings. `diagnostics`
 holds each diagnostic in the text order, its `line` `null` for a whole file, `labels` as `{"path", "line", "text"}`
 and `children` as `{"kind", "text", "path", "line"}`, `kind` being `help` or `note`. `summary` counts the subjects,
-errors and warnings. `coverage` lists subjects with an ungoverned part; every item has `path`, `ungoverned`
-and `skipped_by`. The latter is always empty: `check` cannot skip a document yet.
+errors and warnings; load failures count as errors but not subjects. `coverage` lists each subject with an
+ungoverned part or a skipped document. Every coverage item has `path`, `ungoverned` and `skipped_by`;
+`skipped_by` lists failed structure files in layer order, and `ungoverned` is empty for a skipped document:
 
 ```json
 {"diagnostics":[{"path":"docs/notes/broken.md","line":4,"severity":"error","code":"LC001","name":"invalid-utf8","message":"file is not valid UTF-8","labels":[{"path":"docs/notes/broken.md","line":4,"text":"0xE9 at byte offset 31 starts a character the next byte does not continue"}],"children":[{"kind":"help","text":"save the file as UTF-8","path":null,"line":null}]}],"summary":{"subjects":3,"errors":1,"warnings":0},"coverage":[{"path":"docs/notes/todo.md","ungoverned":["outline","budget"],"skipped_by":[]}]}
@@ -187,8 +186,8 @@ for an indented view.
 | Code | Meaning |
 |------|---------|
 | `0`  | No diagnostic is an error; warnings and ungoverned parts do not count |
-| `1`  | At least one diagnostic is an error, `LC001` included |
-| `2`  | The run could not start: no root, linked `docs/` or `docs/__meta__/`, unreadable or changed file, malformed meta spec, or usage error. Invalid `--select` and `--ignore` values report a usage error on stderr, as [cli](cli.md) describes; other failures print `error: ...` |
+| `1`  | At least one diagnostic is an error, including a structure file load failure |
+| `2`  | The run could not start: no root, snapshot failure, unlistable or linked `docs/` or `docs/__meta__/`, invalid selection or usage. Invalid `--select` and `--ignore` values report a usage error on stderr, as [cli](cli.md) describes; other failures print `error: ...` |
 
 ## Limitations
 
@@ -216,7 +215,7 @@ each rule's condition and fix, as [cli-rule](cli-rule.md) describes.
 | `LEN` | Length limits: a document's tokens, a section's or its title's words or characters, a `SKILL.md`'s lines. `LEN001` too-many-tokens, `LEN002` too-many-lines, `LEN003` too-many-words, `LEN004` title-too-many-words, `LEN005` title-too-long |
 | `LINK` | Links in Markdown files: a document governed for its structure, a `SKILL.md` and each resource, a skill's relative link read from the skill root. `LINK001` absolute-link, `LINK002` missing-fragment, `LINK003` broken-link, `LINK004` escaping-link |
 | `LAY` | Skill layout checks: `LAY001` outside-symlink, a symlink an agent reaches whose chain leaves the repository |
-| `LC` | Engine conditions, which no configuration or selection turns off: `LC001` invalid-utf8, a file that is not UTF-8, reported at its first invalid byte. The [rulebook](../rulebook/) also lists `LC002`–`LC017` for failed structure files and refused directories or skills. `check` does not report these codes yet: an unusable structure file or snapshot refusal stops the run with exit `2`. |
+| `LC` | Engine conditions, all errors with no level, which no configuration or selection turns off: `LC001` invalid-utf8, also for structure files; `LC003` malformed-structure-file; `LC004` empty-structure-file; `LC005` repeated-outline-section; `LC006` repeated-forbidden-section; `LC007` forbidden-outline-section; `LC008` adjacent-any-runs; `LC009` invalid-title-pattern; `LC010` invalid-frontmatter-schema; `LC011` frontmatter-schema-id; `LC012` foreign-frontmatter-dialect; `LC013` untyped-frontmatter-schema. Each structure failure is reported once at its file, as a whole-file diagnostic except `LC001`, which points to the first invalid byte. The [rulebook](../rulebook/) also lists `LC002` and `LC014`–`LC017`, but snapshot read refusals currently stop `check` with exit `2` before it can report these codes. |
 
 `FM008` ends with the field's example when the schema gives one. `FM009` labels malformed skill names with
 their pattern. `FM010` and `FM012` carry counts in messages only.
