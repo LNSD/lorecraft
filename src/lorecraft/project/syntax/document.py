@@ -68,7 +68,7 @@ def parse_frontmatter(text: str) -> FrontmatterNode:
     """Parse only the frontmatter block of one document's text. Pure: raises nothing.
 
     The block is found and decoded as `parse_markdown_frontmatter` describes, the same block `parse_document`
-    skips, but the rest of the text is not read as Markdown, which costs a small fraction of the full parse.
+    skips, but the rest of the text is not parsed at all.
 
     Args:
         text: The document's whole text, frontmatter block included.
