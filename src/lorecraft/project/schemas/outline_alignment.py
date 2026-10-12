@@ -50,11 +50,13 @@ class OutlineAlignmentSpec:
 
     Attributes:
         spec: The structure specification file whose outline the sections are aligned to.
+        outline: The specification's outline, which the entries of `sections` belong to; empty when it states none.
         sections: The document's H2 sections, in document order, each with its entry. A specification that states
             no outline aligns each section to nothing.
     """
 
     spec: RootRelativePath
+    outline: tuple[OutlineEntry, ...]
     sections: tuple[AlignedSection, ...]
 
     def find(self, heading: Heading) -> AlignedSection | None:
@@ -88,7 +90,11 @@ def align_outlines(
     """
     sections = tuple(heading for heading in headings if heading.level == SECTION_LEVEL)
     return tuple(
-        OutlineAlignmentSpec(spec=structure_spec.path, sections=_align_sections(structure_spec, sections))
+        OutlineAlignmentSpec(
+            spec=structure_spec.path,
+            outline=structure_spec.outline,
+            sections=_align_sections(structure_spec, sections),
+        )
         for structure_spec in structure_specs
     )
 
