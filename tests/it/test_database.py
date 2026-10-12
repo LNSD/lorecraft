@@ -25,10 +25,10 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, DocumentText, SkillText, Undecodable
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import LinkedLayoutError
-from lorecraft.project.schemas import EmptyStructureSpecError
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import Frontmatter, Heading, LineNumber, count_tokens
 from lorecraft.project.syntax import Link as MarkdownLink
+from lorecraft.project.workspace import EmptyStructureSpec, FailedStructure, LoadFailure
 from lorecraft.vfs import (
     DirectoryRecord,
     EntryRecord,
@@ -184,20 +184,57 @@ class TestDatabase:
         #: Then
         assert database.model().documents() == (GUIDE,), 'a snapshot of real directories is accepted'
 
-    def test_open_with_a_structure_specification_that_states_no_rule_raises_empty_structure_spec_error(self) -> None:
+    def test_open_with_a_structure_specification_that_states_no_rule_records_the_failure_and_raises_nothing(
+        self,
+    ) -> None:
         #: Given
         snapshot = Snapshot.from_tree(
             {'docs': {'__meta__': {'code.md': b'# Code\n', 'code.structure.json': b'{}'}, 'code': {'guide.md': b''}}}
         )
+        path = RootRelativePath.parse('docs/__meta__/code.structure.json')
 
         #: When
-        with pytest.raises(EmptyStructureSpecError) as exc_info:
-            Database.open(snapshot)
+        database = Database.open(snapshot)
 
         #: Then
-        assert exc_info.value.path == RootRelativePath.parse('docs/__meta__/code.structure.json'), (
-            'a load failure is raised from open, so no database without its model exists'
+        assert database.model().load_failures == (LoadFailure(path, EmptyStructureSpec()),), (
+            'the failure is a value the model records, so opening raises nothing and the database has its model'
         )
+        governance = database.governance(GUIDE)
+        assert governance is not None, 'the document is in a corpus the model holds'
+        assert governance.failed_layers() == (FailedStructure(path, EmptyStructureSpec()),), (
+            'the failed layer is held where its structure would be'
+        )
+
+    def test_schema_problems_with_a_failed_namespace_layer_reads_only_the_layers_that_loaded(self) -> None:
+        #: Given
+        snapshot = Snapshot.from_tree(
+            {
+                'docs': {
+                    '__meta__': {
+                        'code.md': b'# Code\n',
+                        'code.structure.json': b'{"frontmatter": {"type": "object", "required": ["name"]}}',
+                        'code-python.md': b'# Python\n',
+                        'code-python.structure.json': b'not json',
+                    },
+                    'code': {'python-guide.md': b'---\ndescription: x\n---\n# Guide\n'},
+                }
+            }
+        )
+        ref = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-guide'))
+        database = Database.open(snapshot)
+        source = _document_text(database, ref)
+
+        #: When
+        problems = database.schema_problems(source)
+        alignments = database.outline_alignment(source)
+        divergences = database.outline_divergences(source)
+
+        #: Then
+        assert len(problems) == 1, 'one frontmatter schema judges the document: the failed layer states none'
+        assert len(problems[0].problems) == 1, 'the corpus layer that loaded finds the required `name` missing'
+        assert len(alignments) == 1, 'only the layer that loaded is aligned'
+        assert divergences == (), 'and no outline governs the document, so nothing diverges'
 
     def test_is_in_scope_with_a_path_the_snapshot_scope_covers_returns_true(self) -> None:
         #: Given

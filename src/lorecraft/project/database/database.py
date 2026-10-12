@@ -263,32 +263,14 @@ class Database:
         Behind a linked `docs/` or `docs/__meta__/` the snapshot holds no specification, so the model would have
         no corpus, and a run over its documents would report success over nothing; the layout is refused instead.
 
+        A unit of the declaration that cannot be read or used does not stop the open: the model records it, in
+        `load_failures` and in the layer it stands in.
+
         Args:
             snapshot: The frozen state every query reads; kept for the database's lifetime and never changed.
 
         Raises:
             LinkedLayoutError: If `docs/` is a symlink, or else if `docs/__meta__/` is one.
-            EntryInspectError: If an entry on the way to a skills directory cannot be inspected, or a link's target
-                read, while looking for where it leaves the repository.
-            DirListError: If the specification directory or docs/ cannot be listed.
-            CorpusListError: If a corpus directory cannot be listed.
-            StructureSchemaReadError: If any structure specification cannot be read.
-            StructureSpecDecodeError: If a structure specification is not JSON in the dialect's shape.
-            EmptyStructureSpecError: If a structure specification states no rule.
-            RepeatedOutlineSectionError: If an outline names a section twice.
-            RepeatedForbiddenSectionError: If a specification forbids a section twice.
-            ForbiddenOutlineSectionError: If a specification forbids a section its outline names.
-            AdjacentAnyRunsError: If an outline places two `any` runs side by side.
-            InvalidTitlePatternError: If a title's pattern does not compile.
-            InvalidFrontmatterSchemaError: If a frontmatter schema is rejected by the meta-schema.
-            FrontmatterSchemaIdError: If a schema in a frontmatter schema carries `$id`.
-            ForeignFrontmatterDialectError: If a schema in a frontmatter schema names another dialect.
-            UntypedFrontmatterSchemaError: If a frontmatter schema's root does not state an object.
-            DirResolveError: If a skills directory cannot be resolved.
-            SkillsDirListError: If a skills directory cannot be listed.
-            SkillEntryResolveError: If a symlinked skill entry cannot be resolved.
-            SkillDirListError: If a skill directory cannot be listed.
-            SkillFileResolveError: If a symlinked SKILL.md cannot be resolved.
         """
         fs = VirtualFileSystem(snapshot)
         reject_linked_layout(fs)
@@ -621,10 +603,14 @@ class Database:
         narrow. The one place a document's governance is computed: the runner and the queries that read it ask
         this, so it is computed once per document for the revision.
 
+        A layer whose structure file failed to load is held as the failed structure the model recorded, so the
+        governance hands out what loaded and what failed and decides nothing about the document.
+
         Carry-over: kept for the next revision whenever the next model's governance of the ref is equal to it, as
         compared by value: the corpus spec and every matching namespace spec, each with its files and its structure
-        specification. The model is dropped by any entry added or deleted under `docs/`, but a document added or
-        deleted in a corpus, or a specification that does not govern this document, leaves its governance equal.
+        specification, a failed one compared by its recorded failure. The model is dropped by any entry added or
+        deleted under `docs/`, but a document added or deleted in a corpus, or a specification that does not govern
+        this document, leaves its governance equal.
 
         Args:
             ref: The document to look up, whether or not the model lists it; only its corpus and filename are read,
@@ -642,7 +628,8 @@ class Database:
         """What each frontmatter schema that governs one document rejects in its frontmatter, found on the first call.
 
         Each problem is placed on the line its field is written on, or line 1 when it has none. The frontmatter is
-        read only when a schema governs the document.
+        read only when a schema governs the document. Only the layers that loaded state a schema; a layer that
+        failed to load contributes none.
 
         Carry-over: kept for the next revision whenever `frontmatter(source)` and `governance(source.ref)` are. A
         change to the model that leaves the document's governance as it was, such as a document added to another
@@ -673,7 +660,8 @@ class Database:
 
         A section is aligned to the entry that names it, or to the `any` run it falls in, or to nothing. A
         specification that states no outline is aligned too, each section to nothing, so a rule over what a
-        specification forbids reads the same alignment as a rule over its outline.
+        specification forbids reads the same alignment as a rule over its outline. Only the layers that loaded are
+        aligned; a layer that failed to load contributes none.
 
         Carry-over: kept for the next revision whenever `parse(source)` and `governance(source.ref)` are. A change to
         the model that leaves the document's governance as it was, such as a document added to another corpus, leaves
@@ -702,7 +690,8 @@ class Database:
         """Where one document's sections first stop matching each outline that governs it, found on the first call.
 
         Derived from `outline_alignment(source)`, so the document is aligned once for both queries. Its lines are
-        counted only when a structure specification that governs it states an outline.
+        counted only when a structure specification that governs it states an outline. Only the layers that loaded
+        are matched, as `outline_alignment(source)` aligns only those.
 
         Carry-over: kept for the next revision whenever `outline_alignment(source)` and `document_lines(source)`
         are.

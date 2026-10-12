@@ -32,6 +32,7 @@ from lorecraft.project.schemas import (
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillsDir
 from lorecraft.vfs import ResolvedPath, RootExit
 
+from ..failure import FailedStructure
 from ..model import Corpus, CorpusNamespace, CorpusSpec, Governance, NamespaceSpec, WorkspaceModel, namespace_order_key
 
 CODE: Final[CorpusName] = CorpusName.parse('code')
@@ -112,13 +113,13 @@ def _spec_files(
     return tuple(sorted(files, key=str)), structure_spec
 
 
-def _outlined(structure_spec: StructureSpec | None) -> StructureSpec:
+def _outlined(structure_spec: StructureSpec | FailedStructure | None) -> StructureSpec:
     """The structure specification given, stating an outline of one required section, `Usage`.
 
     Args:
         structure_spec: A structure specification; only one can state an outline.
     """
-    assert structure_spec is not None, 'only a structure specification states an outline'
+    assert isinstance(structure_spec, StructureSpec), 'only a structure specification states an outline'
     return replace(structure_spec, outline=(SectionEntry(name=SectionName('Usage')),))
 
 
@@ -600,7 +601,9 @@ def two_corpora_model() -> WorkspaceModel:
         namespaces=(),
         filenames=(AspectFilename.parse('cli-check'),),
     )
-    return WorkspaceModel(corpora=(code, feat), skills_dirs=(), skill_locations=(), outside_symlinks=())
+    return WorkspaceModel(
+        corpora=(code, feat), skills_dirs=(), skill_locations=(), outside_symlinks=(), load_failures=()
+    )
 
 
 def _regular_skill(directory: str) -> SkillLocation:
@@ -651,6 +654,7 @@ def skills_model() -> WorkspaceModel:
         ),
         skill_locations=(AUDIT, REVIEW, REVIEW_ALIAS),
         outside_symlinks=(),
+        load_failures=(),
     )
 
 

@@ -251,9 +251,10 @@ def check_layout_entry(outside: OutsideSymlink, table: RuleTable) -> CheckedLayo
 def _find_document_context(database: Database, source: DocumentText) -> DatabaseDocumentContext | None:
     """The context of a decoded document, or `None` when no facet can govern it.
 
-    No facet governs a document in no corpus the database's model holds, nor one whose corpus states no structure
-    specification: without the corpus's, a namespace's governs nothing, as `structure_specs` states. Both are read
-    from `Database.governance`, so the specifications are looked up once for the document, not once per reader.
+    No facet governs a document in no corpus the database's model holds, nor one whose corpus has no structure
+    specification that loaded: without the corpus's, a namespace's governs nothing, as `structure_specs` states.
+    Both are read from `Database.governance`, so the specifications are looked up once for the document, not once
+    per reader.
 
     Args:
         database: The revision the document is read from; its model decides which specifications govern it.
@@ -262,7 +263,7 @@ def _find_document_context(database: Database, source: DocumentText) -> Database
     governance = database.governance(source.ref)
     if governance is None:
         return None
-    if governance.corpus_spec.structure is None:
+    if governance.corpus_structure() is None:
         return None
     return DatabaseDocumentContext(database, source)
 
@@ -278,7 +279,7 @@ def _is_governed_for(governance: Governance, facet: Facet) -> bool:
         case Facet.FRONTMATTER:
             return bool(governance.frontmatter_schemas())
         case Facet.STRUCTURE:
-            return governance.corpus_spec.structure is not None
+            return governance.corpus_structure() is not None
         case Facet.OUTLINE:
             return any(structure_spec.outline for structure_spec in governance.structure_specs())
         case Facet.BUDGET:

@@ -14,7 +14,7 @@ from lorecraft.project.database import Database
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.vfs import take_snapshot
 
-from .failure import report_failure
+from .failure import exit_on_load_failure, report_failure
 from .output import ExitStatus, OutputFormat
 from .workspace_tree import render_json, render_text
 
@@ -47,6 +47,8 @@ def run_inspect(root: Path, output_format: OutputFormat | None, as_json: bool) -
         # would draw a model with no corpora. `open` refuses it instead of printing it as if the root declared
         # nothing.
         model = Database.open(take_snapshot(root, SNAPSHOT_SCOPE)).model()
+        # Until a load failure is reported as one, a model that recorded one is no model to print.
+        exit_on_load_failure(model)
     except Error as exc:
         report_failure(exc)
         raise typer.Exit(code=ExitStatus.FAILURE) from exc
