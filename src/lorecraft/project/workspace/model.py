@@ -379,29 +379,3 @@ class WorkspaceModel:
         if corpus is None:
             return None
         return corpus.governance(ref.filename)
-
-    def frontmatter_schemas_of(self, ref: DocumentRef) -> tuple[FrontmatterSchema, ...]:
-        """The frontmatter schemas that govern a document, in the order `Governance.frontmatter_schemas` applies them.
-
-        `()` means no frontmatter schema governs the document, one of a corpus the model does not hold included.
-
-        Args:
-            ref: Document to look up, whether or not the model lists it; only its corpus and filename are read.
-        """
-        governance = self.find_governance(ref)
-        if governance is None:
-            return ()
-        return governance.frontmatter_schemas()
-
-    def outline_specs_of(self, ref: DocumentRef) -> tuple[StructureSpec, ...]:
-        """The structure specifications that state an outline for a document, in the order they apply.
-
-        `()` means no outline governs the document, one of a corpus the model does not hold included.
-
-        Args:
-            ref: Document to look up, whether or not the model lists it; only its corpus and filename are read.
-        """
-        governance = self.find_governance(ref)
-        if governance is None:
-            return ()
-        return governance.outline_specs()

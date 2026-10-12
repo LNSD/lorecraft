@@ -64,7 +64,7 @@ for enabled in table.document_rules_governed_by(Facet.OUTLINE):
 
 ```python
 # ✅ Good — the run hands a rule its subject's context; a unit test hands it a fake context over a literal
-context = DatabaseDocumentContext(database, source, governance, corpus_structure)
+context = DatabaseDocumentContext(database, source)
 for enabled in table.document_rules_governed_by(Facet.OUTLINE):
     for occurrence in enabled.rule.check(context):
         diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
