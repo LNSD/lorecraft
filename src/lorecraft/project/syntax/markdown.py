@@ -11,6 +11,10 @@ words it counts and how a repeated anchor is numbered are derived in `document`,
 The frontmatter block is decoded by `parse_markdown_frontmatter` alone. The full parse finds the same block, so it is
 not read as Markdown, but leaves it undecoded: a check that reads the frontmatter asks for it apart from the tree,
 so decoding it in the full parse as well would decode every block twice.
+
+The one place the parser does not decide is where that block is, for `parse_markdown_frontmatter`: it finds the block
+with a scan of its own that mirrors wenmode's frontmatter plugin, held to it by `tests/it/test_frontmatter_scan.py`.
+A wenmode upgrade that changes the plugin is caught there, not here.
 """
 
 import re
@@ -25,14 +29,7 @@ from wenmode.nodes import Heading as WenmodeHeading
 from wenmode.nodes import Link as WenmodeLink
 from wenmode.plugins import frontmatter
 
-from .frontmatter import (
-    Frontmatter,
-    FrontmatterNode,
-    InvalidYamlFrontmatter,
-    MissingFrontmatter,
-    NonMappingFrontmatter,
-    decode_frontmatter,
-)
+from .frontmatter import FrontmatterNode, MissingFrontmatter, decode_frontmatter
 from .heading import HeadingLevel
 from .link import Link
 from .position import LineNumber
@@ -54,20 +51,21 @@ def _skip_frontmatter(block: str) -> None:
     return None
 
 
-# One parser of each kind serves every call. A wenmode parser keeps nothing of a document between parses: each
-# parse builds its own state, and the parser holds only its rules, which nothing changes after they are built
-# here. So one can be shared, by several threads too, and its rules are not rebuilt for every document.
+_DELIMITER: Final[re.Pattern[str]] = re.compile(r'---[ \t]*(?:\r?\n)?')
+"""A frontmatter delimiter line, as `str.splitlines` keeps it: `---`, trailing spaces and tabs, its line ending.
+
+This is the line wenmode's frontmatter plugin accepts for both the opening and the closing delimiter, so a line
+that is anything else, a leading space or a byte order mark included, is no delimiter.
+"""
+
+# The parser serves every call. A wenmode parser keeps nothing of a document between parses: each parse builds its
+# own state, and the parser holds only its rules, which nothing changes after they are built here. So it can be
+# shared, by several threads too, and its rules are not rebuilt for every document.
 _FULL_PARSER: Final[Wenmode] = Wenmode(
     plugins=[frontmatter.configure(load=_skip_frontmatter, data_key=_FRONTMATTER_KEY)],
     positions=True,
 )
 """The full Markdown parser: every CommonMark rule, a position on every node, the frontmatter block skipped."""
-
-_FRONTMATTER_PARSER: Final[Wenmode] = Wenmode(
-    rules=(),
-    plugins=[frontmatter.configure(load=decode_frontmatter, data_key=_FRONTMATTER_KEY)],
-)
-"""The frontmatter-only parser: no Markdown rule, the frontmatter block decoded with `decode_frontmatter`."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -155,31 +153,41 @@ def parse_markdown(text: str) -> MarkdownTree:
 def parse_markdown_frontmatter(text: str) -> FrontmatterNode:
     """Parse only the frontmatter block of one document's text. Pure: raises nothing.
 
-    The block is found by wenmode's frontmatter plugin: a `---` line as the document's first line, closed by the
-    next `---` line, each allowing trailing whitespace only. The plugin hands the lines between them to
-    `decode_frontmatter`, which never raises, so a broken block cannot fail the parse. A document with no such
-    block has `MissingFrontmatter`.
+    The block is a `---` line as the document's first line, closed by the next `---` line, each allowing trailing
+    whitespace only. The lines between them go to `decode_frontmatter`, which never raises, so a broken block cannot
+    fail the parse. A document with no such block, or one never closed, has `MissingFrontmatter`.
 
-    `parse_markdown` finds the same block with the same plugin. The plugin only ever claims the document's first
-    line, where it is tried before every Markdown rule, so what it finds does not depend on the rules. This parser
-    loads none of them: the rest of the text is read as plain paragraphs, which costs a small fraction of the full
-    parse.
+    `parse_markdown` finds the same block, with wenmode's frontmatter plugin. The plugin only ever claims the
+    document's first line, where it is tried before every Markdown rule, so what it finds does not depend on the
+    rules. The block is found here by a direct scan of the lines instead of a parse with no rules: that parser
+    still reads the whole body as paragraphs, which is wasted work when only the block is wanted.
 
     Args:
         text: The document's whole text, frontmatter block included.
     """
-    # The root is read here, beside the parser that built it, and nowhere else: the full parser stores what
-    # `_skip_frontmatter` returns under the same key, so a root of its read the same way would hand back `None`.
-    root = _FRONTMATTER_PARSER.parse(text)
-    if root.data is None or _FRONTMATTER_KEY not in root.data:
+    block = _find_frontmatter_block(text)
+    if block is None:
         return MissingFrontmatter()
-    decoded = root.data[_FRONTMATTER_KEY]
-    match decoded:
-        case Frontmatter() | MissingFrontmatter() | InvalidYamlFrontmatter() | NonMappingFrontmatter():
-            return decoded
-        case _:
-            # The plugin stores whatever its loader returned, and this parser's loader is `decode_frontmatter`.
-            raise AssertionError('unreachable: the plugin stores what decode_frontmatter returns')
+    return decode_frontmatter(block)
+
+
+def _find_frontmatter_block(text: str) -> str | None:
+    """The lines between the document's two `---` delimiters, line endings kept, or None when it has no block.
+
+    Lines are split as wenmode splits them, with `str.splitlines`, which also breaks at a form feed, a vertical
+    tab, U+0085 and the Unicode line and paragraph separators. So a block, and the document line each of its
+    lines is on, is the one the full parser finds.
+
+    Args:
+        text: The document's whole text.
+    """
+    lines = text.splitlines(keepends=True)
+    if not lines or _DELIMITER.fullmatch(lines[0]) is None:
+        return None
+    for index in range(1, len(lines)):
+        if _DELIMITER.fullmatch(lines[index]) is not None:
+            return ''.join(lines[1:index])
+    return None
 
 
 def _block(text: str, newlines: tuple[int, ...], node: Node) -> HeadingBlock | ContentBlock:
