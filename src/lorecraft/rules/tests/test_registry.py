@@ -6,19 +6,10 @@ import sys
 import pytest
 
 from lorecraft import rules
-from lorecraft.rules.engine.adjacent_any_runs import AdjacentAnyRuns
-from lorecraft.rules.engine.empty_structure_file import EmptyStructureFile
-from lorecraft.rules.engine.forbidden_outline_section import ForbiddenOutlineSection
-from lorecraft.rules.engine.foreign_frontmatter_dialect import ForeignFrontmatterDialect
-from lorecraft.rules.engine.frontmatter_schema_id import FrontmatterSchemaId
-from lorecraft.rules.engine.invalid_frontmatter_schema import InvalidFrontmatterSchema
-from lorecraft.rules.engine.invalid_title_pattern import InvalidTitlePattern
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.rules.engine.malformed_structure_file import MalformedStructureFile
-from lorecraft.rules.engine.repeated_forbidden_section import RepeatedForbiddenSection
-from lorecraft.rules.engine.repeated_outline_section import RepeatedOutlineSection
 from lorecraft.rules.engine.unreadable_path import UnreadablePath
-from lorecraft.rules.engine.untyped_frontmatter_schema import UntypedFrontmatterSchema
+from lorecraft.rules.engine.unusable_structure_file import UnusableStructureFile
 from lorecraft.rules.frontmatter.allowed_tools_too_long import AllowedToolsTooLong
 from lorecraft.rules.frontmatter.block_constraint import BlockConstraint
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
@@ -537,16 +528,7 @@ class TestPackageRegistry:
             InvalidUtf8,
             UnreadablePath,
             MalformedStructureFile,
-            EmptyStructureFile,
-            RepeatedOutlineSection,
-            RepeatedForbiddenSection,
-            ForbiddenOutlineSection,
-            AdjacentAnyRuns,
-            InvalidTitlePattern,
-            InvalidFrontmatterSchema,
-            FrontmatterSchemaId,
-            ForeignFrontmatterDialect,
-            UntypedFrontmatterSchema,
+            UnusableStructureFile,
             TooManyTokens,
             TooManyLines,
             TooManyWords,

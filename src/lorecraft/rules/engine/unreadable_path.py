@@ -43,8 +43,8 @@ class UnreadablePath(EngineCondition):
     Checks for paths the operating system refuses to let the check read, list or look up, such as a structure file,
     the `<name>.structure.json` files of `docs/__meta__/`, a corpus directory, a skills directory, a skill entry or a
     skill's `SKILL.md`, whose permissions deny it, or a link on the way to it that cannot be followed. A structure
-    file that is not a regular file, such as a directory or a missing file where one was found, is reported the same
-    way, with nothing refused to name.
+    file the check expected, with no regular file standing in its place, is reported the same way, with nothing
+    refused to name.
     It is reported once, at its path, and nothing under it is loaded. The message names the operation that was
     refused, the path it was refused at, which may be one on the way, and the reason the operating system gave.
 

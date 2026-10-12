@@ -15,7 +15,7 @@ from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import DocumentEnd, SectionName
 from lorecraft.project.syntax import Heading, LineNumber
 from lorecraft.rules.declaration import Severity
-from lorecraft.rules.engine.malformed_structure_file import MalformedStructureFile
+from lorecraft.rules.engine.malformed_structure_file import FormatViolated, MalformedStructureFile
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
 from lorecraft.rules.layout.outside_symlink import OutsideSymlink
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
@@ -588,7 +588,7 @@ def _reports_of_a_failed_meta_spec() -> tuple[RunReport, ...]:
     - `docs/feat/check.md` is checked, ungoverned for its budget, and holds no diagnostic.
     - The structure file's failure is reported once, at the file, as a report of its own.
     """
-    malformed = MalformedStructureFile(problems=('max_tokens: Extra inputs are not permitted',))
+    malformed = MalformedStructureFile(cause=FormatViolated(problems=('max_tokens: Extra inputs are not permitted',)))
     return (
         SkippedSubject(_document('code', 'b'), failed_layers=(_CODE_SPEC,)),
         LoadFailureReport(_CODE_SPEC, malformed),
