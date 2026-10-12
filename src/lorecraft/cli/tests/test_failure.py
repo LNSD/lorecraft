@@ -41,6 +41,7 @@ from lorecraft.project.workspace import (
     InvalidFrontmatterSchema,
     InvalidTitlePattern,
     LoadFailure,
+    NonUtf8StructureFile,
     RepeatedForbiddenSections,
     RepeatedOutlineSections,
     UndecodableStructureSpec,
@@ -66,7 +67,9 @@ from lorecraft.vfs import (
     FileReadError,
     FileResolveError,
     OsRefusal,
+    TextDecodeError,
     UnrecordedFileError,
+    Utf8Failure,
 )
 
 from ..failure import exit_on_load_failure, report_failure, report_load_failure
@@ -180,6 +183,23 @@ class TestReportLoadFailure:
 
         #: When / Then
         _assert_reports_as_the_error(capsys, failure, error)
+
+    def test_report_load_failure_with_non_utf8_structure_file_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        decode_error = UnicodeDecodeError('utf-8', b'\xe9', 0, 1, 'invalid continuation byte')
+        failure = LoadFailure(_PATH, NonUtf8StructureFile(Utf8Failure.from_error(decode_error)))
+        error = TextDecodeError(_PATH, source=decode_error)
+
+        #: When
+        report_failure(error)
+        expected = capsys.readouterr().err
+        report_load_failure(failure)
+        actual = capsys.readouterr().err
+
+        #: Then
+        assert actual == expected, 'the interim report is the one the raised error gave'
 
     def test_report_load_failure_with_undecodable_structure_spec_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]

@@ -11,7 +11,7 @@ so every handler below re-raises without logging.
 
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
-from lorecraft.vfs import EntryKind, FileReadError, FileSystem, UnrecordedFileError
+from lorecraft.vfs import EntryKind, FileReadError, FileSystem, TextDecodeError, UnrecordedFileError
 
 from .name import SpecName
 from .spec_file import SpecFileType, spec_filename
@@ -23,13 +23,13 @@ class StructureSchemaReadError(Error):
 
     Attributes:
         name: The specification name whose structure file was being read.
-        source: The failure to read the file.
+        source: The failure to read the file, or to decode its bytes as UTF-8.
     """
 
     name: SpecName
-    source: FileReadError | UnrecordedFileError
+    source: FileReadError | UnrecordedFileError | TextDecodeError
 
-    def __init__(self, name: SpecName, *, source: FileReadError | UnrecordedFileError) -> None:
+    def __init__(self, name: SpecName, *, source: FileReadError | UnrecordedFileError | TextDecodeError) -> None:
         self.name = name
         self.source = source
         super().__init__(f'cannot read the structure schema {name}')
@@ -72,10 +72,10 @@ class Repository:
             name: Specification name whose `<name>.structure.json` file is read from the specification directory.
 
         Raises:
-            StructureSchemaReadError: If the file cannot be read.
+            StructureSchemaReadError: If the file cannot be read, or its bytes are not UTF-8.
         """
         path = self._specs_dir / spec_filename(name, SpecFileType.STRUCTURE)
         try:
             return StructureSchema(self._fs.read_text(path))
-        except (FileReadError, UnrecordedFileError) as exc:
+        except (FileReadError, UnrecordedFileError, TextDecodeError) as exc:
             raise StructureSchemaReadError(name, source=exc) from exc

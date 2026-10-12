@@ -17,6 +17,11 @@ from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.rules.engine.malformed_structure_file import MalformedStructureFile
 from lorecraft.rules.engine.repeated_forbidden_section import RepeatedForbiddenSection
 from lorecraft.rules.engine.repeated_outline_section import RepeatedOutlineSection
+from lorecraft.rules.engine.unlistable_corpus_directory import UnlistableCorpusDirectory
+from lorecraft.rules.engine.unreadable_skill_entry import UnreadableSkillEntry
+from lorecraft.rules.engine.unreadable_skill_file import UnreadableSkillFile
+from lorecraft.rules.engine.unreadable_skills_directory import UnreadableSkillsDirectory
+from lorecraft.rules.engine.unreadable_structure_file import UnreadableStructureFile
 from lorecraft.rules.engine.untyped_frontmatter_schema import UntypedFrontmatterSchema
 from lorecraft.rules.frontmatter.allowed_tools_too_long import AllowedToolsTooLong
 from lorecraft.rules.frontmatter.block_constraint import BlockConstraint
@@ -534,6 +539,7 @@ class TestPackageRegistry:
             AllowedToolsTooLong,
             OutsideSymlink,
             InvalidUtf8,
+            UnreadableStructureFile,
             MalformedStructureFile,
             EmptyStructureFile,
             RepeatedOutlineSection,
@@ -545,6 +551,10 @@ class TestPackageRegistry:
             FrontmatterSchemaId,
             ForeignFrontmatterDialect,
             UntypedFrontmatterSchema,
+            UnlistableCorpusDirectory,
+            UnreadableSkillsDirectory,
+            UnreadableSkillEntry,
+            UnreadableSkillFile,
             TooManyTokens,
             TooManyLines,
             TooManyWords,

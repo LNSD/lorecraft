@@ -15,6 +15,10 @@ that is not a `trigger/` or `near_miss/` directory under a code.
 
 A code the check run does not report yet has no case on disk: `lorecraft check` still stops on any load failure, so no
 repository can make it report one. Those codes are listed in `UNREPORTED_CODES` until the run reports them.
+
+A code that stands for an operating system's refusal is the one exception that stays: a check run reads a snapshot, and
+a refusal while it is taken stops the run before any report, so no repository can make `lorecraft check` report it.
+Those codes are listed in `REFUSAL_CODES`.
 """
 
 import json
@@ -41,6 +45,12 @@ NEAR_MISS: Final[str] = 'near_miss'
 """The kind of case whose repository looks like the code could fire on it, and it does not."""
 
 KINDS: Final[tuple[str, ...]] = (TRIGGER, NEAR_MISS)
+
+REFUSAL_CODES: Final[frozenset[str]] = frozenset({'LC002', 'LC014', 'LC015', 'LC016', 'LC017'})
+"""The codes of a load failure that stands for the operating system's refusal of a read, a listing or a lookup.
+
+A check run takes its snapshot before it reports anything, and a refusal while it is taken stops the run with an error,
+so none of these is reported by a repository `lorecraft check` runs over."""
 
 UNREPORTED_CODES: Final[frozenset[str]] = frozenset({f'LC{number:03d}' for number in range(3, 14)})
 """The codes of the load failures of a structure file's shape, which `lorecraft check` does not report yet."""
@@ -242,7 +252,7 @@ class TestRuleCases:
 
     def test_rule_cases_with_the_registry_cover_every_code_with_a_trigger_and_a_near_miss(self) -> None:
         #: Given
-        codes = [code for code in reported_codes() if code not in UNREPORTED_CODES]
+        codes = [code for code in reported_codes() if code not in UNREPORTED_CODES | REFUSAL_CODES]
         covered = {(case.code, case.kind) for case in CASES}
 
         #: When
@@ -250,3 +260,13 @@ class TestRuleCases:
 
         #: Then
         assert missing == [], f'every code needs a trigger and a near_miss case; missing: {missing}'
+
+    def test_rule_cases_with_the_refusal_codes_name_only_codes_the_registry_has(self) -> None:
+        #: Given
+        known_codes = set(reported_codes())
+
+        #: When
+        unknown = sorted(REFUSAL_CODES - known_codes)
+
+        #: Then
+        assert unknown == [], f'a code exempted from a case on disk must be a code a rule or condition has: {unknown}'

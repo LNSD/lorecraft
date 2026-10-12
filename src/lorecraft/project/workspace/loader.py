@@ -81,6 +81,7 @@ from lorecraft.vfs import (
     FileResolveError,
     FileSystem,
     ResolvedPath,
+    TextDecodeError,
     UnrecordedFileError,
 )
 
@@ -94,6 +95,7 @@ from .failure import (
     InvalidFrontmatterSchema,
     InvalidTitlePattern,
     LoadFailure,
+    NonUtf8StructureFile,
     RepeatedForbiddenSections,
     RepeatedOutlineSections,
     StructureLoadFailure,
@@ -337,6 +339,8 @@ def _load_structure(
                             failure: StructureLoadFailure = UnreadableStructureFile(exc.name, exc.source.refusal)
                         case UnrecordedFileError():
                             failure = UnrecordedStructureFile(exc.name)
+                        case TextDecodeError():
+                            failure = NonUtf8StructureFile(exc.source.failure)
                         case _:
                             assert_never(exc.source)
                     structure = _record_failed_structure(failures, spec_file.path, failure)

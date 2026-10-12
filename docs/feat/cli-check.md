@@ -215,7 +215,7 @@ each rule's condition and fix, as [cli-rule](cli-rule.md) describes.
 | `LEN` | Length limits: a document's tokens, a section's or its title's words or characters, a `SKILL.md`'s lines. `LEN001` too-many-tokens, `LEN002` too-many-lines, `LEN003` too-many-words, `LEN004` title-too-many-words, `LEN005` title-too-long |
 | `LINK` | Links in Markdown files: a document governed for its structure, a `SKILL.md` and each resource, a skill's relative link read from the skill root. `LINK001` absolute-link, `LINK002` missing-fragment, `LINK003` broken-link, `LINK004` escaping-link |
 | `LAY` | Skill layout checks: `LAY001` outside-symlink, a symlink an agent reaches whose chain leaves the repository |
-| `LC` | Engine conditions, which no configuration or selection turns off: `LC001` invalid-utf8, a file that is not UTF-8, reported at its first invalid byte. The [rulebook](../rulebook/) also lists `LC003`–`LC013` for unusable structure files. `check` does not report those codes yet: an unusable structure file stops the run with exit `2`. |
+| `LC` | Engine conditions, which no configuration or selection turns off: `LC001` invalid-utf8, a file that is not UTF-8, reported at its first invalid byte. The [rulebook](../rulebook/) also lists `LC002`–`LC017` for failed structure files and refused directories or skills. `check` does not report these codes yet: an unusable structure file or snapshot refusal stops the run with exit `2`. |
 
 `FM008` ends with the field's example when the schema gives one. `FM009` labels malformed skill names with
 their pattern. `FM010` and `FM012` carry counts in messages only.
