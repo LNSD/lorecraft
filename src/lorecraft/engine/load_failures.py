@@ -1,7 +1,7 @@
 """What a run reports for the units of the declaration that failed to load: one report per failure, at its own path.
 
 The model records each failure as plain facts and decides no policy (adr-015). This is where a failure becomes
-what a run reports: the engine condition of its own code, in a `LoadFailureReport` filed at the failure's path, so a
+what a run reports: the engine condition of its kind, in a `LoadFailureReport` filed at the failure's path, so a
 failure is reported once, at its origin, whatever it touches and whatever the configuration and the selection.
 
 A condition and the record that stands for it are declared apart, in `lorecraft.rules.engine` and in
@@ -13,21 +13,7 @@ from typing import assert_never
 
 from lorecraft.project import workspace
 from lorecraft.rules.declaration import EngineCondition
-from lorecraft.rules.engine import (
-    adjacent_any_runs,
-    empty_structure_file,
-    forbidden_outline_section,
-    foreign_frontmatter_dialect,
-    frontmatter_schema_id,
-    invalid_frontmatter_schema,
-    invalid_title_pattern,
-    invalid_utf8,
-    malformed_structure_file,
-    repeated_forbidden_section,
-    repeated_outline_section,
-    unreadable_path,
-    untyped_frontmatter_schema,
-)
+from lorecraft.rules.engine import invalid_utf8, malformed_structure_file, unreadable_path, unusable_structure_file
 from lorecraft.rules.engine.__ruleset__ import RefusedOperation
 from lorecraft.rules.engine.unreadable_path import NotARegularFile, Refused
 from lorecraft.rules.report import LoadFailureReport
@@ -69,27 +55,43 @@ def _find_occurrence(failure: workspace.LoadFailure) -> EngineCondition | None:
             # The same condition as any file that does not decode, so it is reported as one, at the structure file.
             return invalid_utf8.InvalidUtf8(failure=utf8_failure)
         case workspace.UndecodableStructureSpec(problems=problems):
-            return malformed_structure_file.MalformedStructureFile(problems=problems)
+            return malformed_structure_file.MalformedStructureFile(
+                cause=malformed_structure_file.FormatViolated(problems=problems)
+            )
         case workspace.EmptyStructureSpec():
-            return empty_structure_file.EmptyStructureFile()
+            return malformed_structure_file.MalformedStructureFile(cause=malformed_structure_file.NoRuleStated())
         case workspace.RepeatedOutlineSections(sections=sections):
-            return repeated_outline_section.RepeatedOutlineSection(sections=sections)
+            return unusable_structure_file.UnusableStructureFile(
+                cause=unusable_structure_file.RepeatedOutlineSection(sections=sections)
+            )
         case workspace.RepeatedForbiddenSections(sections=sections):
-            return repeated_forbidden_section.RepeatedForbiddenSection(sections=sections)
+            return unusable_structure_file.UnusableStructureFile(
+                cause=unusable_structure_file.RepeatedForbiddenSection(sections=sections)
+            )
         case workspace.ForbiddenOutlineSections(sections=sections):
-            return forbidden_outline_section.ForbiddenOutlineSection(sections=sections)
+            return unusable_structure_file.UnusableStructureFile(
+                cause=unusable_structure_file.ForbiddenOutlineSection(sections=sections)
+            )
         case workspace.AdjacentAnyRuns():
-            return adjacent_any_runs.AdjacentAnyRuns()
+            return unusable_structure_file.UnusableStructureFile(cause=unusable_structure_file.AdjacentAnyRuns())
         case workspace.InvalidTitlePattern(pattern=pattern, problem=problem):
-            return invalid_title_pattern.InvalidTitlePattern(pattern=pattern, problem=problem)
+            return unusable_structure_file.UnusableStructureFile(
+                cause=unusable_structure_file.InvalidTitlePattern(pattern=pattern, problem=problem)
+            )
         case workspace.InvalidFrontmatterSchema(problem=problem):
-            return invalid_frontmatter_schema.InvalidFrontmatterSchema(problem=problem)
+            return unusable_structure_file.UnusableStructureFile(
+                cause=unusable_structure_file.InvalidFrontmatterSchema(problem=problem)
+            )
         case workspace.FrontmatterSchemaId():
-            return frontmatter_schema_id.FrontmatterSchemaId()
+            return unusable_structure_file.UnusableStructureFile(cause=unusable_structure_file.FrontmatterSchemaId())
         case workspace.ForeignFrontmatterDialect(dialect=dialect):
-            return foreign_frontmatter_dialect.ForeignFrontmatterDialect(dialect=dialect)
+            return unusable_structure_file.UnusableStructureFile(
+                cause=unusable_structure_file.ForeignFrontmatterDialect(dialect=dialect)
+            )
         case workspace.UntypedFrontmatterSchema():
-            return untyped_frontmatter_schema.UntypedFrontmatterSchema()
+            return unusable_structure_file.UnusableStructureFile(
+                cause=unusable_structure_file.UntypedFrontmatterSchema()
+            )
         case workspace.UnlistableDirectory():
             return None
         case workspace.UnlistableCorpusDirectory(refusal=refusal):

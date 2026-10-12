@@ -30,7 +30,7 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
   each resource handed over as a subject of its own.
 - One entry point per mode, each carrying that mode's policy for a document a failed layer governs: `skip.py` for the
   check run, which gives such a document no rule and reports it as skipped, `partial.py` for the LSP-style mode later.
-- The report of each load failure the model lists (`load_failures.py`): the engine condition of its own code, filed
+- The report of each load failure the model lists (`load_failures.py`): the engine condition of its kind, filed
   once at the failure's path, whatever the configuration and the selection. Which failure stops a run is the
   command's choice, never the engine's.
 

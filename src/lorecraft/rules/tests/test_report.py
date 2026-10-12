@@ -9,8 +9,8 @@ from lorecraft.project.document import DocumentRef
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import Severity
-from lorecraft.rules.engine.empty_structure_file import EmptyStructureFile
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
+from lorecraft.rules.engine.malformed_structure_file import MalformedStructureFile, NoRuleStated
 from lorecraft.rules.tests.sample_rules.rendered_message.long_line import LongLine
 from lorecraft.rules.tests.sample_rules.token_count.sample_condition import SampleCondition
 from lorecraft.rules.tests.sample_rules.valid.outline.empty_line import EmptyLine
@@ -258,19 +258,21 @@ class TestLoadFailureReport:
     def test_diagnostics_of_a_load_failure_report_are_its_condition_at_its_path(self) -> None:
         #: Given
         path = RootRelativePath.parse('docs/__meta__/code.structure.json')
-        report = LoadFailureReport(path, EmptyStructureFile())
+        report = LoadFailureReport(path, MalformedStructureFile(cause=NoRuleStated()))
 
         #: When
         diagnostics = report.diagnostics
 
         #: Then
-        assert diagnostics == (EngineDiagnostic(path, EmptyStructureFile()),), (
+        assert diagnostics == (EngineDiagnostic(path, MalformedStructureFile(cause=NoRuleStated())),), (
             'the failure is one engine diagnostic, filed at the unit that failed'
         )
 
     def test_severity_of_a_load_failure_diagnostic_is_error(self) -> None:
         #: Given
-        report = LoadFailureReport(RootRelativePath.parse('docs/__meta__/code.structure.json'), EmptyStructureFile())
+        report = LoadFailureReport(
+            RootRelativePath.parse('docs/__meta__/code.structure.json'), MalformedStructureFile(cause=NoRuleStated())
+        )
 
         #: When
         (diagnostic,) = report.diagnostics

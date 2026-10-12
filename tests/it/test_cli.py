@@ -1141,7 +1141,7 @@ class TestCheckCommand:
         #: Then
         assert result.exit_code == 1, result.output
         assert result.stdout == (
-            'error[LC010]: frontmatter schema is not a valid JSON Schema\n'
+            'error[LC004]: frontmatter schema is not a valid JSON Schema\n'
             ' --> docs/__meta__/code.structure.json\n'
             '  = note: 5 is not valid under any of the given schemas\n'
         ), 'the specification that cannot be used is a diagnostic at it, under its code'

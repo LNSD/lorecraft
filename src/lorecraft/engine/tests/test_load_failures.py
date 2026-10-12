@@ -37,21 +37,7 @@ from lorecraft.project.workspace import (
     WorkspaceModel,
 )
 from lorecraft.rules.declaration import EngineCondition
-from lorecraft.rules.engine import (
-    adjacent_any_runs,
-    empty_structure_file,
-    forbidden_outline_section,
-    foreign_frontmatter_dialect,
-    frontmatter_schema_id,
-    invalid_frontmatter_schema,
-    invalid_title_pattern,
-    invalid_utf8,
-    malformed_structure_file,
-    repeated_forbidden_section,
-    repeated_outline_section,
-    unreadable_path,
-    untyped_frontmatter_schema,
-)
+from lorecraft.rules.engine import invalid_utf8, malformed_structure_file, unreadable_path, unusable_structure_file
 from lorecraft.rules.engine.__ruleset__ import RefusedOperation
 from lorecraft.rules.engine.unreadable_path import NotARegularFile, Refused
 from lorecraft.rules.report import LoadFailureReport
@@ -106,7 +92,9 @@ class TestReportLoadFailures:
 
         #: Then
         assert reports == (
-            LoadFailureReport(_PATH, empty_structure_file.EmptyStructureFile()),
+            LoadFailureReport(
+                _PATH, malformed_structure_file.MalformedStructureFile(cause=malformed_structure_file.NoRuleStated())
+            ),
             LoadFailureReport(
                 _ENTRY,
                 unreadable_path.UnreadablePath(
@@ -172,7 +160,9 @@ class TestReportLoadFailures:
 
         #: Then
         assert occurrence == malformed_structure_file.MalformedStructureFile(
-            problems=('max_tokens: Extra inputs are not permitted', 'tokens: Field required')
+            cause=malformed_structure_file.FormatViolated(
+                problems=('max_tokens: Extra inputs are not permitted', 'tokens: Field required')
+            )
         ), 'the condition holds each problem the decoder found'
 
     def test_report_load_failures_with_an_empty_structure_spec_reports_a_file_stating_no_rule(self) -> None:
@@ -183,7 +173,9 @@ class TestReportLoadFailures:
         occurrence = _condition_of(condition)
 
         #: Then
-        assert occurrence == empty_structure_file.EmptyStructureFile(), 'the file would check nothing'
+        assert occurrence == malformed_structure_file.MalformedStructureFile(
+            cause=malformed_structure_file.NoRuleStated()
+        ), 'the file would check nothing'
 
     def test_report_load_failures_with_a_repeated_outline_section_reports_the_sections(self) -> None:
         #: Given
@@ -193,9 +185,9 @@ class TestReportLoadFailures:
         occurrence = _condition_of(condition)
 
         #: Then
-        assert occurrence == repeated_outline_section.RepeatedOutlineSection(sections=('Overview',)), (
-            'the condition names the repeated sections'
-        )
+        assert occurrence == unusable_structure_file.UnusableStructureFile(
+            cause=unusable_structure_file.RepeatedOutlineSection(sections=('Overview',))
+        ), 'the condition names the repeated sections'
 
     def test_report_load_failures_with_a_repeated_forbidden_section_reports_the_sections(self) -> None:
         #: Given
@@ -205,9 +197,9 @@ class TestReportLoadFailures:
         occurrence = _condition_of(condition)
 
         #: Then
-        assert occurrence == repeated_forbidden_section.RepeatedForbiddenSection(sections=('Draft',)), (
-            'the condition names the sections forbidden twice'
-        )
+        assert occurrence == unusable_structure_file.UnusableStructureFile(
+            cause=unusable_structure_file.RepeatedForbiddenSection(sections=('Draft',))
+        ), 'the condition names the sections forbidden twice'
 
     def test_report_load_failures_with_a_forbidden_outline_section_reports_the_sections(self) -> None:
         #: Given
@@ -217,9 +209,9 @@ class TestReportLoadFailures:
         occurrence = _condition_of(condition)
 
         #: Then
-        assert occurrence == forbidden_outline_section.ForbiddenOutlineSection(sections=('Overview',)), (
-            'the condition names the sections the outline and the forbidden list both hold'
-        )
+        assert occurrence == unusable_structure_file.UnusableStructureFile(
+            cause=unusable_structure_file.ForbiddenOutlineSection(sections=('Overview',))
+        ), 'the condition names the sections the outline and the forbidden list both hold'
 
     def test_report_load_failures_with_adjacent_any_runs_reports_them(self) -> None:
         #: Given
@@ -229,7 +221,9 @@ class TestReportLoadFailures:
         occurrence = _condition_of(condition)
 
         #: Then
-        assert occurrence == adjacent_any_runs.AdjacentAnyRuns(), 'the outline places two runs side by side'
+        assert occurrence == unusable_structure_file.UnusableStructureFile(
+            cause=unusable_structure_file.AdjacentAnyRuns()
+        ), 'the outline places two runs side by side'
 
     def test_report_load_failures_with_an_invalid_title_pattern_reports_the_pattern_and_the_problem(self) -> None:
         #: Given
@@ -239,8 +233,10 @@ class TestReportLoadFailures:
         occurrence = _condition_of(condition)
 
         #: Then
-        assert occurrence == invalid_title_pattern.InvalidTitlePattern(
-            pattern='[A-Z', problem='unterminated character set at position 0'
+        assert occurrence == unusable_structure_file.UnusableStructureFile(
+            cause=unusable_structure_file.InvalidTitlePattern(
+                pattern='[A-Z', problem='unterminated character set at position 0'
+            )
         ), 'the condition holds the pattern as written and what the compiler rejected'
 
     def test_report_load_failures_with_an_invalid_frontmatter_schema_reports_the_problem(self) -> None:
@@ -251,8 +247,8 @@ class TestReportLoadFailures:
         occurrence = _condition_of(condition)
 
         #: Then
-        assert occurrence == invalid_frontmatter_schema.InvalidFrontmatterSchema(
-            problem="'name' is not of type 'array'"
+        assert occurrence == unusable_structure_file.UnusableStructureFile(
+            cause=unusable_structure_file.InvalidFrontmatterSchema(problem="'name' is not of type 'array'")
         ), 'the condition holds what the meta-schema rejected'
 
     def test_report_load_failures_with_a_frontmatter_schema_id_reports_it(self) -> None:
@@ -263,7 +259,9 @@ class TestReportLoadFailures:
         occurrence = _condition_of(condition)
 
         #: Then
-        assert occurrence == frontmatter_schema_id.FrontmatterSchemaId(), 'a schema carries `$id`'
+        assert occurrence == unusable_structure_file.UnusableStructureFile(
+            cause=unusable_structure_file.FrontmatterSchemaId()
+        ), 'a schema carries `$id`'
 
     def test_report_load_failures_with_a_foreign_frontmatter_dialect_reports_the_dialect(self) -> None:
         #: Given
@@ -273,8 +271,8 @@ class TestReportLoadFailures:
         occurrence = _condition_of(condition)
 
         #: Then
-        assert occurrence == foreign_frontmatter_dialect.ForeignFrontmatterDialect(
-            dialect="'http://json-schema.org/draft-07/schema#'"
+        assert occurrence == unusable_structure_file.UnusableStructureFile(
+            cause=unusable_structure_file.ForeignFrontmatterDialect(dialect="'http://json-schema.org/draft-07/schema#'")
         ), 'the condition holds what `$schema` named'
 
     def test_report_load_failures_with_an_untyped_frontmatter_schema_reports_it(self) -> None:
@@ -285,7 +283,9 @@ class TestReportLoadFailures:
         occurrence = _condition_of(condition)
 
         #: Then
-        assert occurrence == untyped_frontmatter_schema.UntypedFrontmatterSchema(), 'the root states no type'
+        assert occurrence == unusable_structure_file.UnusableStructureFile(
+            cause=unusable_structure_file.UntypedFrontmatterSchema()
+        ), 'the root states no type'
 
     def test_report_load_failures_with_an_unlistable_corpus_directory_reports_the_corpus_and_the_refusal(self) -> None:
         #: Given

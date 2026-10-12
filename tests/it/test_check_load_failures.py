@@ -147,7 +147,7 @@ class TestCheckWithAFailedMetaSpec:
         exit_code, document = _check_json(root)
 
         #: Then
-        assert _codes_at(document, STRUCTURE_FILE_OF_CODE) == ['LC007'], (
+        assert _codes_at(document, STRUCTURE_FILE_OF_CODE) == ['LC004'], (
             'an error diagnostic is reported on the invalid structure file, under its code'
         )
         assert _severities_at(document, STRUCTURE_FILE_OF_CODE) == ['error'], 'it is reported as an error'
@@ -197,7 +197,7 @@ class TestCheckWithAFailedMetaSpec:
             "the corpus's other documents are checked against the corpus meta spec"
         )
         assert _severities_at(document, 'docs/code/logging.md') == ['error'], 'a missing section is an error'
-        assert _codes_at(document, STRUCTURE_FILE_OF_PYTHON) == ['LC004'], (
+        assert _codes_at(document, STRUCTURE_FILE_OF_PYTHON) == ['LC003'], (
             'the failure is reported at its structure file'
         )
         assert _severities_at(document, STRUCTURE_FILE_OF_PYTHON) == ['error'], 'it is reported as an error'
@@ -247,7 +247,7 @@ class TestCheckWithAFailedMetaSpec:
         assert [item['path'] for item in engine] == [STRUCTURE_FILE_OF_CODE], (
             'one diagnostic at the structure file, though it governs two documents'
         )
-        assert [item['code'] for item in engine] == ['LC004'], 'it is the failure the file has'
+        assert [item['code'] for item in engine] == ['LC003'], 'it is the failure the file has'
 
     def test_check_with_a_failed_meta_spec_prints_each_skipped_document_in_the_coverage(self, tmp_path: Path) -> None:
         #: Given
@@ -258,7 +258,7 @@ class TestCheckWithAFailedMetaSpec:
 
         #: Then
         lines = result.stdout.splitlines()
-        assert f'{STRUCTURE_FILE_OF_PYTHON}: error[LC004]: structure file states no rule' in lines, (
+        assert f'{STRUCTURE_FILE_OF_PYTHON}: error[LC003]: structure file states no rule' in lines, (
             'the failure is one line at its structure file'
         )
         assert any(line.startswith('docs/feat/check.md:') and 'error[OUT006]' in line for line in lines), (
@@ -339,7 +339,7 @@ class TestCheckLeavesWhatAFailureDoesNotTouchAsItWas:
         exit_code, document = _check_json(root)
 
         #: Then
-        assert _codes_at(document, STRUCTURE_FILE_OF_PYTHON) == ['LC004'], 'the empty namespace spec is reported'
+        assert _codes_at(document, STRUCTURE_FILE_OF_PYTHON) == ['LC003'], 'the empty namespace spec is reported'
         assert _severities_at(document, STRUCTURE_FILE_OF_PYTHON) == ['error'], 'it is reported as an error'
         assert _codes_at(document, STRUCTURE_FILE_OF_FEAT) == ['LC001'], 'the corpus spec that is not UTF-8 is reported'
         assert _severities_at(document, STRUCTURE_FILE_OF_FEAT) == ['error'], 'it is reported as an error'
@@ -362,7 +362,7 @@ class TestCheckLeavesWhatAFailureDoesNotTouchAsItWas:
         exit_code, document = _check_json(root, '--select', 'OUT')
 
         #: Then
-        assert _codes_at(document, STRUCTURE_FILE_OF_PYTHON) == ['LC004'], (
+        assert _codes_at(document, STRUCTURE_FILE_OF_PYTHON) == ['LC003'], (
             'no selection turns a load failure off, as none turns off a file that cannot be decoded'
         )
         assert _severities_at(document, STRUCTURE_FILE_OF_PYTHON) == ['error'], 'it is reported as an error'
@@ -376,7 +376,7 @@ class TestCheckLeavesWhatAFailureDoesNotTouchAsItWas:
         exit_code, document = _check_json(root, '--select', 'FM')
 
         #: Then
-        assert _codes_at(document, STRUCTURE_FILE_OF_PYTHON) == ['LC004'], (
+        assert _codes_at(document, STRUCTURE_FILE_OF_PYTHON) == ['LC003'], (
             'no selection turns a load failure off, as none turns off a file that cannot be decoded'
         )
         assert _severities_at(document, STRUCTURE_FILE_OF_PYTHON) == ['error'], 'it is reported as an error'
@@ -390,7 +390,7 @@ class TestCheckLeavesWhatAFailureDoesNotTouchAsItWas:
         exit_code, document = _check_json(root, '--select', 'LEN001')
 
         #: Then
-        assert _codes_at(document, STRUCTURE_FILE_OF_PYTHON) == ['LC004'], (
+        assert _codes_at(document, STRUCTURE_FILE_OF_PYTHON) == ['LC003'], (
             'no selection turns a load failure off, as none turns off a file that cannot be decoded'
         )
         assert _severities_at(document, STRUCTURE_FILE_OF_PYTHON) == ['error'], 'it is reported as an error'
