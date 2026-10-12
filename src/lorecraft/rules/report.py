@@ -18,6 +18,12 @@ not, so no rule judged it: it holds its ref and where the bytes stopped being UT
 engine's, is built from them, at the subject's path. A layout entry, one symlink of the skill layout whose chain
 leaves the repository, has no text to decode and no specification to be ungoverned by, so it gets a report of its
 own, a `CheckedLayoutEntry`: its path and its diagnostics, in their output order.
+
+Two reports come from what failed to load, never from a rule. A `SkippedSubject` is a document decoded and not judged,
+because a structure file that governs it failed to load: it holds no diagnostic and is listed in coverage with the
+structure files that caused it. A `LoadFailureReport` is the failure itself, filed at its own path with the one
+diagnostic of its engine condition, whatever the configuration and the selection, in the same total order as every
+other diagnostic.
 """
 
 from dataclasses import dataclass
@@ -199,6 +205,54 @@ class CheckedLayoutEntry:
         object.__setattr__(self, 'diagnostics', tuple(sorted(self.diagnostics, key=diagnostic_order)))
 
 
-# What the runner reports for one subject: what the rules found in it, that it did not decode, or what they found at
-# a layout entry.
-type SubjectReport = CheckedSubject | UndecodableSubject | CheckedLayoutEntry
+@dataclass(frozen=True, slots=True)
+class SkippedSubject:
+    """A document no rule judged, because a structure file that governs it failed to load.
+
+    The layers of a meta spec apply by conjunction, so a document cannot be called clean from the layers that loaded.
+    It is coverage, never a diagnostic: it holds none, and the failure that caused it is reported once, at its own
+    path, as a `LoadFailureReport`.
+
+    Attributes:
+        ref: The document that was decoded and not judged.
+        failed_layers: The path of each structure file that governs the document and failed to load, in layer order,
+            corpus spec first; never empty.
+    """
+
+    ref: DocumentRef
+    failed_layers: tuple[RootRelativePath, ...]
+
+    @property
+    def diagnostics(self) -> tuple[()]:
+        """None: the document was not judged, and the failure is reported at the structure file."""
+        return ()
+
+
+@dataclass(frozen=True, slots=True)
+class LoadFailureReport:
+    """One unit of the declaration that failed to load, reported once at its own path.
+
+    It is a report of its own, beside the subjects', filed at the structure file, the directory or the skill entry
+    that failed, and not once per subject the failure touches.
+
+    Attributes:
+        path: Where the declaration reaches the unit that failed: the path its diagnostic is reported at.
+        occurrence: The engine condition the failure is, which renders the code, the message and everything around it.
+    """
+
+    path: RootRelativePath
+    occurrence: EngineCondition
+
+    @property
+    def diagnostics(self) -> tuple[EngineDiagnostic]:
+        """The failure's one diagnostic: the condition at its path."""
+        return (EngineDiagnostic(self.path, self.occurrence),)
+
+
+# What the runner reports for one subject: what the rules found in it, that it did not decode, what they found at a
+# layout entry, or that a failed layer of a meta spec kept them from judging a document.
+type SubjectReport = CheckedSubject | UndecodableSubject | CheckedLayoutEntry | SkippedSubject
+
+# What a run hands its output: a report per subject, and one per unit of the declaration that failed to load, which is
+# no subject and is filed at its own path.
+type RunReport = SubjectReport | LoadFailureReport

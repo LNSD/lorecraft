@@ -20,7 +20,7 @@ from lorecraft.rules.location import (
     Subdiagnostic,
     WholeSubject,
 )
-from lorecraft.rules.report import Diagnostic, SubjectReport, diagnostic_order
+from lorecraft.rules.report import Diagnostic, RunReport, diagnostic_order
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,7 +41,7 @@ class Mark:
     primary: bool
 
 
-def ordered_diagnostics(reports: tuple[SubjectReport, ...]) -> list[Diagnostic]:
+def ordered_diagnostics(reports: tuple[RunReport, ...]) -> list[Diagnostic]:
     """Every diagnostic of every report, sorted into output order across the reports.
 
     Each report already holds its own in that order, but the reports may arrive in any order, so the whole run is

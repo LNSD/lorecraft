@@ -6,13 +6,13 @@ The lines come from the same database as the rules' own, so an excerpt shows the
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.database import Database
-from lorecraft.rules.report import SubjectReport
+from lorecraft.rules.report import RunReport
 
 from .diagnostic_parts import diagnostic_marks, ordered_diagnostics
 from .diagnostic_text import SourceLines
 
 
-def read_sources(database: Database, reports: tuple[SubjectReport, ...]) -> SourceLines:
+def read_sources(database: Database, reports: tuple[RunReport, ...]) -> SourceLines:
     """The lines of every file a diagnostic of the run points at a line of.
 
     A file the database cannot give as text, such as one that is not UTF-8, is left out, and its diagnostics print

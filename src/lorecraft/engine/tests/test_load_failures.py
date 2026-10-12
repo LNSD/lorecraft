@@ -1,0 +1,421 @@
+"""The run's report of each load failure the model lists: one engine condition, at the failure's own path."""
+
+from typing import Final
+
+import pytest
+
+from lorecraft.core.path import RootRelativePath
+from lorecraft.project.corpus import CorpusName
+from lorecraft.project.schemas.name import CorpusSpecName
+from lorecraft.project.workspace import (
+    AdjacentAnyRuns,
+    EmptyStructureSpec,
+    ForbiddenOutlineSections,
+    ForeignFrontmatterDialect,
+    FrontmatterSchemaId,
+    InvalidFrontmatterSchema,
+    InvalidTitlePattern,
+    LoadFailure,
+    LoadFailureCondition,
+    NonUtf8StructureFile,
+    RepeatedForbiddenSections,
+    RepeatedOutlineSections,
+    UndecodableStructureSpec,
+    UninspectableSkillEntry,
+    UninspectableSkillFile,
+    UninspectableSkillsDirectory,
+    UnlistableCorpusDirectory,
+    UnlistableDirectory,
+    UnlistableSkillDirectory,
+    UnlistableSkillsDirectory,
+    UnreadableStructureFile,
+    UnrecordedStructureFile,
+    UnresolvableSkillEntry,
+    UnresolvableSkillFile,
+    UnresolvableSkillsDirectory,
+    UntypedFrontmatterSchema,
+    WorkspaceModel,
+)
+from lorecraft.rules.declaration import EngineCondition
+from lorecraft.rules.engine import (
+    adjacent_any_runs,
+    empty_structure_file,
+    forbidden_outline_section,
+    foreign_frontmatter_dialect,
+    frontmatter_schema_id,
+    invalid_frontmatter_schema,
+    invalid_title_pattern,
+    invalid_utf8,
+    malformed_structure_file,
+    repeated_forbidden_section,
+    repeated_outline_section,
+    unlistable_corpus_directory,
+    unreadable_skill_entry,
+    unreadable_skill_file,
+    unreadable_skills_directory,
+    unreadable_structure_file,
+    untyped_frontmatter_schema,
+)
+from lorecraft.rules.engine.__ruleset__ import RefusedOperation
+from lorecraft.rules.report import LoadFailureReport
+from lorecraft.vfs import OsRefusal, Utf8Failure, Utf8Reason
+
+from ..load_failures import report_load_failures
+
+_PATH: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
+_ENTRY: Final[RootRelativePath] = RootRelativePath.parse('.claude/skills/review')
+_ON_THE_WAY: Final[RootRelativePath] = RootRelativePath.parse('shared/skills')
+_REFUSAL: Final[OsRefusal] = OsRefusal.PERMISSION_DENIED
+_UTF8: Final[Utf8Failure] = Utf8Failure(line=3, offset=47, invalid=b'\xe9', reason=Utf8Reason.INVALID_CONTINUATION_BYTE)
+
+
+def _model(*failures: LoadFailure) -> WorkspaceModel:
+    """A model that holds nothing but the failures it listed."""
+    return WorkspaceModel(
+        corpora=(), skills_dirs=(), skill_locations=(), outside_symlinks=(), load_failures=tuple(failures)
+    )
+
+
+def _condition_of(condition: LoadFailureCondition, path: RootRelativePath = _PATH) -> EngineCondition:
+    """The one engine condition a model that listed one failure is reported as.
+
+    Args:
+        condition: What failed.
+        path: Where it failed.
+    """
+    (report,) = report_load_failures(_model(LoadFailure(path, condition)))
+    return report.occurrence
+
+
+@pytest.mark.unit
+class TestReportLoadFailures:
+    def test_report_load_failures_with_no_failure_reports_none(self) -> None:
+        #: Given
+        model = _model()
+
+        #: When
+        reports = report_load_failures(model)
+
+        #: Then
+        assert reports == (), 'a model that listed nothing has nothing to report'
+
+    def test_report_load_failures_with_two_failures_files_each_at_its_own_path(self) -> None:
+        #: Given
+        first = LoadFailure(_PATH, EmptyStructureSpec())
+        second = LoadFailure(_ENTRY, UnresolvableSkillEntry(_REFUSAL))
+
+        #: When
+        reports = report_load_failures(_model(first, second))
+
+        #: Then
+        assert reports == (
+            LoadFailureReport(_PATH, empty_structure_file.EmptyStructureFile()),
+            LoadFailureReport(
+                _ENTRY,
+                unreadable_skill_entry.UnreadableSkillEntry(
+                    operation=RefusedOperation.RESOLVE, failed_at=_ENTRY, refusal=_REFUSAL
+                ),
+            ),
+        ), 'one report per failure, in the order the model lists them, each at its own path'
+
+    def test_report_load_failures_with_an_unlistable_docs_directory_reports_none_for_it(self) -> None:
+        #: Given
+        failure = LoadFailure(RootRelativePath.parse('docs'), UnlistableDirectory(_REFUSAL))
+
+        #: When
+        reports = report_load_failures(_model(failure))
+
+        #: Then
+        assert reports == (), 'the command stops the run for it before any report, so no diagnostic stands for it'
+
+    def test_report_load_failures_with_an_unreadable_structure_file_reports_the_refusal(self) -> None:
+        #: Given
+        condition = UnreadableStructureFile(CorpusSpecName(CorpusName.parse('code')), _REFUSAL)
+
+        #: When
+        occurrence = _condition_of(condition)
+
+        #: Then
+        assert occurrence == unreadable_structure_file.UnreadableStructureFile(refusal=_REFUSAL), (
+            'the condition holds why the read was refused'
+        )
+
+    def test_report_load_failures_with_an_unrecorded_structure_file_reports_it_unreadable_without_a_refusal(
+        self,
+    ) -> None:
+        #: Given
+        condition = UnrecordedStructureFile(CorpusSpecName(CorpusName.parse('code')))
+
+        #: When
+        occurrence = _condition_of(condition)
+
+        #: Then
+        assert occurrence == unreadable_structure_file.UnreadableStructureFile(refusal=None), (
+            'no regular file is there to read, so there is no refusal to name'
+        )
+
+    def test_report_load_failures_with_a_structure_file_that_is_not_utf8_reports_invalid_utf8(self) -> None:
+        #: Given
+        condition = NonUtf8StructureFile(_UTF8)
+
+        #: When
+        occurrence = _condition_of(condition)
+
+        #: Then
+        assert occurrence == invalid_utf8.InvalidUtf8(failure=_UTF8), (
+            'a structure file that does not decode is a file that does not decode, reported as any other is'
+        )
+
+    def test_report_load_failures_with_an_undecodable_structure_spec_reports_every_problem(self) -> None:
+        #: Given
+        condition = UndecodableStructureSpec(('max_tokens: Extra inputs are not permitted', 'tokens: Field required'))
+
+        #: When
+        occurrence = _condition_of(condition)
+
+        #: Then
+        assert occurrence == malformed_structure_file.MalformedStructureFile(
+            problems=('max_tokens: Extra inputs are not permitted', 'tokens: Field required')
+        ), 'the condition holds each problem the decoder found'
+
+    def test_report_load_failures_with_an_empty_structure_spec_reports_a_file_stating_no_rule(self) -> None:
+        #: Given
+        condition = EmptyStructureSpec()
+
+        #: When
+        occurrence = _condition_of(condition)
+
+        #: Then
+        assert occurrence == empty_structure_file.EmptyStructureFile(), 'the file would check nothing'
+
+    def test_report_load_failures_with_a_repeated_outline_section_reports_the_sections(self) -> None:
+        #: Given
+        condition = RepeatedOutlineSections(('Overview',))
+
+        #: When
+        occurrence = _condition_of(condition)
+
+        #: Then
+        assert occurrence == repeated_outline_section.RepeatedOutlineSection(sections=('Overview',)), (
+            'the condition names the repeated sections'
+        )
+
+    def test_report_load_failures_with_a_repeated_forbidden_section_reports_the_sections(self) -> None:
+        #: Given
+        condition = RepeatedForbiddenSections(('Draft',))
+
+        #: When
+        occurrence = _condition_of(condition)
+
+        #: Then
+        assert occurrence == repeated_forbidden_section.RepeatedForbiddenSection(sections=('Draft',)), (
+            'the condition names the sections forbidden twice'
+        )
+
+    def test_report_load_failures_with_a_forbidden_outline_section_reports_the_sections(self) -> None:
+        #: Given
+        condition = ForbiddenOutlineSections(('Overview',))
+
+        #: When
+        occurrence = _condition_of(condition)
+
+        #: Then
+        assert occurrence == forbidden_outline_section.ForbiddenOutlineSection(sections=('Overview',)), (
+            'the condition names the sections the outline and the forbidden list both hold'
+        )
+
+    def test_report_load_failures_with_adjacent_any_runs_reports_them(self) -> None:
+        #: Given
+        condition = AdjacentAnyRuns()
+
+        #: When
+        occurrence = _condition_of(condition)
+
+        #: Then
+        assert occurrence == adjacent_any_runs.AdjacentAnyRuns(), 'the outline places two runs side by side'
+
+    def test_report_load_failures_with_an_invalid_title_pattern_reports_the_pattern_and_the_problem(self) -> None:
+        #: Given
+        condition = InvalidTitlePattern('[A-Z', 'unterminated character set at position 0')
+
+        #: When
+        occurrence = _condition_of(condition)
+
+        #: Then
+        assert occurrence == invalid_title_pattern.InvalidTitlePattern(
+            pattern='[A-Z', problem='unterminated character set at position 0'
+        ), 'the condition holds the pattern as written and what the compiler rejected'
+
+    def test_report_load_failures_with_an_invalid_frontmatter_schema_reports_the_problem(self) -> None:
+        #: Given
+        condition = InvalidFrontmatterSchema("'name' is not of type 'array'")
+
+        #: When
+        occurrence = _condition_of(condition)
+
+        #: Then
+        assert occurrence == invalid_frontmatter_schema.InvalidFrontmatterSchema(
+            problem="'name' is not of type 'array'"
+        ), 'the condition holds what the meta-schema rejected'
+
+    def test_report_load_failures_with_a_frontmatter_schema_id_reports_it(self) -> None:
+        #: Given
+        condition = FrontmatterSchemaId()
+
+        #: When
+        occurrence = _condition_of(condition)
+
+        #: Then
+        assert occurrence == frontmatter_schema_id.FrontmatterSchemaId(), 'a schema carries `$id`'
+
+    def test_report_load_failures_with_a_foreign_frontmatter_dialect_reports_the_dialect(self) -> None:
+        #: Given
+        condition = ForeignFrontmatterDialect("'http://json-schema.org/draft-07/schema#'")
+
+        #: When
+        occurrence = _condition_of(condition)
+
+        #: Then
+        assert occurrence == foreign_frontmatter_dialect.ForeignFrontmatterDialect(
+            dialect="'http://json-schema.org/draft-07/schema#'"
+        ), 'the condition holds what `$schema` named'
+
+    def test_report_load_failures_with_an_untyped_frontmatter_schema_reports_it(self) -> None:
+        #: Given
+        condition = UntypedFrontmatterSchema()
+
+        #: When
+        occurrence = _condition_of(condition)
+
+        #: Then
+        assert occurrence == untyped_frontmatter_schema.UntypedFrontmatterSchema(), 'the root states no type'
+
+    def test_report_load_failures_with_an_unlistable_corpus_directory_reports_the_corpus_and_the_refusal(self) -> None:
+        #: Given
+        condition = UnlistableCorpusDirectory(CorpusName.parse('code'), _REFUSAL)
+
+        #: When
+        occurrence = _condition_of(condition, RootRelativePath.parse('docs/code'))
+
+        #: Then
+        assert occurrence == unlistable_corpus_directory.UnlistableCorpusDirectory(
+            corpus=CorpusName.parse('code'), refusal=_REFUSAL
+        ), 'the condition holds the corpus whose documents could not be listed'
+
+    def test_report_load_failures_with_a_skills_directory_that_cannot_be_resolved_reports_what_was_refused_where(
+        self,
+    ) -> None:
+        #: Given
+        condition = UnresolvableSkillsDirectory(_REFUSAL)
+        path = _ENTRY
+
+        #: When
+        occurrence = _condition_of(condition, path)
+
+        #: Then
+        assert occurrence == unreadable_skills_directory.UnreadableSkillsDirectory(
+            operation=RefusedOperation.RESOLVE, failed_at=_ENTRY, refusal=_REFUSAL
+        ), 'the condition holds the operation, the path it was refused at and why'
+
+    def test_report_load_failures_with_a_skills_directory_that_cannot_be_inspected_reports_what_was_refused_where(
+        self,
+    ) -> None:
+        #: Given
+        condition = UninspectableSkillsDirectory(_ON_THE_WAY, _REFUSAL)
+        path = _ENTRY
+
+        #: When
+        occurrence = _condition_of(condition, path)
+
+        #: Then
+        assert occurrence == unreadable_skills_directory.UnreadableSkillsDirectory(
+            operation=RefusedOperation.INSPECT, failed_at=_ON_THE_WAY, refusal=_REFUSAL
+        ), 'the condition holds the operation, the path it was refused at and why'
+
+    def test_report_load_failures_with_a_skills_directory_that_cannot_be_listed_reports_what_was_refused_where(
+        self,
+    ) -> None:
+        #: Given
+        condition = UnlistableSkillsDirectory(_ON_THE_WAY, _REFUSAL)
+        path = _ENTRY
+
+        #: When
+        occurrence = _condition_of(condition, path)
+
+        #: Then
+        assert occurrence == unreadable_skills_directory.UnreadableSkillsDirectory(
+            operation=RefusedOperation.LIST, failed_at=_ON_THE_WAY, refusal=_REFUSAL
+        ), 'the condition holds the operation, the path it was refused at and why'
+
+    def test_report_load_failures_with_a_skill_entry_that_cannot_be_resolved_reports_what_was_refused_where(
+        self,
+    ) -> None:
+        #: Given
+        condition = UnresolvableSkillEntry(_REFUSAL)
+        path = _ENTRY
+
+        #: When
+        occurrence = _condition_of(condition, path)
+
+        #: Then
+        assert occurrence == unreadable_skill_entry.UnreadableSkillEntry(
+            operation=RefusedOperation.RESOLVE, failed_at=_ENTRY, refusal=_REFUSAL
+        ), 'the condition holds the operation, the path it was refused at and why'
+
+    def test_report_load_failures_with_a_skill_entry_that_cannot_be_inspected_reports_what_was_refused_where(
+        self,
+    ) -> None:
+        #: Given
+        condition = UninspectableSkillEntry(_ON_THE_WAY, _REFUSAL)
+        path = _ENTRY
+
+        #: When
+        occurrence = _condition_of(condition, path)
+
+        #: Then
+        assert occurrence == unreadable_skill_entry.UnreadableSkillEntry(
+            operation=RefusedOperation.INSPECT, failed_at=_ON_THE_WAY, refusal=_REFUSAL
+        ), 'the condition holds the operation, the path it was refused at and why'
+
+    def test_report_load_failures_with_a_skill_entry_that_cannot_be_listed_reports_what_was_refused_where(self) -> None:
+        #: Given
+        condition = UnlistableSkillDirectory(_ON_THE_WAY, _REFUSAL)
+        path = _ENTRY
+
+        #: When
+        occurrence = _condition_of(condition, path)
+
+        #: Then
+        assert occurrence == unreadable_skill_entry.UnreadableSkillEntry(
+            operation=RefusedOperation.LIST, failed_at=_ON_THE_WAY, refusal=_REFUSAL
+        ), 'the condition holds the operation, the path it was refused at and why'
+
+    def test_report_load_failures_with_a_skill_file_that_cannot_be_resolved_reports_what_was_refused_where(
+        self,
+    ) -> None:
+        #: Given
+        condition = UnresolvableSkillFile(_ON_THE_WAY, _REFUSAL)
+        path = _ENTRY / 'SKILL.md'
+
+        #: When
+        occurrence = _condition_of(condition, path)
+
+        #: Then
+        assert occurrence == unreadable_skill_file.UnreadableSkillFile(
+            operation=RefusedOperation.RESOLVE, failed_at=_ON_THE_WAY, refusal=_REFUSAL
+        ), 'the condition holds the operation, the path it was refused at and why'
+
+    def test_report_load_failures_with_a_skill_file_that_cannot_be_inspected_reports_what_was_refused_where(
+        self,
+    ) -> None:
+        #: Given
+        condition = UninspectableSkillFile(_ENTRY / 'SKILL.md', _ON_THE_WAY, _REFUSAL)
+        path = _ENTRY / 'SKILL.md'
+
+        #: When
+        occurrence = _condition_of(condition, path)
+
+        #: Then
+        assert occurrence == unreadable_skill_file.UnreadableSkillFile(
+            operation=RefusedOperation.INSPECT, failed_at=_ON_THE_WAY, refusal=_REFUSAL
+        ), 'the condition holds the operation, the path it was refused at and why'

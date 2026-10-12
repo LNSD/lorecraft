@@ -9,6 +9,7 @@ from lorecraft.project.document import DocumentRef
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import Severity
+from lorecraft.rules.engine.empty_structure_file import EmptyStructureFile
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.rules.tests.sample_rules.rendered_message.long_line import LongLine
 from lorecraft.rules.tests.sample_rules.token_count.sample_condition import SampleCondition
@@ -21,7 +22,9 @@ from ..report import (
     CheckedLayoutEntry,
     CheckedSubject,
     EngineDiagnostic,
+    LoadFailureReport,
     RuleDiagnostic,
+    SkippedSubject,
     UndecodableSubject,
     diagnostic_order,
 )
@@ -233,3 +236,44 @@ class TestUndecodableSubject:
                 RootRelativePath.parse('.agents/skills/review/SKILL.md'), InvalidUtf8(failure=_failure(4))
             ),
         ), "a skill's one diagnostic is the engine's, at its SKILL.md, the file that did not decode"
+
+
+@pytest.mark.unit
+class TestSkippedSubject:
+    def test_diagnostics_of_a_skipped_subject_are_none(self) -> None:
+        #: Given
+        ref = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('a'))
+        structure_file = RootRelativePath.parse('docs/__meta__/code.structure.json')
+        subject = SkippedSubject(ref, failed_layers=(structure_file,))
+
+        #: When
+        diagnostics = subject.diagnostics
+
+        #: Then
+        assert diagnostics == (), 'a skipped document is coverage; the failure is reported at its structure file'
+
+
+@pytest.mark.unit
+class TestLoadFailureReport:
+    def test_diagnostics_of_a_load_failure_report_are_its_condition_at_its_path(self) -> None:
+        #: Given
+        path = RootRelativePath.parse('docs/__meta__/code.structure.json')
+        report = LoadFailureReport(path, EmptyStructureFile())
+
+        #: When
+        diagnostics = report.diagnostics
+
+        #: Then
+        assert diagnostics == (EngineDiagnostic(path, EmptyStructureFile()),), (
+            'the failure is one engine diagnostic, filed at the unit that failed'
+        )
+
+    def test_severity_of_a_load_failure_diagnostic_is_error(self) -> None:
+        #: Given
+        report = LoadFailureReport(RootRelativePath.parse('docs/__meta__/code.structure.json'), EmptyStructureFile())
+
+        #: When
+        (diagnostic,) = report.diagnostics
+
+        #: Then
+        assert diagnostic.severity is Severity.ERROR, 'no configuration lowers a load failure'

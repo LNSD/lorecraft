@@ -4,6 +4,11 @@ The check run is one mode of the engine. This module is that mode's own entry po
 on each subject kind and calls the function of `lorecraft.engine.runner` that judges it, so the policy of the run is
 here and never in the runner. A mode that treats a document a failed layer governs differently is an entry point of its
 own beside this one, not a parameter of this function.
+
+The check run's policy for a document a failed layer governs is to skip it: the layers of a meta spec apply by
+conjunction, so a document cannot be called clean from the layers that loaded. The document is decoded first, so a file
+that does not decode is reported as it always is; a decoded one that a failed layer governs gets no rule and is
+reported as skipped, with the structure file of each failed layer.
 """
 
 from collections.abc import Iterable
@@ -12,7 +17,7 @@ from typing import assert_never
 from lorecraft.project.database import Database, DocumentText, Undecodable
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillResourceLocation
-from lorecraft.rules.report import SubjectReport, UndecodableSubject
+from lorecraft.rules.report import SkippedSubject, SubjectReport, UndecodableSubject
 from lorecraft.rules.table import RuleTable
 
 from .runner import Subject, check_layout_entry, check_skill, check_skill_resource, judge_document
@@ -51,7 +56,7 @@ def check_subjects(database: Database, subjects: Iterable[Subject], table: RuleT
 
 
 def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> SubjectReport:
-    """Decode one document, then run the table's rules over it if it decoded.
+    """Decode one document, then run the table's rules over it if it decoded and no failed layer governs it.
 
     Args:
         database: The revision the document is read from.
@@ -66,6 +71,12 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
         case Undecodable():
             return UndecodableSubject(ref, source.failure)
         case DocumentText():
+            # Governance is a lookup in the model, never a rule, so a skipped document reads nothing else.
+            governance = database.governance(ref)
+            if governance is not None:
+                failed_layers = governance.failed_layers()
+                if failed_layers:
+                    return SkippedSubject(ref, tuple(layer.path for layer in failed_layers))
             return judge_document(database, source, table)
         case _:
             assert_never(source)

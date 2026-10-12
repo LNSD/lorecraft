@@ -39,7 +39,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import Severity
 from lorecraft.rules.location import EntrySubdiagnostic, Subdiagnostic
-from lorecraft.rules.report import Diagnostic, SubjectReport
+from lorecraft.rules.report import Diagnostic, RunReport
 
 from .diagnostic_parts import (
     Mark,
@@ -95,7 +95,7 @@ _UNICODE_GLYPHS: Final[_Glyphs] = _Glyphs(gutter='│', primary='─', secondary
 _ASCII_GLYPHS: Final[_Glyphs] = _Glyphs(gutter='|', primary='^', secondary='-', elision='.')
 
 
-def render_text(reports: tuple[SubjectReport, ...], sources: SourceLines, style: TextStyle) -> str:
+def render_text(reports: tuple[RunReport, ...], sources: SourceLines, style: TextStyle) -> str:
     """Every diagnostic of the run as text, in the order `diagnostic_order` sorts them into.
 
     Args:

@@ -1007,7 +1007,7 @@ class TestCheckCommand:
                 },
             ],
             'summary': {'subjects': 3, 'errors': 1, 'warnings': 1},
-            'coverage': [{'path': 'docs/code/guide.md', 'ungoverned': ['outline', 'budget']}],
+            'coverage': [{'path': 'docs/code/guide.md', 'ungoverned': ['outline', 'budget'], 'skipped_by': []}],
         }, f'the document holds every diagnostic, the summary and the coverage, got {result.stdout!r}'
 
     def test_check_with_json_format_and_errors_from_two_groups_reports_their_labels_and_notes(

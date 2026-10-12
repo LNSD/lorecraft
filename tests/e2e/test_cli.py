@@ -557,7 +557,7 @@ class TestCheckSnapshots:
                 },
             ],
             'summary': {'subjects': 5, 'errors': 3, 'warnings': 0},
-            'coverage': [{'path': 'docs/notes/todo.md', 'ungoverned': ['outline', 'budget']}],
+            'coverage': [{'path': 'docs/notes/todo.md', 'ungoverned': ['outline', 'budget'], 'skipped_by': []}],
         }, f'the document holds every diagnostic, the summary and the coverage, got {result.stdout!r}'
 
     def test_check_with_rules_selected_and_ignored_prints_only_the_kept_rules_and_the_engine_diagnostics(
