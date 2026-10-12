@@ -99,8 +99,8 @@ class DatabaseDocumentContext:
 
     def corpus_structure(self) -> StructureSpec:
         """The structure specification of the document's corpus, from the `governance` query."""
-        corpus_structure = self.specifications().corpus_spec.structure
-        # The runner builds a context only for a corpus that states a structure specification, so it is never `None`.
+        corpus_structure = self.specifications().corpus_structure()
+        # The runner builds a context only for a corpus whose structure specification loaded, so it is never `None`.
         if corpus_structure is None:
             raise AssertionError('unreachable: a context is built only for a corpus that states a structure')
         return corpus_structure

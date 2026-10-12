@@ -30,7 +30,7 @@ from lorecraft.vfs import take_snapshot
 
 from .diagnostic_text import render_text
 from .diagnostics import render_coverage, render_json, render_prefix_summary, render_short, render_summary
-from .failure import report_failure
+from .failure import exit_on_load_failure, report_failure
 from .output import ColorChoice, DiagnosticFormat, ExitStatus
 from .root import establish_root
 from .rule_arguments import SelectorValue
@@ -67,6 +67,8 @@ def run_check(
         # passes the first and is empty in the second. `open` refuses it, before a run over no documents can report
         # success.
         database = Database.open(take_snapshot(establish_root(root), SNAPSHOT_SCOPE))
+        # Until a load failure is a diagnostic, a run that recorded one stops as the load that raised it did.
+        exit_on_load_failure(database.model())
         subjects = select_workspace(database)
         table = RuleTable.from_registry(registry, parsed.selection)
         reports = check_subjects(database, subjects, table)

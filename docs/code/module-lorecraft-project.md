@@ -76,8 +76,8 @@ from a snapshot, and one that never outlives its snapshot. The layout it derives
   builds a witness.
 - Nothing derived from a snapshot is cached outside a database, or across revisions but by a carry-over rule. The
   database alone reads and writes the store of persisted results, through the store the Composition package hands it.
-- A broken document is a value the parse returns, not an exception. A repository or meta spec error names
-  its path and propagates.
+- A broken document is a value the parse returns, not an exception. A unit the loader cannot load is a recorded
+  value, never raised.
 
 ## Examples
 
@@ -107,6 +107,8 @@ Before committing code, verify:
       package
 - [ ] Nothing added caches a value derived from a snapshot outside a database
 - [ ] The model and its loader read no document's content
+- [ ] A unit the loader cannot read or use is recorded as a frozen value of facts in a closed union, never raised
+      and never held as an exception
 - [ ] A new parse or count reads one document's text, returns an immutable value, and leaks no parser type
 - [ ] Nothing added declares a fixed directory, a suffix or the scope; the layout is read, never stated here
 - [ ] Nothing added decides whether a document passes a rule

@@ -1,10 +1,76 @@
 """Reporting a failure a command cannot recover from: the error, then the errors beneath it."""
 
+import re
+
 import pytest
+import typer
+from jsonschema.exceptions import SchemaError
+from pydantic import ValidationError
 
 from lorecraft.core.error import Error
+from lorecraft.core.path import RootRelativePath
+from lorecraft.project.corpus import CorpusName
+from lorecraft.project.document.repo import CorpusListError
+from lorecraft.project.schemas.name import CorpusSpecName
+from lorecraft.project.schemas.repo import StructureSchemaReadError
+from lorecraft.project.schemas.structure import (
+    AdjacentAnyRunsError,
+    EmptyStructureSpecError,
+    ForbiddenOutlineSectionError,
+    ForeignFrontmatterDialectError,
+    FrontmatterSchemaIdError,
+    InvalidFrontmatterSchemaError,
+    InvalidTitlePatternError,
+    RepeatedForbiddenSectionError,
+    RepeatedOutlineSectionError,
+    StructureSpecDecodeError,
+    UntypedFrontmatterSchemaError,
+)
+from lorecraft.project.skill import (
+    SkillDirListError,
+    SkillEntryResolveError,
+    SkillFileResolveError,
+    SkillsDirListError,
+)
+from lorecraft.project.workspace import (
+    AdjacentAnyRuns,
+    EmptyStructureSpec,
+    ForbiddenOutlineSections,
+    ForeignFrontmatterDialect,
+    FrontmatterSchemaId,
+    InvalidFrontmatterSchema,
+    InvalidTitlePattern,
+    LoadFailure,
+    RepeatedForbiddenSections,
+    RepeatedOutlineSections,
+    UndecodableStructureSpec,
+    UninspectableSkillEntry,
+    UninspectableSkillFile,
+    UninspectableSkillsDirectory,
+    UnlistableCorpusDirectory,
+    UnlistableDirectory,
+    UnlistableSkillDirectory,
+    UnlistableSkillsDirectory,
+    UnreadableStructureFile,
+    UnrecordedStructureFile,
+    UnresolvableSkillEntry,
+    UnresolvableSkillFile,
+    UnresolvableSkillsDirectory,
+    UntypedFrontmatterSchema,
+    WorkspaceModel,
+)
+from lorecraft.vfs import (
+    DirListError,
+    DirResolveError,
+    EntryInspectError,
+    FileReadError,
+    FileResolveError,
+    OsRefusal,
+    UnrecordedFileError,
+)
 
-from ..failure import report_failure
+from ..failure import exit_on_load_failure, report_failure, report_load_failure
+from ..output import ExitStatus
 
 
 @pytest.mark.unit
@@ -58,3 +124,304 @@ class TestReportFailure:
             '  caused by: cannot read specification docs/__meta__/code.json\n'
             '  caused by: docs/__meta__/code.json is not JSON\n'
         ), 'the walk follows the chain past the first cause, down to the last error'
+
+
+_PATH = RootRelativePath.parse('docs/__meta__/code.structure.json')
+_DOCS = RootRelativePath.parse('docs')
+_CORPUS = CorpusName.parse('code')
+_CORPUS_DIR = RootRelativePath.parse('docs/code')
+_SPEC_NAME = CorpusSpecName(_CORPUS)
+_SKILLS_DIR = RootRelativePath.parse('.claude/skills')
+# The directory, entry and file a link in the skills layout leads to, as the repository's errors name them.
+_TARGET_DIR = RootRelativePath.parse('shared/skills')
+_ENTRY = RootRelativePath.parse('.claude/skills/review')
+_ENTRY_FILE = RootRelativePath.parse('.claude/skills/review/SKILL.md')
+_TARGET_FILE = RootRelativePath.parse('shared/review/SKILL.md')
+_INNER = RootRelativePath.parse('shared/review/inner')
+_PROBLEMS = ('outline: Field required', 'tokens: not a number')
+_REFUSAL = OsRefusal.PERMISSION_DENIED
+_OS_ERROR = OSError()
+
+
+def _assert_reports_as_the_error(capsys: pytest.CaptureFixture[str], failure: LoadFailure, error: Error) -> None:
+    """Assert the interim report of a recorded failure is the one `report_failure` wrote for the error it replaced.
+
+    Args:
+        capsys: Captures what each report writes to stderr.
+        failure: The recorded failure.
+        error: The error the loader raised for it before failures were recorded.
+    """
+    report_failure(error)
+    expected = capsys.readouterr().err
+
+    report_load_failure(failure)
+
+    assert capsys.readouterr().err == expected, 'the interim report is the one the raised error gave'
+
+
+@pytest.mark.unit
+class TestReportLoadFailure:
+    def test_report_load_failure_with_unreadable_structure_file_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        failure = LoadFailure(_PATH, UnreadableStructureFile(_SPEC_NAME, _REFUSAL))
+        error = StructureSchemaReadError(_SPEC_NAME, source=FileReadError(_PATH, _REFUSAL, source=_OS_ERROR))
+
+        #: When / Then
+        _assert_reports_as_the_error(capsys, failure, error)
+
+    def test_report_load_failure_with_unrecorded_structure_file_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        failure = LoadFailure(_PATH, UnrecordedStructureFile(_SPEC_NAME))
+        error = StructureSchemaReadError(_SPEC_NAME, source=UnrecordedFileError(_PATH))
+
+        #: When / Then
+        _assert_reports_as_the_error(capsys, failure, error)
+
+    def test_report_load_failure_with_undecodable_structure_spec_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        failure = LoadFailure(_PATH, UndecodableStructureSpec(_PROBLEMS))
+        error = StructureSpecDecodeError(
+            _PATH, _PROBLEMS, source=ValidationError.from_exception_data('StructureFile', [])
+        )
+
+        #: When / Then
+        _assert_reports_as_the_error(capsys, failure, error)
+
+    def test_report_load_failure_with_empty_structure_spec_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        failure = LoadFailure(_PATH, EmptyStructureSpec())
+        error = EmptyStructureSpecError(_PATH)
+
+        #: When / Then
+        _assert_reports_as_the_error(capsys, failure, error)
+
+    def test_report_load_failure_with_repeated_outline_sections_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        failure = LoadFailure(_PATH, RepeatedOutlineSections(('Usage',)))
+        error = RepeatedOutlineSectionError(_PATH, ('Usage',))
+
+        #: When / Then
+        _assert_reports_as_the_error(capsys, failure, error)
+
+    def test_report_load_failure_with_repeated_forbidden_sections_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        failure = LoadFailure(_PATH, RepeatedForbiddenSections(('Changelog',)))
+        error = RepeatedForbiddenSectionError(_PATH, ('Changelog',))
+
+        #: When / Then
+        _assert_reports_as_the_error(capsys, failure, error)
+
+    def test_report_load_failure_with_forbidden_outline_sections_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        failure = LoadFailure(_PATH, ForbiddenOutlineSections(('Usage',)))
+        error = ForbiddenOutlineSectionError(_PATH, ('Usage',))
+
+        #: When / Then
+        _assert_reports_as_the_error(capsys, failure, error)
+
+    def test_report_load_failure_with_adjacent_any_runs_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        failure = LoadFailure(_PATH, AdjacentAnyRuns())
+        error = AdjacentAnyRunsError(_PATH)
+
+        #: When / Then
+        _assert_reports_as_the_error(capsys, failure, error)
+
+    def test_report_load_failure_with_invalid_title_pattern_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        failure = LoadFailure(_PATH, InvalidTitlePattern('(', 'missing )'))
+        error = InvalidTitlePatternError(_PATH, '(', 'missing )', source=re.error('missing )'))
+
+        #: When / Then
+        _assert_reports_as_the_error(capsys, failure, error)
+
+    def test_report_load_failure_with_invalid_frontmatter_schema_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        failure = LoadFailure(_PATH, InvalidFrontmatterSchema('5 is not valid'))
+        error = InvalidFrontmatterSchemaError(_PATH, '5 is not valid', source=SchemaError('5 is not valid'))
+
+        #: When / Then
+        _assert_reports_as_the_error(capsys, failure, error)
+
+    def test_report_load_failure_with_frontmatter_schema_id_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        failure = LoadFailure(_PATH, FrontmatterSchemaId())
+        error = FrontmatterSchemaIdError(_PATH)
+
+        #: When / Then
+        _assert_reports_as_the_error(capsys, failure, error)
+
+    def test_report_load_failure_with_foreign_frontmatter_dialect_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        failure = LoadFailure(_PATH, ForeignFrontmatterDialect("'draft-07'"))
+        error = ForeignFrontmatterDialectError(_PATH, 'draft-07')
+
+        #: When / Then
+        _assert_reports_as_the_error(capsys, failure, error)
+
+    def test_report_load_failure_with_untyped_frontmatter_schema_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        failure = LoadFailure(_PATH, UntypedFrontmatterSchema())
+        error = UntypedFrontmatterSchemaError(_PATH)
+
+        #: When / Then
+        _assert_reports_as_the_error(capsys, failure, error)
+
+    def test_report_load_failure_with_unlistable_directory_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        failure = LoadFailure(_DOCS, UnlistableDirectory(_REFUSAL))
+        error = DirListError(_DOCS, _REFUSAL, source=_OS_ERROR)
+
+        #: When / Then
+        _assert_reports_as_the_error(capsys, failure, error)
+
+    def test_report_load_failure_with_unlistable_corpus_directory_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        failure = LoadFailure(_CORPUS_DIR, UnlistableCorpusDirectory(_CORPUS, _REFUSAL))
+        error = CorpusListError(_CORPUS, source=DirListError(_CORPUS_DIR, _REFUSAL, source=_OS_ERROR))
+
+        #: When / Then
+        _assert_reports_as_the_error(capsys, failure, error)
+
+    def test_report_load_failure_with_unresolvable_skills_directory_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        failure = LoadFailure(_SKILLS_DIR, UnresolvableSkillsDirectory(_REFUSAL))
+        error = DirResolveError(_SKILLS_DIR, _REFUSAL, source=_OS_ERROR)
+
+        #: When / Then
+        _assert_reports_as_the_error(capsys, failure, error)
+
+    def test_report_load_failure_with_uninspectable_skills_directory_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        failure = LoadFailure(_SKILLS_DIR, UninspectableSkillsDirectory(_INNER, _REFUSAL))
+        error = EntryInspectError(_INNER, _REFUSAL, source=_OS_ERROR)
+
+        #: When / Then
+        _assert_reports_as_the_error(capsys, failure, error)
+
+    def test_report_load_failure_with_unlistable_skills_directory_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        failure = LoadFailure(_SKILLS_DIR, UnlistableSkillsDirectory(_TARGET_DIR, _REFUSAL))
+        error = SkillsDirListError(_TARGET_DIR, source=DirListError(_TARGET_DIR, _REFUSAL, source=_OS_ERROR))
+
+        #: When / Then
+        _assert_reports_as_the_error(capsys, failure, error)
+
+    def test_report_load_failure_with_unresolvable_skill_entry_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        failure = LoadFailure(_ENTRY, UnresolvableSkillEntry(_REFUSAL))
+        error = SkillEntryResolveError(_ENTRY, source=DirResolveError(_ENTRY, _REFUSAL, source=_OS_ERROR))
+
+        #: When / Then
+        _assert_reports_as_the_error(capsys, failure, error)
+
+    def test_report_load_failure_with_uninspectable_skill_entry_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        failure = LoadFailure(_ENTRY, UninspectableSkillEntry(_INNER, _REFUSAL))
+        error = SkillEntryResolveError(_ENTRY, source=EntryInspectError(_INNER, _REFUSAL, source=_OS_ERROR))
+
+        #: When / Then
+        _assert_reports_as_the_error(capsys, failure, error)
+
+    def test_report_load_failure_with_unlistable_skill_directory_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        failure = LoadFailure(_ENTRY, UnlistableSkillDirectory(_TARGET_DIR, _REFUSAL))
+        error = SkillDirListError(_TARGET_DIR, source=DirListError(_TARGET_DIR, _REFUSAL, source=_OS_ERROR))
+
+        #: When / Then
+        _assert_reports_as_the_error(capsys, failure, error)
+
+    def test_report_load_failure_with_unresolvable_skill_file_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        failure = LoadFailure(_ENTRY_FILE, UnresolvableSkillFile(_TARGET_FILE, _REFUSAL))
+        error = SkillFileResolveError(_TARGET_FILE, source=FileResolveError(_TARGET_FILE, _REFUSAL, source=_OS_ERROR))
+
+        #: When / Then
+        _assert_reports_as_the_error(capsys, failure, error)
+
+    def test_report_load_failure_with_uninspectable_skill_file_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        failure = LoadFailure(_ENTRY_FILE, UninspectableSkillFile(_TARGET_FILE, _INNER, _REFUSAL))
+        error = SkillFileResolveError(_TARGET_FILE, source=EntryInspectError(_INNER, _REFUSAL, source=_OS_ERROR))
+
+        #: When / Then
+        _assert_reports_as_the_error(capsys, failure, error)
+
+
+@pytest.mark.unit
+class TestExitOnLoadFailure:
+    def test_exit_on_load_failure_with_no_failure_returns(self) -> None:
+        #: Given
+        model = WorkspaceModel(corpora=(), skills_dirs=(), skill_locations=(), outside_symlinks=(), load_failures=())
+
+        #: When
+        exit_on_load_failure(model)
+
+        #: Then
+        # reaching here is the assertion: a model that recorded nothing is no reason to stop
+
+    def test_exit_on_load_failure_with_failures_reports_the_first_and_exits_two(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        first = LoadFailure(RootRelativePath.parse('docs/__meta__'), UnlistableDirectory(_REFUSAL))
+        second = LoadFailure(RootRelativePath.parse('docs'), UnlistableDirectory(_REFUSAL))
+        model = WorkspaceModel(
+            corpora=(), skills_dirs=(), skill_locations=(), outside_symlinks=(), load_failures=(first, second)
+        )
+
+        #: When
+        with pytest.raises(typer.Exit) as exc_info:
+            exit_on_load_failure(model)
+
+        #: Then
+        assert exc_info.value.exit_code == ExitStatus.FAILURE, 'the run exits as an error did'
+        assert capsys.readouterr().err == 'error: cannot list directory docs/__meta__: permission denied\n', (
+            'only the first failure is reported, as only the first error was raised'
+        )

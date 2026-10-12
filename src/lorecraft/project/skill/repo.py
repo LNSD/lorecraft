@@ -27,6 +27,7 @@ from lorecraft.agents import SKILL_ENTRY_FILENAME
 from lorecraft.core.error import Error
 from lorecraft.core.path import ROOT, RootRelativePath
 from lorecraft.vfs import (
+    DirEntry,
     DirListError,
     DirResolveError,
     EntryInspectError,
@@ -336,16 +337,9 @@ class Repository:
     def list_skills(self, skills_dir: ResolvedPath) -> SkillsListing:
         """The location of every skill directly inside one skills directory, sorted by name, and its outside links.
 
-        A skill is an entry that is, or leads to, a directory under the root holding a `SKILL.md` that is,
-        or leads to, a regular file under the root. The ref names the entry, `<skills_dir>/<entry name>`,
-        whether or not it is a symlink, so two entries leading to one directory are two skills, as an agent
-        sees them; its location records the resolved directory and the resolved `SKILL.md` each leads to.
-
-        An entry whose link leads outside the root, or an entry whose `SKILL.md` is a link leading outside it, is
-        no skill: it is recorded as an `OutsideSymlink`, at the entry or at `<entry>/SKILL.md`. Left out
-        silently: a file beside the skills, an entry whose link dangles or loops, and a directory with no
-        `SKILL.md` or with one that is a directory or a link that dangles or loops. A missing skills directory
-        lists as nothing.
+        The whole directory at once: the first entry that cannot be resolved raises, and no other is listed. A
+        caller that must go on past a failed entry lists the entries with `list_skill_entries` and asks for each
+        one with `list_skill_entry`.
 
         Args:
             skills_dir: A resolved skills directory, as `find_skills_dir` returns it: a link is not followed
@@ -357,47 +351,87 @@ class Repository:
             SkillDirListError: If a skill directory cannot be listed.
             SkillFileResolveError: If a symlinked `SKILL.md` cannot be resolved.
         """
+        locations: list[SkillLocation] = []
+        outside_symlinks: list[OutsideSymlink] = []
+        for entry in self.list_skill_entries(skills_dir):
+            listing = self.list_skill_entry(skills_dir, entry)
+            locations.extend(listing.skills)
+            outside_symlinks.extend(listing.outside_symlinks)
+        return SkillsListing(skills=tuple(locations), outside_symlinks=tuple(outside_symlinks))
+
+    def list_skill_entries(self, skills_dir: ResolvedPath) -> tuple[DirEntry, ...]:
+        """The entries directly inside one skills directory, in name order, each not yet known to be a skill.
+
+        A missing skills directory lists as nothing.
+
+        Args:
+            skills_dir: A resolved skills directory, as `find_skills_dir` returns it: a link is not followed
+                here.
+
+        Raises:
+            SkillsDirListError: If the skills directory cannot be listed.
+        """
         try:
-            entries = self._fs.list_dir(skills_dir)
+            # The seam lists entries in name order, so what is found entry by entry comes out sorted.
+            return self._fs.list_dir(skills_dir)
         except DirListError as exc:
             raise SkillsDirListError(skills_dir, source=exc) from exc
 
-        # The seam lists entries in name order, so the locations and the outside links come out sorted.
-        locations: list[SkillLocation] = []
-        outside_symlinks: list[OutsideSymlink] = []
-        for entry in entries:
-            directory = skills_dir / entry.name
-            match entry.kind:
-                case EntryKind.DIRECTORY:
-                    # The skills directory is resolved and so is this entry: nothing is left to resolve.
-                    files_directory = ResolvedPath(directory)
-                case EntryKind.SYMLINK:
-                    files_directory = self._find_entry_dir(directory)
-                    if files_directory is None:
-                        leaves_at = self._find_entry_exit(directory)
-                        if leaves_at is not None:
-                            outside_symlinks.append(OutsideSymlink(directory, leaves_at))
-                        continue  # a symlink that leads to no directory is no skill
-                case EntryKind.FILE:
-                    continue  # a skill is a directory, so a file beside the skills is not one
-                case EntryKind.OTHER:
-                    continue  # a socket, a device or a pipe is no skill directory either
-                case _:
-                    assert_never(entry.kind)
-            skill_file = self._find_skill_file(files_directory)
-            match skill_file:
-                case RootRelativePath():
-                    locations.append(
-                        SkillLocation(SkillRef(directory), resolves_to=files_directory, file_resolves_to=skill_file)
-                    )
-                case RootExit():
-                    # Named under the entry, as the skill would have been, not under the directory it leads to.
-                    outside_symlinks.append(OutsideSymlink(directory / SKILL_ENTRY_FILENAME, skill_file))
-                case None:
-                    pass
-                case _:
-                    assert_never(skill_file)
-        return SkillsListing(skills=tuple(locations), outside_symlinks=tuple(outside_symlinks))
+    def list_skill_entry(self, skills_dir: ResolvedPath, entry: DirEntry) -> SkillsListing:
+        """The skill one entry of a skills directory is, or the outside link it is; empty when it is neither.
+
+        A skill is an entry that is, or leads to, a directory under the root holding a `SKILL.md` that is,
+        or leads to, a regular file under the root. The ref names the entry, `<skills_dir>/<entry name>`,
+        whether or not it is a symlink, so two entries leading to one directory are two skills, as an agent
+        sees them; its location records the resolved directory and the resolved `SKILL.md` each leads to.
+
+        An entry whose link leads outside the root, or an entry whose `SKILL.md` is a link leading outside it, is
+        no skill: it is recorded as an `OutsideSymlink`, at the entry or at `<entry>/SKILL.md`. Left out
+        silently: a file beside the skills, an entry whose link dangles or loops, and a directory with no
+        `SKILL.md` or with one that is a directory or a link that dangles or loops.
+
+        Args:
+            skills_dir: The resolved skills directory the entry was listed in.
+            entry: An entry `list_skill_entries` returned for that directory.
+
+        Raises:
+            SkillEntryResolveError: If a symlinked entry cannot be resolved.
+            SkillDirListError: If a skill directory cannot be listed.
+            SkillFileResolveError: If a symlinked `SKILL.md` cannot be resolved.
+        """
+        directory = skills_dir / entry.name
+        match entry.kind:
+            case EntryKind.DIRECTORY:
+                # The skills directory is resolved and so is this entry: nothing is left to resolve.
+                files_directory = ResolvedPath(directory)
+            case EntryKind.SYMLINK:
+                resolved_entry = self._find_entry_dir(directory)
+                if resolved_entry is None:
+                    leaves_at = self._find_entry_exit(directory)
+                    if leaves_at is not None:
+                        return SkillsListing(skills=(), outside_symlinks=(OutsideSymlink(directory, leaves_at),))
+                    return SkillsListing(skills=(), outside_symlinks=())  # a symlink to no directory is no skill
+                files_directory = resolved_entry
+            case EntryKind.FILE:
+                return SkillsListing(skills=(), outside_symlinks=())  # a skill is a directory, not a file beside them
+            case EntryKind.OTHER:
+                return SkillsListing(skills=(), outside_symlinks=())  # a socket, a device or a pipe is no skill either
+            case _:
+                assert_never(entry.kind)
+
+        skill_file = self._find_skill_file(files_directory)
+        match skill_file:
+            case RootRelativePath():
+                location = SkillLocation(SkillRef(directory), resolves_to=files_directory, file_resolves_to=skill_file)
+                return SkillsListing(skills=(location,), outside_symlinks=())
+            case RootExit():
+                # Named under the entry, as the skill would have been, not under the directory it leads to.
+                outside = OutsideSymlink(directory / SKILL_ENTRY_FILENAME, skill_file)
+                return SkillsListing(skills=(), outside_symlinks=(outside,))
+            case None:
+                return SkillsListing(skills=(), outside_symlinks=())
+            case _:
+                assert_never(skill_file)
 
     def get_skill(self, ref: SkillRef) -> Skill:
         """Read one skill's `SKILL.md`, through the link its entry may be.

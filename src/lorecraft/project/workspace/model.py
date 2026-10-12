@@ -26,6 +26,8 @@ from lorecraft.project.skill.ref import SkillLocation, SkillRef
 from lorecraft.project.skill.skills_dir import SkillsDir
 from lorecraft.vfs import ResolvedPath
 
+from .failure import FailedStructure, LoadFailure
+
 
 @dataclass(frozen=True, slots=True)
 class CorpusSpec:
@@ -36,12 +38,13 @@ class CorpusSpec:
     Attributes:
         name: The specification name, the corpus alone.
         files: Every root-relative file at this specification name (prose and JSON), sorted; may be prose only.
-        structure: The structure specification, or None when `<name>.structure.json` does not exist.
+        structure: The structure specification, the `FailedStructure` standing in its place when
+            `<name>.structure.json` could not be read or used, or None when that file does not exist.
     """
 
     name: CorpusSpecName
     files: tuple[RootRelativePath, ...]
-    structure: StructureSpec | None
+    structure: StructureSpec | FailedStructure | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,12 +54,13 @@ class NamespaceSpec:
     Attributes:
         name: The specification name, the corpus and the namespace.
         files: Every root-relative file at this specification name (prose and JSON), sorted; may be prose only.
-        structure: The structure specification, or None when `<name>.structure.json` does not exist.
+        structure: The structure specification, the `FailedStructure` standing in its place when
+            `<name>.structure.json` could not be read or used, or None when that file does not exist.
     """
 
     name: NamespaceSpecName
     files: tuple[RootRelativePath, ...]
-    structure: StructureSpec | None
+    structure: StructureSpec | FailedStructure | None
 
     def is_governing(self, filename: AspectFilename) -> bool:
         """True when the spec's namespace matches the filename.
@@ -74,6 +78,9 @@ type Spec = CorpusSpec | NamespaceSpec
 class Governance:
     """The specs that govern one document, broad to narrow.
 
+    A layer whose structure file failed to load is held as it is, with its `FailedStructure`. The queries below read
+    only the layers that loaded; `failed_layers` names the others, so a consumer decides what a failed layer means.
+
     Attributes:
         ref: The governed document.
         corpus_spec: The spec of the document's corpus, which governs every document in it.
@@ -88,28 +95,44 @@ class Governance:
         """Every governing spec, corpus spec first."""
         return (self.corpus_spec, *self.namespace_specs)
 
-    def structure_specs(self) -> tuple[StructureSpec, ...]:
-        """Structure specifications to apply in order; `()` means ungoverned for structure.
+    def failed_layers(self) -> tuple[FailedStructure, ...]:
+        """The structure files of the layers that failed to load, in layer order, corpus spec first."""
+        failed: list[FailedStructure] = []
+        for spec in self.specs():
+            if isinstance(spec.structure, FailedStructure):
+                failed.append(spec.structure)
+        return tuple(failed)
 
-        A corpus spec without a structure specification leaves the document ungoverned even when a matching
-        namespace spec carries one: a namespace narrows a base, it cannot supply one.
+    def corpus_structure(self) -> StructureSpec | None:
+        """The corpus spec's structure specification, or None when it states none or its layer failed to load."""
+        structure = self.corpus_spec.structure
+        if isinstance(structure, StructureSpec):
+            return structure
+        return None
+
+    def structure_specs(self) -> tuple[StructureSpec, ...]:
+        """Structure specifications to apply in order, the layers that loaded; `()` means ungoverned for structure.
+
+        A corpus spec without a loaded structure specification leaves the document ungoverned even when a
+        matching namespace spec carries one: a namespace narrows a base, it cannot supply one. A layer that failed to
+        load is left out, and `failed_layers` lists it.
         """
-        if self.corpus_spec.structure is None:
+        if self.corpus_structure() is None:
             return ()
         structure_specs: list[StructureSpec] = []
         for spec in self.specs():
-            if spec.structure is not None:
+            if isinstance(spec.structure, StructureSpec):
                 structure_specs.append(spec.structure)
         return tuple(structure_specs)
 
     def frontmatter_schemas(self) -> tuple[FrontmatterSchema, ...]:
         """Frontmatter schemas to apply in order; `()` means ungoverned for frontmatter.
 
-        Each comes from the `frontmatter` key of a structure specification. As with `structure_specs`, a corpus
-        spec whose structure specification states no frontmatter schema leaves the document ungoverned even when a
-        matching namespace spec states one.
+        Each comes from the `frontmatter` key of a structure specification that loaded. As with `structure_specs`, a
+        corpus spec whose structure specification states no frontmatter schema leaves the document ungoverned even
+        when a matching namespace spec states one.
         """
-        corpus_structure = self.corpus_spec.structure
+        corpus_structure = self.corpus_structure()
         if corpus_structure is None or corpus_structure.frontmatter is None:
             return ()
         schemas: list[FrontmatterSchema] = []
@@ -153,12 +176,13 @@ class CorpusNamespace:
     Attributes:
         namespace: The namespace, the specification name after its corpus.
         files: Every root-relative file at the spec's specification name (prose and JSON), sorted; may be prose only.
-        structure: The structure specification, or None when the spec has no `.structure.json` file.
+        structure: The structure specification, the `FailedStructure` standing in its place when the spec's
+            `.structure.json` could not be read or used, or None when the spec has no such file.
     """
 
     namespace: AspectNamespace
     files: tuple[RootRelativePath, ...]
-    structure: StructureSpec | None
+    structure: StructureSpec | FailedStructure | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -242,12 +266,17 @@ class WorkspaceModel:
             `SKILL.md` of such an entry, whose symlink chain leaves the repository, sorted by path, each once.
             None of them is a skills directory or a skill of the model; a symlink inside a skill is in its
             resource listing.
+        load_failures: Every unit of the declaration that could not be read or used, each once, in the order the
+            loader met them: a structure file, whose `FailedStructure` also stands in its layer, a corpus directory,
+            a skills directory, a skill entry or a `SKILL.md`, and a `docs/` or `docs/__meta__/` that cannot be
+            listed. Nothing a failure touches is in the model beyond that record; every other unit is loaded.
     """
 
     corpora: tuple[Corpus, ...]
     skills_dirs: tuple[SkillsDir, ...]
     skill_locations: tuple[SkillLocation, ...]
     outside_symlinks: tuple[OutsideSymlink, ...]
+    load_failures: tuple[LoadFailure, ...]
 
     def find_corpus(self, name: CorpusName) -> Corpus | None:
         """The corpus with this name, or None when the model has none.

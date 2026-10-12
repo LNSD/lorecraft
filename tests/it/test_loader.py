@@ -6,6 +6,9 @@ skill cases lay out the project skills directories the same way. The repositorie
 ``DiskFileSystem`` over ``tmp_path``, and every path in the model is root-relative to it.
 """
 
+import os
+import stat
+from collections.abc import Callable, Iterator
 from pathlib import Path, PurePosixPath
 from textwrap import dedent
 from typing import Final
@@ -14,22 +17,42 @@ import pytest
 
 from lorecraft.agents import AgentName
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.aspect import AspectNamespace
+from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
+from lorecraft.project.document import DocumentRef
 from lorecraft.project.document.repo import Repository as DocumentRepository
 from lorecraft.project.layout import SNAPSHOT_SCOPE, SPECS_DIR
-from lorecraft.project.schemas import (
-    EmptyStructureSpecError,
-    InvalidFrontmatterSchemaError,
-    NamespaceSpecName,
-    StructureSpecDecodeError,
-)
+from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName
 from lorecraft.project.schemas import Repository as SchemaRepository
+from lorecraft.project.schemas.structure import StructureSpec
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillsDir
 from lorecraft.project.skill import Repository as SkillRepository
+from lorecraft.project.workspace import (
+    AdjacentAnyRuns,
+    EmptyStructureSpec,
+    FailedStructure,
+    ForbiddenOutlineSections,
+    ForeignFrontmatterDialect,
+    FrontmatterSchemaId,
+    InvalidFrontmatterSchema,
+    InvalidTitlePattern,
+    LoadFailure,
+    RepeatedForbiddenSections,
+    RepeatedOutlineSections,
+    UndecodableStructureSpec,
+    UnlistableCorpusDirectory,
+    UnlistableDirectory,
+    UnlistableSkillDirectory,
+    UnlistableSkillsDirectory,
+    UnreadableStructureFile,
+    UnresolvableSkillEntry,
+    UnresolvableSkillFile,
+    UnresolvableSkillsDirectory,
+    UntypedFrontmatterSchema,
+)
 from lorecraft.project.workspace.loader import load_model, load_workspace
 from lorecraft.project.workspace.model import WorkspaceModel
-from lorecraft.vfs import DiskFileSystem, ResolvedPath, RootExit, VirtualFileSystem, take_snapshot
+from lorecraft.vfs import DiskFileSystem, OsRefusal, ResolvedPath, RootExit, VirtualFileSystem, take_snapshot
 
 CLAUDE: Final[AgentName] = AgentName('claude-code')
 CODEX: Final[AgentName] = AgentName('codex')
@@ -560,21 +583,26 @@ class TestLoadWorkspaceEdgeCases:
         assert corpus.corpus_spec.files == (SPECS_DIR / 'code.md',), 'the header file is not one of the spec files'
         assert corpus.corpus_spec.structure is None, 'and it states no rules'
 
-    def test_load_workspace_with_a_malformed_frontmatter_schema_raises_invalid_frontmatter_schema_error(
+    def test_load_workspace_with_a_malformed_frontmatter_schema_records_the_structure_as_failed(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
-        # the corpus directory exists and is empty: validation happens before any document matters
         _write_tree(tmp_path, prose=('code',), schemas=(), documents=())
         (tmp_path / 'docs' / 'code').mkdir()
         _write(tmp_path, 'docs/__meta__/code.structure.json', '{"frontmatter": {"type": "nonsense"}}')
+        path = SPECS_DIR / 'code.structure.json'
 
         #: When
-        with pytest.raises(InvalidFrontmatterSchemaError) as exc_info:
-            load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert exc_info.value.path == SPECS_DIR / 'code.structure.json', 'the error names the rejected specification'
+        corpus = model.find_corpus(CODE)
+        assert corpus is not None, 'the corpus still loads'
+        failed = corpus.corpus_spec.structure
+        assert isinstance(failed, FailedStructure), 'the failed structure stands in the layer'
+        assert failed.path == path, 'it names the rejected specification'
+        assert isinstance(failed.failure, InvalidFrontmatterSchema), 'with the condition it failed with'
+        assert model.load_failures == (LoadFailure(path, failed.failure),), 'and the model lists it once'
 
     def test_load_workspace_with_a_structure_spec_file_builds_the_structure_spec(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -593,56 +621,6 @@ class TestLoadWorkspaceEdgeCases:
         assert tuple(structure_spec.path for structure_spec in governance.structure_specs()) == (
             SPECS_DIR / 'code.structure.json',
         ), 'the corpus structure specification governs its document'
-
-    def test_load_workspace_with_an_invalid_structure_spec_raises_empty_structure_spec_error(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
-    ) -> None:
-        #: Given
-        # the corpus directory exists and is empty: validation happens before any document matters
-        _write_tree(tmp_path, prose=('code',), schemas=(), documents=())
-        (tmp_path / 'docs' / 'code').mkdir()
-        _write(tmp_path, 'docs/__meta__/code.structure.json', '{}')
-
-        #: When
-        with pytest.raises(EmptyStructureSpecError) as exc_info:
-            load_workspace(schemas, documents, skills)
-
-        #: Then
-        assert exc_info.value.path == SPECS_DIR / 'code.structure.json', 'the error names the rejected specification'
-
-    def test_load_workspace_with_a_broken_schema_in_an_unchecked_namespace_still_raises(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
-    ) -> None:
-        #: Given
-        _write_tree(tmp_path, prose=('code',), schemas=('code.structure.json',), documents=('code/logging.md',))
-        _write(tmp_path, 'docs/__meta__/code-python.structure.json', 'not json')
-
-        #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            load_workspace(schemas, documents, skills)
-
-        #: Then
-        assert exc_info.value.path == SPECS_DIR / 'code-python.structure.json', (
-            'every structure specification is decoded eagerly'
-        )
-
-    def test_load_workspace_with_two_broken_namespace_schemas_raises_for_the_broader_one(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
-    ) -> None:
-        #: Given
-        # code-python-errors.structure.json sorts before code-python.structure.json by name, narrower first
-        _write_tree(tmp_path, prose=('code',), schemas=('code.structure.json',), documents=('code/logging.md',))
-        _write(tmp_path, 'docs/__meta__/code-python.structure.json', 'not json')
-        _write(tmp_path, 'docs/__meta__/code-python-errors.structure.json', 'not json')
-
-        #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            load_workspace(schemas, documents, skills)
-
-        #: Then
-        assert exc_info.value.path == SPECS_DIR / 'code-python.structure.json', (
-            'namespace specs are decoded broad to narrow, so the broader broken one is reported'
-        )
 
     def test_load_workspace_with_nested_namespaces_sorts_them_by_segment_count_then_value(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -731,9 +709,9 @@ class TestLoadWorkspaceEdgeCases:
 
         #: Then
         assert not missing_docs.exists(), 'the case turns on docs/ being absent'
-        assert model == WorkspaceModel(corpora=(), skills_dirs=(), skill_locations=(), outside_symlinks=()), (
-            'a root without docs/ is an empty workspace'
-        )
+        assert model == WorkspaceModel(
+            corpora=(), skills_dirs=(), skill_locations=(), outside_symlinks=(), load_failures=()
+        ), 'a root without docs/ is an empty workspace'
 
 
 def _outside(path: str, target: Path) -> OutsideSymlink:
@@ -1014,3 +992,600 @@ class TestLoadModel:
         assert model.skill_locations == (
             _linked_skill_location('.agents/skills/review', 'skills/review', 'skills/review/SKILL.md'),
         ), 'the disk view follows the link, and the ref names the entry under the skills directory'
+
+
+@pytest.fixture(scope='function')
+def lock() -> Iterator[Callable[[Path], None]]:
+    """A function that makes a path refuse every access, restoring each path afterwards for pytest's cleanup.
+
+    Paths are restored in the order they were locked, so a locked parent is searchable again before its child.
+    """
+    locked: list[tuple[Path, int]] = []
+
+    def lock_path(path: Path) -> None:
+        locked.append((path, stat.S_IMODE(path.stat().st_mode)))
+        path.chmod(0o000)
+
+    yield lock_path
+    for path, mode in locked:
+        path.chmod(mode)
+
+
+def _failed_structure(model: WorkspaceModel, corpus: CorpusName) -> FailedStructure:
+    """The failed structure standing in the corpus spec's layer of a corpus the model holds.
+
+    Args:
+        model: A model whose corpus spec for `corpus` failed to load.
+        corpus: The corpus whose spec is read.
+    """
+    held = model.find_corpus(corpus)
+    assert held is not None, f'the corpus {corpus} still loads when its structure file does not'
+    structure = held.corpus_spec.structure
+    assert isinstance(structure, FailedStructure), 'the structure file failed, so a failed structure stands for it'
+    return structure
+
+
+@pytest.mark.it
+class TestLoadWorkspaceFailures:
+    """Each unit of the declaration that fails is recorded, and every other unit loads as if it had not failed."""
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores file permissions')
+    def test_load_workspace_with_an_unreadable_structure_file_records_it_and_loads_every_other_unit(
+        self,
+        tmp_path: Path,
+        schemas: SchemaRepository,
+        documents: DocumentRepository,
+        skills: SkillRepository,
+        lock: Callable[[Path], None],
+    ) -> None:
+        #: Given
+        _write_tree(
+            tmp_path,
+            prose=('code', 'feat'),
+            schemas=('code.structure.json', 'feat.structure.json'),
+            documents=('code/logging.md', 'feat/admin.md'),
+        )
+        lock(tmp_path / 'docs' / '__meta__' / 'code.structure.json')
+        path = SPECS_DIR / 'code.structure.json'
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        failed = _failed_structure(model, CODE)
+        assert failed == FailedStructure(
+            path, UnreadableStructureFile(CorpusSpecName(CODE), OsRefusal.PERMISSION_DENIED)
+        ), 'the failure records the path and the refusal, in the layer where the structure would be'
+        assert model.load_failures == (LoadFailure(path, failed.failure),), 'and the model lists it once'
+        feat = model.find_corpus(FEAT)
+        assert feat is not None, 'the other corpus loads'
+        assert isinstance(feat.corpus_spec.structure, StructureSpec), 'with its structure'
+        assert tuple(str(ref.path) for ref in model.documents()) == ('docs/code/logging.md', 'docs/feat/admin.md'), (
+            'and every document of both corpora is listed'
+        )
+
+    def test_load_workspace_with_a_structure_file_that_is_not_json_records_why(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        _write_tree(
+            tmp_path,
+            prose=('code', 'feat'),
+            schemas=('feat.structure.json',),
+            documents=('code/logging.md', 'feat/admin.md'),
+        )
+        _write(tmp_path, 'docs/__meta__/code.structure.json', 'not json')
+        path = SPECS_DIR / 'code.structure.json'
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        failed = _failed_structure(model, CODE)
+        assert failed.path == path, 'the failure names the structure file'
+        assert isinstance(failed.failure, UndecodableStructureSpec), 'the condition is that it does not decode'
+        assert failed.failure.problems, 'and it carries the decoder problems'
+        assert model.load_failures == (LoadFailure(path, failed.failure),), 'listed once'
+        feat = model.find_corpus(FEAT)
+        assert feat is not None and isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads'
+
+    def _assert_structure_failure_recorded(self, tmp_path: Path, content: str, condition: type[object]) -> None:
+        """Assert a corpus structure file holding `content` fails with `condition`, the other corpus loading.
+
+        Args:
+            tmp_path: Directory the workspace is written under, as the repository root.
+            content: Text of the `code` corpus's structure file.
+            condition: The record type the failure must be.
+        """
+        _write_tree(
+            tmp_path,
+            prose=('code', 'feat'),
+            schemas=('feat.structure.json',),
+            documents=('code/logging.md', 'feat/admin.md'),
+        )
+        _write(tmp_path, 'docs/__meta__/code.structure.json', content)
+        path = SPECS_DIR / 'code.structure.json'
+        fs = DiskFileSystem(tmp_path)
+
+        model = load_workspace(SchemaRepository(fs, SPECS_DIR), DocumentRepository(fs), SkillRepository(fs))
+
+        failed = _failed_structure(model, CODE)
+        assert failed.path == path, 'the failure names the structure file'
+        assert isinstance(failed.failure, condition), 'the failure is the record of the condition the file fails with'
+        assert model.load_failures == (LoadFailure(path, failed.failure),), 'listed once, with its path and condition'
+        feat = model.find_corpus(FEAT)
+        assert feat is not None and isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads'
+
+    def test_load_workspace_with_a_structure_file_stating_states_no_rule_records_it_as_failed(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        content = '{}'
+
+        #: When / Then
+        self._assert_structure_failure_recorded(tmp_path, content, EmptyStructureSpec)
+
+    def test_load_workspace_with_a_structure_file_stating_a_repeated_outline_section_records_it_as_failed(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        content = '{"outline": [{"section": "Usage"}, {"section": "Usage"}]}'
+
+        #: When / Then
+        self._assert_structure_failure_recorded(tmp_path, content, RepeatedOutlineSections)
+
+    def test_load_workspace_with_a_structure_file_stating_a_repeated_forbidden_section_records_it_as_failed(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        content = '{"forbidden": ["Changelog", "Changelog"]}'
+
+        #: When / Then
+        self._assert_structure_failure_recorded(tmp_path, content, RepeatedForbiddenSections)
+
+    def test_load_workspace_with_a_structure_file_stating_a_forbidden_outline_section_records_it_as_failed(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        content = '{"outline": [{"section": "Usage"}], "forbidden": ["Usage"]}'
+
+        #: When / Then
+        self._assert_structure_failure_recorded(tmp_path, content, ForbiddenOutlineSections)
+
+    def test_load_workspace_with_a_structure_file_stating_adjacent_any_runs_records_it_as_failed(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        content = '{"outline": [{"any": true}, {"any": true}]}'
+
+        #: When / Then
+        self._assert_structure_failure_recorded(tmp_path, content, AdjacentAnyRuns)
+
+    def test_load_workspace_with_a_structure_file_stating_an_invalid_title_pattern_records_it_as_failed(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        content = '{"title": {"pattern": "("}}'
+
+        #: When / Then
+        self._assert_structure_failure_recorded(tmp_path, content, InvalidTitlePattern)
+
+    def test_load_workspace_with_a_structure_file_stating_an_invalid_frontmatter_schema_records_it_as_failed(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        content = '{"frontmatter": {"type": "nonsense"}}'
+
+        #: When / Then
+        self._assert_structure_failure_recorded(tmp_path, content, InvalidFrontmatterSchema)
+
+    def test_load_workspace_with_a_structure_file_stating_an_id_in_the_frontmatter_schema_records_it_as_failed(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        content = '{"frontmatter": {"type": "object", "properties": {"a": {"$id": "https://example.com/a"}}}}'
+
+        #: When / Then
+        self._assert_structure_failure_recorded(tmp_path, content, FrontmatterSchemaId)
+
+    def test_load_workspace_with_a_structure_file_stating_a_foreign_frontmatter_dialect_records_it_as_failed(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        content = '{"frontmatter": {"type": "object", "$schema": "http://json-schema.org/draft-07/schema#"}}'
+
+        #: When / Then
+        self._assert_structure_failure_recorded(tmp_path, content, ForeignFrontmatterDialect)
+
+    def test_load_workspace_with_a_structure_file_stating_an_untyped_frontmatter_schema_records_it_as_failed(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        content = '{"frontmatter": {"properties": {}}}'
+
+        #: When / Then
+        self._assert_structure_failure_recorded(tmp_path, content, UntypedFrontmatterSchema)
+
+    def test_load_workspace_with_a_repeated_outline_section_records_the_sections(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        _write_tree(tmp_path, prose=('code',), schemas=(), documents=('code/logging.md',))
+        _write(
+            tmp_path,
+            'docs/__meta__/code.structure.json',
+            '{"outline": [{"section": "Usage"}, {"section": "Usage"}, {"section": "Notes"}, {"section": "Notes"}]}',
+        )
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert _failed_structure(model, CODE).failure == RepeatedOutlineSections(('Notes', 'Usage')), (
+            'the record carries the facts of the error: the repeated names, sorted'
+        )
+
+    def test_load_workspace_with_a_foreign_dialect_records_what_the_schema_names(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        _write_tree(tmp_path, prose=('code',), schemas=(), documents=('code/logging.md',))
+        _write(
+            tmp_path,
+            'docs/__meta__/code.structure.json',
+            '{"frontmatter": {"type": "object", "$schema": "http://json-schema.org/draft-07/schema#"}}',
+        )
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert _failed_structure(model, CODE).failure == ForeignFrontmatterDialect(
+            "'http://json-schema.org/draft-07/schema#'"
+        ), 'the record keeps the dialect as the error spelled it, so it is plain data'
+
+    def test_load_workspace_with_a_failed_namespace_structure_file_keeps_the_corpus_layer_loaded(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        _write_tree(tmp_path, prose=('code',), schemas=('code.structure.json',), documents=('code/python-typing.md',))
+        _write(tmp_path, 'docs/__meta__/code-python.structure.json', 'not json')
+        path = SPECS_DIR / 'code-python.structure.json'
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        ref = model.find_document(RootRelativePath.parse('docs/code/python-typing.md'))
+        assert ref is not None, 'the document is listed'
+        governance = model.find_governance(ref)
+        assert governance is not None, 'its corpus is in the model'
+        assert isinstance(governance.corpus_spec.structure, StructureSpec), 'the corpus layer loaded'
+        namespace = governance.namespace_specs[0]
+        assert isinstance(namespace.structure, FailedStructure), 'the namespace layer failed'
+        assert namespace.structure.path == path, 'and names its file'
+        assert namespace.name == NamespaceSpecName(CODE, AspectNamespace.parse('python')), 'in its own layer'
+        assert governance.failed_layers() == (namespace.structure,), 'the governance lists the failed layer'
+        assert governance.structure_specs() == (governance.corpus_spec.structure,), 'and applies only the loaded one'
+
+    def test_load_workspace_with_two_broken_namespace_schemas_lists_the_broader_one_first(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        # code-python-errors.structure.json sorts before code-python.structure.json by name, narrower first
+        _write_tree(tmp_path, prose=('code',), schemas=('code.structure.json',), documents=('code/logging.md',))
+        _write(tmp_path, 'docs/__meta__/code-python.structure.json', 'not json')
+        _write(tmp_path, 'docs/__meta__/code-python-errors.structure.json', 'not json')
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert [failure.path for failure in model.load_failures] == [
+            SPECS_DIR / 'code-python.structure.json',
+            SPECS_DIR / 'code-python-errors.structure.json',
+        ], 'both are recorded, the broader first, which is the one a load that raised would have named'
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
+    def test_load_workspace_with_an_unlistable_corpus_directory_records_it_and_loads_every_other_corpus(
+        self,
+        tmp_path: Path,
+        schemas: SchemaRepository,
+        documents: DocumentRepository,
+        skills: SkillRepository,
+        lock: Callable[[Path], None],
+    ) -> None:
+        #: Given
+        _write_tree(
+            tmp_path,
+            prose=('code', 'feat'),
+            schemas=('code.structure.json', 'feat.structure.json'),
+            documents=('code/logging.md', 'feat/admin.md'),
+        )
+        lock(tmp_path / 'docs' / 'code')
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert model.load_failures == (
+            LoadFailure(
+                RootRelativePath.parse('docs/code'), UnlistableCorpusDirectory(CODE, OsRefusal.PERMISSION_DENIED)
+            ),
+        ), 'the directory is recorded with its path and the refusal'
+        assert tuple(str(ref.path) for ref in model.documents()) == ('docs/feat/admin.md',), (
+            'the corpus holds no document, and the other corpus lists its own'
+        )
+        code = model.find_corpus(CODE)
+        assert code is not None, 'the corpus is still known'
+        assert isinstance(code.corpus_spec.structure, StructureSpec), 'with the structure its spec states'
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
+    def test_load_workspace_with_an_unlistable_docs_directory_records_it_and_the_specification_directory(
+        self,
+        tmp_path: Path,
+        schemas: SchemaRepository,
+        documents: DocumentRepository,
+        skills: SkillRepository,
+        lock: Callable[[Path], None],
+    ) -> None:
+        #: Given
+        _write_tree(tmp_path, prose=('code',), schemas=('code.structure.json',), documents=('code/logging.md',))
+        lock(tmp_path / 'docs')
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        refusal = OsRefusal.PERMISSION_DENIED
+        assert model.load_failures == (
+            LoadFailure(SPECS_DIR, UnlistableDirectory(refusal)),
+            LoadFailure(RootRelativePath.parse('docs'), UnlistableDirectory(refusal)),
+        ), 'each directory that cannot be listed is a failure at its own path, the specification directory first'
+        assert model.corpora == (), 'and no corpus is known from either'
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
+    def test_load_workspace_with_an_unlistable_specification_directory_records_it(
+        self,
+        tmp_path: Path,
+        schemas: SchemaRepository,
+        documents: DocumentRepository,
+        skills: SkillRepository,
+        lock: Callable[[Path], None],
+    ) -> None:
+        #: Given
+        _write_tree(tmp_path, prose=('code',), schemas=('code.structure.json',), documents=('code/logging.md',))
+        lock(tmp_path / 'docs' / '__meta__')
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert model.load_failures == (LoadFailure(SPECS_DIR, UnlistableDirectory(OsRefusal.PERMISSION_DENIED)),), (
+            'the specification directory is recorded as a value'
+        )
+        assert model.corpora == (), 'and with no specification no corpus is known'
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
+    def test_load_workspace_with_an_unlistable_skills_directory_records_it_and_loads_the_other_skills(
+        self,
+        tmp_path: Path,
+        schemas: SchemaRepository,
+        documents: DocumentRepository,
+        skills: SkillRepository,
+        lock: Callable[[Path], None],
+    ) -> None:
+        #: Given
+        _write(tmp_path, '.claude/skills/review/SKILL.md')
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        lock(tmp_path / '.agents' / 'skills')
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert model.load_failures == (
+            LoadFailure(
+                UNIVERSAL_SKILLS_DIR, UnlistableSkillsDirectory(UNIVERSAL_SKILLS_DIR, OsRefusal.PERMISSION_DENIED)
+            ),
+        ), 'the skills directory is recorded with its path and the refusal'
+        assert model.skill_locations == (_skill_location('.claude/skills/review'),), 'the other directory is listed'
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
+    def test_load_workspace_with_a_skills_directory_that_cannot_be_resolved_records_it_once(
+        self,
+        tmp_path: Path,
+        schemas: SchemaRepository,
+        documents: DocumentRepository,
+        skills: SkillRepository,
+        lock: Callable[[Path], None],
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'shared/skills/review/SKILL.md')
+        _write(tmp_path, '.agents/skills/commit/SKILL.md')
+        (tmp_path / '.claude').mkdir()
+        (tmp_path / '.claude' / 'skills').symlink_to('../shared/skills')
+        lock(tmp_path / 'shared')
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert model.load_failures == (
+            LoadFailure(CLAUDE_SKILLS_DIR, UnresolvableSkillsDirectory(OsRefusal.PERMISSION_DENIED)),
+        ), 'the link that cannot be followed is recorded at the path the agent declares it'
+        assert model.skill_locations == (_skill_location('.agents/skills/commit'),), 'the other skills load'
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
+    def test_load_workspace_with_a_skill_entry_that_cannot_be_resolved_records_it_and_lists_the_other_entries(
+        self,
+        tmp_path: Path,
+        schemas: SchemaRepository,
+        documents: DocumentRepository,
+        skills: SkillRepository,
+        lock: Callable[[Path], None],
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'shared/review/SKILL.md')
+        _write(tmp_path, '.agents/skills/audit/SKILL.md')
+        _write(tmp_path, '.agents/skills/commit/SKILL.md')
+        (tmp_path / '.agents' / 'skills' / 'broken').symlink_to('../../shared/review')
+        lock(tmp_path / 'shared')
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert model.load_failures == (
+            LoadFailure(
+                RootRelativePath.parse('.agents/skills/broken'), UnresolvableSkillEntry(OsRefusal.PERMISSION_DENIED)
+            ),
+        ), 'the entry is recorded with its path and the refusal'
+        assert model.skill_locations == (
+            _skill_location('.agents/skills/audit'),
+            _skill_location('.agents/skills/commit'),
+        ), 'the entries on both sides of it are listed'
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
+    def test_load_workspace_with_a_skill_file_that_cannot_be_resolved_records_it_and_lists_the_other_skills(
+        self,
+        tmp_path: Path,
+        schemas: SchemaRepository,
+        documents: DocumentRepository,
+        skills: SkillRepository,
+        lock: Callable[[Path], None],
+    ) -> None:
+        #: Given
+        _write(tmp_path, 'texts/REVIEW.md')
+        _write(tmp_path, '.agents/skills/commit/SKILL.md')
+        (tmp_path / '.agents' / 'skills' / 'review').mkdir()
+        (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').symlink_to('../../../texts/REVIEW.md')
+        lock(tmp_path / 'texts')
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert model.load_failures == (
+            LoadFailure(
+                RootRelativePath.parse('.agents/skills/review/SKILL.md'),
+                UnresolvableSkillFile(
+                    RootRelativePath.parse('.agents/skills/review/SKILL.md'), OsRefusal.PERMISSION_DENIED
+                ),
+            ),
+        ), 'the SKILL.md is recorded with its path and the refusal'
+        assert model.skill_locations == (_skill_location('.agents/skills/commit'),), 'the other skill is listed'
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
+    def test_load_workspace_with_an_unlistable_skill_directory_records_it_and_lists_the_other_skills(
+        self,
+        tmp_path: Path,
+        schemas: SchemaRepository,
+        documents: DocumentRepository,
+        skills: SkillRepository,
+        lock: Callable[[Path], None],
+    ) -> None:
+        #: Given
+        _write(tmp_path, '.agents/skills/commit/SKILL.md')
+        (tmp_path / '.agents' / 'skills' / 'review').mkdir()
+        lock(tmp_path / '.agents' / 'skills' / 'review')
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert model.load_failures == (
+            LoadFailure(
+                RootRelativePath.parse('.agents/skills/review'),
+                UnlistableSkillDirectory(RootRelativePath.parse('.agents/skills/review'), OsRefusal.PERMISSION_DENIED),
+            ),
+        ), 'the skill directory is recorded with its path and the refusal'
+        assert model.skill_locations == (_skill_location('.agents/skills/commit'),), 'the other skill is listed'
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
+    def test_load_workspace_with_two_skill_entries_linked_to_one_unlistable_directory_records_each_entry(
+        self,
+        tmp_path: Path,
+        schemas: SchemaRepository,
+        documents: DocumentRepository,
+        skills: SkillRepository,
+        lock: Callable[[Path], None],
+    ) -> None:
+        #: Given
+        (tmp_path / 'shared' / 'review').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills').mkdir(parents=True)
+        (tmp_path / '.agents' / 'skills' / 'first').symlink_to('../../shared/review')
+        (tmp_path / '.agents' / 'skills' / 'second').symlink_to('../../shared/review')
+        lock(tmp_path / 'shared' / 'review')
+        target = RootRelativePath.parse('shared/review')
+        refusal = OsRefusal.PERMISSION_DENIED
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert model.load_failures == (
+            LoadFailure(RootRelativePath.parse('.agents/skills/first'), UnlistableSkillDirectory(target, refusal)),
+            LoadFailure(RootRelativePath.parse('.agents/skills/second'), UnlistableSkillDirectory(target, refusal)),
+        ), 'each entry is a failure at the entry an agent reaches, and the place its link leads to is kept apart'
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
+    def test_load_workspace_with_a_linked_skills_directory_that_cannot_be_listed_records_it_at_the_declared_path(
+        self,
+        tmp_path: Path,
+        schemas: SchemaRepository,
+        documents: DocumentRepository,
+        skills: SkillRepository,
+        lock: Callable[[Path], None],
+    ) -> None:
+        #: Given
+        (tmp_path / 'shared' / 'skills').mkdir(parents=True)
+        (tmp_path / '.claude').mkdir()
+        (tmp_path / '.claude' / 'skills').symlink_to('../shared/skills')
+        lock(tmp_path / 'shared' / 'skills')
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert model.load_failures == (
+            LoadFailure(
+                CLAUDE_SKILLS_DIR,
+                UnlistableSkillsDirectory(RootRelativePath.parse('shared/skills'), OsRefusal.PERMISSION_DENIED),
+            ),
+        ), 'the failure is filed at the directory the agent declares, with the directory its link leads to kept'
+
+    def test_load_model_with_equal_failures_in_two_workspaces_gives_equal_governances(
+        self, tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
+    ) -> None:
+        #: Given
+        other = tmp_path_factory.mktemp('other')
+        for root in (tmp_path, other):
+            _write_tree(root, prose=('code',), schemas=(), documents=('code/logging.md',))
+            _write(root, 'docs/__meta__/code.structure.json', 'not json')
+        ref = DocumentRef(CODE, AspectFilename.parse('logging'))
+
+        #: When
+        first = load_model(DiskFileSystem(tmp_path)).find_governance(ref)
+        second = load_model(DiskFileSystem(other)).find_governance(ref)
+
+        #: Then
+        assert first is not None, 'the document is governed'
+        assert first == second, 'a failure compares by its path and condition, so the governances are equal'
+
+    def test_load_model_with_different_failures_gives_unequal_governances(
+        self, tmp_path: Path, tmp_path_factory: pytest.TempPathFactory
+    ) -> None:
+        #: Given
+        other = tmp_path_factory.mktemp('other')
+        for root, content in ((tmp_path, 'not json'), (other, '{}')):
+            _write_tree(root, prose=('code',), schemas=(), documents=('code/logging.md',))
+            _write(root, 'docs/__meta__/code.structure.json', content)
+        ref = DocumentRef(CODE, AspectFilename.parse('logging'))
+
+        #: When
+        first = load_model(DiskFileSystem(tmp_path)).find_governance(ref)
+        second = load_model(DiskFileSystem(other)).find_governance(ref)
+
+        #: Then
+        assert first != second, 'a changed condition changes the governance, so what it governs is judged again'
