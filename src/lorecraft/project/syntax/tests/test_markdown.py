@@ -146,6 +146,24 @@ class TestParseMarkdown:
             HeadingBlock(level=2, text='Usage', line=LineNumber.from_int(3)),
         ), 'a CRLF line ending counts as one line break'
 
+    def test_parse_markdown_with_crlf_line_endings_returns_each_link_and_later_heading_on_its_document_line(
+        self,
+    ) -> None:
+        #: Given
+        text = '---\r\nname: guide\r\n---\r\n# Guide\r\n\r\nSee [a](a.md).\r\n\r\n- [b](b.md)\r\n\r\n## Usage\r\n'
+
+        #: When
+        tree = parse_markdown(text)
+
+        #: Then
+        assert tree.links == (
+            Link(url='a.md', line=LineNumber.from_int(6)),
+            Link(url='b.md', line=LineNumber.from_int(8)),
+        ), 'each link after a frontmatter block and CRLF line endings is on its document line'
+        assert tree.blocks[-1] == HeadingBlock(level=2, text='Usage', line=LineNumber.from_int(10)), (
+            'a heading past several CRLF line endings is on its document line'
+        )
+
     def test_parse_markdown_with_a_delimited_block_returns_no_block_for_it(self) -> None:
         #: Given
         text = '---\nname: guide\n---\n# Guide\n'

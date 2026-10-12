@@ -13,6 +13,8 @@ not read as Markdown, but leaves it undecoded: a check that reads the frontmatte
 so decoding it in the full parse as well would decode every block twice.
 """
 
+import re
+from bisect import bisect_left
 from dataclasses import dataclass
 from typing import Final, assert_never
 
@@ -139,11 +141,12 @@ def parse_markdown(text: str) -> MarkdownTree:
         text: The document's whole text, frontmatter block included; empty parses to a tree with no block.
     """
     root = _FULL_PARSER.parse(text)
+    newlines = _newline_offsets(text)
     heading_texts: list[str] = []
     links: list[Link] = []
-    _collect_headings_and_links(text, root, heading_texts, links)
+    _collect_headings_and_links(newlines, root, heading_texts, links)
     return MarkdownTree(
-        blocks=tuple(_block(text, block) for block in root.children),
+        blocks=tuple(_block(text, newlines, block) for block in root.children),
         heading_texts=tuple(heading_texts),
         links=tuple(links),
     )
@@ -179,18 +182,19 @@ def parse_markdown_frontmatter(text: str) -> FrontmatterNode:
             raise AssertionError('unreachable: the plugin stores what decode_frontmatter returns')
 
 
-def _block(text: str, node: Node) -> HeadingBlock | ContentBlock:
-    """One of the root's own blocks, as a heading with its level, text and line, or as the source of any other.
+def _block(text: str, newlines: tuple[int, ...], node: Node) -> HeadingBlock | ContentBlock:
+    r"""One of the root's own blocks, as a heading with its level, text and line, or as the source of any other.
 
     Args:
         text: The document's text, which the block's position indexes into.
+        newlines: The offset of every `\n` in `text`, as `_newline_offsets` returns them.
         node: One of the root's children, in the tree `parse_markdown` parsed.
     """
     if isinstance(node, WenmodeHeading):
         return HeadingBlock(
             level=_heading_level(node.depth),
             text=plain_text(node.children),
-            line=_line(text, _position(node)),
+            line=_line(newlines, _position(node)),
         )
     return ContentBlock(source_outside_code=_source_outside_code(text, node))
 
@@ -248,15 +252,18 @@ def _code_spans(node: Node) -> list[Position]:
     return spans
 
 
-def _collect_headings_and_links(text: str, node: Node, heading_texts: list[str], links: list[Link]) -> None:
-    """Append the rendered text of every heading, and every link and image, in the node and below it.
+def _collect_headings_and_links(
+    newlines: tuple[int, ...], node: Node, heading_texts: list[str], links: list[Link]
+) -> None:
+    r"""Append the rendered text of every heading, and every link and image, in the node and below it.
 
     The whole tree is walked, unlike for the blocks: a heading in a list item or a blockquote still renders with
     an anchor a link can name, and a link there is as much the document's as one in a top-level paragraph. Both
     lists grow in document order, and an image inside a link's text comes after that link.
 
     Args:
-        text: The document's text, which the nodes' positions index into to give each link its line.
+        newlines: The offset of every `\n` in the document's text, as `_newline_offsets` returns them, which gives
+            each link its line from its position.
         node: Root of the subtree to walk; a leaf is walked as itself.
         heading_texts: Where each heading's rendered text is appended.
         links: Where each link and image is appended.
@@ -264,10 +271,10 @@ def _collect_headings_and_links(text: str, node: Node, heading_texts: list[str],
     if isinstance(node, WenmodeHeading):
         heading_texts.append(_rendered_text(node.children))
     if isinstance(node, WenmodeLink | Image):
-        links.append(Link(url=node.url, line=_line(text, _position(node))))
+        links.append(Link(url=node.url, line=_line(newlines, _position(node))))
     if isinstance(node, Parent):
         for child in node.children:
-            _collect_headings_and_links(text, child, heading_texts, links)
+            _collect_headings_and_links(newlines, child, heading_texts, links)
 
 
 def _rendered_text(nodes: list[Node]) -> str:
@@ -291,17 +298,29 @@ def _rendered_text(nodes: list[Node]) -> str:
     return ''.join(parts)
 
 
-def _line(text: str, span: Position) -> LineNumber:
+def _newline_offsets(text: str) -> tuple[int, ...]:
+    r"""The offset of every `\n` in the text, in ascending order.
+
+    Built once per document, so that a node's line is a binary search rather than a count from the start of the
+    text, which would make a parse cost every node times the document's size.
+
+    Args:
+        text: The document's whole text.
+    """
+    return tuple(match.start() for match in re.finditer('\n', text))
+
+
+def _line(newlines: tuple[int, ...], span: Position) -> LineNumber:
     r"""The document line a node's span starts on, a block's or an inline's alike.
 
     wenmode reports a node's position as a character offset into the text; every line before the offset ends in
-    a `\n`, a `\r\n` included.
+    a `\n`, a `\r\n` included, so the line is one more than the number of `\n` before the offset.
 
     Args:
-        text: The document's text, which the span indexes into.
+        newlines: The offset of every `\n` in the document's text, as `_newline_offsets` returns them.
         span: Where the node to locate sits, as `_position` reads it.
     """
-    return LineNumber.from_int(text.count('\n', 0, span.start) + 1)
+    return LineNumber.from_int(bisect_left(newlines, span.start) + 1)
 
 
 def _position(node: Node) -> Position:
