@@ -13,6 +13,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import Heading, LineNumber, count_lines, parse_document
 
 from ..name import parse_spec_name
+from ..outline_alignment import align_outlines
 from ..outline_divergence import (
     AbsentSection,
     DocumentEnd,
@@ -73,7 +74,8 @@ def _match_corpus_outline(outline: str, text: str) -> tuple[OutlineDivergenceSpe
         outline: The corpus structure specification's JSON; it states an outline.
         text: The document's text.
     """
-    return match_outlines((_structure_spec('code', outline),), parse_document(text).headings, count_lines(text))
+    alignments = align_outlines((_structure_spec('code', outline),), parse_document(text).headings)
+    return match_outlines(alignments, count_lines(text))
 
 
 def _section(text: str, name: str) -> Heading:
@@ -299,10 +301,26 @@ class TestMatchOutlines:
         )
 
         #: When
-        found = match_outlines(structure_specs, headings, line_count)
+        found = match_outlines(align_outlines(structure_specs, headings), line_count)
 
         #: Then
         assert found == (
             OutlineDivergenceSpec(spec=CORPUS_SPEC, divergence=None),
             OutlineDivergenceSpec(spec=NAMESPACE_SPEC, divergence=unlisted),
         ), 'each outline is matched on its own, so the document can follow one and diverge from the other'
+
+    def test_match_outlines_with_a_specification_stating_no_outline_holds_no_entry_for_it(self) -> None:
+        #: Given
+        structure_specs = (
+            _structure_spec('code', '{"forbidden": ["Aside"]}'),
+            _structure_spec('code-python', '{"outline": [{"section": "Rule"}, {"any": true}]}'),
+        )
+        headings = parse_document(RULE_ASIDE_CHECKLIST).headings
+
+        #: When
+        found = match_outlines(align_outlines(structure_specs, headings), count_lines(RULE_ASIDE_CHECKLIST))
+
+        #: Then
+        assert found == (OutlineDivergenceSpec(spec=NAMESPACE_SPEC, divergence=None),), (
+            'a specification that states no outline has nothing to match, so only the one that does has an entry'
+        )

@@ -63,8 +63,8 @@ it read does, `governance(ref)` excepted, as its bullet states:
   specification that governs it, the same kind of shared analysis. It reads `parse(source)` and
   `governance(source.ref)`, and nothing else.
 - `outline_divergences(source)`: where one document's sections first stop matching each outline that governs it, the
-  same kind of shared analysis, found over the same alignment. It reads `parse(source)`, `document_lines(source)` and
-  `governance(source.ref)`, and nothing else.
+  same kind of shared analysis, derived from the alignment. It reads `outline_alignment(source)` and
+  `document_lines(source)`, and nothing else.
 - `skill_frontmatter(source)`: one skill's frontmatter node, the same stub for a `SKILL.md`. It reads the text of
   the witness `skill_text(ref)` returned and nothing else.
 - `skill_parse(source)`: one skill's parse tree, the same syntax tree for a `SKILL.md`. It reads the text of the
@@ -127,11 +127,11 @@ scopes, links or climbed directories differ, compared as recorded rather than th
 scope. A change of scope invalidates nothing else: what the new scope adds or drops reaches the model and each skill's
 resources as entries in the change set. That rule holds only while the decoded text reads its own document, skill or
 resource, the frontmatter, the parse, the token count and the line count each read only the decoded text of their own,
-the governance reads only the model, the schema problems, the outline alignment and the outline divergences read only
-their own document's frontmatter, or parse and line count, and its governance, a skill's schema problems only its own
-frontmatter, the model and each skill's resource listing read no document, and the scope index reads only the scope, the
-links and the climbed directories, so keep them that way: data drawn from several documents belongs in a new cache with
-its own rule.
+the governance reads only the model, the schema problems read only their own document's frontmatter and its governance,
+the outline alignment only its own document's parse and its governance, the outline divergences only that alignment and
+the line count, a skill's schema problems only its own frontmatter, the model and each skill's resource listing read no
+document, and the scope index reads only the scope, the links and the climbed directories, so keep them that way: data
+drawn from several documents belongs in a new cache with its own rule.
 
 The link targets of a Markdown file are such a cache: each reads where every path its links name leads, so each
 carries over only as its own docstring states.
@@ -770,12 +770,11 @@ class Database:
     def outline_divergences(self, source: DocumentText) -> tuple[OutlineDivergenceSpec, ...]:
         """Where one document's sections first stop matching each outline that governs it, found on the first call.
 
-        The document is parsed, and its lines counted, only when a structure specification that governs it states an
-        outline.
+        Derived from `outline_alignment(source)`, so the document is aligned once for both queries. Its lines are
+        counted only when a structure specification that governs it states an outline.
 
-        Carry-over: kept for the next revision whenever `parse(source)`, `document_lines(source)` and
-        `governance(source.ref)` are. A change to the model that leaves the document's governance as it was, such as
-        a document added to another corpus, leaves it valid.
+        Carry-over: kept for the next revision whenever `outline_alignment(source)` and `document_lines(source)`
+        are.
 
         Args:
             source: The document's text, as `text(ref)` returns it; its ref is the cache key, so one ref is matched
@@ -817,10 +816,10 @@ class Database:
         """
         divergences = self._outline_divergences.get(source.ref)
         if divergences is None:
-            governance = self.governance(source.ref)
-            outline_specs = governance.outline_specs() if governance is not None else ()
-            if outline_specs:
-                divergences = match_outlines(outline_specs, self.parse(source).headings, self.document_lines(source))
+            alignments = self.outline_alignment(source)
+            # Only a document some outline governs has its lines counted.
+            if any(alignment.outline for alignment in alignments):
+                divergences = match_outlines(alignments, self.document_lines(source))
             else:
                 divergences = ()
             self._outline_divergences[source.ref] = divergences

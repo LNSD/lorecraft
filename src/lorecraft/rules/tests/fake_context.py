@@ -271,11 +271,7 @@ class FakeDocumentContext:
 
     def outline_divergences(self) -> tuple[OutlineDivergenceSpec, ...]:
         """Where the sections stop matching each governing outline, as the real analysis finds it."""
-        outlined_specs: list[StructureSpec] = []
-        for structure_spec in self._governance.structure_specs():
-            if structure_spec.outline:
-                outlined_specs.append(structure_spec)
-        return match_outlines(tuple(outlined_specs), self.parse().headings, count_lines(self._text))
+        return match_outlines(self.outline_alignment(), count_lines(self._text))
 
 
 class FakeSkillContext:

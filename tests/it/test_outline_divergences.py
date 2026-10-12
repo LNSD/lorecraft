@@ -172,16 +172,16 @@ class TestOutlineDivergences:
         #: Then
         assert divergences == (), 'no structure specification states an outline, so no outline is matched'
 
-    def test_outline_divergences_with_no_outline_never_parses_the_document(self) -> None:
+    def test_outline_divergences_with_no_structure_specification_never_parses_the_document(self) -> None:
         #: Given
-        database = ParsingDatabase(_snapshot(b'{"empty_sections": "forbidden"}', None, RULE_ASIDE_CHECKLIST))
+        database = ParsingDatabase(_snapshot(None, None, RULE_ASIDE_CHECKLIST))
         source = _document_text(database, TYPING)
 
         #: When
         database.outline_divergences(source)
 
         #: Then
-        assert database.parsed == [], 'the outlines are read first, so a document no outline governs is never parsed'
+        assert database.parsed == [], 'the governance is read first, so a document nothing governs is never parsed'
 
     def test_outline_divergences_with_a_document_in_no_corpus_holds_none(self) -> None:
         #: Given

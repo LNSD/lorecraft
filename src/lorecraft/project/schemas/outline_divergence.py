@@ -10,11 +10,11 @@ from dataclasses import dataclass
 from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.syntax import SECTION_LEVEL, Heading, LineNumber
+from lorecraft.project.syntax import Heading, LineNumber
 
-from .outline_alignment import AlignedSection, align_outlines
+from .outline_alignment import AlignedSection, OutlineAlignmentSpec
 from .section_name import SectionName
-from .structure import AnySections, SectionEntry, StructureSpec
+from .structure import AnySections, OutlineEntry, SectionEntry
 
 
 @dataclass(frozen=True, slots=True)
@@ -133,41 +133,39 @@ class OutlineDivergenceSpec:
     divergence: OutlineDivergence | None
 
 
-def match_outlines(
-    structure_specs: tuple[StructureSpec, ...], headings: tuple[Heading, ...], line_count: int
-) -> tuple[OutlineDivergenceSpec, ...]:
-    """Match each outline against a document's sections, and return where they first diverge. Raises nothing.
+def match_outlines(alignments: tuple[OutlineAlignmentSpec, ...], line_count: int) -> tuple[OutlineDivergenceSpec, ...]:
+    """Find where a document's aligned sections first stop matching each outline, in the alignments given.
 
     Each outline is matched on its own: a document governed by a corpus and a namespace specification that both
-    state an outline must match both.
+    state an outline must match both. An alignment of a specification that states no outline has nothing to match,
+    so it has no entry in the result. Raises nothing.
 
     Args:
-        structure_specs: The structure specifications whose outlines are matched, in the order they apply; each
-            states one.
-        headings: The document's top-level headings, of every level, in document order; only its H2 sections are
-            matched.
+        alignments: The document's sections aligned to each governing structure specification, in the order the
+            specifications apply, as `align_outlines` returns them.
         line_count: The lines in the document's whole file, where a section expected after every other one is
             placed; 0 for an empty document.
 
     Returns:
-        One entry per specification, in the order given.
+        One entry per alignment whose specification states an outline, in the order given.
     """
-    alignments = align_outlines(structure_specs, headings)
-    sections = tuple(heading for heading in headings if heading.level == SECTION_LEVEL)
-    # An empty document has no line at all, so its end is reported on line 1. A count is never negative, so
-    # `from_int` cannot raise here.
-    document_end = DocumentEnd(
-        last_line=LineNumber.from_int(max(line_count, 1)), after=sections[-1] if sections else None
-    )
     specs: list[OutlineDivergenceSpec] = []
-    for structure_spec, alignment in zip(structure_specs, alignments, strict=True):
-        divergence = _first_divergence(structure_spec, alignment.sections, document_end)
-        specs.append(OutlineDivergenceSpec(spec=structure_spec.path, divergence=divergence))
+    for alignment in alignments:
+        if not alignment.outline:
+            continue
+        sections = alignment.sections
+        # An empty document has no line at all, so its end is reported on line 1. A count is never negative, so
+        # `from_int` cannot raise here.
+        document_end = DocumentEnd(
+            last_line=LineNumber.from_int(max(line_count, 1)), after=sections[-1].section if sections else None
+        )
+        divergence = _first_divergence(alignment.outline, sections, document_end)
+        specs.append(OutlineDivergenceSpec(spec=alignment.spec, divergence=divergence))
     return tuple(specs)
 
 
 def _first_divergence(
-    structure_spec: StructureSpec, aligned: tuple[AlignedSection, ...], document_end: DocumentEnd
+    outline: tuple[OutlineEntry, ...], aligned: tuple[AlignedSection, ...], document_end: DocumentEnd
 ) -> OutlineDivergence | None:
     """Match the outline against the document's sections, left to right, and return where they first diverge.
 
@@ -176,7 +174,7 @@ def _first_divergence(
     so this walk and every rule reading the alignment agree on it. Raises nothing.
 
     Args:
-        structure_spec: The structure specification whose `outline` is matched; it states one.
+        outline: The outline that is matched; the specification states one.
         aligned: The document's H2 sections, in document order, each with the entry it is aligned to.
         document_end: Where a section expected after every section of the document should be written.
 
@@ -185,7 +183,7 @@ def _first_divergence(
     """
     at = 0  # the first section not yet accounted for
 
-    for entry in structure_spec.outline:
+    for entry in outline:
         match entry:
             case AnySections():
                 # The run stops at a section the outline names: that section belongs to the entry naming it,
