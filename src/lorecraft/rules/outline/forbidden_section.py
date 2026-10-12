@@ -5,7 +5,6 @@ from typing import ClassVar, Self
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
-from lorecraft.project.syntax import SECTION_LEVEL
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.location import Help, Subdiagnostic
 from lorecraft.rules.subject import DocumentRule, Facet
@@ -100,11 +99,10 @@ class ForbiddenSection(DocumentRule):
         Args:
             subject: The document, governed by a structure specification.
         """
-        headings = subject.parse().headings
         occurrences: list[Self] = []
-        for structure_spec in subject.specifications().structure_specs():
-            forbidden_names = {name.value for name in structure_spec.forbidden}
-            for heading in headings:
-                if heading.level == SECTION_LEVEL and heading.text in forbidden_names:
-                    occurrences.append(cls(spec=structure_spec.path, line=heading.line, section=heading.text))
+        for alignment in subject.outline_alignment():
+            for aligned in alignment.sections:
+                if aligned.forbidden:
+                    section = aligned.section
+                    occurrences.append(cls(spec=alignment.spec, line=section.line, section=section.text))
         return tuple(occurrences)

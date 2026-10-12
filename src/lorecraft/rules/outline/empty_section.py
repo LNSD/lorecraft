@@ -5,8 +5,8 @@ from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
-from lorecraft.project.schemas import SectionEntry, StructureSpec
-from lorecraft.project.syntax import SECTION_LEVEL, Heading, find_title
+from lorecraft.project.schemas import AnySections, OutlineAlignmentSpec, SectionEntry
+from lorecraft.project.syntax import Heading, find_title
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.location import Help, Subdiagnostic
 from lorecraft.rules.subject import DocumentRule, Facet
@@ -14,23 +14,31 @@ from lorecraft.rules.subject import DocumentRule, Facet
 from .__ruleset__ import GROUP_ID, example_note, spec_note
 
 
-def _find_required_entry(structure_specs: tuple[StructureSpec, ...], heading: Heading) -> SectionEntry | None:
+def _find_required_entry(alignments: tuple[OutlineAlignmentSpec, ...], heading: Heading) -> SectionEntry | None:
     """The first outline entry, across the specifications, that requires the section a heading opens.
 
-    Only an H2 is a section an outline matches. The entry may come from a specification other than the one that
+    Only an H2 is a section an outline aligns. The entry may come from a specification other than the one that
     forbids empty sections: a namespace can require what its corpus leaves out. `None` comes back when the heading
-    is no H2, or no specification requires a section of its text.
+    is no H2, or no specification aligns it to an entry that requires it.
 
     Args:
-        structure_specs: Every structure specification that governs the document, in the order they apply.
+        alignments: The document's sections aligned to the outline of every structure specification that governs
+            it, in the order they apply.
         heading: The heading of the empty section.
     """
-    if heading.level != SECTION_LEVEL:
-        return None
-    for structure_spec in structure_specs:
-        entry = structure_spec.find_required_entry(heading.text)
-        if entry is not None:
-            return entry
+    for alignment in alignments:
+        aligned = alignment.find(heading)
+        if aligned is None:
+            continue
+        entry = aligned.entry
+        match entry:
+            case SectionEntry():
+                if not entry.optional:
+                    return entry
+            case AnySections() | None:
+                pass  # a run, or nothing, requires no section
+            case _:
+                assert_never(entry)
     return None
 
 
@@ -40,18 +48,19 @@ class EmptyTitle:
 
 
 def _role_of(
-    structure_specs: tuple[StructureSpec, ...], heading: Heading, title: Heading | None
+    alignments: tuple[OutlineAlignmentSpec, ...], heading: Heading, title: Heading | None
 ) -> EmptyTitle | SectionEntry | None:
     """What an empty heading is: the title, a section the outline requires, or any other section.
 
     Args:
-        structure_specs: Every structure specification that governs the document, in the order they apply.
+        alignments: The document's sections aligned to the outline of every structure specification that governs
+            it, in the order they apply.
         heading: The heading of the empty section.
         title: The document's title, or `None` when it has none.
     """
     if heading is title:
         return EmptyTitle()
-    return _find_required_entry(structure_specs, heading)
+    return _find_required_entry(alignments, heading)
 
 
 @rule
@@ -170,9 +179,9 @@ class EmptySection(DocumentRule):
         """
         headings = subject.parse().headings
         title = find_title(headings)
-        structure_specs = subject.specifications().structure_specs()
+        alignments = subject.outline_alignment()
         occurrences: list[Self] = []
-        for structure_spec in structure_specs:
+        for structure_spec in subject.specifications().structure_specs():
             if structure_spec.forbid_empty_sections:
                 for heading in headings:
                     if heading.empty:
@@ -181,7 +190,7 @@ class EmptySection(DocumentRule):
                                 spec=structure_spec.path,
                                 line=heading.line,
                                 section=heading.text,
-                                role=_role_of(structure_specs, heading, title),
+                                role=_role_of(alignments, heading, title),
                             )
                         )
         return tuple(occurrences)

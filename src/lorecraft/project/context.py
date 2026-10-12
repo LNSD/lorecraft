@@ -35,7 +35,7 @@ from lorecraft.vfs import ResolvedPath, RootExit
 
 from .aspect import AspectFilename
 from .link_target import LinkBase, LinkTarget
-from .schemas import OutlineDivergenceSpec, SchemaProblems, StructureSpec
+from .schemas import OutlineAlignmentSpec, OutlineDivergenceSpec, SchemaProblems, StructureSpec
 from .syntax import FrontmatterNode, ParsedDocument
 from .workspace import Governance
 
@@ -157,6 +157,14 @@ class DocumentContext(FrontmatterContext, MarkdownContext, Protocol):
         It is the one the document's corpus states, which every rule over the document's structure is gated on.
 
         Never absent: a document's context exists only for a document whose corpus states one.
+        """
+        ...
+
+    def outline_alignment(self) -> tuple[OutlineAlignmentSpec, ...]:
+        """Which outline entry each of the document's H2 sections falls in, for each specification that governs it.
+
+        One entry per structure specification that governs the document, in the order the specifications apply,
+        one that states no outline included: it aligns each section to nothing.
         """
         ...
 

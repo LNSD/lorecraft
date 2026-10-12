@@ -23,7 +23,7 @@ from lorecraft.core.num import UnsignedInt
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.link_target import DocumentDirectory, LinkTarget, SkillRoot
-from lorecraft.project.schemas import OutlineDivergenceSpec, SchemaProblems, StructureSpec
+from lorecraft.project.schemas import OutlineAlignmentSpec, OutlineDivergenceSpec, SchemaProblems, StructureSpec
 from lorecraft.project.skill import OutsideSymlink, SkillLocation
 from lorecraft.project.syntax import FrontmatterNode, ParsedDocument
 from lorecraft.project.workspace import Governance
@@ -104,6 +104,10 @@ class DatabaseDocumentContext:
         if corpus_structure is None:
             raise AssertionError('unreachable: a context is built only for a corpus that states a structure')
         return corpus_structure
+
+    def outline_alignment(self) -> tuple[OutlineAlignmentSpec, ...]:
+        """Which outline entry each of the document's sections falls in, from the `outline_alignment` query."""
+        return self._database.outline_alignment(self._source)
 
     def outline_divergences(self) -> tuple[OutlineDivergenceSpec, ...]:
         """Where the document's sections stop matching each outline, from the `outline_divergences` query."""
