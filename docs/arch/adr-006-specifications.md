@@ -132,3 +132,6 @@ Before committing code, verify:
   feat specs
 - [principle-validate-at-edge](../code/principle-validate-at-edge.md) - Foundation: A dialect is decoded and proved at
   the edge
+- [adr-015-database](adr-015-database.md) - Related: Proposes that a meta spec that cannot be loaded be a diagnostic, not a failure
+- [prd-014-resilient-model-loading](prd-014-resilient-model-loading.md) - Related: Requirements that rely on layers applying by conjunction
+- [adr-016-specifications](adr-016-specifications.md) - Related: Proposed replacement in which a meta spec that cannot be loaded is a failed layer

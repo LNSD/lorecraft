@@ -296,3 +296,4 @@ Before committing code, verify:
 - [adr-011-rules-engine](adr-011-rules-engine.md) - Related: How a run judges subjects with the rules
 - [pattern-registry](../code/pattern-registry.md) - Foundation: Registration beside the definition
 - [pattern-value-object](../code/pattern-value-object.md) - Foundation: A rule's `Release` and `RuleName`
+- [adr-015-database](adr-015-database.md) - Related: The database opened with its model, proposed to supersede adr-004

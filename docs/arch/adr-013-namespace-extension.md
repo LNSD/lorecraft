@@ -91,3 +91,4 @@ about every function.
 - [#208](https://github.com/LNSD/lorecraft/issues/208) - Source: Whether a namespace extension layers onto its base or
   overrides it
 - [adr-006-specifications](adr-006-specifications.md) - Foundation: Conjunction for meta specs
+- [adr-016-specifications](adr-016-specifications.md) - Related: Meta specs and governance restated, proposed to supersede adr-006

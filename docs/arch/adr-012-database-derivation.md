@@ -95,3 +95,4 @@ Before committing code, verify:
 - [adr-011-rules-engine](adr-011-rules-engine.md) - Related: Where the engine's code lives
 - [module-lorecraft-project](../code/module-lorecraft-project.md) - Leads to: The Derivation package's rules
 - [module-lorecraft-checks](../code/module-lorecraft-checks.md) - Leads to: The Analysis package's rules
+- [adr-015-database](adr-015-database.md) - Related: The database opened with its model, proposed to supersede adr-004
