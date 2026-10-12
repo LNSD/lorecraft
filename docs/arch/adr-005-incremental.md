@@ -54,7 +54,8 @@ database reads or writes the store, which lives outside the workspace root and s
 
 So every query result is data a store can write and a new database can reload: immutable values, tuples, frozen
 records and read-only mappings, holding no handle, callable, compiled third-party object or reference back to the
-database. Whatever a result needs that is not data, such as a compiled validator, is rebuilt from it on use.
+database. A standard-library value that pickles and compares by value, such as a compiled `re.Pattern`, is data.
+Whatever a result needs that is not data, such as a compiled validator, is rebuilt from it on use.
 
 ## Consequences
 
