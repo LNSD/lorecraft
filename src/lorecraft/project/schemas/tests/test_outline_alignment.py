@@ -1,0 +1,241 @@
+"""Which outline entry each of a document's sections falls in, for each structure specification that governs it.
+
+Every document's headings are read from its text by the real parser, and every outline decoded from a structure
+specification's JSON by the real decoder: a document that follows its outline, one that writes its sections out of
+order, one with a section no entry names and no run covers, and one held to two specifications.
+"""
+
+from typing import Final, assert_never
+
+import pytest
+
+from lorecraft.core.path import RootRelativePath
+from lorecraft.project.syntax import parse_document
+
+from ..name import parse_spec_name
+from ..outline_alignment import AlignedSection, OutlineAlignmentSpec, align_outlines
+from ..spec_file import SpecFileType, StructureSpecFile, spec_filename
+from ..structure import AnySections, SectionEntry, StructureSchema, StructureSpec
+
+SPECS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__')
+
+CORPUS_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
+"""The corpus structure specification."""
+
+NAMESPACE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code-python.structure.json')
+"""The `python` namespace structure specification."""
+
+RULE_ASIDE_CHECKLIST: Final[str] = (
+    '# Typing\n'
+    '\n'
+    '## Rule\n'
+    '\n'
+    'Annotate every signature.\n'
+    '\n'
+    '## Aside\n'
+    '\n'
+    'Read the rationale once.\n'
+    '\n'
+    '## Checklist\n'
+    '\n'
+    '- [ ] Annotated.\n'
+)
+"""A document with a title, then the sections `Rule`, `Aside` and `Checklist`."""
+
+
+def _structure_spec(spec_name: str, text: str) -> StructureSpec:
+    """A structure specification decoded from its JSON.
+
+    Args:
+        spec_name: The specification's name, such as `code` or `code-python`.
+        text: The structure specification's JSON.
+    """
+    name = parse_spec_name(spec_name)
+    file = StructureSpecFile(path=SPECS_DIR / spec_filename(name, SpecFileType.STRUCTURE), name=name)
+    return StructureSpec.parse(file, StructureSchema(text))
+
+
+def _align_corpus(spec_json: str, text: str) -> tuple[AlignedSection, ...]:
+    """The sections of a document aligned to the one structure specification its corpus states.
+
+    Args:
+        spec_json: The corpus structure specification's JSON.
+        text: The document's text.
+    """
+    alignments = align_outlines((_structure_spec('code', spec_json),), parse_document(text).headings)
+    assert len(alignments) == 1, 'one specification is aligned to'
+    return alignments[0].sections
+
+
+def _entry_summary(aligned: tuple[AlignedSection, ...]) -> list[str]:
+    """What each aligned section falls in, as `name`, `any` or `-` for nothing, in document order.
+
+    Args:
+        aligned: The aligned sections.
+    """
+    summary: list[str] = []
+    for section in aligned:
+        entry = section.entry
+        match entry:
+            case SectionEntry():
+                summary.append(entry.name.value)
+            case AnySections():
+                summary.append('any')
+            case None:
+                summary.append('-')
+            case _:
+                assert_never(entry)
+    return summary
+
+
+@pytest.mark.unit
+class TestAlignOutlines:
+    def test_align_outlines_with_a_document_following_its_outline_aligns_each_section_to_its_entry(self) -> None:
+        #: Given
+        spec_json = '{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}]}'
+
+        #: When
+        aligned = _align_corpus(spec_json, RULE_ASIDE_CHECKLIST)
+
+        #: Then
+        assert _entry_summary(aligned) == ['Rule', 'any', 'Checklist'], (
+            'a named section falls in the entry naming it, and an unnamed one in the run between its neighbours'
+        )
+
+    def test_align_outlines_with_sections_written_out_of_order_aligns_each_to_the_entry_naming_it(self) -> None:
+        #: Given
+        spec_json = '{"outline": [{"section": "Checklist"}, {"any": true}, {"section": "Rule"}]}'
+
+        #: When
+        aligned = _align_corpus(spec_json, RULE_ASIDE_CHECKLIST)
+
+        #: Then
+        assert _entry_summary(aligned) == ['Rule', '-', 'Checklist'], (
+            'a named section falls in the entry naming it, in or out of its turn; `Aside` follows `Rule`, which '
+            'the outline places last, so no run follows to cover it'
+        )
+
+    def test_align_outlines_with_an_unnamed_section_after_every_run_aligns_it_to_nothing(self) -> None:
+        #: Given
+        spec_json = '{"outline": [{"any": true}, {"section": "Rule"}, {"section": "Checklist"}]}'
+
+        #: When
+        aligned = _align_corpus(spec_json, RULE_ASIDE_CHECKLIST)
+
+        #: Then
+        assert _entry_summary(aligned) == ['Rule', '-', 'Checklist'], (
+            'the run precedes `Rule`, so `Aside` after it is covered by no run and falls in no entry'
+        )
+
+    def test_align_outlines_with_an_unnamed_section_before_a_later_run_aligns_it_to_that_run(self) -> None:
+        #: Given
+        text = '# Typing\n\n## Aside\n\nRead the rationale once.\n\n## Rule\n\nAnnotate every signature.\n'
+        spec_json = '{"outline": [{"section": "Rule"}, {"any": true}]}'
+
+        #: When
+        aligned = _align_corpus(spec_json, text)
+
+        #: Then
+        assert _entry_summary(aligned) == ['any', 'Rule'], (
+            'a section before every named one falls in the first run of the outline, whatever its place'
+        )
+
+    def test_align_outlines_with_a_run_holding_a_cap_aligns_the_section_to_that_run(self) -> None:
+        #: Given
+        spec_json = '{"outline": [{"section": "Rule", "words": 30}, {"any": true, "words": 5}]}'
+
+        #: When
+        aligned = _align_corpus(spec_json, RULE_ASIDE_CHECKLIST)
+        entries = [section.entry for section in aligned]
+        caps = [entry.words.value if entry is not None and entry.words else None for entry in entries]
+
+        #: Then
+        assert caps == [30, 5, 5], (
+            'the section carries the entry itself, so its cap is the one of the entry it falls in'
+        )
+
+    def test_align_outlines_with_a_forbidden_section_marks_it_forbidden(self) -> None:
+        #: Given
+        spec_json = '{"outline": [{"section": "Rule"}, {"any": true}], "forbidden": ["Aside"]}'
+
+        #: When
+        aligned = _align_corpus(spec_json, RULE_ASIDE_CHECKLIST)
+
+        #: Then
+        assert [section.forbidden for section in aligned] == [False, True, False], 'only `Aside` is forbidden'
+        assert _entry_summary(aligned) == ['Rule', 'any', 'any'], (
+            'a forbidden section is no named one, so the run covers it as it covers any unnamed section'
+        )
+
+    def test_align_outlines_with_a_specification_stating_no_outline_aligns_each_section_to_nothing(self) -> None:
+        #: Given
+        spec_json = '{"forbidden": ["Aside"]}'
+
+        #: When
+        aligned = _align_corpus(spec_json, RULE_ASIDE_CHECKLIST)
+
+        #: Then
+        assert _entry_summary(aligned) == ['-', '-', '-'], 'with no outline there is no entry to fall in'
+        assert [section.forbidden for section in aligned] == [False, True, False], 'the forbidden names still apply'
+
+    def test_align_outlines_with_a_subsection_aligns_only_the_h2_sections(self) -> None:
+        #: Given
+        text = '# Typing\n\n## Rule\n\n### Detail\n\nAnnotate every signature.\n\n## Checklist\n\n- [ ] Annotated.\n'
+        spec_json = '{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}]}'
+
+        #: When
+        aligned = _align_corpus(spec_json, text)
+
+        #: Then
+        assert [section.section.text for section in aligned] == ['Rule', 'Checklist'], (
+            'only an H2 is a section; the H3 is part of the section above it'
+        )
+
+    def test_align_outlines_with_two_specifications_aligns_the_sections_to_each_on_its_own(self) -> None:
+        #: Given
+        corpus = _structure_spec('code', '{"outline": [{"section": "Rule"}, {"any": true}]}')
+        namespace = _structure_spec('code-python', '{"outline": [{"section": "Checklist"}]}')
+        headings = parse_document(RULE_ASIDE_CHECKLIST).headings
+
+        #: When
+        alignments = align_outlines((corpus, namespace), headings)
+        specs = [alignment.spec for alignment in alignments]
+        corpus_summary = _entry_summary(alignments[0].sections)
+        namespace_summary = _entry_summary(alignments[1].sections)
+
+        #: Then
+        assert specs == [CORPUS_SPEC, NAMESPACE_SPEC], 'one entry per specification, in the order given'
+        assert corpus_summary == ['Rule', 'any', 'any'], 'the corpus outline names `Rule`, then a run covers the rest'
+        assert namespace_summary == ['-', '-', 'Checklist'], (
+            'the namespace outline names only `Checklist`, so the sections before it fall in no run of it'
+        )
+
+
+@pytest.mark.unit
+class TestOutlineAlignmentSpecFind:
+    def test_find_with_the_heading_of_a_section_returns_its_aligned_section(self) -> None:
+        #: Given
+        document = parse_document(RULE_ASIDE_CHECKLIST)
+        structure_spec = _structure_spec('code', '{"outline": [{"section": "Rule"}, {"any": true}]}')
+        alignment = align_outlines((structure_spec,), document.headings)[0]
+        aside = next(heading for heading in document.headings if heading.text == 'Aside')
+
+        #: When
+        aligned = alignment.find(aside)
+
+        #: Then
+        assert aligned is not None, 'the section is one of the document'
+        assert aligned.section == aside, 'the aligned section holds the heading it was found by'
+
+    def test_find_with_the_title_returns_none(self) -> None:
+        #: Given
+        document = parse_document(RULE_ASIDE_CHECKLIST)
+        structure_spec = _structure_spec('code', '{"outline": [{"section": "Rule"}, {"any": true}]}')
+        alignment: OutlineAlignmentSpec = align_outlines((structure_spec,), document.headings)[0]
+        title = document.headings[0]
+
+        #: When
+        aligned = alignment.find(title)
+
+        #: Then
+        assert aligned is None, 'the title is no H2, so no outline aligns it'

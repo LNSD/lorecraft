@@ -59,9 +59,12 @@ it read does, `governance(ref)` excepted, as its bullet states:
 - `schema_problems(source)`: what each frontmatter schema that governs one document rejects in its frontmatter, each
   problem placed on its line, like an analysis the IDE runs once over a file and every inspection then reads. It reads
   `frontmatter(source)` and `governance(source.ref)`, and nothing else.
+- `outline_alignment(source)`: which outline entry each of one document's sections falls in, for each structure
+  specification that governs it, the same kind of shared analysis. It reads `parse(source)` and
+  `governance(source.ref)`, and nothing else.
 - `outline_divergences(source)`: where one document's sections first stop matching each outline that governs it, the
-  same kind of shared analysis. It reads `parse(source)`, `document_lines(source)` and `governance(source.ref)`, and
-  nothing else.
+  same kind of shared analysis, found over the same alignment. It reads `parse(source)`, `document_lines(source)` and
+  `governance(source.ref)`, and nothing else.
 - `skill_frontmatter(source)`: one skill's frontmatter node, the same stub for a `SKILL.md`. It reads the text of
   the witness `skill_text(ref)` returned and nothing else.
 - `skill_parse(source)`: one skill's parse tree, the same syntax tree for a `SKILL.md`. It reads the text of the
@@ -104,11 +107,11 @@ Nothing here records what a cached value read, so no dependency is tracked. Inva
 way the IDE drops per-file index entries on a file change event and resets structural caches on a project model change.
 Reserved, not implemented: `advance(snapshot) -> Database`, the next state. It would `diff` the two snapshots and carry
 over each cached value the change set leaves valid: the decoded text, the frontmatter, the parse, the token count and
-the line count of every document whose bytes did not change, and its schema problems and outline divergences too when
-its governance carries over, the governance of every document the next model governs by equal specifications, the
-decoded text, the frontmatter, the parse, the line count and the schema problems of every skill whose bytes did not,
-the resources of every skill and the decoded text and the parse of every resource as their own docstrings state, and
-the model unless one of these changes invalidates it. An entry added or deleted under `docs/`
+the line count of every document whose bytes did not change, and its schema problems, outline alignment and outline
+divergences too when its governance carries over, the governance of every document the next model governs by equal
+specifications, the decoded text, the frontmatter, the parse, the line count and the schema problems of every skill
+whose bytes did not, the resources of every skill and the decoded text and the parse of every resource as their own
+docstrings state, and the model unless one of these changes invalidates it. An entry added or deleted under `docs/`
 invalidates it. So does an entry added or deleted in a skills directory, or in a skill's directory, both where the
 skill's entry names it and where a link leads it. So does an entry added or deleted at the resolved path a skill's
 linked `SKILL.md` leads to, or on the way to it, since the loader resolves that link to find the skill. So does a link
@@ -124,11 +127,11 @@ scopes, links or climbed directories differ, compared as recorded rather than th
 scope. A change of scope invalidates nothing else: what the new scope adds or drops reaches the model and each skill's
 resources as entries in the change set. That rule holds only while the decoded text reads its own document, skill or
 resource, the frontmatter, the parse, the token count and the line count each read only the decoded text of their own,
-the governance reads only the model, the schema problems and the outline divergences read only their own document's
-frontmatter, or parse and line count, and its governance, a skill's schema problems only its own frontmatter, the model
-and each skill's resource listing read no document, and the scope index reads only the scope, the links and the
-climbed directories, so keep them that way: data drawn from several documents belongs in a new cache with its own
-rule.
+the governance reads only the model, the schema problems, the outline alignment and the outline divergences read only
+their own document's frontmatter, or parse and line count, and its governance, a skill's schema problems only its own
+frontmatter, the model and each skill's resource listing read no document, and the scope index reads only the scope, the
+links and the climbed directories, so keep them that way: data drawn from several documents belongs in a new cache with
+its own rule.
 
 The link targets of a Markdown file are such a cache: each reads where every path its links name leads, so each
 carries over only as its own docstring states.
@@ -154,8 +157,10 @@ from lorecraft.project.document import Repository as DocumentRepository
 from lorecraft.project.layout import reject_linked_layout
 from lorecraft.project.link_target import DocumentDirectory, LinkTarget, SkillRoot, find_link_targets
 from lorecraft.project.schemas import (
+    OutlineAlignmentSpec,
     OutlineDivergenceSpec,
     SchemaProblems,
+    align_outlines,
     locate_schema_problems,
     locate_skill_schema_problems,
     match_outlines,
@@ -196,10 +201,10 @@ from .text import DocumentText, SkillResourceText, SkillText, Undecodable
 class Database:
     """What the checks read from one snapshot, each computed once and cached for the snapshot's lifetime.
 
-    That is the workspace model, the decoded text, the frontmatter, the parse trees, the token counts, the line
-    counts, the governance, the schema problems and the outline divergences of the documents, the decoded text, the
-    frontmatter, the parse trees, the line counts and the schema problems of the skills, the resources of each skill
-    with their decoded text and their parse trees, the link targets of every one of those Markdown files, and the
+    That is the workspace model, the decoded text, the frontmatter, the parse trees, the token counts, the line counts,
+    the governance, the schema problems, the outline alignment and the outline divergences of the documents, the decoded
+    text, the frontmatter, the parse trees, the line counts and the schema problems of the skills, the resources of each
+    skill with their decoded text and their parse trees, the link targets of every one of those Markdown files, and the
     scope index `is_in_scope` answers from.
     """
 
@@ -233,6 +238,7 @@ class Database:
         # A document in no corpus the model holds is governed by nothing, so `None` is an answer and is cached too.
         self._governances: dict[DocumentRef, Governance | None] = {}
         self._schema_problems: dict[DocumentRef, tuple[SchemaProblems, ...]] = {}
+        self._outline_alignments: dict[DocumentRef, tuple[OutlineAlignmentSpec, ...]] = {}
         self._outline_divergences: dict[DocumentRef, tuple[OutlineDivergenceSpec, ...]] = {}
         self._skill_frontmatters: dict[SkillRef, FrontmatterNode] = {}
         self._skill_parses: dict[SkillRef, ParsedDocument] = {}
@@ -700,6 +706,66 @@ class Database:
                 found = ()
             self._schema_problems[source.ref] = found
         return found
+
+    def outline_alignment(self, source: DocumentText) -> tuple[OutlineAlignmentSpec, ...]:
+        """Which outline entry each of one document's sections falls in, for each specification that governs it.
+
+        A section is aligned to the entry that names it, or to the `any` run it falls in, or to nothing. A
+        specification that states no outline is aligned too, each section to nothing, so a rule over what a
+        specification forbids reads the same alignment as a rule over its outline.
+
+        Carry-over: kept for the next revision whenever `parse(source)` and `governance(source.ref)` are. A change to
+        the model that leaves the document's governance as it was, such as a document added to another corpus, leaves
+        it valid.
+
+        Args:
+            source: The document's text, as `text(ref)` returns it; its ref is the cache key, so one ref is aligned
+                once.
+
+        Returns:
+            One entry per structure specification that governs the document, in the order the specifications apply;
+            none when none governs it.
+
+        Raises:
+            DirListError: If the model is not loaded yet and the specification directory or docs/ cannot be listed.
+            CorpusListError: If the model is not loaded yet and a corpus directory cannot be listed.
+            StructureSchemaReadError: If the model is not loaded yet and a structure specification cannot be read.
+            StructureSpecDecodeError: If the model is not loaded yet and a structure specification is not JSON in
+                the dialect's shape.
+            EmptyStructureSpecError: If the model is not loaded yet and a structure specification states no rule.
+            RepeatedOutlineSectionError: If the model is not loaded yet and an outline names a section twice.
+            RepeatedForbiddenSectionError: If the model is not loaded yet and a specification forbids a section
+                twice.
+            ForbiddenOutlineSectionError: If the model is not loaded yet and a specification forbids a section its
+                outline names.
+            AdjacentAnyRunsError: If the model is not loaded yet and an outline places two `any` runs side by side.
+            InvalidTitlePatternError: If the model is not loaded yet and a title's pattern does not compile.
+            InvalidFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema is rejected by
+                the meta-schema.
+            FrontmatterSchemaIdError: If the model is not loaded yet and a schema in a frontmatter schema carries
+                `$id`.
+            ForeignFrontmatterDialectError: If the model is not loaded yet and a schema in a frontmatter schema
+                names another dialect.
+            UntypedFrontmatterSchemaError: If the model is not loaded yet and a frontmatter schema's root does not
+                state an object.
+            DirResolveError: If the model is not loaded yet and a skills directory cannot be resolved.
+            EntryInspectError: If the model is not loaded yet and an entry on the way to a skills directory cannot
+                be inspected, or a link's target read, while looking for where it leaves the repository.
+            SkillsDirListError: If the model is not loaded yet and a skills directory cannot be listed.
+            SkillEntryResolveError: If the model is not loaded yet and a symlinked skill entry cannot be resolved.
+            SkillDirListError: If the model is not loaded yet and a skill directory cannot be listed.
+            SkillFileResolveError: If the model is not loaded yet and a symlinked SKILL.md cannot be resolved.
+        """
+        alignments = self._outline_alignments.get(source.ref)
+        if alignments is None:
+            governance = self.governance(source.ref)
+            structure_specs = governance.structure_specs() if governance is not None else ()
+            if structure_specs:
+                alignments = align_outlines(structure_specs, self.parse(source).headings)
+            else:
+                alignments = ()
+            self._outline_alignments[source.ref] = alignments
+        return alignments
 
     def outline_divergences(self, source: DocumentText) -> tuple[OutlineDivergenceSpec, ...]:
         """Where one document's sections first stop matching each outline that governs it, found on the first call.

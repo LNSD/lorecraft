@@ -23,6 +23,7 @@ from .frontmatter_problem import (
     WrongTypeProblem,
 )
 from .name import CorpusSpecName, NamespaceSpecName, SpecName, parse_spec_name
+from .outline_alignment import AlignedSection, OutlineAlignmentSpec, align_outlines
 from .outline_divergence import (
     AbsentSection,
     DocumentEnd,
@@ -188,4 +189,7 @@ __all__: list[str] = [
     'UnlistedSection',
     'OutlineDivergenceSpec',
     'match_outlines',
+    'AlignedSection',
+    'OutlineAlignmentSpec',
+    'align_outlines',
 ]

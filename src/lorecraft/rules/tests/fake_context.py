@@ -27,6 +27,7 @@ from lorecraft.project.link_target import DocumentDirectory, LinkTarget, SkillRo
 from lorecraft.project.schemas import (
     CorpusSpecName,
     NamespaceSpecName,
+    OutlineAlignmentSpec,
     OutlineDivergenceSpec,
     SchemaProblems,
     SpecFileType,
@@ -34,6 +35,7 @@ from lorecraft.project.schemas import (
     StructureSchema,
     StructureSpec,
     StructureSpecFile,
+    align_outlines,
     locate_schema_problems,
     locate_skill_schema_problems,
     match_outlines,
@@ -262,6 +264,10 @@ class FakeDocumentContext:
     def corpus_structure(self) -> StructureSpec:
         """The corpus's structure specification, decoded from the JSON the test stated."""
         return self._corpus_structure
+
+    def outline_alignment(self) -> tuple[OutlineAlignmentSpec, ...]:
+        """Where the sections fall in each governing specification's outline, as the real analysis finds it."""
+        return align_outlines(self._governance.structure_specs(), self.parse().headings)
 
     def outline_divergences(self) -> tuple[OutlineDivergenceSpec, ...]:
         """Where the sections stop matching each governing outline, as the real analysis finds it."""
