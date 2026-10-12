@@ -231,19 +231,19 @@ these three prefixes:
 
 | Prefix    | Names                                            | Spelling                       | Example                   |
 |-----------|--------------------------------------------------|--------------------------------|---------------------------|
-| `module:` | A top-level package of `lorecraft`               | `lorecraft.<package>`          | `module:lorecraft.checks` |
+| `module:` | A top-level package of `lorecraft`               | `lorecraft.<package>`          | `module:lorecraft.engine` |
 | `skill:`  | A skill directory                                | kebab-case                     | `skill:docs-rules-check`  |
 | `spec:`   | A meta spec name under `docs/__meta__/`          | kebab-case, extensions dropped | `spec:feat`               |
 
-A `module:` entry names a top-level package and nothing deeper: `src/lorecraft/checks/runner.py` is
-`module:lorecraft.checks`. The modules inside a package are renamed and split as its code changes, while the
+A `module:` entry names a top-level package and nothing deeper: `src/lorecraft/engine/runner.py` is
+`module:lorecraft.engine`. The modules inside a package are renamed and split as its code changes, while the
 package a feature lives in is not, so a deeper entry goes stale on a refactor that leaves the feature alone. The
 Code References section names the files. A `spec:` entry names the meta spec, not one of its files:
 `spec:feat` stands for `feat.md` and every `feat.*.json` beside it.
 
 **Example:**
 ```yaml
-components: "module:lorecraft.checks,spec:feat,skill:docs-rules-check"
+components: "module:lorecraft.engine,spec:feat,skill:docs-rules-check"
 ```
 
 The schema enforces the prefix vocabulary, the character set of each entry, and that a `module:` entry is

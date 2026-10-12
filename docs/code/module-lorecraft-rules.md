@@ -19,7 +19,7 @@ run.
 **Analysis**, the judging half of it. A rule is a pure judgment of one subject, read through its context, and this
 package holds the rules with everything that makes one a rule: its identity, the class that declares and checks it,
 and the registry that lists them all, with the values a run is stated in. The run that hands over a
-context sits above it in `lorecraft.checks`; the context is a `Protocol` of `lorecraft.project`, answered by
+context sits above it in `lorecraft.engine`; the context is a `Protocol` of `lorecraft.project`, answered by
 the database there, so a rule reads nothing but what it is handed.
 
 ## Belongs Here
@@ -51,14 +51,14 @@ the database there, so a rule reads nothing but what it is handed.
 | Code that… | Belongs in |
 |---|---|
 | Answers or memoizes a query over one revision, decoding a subject included | `lorecraft.project` |
-| Runs the rules over a subject, and files each occurrence as a diagnostic | `lorecraft.checks` |
+| Runs the rules over a subject, and files each occurrence as a diagnostic | `lorecraft.engine` |
 | Prints, renders a report, or sets an exit code | `lorecraft.cli` |
 | Parses text, or decodes a meta spec | `lorecraft.project` |
 | Reads the disk | `lorecraft.vfs` |
 
 ## Invariants
 
-- Nothing here imports `lorecraft.checks` or `lorecraft.project.database`. The layers contract puts this package
+- Nothing here imports `lorecraft.engine` or `lorecraft.project.database`. The layers contract puts this package
   below the first and a forbidden contract refuses the second, so the database, a query and the run are out of
   reach by import, not by review.
 - A rule reads the one context its base fixes and nothing else, and performs no I/O.

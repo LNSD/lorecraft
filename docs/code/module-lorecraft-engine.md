@@ -1,16 +1,16 @@
 ---
-name: "module-lorecraft-checks"
-description: "The lorecraft.checks package's responsibility, role, boundary and invariants: the runner that hands each rule its subject's context. Load when adding or moving code in lorecraft.checks, changing how the rules run over a subject, or deciding how a rule gets its subject's context"
+name: "module-lorecraft-engine"
+description: "The lorecraft.engine package's responsibility, role, boundary and invariants: the shared runner that hands each rule its subject's context, and each mode's own entry point. Load when adding or moving code in lorecraft.engine, changing how the rules run over a subject, adding a mode of the engine, or deciding how a rule gets its subject's context"
 type: "pkg"
-scope: "pkg:lorecraft.checks"
+scope: "pkg:lorecraft.engine"
 ---
 
-# The `lorecraft.checks` Package
+# The `lorecraft.engine` Package
 
 ## Responsibility
 
-Judge one revision. It changes when the judgment made on a revision's query results changes: the run of the rules
-over each subject.
+Run the rules over one revision's subjects. It changes when the way a subject is judged changes, or when a mode's
+policy for a document governed by a failed layer changes.
 
 ## Role
 
@@ -21,10 +21,14 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 
 ## Belongs Here
 
-- Running the rules over a subject, each through the subject's context: a rule over a document or over the
-  frontmatter only when the document is governed for the facet the rule declares, each facet it is not governed for
-  recorded as coverage, and a rule over a Markdown file over a document governed for its structure, a skill's
-  `SKILL.md` and each resource handed over as a subject of its own.
+- The shared runner (`runner.py`): decoding a skill and a resource, the governance lookup, facet gating, running the
+  table's rules over a subject's context, and building its report. A document is decoded by each mode's entry
+  point, so its policy comes after decoding. A rule over a document or over the frontmatter runs only when
+  the document is governed for the facet the rule declares, each facet it is not governed for is recorded as
+  coverage, and a rule over a Markdown file runs over a document governed for its structure, a skill's `SKILL.md` and
+  each resource handed over as a subject of its own.
+- One entry point per mode, each carrying that mode's policy for a document a failed layer governs: `skip.py` for the
+  check run now, `partial.py` for the LSP-style mode later.
 
 ## Belongs Elsewhere
 
@@ -47,6 +51,10 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
   database, a view or a path it could read through.
 - A rule returns occurrences that name no subject. The run attaches the subject's path, as a diagnostic.
 - A run's results are not cached. Every rule runs again every time, and never sees the store of persisted results.
+- The shared runner holds no mode's policy. A new mode is a new entry point that edits neither `runner.py` nor
+  another mode's entry point.
+- Nothing here imports `lorecraft.cli` or `typer`. The layers contract refuses the first and a forbidden contract the
+  second, so a long-lived front end reaches the engine without loading the command line.
 
 ## Examples
 
@@ -79,6 +87,20 @@ def skill_names(self) -> Mapping[str, SkillId]:
     """Every skill's declared name; carried over only when no skill's frontmatter and no skills listing changed."""
 ```
 
+```python
+# ❌ Bad — a policy parameter matched inside the shared runner: the next mode adds a member and edits the
+# runner every mode shares
+def judge_document(database, source, table, policy: LoadFailurePolicy) -> SubjectReport:
+    if policy is LoadFailurePolicy.SKIP and governance.failed_layers:
+        return SkippedSubject(source.ref)
+```
+
+```python
+# ✅ Good — each mode's policy is its own entry point over the shared runner, which takes no policy
+def check_subjects(database, subjects, table) -> tuple[SubjectReport, ...]:
+    ...  # skip.py: the check run's policy, then runner.judge_document(database, source, table)
+```
+
 ## Checklist
 
 Before committing code, verify:
@@ -87,6 +109,10 @@ Before committing code, verify:
 - [ ] A rule is handed its subject's context, never the database, a view or a path it could read through
 - [ ] A run attaches the subject's path to each occurrence; an occurrence names no subject
 - [ ] Nothing added takes a snapshot or sets an exit code
+- [ ] A mode's policy sits in that mode's own entry point; `runner.py` takes no policy parameter and no callback
+- [ ] A document is decoded by each mode's entry point, so its policy comes after decoding; `runner.py` decodes a
+  skill and a resource only
+- [ ] Nothing here imports `lorecraft.cli` or `typer`
 
 ## References
 
@@ -96,5 +122,6 @@ Before committing code, verify:
 - [adr-004-database](../arch/adr-004-database.md) - Foundation: One report reads one revision
 - [adr-006-specifications](../arch/adr-006-specifications.md) - Foundation: A rule applies the governing structure files its context hands it
 - [adr-010-diagnostics](../arch/adr-010-diagnostics.md) - Foundation: Diagnostics apart from failures
+- [adr-015-database](../arch/adr-015-database.md) - Foundation: Skip or partial is the consumer's policy
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One reason to change
 - [pattern-memoization](pattern-memoization.md) - Foundation: How a query is memoized

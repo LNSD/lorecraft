@@ -13,8 +13,8 @@ from typing import Final
 import pytest
 
 from lorecraft import rules
-from lorecraft.checks import Subject, check_subjects
 from lorecraft.core.path import RootRelativePath
+from lorecraft.engine import Subject, check_subjects
 from lorecraft.project.database import Database
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.skill import SkillRef

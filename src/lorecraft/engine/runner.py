@@ -1,4 +1,10 @@
-"""The rules engine's runner: every enabled rule over each subject, through one rule table.
+"""The rules engine's shared runner: every enabled rule over a subject, through one rule table.
+
+This is what every mode of the engine shares: decoding a skill and a resource, the governance lookup, facet gating,
+and running the table's rules over a subject's context into its report. It holds no mode's policy. A document is
+decoded by each mode's own entry point beside this module, `skip.check_subjects` for the check run, so that its
+policy for a document a failed layer governs comes after decoding; the entry point matches on the subject kind and
+calls the functions here.
 
 The runner never names a rule. A rule joins its base's partition of the table through the registry, and the runner
 hands every rule of a partition the subject's context, so adding a rule never edits this module. What it names is
@@ -22,7 +28,7 @@ model hands out for it, since a rule over a skill may read where its directory l
 decoded and reported at that path, under its ref. A resource is a subject of its own, handed over as the
 `SkillResourceLocation` its skill's resource listing gives, since only that listing locates its file: it is decoded at
 the file it leads to, and reported under its ref, at the path an agent reaches it by. The runner never lists a skill's
-resources itself, so a skill handed over judges its `SKILL.md` alone. The `check` command runs this.
+resources itself, so a skill handed over judges its `SKILL.md` alone.
 
 A layout entry is one symlink of the skill layout whose chain leaves the repository, handed over as the
 `OutsideSymlink` record the model or a skill's resource listing holds for it. Whether a chain leaves the repository is
@@ -35,7 +41,6 @@ package governs the skill layout, so it is never ungoverned: every rule over a l
 context.
 """
 
-from collections.abc import Iterable
 from typing import assert_never
 
 from lorecraft.project.database import (
@@ -63,68 +68,18 @@ from lorecraft.rules.report import (
 from lorecraft.rules.subject import Facet, MarkdownRule
 from lorecraft.rules.table import EnabledRule, RuleTable
 
-# A subject the runner checks: a document, by its ref, a skill, by the location the model hands out for it, a skill's
-# resource, by the location its skill's resource listing gives, or a layout entry, by the record of a symlink whose
-# chain leaves the repository. A document's, a skill's and a resource's report holds its ref, which each location
-# carries; a layout entry's holds the path an agent reaches the symlink by.
+# A subject an entry point checks: a document, by its ref, a skill, by the location the model hands out for it, a
+# skill's resource, by the location its skill's resource listing gives, or a layout entry, by the record of a symlink
+# whose chain leaves the repository. A document's, a skill's and a resource's report holds its ref, which each
+# location carries; a layout entry's holds the path an agent reaches the symlink by.
 type Subject = DocumentRef | SkillLocation | SkillResourceLocation | OutsideSymlink
 
 
-def check_subjects(database: Database, subjects: Iterable[Subject], table: RuleTable) -> tuple[SubjectReport, ...]:
-    """Run the table's rules over each document, skill, resource and layout entry, and report each in the order given.
-
-    Args:
-        database: The revision the subjects are read from; its model decides which specifications govern each.
-        subjects: The documents, skills, resources and layout entries to check; a document in no corpus the
-            database's model holds is ungoverned for every facet a specification governs, and a layout
-            entry is a symlink whose chain leaves the repository, as the database's model or a skill's resource
-            listing records it.
-        table: The rules the run enables, each with its severity.
-
-    Raises:
-        DocumentReadError: If a document is missing from the snapshot; a decode failure is a diagnostic.
-        SkillReadError: If a skill's `SKILL.md` is missing from the snapshot; a decode failure is a diagnostic.
-        SkillResourceReadError: If a resource is missing from the snapshot; a decode failure is a diagnostic.
-    """
-    reports: list[SubjectReport] = []
-    for subject in subjects:
-        match subject:
-            case DocumentRef():
-                reports.append(_check_document(database, subject, table))
-            case SkillLocation():
-                reports.append(_check_skill(database, subject, table))
-            case SkillResourceLocation():
-                reports.append(_check_skill_resource(database, subject, table))
-            case OutsideSymlink():
-                reports.append(_check_layout_entry(subject, table))
-            case _:
-                assert_never(subject)
-    return tuple(reports)
-
-
-def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> SubjectReport:
-    """Decode one document, then run the table's rules over it if it decoded.
-
-    Args:
-        database: The revision the document is read from.
-        ref: The document to check.
-        table: The rules the run enables.
-
-    Raises:
-        DocumentReadError: If the document is missing from the snapshot; a decode failure is a diagnostic.
-    """
-    source = database.text(ref)
-    match source:
-        case Undecodable():
-            return UndecodableSubject(ref, source.failure)
-        case DocumentText():
-            return _check_document_text(database, source, table)
-        case _:
-            assert_never(source)
-
-
-def _check_document_text(database: Database, source: DocumentText, table: RuleTable) -> CheckedSubject:
+def judge_document(database: Database, source: DocumentText, table: RuleTable) -> CheckedSubject:
     """Run the enabled rules over a decoded document, each over what the specifications govern it for.
+
+    A mode decodes the document and decides what a layer that failed to load means for it; this judges it by the
+    specifications that govern it.
 
     Args:
         database: The revision the document is read from.
@@ -166,7 +121,7 @@ def _check_document_text(database: Database, source: DocumentText, table: RuleTa
     return CheckedSubject(source.ref, diagnostics=tuple(diagnostics), ungoverned=tuple(ungoverned))
 
 
-def _check_skill(database: Database, location: SkillLocation, table: RuleTable) -> SubjectReport:
+def check_skill(database: Database, location: SkillLocation, table: RuleTable) -> SubjectReport:
     """Decode one skill's `SKILL.md`, then run the table's rules over it if it decoded.
 
     Args:
@@ -227,7 +182,7 @@ def _check_skill_text(
     return CheckedSubject(source.ref, diagnostics=tuple(diagnostics), ungoverned=())
 
 
-def _check_skill_resource(database: Database, location: SkillResourceLocation, table: RuleTable) -> SubjectReport:
+def check_skill_resource(database: Database, location: SkillResourceLocation, table: RuleTable) -> SubjectReport:
     """Decode one resource of a skill, then run the table's rules over it if it decoded.
 
     Args:
@@ -274,7 +229,7 @@ def _check_skill_resource_text(database: Database, source: SkillResourceText, ta
     return CheckedSubject(source.ref, diagnostics=tuple(diagnostics), ungoverned=())
 
 
-def _check_layout_entry(outside: OutsideSymlink, table: RuleTable) -> CheckedLayoutEntry:
+def check_layout_entry(outside: OutsideSymlink, table: RuleTable) -> CheckedLayoutEntry:
     """Run the enabled rules over one symlink of the skill layout whose chain leaves the repository. Raises nothing.
 
     Args:

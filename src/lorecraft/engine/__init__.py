@@ -1,13 +1,17 @@
-"""Run the rules over one revision: the runner the command line calls.
+"""Run the rules over one revision: the engine the command line calls.
 
 `lorecraft check` calls `check_subjects`, which judges each document, skill, resource and layout entry by the rules of
 `lorecraft.rules` that a `RuleTable` enables, handing each rule the subject context `lorecraft.project.database`
 answers from the queries. The table, the selection that narrows it and the report each subject gets are
 `lorecraft.rules.table`, `lorecraft.rules.selection` and `lorecraft.rules.report`.
-Nothing here prints: the `check` command owns the output and the exit codes.
+What the modes share is `lorecraft.engine.runner`; each mode's policy is an entry point of its own, `skip` for the
+check run.
+Nothing here prints, and nothing here imports the command line or its toolkit: the `check` command owns the output
+and the exit codes.
 """
 
-from .runner import Subject, check_subjects
+from .runner import Subject
+from .skip import check_subjects
 
 __all__: list[str] = [
     'Subject',

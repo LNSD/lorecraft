@@ -18,8 +18,8 @@ from typing import assert_never
 import typer
 
 from lorecraft import rules
-from lorecraft.checks import check_subjects
 from lorecraft.core.error import Error
+from lorecraft.engine import check_subjects
 from lorecraft.project.database import Database
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.rules.declaration import Severity

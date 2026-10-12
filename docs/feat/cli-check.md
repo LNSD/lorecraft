@@ -3,7 +3,7 @@ name: "cli-check"
 description: "The lorecraft check command: every rule over every document and skill of the workspace, root discovery, selecting and ignoring rules by code or prefix, the rule groups and their codes, the text and JSON output, and the 0/1/2 exit status. Load when running the documentation and skill checks, wiring them into CI or a pre-commit hook, running some rules only, matching on a rule code, or parsing their output"
 type: "feature"
 status: "experimental"
-components: "module:lorecraft.cli,module:lorecraft.checks,module:lorecraft.rules"
+components: "module:lorecraft.cli,module:lorecraft.engine,module:lorecraft.rules"
 ---
 
 # `lorecraft check`
@@ -243,7 +243,7 @@ their pattern. `FM010` and `FM012` carry counts in messages only.
 - `src/lorecraft/cli/sources.py` - Reads the source lines used by the text output
 - `src/lorecraft/cli/terminal.py` - Chooses text output style
 - `src/lorecraft/cli/output.py` - Declares output and colour choices
-- `src/lorecraft/checks/runner.py` - Runs every enabled rule over each subject
+- `src/lorecraft/engine/skip.py` - Runs every enabled rule over each subject
 - `src/lorecraft/rules/table.py` - The rules a run enables, each with its severity
 - `src/lorecraft/rules/selection.py` - The selection that filters the rule table
 - `src/lorecraft/rules/` - The rules, one module each, in a package per group

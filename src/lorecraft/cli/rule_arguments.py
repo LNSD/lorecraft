@@ -9,7 +9,7 @@ These values are the command line's own, decoupled from the invariant-preserving
 hold strings and numbers, and a conversion method with a typed argument builds the rule-side type from them when a
 command runs. Parsing reads `lorecraft.rules.index` alone, which loads none of the rules engine, so this module
 imports none of `lorecraft.rules.declaration`, `lorecraft.rules.subject`, `lorecraft.rules.registry`,
-`lorecraft.rules.selection`, `lorecraft.project` nor `lorecraft.checks` when the command line starts. The rule-side
+`lorecraft.rules.selection`, `lorecraft.project` nor `lorecraft.engine` when the command line starts. The rule-side
 types are named for the checker under `TYPE_CHECKING`, and a conversion imports what it builds where it runs.
 
 Text enters through `SelectorValue.parse` and `RuleKey.parse`, which confirm it against the rule index. The selector

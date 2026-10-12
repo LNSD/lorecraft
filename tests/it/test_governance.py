@@ -11,7 +11,7 @@ from typing import Final
 import pytest
 
 from lorecraft import rules
-from lorecraft.checks import check_subjects
+from lorecraft.engine import check_subjects
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database

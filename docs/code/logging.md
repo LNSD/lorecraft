@@ -8,8 +8,8 @@ scope: "global"
 # Logging
 
 **The logger's name is the only handle an operator has on this library.** A logger named for the module it
-lives in (`lorecraft.checks.frontmatter`) sits inside the package hierarchy, so a single
-`logging.getLogger('lorecraft.checks').setLevel(logging.DEBUG)` reaches it and everything under it. A logger
+lives in (`lorecraft.rules.frontmatter`) sits inside the package hierarchy, so a single
+`logging.getLogger('lorecraft.rules').setLevel(logging.DEBUG)` reaches it and everything under it. A logger
 named any other way does not, and no amount of correct level choice or message wording repairs that. Every
 logger sits under `lorecraft`, so one call reaches the whole package and a call on a layer, such as
 `lorecraft.project`, reaches that layer alone. Sections 2 through 6 are downstream of section 1.
@@ -29,9 +29,9 @@ string, not stored on an instance.
 `__name__` is what places the logger inside the package's own tree. A logger built from a class name is a
 **root-level** logger: `getLogger('FrontmatterChecker')` is a sibling of `lorecraft`, not a descendant of
 it, so `getLogger('lorecraft').setLevel(logging.DEBUG)` does not reach it and neither does
-`getLogger('lorecraft.checks')`. When the base class every checker inherits from does this, every checker's
+`getLogger('lorecraft.rules')`. When the base class every checker inherits from does this, every checker's
 logger lands outside the hierarchy at once, and the most operationally interesting part of the library becomes
-unreachable by hierarchical configuration — the operator can raise the level for `lorecraft.checks` and see nothing
+unreachable by hierarchical configuration — the operator can raise the level for `lorecraft.rules` and see nothing
 change. That is a defect, not a style preference.
 
 A per-instance `self.logger` attribute is a milder problem: `getLogger` returns a process-global singleton per

@@ -1,6 +1,6 @@
 ---
 name: "adr-012-database-derivation"
-description: "The database of a revision is derivation, not analysis: it moves with its decode witnesses and the database-backed contexts into the Derivation package, which may cache within a revision, and the Analysis package keeps the checks that judge the query results. Load when adding a query, a witness or a context implementation, deciding whether code belongs in lorecraft.project or lorecraft.checks, or reviewing what a package may cache"
+description: "The database of a revision is derivation, not analysis: it moves with its decode witnesses and the database-backed contexts into the Derivation package, which may cache within a revision, and the Analysis package keeps the checks that judge the query results. Load when adding a query, a witness or a context implementation, deciding whether code belongs in lorecraft.project or lorecraft.engine, or reviewing what a package may cache"
 type: "adr"
 status: "accepted"
 ---
@@ -15,7 +15,7 @@ status: "accepted"
 
 [adr-001](adr-001-snapshot-model.md) splits the work on one revision between two roles. Derivation, played by
 `lorecraft.project`, turns what a view holds into values and never caches a result across calls. Analysis, played by
-`lorecraft.checks`, holds the database of one revision and the checks that judge its query results.
+the Analysis package, holds the database of one revision and the checks that judge its query results.
 
 Since [#410](https://github.com/LNSD/lorecraft/issues/410), that line runs through the middle of the database:
 
@@ -26,7 +26,7 @@ Since [#410](https://github.com/LNSD/lorecraft/issues/410), that line runs throu
 - **The database is check-agnostic.** No query is shaped around a rule or a check, so nothing ties it to the package
   that judges.
 - **The contexts point down.** The context protocols a rule reads are declared in `lorecraft.project`, below
-  `lorecraft.rules`. With the database in `lorecraft.checks`, their only implementation sat above both, so `rules`
+  `lorecraft.rules`. With the database in the Analysis package, their only implementation sat above both, so `rules`
   depended, through the interfaces, on a package above it.
 
 The decode witnesses and the database-backed contexts cannot be split from the database. Only the database builds a
@@ -48,11 +48,11 @@ witness and every per-file query takes one; a context is a thin adapter over the
 
    | Role | Does | Never |
    |---|---|---|
-   | Analysis | Holds the checks that judge the query results: the rules, the runner that hands each rule its subject, the rule table, level resolution and the reports | Takes a snapshot, prints, memoizes a value derived from the snapshot, or reads the workspace except through the database's queries |
+   | Analysis | Holds the checks that judge the query results: the rules, the runner that hands each rule its subject, each mode's policy for a document a failed layer governs, the rule table, level resolution and the reports | Takes a snapshot, prints, memoizes a value derived from the snapshot, or reads the workspace except through the database's queries |
 
 3. **The database lives in `lorecraft.project.database`**, with the witnesses (`DocumentText`, `SkillText`,
    `SkillResourceText`, `Undecodable`) and the contexts (`DatabaseDocumentContext`, `DatabaseSkillContext`).
-   `lorecraft.checks` imports them from there and re-exports none of them.
+   `lorecraft.engine` imports them from there and re-exports none of them.
 4. **A rule still never reaches the database.** `lorecraft.rules` now sits above it, so the layers contract alone
    would allow the import; a forbidden contract in `pyproject.toml` refuses `lorecraft.rules` importing
    `lorecraft.project.database`. A rule reads only the context it is handed.
@@ -63,7 +63,7 @@ witness and every per-file query takes one; a context is a thin adapter over the
   points downward.
 - `lorecraft.project` now caches values derived from a snapshot. The cache is bounded by one database, so a value
   it holds still never outlives its snapshot, as [adr-005](adr-005-incremental.md) requires.
-- `module-lorecraft-project` and `module-lorecraft-checks` move the queries, the witnesses, the carry-over rule and
+- `module-lorecraft-project` and the Analysis package's module rule move the queries, the witnesses, the carry-over rule and
   the context implementations from the second to the first.
 - What stays true: every value derived from the snapshot is a query on the database
   ([adr-004](adr-004-database.md)), a check and a rule are pure, and a rule's result is never cached.
@@ -76,11 +76,11 @@ witness and every per-file query takes one; a context is a thin adapter over the
 Before committing code, verify:
 
 - [ ] A query, a decode witness or a database-backed context is added in `lorecraft.project.database`, never in
-  `lorecraft.checks`
+  `lorecraft.engine`
 - [ ] Nothing in `lorecraft.project` decides whether a value breaks a rule
 - [ ] Nothing in `lorecraft.project` caches a value derived from a snapshot outside a database, or for longer than
   its revision
-- [ ] Nothing in `lorecraft.checks` memoizes a value derived from the snapshot
+- [ ] Nothing in `lorecraft.engine` memoizes a value derived from the snapshot
 - [ ] No module of `lorecraft.rules` imports `lorecraft.project.database`
 
 ## References
@@ -94,5 +94,5 @@ Before committing code, verify:
   revisions
 - [adr-011-rules-engine](adr-011-rules-engine.md) - Related: Where the engine's code lives
 - [module-lorecraft-project](../code/module-lorecraft-project.md) - Leads to: The Derivation package's rules
-- [module-lorecraft-checks](../code/module-lorecraft-checks.md) - Leads to: The Analysis package's rules
+- [module-lorecraft-engine](../code/module-lorecraft-engine.md) - Leads to: The Analysis package's rules
 - [adr-015-database](adr-015-database.md) - Related: The database opened with its model, proposed to supersede adr-004

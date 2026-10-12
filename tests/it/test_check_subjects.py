@@ -19,9 +19,9 @@ from typing import ClassVar, Final, Self
 import pytest
 
 from lorecraft import rules
-from lorecraft.checks import check_subjects
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
+from lorecraft.engine import check_subjects
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentContext
 from lorecraft.project.corpus import CorpusName
