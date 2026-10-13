@@ -1757,6 +1757,112 @@ class TestDecodeFrontmatter:
             line=LineNumber.from_int(4),
         ), 'a comment between the two lines does not hide the key it sits under'
 
+    def test_decode_frontmatter_with_an_item_after_a_key_of_a_mapping_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = dedent("""\
+            a: 1
+            - b
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="this line's indentation matches no key or item above it",
+            help='Indent it like the keys or items it belongs with',
+            line=LineNumber.from_int(3),
+        ), 'an item written among keys lines up with none of them'
+
+    def test_decode_frontmatter_with_a_key_after_an_item_of_a_nested_sequence_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = dedent("""\
+            a:
+              - b
+              c: d
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="this line's indentation matches no key or item above it",
+            help='Indent it like the keys or items it belongs with',
+            line=LineNumber.from_int(4),
+        ), 'a key written among items lines up with none of them'
+
+    def test_decode_frontmatter_with_a_key_after_a_sequence_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = dedent("""\
+            - a
+            b: c
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="this line's indentation matches no key or item above it",
+            help='Indent it like the keys or items it belongs with',
+            line=LineNumber.from_int(3),
+        ), 'a key after the items of the block sequence lines up with none of them'
+
+    def test_decode_frontmatter_with_an_item_written_after_a_key_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'a: - b\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='this line is not `key: value` or `- item`',
+            help='Add `: ` after the key, or quote a value that runs on',
+            line=LineNumber.from_int(2),
+        ), 'an item written on a key line is no key or item'
+
+    def test_decode_frontmatter_with_a_line_below_a_block_scalars_text_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = dedent("""\
+            a: |
+              x
+             y
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="this line's indentation matches no key or item above it",
+            help='Indent it like the keys or items it belongs with',
+            line=LineNumber.from_int(4),
+        ), 'a line less indented than the scalar text matches no level'
+
+    def test_decode_frontmatter_with_a_line_below_a_commented_block_scalars_text_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = dedent("""\
+            a: | # c
+              x
+             y
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="this line's indentation matches no key or item above it",
+            help='Indent it like the keys or items it belongs with',
+            line=LineNumber.from_int(4),
+        ), 'a comment after the scalar header does not hide the block scalar the line sits below'
+
     def test_decode_frontmatter_with_text_after_a_flow_collection_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
         block = 'a: [b, c] d\n'
