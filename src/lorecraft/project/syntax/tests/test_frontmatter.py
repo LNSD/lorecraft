@@ -86,7 +86,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='found the key 1, which is not a string', line=LineNumber.from_int(3)
+            problem='found the non-string key 1, which frontmatter does not allow', line=LineNumber.from_int(3)
         ), 'a key YAML reads as an int is refused on its line, named as written'
 
     def test_decode_frontmatter_with_a_bool_key_returns_invalid_yaml_naming_it_on_its_line(self) -> None:
@@ -98,7 +98,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='found the key true, which is not a string', line=LineNumber.from_int(3)
+            problem='found the non-string key true, which frontmatter does not allow', line=LineNumber.from_int(3)
         ), 'a key YAML reads as a bool is refused on its line, named as written'
 
     def test_decode_frontmatter_with_a_null_key_returns_invalid_yaml_naming_it_on_its_line(self) -> None:
@@ -110,7 +110,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='found the key null, which is not a string', line=LineNumber.from_int(3)
+            problem='found the non-string key null, which frontmatter does not allow', line=LineNumber.from_int(3)
         ), 'a key YAML reads as null is refused on its line, named as written'
 
     def test_decode_frontmatter_with_an_explicit_empty_key_returns_invalid_yaml_on_its_line(self) -> None:
@@ -154,7 +154,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='found the key 2, which is not a string', line=LineNumber.from_int(5)
+            problem='found the non-string key 2, which frontmatter does not allow', line=LineNumber.from_int(5)
         ), 'a key nested inside a list item is refused like a top-level one, on its own line'
 
     def test_decode_frontmatter_with_a_non_string_key_in_a_flow_mapping_returns_invalid_yaml_on_its_line(self) -> None:
@@ -166,7 +166,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='found the key 3.5, which is not a string', line=LineNumber.from_int(3)
+            problem='found the non-string key 3.5, which frontmatter does not allow', line=LineNumber.from_int(3)
         ), 'a key of a flow mapping is refused like a block one'
 
     def test_decode_frontmatter_with_a_list_written_as_a_key_returns_invalid_yaml_on_its_line(self) -> None:
@@ -178,7 +178,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='found a key that is not a string', line=LineNumber.from_int(3)
+            problem='found a collection as a key, which frontmatter does not allow', line=LineNumber.from_int(3)
         ), 'a key written as a list is no string, and has no one piece of text to name'
 
     def test_decode_frontmatter_with_a_quoted_numeric_key_returns_it_as_a_string_key(self) -> None:
@@ -660,12 +660,11 @@ class TestDecodeFrontmatter:
             'a `%` is a directive only as the first character of a line'
         )
 
-    def test_decode_frontmatter_with_flow_collections_nested_too_deeply_returns_invalid_yaml_with_no_line(
+    def test_decode_frontmatter_with_flow_collections_nested_to_the_recursion_limit_returns_invalid_yaml_on_its_line(
         self,
     ) -> None:
         #: Given
-        # reading spends at least one frame per level, so as many levels as the recursion limit always
-        # exhaust the stack, whatever the limit is
+        # the second `[` is refused where it stands, so no depth of flow collections can reach the stack's limit
         depth = sys.getrecursionlimit()
         block = f'name: guide\ndescription: {"[" * depth}{"]" * depth}\n'
 
@@ -673,9 +672,10 @@ class TestDecodeFrontmatter:
         node = decode_frontmatter(block)
 
         #: Then
-        assert node == InvalidYamlFrontmatter(problem='found collections nested too deeply to parse', line=None), (
-            'flow collections nested past the stack are a finding with no line, not a crash'
-        )
+        assert node == InvalidYamlFrontmatter(
+            problem='found a collection inside a flow collection, which frontmatter does not allow',
+            line=LineNumber.from_int(3),
+        ), 'a flow collection holds no collection, so nesting is refused at the second level'
 
     def test_decode_frontmatter_with_block_mappings_nested_too_deeply_returns_invalid_yaml_with_no_line(
         self,
@@ -1235,6 +1235,60 @@ class TestDecodeFrontmatter:
             line=LineNumber.from_int(3),
         ), 'a flow collection is one line, so one that continues below is refused where it opens'
 
+    def test_decode_frontmatter_with_a_flow_sequence_holding_a_collection_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = 'a: [[1], {b: 2}]\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found a collection inside a flow collection, which frontmatter does not allow',
+            line=LineNumber.from_int(2),
+        ), 'a flow collection holds scalars only, so the collection it holds is refused on its line'
+
+    def test_decode_frontmatter_with_a_flow_sequence_holding_a_pair_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'a: [b: c]\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found a collection inside a flow collection, which frontmatter does not allow',
+            line=LineNumber.from_int(2),
+        ), 'a `key: value` pair in a flow sequence is a mapping, which a flow collection does not hold'
+
+    def test_decode_frontmatter_with_a_flow_mapping_as_the_block_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = '{name: a}\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found a flow collection as the block, which frontmatter does not allow',
+            line=LineNumber.from_int(2),
+        ), 'the block is a block mapping, one key to a line, so a flow mapping that is the whole block is refused'
+
+    def test_decode_frontmatter_with_a_flow_sequence_as_the_block_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = '[a, b]\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found a flow collection as the block, which frontmatter does not allow',
+            line=LineNumber.from_int(2),
+        ), 'a flow sequence that is the whole block is refused rather than read as a list that is no mapping'
+
     def test_decode_frontmatter_with_an_indentation_indicator_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
         block = dedent("""\
@@ -1251,6 +1305,26 @@ class TestDecodeFrontmatter:
             problem='found a block scalar indentation indicator, which frontmatter does not allow',
             line=LineNumber.from_int(3),
         ), 'the indentation a block scalar is written at is read from its text, so an indicator is refused on its line'
+
+    def test_decode_frontmatter_with_a_block_sequence_in_a_block_sequence_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = dedent("""\
+            name: guide
+            tags:
+              - a
+              - - b
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found a block sequence as an item of a block sequence, which frontmatter does not allow',
+            line=LineNumber.from_int(5),
+        ), 'a list of lists is written with a flow sequence, so a nested block sequence is refused on its line'
 
     def test_decode_frontmatter_with_a_question_mark_or_an_empty_quoted_key_returns_them_as_string_keys(self) -> None:
         #: Given
@@ -1305,6 +1379,24 @@ class TestDecodeFrontmatter:
             'a chomping indicator is accepted, and only an indentation indicator is refused'
         )
 
+    def test_decode_frontmatter_with_block_sequence_items_returns_them(self) -> None:
+        #: Given
+        block = dedent("""\
+            people:
+              - name: a
+                url: b
+              - [c, d]
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
+        assert node.data == FrozenMapping({'people': (FrozenMapping({'name': 'a', 'url': 'b'}), ('c', 'd'))}), (
+            'a block mapping and a flow sequence are accepted as items of a block sequence'
+        )
+
     def test_decode_frontmatter_with_a_yaml_list_returns_non_mapping(self) -> None:
         #: Given
         block = '- guide\n'
@@ -1327,7 +1419,13 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_nested_collections_freezes_them_all_the_way_down(self) -> None:
         #: Given
-        block = 'tags: [a, b]\nmeta: {owner: me, see: [{x: 1}]}\n'
+        block = dedent("""\
+            tags: [a, b]
+            meta:
+              owner: me
+              see:
+                - x: 1
+            """)
 
         #: When
         node = decode_frontmatter(block)

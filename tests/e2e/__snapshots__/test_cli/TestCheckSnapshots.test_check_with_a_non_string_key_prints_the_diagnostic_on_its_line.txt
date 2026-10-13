@@ -2,7 +2,7 @@ error[FM002]: frontmatter is not valid YAML
  --> docs/code/guide.md:3
   │
 3 │ 2026: launch
-  │ ──────────── found the key 2026, which is not a string
+  │ ──────────── found the non-string key 2026, which frontmatter does not allow
   │
  ::: docs/__meta__/code.structure.json
   │
