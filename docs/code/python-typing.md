@@ -131,7 +131,7 @@ def load_documents(
 `ClassVar`, `Final`. `Callable`, `Iterator` and the other abstract base classes come from `collections.abc`,
 not `typing`.
 
-**Enforcement:** ruff `UP` (UP006, UP007, UP035, UP045) — not currently enabled; see the checklist.
+**Enforcement:** ruff `UP` (UP006, UP007, UP035, UP045) fails `just check` on the old spellings.
 
 ## 3. Every Public Signature Is Annotated
 
@@ -163,6 +163,8 @@ def flush_findings(self, corpus_name: str) -> None:
 
 `self` and `cls` are never annotated. `*args` and `**kwargs` are annotated with the type of a single value
 (`**kwargs: Any`), not the container.
+
+**Enforcement:** ruff `ANN` fails `just check` on a parameter or return type left unannotated.
 
 ## 4. `Any` Is a Last Resort and Names Its Reason
 
@@ -196,6 +198,10 @@ def frontmatter_blocks(self, corpus: str) -> list[dict[str, Any]]:
 # 🔶 Acceptable — a parser handle with no public type to name
 self._parser: Any = yaml_backend.make_parser(stream)  # backend exposes no parser type
 ```
+
+**Enforcement:** ruff `ANN401` fails `just check` on a bare `Any` as a parameter or return annotation, except
+`*args: Any` and `**kwargs: Any`, which the project's `allow-star-arg-any` setting allows. An `Any` inside a
+generic, such as `list[Any]` or `dict[str, Any]`, or on an attribute is left to review.
 
 ## 5. `TYPE_CHECKING` Guards Type-Only Imports and the Annotation Is a String
 
@@ -294,6 +300,9 @@ class CorpusLabel:
 an annotation expresses the intended contract: `Any` can hide a mismatch, and `str` can admit values whose
 domain meaning has not been checked. A reviewer checks the claim against the body and its callers even when
 `ty` passes.
+
+**Enforcement:** `ty` treats a warning as an error, and ruff `PGH003` fails a `# type: ignore` that names no
+rule, so a diagnostic is silenced only by naming it.
 
 A reviewer reads every annotation in a diff against the body that backs it, and asks three questions:
 

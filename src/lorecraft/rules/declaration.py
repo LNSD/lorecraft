@@ -762,7 +762,7 @@ class EngineCondition(ABC):
 
 
 # What `@rule` registers: a rule in service, as its class, a retired one, or an engine condition.
-type RuleDeclaration = type[Rule] | type[RemovedRule] | type[EngineCondition]
+type RuleDeclaration = type[Rule | RemovedRule | EngineCondition]
 
 # Every declaration `@rule` has seen in this process, in the order their modules were imported. A rules
 # package's registry keeps those whose module lies in it.

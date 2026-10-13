@@ -175,10 +175,18 @@ select = [
     "I",    # isort
     "B",    # flake8-bugbear
     "D",    # pydocstyle
+    "ANN",  # flake8-annotations, `Any` annotations (ANN401) included
+    "PGH003", # a blanket `# type: ignore` names no rule
+    "UP",   # pyupgrade
+    "PYI055", # one `type[...]` over a union, not a union of `type[...]`
 ]
 ignore = [
     "D107", # the class docstring states what constructing it takes
 ]
+
+# `*args: Any` and `**kwargs: Any` annotate the type of a single value, as docs/code/python-typing.md states.
+[tool.ruff.lint.flake8-annotations]
+allow-star-arg-any = true
 
 [tool.ruff.lint.per-file-ignores]
 # A test's name says what it pins; its module still carries a docstring.
@@ -203,6 +211,10 @@ root = [
     "tests",
 ]
 python-version = "3.12"
+
+# A warning fails the check as an error does, so a new one cannot land unnoticed.
+[tool.ty.terminal]
+error-on-warning = true
 
 # The layers share one import package, so nothing in the packaging stops a lower layer importing a higher
 # one. This contract does: each layer may import only the layers below it, run by `just check`.
