@@ -350,7 +350,6 @@ Before committing code, verify:
 ## References
 
 - [prd-008-structured-checks](prd-008-structured-checks.md) - Source: The requirements this design answers
-- [#315](https://github.com/LNSD/lorecraft/issues/315) - Source: The research and the decisions behind it
 - [adr-009-rules](adr-009-rules.md) - Foundation: The rule class that renders a diagnostic, and the glossary
 - [adr-011-rules-engine](adr-011-rules-engine.md) - Related: The run that locates occurrences into diagnostics
 - [adr-001-snapshot-model](adr-001-snapshot-model.md) - Related: The model and the package roles

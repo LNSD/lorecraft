@@ -124,8 +124,6 @@ Before committing code, verify:
 
 ## References
 
-- [#208](https://github.com/LNSD/lorecraft/issues/208) - Source: Whether a namespace extension layers onto its base or
-  overrides it
 - [adr-001-snapshot-model](adr-001-snapshot-model.md) - Related: The model and the package roles
 - [adr-003-project-model](adr-003-project-model.md) - Related: The project model that decodes meta specs
 - [adr-010-diagnostics](adr-010-diagnostics.md) - Related: What a rule reports, and how it reaches the user

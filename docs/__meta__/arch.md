@@ -63,7 +63,8 @@ what shipped keeps changing after a requirement or a decision is settled, and an
 linked it would go stale with it.
 
 Work not yet done is cited by its issue, never by the release it is planned for: a planned release can move, and
-the document would go stale with it.
+the document would go stale with it. A kind's namespace meta spec may forbid citing issues at all; an ADR cites
+none.
 
 ## 5. Document Structure
 

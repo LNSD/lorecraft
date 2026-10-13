@@ -313,7 +313,6 @@ Before committing code, verify:
 ## References
 
 - [prd-008-structured-checks](prd-008-structured-checks.md) - Source: The requirements this design answers
-- [#315](https://github.com/LNSD/lorecraft/issues/315) - Source: The research and the decisions behind it
 - [adr-010-diagnostics](adr-010-diagnostics.md) - Related: What a rule reports, and how it reaches the user
 - [adr-011-rules-engine](adr-011-rules-engine.md) - Related: How a run judges subjects with the rules
 - [pattern-registry](../code/pattern-registry.md) - Foundation: Registration beside the definition

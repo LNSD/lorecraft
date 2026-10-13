@@ -17,7 +17,7 @@ status: "accepted"
 `lorecraft.project`, turns what a view holds into values and never caches a result across calls. Analysis, played by
 the Analysis package, holds the database of one revision and the checks that judge its query results.
 
-Since [#410](https://github.com/LNSD/lorecraft/issues/410), that line runs through the middle of the database:
+Drawn that way, the line runs through the middle of the database:
 
 - **The queries are derivations of a revision.** The model, the decoded text, the parse tree, the counts and the
   shared analyses are each computed by a function of `lorecraft.project` already: `parse_document`, `count_tokens`,
@@ -85,8 +85,6 @@ Before committing code, verify:
 
 ## References
 
-- [#410](https://github.com/LNSD/lorecraft/issues/410) - Source: The owner's decision to move the database into
-  `lorecraft.project`
 - [adr-001-snapshot-model](adr-001-snapshot-model.md) - Supersedes: The Derivation and Analysis rows of the role
   table
 - [adr-015-database](adr-015-database.md) - Foundation: Revisions, the view and the queries
