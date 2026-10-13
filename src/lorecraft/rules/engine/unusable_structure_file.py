@@ -5,7 +5,7 @@ from typing import ClassVar, assert_never
 
 from lorecraft.project.schemas.section_name import SectionName
 from lorecraft.project.schemas.structure_file import JSON_SCHEMA_DIALECT
-from lorecraft.rules.declaration import EngineCondition, Release, RuleCode, RuleName, Severity, rule
+from lorecraft.rules.declaration import FileCondition, Release, RuleCode, RuleName, Severity, rule
 from lorecraft.rules.location import Help, Note, Subdiagnostic, WholeSubject
 
 from .__ruleset__ import GROUP_ID
@@ -119,7 +119,7 @@ def _join(sections: tuple[SectionName, ...]) -> str:
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class UnusableStructureFile(EngineCondition):
+class UnusableStructureFile(FileCondition):
     """A structure file follows the structure format and states rules that cannot be applied.
 
     ## What it does

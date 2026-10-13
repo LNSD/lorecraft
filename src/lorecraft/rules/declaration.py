@@ -6,7 +6,8 @@ classmethod that judges its subject. Each subject kind has one base class derivi
 `LayoutRule`, whose abstract `check` fixes the context it reads, so a rule picks its subject by picking its base.
 A retired rule is a `RemovedRule`, which is not a `Rule`, so it can never be built as one or reported. What the
 engine itself reports about a subject, such as a file that does not decode, is an `EngineCondition`: declared
-and rendered like a rule, but with a fixed `Severity` in place of a level, and no `check`.
+and rendered like a rule, but with a fixed `Severity` in place of a level, and no `check`. It derives from
+`FileCondition` or `EntryCondition`, as a rule does from `ContentRule` or `LayoutRule`.
 
 `@rule` records each declaration as its module is imported. The registry walks a rules package, imports every
 module in it but its unit tests, and keeps the declarations whose module lies in that package outside its unit
@@ -732,6 +733,10 @@ class EngineCondition(ABC):
     can turn it off, and no `check`, since the engine finds it, not a judgment of a subject. Its severity is fixed
     on the class, and its code is always in the engine's group, which the registry holds at load.
 
+    A condition never derives from this class directly, but from the base of the subject it is about: a
+    `FileCondition` for a file the engine read, an `EntryCondition` for a path whose content it has not read, such
+    as a directory, a skill entry or a file it could not read, which points at no line.
+
     Attributes:
         CODE: The condition's code, in the engine's group, such as `LC001`.
         NAME: The condition's kebab-case name, such as `invalid-utf8`.
@@ -761,8 +766,51 @@ class EngineCondition(ABC):
         return ()
 
 
-# What `@rule` registers: a rule in service, as its class, a retired one, or an engine condition.
-type RuleDeclaration = type[Rule | RemovedRule | EngineCondition]
+@dataclass(frozen=True, slots=True, kw_only=True)
+class FileCondition(EngineCondition):
+    """A condition of a file, which has lines: it points at one, or at the file as a whole.
+
+    Its labels and sub-diagnostics may point at a line of the file or elsewhere.
+    """
+
+    @abstractmethod
+    def primary(self) -> Primary:
+        """A line of the file, or the file as a whole."""
+
+    def labels(self) -> tuple[Label, ...]:
+        """The labelled locations of this occurrence; none, so the primary location is unlabelled."""
+        return ()
+
+    def children(self) -> tuple[Subdiagnostic, ...]:
+        """The help and notes printed under the message; none."""
+        return ()
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class EntryCondition(EngineCondition):
+    """A condition of a path whose content the engine has not read, so it points at no line.
+
+    Such a path is a directory, a skill entry, or a file the engine could not read.
+
+    Its labels and sub-diagnostics can only point at another file.
+    """
+
+    def primary(self) -> WholeSubject:
+        """The entry itself."""
+        return WholeSubject()
+
+    def labels(self) -> tuple[EntryLabel, ...]:
+        """The labelled locations of this occurrence; none, so the entry is unlabelled."""
+        return ()
+
+    def children(self) -> tuple[EntrySubdiagnostic, ...]:
+        """The help and notes printed under the message; none."""
+        return ()
+
+
+# What `@rule` registers: a rule in service, as its class, a retired one, or an engine condition of a file or of an
+# entry. `EngineCondition` itself is left out, so a condition of neither base is a type error where it is declared.
+type RuleDeclaration = type[Rule | RemovedRule | FileCondition | EntryCondition]
 
 # Every declaration `@rule` has seen in this process, in the order their modules were imported. A rules
 # package's registry keeps those whose module lies in it.
@@ -773,7 +821,7 @@ _declared: list[RuleDeclaration] = []
 # for the type checker; it ranges over no subject kind, and the registry takes none, as adr-009 states. Without the
 # parameter, every decorated name would be retyped as `RuleDeclaration`, and a rule's own fields and `check` would
 # no longer type-check at its call sites.
-def rule[T: Rule | RemovedRule | EngineCondition](declaration: type[T]) -> type[T]:
+def rule[T: Rule | RemovedRule | FileCondition | EntryCondition](declaration: type[T]) -> type[T]:
     """Register a rule's class, a removed rule or an engine condition, as its module is imported.
 
     Args:

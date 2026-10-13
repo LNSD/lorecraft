@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from typing import ClassVar, assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.rules.declaration import EngineCondition, Release, RuleCode, RuleName, Severity, rule
-from lorecraft.rules.location import EntryHelp, EntryNote, EntrySubdiagnostic, WholeSubject
+from lorecraft.rules.declaration import EntryCondition, Release, RuleCode, RuleName, Severity, rule
+from lorecraft.rules.location import EntryHelp, EntryNote, EntrySubdiagnostic
 from lorecraft.vfs import OsRefusal
 
 from .__ruleset__ import GROUP_ID, RefusedOperation
@@ -35,7 +35,7 @@ type Cause = Refused | NotARegularFile
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class UnreadablePath(EngineCondition):
+class UnreadablePath(EntryCondition):
     """A path cannot be read.
 
     ## What it does
@@ -105,10 +105,6 @@ class UnreadablePath(EngineCondition):
     def message(self) -> str:
         """Name the condition."""
         return 'path cannot be read'
-
-    def primary(self) -> WholeSubject:
-        """The path as a whole: no line of it is at fault."""
-        return WholeSubject()
 
     def children(self) -> tuple[EntrySubdiagnostic, ...]:
         """Say which operation was refused where, and why, then say how to fix it."""
