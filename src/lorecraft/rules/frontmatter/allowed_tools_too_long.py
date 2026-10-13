@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Final, Self, assert_never
 
+from lorecraft.core.num import NonZeroUnsignedInt, Overrun, UnsignedInt, find_overrun
 from lorecraft.project.context import SkillContext
 from lorecraft.project.schemas import field_line
 from lorecraft.project.syntax import Frontmatter, InvalidYamlFrontmatter, MissingFrontmatter, NonMappingFrontmatter
@@ -12,7 +13,7 @@ from lorecraft.rules.subject import SkillRule
 
 from .__ruleset__ import GROUP_ID, allowed_tools_note
 
-_CHARACTER_LIMIT: Final[int] = 500
+_CHARACTER_LIMIT: Final[NonZeroUnsignedInt] = NonZeroUnsignedInt(500)
 """Lorecraft's recommended length, matching the compatibility field's maximum."""
 
 
@@ -60,7 +61,7 @@ class AllowedToolsTooLong(SkillRule):
 
     Attributes:
         spec: Always `None`: the package states this recommendation.
-        character_count: The characters in the whole `allowed-tools` value.
+        overrun: The characters in the whole `allowed-tools` value against the recommended length.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 12)
@@ -69,11 +70,11 @@ class AllowedToolsTooLong(SkillRule):
     SINCE: ClassVar[Release] = Release('0.3.0')
 
     spec: None = None
-    character_count: int
+    overrun: Overrun
 
     def message(self) -> str:
         """Name the characters found against the recommended length."""
-        return f'`allowed-tools` value too long ({self.character_count} > {_CHARACTER_LIMIT})'
+        return f'`allowed-tools` value too long ({self.overrun.count} > {self.overrun.cap})'
 
     def labels(self) -> tuple[Label, ...]:
         """Name what is over the recommended length, on the field's line."""
@@ -88,7 +89,7 @@ class AllowedToolsTooLong(SkillRule):
                 '`Bash(git diff *) Bash(git log *)` into `Bash(git *)`'
             ),
             Note(
-                f'Lorecraft recommends at most {_CHARACTER_LIMIT} characters, the `compatibility` limit; '
+                f'Lorecraft recommends at most {self.overrun.cap} characters, the `compatibility` limit; '
                 'the Agent Skills specification sets none for `allowed-tools`'
             ),
         )
@@ -112,7 +113,7 @@ class AllowedToolsTooLong(SkillRule):
         value = frontmatter.data.get('allowed-tools')
         if not isinstance(value, str):
             return ()
-        character_count = len(value)
-        if character_count <= _CHARACTER_LIMIT:
+        overrun = find_overrun(UnsignedInt(len(value)), _CHARACTER_LIMIT)
+        if overrun is None:
             return ()
-        return (cls(line=field_line(frontmatter, 'allowed-tools'), character_count=character_count),)
+        return (cls(line=field_line(frontmatter, 'allowed-tools'), overrun=overrun),)

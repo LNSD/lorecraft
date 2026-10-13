@@ -18,6 +18,7 @@ from typing import ClassVar, Final, Self
 
 import pytest
 
+from lib.overruns import overrun
 from lorecraft import rules
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
@@ -527,7 +528,7 @@ class TestCheckSubjects:
                     ),
                     RuleDiagnostic(
                         skill_file,
-                        AllowedToolsTooLong(line=LineNumber.from_int(4), character_count=501),
+                        AllowedToolsTooLong(line=LineNumber.from_int(4), overrun=overrun(501, 500)),
                         Severity.WARNING,
                     ),
                 ),
@@ -864,7 +865,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
-        occurrence = TooManyLines(line=LineNumber.from_int(501), line_count=501)
+        occurrence = TooManyLines(line=LineNumber.from_int(501), overrun=overrun(501, 500))
         skill_file = RootRelativePath.parse('.agents/skills/review/SKILL.md')
         assert reports == (
             CheckedSubject(
@@ -887,7 +888,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
-        occurrence = TooManyLines(line=LineNumber.from_int(501), line_count=501)
+        occurrence = TooManyLines(line=LineNumber.from_int(501), overrun=overrun(501, 500))
         skill_file = RootRelativePath.parse('.agents/skills/review/SKILL.md')
         assert reports == (
             CheckedSubject(
