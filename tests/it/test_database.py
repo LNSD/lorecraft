@@ -525,7 +525,7 @@ class TestDatabase:
         lines = database.document_lines(source)
 
         #: Then
-        assert lines == 5, f'the frontmatter counts too, and the final newline adds no line, got {lines}'
+        assert lines == UnsignedInt(5), f'the frontmatter counts too, and the final newline adds no line, got {lines}'
 
     def test_skill_text_of_a_utf8_skill_returns_its_witness(self) -> None:
         #: Given
@@ -621,7 +621,7 @@ class TestDatabase:
         lines = database.skill_lines(source)
 
         #: Then
-        assert lines == 6, f'the frontmatter counts too, and the final newline adds no line, got {lines}'
+        assert lines == UnsignedInt(6), f'the frontmatter counts too, and the final newline adds no line, got {lines}'
 
     def test_skill_frontmatter_called_twice_returns_the_first_answer(self) -> None:
         #: Given

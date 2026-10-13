@@ -178,8 +178,10 @@ from lorecraft.project.skill import (
 )
 from lorecraft.project.syntax import (
     FrontmatterNode,
+    LineCount,
     NormalisedLinkPath,
     ParsedDocument,
+    TokenCount,
     count_lines,
     count_tokens,
     parse_document,
@@ -241,8 +243,8 @@ class Database:
         # The derived queries' caches.
         self._frontmatters: dict[DocumentRef, FrontmatterNode] = {}
         self._parses: dict[DocumentRef, ParsedDocument] = {}
-        self._token_counts: dict[DocumentRef, int] = {}
-        self._line_counts: dict[DocumentRef, int] = {}
+        self._token_counts: dict[DocumentRef, TokenCount] = {}
+        self._line_counts: dict[DocumentRef, LineCount] = {}
         # A document in no corpus the model holds is governed by nothing, so `None` is an answer and is cached too.
         self._governances: dict[DocumentRef, Governance | None] = {}
         self._schema_problems: dict[DocumentRef, tuple[SchemaProblems, ...]] = {}
@@ -250,7 +252,7 @@ class Database:
         self._outline_divergences: dict[DocumentRef, tuple[OutlineDivergenceSpec, ...]] = {}
         self._skill_frontmatters: dict[SkillRef, FrontmatterNode] = {}
         self._skill_parses: dict[SkillRef, ParsedDocument] = {}
-        self._skill_line_counts: dict[SkillRef, int] = {}
+        self._skill_line_counts: dict[SkillRef, LineCount] = {}
         self._skill_schema_problems: dict[SkillRef, tuple[SchemaProblems, ...]] = {}
         self._skill_resource_parses: dict[SkillResourceRef, ParsedDocument] = {}
 
@@ -561,7 +563,7 @@ class Database:
             self._parses[source.ref] = parsed
         return parsed
 
-    def tokens(self, source: DocumentText) -> int:
+    def tokens(self, source: DocumentText) -> TokenCount:
         """The tokens in one document's whole file, counted on the first call for its ref. Raises nothing.
 
         Cached apart from `parse(source)` and never read from it: the count needs the raw text, not the tree, so
@@ -579,7 +581,7 @@ class Database:
             self._token_counts[source.ref] = count
         return count
 
-    def document_lines(self, source: DocumentText) -> int:
+    def document_lines(self, source: DocumentText) -> LineCount:
         """The lines in one document's whole file, counted on the first call for its ref. Raises nothing.
 
         Cached apart from `parse(source)` and never read from it, as `tokens(source)` is: the count needs the raw
@@ -710,7 +712,7 @@ class Database:
             alignments = self.outline_alignment(source)
             # Only a document some outline governs has its lines counted.
             if any(alignment.outline for alignment in alignments):
-                divergences = match_outlines(alignments, self.document_lines(source))
+                divergences = match_outlines(alignments, self.document_lines(source).value)
             else:
                 divergences = ()
             self._outline_divergences[source.ref] = divergences
@@ -748,7 +750,7 @@ class Database:
             self._skill_parses[source.ref] = parsed
         return parsed
 
-    def skill_lines(self, source: SkillText) -> int:
+    def skill_lines(self, source: SkillText) -> LineCount:
         """The lines in one skill's whole `SKILL.md`, counted on the first call for its ref. Raises nothing.
 
         Cached apart from `skill_parse(source)` and never read from it, as a document's token count is from its

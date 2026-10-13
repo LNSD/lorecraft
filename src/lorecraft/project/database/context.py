@@ -18,13 +18,12 @@ listing returned, the memoized query value itself, and reads every fact from it.
 
 from collections.abc import Mapping
 
-from lorecraft.core.num import UnsignedInt
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.link_target import DocumentDirectory, LinkTargetEntry, SkillRoot
 from lorecraft.project.schemas import OutlineAlignmentSpec, OutlineDivergenceSpec, SchemaProblems, StructureSpec
 from lorecraft.project.skill import OutsideSymlink, SkillLocation
-from lorecraft.project.syntax import FrontmatterNode, NormalisedLinkPath, ParsedDocument
+from lorecraft.project.syntax import FrontmatterNode, LineCount, NormalisedLinkPath, ParsedDocument, TokenCount
 from lorecraft.project.workspace import Governance
 from lorecraft.vfs import ResolvedPath, RootExit
 
@@ -78,15 +77,13 @@ class DatabaseDocumentContext:
         """Where each relative link leads and what the snapshot holds there, from the `link_targets` query."""
         return self._database.link_targets(self._source)
 
-    def tokens(self) -> UnsignedInt:
+    def tokens(self) -> TokenCount:
         """The tokens in the document's whole file, from the `tokens` query."""
-        # A count is never negative, so building the `UnsignedInt` cannot raise `NegativeIntError` here.
-        return UnsignedInt(self._database.tokens(self._source))
+        return self._database.tokens(self._source)
 
-    def lines(self) -> UnsignedInt:
+    def lines(self) -> LineCount:
         """The lines in the document's whole file, from the `document_lines` query."""
-        # A count is never negative, so building the `UnsignedInt` cannot raise `NegativeIntError` here.
-        return UnsignedInt(self._database.document_lines(self._source))
+        return self._database.document_lines(self._source)
 
     def specifications(self) -> Governance:
         """The specifications that govern the document, from the `governance` query."""
@@ -172,10 +169,9 @@ class DatabaseSkillContext:
         """Where each relative link leads and what the snapshot holds there, from the `skill_link_targets` query."""
         return self._database.skill_link_targets(self._source)
 
-    def lines(self) -> UnsignedInt:
+    def lines(self) -> LineCount:
         """The lines in the skill's whole `SKILL.md`, from the `skill_lines` query."""
-        # A count is never negative, so building the `UnsignedInt` cannot raise `NegativeIntError` here.
-        return UnsignedInt(self._database.skill_lines(self._source))
+        return self._database.skill_lines(self._source)
 
 
 class DatabaseSkillResourceContext:

@@ -20,6 +20,7 @@ import pytest
 
 from lib.overruns import overrun
 from lorecraft import rules
+from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.engine import check_subjects
 from lorecraft.project.aspect import AspectFilename
@@ -308,7 +309,7 @@ class CountingDatabase(Database):
         self.validated_frontmatters: list[DocumentRef | SkillRef] = []
         self.parsed_documents: list[DocumentRef] = []
 
-    def tokens(self, source: DocumentText) -> int:
+    def tokens(self, source: DocumentText) -> UnsignedInt:
         """Record the document, then count its tokens.
 
         Args:
@@ -317,7 +318,7 @@ class CountingDatabase(Database):
         self.counted_tokens.append(source.ref)
         return super().tokens(source)
 
-    def skill_lines(self, source: SkillText) -> int:
+    def skill_lines(self, source: SkillText) -> UnsignedInt:
         """Record the skill, then count the lines of its `SKILL.md`.
 
         Args:
@@ -576,7 +577,7 @@ class TestCheckSubjects:
 
         #: Then
         occurrence = TooManyTokens(
-            spec=CODE_SPEC, line=LineNumber.from_int(1), overrun=overrun(count_tokens(GUIDE_TEXT), 5)
+            spec=CODE_SPEC, line=LineNumber.from_int(1), overrun=overrun(count_tokens(GUIDE_TEXT).value, 5)
         )
         assert reports == (
             CheckedSubject(
@@ -611,7 +612,7 @@ class TestCheckSubjects:
         reports = check_subjects(Database.open(snapshot), (typing,), table)
 
         #: Then
-        token_count = count_tokens(typing_text)
+        token_count = count_tokens(typing_text).value
         corpus_budget = TooManyTokens(spec=CODE_SPEC, line=LineNumber.from_int(1), overrun=overrun(token_count, 5))
         namespace_budget = TooManyTokens(
             spec=namespace_spec, line=LineNumber.from_int(1), overrun=overrun(token_count, 3)
@@ -818,7 +819,7 @@ class TestCheckSubjects:
     def test_check_subjects_with_sample_rules_reports_each_at_its_level(self, sample_table: RuleTable) -> None:
         #: Given
         # a budget the document holds more than half of, and less than all of
-        token_count_of_guide = count_tokens(GUIDE_TEXT)
+        token_count_of_guide = count_tokens(GUIDE_TEXT).value
         database = Database.open(_snapshot(_budget(token_count_of_guide + 1), guide=GUIDE_TEXT.encode()))
 
         #: When

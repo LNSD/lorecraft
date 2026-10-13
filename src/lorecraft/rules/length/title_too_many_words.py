@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
 from lorecraft.project.syntax import count_words, find_title
@@ -96,7 +95,7 @@ class TitleTooManyWords(DocumentRule):
         title = find_title(subject.parse().headings)
         if title is None:
             return ()
-        word_count = UnsignedInt(count_words(title.text))
+        word_count = count_words(title.text)
         occurrences: list[Self] = []
         for structure_spec in subject.specifications().structure_specs():
             title_checks = structure_spec.title
