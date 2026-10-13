@@ -18,6 +18,7 @@ from .frontmatter import (
     InvalidYamlFrontmatter,
     MissingFrontmatter,
     NonMappingFrontmatter,
+    RepeatedKey,
     reads_back_as_string,
 )
 from .heading import Heading, HeadingLevel, SectionHeading, find_sections, find_title
@@ -42,6 +43,7 @@ __all__: list[str] = [
     'FrontmatterNode',
     'Frontmatter',
     'FrontmatterKey',
+    'RepeatedKey',
     'MissingFrontmatter',
     'InvalidYamlFrontmatter',
     'NonMappingFrontmatter',

@@ -109,7 +109,7 @@ _PYYAML_WORDING: Final[tuple[tuple[str, str], ...]] = (
 
 @dataclass(frozen=True, slots=True)
 class FrontmatterKey:
-    """One top-level key of a frontmatter mapping and the line it is written on.
+    """One key of a frontmatter mapping, at any depth, and the line it is written on.
 
     Attributes:
         name: The key as YAML decoded it.
@@ -118,6 +118,23 @@ class FrontmatterKey:
 
     name: str
     line: LineNumber
+
+
+@dataclass(frozen=True, slots=True)
+class RepeatedKey:
+    """A key a mapping writes again after its first occurrence, at any depth.
+
+    Attributes:
+        name: The key as YAML decoded it.
+        line: The document line this later occurrence is written on.
+        first_line: The line the mapping's first occurrence of the key is written on.
+        kept_line: The line of the mapping's last occurrence, whose value the data holds.
+    """
+
+    name: str
+    line: LineNumber
+    first_line: LineNumber
+    kept_line: LineNumber
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,10 +151,13 @@ class Frontmatter:
             is shared by every check that reads the document.
         keys: Every top-level key the mapping writes, in document order, with its line. A key written more than
             once appears once per occurrence, although `data` holds only one value for it.
+        repeats: Every key written again within one mapping, at any depth, in document order: one per occurrence after
+            the first, which is the line it points back at. The last occurrence's value is the one `data` holds.
     """
 
     data: FrozenMapping[str, Frozen]
     keys: tuple[FrontmatterKey, ...]
+    repeats: tuple[RepeatedKey, ...] = ()
 
     def find_key_line(self, name: str) -> LineNumber | None:
         """The line the last top-level key called `name` is written on, or `None` when there is none.
@@ -854,11 +874,16 @@ def _read_document(parser: _EventStream) -> Frontmatter | NonMappingFrontmatter:
     first = _peek_node_start(parser)
     if isinstance(first, SequenceStartEvent | MappingStartEvent) and first.flow_style:
         raise _RefusedFlowBlockError(_mark_of(first))
+    repeats: list[RepeatedKey] = []
     if isinstance(first, MappingStartEvent):
-        entries = _read_mapping(parser, first)
-        node: Frontmatter | NonMappingFrontmatter = Frontmatter(data=_to_mapping(entries), keys=_keys(entries))
+        entries = _read_mapping(parser, first, repeats)
+        # An inner mapping ends before the one that holds it, so its repeats came first; document order is by line.
+        in_document_order = tuple(sorted(repeats, key=lambda repeat: repeat.line.number))
+        node: Frontmatter | NonMappingFrontmatter = Frontmatter(
+            data=_to_mapping(entries), keys=_keys(entries), repeats=in_document_order
+        )
     else:
-        _read_value(parser)
+        _read_value(parser, repeats)
         node = NonMappingFrontmatter()
     parser.get_event()  # The document's end.
     if not parser.check_event(StreamEndEvent):
@@ -892,11 +917,12 @@ def _peek_node_start(parser: _EventStream) -> ScalarEvent | SequenceStartEvent |
     return event
 
 
-def _read_value(parser: _EventStream) -> Frozen:
+def _read_value(parser: _EventStream, repeats: list[RepeatedKey]) -> Frozen:
     """Read one value and everything in it, and decode it frozen: to a `FrozenMapping`, a tuple or a scalar.
 
     Args:
         parser: The parser, whose next event starts the value.
+        repeats: The keys written again so far in the document, which the mappings in the value add to.
 
     Raises:
         MarkedYAMLError: The value is not valid YAML.
@@ -904,19 +930,22 @@ def _read_value(parser: _EventStream) -> Frozen:
     """
     event = _peek_node_start(parser)
     if isinstance(event, MappingStartEvent):
-        return _to_mapping(_read_mapping(parser, event))
+        return _to_mapping(_read_mapping(parser, event, repeats))
     if isinstance(event, SequenceStartEvent):
-        return _read_sequence(parser, event)
+        return _read_sequence(parser, event, repeats)
     parser.get_event()
     return _scalar_value(event)
 
 
-def _read_mapping(parser: _EventStream, start: MappingStartEvent) -> list[_Entry]:
+def _read_mapping(parser: _EventStream, start: MappingStartEvent, repeats: list[RepeatedKey]) -> list[_Entry]:
     """Read one mapping, every pair in the order it is written, a repeated key once per occurrence.
+
+    The keys it and the mappings inside it write again are added to `repeats`, those of the inner ones first.
 
     Args:
         parser: The parser, whose next event starts the mapping.
         start: The event that starts it, which says whether it is written in flow style.
+        repeats: The keys written again so far in the document, which this call adds to.
 
     Raises:
         MarkedYAMLError: The mapping is not valid YAML.
@@ -928,18 +957,20 @@ def _read_mapping(parser: _EventStream, start: MappingStartEvent) -> list[_Entry
     while not parser.check_event(MappingEndEvent):
         key = _read_key(parser)
         _refuse_nested_collection(parser, start)
-        value = _read_value(parser)
+        value = _read_value(parser, repeats)
         entries.append((key, value))
     parser.get_event()  # The mapping's end.
+    repeats.extend(_repeats(entries))
     return entries
 
 
-def _read_sequence(parser: _EventStream, start: SequenceStartEvent) -> tuple[Frozen, ...]:
+def _read_sequence(parser: _EventStream, start: SequenceStartEvent, repeats: list[RepeatedKey]) -> tuple[Frozen, ...]:
     """Read one sequence, every item in the order it is written, as a tuple, the sequence that cannot change.
 
     Args:
         parser: The parser, whose next event starts the sequence.
         start: The event that starts it, which says whether it is written in flow style.
+        repeats: The keys written again so far in the document, which the mappings among its items add to.
 
     Raises:
         MarkedYAMLError: An item is not valid YAML.
@@ -949,7 +980,7 @@ def _read_sequence(parser: _EventStream, start: SequenceStartEvent) -> tuple[Fro
     items: list[Frozen] = []
     while not parser.check_event(SequenceEndEvent):
         _refuse_nested_collection(parser, start)
-        items.append(_read_value(parser))
+        items.append(_read_value(parser, repeats))
     parser.get_event()  # The sequence's end.
     return tuple(items)
 
@@ -1050,6 +1081,26 @@ def _to_mapping(entries: list[_Entry]) -> FrozenMapping[str, Frozen]:
     for key, value in entries:
         mapping[key.name] = value
     return FrozenMapping(mapping)
+
+
+def _repeats(entries: list[_Entry]) -> list[RepeatedKey]:
+    """The keys the mapping writes again, one per occurrence after the first, in the order they are written.
+
+    Args:
+        entries: The mapping's pairs, in the order they are written.
+    """
+    first_lines: dict[str, LineNumber] = {}
+    last_lines: dict[str, LineNumber] = {}
+    for key, _value in entries:
+        first_lines.setdefault(key.name, key.line)
+        last_lines[key.name] = key.line
+    seen: set[str] = set()
+    repeats: list[RepeatedKey] = []
+    for key, _value in entries:
+        if key.name in seen:
+            repeats.append(RepeatedKey(key.name, key.line, first_lines[key.name], last_lines[key.name]))
+        seen.add(key.name)
+    return repeats
 
 
 def _keys(entries: list[_Entry]) -> tuple[FrontmatterKey, ...]:

@@ -16,6 +16,7 @@ from ..frontmatter import (
     FrontmatterKey,
     InvalidYamlFrontmatter,
     NonMappingFrontmatter,
+    RepeatedKey,
     decode_frontmatter,
     reads_back_as_string,
 )
@@ -268,7 +269,80 @@ class TestDecodeFrontmatter:
                 FrontmatterKey('type', LineNumber.from_int(3)),
                 FrontmatterKey('name', LineNumber.from_int(4)),
             ),
+            repeats=(RepeatedKey('name', LineNumber.from_int(4), LineNumber.from_int(2), LineNumber.from_int(4)),),
         ), 'the data holds the value of the last occurrence, and the keys list every occurrence'
+
+    def test_decode_frontmatter_with_a_key_repeated_in_a_nested_mapping_lists_the_repeat_with_its_line(self) -> None:
+        #: Given
+        block = dedent("""\
+            name: guide
+            metadata:
+              author: a
+              author: b
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a mapping that repeats a nested key is still frontmatter, got {node!r}'
+        assert node.repeats == (
+            RepeatedKey('author', LineNumber.from_int(5), LineNumber.from_int(4), LineNumber.from_int(5)),
+        ), 'a nested key written again is listed on its own line, pointing back at the first'
+        assert node.data == FrozenMapping({'name': 'guide', 'metadata': FrozenMapping({'author': 'b'})}), (
+            'the later value stands, so the other fields of the block are still read'
+        )
+
+    def test_decode_frontmatter_with_a_key_repeated_in_a_flow_mapping_lists_the_repeat(self) -> None:
+        #: Given
+        block = dedent("""\
+            name: guide
+            size: {w: 1, w: 2}
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a mapping that repeats a nested key is still frontmatter, got {node!r}'
+        assert node.repeats == (
+            RepeatedKey('w', LineNumber.from_int(3), LineNumber.from_int(3), LineNumber.from_int(3)),
+        ), 'a key written twice on one line of a flow mapping is a repeat, as one over two lines is'
+
+    def test_decode_frontmatter_with_a_key_repeated_in_a_sequence_item_lists_the_repeat(self) -> None:
+        #: Given
+        block = dedent("""\
+            authors:
+              - name: a
+                name: b
+              - name: c
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a mapping that repeats a nested key is still frontmatter, got {node!r}'
+        assert node.repeats == (
+            RepeatedKey('name', LineNumber.from_int(4), LineNumber.from_int(3), LineNumber.from_int(4)),
+        ), 'a key repeated in one item is a repeat, and the same key in another item is not'
+
+    def test_decode_frontmatter_with_the_same_key_in_different_mappings_lists_no_repeat(self) -> None:
+        #: Given
+        block = dedent("""\
+            name: guide
+            first:
+              title: One
+            second:
+              title: Two
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
+        assert node.repeats == (), 'a key is repeated within one mapping, so the same name under two parents is not'
 
     def test_decode_frontmatter_with_an_equals_key_returns_it_as_a_string_key(self) -> None:
         #: Given
@@ -1316,7 +1390,9 @@ class TestDecodeFrontmatter:
             problem="expected ',' or ']', but got '?'", line=LineNumber.from_int(2)
         ), 'a `?` after a scalar is no explicit key, so it is the parser that stops there'
 
-    def test_decode_frontmatter_with_a_question_mark_alone_in_a_flow_sequence_returns_an_explicit_key(self) -> None:
+    def test_decode_frontmatter_with_a_question_mark_alone_in_a_flow_sequence_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
         #: Given
         block = 'a: [?]\n'
 
