@@ -1258,7 +1258,8 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='the block cannot be read from this line on',
+            problem='this line is not `key: value` or `- item`',
+            help='Add `: ` after the key, or quote a value that runs on',
             line=LineNumber.from_int(3),
         ), 'a top-level block scalar must be indented, so the line after it is reported'
 
@@ -1608,6 +1609,24 @@ class TestDecodeFrontmatter:
             'a block mapping and a flow sequence are accepted as items of a block sequence'
         )
 
+    def test_decode_frontmatter_with_a_line_that_is_not_a_key_or_an_item_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = dedent("""\
+            name: a
+            just words
+            b: c
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='this line is not `key: value` or `- item`',
+            help='Add `: ` after the key, or quote a value that runs on',
+            line=LineNumber.from_int(3),
+        ), 'a line that is neither a key nor an item is reported on that line'
+
     def test_decode_frontmatter_with_text_after_a_closing_quote_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
         block = 'name: "a" b\n'
@@ -1621,6 +1640,65 @@ class TestDecodeFrontmatter:
             help='Put the whole value inside the quotes',
             line=LineNumber.from_int(2),
         ), 'text written after a closing quote is reported on its line'
+
+    def test_decode_frontmatter_with_a_scalar_that_ends_at_a_key_below_plain_words_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = dedent("""\
+            just words
+            name: a
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='this line is not `key: value` or `- item`',
+            help='Add `: ` after the key, or quote a value that runs on',
+            line=LineNumber.from_int(2),
+        ), 'the plain words are the line to fix, not the key that ends them'
+
+    def test_decode_frontmatter_with_a_key_ending_the_value_of_a_list_item_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = dedent("""\
+            l:
+            - a
+              more
+              k: v
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="this line's indentation matches no key or item above it",
+            help='Indent it like the keys or items it belongs with',
+            line=LineNumber.from_int(5),
+        ), 'the value of a list item is text, so a key that ends it matches no level, on its own line'
+
+    def test_decode_frontmatter_with_a_key_missing_its_space_before_a_key_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = dedent("""\
+            a:b
+            c: d
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='this line is not `key: value` or `- item`',
+            help='Add `: ` after the key, or quote a value that runs on',
+            line=LineNumber.from_int(2),
+        ), 'a line with no space after its colon is not a key, and is reported itself'
 
     def test_decode_frontmatter_with_a_key_under_a_multi_line_text_value_returns_invalid_yaml_on_its_line(
         self,

@@ -42,6 +42,8 @@ def describe_error(error: MarkedYAMLError, block: str) -> SyntaxProblem:
     mark = error.problem_mark
     context_mark = error.context_mark
 
+    if problem == "could not find expected ':'":
+        return _not_key_or_item(_line_of(context_mark or mark))
     if context.startswith('while scanning a quoted scalar') and problem.startswith('found unexpected end'):
         return SyntaxProblem(
             'this quote is never closed',
@@ -54,6 +56,8 @@ def describe_error(error: MarkedYAMLError, block: str) -> SyntaxProblem:
         return _bad_indent(mark, lines)
     if problem.startswith("expected <block end>, but found '<scalar>'"):
         return _text_after_quote(mark, lines)
+    if problem.startswith("expected '<document start>'"):
+        return _not_key_or_item(_line_of(mark))
     return _unreadable(_line_of(mark or context_mark))
 
 
@@ -85,6 +89,17 @@ def _text(lines: list[str], line: int) -> str:
     return lines[line] if 0 <= line < len(lines) else ''
 
 
+def _not_key_or_item(line: int | None) -> SyntaxProblem:
+    """The kind for a line that is neither `key: value` nor `- item`.
+
+    Args:
+        line: The line, counted from 0, or None when the parser marks none.
+    """
+    return SyntaxProblem(
+        'this line is not `key: value` or `- item`', 'Add `: ` after the key, or quote a value that runs on', line
+    )
+
+
 def _is_key_line(text: str) -> bool:
     """Whether a line of the block is a `key: value` or a `key:`, which a text value cannot continue on.
 
@@ -102,6 +117,15 @@ def _is_skipped(text: str) -> bool:
         text: The line.
     """
     return not text.strip() or text.strip().startswith('#')
+
+
+def _is_list_item(text: str) -> bool:
+    """Whether a line of the block starts a list item, with a `- `.
+
+    Args:
+        text: The line.
+    """
+    return text.strip().startswith('- ')
 
 
 def _key_of_line(text: str) -> str:
@@ -168,15 +192,24 @@ def _bad_indent(mark: StreamMark | None, lines: list[str]) -> SyntaxProblem:
             under_text = _indented_under_text(lines, mark.line, text[mark.column :].split(':', 1)[0].strip())
             if under_text is not None:
                 return under_text
+    return _matches_no_level(_line_of(mark))
+
+
+def _matches_no_level(line: int | None) -> SyntaxProblem:
+    """The kind for a line indented to no level of the block.
+
+    Args:
+        line: The line, counted from 0, or None when the parser marks none.
+    """
     return SyntaxProblem(
         "this line's indentation matches no key or item above it",
         'Indent it like the keys or items it belongs with',
-        _line_of(mark),
+        line,
     )
 
 
 def _misplaced_colon(mark: StreamMark | None, lines: list[str]) -> SyntaxProblem:
-    """Classify a `:` where a key is not allowed: a second one in a value, or a key under a text value.
+    """Classify a `:` where a key is not allowed: in a value, under a text value, or ending a multi-line scalar.
 
     Args:
         mark: Where the scanner found the `:`.
@@ -186,13 +219,38 @@ def _misplaced_colon(mark: StreamMark | None, lines: list[str]) -> SyntaxProblem
         return _unreadable(None)
     text = _text(lines, mark.line)
     before = text[: mark.column]
-    if ': ' not in before:
-        under_text = _indented_under_text(lines, mark.line, before.strip())
-        if under_text is not None:
-            return under_text
-    key, _, value = text.strip().partition(': ')
-    quoted = f'`{key}: "{value}"`' if value and '"' not in value else 'it'
-    return SyntaxProblem('this value holds `: `', f'Quote the value: {quoted}', mark.line)
+    if ': ' in before:
+        key, _, value = text.strip().partition(': ')
+        quoted = f'`{key}: "{value}"`' if value and '"' not in value else 'it'
+        return SyntaxProblem('this value holds `: `', f'Quote the value: {quoted}', mark.line)
+    under_text = _indented_under_text(lines, mark.line, before.strip())
+    if under_text is not None:
+        return under_text
+    start = _scalar_start(lines, mark.line)
+    if _is_list_item(_text(lines, start)):
+        # The scalar is the value of a list item, so the key that ends it lines up with no key or item.
+        return _matches_no_level(mark.line)
+    return _not_key_or_item(start)
+
+
+def _scalar_start(lines: list[str], line: int) -> int:
+    """The line a plain scalar ending at `line` began on: its topmost words, or the list item it is the value of.
+
+    Args:
+        lines: The block's lines.
+        line: The line the scalar ends on, counted from 0.
+    """
+    start = line
+    for number in range(line - 1, -1, -1):
+        text = lines[number]
+        if _is_skipped(text):
+            continue
+        if _is_key_line(text):
+            break
+        start = number
+        if _is_list_item(text):
+            break
+    return start
 
 
 def _text_after_quote(mark: StreamMark | None, lines: list[str]) -> SyntaxProblem:
