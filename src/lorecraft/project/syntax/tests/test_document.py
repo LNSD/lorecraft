@@ -247,6 +247,58 @@ class TestParseDocumentHeadings:
             'a CRLF line ending counts as one line break'
         )
 
+    def test_parse_document_with_a_vertical_tab_returns_each_heading_on_its_document_line(self) -> None:
+        #: Given
+        separator = '\x0b'
+        text = f'# Guide\n\nfirst{separator}second\n\n## Checklist\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert [heading.line for heading in document.headings] == [LineNumber.from_int(1), LineNumber.from_int(5)], (
+            f'{separator!r} ends no line, so the heading after it is on the line a `\\n` count gives'
+        )
+
+    def test_parse_document_with_a_form_feed_returns_each_heading_on_its_document_line(self) -> None:
+        #: Given
+        separator = '\x0c'
+        text = f'# Guide\n\nfirst{separator}second\n\n## Checklist\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert [heading.line for heading in document.headings] == [LineNumber.from_int(1), LineNumber.from_int(5)], (
+            f'{separator!r} ends no line, so the heading after it is on the line a `\\n` count gives'
+        )
+
+    def test_parse_document_with_a_next_line_returns_each_heading_on_its_document_line(self) -> None:
+        #: Given
+        separator = '\x85'
+        text = f'# Guide\n\nfirst{separator}second\n\n## Checklist\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert [heading.line for heading in document.headings] == [LineNumber.from_int(1), LineNumber.from_int(5)], (
+            f'{separator!r} ends no line, so the heading after it is on the line a `\\n` count gives'
+        )
+
+    def test_parse_document_with_a_line_separator_returns_each_heading_on_its_document_line(self) -> None:
+        #: Given
+        separator = '\u2028'
+        text = f'# Guide\n\nfirst{separator}second\n\n## Checklist\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert [heading.line for heading in document.headings] == [LineNumber.from_int(1), LineNumber.from_int(5)], (
+            f'{separator!r} ends no line, so the heading after it is on the line a `\\n` count gives'
+        )
+
     def test_parse_document_with_a_leading_blank_line_returns_the_heading_on_line_two(self) -> None:
         #: Given
         text = '\n# Guide\n'
@@ -327,6 +379,58 @@ class TestParseDocumentWords:
 
         #: Then
         assert document.headings[0].words == UnsignedInt(2), 'a table row is a reference, not prose'
+
+    def test_parse_document_with_a_vertical_tab_inside_a_table_row_leaves_the_whole_row_out(self) -> None:
+        #: Given
+        separator = '\x0b'
+        text = f'## Gates\n\n| Gate{separator}Recipe |\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.headings[0].words == UnsignedInt(0), (
+            f'{separator!r} ends no line, so the row is one line and left out'
+        )
+
+    def test_parse_document_with_a_form_feed_inside_a_table_row_leaves_the_whole_row_out(self) -> None:
+        #: Given
+        separator = '\x0c'
+        text = f'## Gates\n\n| Gate{separator}Recipe |\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.headings[0].words == UnsignedInt(0), (
+            f'{separator!r} ends no line, so the row is one line and left out'
+        )
+
+    def test_parse_document_with_a_next_line_inside_a_table_row_leaves_the_whole_row_out(self) -> None:
+        #: Given
+        separator = '\x85'
+        text = f'## Gates\n\n| Gate{separator}Recipe |\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.headings[0].words == UnsignedInt(0), (
+            f'{separator!r} ends no line, so the row is one line and left out'
+        )
+
+    def test_parse_document_with_a_line_separator_inside_a_table_row_leaves_the_whole_row_out(self) -> None:
+        #: Given
+        separator = '\u2028'
+        text = f'## Gates\n\n| Gate{separator}Recipe |\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert document.headings[0].words == UnsignedInt(0), (
+            f'{separator!r} ends no line, so the row is one line and left out'
+        )
 
     def test_parse_document_with_prose_after_a_table_row_in_one_paragraph_counts_the_prose(self) -> None:
         #: Given
@@ -496,6 +600,58 @@ class TestParseDocumentLinks:
         #: Then
         assert [link.line for link in document.links] == [LineNumber.from_int(3), LineNumber.from_int(5)], (
             'a CRLF line ending counts as one line break'
+        )
+
+    def test_parse_document_with_a_vertical_tab_returns_each_link_on_its_document_line(self) -> None:
+        #: Given
+        separator = '\x0b'
+        text = f'# Guide\n\nfirst{separator}second\n\n[one](a.md)\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert [link.line for link in document.links] == [LineNumber.from_int(5)], (
+            f'{separator!r} ends no line, so the link after it is on the line a `\\n` count gives'
+        )
+
+    def test_parse_document_with_a_form_feed_returns_each_link_on_its_document_line(self) -> None:
+        #: Given
+        separator = '\x0c'
+        text = f'# Guide\n\nfirst{separator}second\n\n[one](a.md)\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert [link.line for link in document.links] == [LineNumber.from_int(5)], (
+            f'{separator!r} ends no line, so the link after it is on the line a `\\n` count gives'
+        )
+
+    def test_parse_document_with_a_next_line_returns_each_link_on_its_document_line(self) -> None:
+        #: Given
+        separator = '\x85'
+        text = f'# Guide\n\nfirst{separator}second\n\n[one](a.md)\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert [link.line for link in document.links] == [LineNumber.from_int(5)], (
+            f'{separator!r} ends no line, so the link after it is on the line a `\\n` count gives'
+        )
+
+    def test_parse_document_with_a_line_separator_returns_each_link_on_its_document_line(self) -> None:
+        #: Given
+        separator = '\u2028'
+        text = f'# Guide\n\nfirst{separator}second\n\n[one](a.md)\n'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert [link.line for link in document.links] == [LineNumber.from_int(5)], (
+            f'{separator!r} ends no line, so the link after it is on the line a `\\n` count gives'
         )
 
 
