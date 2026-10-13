@@ -58,3 +58,5 @@ name: setup
 
 # Setup
 ```
+
+A skill's directory rename is offered only for a `name` the Agent Skills specification accepts.
