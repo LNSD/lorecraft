@@ -15,6 +15,15 @@ for the one cause no typed constraint describes.
 
 from dataclasses import KW_ONLY, dataclass
 from enum import Enum
+from typing import NewType
+
+from lorecraft.core.num import UnsignedInt
+
+FieldCount = NewType('FieldCount', UnsignedInt)
+"""How many top-level fields a frontmatter block holds."""
+
+FieldLimit = NewType('FieldLimit', UnsignedInt)
+"""The number of top-level fields a schema's `minProperties` or `maxProperties` sets as a bound; 0 is a valid one."""
 
 
 class JsonType(Enum):
@@ -86,7 +95,7 @@ class MinFields:
         limit: The least number of fields the schema requires.
     """
 
-    limit: int
+    limit: FieldLimit
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,7 +106,7 @@ class MaxFields:
         limit: The most fields the schema allows.
     """
 
-    limit: int
+    limit: FieldLimit
 
 
 @dataclass(frozen=True, slots=True)
@@ -203,7 +212,7 @@ class BlockProblem:
 
     message: str
     constraint: BlockLimit
-    field_count: int
+    field_count: FieldCount
     _: KW_ONLY
     description: str | None = None
 

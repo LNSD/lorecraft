@@ -88,7 +88,6 @@ def _every_kind_of_report() -> tuple[RunReport, ...]:
     check = _document('feat', 'check')
     missing_usage = MissingSection(
         spec=_FEAT_SPEC,
-        line=_line(5),
         section=SectionName.parse('Usage'),
         before=_options_heading(),
         description='How to invoke the command.',
@@ -203,7 +202,6 @@ class TestRenderText:
         )
         missing_usage = MissingSection(
             spec=_FEAT_SPEC,
-            line=_line(9),
             section=SectionName.parse('Usage'),
             before=DocumentEnd(last_line=_line(9), after=None),
             description=None,
@@ -229,7 +227,6 @@ class TestRenderText:
         # the example's first line ends in spaces, its second holds only spaces, and its third is indented
         missing_usage = MissingSection(
             spec=_FEAT_SPEC,
-            line=_line(9),
             section=SectionName.parse('Usage'),
             before=DocumentEnd(last_line=_line(9), after=None),
             description=None,
@@ -265,7 +262,6 @@ class TestRenderText:
         guide = _document('feat', 'guide')
         missing_usage = MissingSection(
             spec=_FEAT_SPEC,
-            line=_line(9),
             section=SectionName.parse('Usage'),
             before=DocumentEnd(last_line=_line(9), after=None),
             description=None,

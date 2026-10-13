@@ -8,7 +8,9 @@ first stop matching an outline.
 
 from .frontmatter_problem import (
     BlockProblem,
+    FieldCount,
     FieldGuidance,
+    FieldLimit,
     FrontmatterProblem,
     InvalidValueProblem,
     JsonType,
@@ -176,6 +178,8 @@ __all__: list[str] = [
     'WrongTypeProblem',
     'InvalidValueProblem',
     'BlockProblem',
+    'FieldCount',
+    'FieldLimit',
     'JsonType',
     'FieldGuidance',
     'OneOfValues',

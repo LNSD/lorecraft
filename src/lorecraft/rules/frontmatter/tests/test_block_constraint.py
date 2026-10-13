@@ -12,8 +12,16 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.schemas import BlockProblem, MaxFields, MinFields, OtherBlockConstraint
+from lorecraft.project.schemas import (
+    BlockProblem,
+    FieldCount,
+    FieldLimit,
+    MaxFields,
+    MinFields,
+    OtherBlockConstraint,
+)
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
@@ -35,7 +43,11 @@ REQUIRE_DESCRIPTION: Final[str] = '{"frontmatter": {"type": "object", "required"
 TEXT: Final[str] = '---\nname: setup\n---\n# Setup\n'
 """A document whose frontmatter holds one field, and no `description`."""
 
-PROBLEM: Final[BlockProblem] = BlockProblem("{'name': 'setup'} does not have enough properties", MinFields(2), 1)
+PROBLEM: Final[BlockProblem] = BlockProblem(
+    "{'name': 'setup'} does not have enough properties",
+    MinFields(FieldLimit(UnsignedInt(2))),
+    FieldCount(UnsignedInt(1)),
+)
 """A constraint over the whole block broken: the rule's condition."""
 
 LINE: Final[LineNumber] = LineNumber.from_int(1)
@@ -111,7 +123,7 @@ class TestBlockConstraint:
 
     def test_message_with_too_many_fields_says_the_most_allowed(self) -> None:
         #: Given
-        problem = BlockProblem('too many', MaxFields(1), 3)
+        problem = BlockProblem('too many', MaxFields(FieldLimit(UnsignedInt(1))), FieldCount(UnsignedInt(3)))
         occurrence = BlockConstraint(spec=CORPUS_SPEC, line=LINE, problem=problem)
 
         #: When
@@ -124,7 +136,7 @@ class TestBlockConstraint:
 
     def test_message_with_another_keyword_states_the_constraint_on_the_whole_block(self) -> None:
         #: Given
-        problem = BlockProblem('wrong', OtherBlockConstraint(), 1)
+        problem = BlockProblem('wrong', OtherBlockConstraint(), FieldCount(UnsignedInt(1)))
         occurrence = BlockConstraint(spec=CORPUS_SPEC, line=LINE, problem=problem)
 
         #: When
@@ -149,8 +161,8 @@ class TestBlockConstraint:
         #: Then
         problem = BlockProblem(
             "{'name': 'setup'} does not have enough properties",
-            MinFields(2),
-            1,
+            MinFields(FieldLimit(UnsignedInt(2))),
+            FieldCount(UnsignedInt(1)),
             description='The fields an agent lists a document by.',
         )
         assert occurrences == (BlockConstraint(spec=CORPUS_SPEC, line=LINE, problem=problem),), (
@@ -171,7 +183,7 @@ class TestBlockConstraint:
 
     def test_labels_with_another_keyword_label_nothing(self) -> None:
         #: Given
-        problem = BlockProblem('wrong', OtherBlockConstraint(), 1)
+        problem = BlockProblem('wrong', OtherBlockConstraint(), FieldCount(UnsignedInt(1)))
         occurrence = BlockConstraint(spec=CORPUS_SPEC, line=LINE, problem=problem)
 
         #: When
@@ -194,7 +206,12 @@ class TestBlockConstraint:
 
     def test_children_with_a_description_give_it_as_the_help(self) -> None:
         #: Given
-        problem = BlockProblem('too few', MinFields(2), 1, description='The fields an agent lists a document by.')
+        problem = BlockProblem(
+            'too few',
+            MinFields(FieldLimit(UnsignedInt(2))),
+            FieldCount(UnsignedInt(1)),
+            description='The fields an agent lists a document by.',
+        )
         occurrence = BlockConstraint(spec=CORPUS_SPEC, line=LINE, problem=problem)
 
         #: When
@@ -208,7 +225,7 @@ class TestBlockConstraint:
 
     def test_children_with_another_keyword_end_with_the_validator_wording(self) -> None:
         #: Given
-        problem = BlockProblem('wrong', OtherBlockConstraint(), 1)
+        problem = BlockProblem('wrong', OtherBlockConstraint(), FieldCount(UnsignedInt(1)))
         occurrence = BlockConstraint(spec=None, line=LINE, problem=problem)
 
         #: When

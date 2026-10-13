@@ -1,6 +1,6 @@
 """`FM002`: a frontmatter block is not valid YAML."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.project.context import FrontmatterContext
@@ -88,8 +88,16 @@ class InvalidYaml(FrontmatterRule):
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
 
+    # Reported at the line the YAML reader stopped on, or else at the line that opens the block, so it is derived
+    # from `stopped_at` and no caller can state a line that disagrees with it.
+    line: LineNumber = field(init=False)
     problem: str
     stopped_at: LineNumber | None
+
+    def __post_init__(self) -> None:
+        """Derive the reported line from where the YAML reader stopped."""
+        # The dataclass is frozen, so the field a rule derives is set the one way a frozen dataclass allows.
+        object.__setattr__(self, 'line', FIRST_LINE if self.stopped_at is None else self.stopped_at)
 
     def message(self) -> str:
         """Name what the block is not; the reader's words for the problem are the label's."""
@@ -115,10 +123,8 @@ class InvalidYaml(FrontmatterRule):
         frontmatter = subject.frontmatter()
         match frontmatter:
             case InvalidYamlFrontmatter():
-                stopped_at = frontmatter.line
-                line = FIRST_LINE if stopped_at is None else stopped_at
                 spec = owner_spec(subject.frontmatter_owner())
-                return (cls(spec=spec, line=line, problem=frontmatter.problem, stopped_at=stopped_at),)
+                return (cls(spec=spec, problem=frontmatter.problem, stopped_at=frontmatter.line),)
             case MissingFrontmatter() | NonMappingFrontmatter() | Frontmatter():
                 return ()
             case _:
