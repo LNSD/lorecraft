@@ -36,15 +36,15 @@ the database there, so a rule reads nothing but what it is handed.
 - A removed rule, the decorator that registers a declaration, and the registry, with the checks it makes as the
   package loads.
 - The rule index, `lorecraft.rules.index`: each declaration's identity as plain data, generated from the
-  registry by `lorecraft_gen`, for a reader that must know which codes exist without the engine. It is derived
+  registry by `lorecraft_gen`, for a reader that must know which codes exist without the engine; derived
   output, never a source of rules.
-- An engine condition: what the engine reports before any rule runs, such as a file that does not decode or a
-  meta spec that fails to load. Declared and rendered like a rule, under the engine's group `LC`,
-  with a fixed severity in place of a level and no `check`; it derives from `FileCondition` or `EntryCondition`.
+- An engine condition: what the engine reports before any rule runs, such as a file that does not decode.
+  Declared and rendered like a rule, with an `EngineCode` in group `LC`, a fixed severity and no `check`; it
+  derives from `FileCondition` or `EntryCondition`.
 - The one-run selection, the rule table and the report of a run; their module docstrings state each.
 - A rule group, as a subpackage: its `__ruleset__.py` declares the group as `GROUP_ID` and whatever else its rules
-  share, its `__init__.py` holds only the docstring, and each rule is one module. The `LC` group is declared the
-  same way, and the registry imports its `GROUP_ID` to hold the reservation.
+  share, its `__init__.py` holds only the docstring, and each rule is one module. The `LC` group is declared in
+  `declaration.py` as `ENGINE_GROUP`, for `EngineCode`, and re-exported as its `GROUP_ID`.
 
 ## Belongs Elsewhere
 
@@ -71,7 +71,7 @@ the database there, so a rule reads nothing but what it is handed.
 - A code bound twice, a declaration left incomplete, a group with no title, a code numbered out of range, or a
   code in a group its kind may not use is a defect in this package, raised when it loads, never reported as the
   user's fault.
-- The `LC` group holds engine conditions alone, and every engine condition is in it.
+- The `LC` group holds engine conditions alone, each coded with an `EngineCode`, which names no other group.
 - A release, a rule name, a group's prefix, an alias code's linter and upstream code, and a code prefix are
   value objects a user's input will also build, so a malformed one raises an `Error`, whoever wrote it.
 

@@ -3,8 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
-from lorecraft.rules.declaration import EntryCondition, Release, RuleCode, RuleName, Severity, rule
-from lorecraft.rules.engine.__ruleset__ import GROUP_ID
+from lorecraft.rules.declaration import EngineCode, EntryCondition, Release, RuleName, Severity, rule
 from lorecraft.rules.location import WholeSubject
 
 
@@ -13,7 +12,7 @@ from lorecraft.rules.location import WholeSubject
 class SampleCondition(EntryCondition):
     """A sample condition the engine would report about a whole subject."""
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 900)
+    CODE: ClassVar[EngineCode] = EngineCode(900)
     NAME: ClassVar[RuleName] = RuleName('sample-condition')
     SINCE: ClassVar[Release] = Release('1.0.0')
     SEVERITY: ClassVar[Severity] = Severity.WARNING

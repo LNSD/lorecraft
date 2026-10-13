@@ -3,8 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
-from lorecraft.rules.declaration import EntryCondition, Release, RuleCode, RuleName, Severity, rule
-from lorecraft.rules.engine.__ruleset__ import GROUP_ID
+from lorecraft.rules.declaration import EngineCode, EntryCondition, Release, RuleName, Severity, rule
 from lorecraft.rules.location import WholeSubject
 
 
@@ -13,7 +12,7 @@ from lorecraft.rules.location import WholeSubject
 class Unworded(EntryCondition):
     """A sample condition that cannot be reported: it does not implement `message`."""
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 904)
+    CODE: ClassVar[EngineCode] = EngineCode(904)
     NAME: ClassVar[RuleName] = RuleName('unworded')
     SINCE: ClassVar[Release] = Release('1.0.0')
     SEVERITY: ClassVar[Severity] = Severity.ERROR

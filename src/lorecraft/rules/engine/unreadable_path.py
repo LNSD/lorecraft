@@ -4,11 +4,11 @@ from dataclasses import dataclass
 from typing import ClassVar, assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.rules.declaration import EntryCondition, Release, RuleCode, RuleName, Severity, rule
+from lorecraft.rules.declaration import EngineCode, EntryCondition, Release, RuleName, Severity, rule
 from lorecraft.rules.location import EntryHelp, EntryNote, EntrySubdiagnostic
 from lorecraft.vfs import OsRefusal
 
-from .__ruleset__ import GROUP_ID, RefusedOperation
+from .__ruleset__ import RefusedOperation
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,7 +94,7 @@ class UnreadablePath(EntryCondition):
         cause: What was refused and why, or that no regular file stands where a structure file should.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 2)
+    CODE: ClassVar[EngineCode] = EngineCode(2)
     NAME: ClassVar[RuleName] = RuleName('unreadable-path')
     SINCE: ClassVar[Release] = Release('0.3.0')
     SEVERITY: ClassVar[Severity] = Severity.ERROR

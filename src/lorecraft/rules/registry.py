@@ -9,15 +9,15 @@ so a test that walks a package of sample rules sees only those, and the package'
 The registry is package data: it reads no workspace and is not a query. A rejection, a code, a name or an alias
 code bound twice, a removed rule replaced by a code no rule declares, a prefix given two groups, a class attribute
 left unbound, a rule over a document that declares no facet among them, a rule or a condition still abstract, or a
-code in a group its kind may not use, is a defect in `lorecraft.rules`, never in the user's repository, so it raises
-a `RuntimeError` whose traceback locates the declaration.
+rule with its code in the engine's group, is a defect in `lorecraft.rules`, never in the user's repository, so it
+raises a `RuntimeError` whose traceback locates the declaration.
 
 A command's composition root builds the registry with `Registry.load(rules)`, once per invocation, and hands it to
 what reads it; nothing below the composition root imports a registry or keeps one. A long-lived process builds it
 once as it starts and keeps it for its lifetime, since the rules are fixed for as long as the process runs.
 
-The engine's group is reserved for engine conditions, and every condition is in it. No type can say which group a
-code is in, so the registry holds both directions as it loads.
+The engine's group is reserved for engine conditions. A condition's `EngineCode` is always in it, so the registry
+only holds the other direction as it loads: no rule has its code there.
 """
 
 import importlib
@@ -28,6 +28,7 @@ from types import ModuleType
 from typing import Final, Self, assert_never
 
 from .declaration import (
+    ENGINE_GROUP,
     EngineCondition,
     EntryCondition,
     FileCondition,
@@ -39,7 +40,6 @@ from .declaration import (
     RuleName,
     declared_rules,
 )
-from .engine.__ruleset__ import GROUP_ID as ENGINE_GROUP_ID
 from .subject import DocumentRule
 
 _UNIT_TESTS: Final[str] = 'tests'
@@ -203,25 +203,6 @@ class AbstractRuleError(RuntimeError):
         )
 
 
-class ConditionOutsideEngineGroupError(RuntimeError):
-    """An engine condition's code is outside the engine's group, which every condition's code is in.
-
-    Attributes:
-        declaration: The engine condition.
-    """
-
-    declaration: type[EngineCondition]
-
-    def __init__(self, declaration: type[EngineCondition]) -> None:
-        self.declaration = declaration
-        group = declaration.CODE.group
-        super().__init__(
-            f'engine condition {declaration.__qualname__} has the code {str(declaration.CODE)!r}, in the group '
-            f'{str(group.prefix)!r} titled {group.title!r}, not the engine group '
-            f'{str(ENGINE_GROUP_ID.prefix)!r} titled {ENGINE_GROUP_ID.title!r}'
-        )
-
-
 class RuleInEngineGroupError(RuntimeError):
     """A rule or a removed rule has its code in the engine's group, which is reserved for engine conditions.
 
@@ -235,7 +216,7 @@ class RuleInEngineGroupError(RuntimeError):
         self.declaration = declaration
         super().__init__(
             f'rule {declaration.__qualname__} has the code {str(declaration.CODE)!r}, in the engine group '
-            f'{str(ENGINE_GROUP_ID.prefix)!r} reserved for engine conditions'
+            f'{str(ENGINE_GROUP.prefix)!r} reserved for engine conditions'
         )
 
 
@@ -265,7 +246,6 @@ class Registry:
                 of a rule over a document among them.
             AbstractRuleError: If a rule class or an engine condition is still abstract.
             RuleInEngineGroupError: If a rule's or a removed rule's code is in the engine's group.
-            ConditionOutsideEngineGroupError: If an engine condition's code is outside the engine's group.
             DuplicateRuleCodeError: If a code is bound twice.
             UnknownReplacementError: If a removed rule is replaced by a code no declaration holds.
             ConflictingRuleGroupError: If two codes give one prefix two different groups.
@@ -296,14 +276,11 @@ class Registry:
 
         # A rule is compared by prefix rather than by group, so one that retitles `LC` is refused as well.
         for rule_class in rule_classes:
-            if rule_class.CODE.group.prefix == ENGINE_GROUP_ID.prefix:
+            if rule_class.CODE.group.prefix == ENGINE_GROUP.prefix:
                 raise RuleInEngineGroupError(rule_class)
         for removed_rule in removed_rules:
-            if removed_rule.CODE.group.prefix == ENGINE_GROUP_ID.prefix:
+            if removed_rule.CODE.group.prefix == ENGINE_GROUP.prefix:
                 raise RuleInEngineGroupError(removed_rule)
-        for condition in conditions:
-            if condition.CODE.group != ENGINE_GROUP_ID:
-                raise ConditionOutsideEngineGroupError(condition)
 
         self._rules = tuple(sorted((*rule_classes, *removed_rules, *conditions), key=_printed_code))
         self._rules_in_service = tuple(sorted(rule_classes, key=_printed_code))
@@ -363,7 +340,6 @@ class Registry:
                 of a rule over a document among them.
             AbstractRuleError: If a rule class or an engine condition declared in the package is still abstract.
             RuleInEngineGroupError: If a rule's or a removed rule's code is in the engine's group.
-            ConditionOutsideEngineGroupError: If an engine condition's code is outside the engine's group.
             DuplicateRuleCodeError: If a code is bound twice.
             UnknownReplacementError: If a removed rule is replaced by a code no declaration holds.
             ConflictingRuleGroupError: If two codes give one prefix two different groups.
@@ -416,7 +392,7 @@ class Registry:
         Args:
             group: A group the registry found, such as by `find_group`.
         """
-        return group.prefix == ENGINE_GROUP_ID.prefix
+        return group.prefix == ENGINE_GROUP.prefix
 
 
 def _import_modules(package: ModuleType, index_module: str) -> None:

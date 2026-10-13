@@ -3,8 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
-from lorecraft.rules.declaration import EntryCondition, Release, RuleCode, RuleName, rule
-from lorecraft.rules.engine.__ruleset__ import GROUP_ID
+from lorecraft.rules.declaration import EngineCode, EntryCondition, Release, RuleName, rule
 from lorecraft.rules.location import WholeSubject
 
 
@@ -13,7 +12,7 @@ from lorecraft.rules.location import WholeSubject
 class Unsevere(EntryCondition):
     """A sample condition that leaves `SEVERITY` unbound."""
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 903)
+    CODE: ClassVar[EngineCode] = EngineCode(903)
     NAME: ClassVar[RuleName] = RuleName('unsevere')
     SINCE: ClassVar[Release] = Release('1.0.0')
 
