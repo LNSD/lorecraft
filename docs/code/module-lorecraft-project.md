@@ -126,6 +126,7 @@ Before committing code, verify:
 - [adr-002-vfs](../arch/adr-002-vfs.md) - Foundation: Every read of the workspace goes through the snapshot
 - [adr-010-diagnostics](../arch/adr-010-diagnostics.md) - Foundation: A broken document is a diagnostic, not a failure
 - [adr-017-yaml-parser](../arch/adr-017-yaml-parser.md) - Foundation: Frontmatter parsed with a pure-Python YAML parser
+- [adr-019-frontmatter-format](../arch/adr-019-frontmatter-format.md) - Foundation: The frontmatter format, and how the rest is refused
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One reason to change
 - [pattern-repository](pattern-repository.md) - Foundation: Listing and reading through a view
 - [pattern-memoization](pattern-memoization.md) - Foundation: How a query is memoized

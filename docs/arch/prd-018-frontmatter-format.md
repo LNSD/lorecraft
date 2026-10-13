@@ -183,3 +183,4 @@ Scenario: A duplicate in a nested mapping
 ## References
 
 - [prd-008](prd-008-structured-checks.md) - Foundation: The codes and diagnostics this PRD reports under
+- [adr-019](adr-019-frontmatter-format.md) - Leads to: How the format is decided and its diagnostics reported
