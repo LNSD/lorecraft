@@ -5,10 +5,8 @@ from typing import ClassVar, assert_never
 
 from lorecraft.project.schemas.section_name import SectionName
 from lorecraft.project.schemas.structure_file import JSON_SCHEMA_DIALECT
-from lorecraft.rules.declaration import FileCondition, Release, RuleCode, RuleName, Severity, rule
+from lorecraft.rules.declaration import EngineCode, FileCondition, Release, RuleName, Severity, rule
 from lorecraft.rules.location import Help, Note, Subdiagnostic, WholeSubject
-
-from .__ruleset__ import GROUP_ID
 
 
 @dataclass(frozen=True, slots=True)
@@ -341,7 +339,7 @@ class UnusableStructureFile(FileCondition):
         cause: Which rule of the file cannot be applied, with what was found.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 4)
+    CODE: ClassVar[EngineCode] = EngineCode(4)
     NAME: ClassVar[RuleName] = RuleName('unusable-structure-file')
     SINCE: ClassVar[Release] = Release('0.3.0')
     SEVERITY: ClassVar[Severity] = Severity.ERROR

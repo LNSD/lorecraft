@@ -6,8 +6,8 @@ classmethod that judges its subject. Each subject kind has one base class derivi
 `LayoutRule`, whose abstract `check` fixes the context it reads, so a rule picks its subject by picking its base.
 A retired rule is a `RemovedRule`, which is not a `Rule`, so it can never be built as one or reported. What the
 engine itself reports about a subject, such as a file that does not decode, is an `EngineCondition`: declared
-and rendered like a rule, but with a fixed `Severity` in place of a level, and no `check`. It derives from
-`FileCondition` or `EntryCondition`, as a rule does from `ContentRule` or `LayoutRule`.
+and rendered like a rule, but with an `EngineCode`, a fixed `Severity` in place of a level, and no `check`. It derives
+from `FileCondition` or `EntryCondition`, as a rule does from `ContentRule` or `LayoutRule`.
 
 `@rule` records each declaration as its module is imported. The registry walks a rules package, imports every
 module in it but its unit tests, and keeps the declarations whose module lies in that package outside its unit
@@ -449,6 +449,43 @@ class RuleCode:
         return f'{self.group.prefix}{self.number:03d}'
 
 
+ENGINE_GROUP: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('LC'), 'Engine conditions')
+"""The group reserved for engine conditions: only an `EngineCode` is in it, and the registry rejects, as the package
+loads, a rule or a removed rule with a code in it."""
+
+
+@dataclass(frozen=True, slots=True)
+class EngineCode:
+    """An engine condition's code: a number in the engine's group, printed as `LC` and three digits, such as `LC001`.
+
+    It has no group to choose, so a condition's code can only be in the engine's group, and a code of any other
+    group is a type error where a condition declares it.
+
+    Attributes:
+        number: The condition's number in the engine's group, from 1 to 999.
+    """
+
+    number: int
+
+    def __post_init__(self) -> None:
+        """Reject a number that would not print as three digits.
+
+        Raises:
+            RuleNumberOutOfRangeError: If the number is outside 1 to 999.
+        """
+        if not 1 <= self.number <= 999:
+            raise RuleNumberOutOfRangeError(ENGINE_GROUP, self.number)
+
+    @property
+    def group(self) -> RuleGroup:
+        """The engine's group, always."""
+        return ENGINE_GROUP
+
+    def __str__(self) -> str:
+        """The code as output prints it: the engine's prefix, then the number zero-padded to three digits."""
+        return f'{ENGINE_GROUP.prefix}{self.number:03d}'
+
+
 class EmptyLinterNameError(Error):
     """An upstream linter's name is empty."""
 
@@ -731,11 +768,11 @@ class EngineCondition(ABC):
     It is declared like a rule, with a code, a name, the release it is stable since and its documentation, and an
     instance of it is one occurrence that renders like a rule's. It is not a `Rule`: it has no level, so nothing
     can turn it off, and no `check`, since the engine finds it, not a judgment of a subject. Its severity is fixed
-    on the class, and its code is always in the engine's group, which the registry holds at load.
+    on the class, and its code is an `EngineCode`, always in the engine's group.
 
     A condition never derives from this class directly, but from the base of the subject it is about: a
-    `FileCondition` for a file the engine read, an `EntryCondition` for a path whose content it has not read, such
-    as a directory, a skill entry or a file it could not read, which points at no line.
+    `FileCondition` for a file the engine read, an `EntryCondition` for a path whose content it has not read, such as
+    a directory, a skill entry or a file it could not read, which points at no line.
 
     Attributes:
         CODE: The condition's code, in the engine's group, such as `LC001`.
@@ -744,7 +781,7 @@ class EngineCondition(ABC):
         SEVERITY: The severity every occurrence of the condition is reported at.
     """
 
-    CODE: ClassVar[RuleCode]
+    CODE: ClassVar[EngineCode]
     NAME: ClassVar[RuleName]
     SINCE: ClassVar[Release]
     SEVERITY: ClassVar[Severity]

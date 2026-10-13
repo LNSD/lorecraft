@@ -4,11 +4,9 @@ from dataclasses import dataclass
 from typing import ClassVar, assert_never
 
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.declaration import FileCondition, Release, RuleCode, RuleName, Severity, rule
+from lorecraft.rules.declaration import EngineCode, FileCondition, Release, RuleName, Severity, rule
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
 from lorecraft.vfs import Utf8Failure, Utf8Reason
-
-from .__ruleset__ import GROUP_ID
 
 
 @rule
@@ -49,7 +47,7 @@ class InvalidUtf8(FileCondition):
         failure: Where the file's bytes first stop being UTF-8, and why.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 1)
+    CODE: ClassVar[EngineCode] = EngineCode(1)
     NAME: ClassVar[RuleName] = RuleName('invalid-utf8')
     SINCE: ClassVar[Release] = Release('0.3.0')
     SEVERITY: ClassVar[Severity] = Severity.ERROR

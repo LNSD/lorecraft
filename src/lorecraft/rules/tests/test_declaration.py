@@ -6,6 +6,7 @@ from lorecraft.core.error import Error
 from lorecraft.project.syntax import LineNumber
 
 from ..declaration import (
+    ENGINE_GROUP,
     AliasCode,
     DoubledHyphenRuleNameError,
     EmptyLinterNameError,
@@ -13,6 +14,7 @@ from ..declaration import (
     EmptyRuleGroupTitleError,
     EmptyRuleNameError,
     EmptyUpstreamCodeError,
+    EngineCode,
     InvalidRuleGroupPrefixCharacterError,
     InvalidRuleNameCharacterError,
     InvalidUpstreamCodeCharacterError,
@@ -752,6 +754,40 @@ class TestEngineCondition:
 
         #: Then
         assert primary == WholeSubject(), 'a path whose content was not read has no line to point at'
+
+
+@pytest.mark.unit
+class TestEngineCode:
+    def test_str_of_an_engine_code_prints_the_engine_prefix_and_three_digits(self) -> None:
+        #: Given
+        code = EngineCode(2)
+
+        #: When
+        printed = str(code)
+
+        #: Then
+        assert printed == 'LC002', 'the number is zero-padded after the engine prefix'
+
+    def test_group_of_an_engine_code_is_the_engine_group(self) -> None:
+        #: Given
+        code = EngineCode(1)
+
+        #: When
+        group = code.group
+
+        #: Then
+        assert group == ENGINE_GROUP, 'an engine code names no group, so it is always the engine group'
+
+    def test_engine_code_with_a_number_out_of_range_raises_rule_number_out_of_range_error(self) -> None:
+        #: Given
+        number = 1000
+
+        #: When
+        with pytest.raises(RuleNumberOutOfRangeError) as exc_info:
+            EngineCode(number)
+
+        #: Then
+        assert exc_info.value.number == 1000, 'the error names the rejected number'
 
 
 @pytest.mark.unit

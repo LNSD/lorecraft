@@ -3,10 +3,8 @@
 from dataclasses import dataclass
 from typing import ClassVar, assert_never
 
-from lorecraft.rules.declaration import FileCondition, Release, RuleCode, RuleName, Severity, rule
+from lorecraft.rules.declaration import EngineCode, FileCondition, Release, RuleName, Severity, rule
 from lorecraft.rules.location import Help, Note, Subdiagnostic, WholeSubject
-
-from .__ruleset__ import GROUP_ID
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,7 +89,7 @@ class MalformedStructureFile(FileCondition):
         cause: How the file is malformed: the problems found in it, or that it states no rule.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 3)
+    CODE: ClassVar[EngineCode] = EngineCode(3)
     NAME: ClassVar[RuleName] = RuleName('malformed-structure-file')
     SINCE: ClassVar[Release] = Release('0.3.0')
     SEVERITY: ClassVar[Severity] = Severity.ERROR

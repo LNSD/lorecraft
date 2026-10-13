@@ -45,7 +45,6 @@ from lorecraft.rules.outline.unexpected_section import UnexpectedSection
 from ..declaration import RuleGroupPrefix, RuleName
 from ..registry import (
     AbstractRuleError,
-    ConditionOutsideEngineGroupError,
     ConflictingRuleGroupError,
     DuplicateAliasCodeError,
     DuplicateRuleCodeError,
@@ -59,7 +58,6 @@ from .sample_rules import (
     abstract_condition,
     abstract_rule,
     alias_as_code,
-    condition_outside_engine,
     conflicting_group,
     duplicate_alias,
     duplicate_code,
@@ -79,7 +77,6 @@ from .sample_rules import valid as valid_rules
 from .sample_rules.abstract_condition.unworded import Unworded
 from .sample_rules.abstract_rule.unchecked import Unchecked
 from .sample_rules.alias_as_code.aliased import Lookalike, Original
-from .sample_rules.condition_outside_engine.misplaced import Misplaced
 from .sample_rules.conflicting_group.retitled import Retitled, Titled
 from .sample_rules.duplicate_alias.aliased import FirstAliased, SecondAliased
 from .sample_rules.duplicate_code.first import FirstRule
@@ -285,19 +282,6 @@ class TestRegistryLoad:
         #: Then
         assert exc_info.value.declaration is Unworded, 'the error names the abstract condition'
         assert exc_info.value.missing == ('message',), 'the error names the method it does not implement'
-
-    def test_load_with_an_engine_condition_outside_the_engine_group_raises_condition_outside_engine_group_error(
-        self,
-    ) -> None:
-        #: Given
-        package = condition_outside_engine
-
-        #: When
-        with pytest.raises(ConditionOutsideEngineGroupError) as exc_info:
-            Registry.load(package)
-
-        #: Then
-        assert exc_info.value.declaration is Misplaced, 'the error names the condition outside the engine group'
 
     def test_load_with_a_rule_in_the_engine_group_raises_rule_in_engine_group_error(self) -> None:
         #: Given
