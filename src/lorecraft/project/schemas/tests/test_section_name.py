@@ -5,7 +5,8 @@ from typing import Final
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
-from lorecraft.project.syntax import LineNumber, SectionHeading
+from lorecraft.core.num import UnsignedInt
+from lorecraft.project.syntax import LineNumber, SectionHeading, WordCount
 
 from ..section_name import EmptySectionNameError, MultilineSectionNameError, PaddedSectionNameError, SectionName
 
@@ -27,7 +28,9 @@ class TestSectionName:
     def test_names_with_heading_of_the_same_text_is_true(self) -> None:
         #: Given
         name = SectionName.parse('Usage')
-        heading = SectionHeading(level=2, text='Usage', line=LineNumber.from_int(1), empty=False, words=0)
+        heading = SectionHeading(
+            level=2, text='Usage', line=LineNumber.from_int(1), empty=False, words=WordCount(UnsignedInt(0))
+        )
 
         #: When
         names = name.names(heading)
@@ -38,7 +41,9 @@ class TestSectionName:
     def test_names_with_heading_of_another_case_is_false(self) -> None:
         #: Given
         name = SectionName.parse('Usage')
-        heading = SectionHeading(level=2, text='usage', line=LineNumber.from_int(1), empty=False, words=0)
+        heading = SectionHeading(
+            level=2, text='usage', line=LineNumber.from_int(1), empty=False, words=WordCount(UnsignedInt(0))
+        )
 
         #: When
         names = name.names(heading)
@@ -49,7 +54,9 @@ class TestSectionName:
     def test_names_with_heading_of_other_text_is_false(self) -> None:
         #: Given
         name = SectionName.parse('Usage')
-        heading = SectionHeading(level=2, text='Usage notes', line=LineNumber.from_int(1), empty=False, words=0)
+        heading = SectionHeading(
+            level=2, text='Usage notes', line=LineNumber.from_int(1), empty=False, words=WordCount(UnsignedInt(0))
+        )
 
         #: When
         names = name.names(heading)

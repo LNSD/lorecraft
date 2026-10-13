@@ -6,7 +6,9 @@ link's fragment goes through before it is compared with one, and the format ever
 
 import pytest
 
-from ..anchor import Anchor, InvalidAnchorError
+from lorecraft.core.num import NonZeroUnsignedInt
+
+from ..anchor import Anchor, AnchorNumber, InvalidAnchorError
 
 
 @pytest.mark.unit
@@ -213,7 +215,7 @@ class TestAnchorNumbered:
         anchor = Anchor('usage')
 
         #: When
-        numbered = anchor.numbered(2)
+        numbered = anchor.numbered(AnchorNumber(NonZeroUnsignedInt(2)))
 
         #: Then
         assert numbered == Anchor('usage-2'), 'a repeated heading takes its bare anchor, a hyphen and its number'
@@ -223,7 +225,7 @@ class TestAnchorNumbered:
         anchor = Anchor('')
 
         #: When
-        numbered = anchor.numbered(1)
+        numbered = anchor.numbered(AnchorNumber(NonZeroUnsignedInt(1)))
 
         #: Then
         assert numbered == Anchor('-1'), 'a repeat of a heading with the empty anchor is numbered as any other'

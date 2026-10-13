@@ -4,8 +4,11 @@ from typing import cast
 
 import pytest
 
+from lorecraft.core.num import UnsignedInt
+
 from ..heading import Heading, HeadingLevel, SectionHeading, find_sections, find_title
 from ..position import LineNumber
+from ..words import WordCount
 
 
 @pytest.mark.unit
@@ -17,7 +20,9 @@ class TestHeading:
 
         #: When
         with pytest.raises(AssertionError) as exc_info:
-            Heading(level=rejected, text='Intro', line=LineNumber.from_int(1), empty=False, words=0)
+            Heading(
+                level=rejected, text='Intro', line=LineNumber.from_int(1), empty=False, words=WordCount(UnsignedInt(0))
+            )
 
         #: Then
         assert str(rejected) in str(exc_info.value), 'the error names the rejected level'
@@ -29,7 +34,9 @@ class TestHeading:
 
         #: When
         with pytest.raises(AssertionError) as exc_info:
-            Heading(level=rejected, text='Deep', line=LineNumber.from_int(1), empty=False, words=0)
+            Heading(
+                level=rejected, text='Deep', line=LineNumber.from_int(1), empty=False, words=WordCount(UnsignedInt(0))
+            )
 
         #: Then
         assert str(rejected) in str(exc_info.value), 'the error names the rejected level'
@@ -39,7 +46,9 @@ class TestHeading:
         accepted = 1
 
         #: When
-        heading = Heading(level=accepted, text='Title', line=LineNumber.from_int(1), empty=False, words=5)
+        heading = Heading(
+            level=accepted, text='Title', line=LineNumber.from_int(1), empty=False, words=WordCount(UnsignedInt(5))
+        )
 
         #: Then
         assert heading.level == accepted, 'a title heading keeps level 1'
@@ -49,7 +58,9 @@ class TestHeading:
         accepted = 6
 
         #: When
-        heading = Heading(level=accepted, text='Section', line=LineNumber.from_int(10), empty=True, words=0)
+        heading = Heading(
+            level=accepted, text='Section', line=LineNumber.from_int(10), empty=True, words=WordCount(UnsignedInt(0))
+        )
 
         #: Then
         assert heading.level == accepted, 'the deepest heading keeps level 6'
@@ -63,7 +74,7 @@ def _heading(level: HeadingLevel, text: str, line: int) -> Heading:
         text: The heading's text.
         line: The line it starts on.
     """
-    return Heading(level=level, text=text, line=LineNumber.from_int(line), empty=False, words=0)
+    return Heading(level=level, text=text, line=LineNumber.from_int(line), empty=False, words=WordCount(UnsignedInt(0)))
 
 
 @pytest.mark.unit

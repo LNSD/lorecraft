@@ -9,12 +9,13 @@ from syrupy.assertion import SnapshotAssertion
 
 from lib.overruns import overrun
 from lib.snapshot import TextSnapshotExtension
+from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import DocumentEnd, SectionName
-from lorecraft.project.syntax import LineNumber, SectionHeading
+from lorecraft.project.syntax import LineNumber, SectionHeading, WordCount
 from lorecraft.rules.declaration import Severity
 from lorecraft.rules.engine.malformed_structure_file import FormatViolated, MalformedStructureFile
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
@@ -55,7 +56,7 @@ def _sources() -> SourceLines:
 
 def _options_heading() -> SectionHeading:
     """The `Options` section, on line 5, before which the missing `Usage` section belongs."""
-    return SectionHeading(level=2, text='Options', line=_line(5), empty=False, words=3)
+    return SectionHeading(level=2, text='Options', line=_line(5), empty=False, words=WordCount(UnsignedInt(3)))
 
 
 def _document(corpus: str, filename: str) -> DocumentRef:

@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Final, Literal, assert_never
 
 from .position import LineNumber
+from .words import WordCount
 
 type HeadingLevel = Literal[1, 2, 3, 4, 5, 6]
 """A heading's depth: 1 for a title through 6, the deepest Markdown has."""
@@ -36,9 +37,7 @@ class Heading:
     text: str
     line: LineNumber
     empty: bool
-    # Not range-checked: only `document.parse_document` builds a heading, from the words it counts, so the value
-    # is never below 0.
-    words: int
+    words: WordCount
 
     def __post_init__(self) -> None:
         """Fail on a level outside 1 to 6, which the type rules out but cannot stop at run time.
@@ -77,7 +76,7 @@ class SectionHeading:
     text: str
     line: LineNumber
     empty: bool
-    words: int
+    words: WordCount
 
 
 def find_sections(headings: tuple[Heading, ...]) -> tuple[SectionHeading, ...]:

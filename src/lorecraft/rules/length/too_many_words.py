@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 from typing import ClassVar, Final, Self, assert_never
 
-from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
 from lorecraft.project.schemas import AnyRunAlignment, NamedAlignment, UnalignedSection
@@ -168,7 +167,7 @@ class TooManyWords(DocumentRule):
                 section = aligned.section
                 if cap is None:
                     continue
-                overrun = find_overrun(UnsignedInt(section.words), cap)
+                overrun = find_overrun(section.words, cap)
                 if overrun is not None:
                     occurrences.append(
                         cls(
