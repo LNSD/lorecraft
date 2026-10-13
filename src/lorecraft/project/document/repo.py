@@ -13,7 +13,7 @@ so every handler below re-raises without logging.
 from dataclasses import dataclass
 
 from lorecraft.core.error import Error
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX
 from lorecraft.vfs import (
@@ -121,8 +121,8 @@ class Repository:
         """
         self._fs = fs
 
-    def list_corpus_directories(self) -> tuple[str, ...]:
-        """The names of the regular directories directly under docs/, sorted; a missing docs/ is ``()``.
+    def list_corpus_directories(self) -> frozenset[PathComponent]:
+        """The names of the regular directories directly under docs/; a missing docs/ lists none.
 
         Files are dropped silently: a Markdown file directly under docs/ belongs to no corpus. So are symlinks:
         a corpus is a regular directory.
@@ -134,11 +134,11 @@ class Repository:
         # A failure to list docs/ is the listing's own, with docs/ as its path: this layer adds nothing to it.
         entries = self._fs.list_dir(DOCS_DIR)
 
-        names: list[str] = []
+        names: set[PathComponent] = set()
         for entry in entries:
             if entry.kind is EntryKind.DIRECTORY:
-                names.append(str(entry.name))
-        return tuple(names)
+                names.add(entry.name)
+        return frozenset(names)
 
     def list_documents(self, corpus: CorpusName) -> tuple[DocumentFile, ...]:
         """Regular `.md` files directly inside docs/<corpus>/, sorted by name.

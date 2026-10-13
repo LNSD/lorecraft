@@ -2,9 +2,12 @@
 
 from dataclasses import dataclass
 from string import ascii_lowercase, digits
-from typing import Self
+from typing import Final, Self
 
 from lorecraft.core.error import Error
+
+RESERVED_CORPUS_NAME: Final[str] = '__meta__'
+"""The name no corpus may take: the directory under docs/ that holds the specifications, not documents."""
 
 
 class EmptyCorpusNameError(Error):
@@ -40,6 +43,20 @@ class InvalidCorpusNameCharacterError(Error):
         super().__init__(message)
 
 
+class ReservedCorpusNameError(Error):
+    """A corpus name is the reserved one, the specification directory's.
+
+    Attributes:
+        name: The rejected corpus name.
+    """
+
+    name: str
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        super().__init__(f'corpus name {name!r} is reserved for the specification directory')
+
+
 @dataclass(frozen=True, slots=True)
 class CorpusName:
     """A validated corpus directory name beneath docs/.
@@ -49,6 +66,7 @@ class CorpusName:
     - Is not empty.
     - Starts with a lowercase ASCII letter or underscore.
     - Continues with only lowercase ASCII letters, digits or underscores.
+    - Is not `__meta__`, the specification directory, which holds no corpus's documents.
 
     Parsing preserves the spelling. The directory need not exist.
 
@@ -68,6 +86,7 @@ class CorpusName:
         Raises:
             EmptyCorpusNameError: If the name is empty.
             InvalidCorpusNameCharacterError: If a character falls outside lowercase snake case.
+            ReservedCorpusNameError: If the name is `__meta__`.
         """
         return cls(raw)
 
@@ -77,6 +96,7 @@ class CorpusName:
         Raises:
             EmptyCorpusNameError: If the name is empty.
             InvalidCorpusNameCharacterError: If a character falls outside lowercase snake case.
+            ReservedCorpusNameError: If the name is `__meta__`.
         """
         if not self.value:
             raise EmptyCorpusNameError()
@@ -88,6 +108,9 @@ class CorpusName:
         for position, character in enumerate(self.value[1:], start=1):
             if character not in ascii_lowercase and character not in digits and character != '_':
                 raise InvalidCorpusNameCharacterError(self.value, position)
+
+        if self.value == RESERVED_CORPUS_NAME:
+            raise ReservedCorpusNameError(self.value)
 
     def __str__(self) -> str:
         """The directory name exactly as supplied, which also prefixes the corpus's rule identifiers."""

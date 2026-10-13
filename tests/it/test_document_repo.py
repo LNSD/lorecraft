@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.ref import DocumentRef
@@ -88,8 +88,8 @@ class TestRepositoryListCorpusDirectories:
         directories = repository.list_corpus_directories()
 
         #: Then
-        assert directories == ('code', 'feat'), (
-            'directories are listed by name and a file directly under docs/ is dropped'
+        assert directories == frozenset({PathComponent.parse('code'), PathComponent.parse('feat')}), (
+            'directories are listed and a file directly under docs/ is dropped'
         )
 
     def test_list_corpus_directories_with_a_symlinked_directory_leaves_it_out(
@@ -103,7 +103,9 @@ class TestRepositoryListCorpusDirectories:
         directories = repository.list_corpus_directories()
 
         #: Then
-        assert directories == ('code',), 'a symlinked directory is no corpus, whatever it leads to'
+        assert directories == frozenset({PathComponent.parse('code')}), (
+            'a symlinked directory is no corpus, whatever it leads to'
+        )
 
     def test_list_corpus_directories_with_no_docs_directory_returns_empty(
         self, tmp_path: Path, repository: Repository
@@ -117,7 +119,7 @@ class TestRepositoryListCorpusDirectories:
 
         #: Then
         assert not missing_docs.exists(), 'the case turns on docs/ being absent'
-        assert directories == (), 'a root without docs/ has no corpora rather than failing'
+        assert directories == frozenset(), 'a root without docs/ has no corpora rather than failing'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
     def test_list_corpus_directories_with_an_unreadable_docs_raises_list_dir_error(
