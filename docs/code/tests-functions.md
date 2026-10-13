@@ -285,7 +285,13 @@ def test_split_sections_with_varied_documents_returns_expected_section_count(
 class TestSplitSections:
     def test_split_sections_with_three_top_level_headings_returns_three_sections(self) -> None:
         #: Given
-        document_text = '## One\n\n## Two\n\n## Three\n'
+        document_text = dedent("""\
+            ## One
+
+            ## Two
+
+            ## Three
+            """)
         heading_depth = 2
 
         #: When
