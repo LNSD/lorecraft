@@ -26,7 +26,7 @@ rule or an engine condition alike. Everything is matched as spelled.
 
 from dataclasses import dataclass
 from string import ascii_lowercase, ascii_uppercase, digits
-from typing import TYPE_CHECKING, Final, Self
+from typing import TYPE_CHECKING, Final, Self, assert_never
 
 from lorecraft.core.error import Error
 from lorecraft.rules import index
@@ -42,11 +42,6 @@ _ALL: Final[str] = 'ALL'
 
 _CODE_DIGITS: Final[int] = 3
 """How many digits end a code, after its group's prefix."""
-
-_RULE_KIND: Final[str] = 'rule'
-_REMOVED_KIND: Final[str] = 'removed'
-_CONDITION_KIND: Final[str] = 'condition'
-"""The kinds of the index's rows, as its `kind` column spells them."""
 
 _NAME_CHARACTERS: Final[str] = ascii_lowercase + digits + '-'
 """What a rule's name is made of, apart from its hyphens' places."""
@@ -457,15 +452,20 @@ def _parse_selector(text: str) -> RuleSelectorArgument:
     if row is None:
         return _parse_prefix(text)
 
-    code, name, kind, _level, _aliases = row
-    if kind == _CONDITION_KIND:
-        raise EngineSelectorError(text)
-    if kind == _REMOVED_KIND:
-        raise RemovedRuleSelectorError(text, code)
-    if text == name:
-        raise RuleNameSelectorError(text, code)
-    selector = _split_code(code)
-    if text == code:
+    match row:
+        case index.EngineConditionRow():
+            raise EngineSelectorError(text)
+        case index.RemovedRuleRow():
+            raise RemovedRuleSelectorError(text, row.code)
+        case index.RuleInServiceRow():
+            pass
+        case _:
+            assert_never(row)
+
+    if text == row.name:
+        raise RuleNameSelectorError(text, row.code)
+    selector = _split_code(row.code)
+    if text == row.code:
         return selector
     return AliasSelector(text, selector)
 
@@ -543,8 +543,8 @@ def _is_engine_group(prefix: str) -> bool:
     Args:
         prefix: The prefix of a group the index has.
     """
-    kinds = {kind for code, _name, kind, _level, _aliases in index.RULES if code[:-_CODE_DIGITS] == prefix}
-    return kinds == {_CONDITION_KIND}
+    rows = [row for row in index.RULES if row.code[:-_CODE_DIGITS] == prefix]
+    return bool(rows) and all(_is_engine_condition(row) for row in rows)
 
 
 def _starts_a_rule_in_service(prefix: str) -> bool:
@@ -553,7 +553,37 @@ def _starts_a_rule_in_service(prefix: str) -> bool:
     Args:
         prefix: The start of a code, such as `OUT0`.
     """
-    return any(kind == _RULE_KIND and code.startswith(prefix) for code, _name, kind, _level, _aliases in index.RULES)
+    return any(_is_rule_in_service(row) and row.code.startswith(prefix) for row in index.RULES)
+
+
+def _is_engine_condition(row: index.RuleRow) -> bool:
+    """Whether the row is an engine condition's; the match is closed, so a new kind of row must be placed here.
+
+    Args:
+        row: A row of the index.
+    """
+    match row:
+        case index.EngineConditionRow():
+            return True
+        case index.RuleInServiceRow() | index.RemovedRuleRow():
+            return False
+        case _:
+            assert_never(row)
+
+
+def _is_rule_in_service(row: index.RuleRow) -> bool:
+    """Whether the row is a rule in service's; the match is closed, so a new kind of row must be placed here.
+
+    Args:
+        row: A row of the index.
+    """
+    match row:
+        case index.RuleInServiceRow():
+            return True
+        case index.RemovedRuleRow() | index.EngineConditionRow():
+            return False
+        case _:
+            assert_never(row)
 
 
 def _has_code_shape(text: str) -> bool:

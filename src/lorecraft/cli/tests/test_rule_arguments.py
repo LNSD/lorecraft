@@ -29,10 +29,10 @@ from ..rule_arguments import (
 
 GROUPS: Final[tuple[tuple[str, str], ...]] = (('LC', 'Engine conditions'), ('OUT', 'Outline checks'))
 RULES: Final[tuple[index.RuleRow, ...]] = (
-    ('LC001', 'invalid-utf8', 'condition', 'error', ()),
-    ('OUT004', 'empty-section', 'rule', 'deny', ('MD040',)),
-    ('OUT006', 'missing-section', 'rule', 'deny', ()),
-    ('OUT010', 'retired-rule', 'removed', '', ()),
+    index.EngineConditionRow('LC001', 'invalid-utf8', 'error'),
+    index.RuleInServiceRow('OUT004', 'empty-section', 'deny', ('MD040',)),
+    index.RuleInServiceRow('OUT006', 'missing-section', 'deny', ()),
+    index.RemovedRuleRow('OUT010', 'retired-rule'),
 )
 
 
