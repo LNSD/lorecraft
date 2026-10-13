@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, assert_never
 
+from lorecraft.project.schemas.section_name import SectionName
 from lorecraft.project.schemas.structure_file import JSON_SCHEMA_DIALECT
 from lorecraft.rules.declaration import EngineCondition, Release, RuleCode, RuleName, Severity, rule
 from lorecraft.rules.location import Help, Note, Subdiagnostic, WholeSubject
@@ -18,7 +19,7 @@ class RepeatedOutlineSection:
         sections: The section names the outline repeats, sorted.
     """
 
-    sections: tuple[str, ...]
+    sections: tuple[SectionName, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,7 +30,7 @@ class RepeatedForbiddenSection:
         sections: The section names the file forbids more than once, sorted.
     """
 
-    sections: tuple[str, ...]
+    sections: tuple[SectionName, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,7 +41,7 @@ class ForbiddenOutlineSection:
         sections: The section names both in the outline and forbidden, sorted.
     """
 
-    sections: tuple[str, ...]
+    sections: tuple[SectionName, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,6 +106,15 @@ type Cause = (
     | UntypedFrontmatterSchema
 )
 """Why the structure file cannot be applied."""
+
+
+def _join(sections: tuple[SectionName, ...]) -> str:
+    """The section names, comma-separated, for a note.
+
+    Args:
+        sections: The names to list, in the order given.
+    """
+    return ', '.join(str(name) for name in sections)
 
 
 @rule
@@ -370,12 +380,12 @@ class UnusableStructureFile(EngineCondition):
         """Say what was found in the case, then how to fix it."""
         match self.cause:
             case RepeatedOutlineSection(sections=sections):
-                return (Note(f'repeated: {", ".join(sections)}'), Help('name each section once'))
+                return (Note(f'repeated: {_join(sections)}'), Help('name each section once'))
             case RepeatedForbiddenSection(sections=sections):
-                return (Note(f'repeated: {", ".join(sections)}'), Help('forbid each section once'))
+                return (Note(f'repeated: {_join(sections)}'), Help('forbid each section once'))
             case ForbiddenOutlineSection(sections=sections):
                 return (
-                    Note(f'named and forbidden: {", ".join(sections)}'),
+                    Note(f'named and forbidden: {_join(sections)}'),
                     Help('keep each section in the outline or in the forbidden list, not both'),
                 )
             case AdjacentAnyRuns():

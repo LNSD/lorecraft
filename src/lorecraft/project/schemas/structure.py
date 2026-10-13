@@ -88,6 +88,7 @@ from lorecraft.core.error import Error
 from lorecraft.core.mapping import Frozen, FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.syntax import Heading
 
 from .frontmatter_problem import (
     BlockLimit,
@@ -173,13 +174,14 @@ class RepeatedOutlineSectionError(Error):
     """
 
     path: RootRelativePath
-    sections: tuple[str, ...]
+    sections: tuple[SectionName, ...]
 
-    def __init__(self, path: RootRelativePath, sections: tuple[str, ...]) -> None:
+    def __init__(self, path: RootRelativePath, sections: tuple[SectionName, ...]) -> None:
         self.path = path
         self.sections = sections
         super().__init__(
-            f'invalid structure schema {path}: names sections more than once in the outline: {list(sections)}'
+            f'invalid structure schema {path}: names sections more than once in the outline: '
+            f'{[str(name) for name in sections]}'
         )
 
 
@@ -192,12 +194,14 @@ class RepeatedForbiddenSectionError(Error):
     """
 
     path: RootRelativePath
-    sections: tuple[str, ...]
+    sections: tuple[SectionName, ...]
 
-    def __init__(self, path: RootRelativePath, sections: tuple[str, ...]) -> None:
+    def __init__(self, path: RootRelativePath, sections: tuple[SectionName, ...]) -> None:
         self.path = path
         self.sections = sections
-        super().__init__(f'invalid structure schema {path}: forbids sections more than once: {list(sections)}')
+        super().__init__(
+            f'invalid structure schema {path}: forbids sections more than once: {[str(name) for name in sections]}'
+        )
 
 
 class ForbiddenOutlineSectionError(Error):
@@ -209,12 +213,15 @@ class ForbiddenOutlineSectionError(Error):
     """
 
     path: RootRelativePath
-    sections: tuple[str, ...]
+    sections: tuple[SectionName, ...]
 
-    def __init__(self, path: RootRelativePath, sections: tuple[str, ...]) -> None:
+    def __init__(self, path: RootRelativePath, sections: tuple[SectionName, ...]) -> None:
         self.path = path
         self.sections = sections
-        super().__init__(f'invalid structure schema {path}: forbids sections its own outline names: {list(sections)}')
+        super().__init__(
+            f'invalid structure schema {path}: forbids sections its own outline names: '
+            f'{[str(name) for name in sections]}'
+        )
 
 
 class AdjacentAnyRunsError(Error):
@@ -394,7 +401,7 @@ class SectionEntry:
     """An outline entry naming one section, and fixing its position against every other name in the outline.
 
     Attributes:
-        name: The section's heading text.
+        name: The name the entry gives the section.
         optional: True when a document may leave the section out; False, the default, when it must carry it.
         words: The most prose words the section may hold, its H3 subsections included, or None, the default, for
             no cap.
@@ -410,6 +417,14 @@ class SectionEntry:
     words: NonZeroUnsignedInt | None = None
     description: str | None = None
     examples: tuple[str, ...] = ()
+
+    def names(self, heading: Heading) -> bool:
+        """Whether the heading is the section this entry names.
+
+        Args:
+            heading: Any heading of the document.
+        """
+        return self.name.names(heading)
 
 
 @dataclass(frozen=True, slots=True)
@@ -847,15 +862,15 @@ class StructureSpec:
             raise EmptyStructureSpecError(self.path)
 
         named = self.section_names()
-        repeated = sorted({str(name) for name in named if named.count(name) > 1})
+        repeated = sorted({name for name in named if named.count(name) > 1}, key=str)
         if repeated:
             raise RepeatedOutlineSectionError(self.path, tuple(repeated))
 
-        repeated_forbidden = sorted({str(name) for name in self.forbidden if self.forbidden.count(name) > 1})
+        repeated_forbidden = sorted({name for name in self.forbidden if self.forbidden.count(name) > 1}, key=str)
         if repeated_forbidden:
             raise RepeatedForbiddenSectionError(self.path, tuple(repeated_forbidden))
 
-        contradicted = sorted(str(name) for name in set(named) & set(self.forbidden))
+        contradicted = sorted(set(named) & set(self.forbidden), key=str)
         if contradicted:
             raise ForbiddenOutlineSectionError(self.path, tuple(contradicted))
 

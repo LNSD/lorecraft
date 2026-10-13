@@ -7,6 +7,7 @@ import pytest
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas.name import CorpusSpecName
+from lorecraft.project.schemas.section_name import SectionName
 from lorecraft.project.workspace import (
     AdjacentAnyRuns,
     EmptyStructureSpec,
@@ -179,38 +180,38 @@ class TestReportLoadFailures:
 
     def test_report_load_failures_with_a_repeated_outline_section_reports_the_sections(self) -> None:
         #: Given
-        condition = RepeatedOutlineSections(('Overview',))
+        condition = RepeatedOutlineSections((SectionName('Overview'),))
 
         #: When
         occurrence = _condition_of(condition)
 
         #: Then
         assert occurrence == unusable_structure_file.UnusableStructureFile(
-            cause=unusable_structure_file.RepeatedOutlineSection(sections=('Overview',))
+            cause=unusable_structure_file.RepeatedOutlineSection(sections=(SectionName('Overview'),))
         ), 'the condition names the repeated sections'
 
     def test_report_load_failures_with_a_repeated_forbidden_section_reports_the_sections(self) -> None:
         #: Given
-        condition = RepeatedForbiddenSections(('Draft',))
+        condition = RepeatedForbiddenSections((SectionName('Draft'),))
 
         #: When
         occurrence = _condition_of(condition)
 
         #: Then
         assert occurrence == unusable_structure_file.UnusableStructureFile(
-            cause=unusable_structure_file.RepeatedForbiddenSection(sections=('Draft',))
+            cause=unusable_structure_file.RepeatedForbiddenSection(sections=(SectionName('Draft'),))
         ), 'the condition names the sections forbidden twice'
 
     def test_report_load_failures_with_a_forbidden_outline_section_reports_the_sections(self) -> None:
         #: Given
-        condition = ForbiddenOutlineSections(('Overview',))
+        condition = ForbiddenOutlineSections((SectionName('Overview'),))
 
         #: When
         occurrence = _condition_of(condition)
 
         #: Then
         assert occurrence == unusable_structure_file.UnusableStructureFile(
-            cause=unusable_structure_file.ForbiddenOutlineSection(sections=('Overview',))
+            cause=unusable_structure_file.ForbiddenOutlineSection(sections=(SectionName('Overview'),))
         ), 'the condition names the sections the outline and the forbidden list both hold'
 
     def test_report_load_failures_with_adjacent_any_runs_reports_them(self) -> None:

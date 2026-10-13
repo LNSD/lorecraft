@@ -191,7 +191,7 @@ def _first_divergence(
                 while at < len(aligned) and not aligned[at].is_named:
                     at += 1
             case SectionEntry():
-                if at < len(aligned) and aligned[at].section.text == entry.name.value:
+                if at < len(aligned) and entry.names(aligned[at].section):
                     at += 1
                     continue
                 if entry.optional:
@@ -229,7 +229,7 @@ def _divergence_at_entry(
     """
     # Every section before `at` was matched by its own entry or skipped by an `any` run, which skips no named
     # section, so searching the whole document finds the expected section only at `at` or later.
-    held = next((a.section for a in aligned if a.section.text == entry.name.value), None)
+    held = next((a.section for a in aligned if entry.names(a.section)), None)
     if held is None:
         before = aligned[at].section if at < len(aligned) else document_end
         example = entry.examples[0] if entry.examples else None

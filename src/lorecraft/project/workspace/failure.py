@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas.name import SpecName
+from lorecraft.project.schemas.section_name import SectionName
 from lorecraft.vfs import OsRefusal, Utf8Failure
 
 # The conditions of a structure file, which stands in its meta spec layer as a `FailedStructure`.
@@ -82,7 +83,7 @@ class RepeatedOutlineSections:
         sections: The repeated section names, sorted.
     """
 
-    sections: tuple[str, ...]
+    sections: tuple[SectionName, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,7 +94,7 @@ class RepeatedForbiddenSections:
         sections: The repeated section names, sorted.
     """
 
-    sections: tuple[str, ...]
+    sections: tuple[SectionName, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,7 +105,7 @@ class ForbiddenOutlineSections:
         sections: The sections both named and forbidden, sorted.
     """
 
-    sections: tuple[str, ...]
+    sections: tuple[SectionName, ...]
 
 
 @dataclass(frozen=True, slots=True)

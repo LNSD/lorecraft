@@ -13,6 +13,7 @@ from typing import assert_never
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import SECTION_LEVEL, Heading
 
+from .section_name import SectionName
 from .structure import AnySections, OutlineEntry, SectionEntry, StructureSpec
 
 
@@ -107,32 +108,42 @@ def _align_sections(structure_spec: StructureSpec, sections: tuple[Heading, ...]
         sections: The document's H2 headings, in document order.
     """
     outline = structure_spec.outline
-    forbidden_names = {name.value for name in structure_spec.forbidden}
+    forbidden = structure_spec.forbidden
     last_named_at = -1  # the outline index of the last named section passed; -1 before any
     aligned: list[AlignedSection] = []
     for section in sections:
         entry: OutlineEntry | None
-        entry_at = _find_section_index(outline, section.text)
+        entry_at = _find_section_index(outline, section)
         if entry_at is None:
             entry = _find_run(outline, after=last_named_at)
         else:
             last_named_at = entry_at
             entry = outline[entry_at]
-        aligned.append(AlignedSection(section=section, entry=entry, forbidden=section.text in forbidden_names))
+        aligned.append(AlignedSection(section=section, entry=entry, forbidden=_is_forbidden(forbidden, section)))
     return tuple(aligned)
 
 
-def _find_section_index(outline: tuple[OutlineEntry, ...], name: str) -> int | None:
-    """Where in the outline the section entry naming `name` sits, or `None` when no entry names it. Raises nothing.
+def _is_forbidden(forbidden: tuple[SectionName, ...], section: Heading) -> bool:
+    """Whether one of the forbidden names stands for the section. Raises nothing.
+
+    Args:
+        forbidden: The names the specification forbids.
+        section: An H2 heading of the document.
+    """
+    return any(name.names(section) for name in forbidden)
+
+
+def _find_section_index(outline: tuple[OutlineEntry, ...], section: Heading) -> int | None:
+    """Where in the outline the section entry naming `section` sits, or `None` when no entry names it. Raises nothing.
 
     Args:
         outline: The entries to search, in outline order.
-        name: Heading text of the section to find.
+        section: The H2 heading of the section to find.
     """
     for index, entry in enumerate(outline):
         match entry:
             case SectionEntry():
-                if entry.name.value == name:
+                if entry.names(section):
                     return index
             case AnySections():
                 pass  # a run names no section

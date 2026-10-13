@@ -5,6 +5,8 @@ from typing import Final
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
+from lorecraft.project.syntax import Heading, LineNumber
+
 from ..section_name import EmptySectionNameError, MultilineSectionNameError, PaddedSectionNameError, SectionName
 
 ADAPTER: Final[TypeAdapter[SectionName]] = TypeAdapter(SectionName)
@@ -21,6 +23,39 @@ class TestSectionName:
 
         #: Then
         assert name.value == raw, f'whitespace inside a name is part of the heading text, got {name.value!r}'
+
+    def test_names_with_heading_of_the_same_text_is_true(self) -> None:
+        #: Given
+        name = SectionName.parse('Usage')
+        heading = Heading(level=2, text='Usage', line=LineNumber.from_int(1), empty=False, words=0)
+
+        #: When
+        names = name.names(heading)
+
+        #: Then
+        assert names is True, 'a heading whose text is exactly the name is the section it names'
+
+    def test_names_with_heading_of_another_case_is_false(self) -> None:
+        #: Given
+        name = SectionName.parse('Usage')
+        heading = Heading(level=2, text='usage', line=LineNumber.from_int(1), empty=False, words=0)
+
+        #: When
+        names = name.names(heading)
+
+        #: Then
+        assert names is False, 'the match is exact, so a heading in another case is another section'
+
+    def test_names_with_heading_of_other_text_is_false(self) -> None:
+        #: Given
+        name = SectionName.parse('Usage')
+        heading = Heading(level=2, text='Usage notes', line=LineNumber.from_int(1), empty=False, words=0)
+
+        #: When
+        names = name.names(heading)
+
+        #: Then
+        assert names is False, 'a heading that only starts with the name is not the section it names'
 
     def test_parse_with_one_character_keeps_it(self) -> None:
         #: Given

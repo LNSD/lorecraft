@@ -13,6 +13,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.repo import CorpusListError
 from lorecraft.project.schemas.name import CorpusSpecName
 from lorecraft.project.schemas.repo import StructureSchemaReadError
+from lorecraft.project.schemas.section_name import SectionName
 from lorecraft.project.schemas.structure import (
     AdjacentAnyRunsError,
     EmptyStructureSpecError,
@@ -238,8 +239,8 @@ class TestReportLoadFailure:
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
-        failure = LoadFailure(_PATH, RepeatedOutlineSections(('Usage',)))
-        error = RepeatedOutlineSectionError(_PATH, ('Usage',))
+        failure = LoadFailure(_PATH, RepeatedOutlineSections((SectionName('Usage'),)))
+        error = RepeatedOutlineSectionError(_PATH, (SectionName('Usage'),))
 
         #: When
         expected, actual = _written_for(capsys, failure, error)
@@ -251,8 +252,8 @@ class TestReportLoadFailure:
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
-        failure = LoadFailure(_PATH, RepeatedForbiddenSections(('Changelog',)))
-        error = RepeatedForbiddenSectionError(_PATH, ('Changelog',))
+        failure = LoadFailure(_PATH, RepeatedForbiddenSections((SectionName('Changelog'),)))
+        error = RepeatedForbiddenSectionError(_PATH, (SectionName('Changelog'),))
 
         #: When
         expected, actual = _written_for(capsys, failure, error)
@@ -264,8 +265,8 @@ class TestReportLoadFailure:
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
-        failure = LoadFailure(_PATH, ForbiddenOutlineSections(('Usage',)))
-        error = ForbiddenOutlineSectionError(_PATH, ('Usage',))
+        failure = LoadFailure(_PATH, ForbiddenOutlineSections((SectionName('Usage'),)))
+        error = ForbiddenOutlineSectionError(_PATH, (SectionName('Usage'),))
 
         #: When
         expected, actual = _written_for(capsys, failure, error)

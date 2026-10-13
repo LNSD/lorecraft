@@ -22,7 +22,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.document.repo import Repository as DocumentRepository
 from lorecraft.project.layout import SNAPSHOT_SCOPE, SPECS_DIR
-from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName
+from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName, SectionName
 from lorecraft.project.schemas import Repository as SchemaRepository
 from lorecraft.project.schemas.structure import StructureSpec
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillsDir
@@ -1221,9 +1221,9 @@ class TestLoadWorkspaceFailures:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert _failed_structure(model, CODE).failure == RepeatedOutlineSections(('Notes', 'Usage')), (
-            'the record carries the facts of the error: the repeated names, sorted'
-        )
+        assert _failed_structure(model, CODE).failure == RepeatedOutlineSections(
+            (SectionName('Notes'), SectionName('Usage'))
+        ), 'the record carries the facts of the error: the repeated names, sorted'
 
     def test_load_workspace_with_a_foreign_dialect_records_what_the_schema_names(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
