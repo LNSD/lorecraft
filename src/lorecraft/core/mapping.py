@@ -73,8 +73,8 @@ class FrozenMapping[K, V](Mapping[K, V]):
         return hash(frozenset(self._items.items()))
 
     def __repr__(self) -> str:
-        """The class and the items it was built from, such as `FrozenMapping({'a': 1})`."""
-        return f'FrozenMapping({self._items!r})'
+        """The class and the items it was built from, such as `FrozenMapping({'a': 1})`; a subclass names itself."""
+        return f'{type(self).__name__}({self._items!r})'
 
     @classmethod
     def from_plain(cls, mapping: Mapping[str, object]) -> 'FrozenMapping[str, Frozen]':

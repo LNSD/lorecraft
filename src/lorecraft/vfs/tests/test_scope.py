@@ -15,13 +15,12 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 
 from ..scan_root import ScanRoot
 from ..scope import ScopeIndex
-from ..snapshot import DirectoryRecord, EntryRecord, Snapshot, SymlinkRecord
+from ..snapshot import DirectoryRecord, EntryRecord, Snapshot, SnapshotRecords, SymlinkRecord
 
 DOCS: Final[RootRelativePath] = RootRelativePath.parse('docs')
 AGENTS_SKILLS: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills')
@@ -61,7 +60,7 @@ def _snapshot_of_links(
         records[_path(path)] = SymlinkRecord(PurePosixPath(target))
     for directory in climbed_directories:
         records[_path(directory)] = DirectoryRecord(climbed=True)
-    return Snapshot(FrozenMapping(records), scope=scope)
+    return Snapshot(SnapshotRecords(records), scope=scope)
 
 
 @pytest.mark.unit

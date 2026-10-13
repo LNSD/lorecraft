@@ -12,7 +12,6 @@ from typing import Final, cast
 
 import pytest
 
-from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import PathComponent, PathComponentError, RootRelativePath
 
@@ -24,6 +23,7 @@ from ..snapshot import (
     FileTree,
     OtherRecord,
     Snapshot,
+    SnapshotRecords,
     SymlinkRecord,
     VirtualFileSystem,
 )
@@ -42,7 +42,7 @@ def _snapshot(records: Mapping[str, EntryRecord], *, scope: tuple[ScanRoot, ...]
     parsed: dict[RootRelativePath, EntryRecord] = {}
     for raw_path, record in records.items():
         parsed[RootRelativePath.parse(raw_path)] = record
-    return Snapshot(FrozenMapping(parsed), scope=scope)
+    return Snapshot(SnapshotRecords(parsed), scope=scope)
 
 
 def _skills_snapshot() -> Snapshot:
@@ -368,6 +368,100 @@ class TestSnapshotClimbedDirectories:
 
         #: Then
         assert climbed == (), 'a tree is listed, never climbed out of'
+
+
+@pytest.mark.unit
+class TestSnapshotRecords:
+    def test_init_with_a_record_below_a_file_raises_value_error(self) -> None:
+        #: Given
+        records: dict[RootRelativePath, EntryRecord] = {
+            RootRelativePath.parse('a'): FileRecord(b'a'),
+            RootRelativePath.parse('a/b'): FileRecord(b'b'),
+        }
+
+        #: When
+        with pytest.raises(ValueError, match='a/b') as exc_info:
+            SnapshotRecords(records)
+
+        #: Then
+        assert 'FILE' in str(exc_info.value), 'the message names the path above and the kind it is recorded as'
+
+    def test_init_with_a_record_below_a_symlink_raises_value_error(self) -> None:
+        #: Given
+        records: dict[RootRelativePath, EntryRecord] = {
+            RootRelativePath.parse('a'): SymlinkRecord(PurePosixPath('x')),
+            RootRelativePath.parse('a/b'): FileRecord(b'b'),
+        }
+
+        #: When
+        with pytest.raises(ValueError, match='a/b') as exc_info:
+            SnapshotRecords(records)
+
+        #: Then
+        assert 'SYMLINK' in str(exc_info.value), 'the message names the path above and the kind it is recorded as'
+
+    def test_init_with_a_record_below_an_other_entry_raises_value_error(self) -> None:
+        #: Given
+        records: dict[RootRelativePath, EntryRecord] = {
+            RootRelativePath.parse('a'): OtherRecord(),
+            RootRelativePath.parse('a/b'): FileRecord(b'b'),
+        }
+
+        #: When
+        with pytest.raises(ValueError, match='a/b') as exc_info:
+            SnapshotRecords(records)
+
+        #: Then
+        assert 'OTHER' in str(exc_info.value), 'the message names the path above and the kind it is recorded as'
+
+    def test_init_with_a_record_far_below_a_file_raises_value_error(self) -> None:
+        #: Given
+        records = {
+            RootRelativePath.parse('a'): FileRecord(b'a'),
+            RootRelativePath.parse('b/c'): FileRecord(b'c'),
+            RootRelativePath.parse('a/x/y/z'): FileRecord(b'z'),
+        }
+
+        #: When
+        with pytest.raises(ValueError, match='a/x/y/z'):
+            SnapshotRecords(records)
+
+        #: Then
+        # The raise is the assertion: the file is an ancestor of the deepest record, not its parent.
+
+    def test_set_an_attribute_raises_attribute_error(self) -> None:
+        #: Given
+        snapshot_records = SnapshotRecords({})
+
+        #: When
+        with pytest.raises(AttributeError):
+            snapshot_records.extra = 1  # type: ignore[attr-defined]  # ty: ignore[unresolved-attribute]
+
+        #: Then
+        # The raise is the assertion: the records are an immutable value.
+
+    def test_init_with_a_record_below_a_path_that_is_not_recorded_keeps_the_records(self) -> None:
+        #: Given
+        records = {RootRelativePath.parse('a/b/c.md'): FileRecord(b'c')}
+
+        #: When
+        snapshot_records = SnapshotRecords(records)
+
+        #: Then
+        assert dict(snapshot_records) == records, 'an ancestor with no record is a directory, so nothing is refused'
+
+    def test_init_with_records_below_a_directory_keeps_the_records(self) -> None:
+        #: Given
+        records: dict[RootRelativePath, EntryRecord] = {
+            RootRelativePath.parse('a'): DirectoryRecord(listed=True),
+            RootRelativePath.parse('a/b'): FileRecord(b'b'),
+        }
+
+        #: When
+        snapshot_records = SnapshotRecords(records)
+
+        #: Then
+        assert dict(snapshot_records) == records, 'a directory record may hold entries'
 
 
 @pytest.mark.unit

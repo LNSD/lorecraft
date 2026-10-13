@@ -23,6 +23,7 @@ from ..snapshot import (
     RefusedListing,
     RefusedRead,
     Snapshot,
+    SnapshotRecords,
     SymlinkRecord,
 )
 from ..view import OsRefusal
@@ -38,7 +39,7 @@ def _snapshot(records: Mapping[str, EntryRecord], *, scope: tuple[ScanRoot, ...]
     parsed: dict[RootRelativePath, EntryRecord] = {}
     for raw_path, record in records.items():
         parsed[RootRelativePath.parse(raw_path)] = record
-    return Snapshot(FrozenMapping(parsed), scope=scope)
+    return Snapshot(SnapshotRecords(parsed), scope=scope)
 
 
 def _docs_link(name: str, target: str) -> Snapshot:

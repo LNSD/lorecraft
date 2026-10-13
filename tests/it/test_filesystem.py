@@ -16,7 +16,6 @@ from typing import Final, assert_never
 import pytest
 
 from lorecraft.core.error import Error
-from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.vfs import (
@@ -42,6 +41,7 @@ from lorecraft.vfs import (
     SnapshotEntryInspectError,
     SnapshotFileReadError,
     SnapshotLinkReadError,
+    SnapshotRecords,
     SymlinkRecord,
     TextDecodeError,
     UnrecordedFileError,
@@ -312,7 +312,7 @@ def _snapshot(records: Mapping[str, EntryRecord], *, scope: tuple[ScanRoot, ...]
     parsed: dict[RootRelativePath, EntryRecord] = {}
     for raw_path, record in records.items():
         parsed[RootRelativePath.parse(raw_path)] = record
-    return Snapshot(FrozenMapping(parsed), scope=scope)
+    return Snapshot(SnapshotRecords(parsed), scope=scope)
 
 
 def _listed_directories(snapshot: Snapshot) -> set[RootRelativePath]:
