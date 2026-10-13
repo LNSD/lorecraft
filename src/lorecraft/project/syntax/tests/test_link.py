@@ -4,7 +4,14 @@ from pathlib import PurePosixPath
 
 import pytest
 
-from ..link import Link
+from ..link import (
+    AbsoluteDestination,
+    ExternalDestination,
+    FragmentDestination,
+    Link,
+    NormalisedLinkPath,
+    RelativeDestination,
+)
 from ..position import LineNumber
 
 
@@ -174,3 +181,72 @@ class TestLinkToNormalisedRelativePath:
 
         #: Then
         assert path is None, f'a destination that spells no relative path has none to normalise, got {path}'
+
+
+@pytest.mark.unit
+class TestLinkToDestination:
+    def test_to_destination_with_a_scheme_returns_external(self) -> None:
+        #: Given
+        link = Link(url='https://example.com/a.md', line=LineNumber.from_int(1))
+
+        #: When
+        destination = link.to_destination()
+
+        #: Then
+        assert destination == ExternalDestination(), f'a destination with a scheme is external, got {destination}'
+
+    def test_to_destination_with_an_encoded_leading_slash_returns_absolute(self) -> None:
+        #: Given
+        link = Link(url='%2Fetc/x.md', line=LineNumber.from_int(1))
+
+        #: When
+        destination = link.to_destination()
+
+        #: Then
+        assert destination == AbsoluteDestination(), f'the path is decoded, then classified, got {destination}'
+
+    def test_to_destination_with_a_fragment_only_returns_the_fragment(self) -> None:
+        #: Given
+        link = Link(url='#usage', line=LineNumber.from_int(1))
+
+        #: When
+        destination = link.to_destination()
+
+        #: Then
+        assert destination == FragmentDestination(fragment='usage'), (
+            f'a destination with no path names only a fragment, got {destination}'
+        )
+
+    def test_to_destination_with_an_empty_destination_returns_an_empty_fragment(self) -> None:
+        #: Given
+        link = Link(url='', line=LineNumber.from_int(1))
+
+        #: When
+        destination = link.to_destination()
+
+        #: Then
+        assert destination == FragmentDestination(fragment=''), (
+            f'an empty destination names no fragment, got {destination}'
+        )
+
+    def test_to_destination_with_a_query_before_a_fragment_returns_an_empty_fragment(self) -> None:
+        #: Given
+        link = Link(url='?a=b#usage', line=LineNumber.from_int(1))
+
+        #: When
+        destination = link.to_destination()
+
+        #: Then
+        assert destination == FragmentDestination(fragment=''), f'a query alone names no fragment, got {destination}'
+
+    def test_to_destination_with_an_encoded_colon_returns_relative(self) -> None:
+        #: Given
+        link = Link(url='a%3Ab/./c.md#usage', line=LineNumber.from_int(1))
+
+        #: When
+        destination = link.to_destination()
+
+        #: Then
+        assert destination == RelativeDestination(path=NormalisedLinkPath.parse('a:b/./c.md')), (
+            f'the scheme is read as written, so a decoded colon is part of the path, got {destination}'
+        )

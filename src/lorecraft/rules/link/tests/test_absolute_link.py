@@ -59,6 +59,18 @@ class TestAbsoluteLink:
         #: Then
         assert occurrences == (), 'a link to a heading of the same file starts with #, not with /'
 
+    def test_check_with_a_percent_encoded_leading_slash_reports_it_on_its_line(self) -> None:
+        #: Given
+        subject = FakeSkillResourceContext('# Guide\n\nRead [the file](%2Fetc/x.md).\n')
+
+        #: When
+        occurrences = AbsoluteLink.check(subject)
+
+        #: Then
+        assert occurrences == (AbsoluteLink(line=LineNumber.from_int(3), url='%2Fetc/x.md'),), (
+            'a destination is percent-decoded before it is classified, so an encoded leading / is absolute'
+        )
+
     def test_check_with_a_relative_link_reports_nothing(self) -> None:
         #: Given
         subject = FakeSkillResourceContext('# Guide\n\nRead [the setup](setup.md).\n')
