@@ -8,6 +8,7 @@ from typing import Final
 
 import pytest
 
+from lib.overruns import overrun
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import FakeSkillContext
@@ -37,7 +38,7 @@ class TestTooManyLines:
         occurrences = TooManyLines.check(subject)
 
         #: Then
-        assert occurrences == (TooManyLines(line=LineNumber.from_int(501), line_count=501),), (
+        assert occurrences == (TooManyLines(line=LineNumber.from_int(501), overrun=overrun(501, 500)),), (
             'a SKILL.md one line over the budget is one occurrence, on line 501, the first line past it'
         )
 
@@ -53,7 +54,7 @@ class TestTooManyLines:
 
     def test_message_with_an_occurrence_names_the_lines_and_the_budget(self) -> None:
         #: Given
-        occurrence = TooManyLines(line=LineNumber.from_int(501), line_count=612)
+        occurrence = TooManyLines(line=LineNumber.from_int(501), overrun=overrun(612, 500))
 
         #: When
         message = occurrence.message()
@@ -61,9 +62,19 @@ class TestTooManyLines:
         #: Then
         assert message == 'too many lines (612 > 500)', 'the message sets the line count against the budget'
 
+    def test_message_with_an_overrun_of_another_cap_names_that_cap(self) -> None:
+        #: Given
+        occurrence = TooManyLines(line=LineNumber.from_int(501), overrun=overrun(700, 600))
+
+        #: When
+        message = occurrence.message()
+
+        #: Then
+        assert message == 'too many lines (700 > 600)', 'the message reads the cap from the overrun it holds'
+
     def test_labels_with_an_occurrence_mark_where_the_budget_ends_and_the_lines_past_it(self) -> None:
         #: Given
-        occurrence = TooManyLines(line=LineNumber.from_int(501), line_count=612)
+        occurrence = TooManyLines(line=LineNumber.from_int(501), overrun=overrun(612, 500))
 
         #: When
         labels = occurrence.labels()
@@ -75,7 +86,7 @@ class TestTooManyLines:
 
     def test_children_with_an_occurrence_name_the_budget_and_say_where_to_move_the_lines(self) -> None:
         #: Given
-        occurrence = TooManyLines(line=LineNumber.from_int(501), line_count=612)
+        occurrence = TooManyLines(line=LineNumber.from_int(501), overrun=overrun(612, 500))
 
         #: When
         children = occurrence.children()
