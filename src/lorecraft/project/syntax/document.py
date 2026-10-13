@@ -210,5 +210,5 @@ def _source_words(source: str) -> int:
         # skipped here: a table is a reference, not prose.
         if line.strip().startswith('|'):
             continue
-        words += count_words(line)
+        words += count_words(line).value
     return words

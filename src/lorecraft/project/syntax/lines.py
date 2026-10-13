@@ -1,7 +1,14 @@
 """How many lines a text holds, and what they are, counted from the raw text without a parse."""
 
+from typing import NewType
 
-def count_lines(text: str) -> int:
+from lorecraft.core.num import UnsignedInt
+
+LineCount = NewType('LineCount', UnsignedInt)
+"""How many lines a text holds: a count of lines, never taken for a count of tokens or of words."""
+
+
+def count_lines(text: str) -> LineCount:
     r"""The number of lines in `text`, frontmatter, code and blank lines included, as the findings number them.
 
     A line ends at a `\n` and nowhere else, as every finding's line number counts it, and as editors and `wc -l`
@@ -13,9 +20,10 @@ def count_lines(text: str) -> int:
         text: Text to count, a whole file; empty counts as 0.
     """
     newlines = text.count('\n')
+    # A count is never negative, so building the `UnsignedInt` cannot raise `NegativeIntError` here.
     if text and not text.endswith('\n'):
-        return newlines + 1
-    return newlines
+        return LineCount(UnsignedInt(newlines + 1))
+    return LineCount(UnsignedInt(newlines))
 
 
 def split_lines(text: str) -> tuple[str, ...]:

@@ -28,14 +28,13 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Protocol
 
-from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.vfs import ResolvedPath, RootExit
 
 from .aspect import AspectFilename
 from .link_target import LinkBase, LinkTargetEntry
 from .schemas import OutlineAlignmentSpec, OutlineDivergenceSpec, SchemaProblems, StructureSpec
-from .syntax import FrontmatterNode, NormalisedLinkPath, ParsedDocument
+from .syntax import FrontmatterNode, LineCount, NormalisedLinkPath, ParsedDocument, TokenCount
 from .workspace import Governance
 
 
@@ -135,11 +134,11 @@ class DocumentContext(FrontmatterContext, MarkdownContext, Protocol):
         """The document's filename, without its extension."""
         ...
 
-    def tokens(self) -> UnsignedInt:
+    def tokens(self) -> TokenCount:
         """The `o200k_base` tokens in the document's whole file, frontmatter, code and tables included."""
         ...
 
-    def lines(self) -> UnsignedInt:
+    def lines(self) -> LineCount:
         """The lines in the document's whole file, frontmatter included."""
         ...
 
@@ -191,7 +190,7 @@ class SkillContext(FrontmatterContext, SkillFileContext, Protocol):
         """The resolved directory the listed directory leads to when it is a link, or `None` when it is not."""
         ...
 
-    def lines(self) -> UnsignedInt:
+    def lines(self) -> LineCount:
         """The lines in the skill's whole `SKILL.md`, frontmatter, code and blank lines included."""
         ...
 

@@ -10,6 +10,8 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import UnsignedInt
+
 from ..tokens import count_tokens
 
 O200K_BASE_SHA256: Final[str] = '446a9538cb6c348e3516120d7c08b09f57c36495e2acfffe59a5bf8b0cfb1a2d'
@@ -26,7 +28,7 @@ class TestCountTokens:
         tokens = count_tokens(text)
 
         #: Then
-        assert tokens == 0, f'empty text holds no tokens, got {tokens}'
+        assert tokens == UnsignedInt(0), f'empty text holds no tokens, got {tokens}'
 
     def test_count_tokens_with_two_common_words_returns_two(self) -> None:
         #: Given
@@ -36,7 +38,7 @@ class TestCountTokens:
         tokens = count_tokens(text)
 
         #: Then
-        assert tokens == 2, f'o200k_base encodes `hello` and ` world` as one token each, got {tokens}'
+        assert tokens == UnsignedInt(2), f'o200k_base encodes `hello` and ` world` as one token each, got {tokens}'
 
     def test_count_tokens_with_a_markdown_title_counts_its_markers(self) -> None:
         #: Given
@@ -46,7 +48,7 @@ class TestCountTokens:
         tokens = count_tokens(text)
 
         #: Then
-        assert tokens == 7, f'o200k_base encodes this text in 7 tokens, got {tokens}'
+        assert tokens == UnsignedInt(7), f'o200k_base encodes this text in 7 tokens, got {tokens}'
 
     def test_count_tokens_with_special_token_text_counts_it_as_ordinary_text(self) -> None:
         #: Given
@@ -56,7 +58,9 @@ class TestCountTokens:
         tokens = count_tokens(text)
 
         #: Then
-        assert tokens == 7, f'a special token written in a document is plain text, not one control token, got {tokens}'
+        assert tokens == UnsignedInt(7), (
+            f'a special token written in a document is plain text, not one control token, got {tokens}'
+        )
 
 
 @pytest.mark.unit

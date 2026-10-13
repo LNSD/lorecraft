@@ -12,7 +12,6 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import (
@@ -282,7 +281,7 @@ class TestDatabaseDocumentContext:
         tokens = context.tokens()
 
         #: Then
-        assert tokens == UnsignedInt(count_tokens(TYPING_TEXT)), 'the tokens are those the tokens query counts'
+        assert tokens == count_tokens(TYPING_TEXT), 'the tokens are those the tokens query counts'
 
     def test_lines_with_a_document_returns_the_lines_of_its_whole_file(self) -> None:
         #: Given
@@ -292,7 +291,7 @@ class TestDatabaseDocumentContext:
         lines = context.lines()
 
         #: Then
-        assert lines == UnsignedInt(count_lines(TYPING_TEXT)), 'the lines are those the document-lines query counts'
+        assert lines == count_lines(TYPING_TEXT), 'the lines are those the document-lines query counts'
 
     def test_specifications_with_a_document_returns_the_governance_query(self) -> None:
         #: Given
@@ -480,7 +479,7 @@ class TestDatabaseSkillContext:
         lines = context.lines()
 
         #: Then
-        assert lines == UnsignedInt(count_lines(REVIEW_TEXT)), 'the lines are those the skill-lines query counts'
+        assert lines == count_lines(REVIEW_TEXT), 'the lines are those the skill-lines query counts'
 
     def test_link_base_with_a_skill_returns_the_skill_directory_an_agent_reaches(self) -> None:
         #: Given

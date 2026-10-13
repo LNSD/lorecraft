@@ -19,7 +19,7 @@ from ..too_many_tokens import TooManyTokens
 TEXT: Final[str] = '# Setup\n\nInstall the toolkit, then run it once over the repository.\n'
 """The document every case judges."""
 
-TOKENS: Final[int] = count_tokens(TEXT)
+TOKENS: Final[int] = count_tokens(TEXT).value
 """The tokens in `TEXT`, as the real tokenizer counts them."""
 
 CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('code')

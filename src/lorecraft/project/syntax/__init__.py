@@ -21,7 +21,7 @@ from .frontmatter import (
     reads_back_as_string,
 )
 from .heading import Heading, HeadingLevel, SectionHeading, find_sections, find_title
-from .lines import count_lines, split_lines
+from .lines import LineCount, count_lines, split_lines
 from .link import (
     AbsoluteDestination,
     ExternalDestination,
@@ -32,8 +32,8 @@ from .link import (
     RelativeDestination,
 )
 from .position import LineNumber
-from .tokens import count_tokens
-from .words import count_words
+from .tokens import TokenCount, count_tokens
+from .words import WordCount, count_words
 
 __all__: list[str] = [
     'ParsedDocument',
@@ -61,8 +61,11 @@ __all__: list[str] = [
     'Anchor',
     'InvalidAnchorError',
     'LineNumber',
+    'TokenCount',
     'count_tokens',
+    'LineCount',
     'count_lines',
     'split_lines',
+    'WordCount',
     'count_words',
 ]

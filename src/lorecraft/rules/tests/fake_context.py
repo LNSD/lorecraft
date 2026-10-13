@@ -15,7 +15,6 @@ from collections.abc import Mapping
 from typing import Final
 
 from lorecraft.core.mapping import FrozenMapping
-from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
@@ -44,9 +43,11 @@ from lorecraft.project.schemas import (
 from lorecraft.project.syntax import (
     FrontmatterNode,
     Heading,
+    LineCount,
     NormalisedLinkPath,
     ParsedDocument,
     SectionHeading,
+    TokenCount,
     count_lines,
     count_tokens,
     find_sections,
@@ -267,15 +268,13 @@ class FakeDocumentContext:
         """None: a fake document holds no link target."""
         return FrozenMapping({})
 
-    def tokens(self) -> UnsignedInt:
+    def tokens(self) -> TokenCount:
         """The tokens in the document's whole text, as the real tokenizer counts them."""
-        # A count is never negative, so building the `UnsignedInt` cannot raise `NegativeIntError` here.
-        return UnsignedInt(count_tokens(self._text))
+        return count_tokens(self._text)
 
-    def lines(self) -> UnsignedInt:
+    def lines(self) -> LineCount:
         """The lines in the document's whole text, as the real counter counts them."""
-        # A count is never negative, so building the `UnsignedInt` cannot raise `NegativeIntError` here.
-        return UnsignedInt(count_lines(self._text))
+        return count_lines(self._text)
 
     def specifications(self) -> Governance:
         """The specifications the test stated."""
@@ -291,7 +290,7 @@ class FakeDocumentContext:
 
     def outline_divergences(self) -> tuple[OutlineDivergenceSpec, ...]:
         """Where the sections stop matching each governing outline, as the real analysis finds it."""
-        return match_outlines(self.outline_alignment(), count_lines(self._text))
+        return match_outlines(self.outline_alignment(), count_lines(self._text).value)
 
 
 class FakeSkillContext:
@@ -347,10 +346,9 @@ class FakeSkillContext:
         """None: a fake skill holds no link target."""
         return FrozenMapping({})
 
-    def lines(self) -> UnsignedInt:
+    def lines(self) -> LineCount:
         """The lines in the whole `SKILL.md`, as the real counter counts them."""
-        # A count is never negative, so building the `UnsignedInt` cannot raise `NegativeIntError` here.
-        return UnsignedInt(count_lines(self._text))
+        return count_lines(self._text)
 
 
 DEFAULT_SKILL_DIRECTORY: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills/review')

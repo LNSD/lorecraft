@@ -14,9 +14,11 @@ counting never touches the network or writes anywhere. The encoding is built onc
 import binascii
 from functools import cache
 from importlib.resources import files
-from typing import Final
+from typing import Final, NewType
 
 from tiktoken import Encoding
+
+from lorecraft.core.num import UnsignedInt
 
 _VOCABULARY_FILE: Final[str] = 'o200k_base.tiktoken'
 """The vocabulary shipped beside this module: one ``<base64 token> <rank>`` line per token."""
@@ -37,7 +39,11 @@ _SPLIT_PATTERN: Final[str] = '|'.join(
 )
 
 
-def count_tokens(text: str) -> int:
+TokenCount = NewType('TokenCount', UnsignedInt)
+"""How many `o200k_base` tokens a text costs: a count of tokens, never taken for a count of lines or of words."""
+
+
+def count_tokens(text: str) -> TokenCount:
     """The number of `o200k_base` tokens in `text`.
 
     Text that looks like a special token, such as `<|endoftext|>`, is counted as the ordinary text it is: a
@@ -49,7 +55,8 @@ def count_tokens(text: str) -> int:
     Args:
         text: Text to count, a whole document or any part of one; empty counts as 0.
     """
-    return len(_encoding().encode_ordinary(text))
+    # A count is never negative, so building the `UnsignedInt` cannot raise `NegativeIntError` here.
+    return TokenCount(UnsignedInt(len(_encoding().encode_ordinary(text))))
 
 
 # Built once per process: the vocabulary is a file inside the installed package, so it cannot change while the

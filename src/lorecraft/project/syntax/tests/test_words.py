@@ -2,6 +2,8 @@
 
 import pytest
 
+from lorecraft.core.num import UnsignedInt
+
 from ..words import count_words
 
 
@@ -15,7 +17,7 @@ class TestCountWords:
         words = count_words(text)
 
         #: Then
-        assert words == 0, f'empty text holds no word, got {words}'
+        assert words == UnsignedInt(0), f'empty text holds no word, got {words}'
 
     def test_count_words_with_whitespace_alone_returns_zero(self) -> None:
         #: Given
@@ -25,7 +27,7 @@ class TestCountWords:
         words = count_words(text)
 
         #: Then
-        assert words == 0, f'whitespace separates words and is none itself, got {words}'
+        assert words == UnsignedInt(0), f'whitespace separates words and is none itself, got {words}'
 
     def test_count_words_with_runs_of_whitespace_counts_each_token_once(self) -> None:
         #: Given
@@ -35,4 +37,6 @@ class TestCountWords:
         words = count_words(text)
 
         #: Then
-        assert words == 5, f'any run of whitespace separates two words, and punctuation is part of one, got {words}'
+        assert words == UnsignedInt(5), (
+            f'any run of whitespace separates two words, and punctuation is part of one, got {words}'
+        )

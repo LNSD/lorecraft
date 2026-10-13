@@ -77,7 +77,7 @@ def _match_corpus_outline(outline: str, text: str) -> tuple[OutlineDivergenceSpe
         text: The document's text.
     """
     alignments = align_outlines((_structure_spec('code', outline),), parse_document(text).headings)
-    return match_outlines(alignments, count_lines(text))
+    return match_outlines(alignments, count_lines(text).value)
 
 
 def _section(text: str, name: str) -> SectionHeading:
@@ -298,7 +298,7 @@ class TestMatchOutlines:
             _structure_spec('code-python', '{"outline": [{"section": "Rule"}]}'),
         )
         headings = parse_document(RULE_ASIDE_CHECKLIST).headings
-        line_count = count_lines(RULE_ASIDE_CHECKLIST)
+        line_count = count_lines(RULE_ASIDE_CHECKLIST).value
         unlisted = UnlistedSection(
             section=_section(RULE_ASIDE_CHECKLIST, 'Aside'),
             placement=OutlineEnd(last_matched=_section(RULE_ASIDE_CHECKLIST, 'Rule')),
@@ -322,7 +322,7 @@ class TestMatchOutlines:
         headings = parse_document(RULE_ASIDE_CHECKLIST).headings
 
         #: When
-        found = match_outlines(align_outlines(structure_specs, headings), count_lines(RULE_ASIDE_CHECKLIST))
+        found = match_outlines(align_outlines(structure_specs, headings), count_lines(RULE_ASIDE_CHECKLIST).value)
 
         #: Then
         assert found == (OutlineDivergenceSpec(spec=NAMESPACE_SPEC, divergence=None),), (
