@@ -239,6 +239,28 @@ class TestRenderText:
         assert f'          {sample_line}\n' in text, 'a line of a sample is drawn whole, however wide the terminal'
         assert '            - and a nested one' in text, 'the hanging indent of the sample survives'
 
+    def test_render_text_with_a_form_feed_in_a_note_keeps_it_inside_its_line(self) -> None:
+        #: Given
+        guide = _document('feat', 'guide')
+        missing_usage = MissingSection(
+            spec=_FEAT_SPEC,
+            section=SectionName.parse('Usage'),
+            before=DocumentEnd(last_line=_line(9), after=None),
+            description=None,
+            example='one\x0ctwo\nthree',
+        )
+        reports: tuple[RunReport, ...] = (
+            CheckedDocument(
+                guide, diagnostics=(RuleDiagnostic(guide.path, missing_usage, Severity.ERROR),), ungoverned=()
+            ),
+        )
+
+        #: When
+        text = render_text(reports, {}, _PLAIN)
+
+        #: Then
+        assert '          one\x0ctwo\n          three' in text, 'a form feed ends no line, so the note has two lines'
+
     def test_render_text_with_a_note_of_padded_and_blank_lines_aligns_and_strips_them(self) -> None:
         #: Given
         guide = _document('feat', 'guide')
