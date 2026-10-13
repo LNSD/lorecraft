@@ -11,7 +11,7 @@ from typing import Final
 import pytest
 
 from lorecraft.core.num import NegativeIntError, NonZeroUnsignedInt, UnsignedInt
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 
 from ..scan_root import ScanRoot
 
@@ -97,7 +97,7 @@ class TestScanRoot:
 
     def test_listing_level_with_a_path_outside_the_directory_raises_negative_int_error(self) -> None:
         #: Given
-        scan_root = ScanRoot(DOCS / 'feat', depth=UnsignedInt(1))
+        scan_root = ScanRoot(DOCS / PathComponent.parse('feat'), depth=UnsignedInt(1))
         path = _path('docs/a.md')
 
         #: When

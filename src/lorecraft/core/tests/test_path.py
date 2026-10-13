@@ -141,52 +141,6 @@ class TestRootRelativePath:
         #: Then
         assert exc_info.value.path == absolute, 'direct construction is checked like parse'
 
-    def test_join_with_the_parent_name_raises_root_relative_path_error(self) -> None:
-        #: Given
-        docs = RootRelativePath.parse('docs')
-        name = '..'
-
-        #: When
-        with pytest.raises(RootRelativePathError) as exc_info:
-            docs / name
-
-        #: Then
-        assert exc_info.type is RootRelativePathError, "joining '..' climbs out of the path, so it is rejected"
-
-    def test_join_with_an_absolute_name_raises_root_relative_path_error(self) -> None:
-        #: Given
-        docs = RootRelativePath.parse('docs')
-        name = '/etc'
-
-        #: When
-        with pytest.raises(RootRelativePathError) as exc_info:
-            docs / name
-
-        #: Then
-        assert exc_info.type is RootRelativePathError, "joining '/etc' would replace the path, so it is rejected"
-
-    def test_join_with_a_climbing_subpath_raises_root_relative_path_error(self) -> None:
-        #: Given
-        docs = RootRelativePath.parse('docs')
-        name = 'sub/../..'
-
-        #: When
-        with pytest.raises(RootRelativePathError) as exc_info:
-            docs / name
-
-        #: Then
-        assert exc_info.type is RootRelativePathError, "joining 'sub/../..' climbs through a subpath, so it is rejected"
-
-    def test_join_with_a_child_name_returns_the_child(self) -> None:
-        #: Given
-        docs = RootRelativePath.parse('docs')
-
-        #: When
-        child = docs / 'code'
-
-        #: Then
-        assert child == RootRelativePath.parse('docs/code'), 'a join appends the name as a component'
-
     def test_join_with_a_path_component_returns_the_child(self) -> None:
         #: Given
         docs = RootRelativePath.parse('docs')
@@ -198,6 +152,27 @@ class TestRootRelativePath:
         #: Then
         assert child == RootRelativePath.parse('docs/code'), 'a component joins as the one name it holds'
 
+    def test_join_with_a_path_returns_the_descendant(self) -> None:
+        #: Given
+        docs = RootRelativePath.parse('docs')
+        below = RootRelativePath.parse('code/a.md')
+
+        #: When
+        descendant = docs / below
+
+        #: Then
+        assert descendant == RootRelativePath.parse('docs/code/a.md'), 'a path joins as the components it holds'
+
+    def test_join_with_the_root_returns_the_same_path(self) -> None:
+        #: Given
+        docs = RootRelativePath.parse('docs')
+
+        #: When
+        joined = docs / RootRelativePath.parse('.')
+
+        #: Then
+        assert joined == docs, 'the root adds no component'
+
     def test_name_of_a_nested_path_returns_the_last_component(self) -> None:
         #: Given
         nested = RootRelativePath.parse('docs/code/a.md')
@@ -206,7 +181,7 @@ class TestRootRelativePath:
         name = nested.name
 
         #: Then
-        assert name == PathComponent('a.md'), 'the name is the last component, as a validated component'
+        assert name == PathComponent.parse('a.md'), 'the name is the last component, as a validated component'
 
     def test_name_of_the_root_returns_none(self) -> None:
         #: Given

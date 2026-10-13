@@ -12,7 +12,7 @@ import pytest
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 
 from ..frontmatter_problem import (
     BlockProblem,
@@ -55,7 +55,7 @@ from ..structure import (
 
 SPECS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__')
 SPEC_NAME: Final[SpecName] = parse_spec_name('code')
-SPEC_PATH: Final[RootRelativePath] = SPECS_DIR / spec_filename(SPEC_NAME, SpecFileType.STRUCTURE)
+SPEC_PATH: Final[RootRelativePath] = SPECS_DIR / PathComponent.parse(spec_filename(SPEC_NAME, SpecFileType.STRUCTURE))
 SPEC_FILE: Final[StructureSpecFile] = StructureSpecFile(path=SPEC_PATH, name=SPEC_NAME)
 
 # What a rule document's Checklist holds, as the outline entry naming it states it.
@@ -1142,7 +1142,9 @@ class TestStructureSpecAuthority:
     def test_construction_at_a_namespace_path_derives_the_prose_at_its_stem(self) -> None:
         #: Given
         name = parse_spec_name('code-python')
-        file = StructureSpecFile(path=SPECS_DIR / spec_filename(name, SpecFileType.STRUCTURE), name=name)
+        file = StructureSpecFile(
+            path=SPECS_DIR / PathComponent.parse(spec_filename(name, SpecFileType.STRUCTURE)), name=name
+        )
 
         #: When
         structure_spec = StructureSpec(

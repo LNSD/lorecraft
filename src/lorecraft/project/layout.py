@@ -8,12 +8,13 @@ from typing import Final
 from lorecraft.agents import iter_agents
 from lorecraft.core.error import Error
 from lorecraft.core.num import UnsignedInt
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.corpus import RESERVED_CORPUS_NAME
 from lorecraft.vfs import Declaration, EntryKind, FileSystem, ScanRoot
 
 DOCS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs')
-SPECS_DIR: Final[RootRelativePath] = DOCS_DIR / RESERVED_CORPUS_NAME
+# The reserved corpus name is a fixed, valid component.
+SPECS_DIR: Final[RootRelativePath] = DOCS_DIR / PathComponent.parse(RESERVED_CORPUS_NAME)
 DOCUMENT_SUFFIX: Final[str] = '.md'
 STRUCTURE_FILE_SUFFIX: Final[str] = '.structure.json'
 

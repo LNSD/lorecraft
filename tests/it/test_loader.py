@@ -17,7 +17,7 @@ import pytest
 
 from lorecraft.agents import AgentName
 from lorecraft.core.mapping import FrozenMapping
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
@@ -127,7 +127,9 @@ def _skill_location(directory: str) -> SkillLocation:
     path = RootRelativePath.parse(directory)
     # No link on the way, so the directory and its `SKILL.md` are their own resolved paths.
     return SkillLocation(
-        SkillRef(path), resolves_to=ResolvedPath(path), file_resolves_to=ResolvedPath(path / 'SKILL.md')
+        SkillRef(path),
+        resolves_to=ResolvedPath(path),
+        file_resolves_to=ResolvedPath(path / PathComponent.parse('SKILL.md')),
     )
 
 
@@ -334,12 +336,12 @@ class TestLoadWorkspaceAmp:
         code = model.find_corpus(CODE)
         assert code is not None, 'the model lists the code corpus'
         crate = code.namespace_specs[0]
-        assert crate.files == (SPECS_DIR / 'code-crate.structure.json',), (
+        assert crate.files == (SPECS_DIR / PathComponent.parse('code-crate.structure.json'),), (
             'a namespace spec with JSON files and no prose still loads'
         )
         assert crate.structure is not None, 'the structure specification is decoded'
         assert crate.structure.frontmatter is not None, 'the frontmatter schema is decoded with it'
-        assert crate.structure.frontmatter.path == SPECS_DIR / 'code-crate.structure.json', (
+        assert crate.structure.frontmatter.path == SPECS_DIR / PathComponent.parse('code-crate.structure.json'), (
             'the frontmatter schema carries the path of the specification it is written in'
         )
 
@@ -516,7 +518,9 @@ class TestLoadWorkspaceEdgeCases:
         #: Then
         code = model.find_corpus(CODE)
         assert code is not None, 'the corpus still loads from its prose specification'
-        assert code.corpus_spec.files == (SPECS_DIR / 'code.md',), 'a file no file type claims is not part of the spec'
+        assert code.corpus_spec.files == (SPECS_DIR / PathComponent.parse('code.md'),), (
+            'a file no file type claims is not part of the spec'
+        )
 
     def test_load_workspace_with_a_dotted_stem_leaves_it_out_of_the_corpus_spec(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -530,7 +534,7 @@ class TestLoadWorkspaceEdgeCases:
         #: Then
         feat = model.find_corpus(FEAT)
         assert feat is not None, 'the corpus loads from its prose specification'
-        assert feat.corpus_spec.files == (SPECS_DIR / 'feat.md',), (
+        assert feat.corpus_spec.files == (SPECS_DIR / PathComponent.parse('feat.md'),), (
             'feat.feature is not a spec name, so its file is not a spec'
         )
 
@@ -585,7 +589,9 @@ class TestLoadWorkspaceEdgeCases:
         #: Then
         corpus = model.find_corpus(CODE)
         assert corpus is not None, 'the corpus still loads from its prose specification'
-        assert corpus.corpus_spec.files == (SPECS_DIR / 'code.md',), 'the header file is not one of the spec files'
+        assert corpus.corpus_spec.files == (SPECS_DIR / PathComponent.parse('code.md'),), (
+            'the header file is not one of the spec files'
+        )
         assert corpus.corpus_spec.structure is None, 'and it states no rules'
 
     def test_load_workspace_with_a_malformed_frontmatter_schema_records_the_structure_as_failed(
@@ -595,7 +601,7 @@ class TestLoadWorkspaceEdgeCases:
         _write_tree(tmp_path, prose=('code',), schemas=(), documents=())
         (tmp_path / 'docs' / 'code').mkdir()
         _write(tmp_path, 'docs/__meta__/code.structure.json', '{"frontmatter": {"type": "nonsense"}}')
-        path = SPECS_DIR / 'code.structure.json'
+        path = SPECS_DIR / PathComponent.parse('code.structure.json')
 
         #: When
         model = load_workspace(schemas, documents, skills)
@@ -624,7 +630,7 @@ class TestLoadWorkspaceEdgeCases:
         governance = model.find_governance(ref)
         assert governance is not None, 'the document is in a corpus the model holds'
         assert tuple(structure_spec.path for structure_spec in governance.structure_specs()) == (
-            SPECS_DIR / 'code.structure.json',
+            SPECS_DIR / PathComponent.parse('code.structure.json'),
         ), 'the corpus structure specification governs its document'
 
     def test_load_workspace_with_nested_namespaces_sorts_them_by_segment_count_then_value(
@@ -1055,7 +1061,7 @@ class TestLoadWorkspaceFailures:
             documents=('code/logging.md', 'feat/admin.md'),
         )
         lock(tmp_path / 'docs' / '__meta__' / 'code.structure.json')
-        path = SPECS_DIR / 'code.structure.json'
+        path = SPECS_DIR / PathComponent.parse('code.structure.json')
 
         #: When
         model = load_workspace(schemas, documents, skills)
@@ -1084,7 +1090,7 @@ class TestLoadWorkspaceFailures:
             documents=('code/logging.md', 'feat/admin.md'),
         )
         _write(tmp_path, 'docs/__meta__/code.structure.json', 'not json')
-        path = SPECS_DIR / 'code.structure.json'
+        path = SPECS_DIR / PathComponent.parse('code.structure.json')
 
         #: When
         model = load_workspace(schemas, documents, skills)
@@ -1113,7 +1119,7 @@ class TestLoadWorkspaceFailures:
             documents=('code/logging.md', 'feat/admin.md'),
         )
         _write(tmp_path, 'docs/__meta__/code.structure.json', content)
-        path = SPECS_DIR / 'code.structure.json'
+        path = SPECS_DIR / PathComponent.parse('code.structure.json')
         fs = DiskFileSystem(tmp_path)
 
         model = load_workspace(SchemaRepository(fs, SPECS_DIR), DocumentRepository(fs), SkillRepository(fs))
@@ -1259,7 +1265,7 @@ class TestLoadWorkspaceFailures:
         #: Given
         _write_tree(tmp_path, prose=('code',), schemas=('code.structure.json',), documents=('code/python-typing.md',))
         _write(tmp_path, 'docs/__meta__/code-python.structure.json', 'not json')
-        path = SPECS_DIR / 'code-python.structure.json'
+        path = SPECS_DIR / PathComponent.parse('code-python.structure.json')
 
         #: When
         model = load_workspace(schemas, documents, skills)
@@ -1291,8 +1297,8 @@ class TestLoadWorkspaceFailures:
 
         #: Then
         assert [failure.path for failure in model.load_failures] == [
-            SPECS_DIR / 'code-python.structure.json',
-            SPECS_DIR / 'code-python-errors.structure.json',
+            SPECS_DIR / PathComponent.parse('code-python.structure.json'),
+            SPECS_DIR / PathComponent.parse('code-python-errors.structure.json'),
         ], 'both are recorded, the broader first, which is the one a load that raised would have named'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')

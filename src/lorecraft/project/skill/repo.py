@@ -23,7 +23,7 @@ from collections import deque
 from dataclasses import dataclass
 from typing import assert_never
 
-from lorecraft.agents import SKILL_ENTRY_FILENAME
+from lorecraft.agents import SKILL_ENTRY, SKILL_ENTRY_FILENAME
 from lorecraft.core.error import Error
 from lorecraft.core.path import ROOT, RootRelativePath
 from lorecraft.vfs import (
@@ -443,7 +443,7 @@ class Repository:
                 return SkillsListing(skills=(location,), outside_symlinks=())
             case RootExit():
                 # Named under the entry, as the skill would have been, not under the directory it leads to.
-                outside = OutsideSymlink(directory / SKILL_ENTRY_FILENAME, skill_file)
+                outside = OutsideSymlink(directory / SKILL_ENTRY, skill_file)
                 return SkillsListing(skills=(), outside_symlinks=(outside,))
             case None:
                 return SkillsListing(skills=(), outside_symlinks=())
@@ -571,9 +571,9 @@ class Repository:
         except DIR_LIST_FAILURES as exc:
             raise SkillDirListError(directory, source=exc) from exc
 
-        skill_file = directory / SKILL_ENTRY_FILENAME
+        skill_file = directory / SKILL_ENTRY
         for entry in entries:
-            if str(entry.name) != SKILL_ENTRY_FILENAME:
+            if entry.name != SKILL_ENTRY:
                 continue
             match entry.kind:
                 case EntryKind.FILE:

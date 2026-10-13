@@ -19,7 +19,7 @@ here and no agent states its own.
 
 from typing import Final
 
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 
 from .scope import ProjectPath, UserPath
 
@@ -40,3 +40,6 @@ UNIVERSAL_USER_SKILLS_DIR: Final[UserPath] = UserPath(RootRelativePath.parse('.a
 SKILL_ENTRY_FILENAME: Final[str] = 'SKILL.md'
 """The canonical filename of a skill's entry document: the file directly inside a skill directory that makes it
 a skill, and the one an agent loads first. The same for every agent and in both scopes."""
+
+SKILL_ENTRY: Final[PathComponent] = PathComponent.parse(SKILL_ENTRY_FILENAME)
+"""`SKILL_ENTRY_FILENAME` as a path component, for joining the entry document onto a skill directory."""

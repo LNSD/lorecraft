@@ -9,7 +9,7 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.syntax import Heading, LineNumber, count_lines, parse_document
 
 from ..name import parse_spec_name
@@ -63,7 +63,9 @@ def _structure_spec(spec_name: str, text: str) -> StructureSpec:
         text: The structure specification's JSON.
     """
     name = parse_spec_name(spec_name)
-    file = StructureSpecFile(path=SPECS_DIR / spec_filename(name, SpecFileType.STRUCTURE), name=name)
+    file = StructureSpecFile(
+        path=SPECS_DIR / PathComponent.parse(spec_filename(name, SpecFileType.STRUCTURE)), name=name
+    )
     return StructureSpec.parse(file, StructureSchema(text))
 
 

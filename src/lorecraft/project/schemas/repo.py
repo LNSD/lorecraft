@@ -10,7 +10,7 @@ so every handler below re-raises without logging.
 """
 
 from lorecraft.core.error import Error
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.vfs import (
     FILE_READ_FAILURES,
     EntryKind,
@@ -82,7 +82,8 @@ class Repository:
         Raises:
             StructureSchemaReadError: If the file cannot be read, or its bytes are not UTF-8.
         """
-        path = self._specs_dir / spec_filename(name, SpecFileType.STRUCTURE)
+        # A specification name is a validated `<corpus>[-<namespace>]`, so its filename is a valid component.
+        path = self._specs_dir / PathComponent.parse(spec_filename(name, SpecFileType.STRUCTURE))
         try:
             return StructureSchema(self._fs.read_text(path))
         except (*FILE_READ_FAILURES, UnrecordedFileError, TextDecodeError) as exc:

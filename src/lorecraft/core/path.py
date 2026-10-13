@@ -134,17 +134,15 @@ class RootRelativePath:
         """The path with POSIX separators, such as `docs/code/a.md`, as findings and the workspace tree print it."""
         return str(self.value)
 
-    def __truediv__(self, name: str | PathComponent) -> 'RootRelativePath':
-        """This path joined with `name`, checked again: a `..` or an absolute `name` is rejected.
+    def __truediv__(self, other: 'PathComponent | RootRelativePath') -> 'RootRelativePath':
+        """This path joined with `other`, so the result stays under the root.
 
         Args:
-            name: Component, or `/`-separated components, to append below this path. A `PathComponent` names
-                a child of this path, so joining one is never rejected.
-
-        Raises:
-            RootRelativePathError: If the joined path is absolute or holds a `..` component.
+            other: A `PathComponent` names one child of this path. A `RootRelativePath` names a descendant
+                below it, and the root joins to this path itself. Neither can spell `..` or an absolute path.
         """
-        return RootRelativePath(self.value / str(name))
+        # `other.value` is a `str` for a component and a `PurePosixPath` for a path; both join the same way.
+        return RootRelativePath(self.value / other.value)
 
     @property
     def name(self) -> PathComponent | None:

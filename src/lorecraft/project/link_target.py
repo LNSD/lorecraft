@@ -124,7 +124,7 @@ def _joined_path(normalised: PurePosixPath, base: LinkBase) -> RootRelativePath 
             # Climbing above the skill root names nothing the skill carries once it is installed elsewhere.
             if _climbs_above(normalised):
                 return None
-            return base.directory / str(normalised)
+            return base.directory / RootRelativePath(normalised)
         case DocumentDirectory():
             # Joined before normalising again, so a `..` may climb out of the document's directory, as Markdown
             # renders it, but a path climbing above the repository root names nothing the snapshot can hold.

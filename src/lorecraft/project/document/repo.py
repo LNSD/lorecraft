@@ -152,7 +152,8 @@ class Repository:
         Raises:
             CorpusListError: If the directory cannot be listed.
         """
-        corpus_dir = DOCS_DIR / str(corpus)
+        # A corpus name is validated snake case, so it is a valid component.
+        corpus_dir = DOCS_DIR / PathComponent.parse(str(corpus))
         try:
             entries = self._fs.list_dir(corpus_dir)
         except DIR_LIST_FAILURES as exc:

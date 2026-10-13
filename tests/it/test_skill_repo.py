@@ -13,7 +13,7 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.skill import (
     OutsideSymlink,
     Repository,
@@ -123,7 +123,9 @@ def _location(directory: str) -> SkillLocation:
     path = RootRelativePath.parse(directory)
     # No link on the way, so the directory and its `SKILL.md` are their own resolved paths.
     return SkillLocation(
-        SkillRef(path), resolves_to=ResolvedPath(path), file_resolves_to=ResolvedPath(path / 'SKILL.md')
+        SkillRef(path),
+        resolves_to=ResolvedPath(path),
+        file_resolves_to=ResolvedPath(path / PathComponent.parse('SKILL.md')),
     )
 
 
@@ -456,7 +458,7 @@ class TestRepositoryListSkills:
         listing = repository.list_skills(UNIVERSAL_RESOLVED)
 
         #: Then
-        skill_file = UNIVERSAL_DIR / 'review' / 'SKILL.md'
+        skill_file = UNIVERSAL_DIR / PathComponent.parse('review') / PathComponent.parse('SKILL.md')
         assert listing == SkillsListing(
             skills=(), outside_symlinks=(OutsideSymlink(skill_file, RootExit(skill_file, PurePosixPath(outside))),)
         ), 'a SKILL.md whose text lives outside the root is no skill, and is recorded where it leaves'
@@ -488,7 +490,7 @@ class TestRepositoryListSkills:
         listing = repository.list_skills(UNIVERSAL_RESOLVED)
 
         #: Then
-        entry = UNIVERSAL_DIR / 'review'
+        entry = UNIVERSAL_DIR / PathComponent.parse('review')
         target = PurePosixPath(tmp_path / 'elsewhere' / 'review')
         assert listing == SkillsListing(
             skills=(), outside_symlinks=(OutsideSymlink(entry, RootExit(entry, target)),)

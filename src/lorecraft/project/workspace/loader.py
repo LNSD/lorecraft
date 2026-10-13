@@ -23,7 +23,7 @@ variants of one unit, keeps the facts they carry and drops the exception. Nothin
 from dataclasses import dataclass, field
 from typing import assert_never
 
-from lorecraft.agents import SKILL_ENTRY_FILENAME, iter_agents
+from lorecraft.agents import SKILL_ENTRY, iter_agents
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import (
@@ -530,7 +530,7 @@ def _list_skill_locations(
                 failures.append(LoadFailure(entry_path, condition))
                 continue
             except SkillFileResolveError as exc:
-                skill_file_path = entry_path / SKILL_ENTRY_FILENAME
+                skill_file_path = entry_path / SKILL_ENTRY
                 match exc.source:
                     case FileResolveError():
                         condition = UnresolvableSkillFile(exc.skill_file, exc.source.refusal)

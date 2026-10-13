@@ -10,7 +10,7 @@ from typing import Final
 import pytest
 
 from lorecraft.cli.subjects import select_workspace
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database
@@ -62,7 +62,7 @@ def _skill(ref: SkillRef) -> SkillLocation:
     return SkillLocation(
         ref,
         resolves_to=ResolvedPath(ref.directory),
-        file_resolves_to=ResolvedPath(ref.directory / 'SKILL.md'),
+        file_resolves_to=ResolvedPath(ref.directory / PathComponent.parse('SKILL.md')),
     )
 
 

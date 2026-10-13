@@ -41,7 +41,9 @@ def _targets(
         path: The link's normalised relative path, as the key of its entry.
         lookup: What the snapshot holds at the link's target.
     """
-    return FrozenMapping({PurePosixPath(path): LinkTarget(path=base.directory / path, lookup=lookup)})
+    return FrozenMapping(
+        {PurePosixPath(path): LinkTarget(path=base.directory / RootRelativePath.parse(path), lookup=lookup)}
+    )
 
 
 @pytest.mark.unit
