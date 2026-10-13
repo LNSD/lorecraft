@@ -1,26 +1,27 @@
 ---
 name: "FM005-duplicate-key"
-description: "A top-level frontmatter key is written more than once"
+description: "A frontmatter key is written more than once in one mapping"
 code: "FM005"
 since: "0.3.0"
 ---
 
 # duplicate-key (FM005)
 
-A top-level frontmatter key is written more than once.
+A frontmatter key is written more than once in one mapping.
 
 ## What it does
 
 Checks for documents whose structure specification sets a `frontmatter` schema, and for skills, whose
-frontmatter writes a top-level key again. Each later occurrence is reported on its own line, pointing back at
-the first, whether the values are equal or differ.
+frontmatter writes a key again in the same mapping, at any depth, block or flow. Each later occurrence is
+reported on its own line, pointing back at the first, whether the values are equal or differ. The same key
+under two different mappings is not a repeat.
 
 A document no `frontmatter` schema governs is not checked.
 
 ## Why is this bad?
 
-YAML keeps the value of the last occurrence without a word, so an agent reads whichever was written last, and
-one of the two lines says nothing the document means.
+YAML does not say which value of a repeated key wins, and the reader keeps the last without a word, so an
+agent reads whichever was written last, and one of the two lines says nothing the document means.
 
 ## Example
 

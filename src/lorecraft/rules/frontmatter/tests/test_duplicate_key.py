@@ -1,9 +1,11 @@
 """`FM005`, `duplicate-key`, over a document's or a skill's frontmatter.
 
 Every case is a document or a `SKILL.md` written as text, read through a fake context that parses its frontmatter as
-the real parser does, which keeps every top-level key once per occurrence with its line; no file is read from disk.
+the real parser does, which lists every key a mapping writes again, at any depth, with its line; no file is read from
+disk.
 """
 
+from textwrap import dedent
 from typing import Final
 
 import pytest
@@ -55,7 +57,7 @@ class TestDuplicateKey:
             DuplicateKey(spec=SPEC, line=last, key='name', first_line=first, kept_line=last),
         ), (
             'each later occurrence is reported on its own line, pointing back at the first, not at the one before, '
-            'and at the last, whose value YAML keeps'
+            'and at the last, whose value is the one read'
         )
 
     def test_check_with_a_nested_key_of_a_top_level_name_reports_nothing(self) -> None:
@@ -67,7 +69,33 @@ class TestDuplicateKey:
         occurrences = DuplicateKey.check(subject)
 
         #: Then
-        assert occurrences == (), 'a key nested in a value is not a top-level key, so it repeats none'
+        assert occurrences == (), 'a key nested in a value is written once in its own mapping, so it repeats none'
+
+    def test_check_with_a_key_repeated_in_a_nested_mapping_reports_the_later_line(self) -> None:
+        #: Given
+        text = dedent("""\
+            ---
+            name: setup
+            metadata:
+              author: a
+              author: b
+            ---
+            """)
+        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
+
+        #: When
+        occurrences = DuplicateKey.check(subject)
+
+        #: Then
+        assert occurrences == (
+            DuplicateKey(
+                spec=SPEC,
+                line=LineNumber.from_int(5),
+                key='author',
+                first_line=LineNumber.from_int(4),
+                kept_line=LineNumber.from_int(5),
+            ),
+        ), 'a nested key written again is reported on its own line, pointing back at its first'
 
     def test_check_with_a_skill_repeating_a_key_reports_it_under_no_specification_file(self) -> None:
         #: Given
@@ -157,6 +185,23 @@ class TestDuplicateKey:
             Label(Here(LineNumber.from_int(3)), 'first written here'),
         ), 'a label marks the repeated line, and another the line the key was first written on'
 
+    def test_labels_with_a_repeat_on_one_line_mark_it_once(self) -> None:
+        #: Given
+        text = dedent("""\
+            ---
+            name: setup
+            size: {w: 1, w: 2}
+            ---
+            """)
+        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
+        (occurrence,) = DuplicateKey.check(subject)
+
+        #: When
+        labels = occurrence.labels()
+
+        #: Then
+        assert labels == (Label(Here(LineNumber.from_int(3)), 'written again here'),), 'one line, so one label'
+
     def test_children_with_the_last_occurrence_do_not_point_at_the_value_kept(self) -> None:
         #: Given
         occurrence = _duplicate(key='description')
@@ -187,8 +232,8 @@ class TestDuplicateKey:
         assert children == (
             Note('the frontmatter schema is set here', at=Elsewhere(SPEC)),
             Help("write 'description' once, with the value meant"),
-            Note('the value written last is the one YAML keeps', at=Here(LineNumber.from_int(6))),
-        ), 'a note on the last line says YAML keeps that value, since this one is not it'
+            Note('the value written last is the one read', at=Here(LineNumber.from_int(6))),
+        ), 'a note on the last line says that value is the one read, since this one is not it'
 
     def test_children_with_a_skill_name_the_agent_skills_specification(self) -> None:
         #: Given

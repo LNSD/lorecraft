@@ -1,4 +1,4 @@
-"""`FM005`: a top-level frontmatter key is written more than once."""
+"""`FM005`: a frontmatter key is written more than once in one mapping."""
 
 from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
@@ -6,7 +6,6 @@ from typing import ClassVar, Self, assert_never
 from lorecraft.project.context import FrontmatterContext
 from lorecraft.project.syntax import (
     Frontmatter,
-    FrontmatterKey,
     InvalidYamlFrontmatter,
     LineNumber,
     MissingFrontmatter,
@@ -22,20 +21,21 @@ from .__ruleset__ import GROUP_ID, owner_spec, spec_note
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
 class DuplicateKey(FrontmatterRule):
-    """A top-level frontmatter key is written more than once.
+    """A frontmatter key is written more than once in one mapping.
 
     ## What it does
 
     Checks for documents whose structure specification sets a `frontmatter` schema, and for skills, whose
-    frontmatter writes a top-level key again. Each later occurrence is reported on its own line, pointing back at
-    the first, whether the values are equal or differ.
+    frontmatter writes a key again in the same mapping, at any depth, block or flow. Each later occurrence is
+    reported on its own line, pointing back at the first, whether the values are equal or differ. The same key
+    under two different mappings is not a repeat.
 
     A document no `frontmatter` schema governs is not checked.
 
     ## Why is this bad?
 
-    YAML keeps the value of the last occurrence without a word, so an agent reads whichever was written last, and
-    one of the two lines says nothing the document means.
+    YAML does not say which value of a repeated key wins, and the reader keeps the last without a word, so an
+    agent reads whichever was written last, and one of the two lines says nothing the document means.
 
     ## Example
 
@@ -79,8 +79,8 @@ class DuplicateKey(FrontmatterRule):
         spec: The structure specification whose frontmatter schema governs the document, or `None` for a skill,
             which the Agent Skills specification governs.
         key: The key written again, as decoded.
-        first_line: The line the key's first occurrence is written on.
-        kept_line: The line of the key's last occurrence, whose value YAML keeps.
+        first_line: The line the key's first occurrence in its mapping is written on.
+        kept_line: The line of the key's last occurrence in its mapping, whose value the reader keeps.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 5)
@@ -101,28 +101,31 @@ class DuplicateKey(FrontmatterRule):
         return f'duplicate key {self.key!r}'
 
     def labels(self) -> tuple[Label, ...]:
-        """Mark this occurrence, and point at the key's first."""
+        """Mark this occurrence, and point at the key's first, unless the two are on one line."""
+        # Two keys of one flow mapping share a span, so a second label would say nothing more.
+        if self.first_line == self.line:
+            return (Label(Here(self.line), 'written again here'),)
         return (
             Label(Here(self.line), 'written again here'),
             Label(Here(self.first_line), 'first written here'),
         )
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Name the specification, the key to write once, and the line whose value YAML keeps, unless it is this one."""
+        """Name the specification, the key to write once, and the line whose value is read, unless it is this one."""
         parts: list[Subdiagnostic] = [
             spec_note(self.spec),
             Help(f'write {self.key!r} once, with the value meant'),
         ]
         if self.kept_line != self.line:
-            parts.append(Note('the value written last is the one YAML keeps', at=Here(self.kept_line)))
+            parts.append(Note('the value written last is the one read', at=Here(self.kept_line)))
         return tuple(parts)
 
     @classmethod
     def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:
-        """One occurrence per top-level key written after its first, on its own line, in document order.
+        """One occurrence per key written after its first in a mapping, at any depth, in document order.
 
-        The third occurrence of a key points back at the first, not at the second. A key nested in a value is not a
-        top-level key, so it repeats none.
+        The third occurrence of a key points back at the first, not at the second. The same key in two mappings is
+        written once in each, so it repeats none.
 
         Args:
             subject: The document or the skill whose frontmatter is judged.
@@ -130,32 +133,22 @@ class DuplicateKey(FrontmatterRule):
         frontmatter = subject.frontmatter()
         match frontmatter:
             case Frontmatter():
-                pass  # the keys are walked below
+                pass  # the repeats are listed below
             case MissingFrontmatter() | InvalidYamlFrontmatter() | NonMappingFrontmatter():
                 return ()
             case _:
                 assert_never(frontmatter)
 
         spec = owner_spec(subject.frontmatter_owner())
-        first_lines: dict[str, LineNumber] = {}
-        last_lines: dict[str, LineNumber] = {}
-        repeats: list[FrontmatterKey] = []
-        for key in frontmatter.keys:
-            if key.name in first_lines:
-                repeats.append(key)
-            else:
-                first_lines[key.name] = key.line
-            last_lines[key.name] = key.line
-
         occurrences: list[Self] = []
-        for key in repeats:
+        for repeat in frontmatter.repeats:
             occurrences.append(
                 cls(
                     spec=spec,
-                    line=key.line,
-                    key=key.name,
-                    first_line=first_lines[key.name],
-                    kept_line=last_lines[key.name],
+                    line=repeat.line,
+                    key=repeat.name,
+                    first_line=repeat.first_line,
+                    kept_line=repeat.kept_line,
                 )
             )
         return tuple(occurrences)
