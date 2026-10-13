@@ -106,7 +106,8 @@ Scenario: A duplicate in a nested mapping
 
 - **FR-001:** THE SYSTEM SHALL accept a frontmatter block whose top level is a mapping written one key per line,
   whose keys are plain or quoted text, and whose values may themselves be such mappings.
-- **FR-002:** THE SYSTEM SHALL accept lists written one item per line.
+- **FR-002:** THE SYSTEM SHALL accept lists written one item per line, whose items are values, inline lists or
+  mappings, or mappings written one key per line.
 - **FR-003:** THE SYSTEM SHALL accept a list or a mapping written inline on one line, such as `[a, b]` or
   `{a: 1}`, when it holds no other list or mapping.
 - **FR-004:** THE SYSTEM SHALL accept values written plain, in single or double quotes, or as literal (`|`) or
@@ -124,21 +125,23 @@ Scenario: A duplicate in a nested mapping
   invalid-frontmatter diagnostic on that line.
 - **FR-010:** IF a frontmatter block holds an explicit key entry (`? key`), an empty key or a key that is not text,
   THEN THE SYSTEM SHALL report an invalid-frontmatter diagnostic on that line.
-- **FR-011:** IF a frontmatter block holds an inline list or mapping that spans lines or holds another list or
-  mapping, THEN THE SYSTEM SHALL report an invalid-frontmatter diagnostic on the line it starts.
+- **FR-011:** IF a frontmatter block holds an inline list or mapping that spans lines, holds another list or
+  mapping, or is the block's top level, THEN THE SYSTEM SHALL report an invalid-frontmatter diagnostic on the line
+  it starts.
 - **FR-012:** IF a frontmatter block holds a block value with an indentation indicator (`|2`), THEN THE SYSTEM SHALL
   report an invalid-frontmatter diagnostic on that line.
-- **FR-013:** THE SYSTEM SHALL word each diagnostic of FR-007 to FR-012 as `found <what>, which frontmatter does not
-  allow`, naming the construct.
-- **FR-014:** IF a mapping at any depth writes a key twice, THEN THE SYSTEM SHALL report a diagnostic on the later
-  key's line, pointing back at the first [NEEDS CLARIFICATION: under the duplicate-key code `FM005` at every depth,
-  as proposed, or a nested duplicate under the invalid-frontmatter code `FM002`?].
+- **FR-013:** THE SYSTEM SHALL word each diagnostic of FR-007 to FR-012 and FR-016 as `found <what>, which
+  frontmatter does not allow`, naming the construct.
+- **FR-014:** IF a mapping at any depth writes a key twice, THEN THE SYSTEM SHALL report a duplicate-key diagnostic
+  on the later key's line, pointing back at the first, and still check the block's other fields.
 - **FR-015:** IF a frontmatter block cannot be read inside the format, THEN THE SYSTEM SHALL report an
-  invalid-frontmatter diagnostic on the line it reports today [NEEDS CLARIFICATION: may the message's wording change
-  while the line stays, as proposed?].
+  invalid-frontmatter diagnostic on the line the writer fixes, in its own words naming what is wrong and how to fix
+  it, never in the parser's.
+- **FR-016:** IF a list written one item per line holds, as an item, another list written one item per line, THEN
+  THE SYSTEM SHALL report an invalid-frontmatter diagnostic on that item's line.
 - **NFR-001:** THE SYSTEM SHALL read every block inside the format to the value it reads to today.
-- **NFR-002:** THE SYSTEM SHALL carry, for every construct FR-007 to FR-012 refuse, a block that triggers its
-  diagnostic and an accepted block that differs from it by the least.
+- **NFR-002:** THE SYSTEM SHALL carry, for every construct FR-007 to FR-012 and FR-016 refuse, a block that
+  triggers its diagnostic and an accepted block that differs from it by the least.
 
 ## Edge Cases
 
@@ -147,23 +150,27 @@ Scenario: A duplicate in a nested mapping
   line (FR-007): metadata never needs a second document inside its block.
 - **A key is a quoted number, such as `"2026"`.** It is text, so it is accepted (FR-001); `2026` unquoted is a key
   that is not text and is refused (FR-010).
-- **The top level is an inline mapping on one line.** [NEEDS CLARIFICATION: refused as invalid frontmatter, since
-  FR-001 asks for one key per line, or accepted as a mapping?]
+- **The top level is an inline mapping on one line**, such as `{name: a}`. It is refused (FR-011): the top level
+  is always written one key per line.
+- **A list holds a list.** Written one item per line inside another, it is refused (FR-016); as an inline list on
+  one item's line, such as `- [a, b]`, it is accepted (FR-002).
+- **A block cannot be read because a quote is never closed.** It is reported on the line the quote opens on, where
+  the writer fixes it, not where the block ends (FR-015).
 
 ## Key Entities
 
 - **Plain frontmatter:** The format of FR-001 to FR-006: what a frontmatter block may hold.
-- **Refused construct:** A construct outside the format, reported on its line by name (FR-007 to FR-013).
+- **Refused construct:** A construct outside the format, reported on its line by name (FR-007 to FR-013, FR-016).
 - **Invalid-frontmatter diagnostic:** The `FM002 invalid-yaml` diagnostic, reported for a block that is outside the
   format or cannot be read.
-- **Duplicate-key diagnostic:** The `FM005 duplicate-key` diagnostic, reported today for a top-level key written
-  twice.
+- **Duplicate-key diagnostic:** The `FM005 duplicate-key` diagnostic, reported for a key written twice at any
+  depth (FR-014).
 
 ## Success Criteria
 
 - **SC-001:** Every frontmatter block in lorecraft's own repository reads to the same value as before.
-- **SC-002:** Every refused construct of FR-007 to FR-012 has a test that reports it on its line, named by the
-  construct.
+- **SC-002:** Every refused construct of FR-007 to FR-012 and FR-016 has a test that reports it on its line,
+  named by the construct.
 - **SC-003:** A key written twice is reported at the top level and in a nested mapping.
 - **SC-004:** The format is stated in one place, and the parser's record refers to it rather than defining it.
 
@@ -172,12 +179,6 @@ Scenario: A duplicate in a nested mapping
 - The format is a subset of the syntax frontmatter is already written in, not a new syntax, so a block that
   lorecraft accepts is one other tools that read frontmatter can read too.
 - No document in lorecraft's own repository uses a construct this PRD refuses.
-
-## Open Questions
-
-- **FR-014:** Is a nested duplicate key `FM005 duplicate-key`, as at the top level, or `FM002`?
-- **FR-015:** May the wording of a syntax error's message change, as long as its line stays?
-- **Edge Cases:** Is a top-level inline mapping on one line refused or accepted?
 
 ## References
 
