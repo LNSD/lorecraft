@@ -52,9 +52,14 @@ class EmptyTitle:
     """Marks an empty heading as the document's title: it is never omitted, so it is asked for content."""
 
 
+@dataclass(frozen=True, slots=True)
+class OtherSection:
+    """Marks an empty heading as neither the title nor a section the outline requires: it may be omitted."""
+
+
 def _role_of(
     alignments: tuple[OutlineAlignmentSpec, ...], heading: Heading, title: Heading | None
-) -> EmptyTitle | SectionEntry | None:
+) -> EmptyTitle | SectionEntry | OtherSection:
     """What an empty heading is: the title, a section the outline requires, or any other section.
 
     Args:
@@ -63,9 +68,13 @@ def _role_of(
         heading: The heading of the empty section.
         title: The document's title, or `None` when it has none.
     """
-    if heading is title:
+    # Compared by line, as two headings never start on the same one.
+    if title is not None and heading.line == title.line:
         return EmptyTitle()
-    return _find_required_entry(alignments, heading)
+    required = _find_required_entry(alignments, heading)
+    if required is None:
+        return OtherSection()
+    return required
 
 
 @rule
@@ -131,7 +140,7 @@ class EmptySection(DocumentRule):
         section: The text of the heading whose section is empty.
         role: What the empty heading is: `EmptyTitle` for the document's title, its first H1, as a later H1 is not;
             the outline entry that requires it, for an H2 that an outline of a specification governing the document
-            names without `"optional": true`; or `None` for any other section.
+            names without `"optional": true`; or `OtherSection` for any other section.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 4)
@@ -142,7 +151,7 @@ class EmptySection(DocumentRule):
 
     spec: RootRelativePath
     section: str
-    role: EmptyTitle | SectionEntry | None
+    role: EmptyTitle | SectionEntry | OtherSection
 
     def message(self) -> str:
         """Name the empty section."""
@@ -166,7 +175,7 @@ class EmptySection(DocumentRule):
                     parts.append(Help(f'write what the section holds: {role.description}'))
                 if role.examples:
                     parts.append(example_note(role.name, role.examples[0]))
-            case None:
+            case OtherSection():
                 parts.append(Help('omit the section rather than leave it empty'))
             case _:
                 assert_never(role)

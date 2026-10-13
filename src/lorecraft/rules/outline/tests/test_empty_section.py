@@ -14,7 +14,7 @@ from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Note, Subdiagnostic
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
 
-from ..empty_section import EmptySection, EmptyTitle
+from ..empty_section import EmptySection, EmptyTitle, OtherSection
 
 CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
 """The corpus structure specification."""
@@ -43,7 +43,7 @@ class TestEmptySection:
 
         #: Then
         assert occurrences == (
-            EmptySection(spec=CORPUS_SPEC, line=LineNumber.from_int(3), section='Install', role=None),
+            EmptySection(spec=CORPUS_SPEC, line=LineNumber.from_int(3), section='Install', role=OtherSection()),
         ), 'an empty section is one occurrence, at its heading, naming the specification that forbids it'
 
     def test_check_with_empty_sections_allowed_reports_nothing(self) -> None:
@@ -89,8 +89,8 @@ class TestEmptySection:
 
         #: Then
         assert occurrences == (
-            EmptySection(spec=CORPUS_SPEC, line=LineNumber.from_int(3), section='Install', role=None),
-            EmptySection(spec=CORPUS_SPEC, line=LineNumber.from_int(9), section='Linux', role=None),
+            EmptySection(spec=CORPUS_SPEC, line=LineNumber.from_int(3), section='Install', role=OtherSection()),
+            EmptySection(spec=CORPUS_SPEC, line=LineNumber.from_int(9), section='Linux', role=OtherSection()),
         ), 'every empty heading is reported, whatever its level, in document order'
 
     def test_check_with_two_specifications_forbidding_empty_sections_reports_each_in_order(self) -> None:
@@ -107,8 +107,8 @@ class TestEmptySection:
 
         #: Then
         assert occurrences == (
-            EmptySection(spec=CORPUS_SPEC, line=LineNumber.from_int(3), section='Install', role=None),
-            EmptySection(spec=NAMESPACE_SPEC, line=LineNumber.from_int(3), section='Install', role=None),
+            EmptySection(spec=CORPUS_SPEC, line=LineNumber.from_int(3), section='Install', role=OtherSection()),
+            EmptySection(spec=NAMESPACE_SPEC, line=LineNumber.from_int(3), section='Install', role=OtherSection()),
         ), 'each specification applies on its own, so the section is reported once for each, in order'
 
     def test_check_with_one_of_two_specifications_forbidding_empty_sections_reports_under_it_alone(self) -> None:
@@ -125,12 +125,12 @@ class TestEmptySection:
 
         #: Then
         assert occurrences == (
-            EmptySection(spec=NAMESPACE_SPEC, line=LineNumber.from_int(3), section='Install', role=None),
+            EmptySection(spec=NAMESPACE_SPEC, line=LineNumber.from_int(3), section='Install', role=OtherSection()),
         ), 'a section is reported only under the specification that forbids empty sections'
 
     def test_message_with_an_occurrence_names_the_section(self) -> None:
         #: Given
-        occurrence = EmptySection(spec=CORPUS_SPEC, line=LineNumber.from_int(3), section='Install', role=None)
+        occurrence = EmptySection(spec=CORPUS_SPEC, line=LineNumber.from_int(3), section='Install', role=OtherSection())
 
         #: When
         message = occurrence.message()
@@ -164,7 +164,7 @@ class TestEmptySection:
 
         #: Then
         assert occurrences == (
-            EmptySection(spec=CORPUS_SPEC, line=LineNumber.from_int(3), section='Install', role=None),
+            EmptySection(spec=CORPUS_SPEC, line=LineNumber.from_int(3), section='Install', role=OtherSection()),
         ), 'an optional entry requires nothing, so its section may be omitted like any other'
 
     def test_check_with_an_empty_subsection_named_like_a_required_section_carries_no_entry(self) -> None:
@@ -177,7 +177,7 @@ class TestEmptySection:
 
         #: Then
         assert occurrences == (
-            EmptySection(spec=CORPUS_SPEC, line=LineNumber.from_int(5), section='Install', role=None),
+            EmptySection(spec=CORPUS_SPEC, line=LineNumber.from_int(5), section='Install', role=OtherSection()),
         ), 'only an H2 is a section the outline requires, so an H3 of the same text is no required section'
 
     def test_check_with_an_extra_empty_title_does_not_mark_it_as_the_title(self) -> None:
@@ -189,7 +189,7 @@ class TestEmptySection:
 
         #: Then
         assert occurrences == (
-            EmptySection(spec=CORPUS_SPEC, line=LineNumber.from_int(5), section='Second', role=None),
+            EmptySection(spec=CORPUS_SPEC, line=LineNumber.from_int(5), section='Second', role=OtherSection()),
         ), 'only the first H1 is the title'
 
     def test_check_with_a_section_required_by_another_specification_carries_its_entry(self) -> None:
@@ -211,13 +211,13 @@ class TestEmptySection:
             EmptySection(spec=CORPUS_SPEC, line=LineNumber.from_int(3), section='Install', role=entry),
         ), 'the entry is looked up across every specification, not only the one that forbids empty sections'
 
-    def _children(self, role: EmptyTitle | SectionEntry | None) -> tuple[Subdiagnostic, ...]:
+    def _children(self, role: EmptyTitle | SectionEntry | OtherSection) -> tuple[Subdiagnostic, ...]:
         occurrence = EmptySection(spec=CORPUS_SPEC, line=LineNumber.from_int(3), section='Install', role=role)
         return occurrence.children()
 
     def test_children_with_a_section_the_outline_does_not_require_say_to_omit_it(self) -> None:
         #: Given
-        role = None
+        role = OtherSection()
 
         #: When
         children = self._children(role)
