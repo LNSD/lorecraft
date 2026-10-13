@@ -18,7 +18,9 @@ from lorecraft.rules.subject import FrontmatterRule
 
 from .__ruleset__ import GROUP_ID, example_note, schema_note, schema_spec
 
-_SCALARS_YAML_READS_UNQUOTED: Final[tuple[JsonType, ...]] = (JsonType.INTEGER, JsonType.NUMBER, JsonType.BOOLEAN)
+_SCALARS_YAML_READS_UNQUOTED: Final[frozenset[JsonType]] = frozenset(
+    {JsonType.INTEGER, JsonType.NUMBER, JsonType.BOOLEAN}
+)
 """The types YAML reads an unquoted `1`, `1.0` or `yes` as, where a string was meant."""
 
 

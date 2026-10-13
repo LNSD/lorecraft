@@ -65,6 +65,8 @@ CHECK_NAMES: Final[tuple[str, ...]] = ('frontmatter', 'structure', 'budget')
 a `Mapping` backed by `types.MappingProxyType`, never a `list`, `set`, or `dict`, and the annotation names the
 read-only type so the checker rejects a mutation at the call site as well.
 
+The choice of `frozenset` for a constant collection is owned by [python-frozenset](python-frozenset.md).
+
 A `Final` list is a shared mutable global with a reassuring annotation: one caller appends, and every other
 caller sees the change for the rest of the process.
 
@@ -95,6 +97,8 @@ Before committing code, verify:
 
 ## References
 
+- [python-frozenset](python-frozenset.md) - Related: Owns when a set, or a collection only tested with `in`, is a
+  `frozenset`
 - [python-typing](python-typing.md) - Related: The spelling of the type written inside `Final[...]`
 - [python-naming](python-naming.md) - Related: `SCREAMING_SNAKE` casing, and class-level `ClassVar` constants
 - [python-docstrings](python-docstrings.md) - Related: The comment that states why a constant has its value
