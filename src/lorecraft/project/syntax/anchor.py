@@ -8,13 +8,18 @@ is a different thing, raw text the author typed, and the only way to compare one
 
 import unicodedata
 from dataclasses import dataclass
-from typing import Final, Self
+from typing import Final, NewType, Self
 from urllib.parse import unquote
+
+from lorecraft.core.num import NonZeroUnsignedInt
 
 _ANCHOR_CATEGORIES: Final[frozenset[str]] = frozenset(
     {'Lu', 'Ll', 'Lt', 'Lm', 'Lo', 'Mn', 'Mc', 'Me', 'Nd', 'Nl', 'Pc'}
 )
 """The Unicode categories an anchor keeps: letters, marks, decimal and letter numbers, connectors."""
+
+AnchorNumber = NewType('AnchorNumber', NonZeroUnsignedInt)
+"""Which repeat of a heading's bare anchor a numbered anchor is: 1 for the first heading after the bare one."""
 
 
 class InvalidAnchorError(ValueError):
@@ -84,11 +89,12 @@ class Anchor:
                 kept.append(character)
         return cls(''.join(kept))
 
-    def numbered(self, n: int) -> Self:
+    def numbered(self, n: AnchorNumber) -> Self:
         """The anchor a repeat of this one's heading takes: ``foo`` numbered 1 is ``foo-1``.
 
         Args:
-            n: Which repeat, 1 for the first heading after the one holding the bare anchor.
+            n: Which repeat, 1 for the first heading after the one holding the bare anchor; never 0, since the bare
+                anchor is the heading's own.
         """
         return type(self)(f'{self.value}-{n}')
 

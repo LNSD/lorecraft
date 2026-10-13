@@ -23,12 +23,27 @@ or both, and each block is decoded once.
 from dataclasses import dataclass
 from typing import assert_never
 
-from .anchor import Anchor
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
+
+from .anchor import Anchor, AnchorNumber
 from .frontmatter import FrontmatterNode
 from .heading import Heading, HeadingLevel
 from .link import Link
 from .markdown import ContentBlock, HeadingBlock, parse_markdown, parse_markdown_frontmatter
-from .words import count_words
+from .words import WordCount, count_words
+
+
+@dataclass(frozen=True, slots=True)
+class CountedBlock:
+    """One of the root's own blocks, with the prose words it holds, so the two cannot drift apart.
+
+    Attributes:
+        block: The block, a heading or content.
+        words: The prose words the block holds; 0 for a heading and a code block.
+    """
+
+    block: HeadingBlock | ContentBlock
+    words: WordCount
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,9 +71,9 @@ def parse_document(text: str) -> ParsedDocument:
         text: The document's whole text, frontmatter block included; empty parses to a document with no heading.
     """
     tree = parse_markdown(text)
-    block_words = [_prose_words(block) for block in tree.blocks]
+    counted = tuple(CountedBlock(block, _prose_words(block)) for block in tree.blocks)
     return ParsedDocument(
-        headings=_headings(tree.blocks, block_words),
+        headings=_headings(counted),
         anchors=_anchors(tree.heading_texts),
         links=tree.links,
     )
@@ -76,31 +91,31 @@ def parse_frontmatter(text: str) -> FrontmatterNode:
     return parse_markdown_frontmatter(text)
 
 
-def _headings(blocks: tuple[HeadingBlock | ContentBlock, ...], block_words: list[int]) -> tuple[Heading, ...]:
+def _headings(blocks: tuple[CountedBlock, ...]) -> tuple[Heading, ...]:
     """The headings among the root's own blocks, each with its line, its section's words and whether it is empty.
 
     Only the root's own blocks are read, never the whole tree: a heading inside a blockquote or a list item is part
     of that block, so it is left out without being looked for.
 
     Args:
-        blocks: The root's own blocks, in document order.
-        block_words: The prose words of each block, at the same index as the block.
+        blocks: The root's own blocks with their prose words, in document order.
     """
     headings: list[Heading] = []
-    for index, block in enumerate(blocks):
+    for index, counted in enumerate(blocks):
+        block = counted.block
         match block:
             case HeadingBlock():
                 following = blocks[index + 1] if index + 1 < len(blocks) else None
                 # A section is empty when the next block closes it: the end of the document, or a heading of the
                 # same or a higher level. A deeper heading opens a subsection, whose content is this section's own.
-                empty = following is None or _closes_section(following, block.level)
+                empty = following is None or _closes_section(following.block, block.level)
                 headings.append(
                     Heading(
                         level=block.level,
                         text=block.text,
                         line=block.line,
                         empty=empty,
-                        words=_section_words(blocks, block_words, index, block.level),
+                        words=_section_words(blocks, index, block.level),
                     )
                 )
             case ContentBlock():
@@ -130,31 +145,30 @@ def _anchors(heading_texts: tuple[str, ...]) -> frozenset[Anchor]:
         anchor = bare
         while anchor in occurrences:
             occurrences[bare] += 1
-            anchor = bare.numbered(occurrences[bare])
+            # The counter was just incremented, so it is at least 1 and cannot raise `NonPositiveIntError` here.
+            anchor = bare.numbered(AnchorNumber(NonZeroUnsignedInt(occurrences[bare])))
         occurrences[anchor] = 0
     return frozenset(occurrences)
 
 
-def _section_words(
-    blocks: tuple[HeadingBlock | ContentBlock, ...], block_words: list[int], heading_index: int, level: HeadingLevel
-) -> int:
+def _section_words(blocks: tuple[CountedBlock, ...], heading_index: int, level: HeadingLevel) -> WordCount:
     """The prose words in the section a heading opens, its subsections' included.
 
     The section runs to the next heading of the same or a higher level, or to the end of the document. A deeper
     heading does not close it, and holds no prose words of its own, so adding every block's words is enough.
 
     Args:
-        blocks: The root's own blocks, in document order.
-        block_words: The prose words of each block, at the same index as the block.
+        blocks: The root's own blocks with their prose words, in document order.
         heading_index: Where the heading opening the section sits in `blocks`.
         level: That heading's depth.
     """
     words = 0
     for index in range(heading_index + 1, len(blocks)):
-        if _closes_section(blocks[index], level):
+        if _closes_section(blocks[index].block, level):
             break
-        words += block_words[index]
-    return words
+        words += blocks[index].words.value
+    # A count is never negative, so building the `UnsignedInt` cannot raise `NegativeIntError` here.
+    return WordCount(UnsignedInt(words))
 
 
 def _closes_section(block: HeadingBlock | ContentBlock, level: HeadingLevel) -> bool:
@@ -176,7 +190,7 @@ def _closes_section(block: HeadingBlock | ContentBlock, level: HeadingLevel) -> 
             assert_never(block)
 
 
-def _prose_words(block: HeadingBlock | ContentBlock) -> int:
+def _prose_words(block: HeadingBlock | ContentBlock) -> WordCount:
     """The prose words one of the root's blocks holds: whitespace-delimited tokens of its source text.
 
     A heading and a code block, fenced or indented, hold none, and neither does a code block nested in the block,
@@ -188,12 +202,13 @@ def _prose_words(block: HeadingBlock | ContentBlock) -> int:
     """
     match block:
         case HeadingBlock():
-            return 0
+            return WordCount(UnsignedInt(0))
         case ContentBlock():
             words = 0
             for source in block.source_outside_code:
                 words += _source_words(source)
-            return words
+            # A count is never negative, so building the `UnsignedInt` cannot raise `NegativeIntError` here.
+            return WordCount(UnsignedInt(words))
         case _:
             assert_never(block)
 

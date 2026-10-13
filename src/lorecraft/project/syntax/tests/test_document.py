@@ -12,6 +12,7 @@ from textwrap import dedent
 import pytest
 
 from lorecraft.core.mapping import FrozenMapping
+from lorecraft.core.num import UnsignedInt
 
 from ..anchor import Anchor
 from ..document import parse_document, parse_frontmatter
@@ -19,6 +20,7 @@ from ..frontmatter import Frontmatter, FrontmatterKey, InvalidYamlFrontmatter, M
 from ..heading import Heading
 from ..link import Link
 from ..position import LineNumber
+from ..words import WordCount
 
 
 @pytest.mark.unit
@@ -40,7 +42,7 @@ class TestParseDocument:
 
         #: Then
         assert document.headings == (
-            Heading(level=1, text='Guide', line=LineNumber.from_int(5), empty=True, words=0),
+            Heading(level=1, text='Guide', line=LineNumber.from_int(5), empty=True, words=WordCount(UnsignedInt(0))),
         ), 'the block is skipped whether its YAML decodes or not, so a `#` line in it is no heading'
 
 
@@ -147,8 +149,10 @@ class TestParseDocumentHeadings:
 
         #: Then
         assert document.headings == (
-            Heading(level=1, text='Guide', line=LineNumber.from_int(4), empty=False, words=5),
-            Heading(level=2, text='Checklist', line=LineNumber.from_int(8), empty=False, words=4),
+            Heading(level=1, text='Guide', line=LineNumber.from_int(4), empty=False, words=WordCount(UnsignedInt(5))),
+            Heading(
+                level=2, text='Checklist', line=LineNumber.from_int(8), empty=False, words=WordCount(UnsignedInt(4))
+            ),
         ), 'each heading carries its level, its text, the document line it starts on and its prose words'
 
     def test_parse_document_with_inline_markup_in_a_heading_returns_its_plain_text(self) -> None:
@@ -266,7 +270,7 @@ class TestParseDocumentWords:
         document = parse_document(text)
 
         #: Then
-        assert [heading.words for heading in document.headings] == [5, 3, 1], (
+        assert [heading.words.value for heading in document.headings] == [5, 3, 1], (
             'a section runs to the next heading of its level, so its subsections count, but no heading text does'
         )
 
@@ -278,7 +282,9 @@ class TestParseDocumentWords:
         document = parse_document(text)
 
         #: Then
-        assert [heading.words for heading in document.headings] == [0, 2], 'a section holding nothing has no words'
+        assert [heading.words.value for heading in document.headings] == [0, 2], (
+            'a section holding nothing has no words'
+        )
 
     def test_parse_document_with_a_fenced_code_block_leaves_its_lines_out(self) -> None:
         #: Given
@@ -288,7 +294,7 @@ class TestParseDocumentWords:
         document = parse_document(text)
 
         #: Then
-        assert document.headings[0].words == 2, 'a fenced code block is not prose'
+        assert document.headings[0].words == UnsignedInt(2), 'a fenced code block is not prose'
 
     def test_parse_document_with_an_indented_code_block_leaves_its_lines_out(self) -> None:
         #: Given
@@ -298,7 +304,7 @@ class TestParseDocumentWords:
         document = parse_document(text)
 
         #: Then
-        assert document.headings[0].words == 2, 'an indented code block is not prose'
+        assert document.headings[0].words == UnsignedInt(2), 'an indented code block is not prose'
 
     def test_parse_document_with_a_code_block_in_a_list_item_leaves_its_lines_out(self) -> None:
         #: Given
@@ -308,7 +314,7 @@ class TestParseDocumentWords:
         document = parse_document(text)
 
         #: Then
-        assert document.headings[0].words == 5, (
+        assert document.headings[0].words == UnsignedInt(5), (
             'a code block nested in a list item is not prose, and the item text around it is'
         )
 
@@ -320,7 +326,7 @@ class TestParseDocumentWords:
         document = parse_document(text)
 
         #: Then
-        assert document.headings[0].words == 2, 'a table row is a reference, not prose'
+        assert document.headings[0].words == UnsignedInt(2), 'a table row is a reference, not prose'
 
     def test_parse_document_with_prose_after_a_table_row_in_one_paragraph_counts_the_prose(self) -> None:
         #: Given
@@ -331,7 +337,9 @@ class TestParseDocumentWords:
         document = parse_document(text)
 
         #: Then
-        assert document.headings[0].words == 3, 'only the table row is left out; the prose after it still counts'
+        assert document.headings[0].words == UnsignedInt(3), (
+            'only the table row is left out; the prose after it still counts'
+        )
 
     def test_parse_document_with_two_code_blocks_in_a_list_item_counts_the_prose_before_each(self) -> None:
         #: Given
@@ -346,7 +354,9 @@ class TestParseDocumentWords:
         document = parse_document(text)
 
         #: Then
-        assert document.headings[0].words == 6, 'the prose before every code block in the item counts, not the last'
+        assert document.headings[0].words == UnsignedInt(6), (
+            'the prose before every code block in the item counts, not the last'
+        )
 
     def test_parse_document_with_text_before_the_first_heading_leaves_it_out_of_the_section(self) -> None:
         #: Given
@@ -356,7 +366,7 @@ class TestParseDocumentWords:
         document = parse_document(text)
 
         #: Then
-        assert document.headings[0].words == 1, 'text before the first heading belongs to no section'
+        assert document.headings[0].words == UnsignedInt(1), 'text before the first heading belongs to no section'
 
     def test_parse_document_with_frontmatter_leaves_it_out_of_the_title_section(self) -> None:
         #: Given
@@ -366,7 +376,9 @@ class TestParseDocumentWords:
         document = parse_document(text)
 
         #: Then
-        assert document.headings[0].words == 2, 'the frontmatter and the heading text are not section prose'
+        assert document.headings[0].words == UnsignedInt(2), (
+            'the frontmatter and the heading text are not section prose'
+        )
 
 
 @pytest.mark.unit

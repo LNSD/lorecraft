@@ -486,7 +486,7 @@ class TestDatabase:
 
         #: Then
         assert document.headings == (
-            Heading(level=1, text='Guide', line=LineNumber.from_int(4), empty=True, words=0),
+            Heading(level=1, text='Guide', line=LineNumber.from_int(4), empty=True, words=UnsignedInt(0)),
         ), 'the parse tree holds the snapshot content'
 
     def test_parse_called_twice_returns_the_first_answer(self) -> None:

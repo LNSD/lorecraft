@@ -9,7 +9,7 @@ Beside it, `count_tokens`: what a document's raw text costs an agent, counted wi
 stretch of text, the one word rule the tree's section word counts are made of.
 """
 
-from .anchor import Anchor, InvalidAnchorError
+from .anchor import Anchor, AnchorNumber, InvalidAnchorError
 from .document import ParsedDocument, parse_document, parse_frontmatter
 from .frontmatter import (
     Frontmatter,
@@ -59,6 +59,7 @@ __all__: list[str] = [
     'RelativeDestination',
     'NormalisedLinkPath',
     'Anchor',
+    'AnchorNumber',
     'InvalidAnchorError',
     'LineNumber',
     'TokenCount',
