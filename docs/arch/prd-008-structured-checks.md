@@ -242,4 +242,5 @@ Scenario: A sample rule
 - [adr-010](adr-010-diagnostics.md) - Leads to: What a rule reports, and how it reaches the user
 - [adr-011](adr-011-rules-engine.md) - Leads to: How a run judges subjects
 - [prd-014-resilient-model-loading](prd-014-resilient-model-loading.md) - Related: Load failures reported under codes and coverage
+- [prd-018-frontmatter-format](prd-018-frontmatter-format.md) - Related: The frontmatter format the `FM` codes judge
 - [adr-006-specifications](adr-006-specifications.md) - Related: The record adr-016 supersedes
