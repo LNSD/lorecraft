@@ -2,10 +2,13 @@
 name: "adr-004-database"
 description: "The database of a revision: one report reads one revision, a revision is never updated in place, the view and the cache, and the kinds of query. Load when adding a query, reading the workspace from a check or a command, running work in parallel, or handling a new revision while work is running"
 type: "adr"
-status: "accepted"
+status: "superseded"
 ---
 
 # The Database
+
+> [!NOTE]
+> Superseded by [adr-015-database](adr-015-database.md). It binds no code.
 
 ## Context
 
@@ -104,4 +107,4 @@ Before committing code, verify:
 - [adr-011-rules-engine](adr-011-rules-engine.md) - Related: The rule contexts that read a document's governance
 - [adr-012-database-derivation](adr-012-database-derivation.md) - Related: The package the database lives in
 - [pattern-memoization](../code/pattern-memoization.md) - Foundation: How a query is memoized
-- [adr-015-database](adr-015-database.md) - Related: Proposed replacement that opens the database with its model
+- [adr-015-database](adr-015-database.md) - Superseded by: The database opened with its model

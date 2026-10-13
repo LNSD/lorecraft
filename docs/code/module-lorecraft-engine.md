@@ -127,9 +127,9 @@ Before committing code, verify:
 - [adr-001-snapshot-model](../arch/adr-001-snapshot-model.md) - Foundation: The package roles
 - [adr-012-database-derivation](../arch/adr-012-database-derivation.md) - Foundation: The Analysis role, the database
   apart
-- [adr-004-database](../arch/adr-004-database.md) - Foundation: One report reads one revision
-- [adr-006-specifications](../arch/adr-006-specifications.md) - Foundation: A rule applies the governing structure files its context hands it
+- [adr-016-specifications](../arch/adr-016-specifications.md) - Foundation: A rule applies the governing structure files its context hands it
 - [adr-010-diagnostics](../arch/adr-010-diagnostics.md) - Foundation: Diagnostics apart from failures
-- [adr-015-database](../arch/adr-015-database.md) - Foundation: Skip or partial is the consumer's policy
+- [adr-015-database](../arch/adr-015-database.md) - Foundation: One report reads one revision, and skip or partial is the
+  consumer's policy
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One reason to change
 - [pattern-memoization](pattern-memoization.md) - Foundation: How a query is memoized

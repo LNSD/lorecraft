@@ -18,7 +18,7 @@ the shorter one states in general. Three kinds of document extend this way:
 | Code specs, `docs/code/` | `python-fn.md` | `python-fn-names.md`, `python-fn-unchecked.md` |
 | Feat specs, `docs/feat/` | `spec.md` | `spec-structure.md`, then `spec-structure-outline.md` |
 
-For meta specs, [adr-006](adr-006-specifications.md) decides how an extension takes effect: by conjunction,
+For meta specs, [adr-016](adr-016-specifications.md) decides how an extension takes effect: by conjunction,
 each governing meta spec applied on its own, so an extension adds or tightens and never relaxes. Nothing decides
 it for code specs and feat specs. Every kind of document already has a name's base, the longest existing name it
 continues with a hyphen, and each document names its base under References, but nothing hands an agent a
@@ -29,7 +29,7 @@ about every function.
 ## Decision
 
 1. **An extension layers onto its base by conjunction, whatever kind of document it is.** For a meta spec,
-   adr-006 states the rule. For a code spec or a feat spec, everything its base states still holds for what the
+   adr-016 states the rule. For a code spec or a feat spec, everything its base states still holds for what the
    extension covers, and the extension adds to it or narrows it; it never relaxes or contradicts it.
    `python-fn-names.md` adds naming rules to what `python-fn.md` states about functions, and
    `spec-structure-outline.md` describes one part of what `spec-structure.md` describes as a whole.
@@ -38,7 +38,7 @@ about every function.
    whose base has no file continues from the nearest existing name, as today: `python-fn-names.md` extends
    `python-fn.md`, though no `python.md` exists, and that is not an error.
 3. **A document's base chain and its governing meta specs are two chains.** The meta specs that govern a
-   document follow from adr-006: the corpus meta spec, then the namespace meta specs. Its base chain is the
+   document follow from adr-016: the corpus meta spec, then the namespace meta specs. Its base chain is the
    documents its own name continues, in its own corpus. `python-fn-names.md` is governed by `code` < `code-python`,
    and its base chain is `python-fn` < `python-fn-names`. Neither chain is derived from the other.
 4. **Loading a document loads its base chain, base first.** `/code-rules` and `/feat-discovery` read every document
@@ -54,7 +54,7 @@ about every function.
 - **Override.** The narrowest document that exists stands alone and replaces its base for what it covers, so each
   file reads on its own and loading a document loads one file. Not chosen: every extension restates what it keeps of
   its base, and the copies drift; and it turns any contradiction into a relaxation, which no document in the
-  repository needs. adr-006 rejects it for meta specs for the same reasons.
+  repository needs. adr-016 rejects it for meta specs for the same reasons.
 - **Loading the most specific match only**, as `/code-rules` does today. It costs the fewest tokens, but an agent
   following one document misses the rules its base still applies. Today a chain is at most two documents in
   `docs/code/` and three in `docs/feat/`.
@@ -73,7 +73,7 @@ about every function.
 - **`lorecraft inspect` gains a document's base chain** beside the meta specs that govern it.
 - **A contradiction between a code spec or feat spec and its base is found in review.** Their rules are prose, and
   no check can decide it.
-- **What stays true:** how meta specs govern documents is adr-006's, unchanged. The prefix groups in
+- **What stays true:** how meta specs govern documents is adr-016's, unchanged. The prefix groups in
   `docs/code/` without a base document stay valid.
 
 ## Checklist
@@ -90,5 +90,5 @@ about every function.
 
 - [#208](https://github.com/LNSD/lorecraft/issues/208) - Source: Whether a namespace extension layers onto its base or
   overrides it
-- [adr-006-specifications](adr-006-specifications.md) - Foundation: Conjunction for meta specs
-- [adr-016-specifications](adr-016-specifications.md) - Related: Meta specs and governance restated, proposed to supersede adr-006
+- [adr-016-specifications](adr-016-specifications.md) - Foundation: Conjunction for meta specs
+- [adr-006-specifications](adr-006-specifications.md) - Related: The record adr-016 supersedes

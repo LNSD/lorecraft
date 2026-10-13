@@ -120,7 +120,7 @@ Before committing code, verify:
 ## References
 
 - [adr-001-snapshot-model](../arch/adr-001-snapshot-model.md) - Foundation: The Composition role
-- [adr-004-database](../arch/adr-004-database.md) - Foundation: One report, one revision
+- [adr-015-database](../arch/adr-015-database.md) - Foundation: One report, one revision
 - [adr-002-vfs](../arch/adr-002-vfs.md) - Foundation: The disk is read only to take the snapshot and find the root
 - [adr-010-diagnostics](../arch/adr-010-diagnostics.md) - Foundation: Deterministic output and exit codes
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One reason to change

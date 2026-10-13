@@ -2,7 +2,7 @@
 name: "prd-014-resilient-model-loading"
 description: "A workspace that partly fails to load is still checked: each meta spec, corpus or skill that cannot be read or used is reported where it fails, and everything it does not touch is checked as if nothing had failed"
 type: "prd"
-status: "draft"
+status: "approved"
 ---
 
 # Resilient Model Loading
@@ -32,8 +32,9 @@ needs it. The same workspace has to serve two consumers:
   never reported as clean.
 - In the LSP-style mode, such a document is checked against the meta specs that did load, and its result is labelled
   partial.
-- What stops a run outright stays limited to what makes checking impossible: finding the root, reading the
-  workspace, listing the documentation root or the meta spec directory, and the command line's own input.
+- What stops a run outright stays limited to what makes checking impossible: finding the root, reading a path
+  outside the declaration, listing the documentation root or the meta spec directory, and the command line's own
+  input.
 
 ## Non-Goals
 
@@ -44,8 +45,8 @@ needs it. The same workspace has to serve two consumers:
   back on. Carrying an earlier revision's meta spec forward belongs to the LSP-style mode (FR-013).
 - **Using part of a broken structure file.** A structure file that fails is failed whole. Rules read from a file that
   does not decode could mean something other than what its writer wrote.
-- **Changing failures outside the declaration.** Root discovery, reading the workspace and an invalid selection still
-  stop the run with an error, as today.
+- **Changing failures outside the declaration.** Root discovery, a path outside the declaration that cannot be read,
+  and an invalid selection still stop the run with an error, as today.
 - **Amending prd-008.** Codes, coverage and the output shape are prd-008's, and this PRD builds on them without
   changing them.
 
@@ -157,8 +158,8 @@ Scenario: Checked against the meta specs that loaded
   the run with an error naming the directory, as it does when the root cannot be found, since nothing can be
   checked.
 - **FR-006:** THE SYSTEM SHALL report each load failure once, at its origin, never once per subject it affects.
-- **FR-007:** THE SYSTEM SHALL give each condition of a load failure a code of its own, under the engine's group
-  ([prd-008](prd-008-structured-checks.md) FR-009, FR-012).
+- **FR-007:** THE SYSTEM SHALL report a load failure under a code of the engine's group, one code for each kind of
+  fix, and name in the diagnostic the case that occurred ([prd-008](prd-008-structured-checks.md) FR-009, FR-012).
 - **FR-008:** THE SYSTEM SHALL report a load failure's diagnostic whatever the configuration and the selection, as
   it reports a file that cannot be decoded ([prd-008](prd-008-structured-checks.md) FR-020).
 - **FR-009:** THE SYSTEM SHALL check every subject that no load failure touches as it would with no load failure.
@@ -172,8 +173,8 @@ Scenario: Checked against the meta specs that loaded
 - **FR-013:** WHERE the LSP-style mode checks a document against a meta spec carried over from an earlier revision
   in which it loaded, THE SYSTEM SHALL label the result as checked against that earlier version.
 - **FR-014:** WHEN a check run reports a load failure, THE SYSTEM SHALL exit with the status for findings.
-- **FR-015:** IF the root cannot be found, the workspace cannot be read, or the command line's input is invalid,
-  THEN THE SYSTEM SHALL stop the run with an error, as before.
+- **FR-015:** IF the root cannot be found, a path outside the declaration cannot be read, or the command line's
+  input is invalid, THEN THE SYSTEM SHALL stop the run with an error, as before.
 - **FR-016:** THE SYSTEM SHALL publish a reference page for each load-failure code, saying what fails and how to fix
   it ([prd-008](prd-008-structured-checks.md) FR-028).
 - **NFR-001:** THE SYSTEM SHALL produce identical output for the same workspace revision with the same load
@@ -192,6 +193,9 @@ Scenario: Checked against the meta specs that loaded
   condition shows once the first is fixed.
 - **A failed meta spec governs no document.** Its diagnostic is still reported, and coverage lists no skipped
   document for it.
+- **A link on the way to a unit of the declaration cannot be followed.** A symlink whose target the run cannot
+  read, or an entry it cannot inspect on a link chain it follows, still stops the run with an error, since no load
+  failure stands for it yet. It is the one refusal inside the declaration that SC-005 excepts besides FR-005.
 - **The documentation root or the meta spec directory cannot be listed.** No corpus and no meta spec is known, so
   nothing can be checked and the run stops with an error (FR-005), whatever else loaded. The skills are not checked
   either: a report that covered them alone would read as a clean result for the whole workspace.
@@ -216,11 +220,12 @@ Scenario: Checked against the meta specs that loaded
   reported with a rule's diagnostic.
 - **SC-004:** Every load-failure code has a reference page, a triggering case and a near miss.
 - **SC-005:** No failure inside the declaration stops a check run, except a documentation root or meta spec
-  directory that cannot be listed (FR-005).
+  directory that cannot be listed (FR-005), and a link on the way to a unit of the declaration that cannot be
+  followed (see Edge Cases).
 
 ## Assumptions
 
-- A meta spec's layers apply by conjunction ([adr-006](adr-006-specifications.md)), so a document governed by a
+- A meta spec's layers apply by conjunction ([adr-016](adr-016-specifications.md)), so a document governed by a
   failed layer cannot be called clean from the layers that loaded. That is why a check run skips it.
 - The LSP-style mode reads the same model as a check run, and differs only in what it does with a document whose
   governing meta specs include a failed one.
@@ -228,6 +233,7 @@ Scenario: Checked against the meta specs that loaded
 ## References
 
 - [prd-008](prd-008-structured-checks.md) - Foundation: The codes, coverage and output shape this PRD builds on
-- [adr-006](adr-006-specifications.md) - Foundation: Layers apply by conjunction, which is why a check run skips
+- [adr-016](adr-016-specifications.md) - Foundation: Layers apply by conjunction, and a meta spec that cannot be
+  loaded is a failed layer
 - [adr-015](adr-015-database.md) - Leads to: How load failures are recorded and the database is opened
-- [adr-016](adr-016-specifications.md) - Leads to: Meta specs that record a failed layer instead of stopping the run
+- [adr-006](adr-006-specifications.md) - Related: The record adr-016 supersedes

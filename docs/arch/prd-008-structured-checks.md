@@ -230,16 +230,16 @@ Scenario: A sample rule
 - The rules of later milestones read inputs of the kinds the ported rules already read, or add one new kind
   at a time.
 - A meta spec's layers reach a rule by conjunction: each governing meta spec applies on its own, and a rule
-  reports each one a subject breaks ([adr-006](adr-006-specifications.md)).
+  reports each one a subject breaks ([adr-016](adr-016-specifications.md)).
 
 ## References
 
 - [#315](https://github.com/LNSD/lorecraft/issues/315) - Source: The exploration this PRD consolidates
 - [#442](https://github.com/LNSD/lorecraft/issues/442) - Leads to: Checking a file or a directory
 - [#322](https://github.com/LNSD/lorecraft/issues/322) - Leads to: The configuration that sets a rule's level
-- [adr-006](adr-006-specifications.md) - Foundation: How a document's meta specs layer onto each other
+- [adr-016](adr-016-specifications.md) - Foundation: How a document's meta specs layer onto each other
 - [adr-009](adr-009-rules.md) - Leads to: How a rule is declared and identified
 - [adr-010](adr-010-diagnostics.md) - Leads to: What a rule reports, and how it reaches the user
 - [adr-011](adr-011-rules-engine.md) - Leads to: How a run judges subjects
 - [prd-014-resilient-model-loading](prd-014-resilient-model-loading.md) - Related: Load failures reported under codes and coverage
-- [adr-016-specifications](adr-016-specifications.md) - Related: Meta specs and governance restated, proposed to supersede adr-006
+- [adr-006-specifications](adr-006-specifications.md) - Related: The record adr-016 supersedes

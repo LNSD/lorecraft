@@ -2,15 +2,15 @@
 name: "adr-016-specifications"
 description: "How meta specs govern documents: a meta spec is configuration the project model decodes and proves usable, or records as a failed layer, governance is computed once from a document's path, every governing meta spec applies on its own by conjunction, each check reads only its own keys of a structure file, and skills answer to a specification fixed in code. Load when adding a check, a meta spec file type or a key to a meta spec dialect, or deciding which meta specs a check applies"
 type: "adr"
-status: "proposed"
+status: "accepted"
 ---
 
 # Meta Specs and Governance
 
 > [!NOTE]
-> Proposed to supersede [adr-006-specifications](adr-006-specifications.md): restated unchanged except for what
-> happens to a meta spec that cannot be loaded, which [adr-015](adr-015-database.md) records as a failed layer
-> instead of a failure of the run. adr-006 stays binding until this record is accepted.
+> Supersedes [adr-006-specifications](adr-006-specifications.md): restated unchanged except for what happens to a
+> meta spec that cannot be loaded, which [adr-015](adr-015-database.md) records as a failed layer instead of a
+> failure of the run. adr-006 binds no code.
 
 ## Context
 
@@ -130,7 +130,7 @@ Before committing code, verify:
 
 ## References
 
-- [adr-006-specifications](adr-006-specifications.md) - Supersedes (proposed): The record this one restates
+- [adr-006-specifications](adr-006-specifications.md) - Supersedes: The record this one restates
 - [prd-014-resilient-model-loading](prd-014-resilient-model-loading.md) - Source: The requirements that make a meta
   spec that cannot be loaded a diagnostic
 - [adr-015-database](adr-015-database.md) - Related: The model that records a failed layer, and the consumer that
@@ -144,3 +144,4 @@ Before committing code, verify:
   feat specs
 - [principle-validate-at-edge](../code/principle-validate-at-edge.md) - Foundation: A dialect is decoded and proved at
   the edge
+- [adr-011-rules-engine](adr-011-rules-engine.md) - Related: The runner that applies governance to each document

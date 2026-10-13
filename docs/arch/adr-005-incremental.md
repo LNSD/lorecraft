@@ -78,4 +78,4 @@ Before committing code, verify:
 - [adr-012-database-derivation](adr-012-database-derivation.md) - Related: The package the database, and so its
   caches, live in
 - [pattern-memoization](../code/pattern-memoization.md) - Foundation: How a query is memoized
-- [adr-015-database](adr-015-database.md) - Related: The database opened with its model, proposed to supersede adr-004
+- [adr-015-database](adr-015-database.md) - Related: The database opened with its model, which supersedes adr-004
