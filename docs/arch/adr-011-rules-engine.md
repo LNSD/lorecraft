@@ -280,7 +280,7 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
   invariant above.
 - **What a path selects stays in the command line**, which chooses the subjects (FR-002 to
   FR-007). For now the command checks the whole workspace and takes no path: selection by path, the next two
-  bullets, is deferred to [#442](https://github.com/LNSD/lorecraft/issues/442). The runner receives subjects, sorted by
+  bullets, is deferred. The runner receives subjects, sorted by
   path. The selection bounds what is reported, not what is read: a selected skill's link rule still reads the
   target it links to.
 - **A file selects every subject it is, and a directory every subject under it** (FR-003, FR-004), as the
@@ -361,7 +361,7 @@ A more elaborate engine waits for a profile that asks for one.
 ## Consequences
 
 - **The per-check subcommands go.** One `check` command runs every rule over the workspace, and over the files
-  and directories it is given once selection by path lands ([#442](https://github.com/LNSD/lorecraft/issues/442)).
+  and directories it is given once selection by path lands.
 - **Specs change in the same change**, since each states something this design makes untrue:
   [module-lorecraft-engine](../code/module-lorecraft-engine.md) (the runner) and
   [adr-004-database](adr-004-database.md) (decoding as a value, cross-file queries).
@@ -412,7 +412,6 @@ Before committing code, verify:
 ## References
 
 - [prd-008-structured-checks](prd-008-structured-checks.md) - Source: The requirements this design answers
-- [#315](https://github.com/LNSD/lorecraft/issues/315) - Source: The research and the decisions behind it
 - [adr-009-rules](adr-009-rules.md) - Foundation: The rules the engine runs, and the glossary
 - [adr-010-diagnostics](adr-010-diagnostics.md) - Related: What a run reports
 - [adr-015-database](adr-015-database.md) - Foundation: Revisions and queries

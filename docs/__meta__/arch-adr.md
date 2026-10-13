@@ -71,6 +71,11 @@ design, not an inventory: which rules, commands, fields or files exist and how m
 that lists them goes stale with the next one added. An ADR never links a feat spec, though a feat spec may link
 the ADR: what shipped is described once, in `docs/feat/`, and a decision stays true whatever the feat spec says.
 
+**An ADR cites no issue**, under References or inline, by link or by number. It comes from the PRD it answers and
+the records it builds on, and cites those; what was settled on an issue is stated in the ADR itself, as context,
+decision or alternative. Deferred work is named by what it is, never by an issue or an unreleased milestone. This
+narrows the corpus rule that cites work not yet done by its issue.
+
 ## 4. Template
 
 ````markdown
@@ -112,5 +117,6 @@ status: "proposed"
   title and under References
 - [ ] An `accepted` ADR's description ends with a `Load when …` trigger, and it carries a checklist when it
   states something code can be checked against
-- [ ] The ADR states the design, lists no inventory of rules, commands, fields or files, links no feat spec, and
-  cites deferred work by its issue, never by an unreleased milestone
+- [ ] The ADR states the design, lists no inventory of rules, commands, fields or files, and links no feat spec
+- [ ] The ADR cites no issue, under References or inline, and names deferred work by what it is, never by an issue
+  or an unreleased milestone
