@@ -13,7 +13,7 @@ from lorecraft.project.syntax import (
     NonMappingFrontmatter,
 )
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
-from lorecraft.rules.location import Here, Label, Subdiagnostic
+from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
 from lorecraft.rules.subject import FrontmatterRule
 
 from .__ruleset__ import GROUP_ID, owner_spec, spec_note
@@ -78,9 +78,10 @@ class InvalidYaml(FrontmatterRule):
     Attributes:
         spec: The structure specification whose frontmatter schema governs the document, or `None` for a skill,
             which the Agent Skills specification governs.
-        problem: What is wrong with the YAML, in the words of the YAML reader.
+        problem: What is wrong with the YAML, in lorecraft's words.
         stopped_at: The line the YAML reader stopped on, which the occurrence is reported at; or `None` when it
             cannot be known, and the occurrence is reported at the line that opens the block.
+        help: What to do about it, where the problem has a fix to name.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 2)
@@ -93,6 +94,7 @@ class InvalidYaml(FrontmatterRule):
     line: LineNumber = field(init=False)
     problem: str
     stopped_at: LineNumber | None
+    help: str | None = None
 
     def __post_init__(self) -> None:
         """Derive the reported line from where the YAML reader stopped."""
@@ -100,7 +102,7 @@ class InvalidYaml(FrontmatterRule):
         object.__setattr__(self, 'line', FIRST_LINE if self.stopped_at is None else self.stopped_at)
 
     def message(self) -> str:
-        """Name what the block is not; the reader's words for the problem are the label's."""
+        """Name what the block is not; the problem, in lorecraft's words, is the label's."""
         return 'frontmatter is not valid YAML'
 
     def labels(self) -> tuple[Label, ...]:
@@ -110,8 +112,10 @@ class InvalidYaml(FrontmatterRule):
         return (Label(Here(self.line), self.problem),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Name the specification that governs the frontmatter."""
-        return (spec_note(self.spec),)
+        """Name what to do about the problem, where there is one, and the specification that governs the frontmatter."""
+        if self.help is None:
+            return (spec_note(self.spec),)
+        return (Help(self.help), spec_note(self.spec))
 
     @classmethod
     def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:
@@ -124,7 +128,14 @@ class InvalidYaml(FrontmatterRule):
         match frontmatter:
             case InvalidYamlFrontmatter():
                 spec = owner_spec(subject.frontmatter_owner())
-                return (cls(spec=spec, problem=frontmatter.problem, stopped_at=frontmatter.line),)
+                return (
+                    cls(
+                        spec=spec,
+                        problem=frontmatter.problem,
+                        stopped_at=frontmatter.line,
+                        help=frontmatter.help,
+                    ),
+                )
             case MissingFrontmatter() | NonMappingFrontmatter() | Frontmatter():
                 return ()
             case _:

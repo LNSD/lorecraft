@@ -37,16 +37,16 @@ from ruamel.yaml.events import (
     SequenceStartEvent,
     StreamEndEvent,
 )
-from ruamel.yaml.parser import ParserError
 from ruamel.yaml.reader import Reader, ReaderError
 from ruamel.yaml.resolver import VersionedResolver
-from ruamel.yaml.scanner import Scanner, ScannerError
+from ruamel.yaml.scanner import Scanner
 from ruamel.yaml.tokens import ScalarToken, Token
 
 from lorecraft.core.error import Error
 from lorecraft.core.mapping import Frozen, FrozenMapping
 
 from .position import LineNumber
+from .syntax_error import SyntaxProblem, describe_error
 
 _FIRST_BLOCK_LINE: Final[int] = 2
 """The document line the block's first YAML line sits on: the opening delimiter is always line 1."""
@@ -90,21 +90,6 @@ _TAG_END_CHARACTERS: Final[str] = _SPACE_CHARACTERS + ',[]{}'
 
 _DIRECTIVE_NAME_END_CHARACTERS: Final[str] = _SPACE_CHARACTERS + ',[]{}:'
 """The characters that end the name a refused directive is reported by: whitespace, a flow indicator or a `:`."""
-
-_TOKEN_IN_TUPLE: Final[re.Pattern[str]] = re.compile(r"but found \(('[^']*'),\)$")
-"""The end of a parser problem that ruamel.yaml 0.19 words with its token in a tuple, `but found ('<x>',)`."""
-
-_CONTENT_AFTER_DOCUMENT_END: Final[re.Pattern[str]] = re.compile(
-    r"found non-comment content after document end marker, \(('[^']*'),\)$"
-)
-"""The problem ruamel.yaml words for content on the line of a `...` marker, where PyYAML expects a document start."""
-
-_PYYAML_WORDING: Final[tuple[tuple[str, str], ...]] = (
-    ('hexdecimal numbers', 'hexadecimal numbers'),
-    ("expected '!' but found", "expected '!', but found"),
-    ('while scanning an tag', 'while scanning a tag'),
-)
-"""Where ruamel.yaml 0.19 words a scanner problem differently from PyYAML, as (ruamel.yaml's text, PyYAML's text)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,9 +173,11 @@ class InvalidYamlFrontmatter:
     by identity.
 
     Attributes:
-        problem: What the YAML parser found wrong, such as `mapping values are not allowed here`: in the parser's
-            own words, or in this module's, where the parser fails with a plain Python exception or where the block
-            uses what basic YAML leaves out, a key that is not a string included.
+        problem: What is wrong, in lorecraft's words, such as `this value holds `: ``, or `found the tag '!!str',
+            which frontmatter does not allow` where the block uses what basic YAML leaves out, a key that is not a
+            string included.
+        help: What to do about it, where a syntax error has a fix to name, and None for a construct frontmatter
+            does not allow, which the problem already names.
         line: The document line the problem is on, or None when it cannot be known: when the parser does not say,
             or when the block nests collections too deeply, where reading stops at whatever depth the interpreter's
             stack allows rather than at a line of the document.
@@ -198,6 +185,7 @@ class InvalidYamlFrontmatter:
 
     problem: str
     line: LineNumber | None
+    help: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -389,7 +377,7 @@ class _RefusedEscapeError(_RefusedConstructError):
 
     def __init__(self, mark: StreamMark, *, source: ValueError | OverflowError) -> None:
         self.source = source
-        super().__init__(mark, 'found an escape sequence that names no Unicode character')
+        super().__init__(mark, f'found an escape that names no Unicode character, {_NOT_ALLOWED}')
         self.__cause__ = source
 
 
@@ -425,7 +413,7 @@ def decode_frontmatter(block: str) -> FrontmatterNode:
         refusal = stream.first_refusal()
         if refusal is not None:
             return _invalid_refusal(refusal)
-        return _invalid_yaml(exc)
+        return _invalid_yaml(describe_error(exc, block))
     except RecursionError:
         # The value is read with one call per level of nesting, so only a deeply nested block reaches the
         # interpreter's limit. By the time this clause runs the stack has unwound to this frame, so there is room
@@ -598,9 +586,8 @@ class _BasicYamlScanner(Scanner):
     holds `_flow_start`, where the outermost open flow collection begins, to tell a collection spread over lines.
 
     A double-quoted `\U` escape above `U+10FFFF` is the one other place a plain Python exception escapes: `chr`
-    raises a `ValueError`, or an `OverflowError` for one too large for a C `int`. It is raised here as a
-    refusal of its own on the escape's line, with the `chr` failure as its source, which `decode_frontmatter`
-    turns into invalid YAML.
+    raises a `ValueError`, or an `OverflowError` for one too large for a C `int`. It is refused here, on the
+    escape's line, as `decode_frontmatter` refuses every construct frontmatter does not allow.
     """
 
     def __init__(self, loader: object = None) -> None:
@@ -754,7 +741,6 @@ class _BasicYamlScanner(Scanner):
 
         Raises:
             _RefusedEscapeError: An escape names no Unicode character.
-            ScannerError: The text is not valid YAML.
         """
         try:
             return super().scan_flow_scalar_non_spaces(double, start_mark)
@@ -1125,32 +1111,11 @@ def _document_line(block_line: int) -> LineNumber:
     return LineNumber.from_int(block_line + _FIRST_BLOCK_LINE)
 
 
-def _invalid_yaml(error: MarkedYAMLError) -> InvalidYamlFrontmatter:
-    """The parser's facts about a block that does not parse: its problem, and the line it marked.
+def _invalid_yaml(problem: SyntaxProblem) -> InvalidYamlFrontmatter:
+    """The node for a syntax error: its label, help and line, as the block's document lines count them.
 
     Args:
-        error: Failure raised while reading the block; its mark may be absent.
+        problem: The syntax error as lorecraft words it.
     """
-    # The parser names the problem, or, for a few errors, only the construct it was reading when it stopped.
-    problem = error.problem or error.context or 'the block is not valid YAML'
-    # Only the parser's own wording is touched: a refusal of this module quotes a name the user wrote.
-    if isinstance(error, ScannerError | ParserError):
-        problem = _pyyaml_wording(problem)
-    mark = error.problem_mark or error.context_mark
-    if mark is None:
-        return InvalidYamlFrontmatter(problem=problem, line=None)
-    return InvalidYamlFrontmatter(problem=problem, line=_document_line(mark.line))
-
-
-def _pyyaml_wording(problem: str) -> str:
-    """The problem as PyYAML words it, where ruamel.yaml 0.19 words it with a typo or in another form.
-
-    Args:
-        problem: What the parser found wrong.
-    """
-    # ruamel.yaml writes the token of two problems, the content after a document's end, as a one-item tuple.
-    problem = _CONTENT_AFTER_DOCUMENT_END.sub(r"expected '<document start>', but found \1", problem)
-    problem = _TOKEN_IN_TUPLE.sub(r'but found \1', problem)
-    for ruamel_text, pyyaml_text in _PYYAML_WORDING:
-        problem = problem.replace(ruamel_text, pyyaml_text)
-    return problem
+    line = None if problem.line is None else _document_line(problem.line)
+    return InvalidYamlFrontmatter(problem=problem.label, line=line, help=problem.help)
