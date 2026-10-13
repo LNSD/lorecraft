@@ -10,14 +10,13 @@ The block is read as basic YAML, which decodes to exactly what JSON can hold: bl
 are strings, block and flow sequences, and scalars. A quoted or block scalar is a string. A plain scalar is null,
 a boolean, an integer or a float when its whole text is one in YAML 1.2's core schema, such as `~`, `true`, `12` or
 `1.5`, and a string otherwise, so `yes`, `2026-10-05` and `1:30` are strings. A directive, a document marker, an
-anchor, an alias, an explicit tag and a key that is not a string are refused, on their line, as a block that is
+anchor, an alias, a merge key, a tag and a key that is not a string are refused, on their line, as a block that is
 not YAML: none is needed to write a document's metadata, an alias can make a collection hold itself, a tag builds
 values JSON has no counterpart for, and JSON names every key with a string.
 """
 
 import math
 import re
-import string
 import sys
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -39,7 +38,7 @@ from ruamel.yaml.parser import ParserError
 from ruamel.yaml.reader import Reader, ReaderError
 from ruamel.yaml.resolver import VersionedResolver
 from ruamel.yaml.scanner import Scanner, ScannerError
-from ruamel.yaml.tokens import AliasToken, AnchorToken, ScalarToken, TagToken
+from ruamel.yaml.tokens import ScalarToken
 
 from lorecraft.core.mapping import Frozen, FrozenMapping
 
@@ -47,9 +46,6 @@ from .position import LineNumber
 
 _FIRST_BLOCK_LINE: Final[int] = 2
 """The document line the block's first YAML line sits on: the opening delimiter is always line 1."""
-
-_YAML_TAG_PREFIX: Final[str] = 'tag:yaml.org,2002:'
-"""The prefix the `!!` shorthand stands for: the full name of every tag YAML itself defines."""
 
 _NULL_WORDS: Final[frozenset[str]] = frozenset({'', '~', 'null', 'Null', 'NULL'})
 """The plain scalars YAML 1.2's core schema reads as null; the empty one is a key or an item written with no value."""
@@ -73,8 +69,8 @@ _FLOAT: Final[re.Pattern[str]] = re.compile(r'[-+]?(\.[0-9]+|[0-9]+(\.[0-9]*)?)(
 """A plain scalar YAML 1.2's core schema reads as a float. It matches every decimal integer too, so the integer
 patterns are tried first. The core schema's `.inf` and `.nan` are left out: JSON has no number for either."""
 
-_ANCHOR_NAME_CHARACTERS: Final[str] = string.ascii_letters + string.digits + '-_'
-"""The characters an anchor's or an alias's name is made of."""
+_MERGE_KEY: Final[str] = '<<'
+"""The plain key YAML 1.1 reads as a merge: the entries of the mapping an alias names join the mapping."""
 
 _SPACE_CHARACTERS: Final[str] = '\0 \t\r\n\x85\u2028\u2029'
 """The characters that end a plain scalar: the end of the text, a space or tab, or a line break."""
@@ -82,14 +78,11 @@ _SPACE_CHARACTERS: Final[str] = '\0 \t\r\n\x85\u2028\u2029'
 _LINE_END_CHARACTERS: Final[str] = '\0\r\n\x85\u2028\u2029'
 """The characters that end a line: the end of the text, or a line break."""
 
-_TAG_END_CHARACTERS: Final[str] = '\0 \r\n\x85\u2028\u2029'
-"""The characters a tag may be followed by: the end of the text, a space or a line break."""
+_TAG_END_CHARACTERS: Final[str] = _SPACE_CHARACTERS + ',[]{}'
+"""The characters that end a tag as a block writes it: whitespace or a flow indicator."""
 
 _DIRECTIVE_NAME_END_CHARACTERS: Final[str] = _SPACE_CHARACTERS + ',[]{}:'
 """The characters that end the name a refused directive is reported by: whitespace, a flow indicator or a `:`."""
-
-_ANCHOR_END_CHARACTERS: Final[str] = '\0 \t\r\n\x85\u2028\u2029?:,]}%@`'
-"""The characters a name may be followed by: the end of the text, a space or a break, or an indicator."""
 
 _TOKEN_IN_TUPLE: Final[re.Pattern[str]] = re.compile(r"but found \(('[^']*'),\)$")
 """The end of a parser problem that ruamel.yaml 0.19 words with its token in a tuple, `but found ('<x>',)`."""
@@ -198,8 +191,8 @@ def decode_frontmatter(block: str) -> FrontmatterNode:
     Never `MissingFrontmatter`: whether a block exists is decided before this is called. Every block the YAML
     parser cannot parse is `InvalidYamlFrontmatter`, including the few it fails on with a plain Python exception
     rather than its own error, and so is every block that uses a directive, a document marker, an anchor, an
-    alias or a tag, writes a key, at any depth, that is not a string, such as `1:`, `true:` or `null:`, or nests
-    collections too deeply to read.
+    alias, a merge key or a tag, writes a key, at any depth, that is not a string, such as `1:`, `true:` or `null:`,
+    or nests collections too deeply to read.
 
     Args:
         block: The lines between the delimiters, line endings kept; the first of them is document line 2.
@@ -264,6 +257,7 @@ class _EventStream:
         # when the loader says so.
         yaml.top_level_block_style_scalar_no_indent_error_1_1 = True
         yaml.Scanner = _BasicYamlScanner
+        self._block = block
         self._events: Iterator[Event] = iter(yaml.parse(block))
         self._peeked: Event | None = None
 
@@ -288,6 +282,32 @@ class _EventStream:
         event = self.peek_event()
         self._peeked = None
         return event
+
+    def written_tag(self, event: ScalarEvent | SequenceStartEvent | MappingStartEvent) -> str:
+        """The tag a node carries, spelled as the block writes it.
+
+        The parser hands over a tag resolved against its handles, so `!!!str` arrives as the tag `!!str` and a tag
+        in a flow collection can take the comma after it. The block's own text is what the author wrote.
+
+        Args:
+            event: The event of a node that carries a tag and no anchor. Its start mark is where the tag begins
+                only then, because an anchor written first would start the node, so `_peek_node_start` refuses
+                an anchor before it asks for the tag.
+        """
+        mark = event.start_mark
+        if mark is None:
+            # An event's mark is optional only in its constructor's signature: the parser marks every event it emits.
+            raise AssertionError('unreachable: ruamel.yaml marks every event it parses')
+        end = mark.index
+        if self._block.startswith('!<', end):
+            # A verbatim tag is a URI, which may hold a `,` or a `]`, so it runs to its closing `>`. One that is
+            # never closed runs to the end of the block.
+            closing = self._block.find('>', end)
+            end = closing + 1 if closing != -1 else len(self._block)
+        else:
+            while end < len(self._block) and self._block[end] not in _TAG_END_CHARACTERS:
+                end += 1
+        return self._block[mark.index : end]
 
     def check_event(self, *kinds: type[Event]) -> bool:
         """Whether the next event is of one of `kinds`, leaving it unread.
@@ -500,74 +520,6 @@ class _BasicYamlScanner(Scanner):
                 break
         return ScalarToken(''.join(chunks), True, start_mark, end_mark)
 
-    def scan_anchor(self, TokenClass: type[AliasToken] | type[AnchorToken]) -> AliasToken | AnchorToken:
-        """Scan an anchor or an alias, whose name is made of ASCII letters, digits, `-` and `_`.
-
-        Args:
-            TokenClass: The token to build, an anchor's or an alias's.
-
-        Raises:
-            ScannerError: The name is empty, or is followed by a character that cannot follow it.
-        """
-        # ruamel.yaml takes more characters into a name, so `*emphasis*` is one alias there and an error here.
-        # A block that writes one is refused either way, but `FM002` has always named PyYAML's problem and name.
-        start_mark = self.reader.get_mark()
-        kind = 'alias' if self.reader.peek() == '*' else 'anchor'
-        self.reader.forward()
-        length = 0
-        while self.reader.peek(length) in _ANCHOR_NAME_CHARACTERS:
-            length += 1
-        if length == 0 or self.reader.peek(length) not in _ANCHOR_END_CHARACTERS:
-            self.reader.forward(length)
-            problem = f'expected alphabetic or numeric character, but found {self.reader.peek()!r}'
-            raise ScannerError(f'while scanning an {kind}', start_mark, problem, self.reader.get_mark())
-        name = self.reader.prefix(length)
-        self.reader.forward(length)
-        return TokenClass(name, start_mark, self.reader.get_mark())
-
-    def scan_tag(self) -> TagToken:
-        """Scan a tag: `!`, `!suffix`, `!handle!suffix`, or `!<uri>`, followed by a space or a line break.
-
-        Raises:
-            ScannerError: The tag is malformed.
-        """
-        # ruamel.yaml shifts a leading `!!` into its short handle before it looks at the rest, so `!!!str` and
-        # `!!` are tags there that PyYAML refuses, and its problems are worded differently.
-        start_mark = self.reader.get_mark()
-        ch = self.reader.peek(1)
-        if ch == '<':
-            handle = None
-            self.reader.forward(2)
-            suffix = self.scan_tag_uri('tag', start_mark)
-            if self.reader.peek() != '>':
-                problem = f"expected '>', but found {self.reader.peek()!r}"
-                raise ScannerError('while parsing a tag', start_mark, problem, self.reader.get_mark())
-            self.reader.forward()
-        elif ch in _SPACE_CHARACTERS:
-            handle = None
-            suffix = '!'
-            self.reader.forward()
-        else:
-            length = 1
-            use_handle = False
-            while ch not in _TAG_END_CHARACTERS:
-                if ch == '!':
-                    use_handle = True
-                    break
-                length += 1
-                ch = self.reader.peek(length)
-            if use_handle:
-                handle = self.scan_tag_handle('tag', start_mark)
-            else:
-                handle = '!'
-                self.reader.forward()
-            suffix = self.scan_tag_uri('tag', start_mark)
-        ch = self.reader.peek()
-        if ch not in _TAG_END_CHARACTERS:
-            problem = f"expected ' ', but found {ch!r}"
-            raise ScannerError('while scanning a tag', start_mark, problem, self.reader.get_mark())
-        return TagToken((handle, suffix), start_mark, self.reader.get_mark())
-
 
 def _read_document(parser: _EventStream) -> Frontmatter | NonMappingFrontmatter:
     """Read the block's one document, if any, and decode it.
@@ -620,7 +572,7 @@ def _peek_node_start(parser: _EventStream) -> ScalarEvent | SequenceStartEvent |
         raise MarkedYAMLError(problem=problem, problem_mark=event.start_mark)
     # The parser gives an event a tag only when one is written in the block, the non-specific `!` included.
     if event.tag is not None:
-        problem = f'found the tag {_written_tag(event.tag)!r}, which frontmatter does not allow'
+        problem = f'found the tag {parser.written_tag(event)!r}, which frontmatter does not allow'
         raise MarkedYAMLError(problem=problem, problem_mark=event.start_mark)
     return event
 
@@ -698,6 +650,11 @@ def _read_key(parser: _EventStream) -> FrontmatterKey:
     if not isinstance(name, str):
         raise MarkedYAMLError(problem=_non_string_key_problem(event), problem_mark=event.start_mark)
     mark = event.start_mark
+    if event.style is None and name == _MERGE_KEY:
+        # A plain `<<` is YAML 1.1's merge key, which pulls in the entries of the mapping an alias names.
+        raise MarkedYAMLError(
+            problem=f'found the merge key {_MERGE_KEY}, which frontmatter does not allow', problem_mark=mark
+        )
     if mark is None:
         # An event's mark is optional only in its constructor's signature: the parser marks every event it emits.
         raise AssertionError('unreachable: ruamel.yaml marks every event it parses')
@@ -814,21 +771,3 @@ def _pyyaml_wording(problem: str) -> str:
     for ruamel_text, pyyaml_text in _PYYAML_WORDING:
         problem = problem.replace(ruamel_text, pyyaml_text)
     return problem
-
-
-def _written_tag(tag: str) -> str:
-    """The tag spelled as a block writes it: `!!str` for one YAML defines, `!team` for a local one, else `!<...>`.
-
-    The parser hands over a tag resolved to its full name, so `!!str` arrives as `tag:yaml.org,2002:str`, which an
-    author reading the problem would not recognise as what they wrote. Any other full name, written verbatim, is
-    printed in the verbatim `!<...>` form, which names it exactly.
-
-    Args:
-        tag: A tag the block writes, as the parser resolved it.
-    """
-    if tag.startswith(_YAML_TAG_PREFIX):
-        return '!!' + tag.removeprefix(_YAML_TAG_PREFIX)
-    # A local tag, and the non-specific `!`, arrive as written.
-    if tag.startswith('!'):
-        return tag
-    return f'!<{tag}>'
