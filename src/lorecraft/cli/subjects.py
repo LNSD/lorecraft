@@ -34,12 +34,12 @@ def select_workspace(database: Database) -> tuple[Subject, ...]:
     model = database.model()
     subjects: list[Subject] = []
     subjects.extend(model.documents())
-    for location in model.skill_locations:
+    for location in model.sorted_skill_locations:
         subjects.append(location)
         listing = database.skill_resources(location)
         subjects.extend(listing.resources)
         subjects.extend(listing.outside_symlinks)
-    subjects.extend(model.outside_symlinks)
+    subjects.extend(model.sorted_outside_symlinks)
 
     # Compared as POSIX strings, by code point and never by locale, as the diagnostics they report are ordered.
     return tuple(sorted(subjects, key=lambda subject: str(_report_path(subject))))

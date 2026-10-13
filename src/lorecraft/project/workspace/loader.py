@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from typing import assert_never
 
 from lorecraft.agents import SKILL_ENTRY_FILENAME, iter_agents
+from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import (
     AspectFilename,
@@ -159,7 +160,7 @@ def load_workspace(
 
     groups = _group_spec_files(spec_paths)
 
-    corpora: list[Corpus] = []
+    corpora: dict[CorpusName, Corpus] = {}
     for corpus_name in sorted(groups, key=str):
         files = groups[corpus_name]
         if not files.spec:
@@ -169,7 +170,7 @@ def load_workspace(
             # A corpus is a regular directory under docs/; a missing or linked one has no documents to list.
             continue
         filenames = _list_document_filenames(documents, corpus_name, failures)
-        corpora.append(_load_corpus(schemas, corpus_name, files, filenames, failures))
+        corpora[corpus_name] = _load_corpus(schemas, corpus_name, files, filenames, failures)
 
     skills_dirs, outside_skills_dirs = _load_skills_dirs(skills, failures)
     skill_locations, outside_entries = _list_skill_locations(skills, skills_dirs, failures)
@@ -179,10 +180,10 @@ def load_workspace(
     for outside in outside_skills_dirs + outside_entries:
         outside_by_path[outside.path] = outside
     return WorkspaceModel(
-        corpora=tuple(corpora),
-        skills_dirs=skills_dirs,
-        skill_locations=skill_locations,
-        outside_symlinks=tuple(outside_by_path[path] for path in sorted(outside_by_path)),
+        corpora=FrozenMapping(corpora),
+        skills_dirs=frozenset(skills_dirs),
+        skill_locations=FrozenMapping({location.ref: location for location in skill_locations}),
+        outside_symlinks=FrozenMapping(outside_by_path),
         # Two agents declaring one skills directory meet its failure twice; it is one failure at one path.
         load_failures=tuple(dict.fromkeys(failures)),
     )
@@ -289,18 +290,16 @@ def _load_corpus(
 
     # The corpus orders its namespace specs itself; they are decoded broad to narrow too, so that of two broken
     # structure specifications the broader one is the failure listed first.
-    namespaces: list[CorpusNamespace] = []
+    namespaces: dict[AspectNamespace, CorpusNamespace] = {}
     for namespace in sorted(files.namespaces, key=namespace_order_key):
         namespace_spec_name = NamespaceSpecName(corpus_name, namespace)
         namespace_files = files.namespaces[namespace]
-        corpus_namespace = CorpusNamespace(
-            namespace=namespace,
+        namespaces[namespace] = CorpusNamespace(
             files=_sorted_paths(namespace_files),
             structure=_load_structure(schemas, namespace_spec_name, namespace_files, failures),
         )
-        namespaces.append(corpus_namespace)
 
-    return Corpus(corpus_spec=corpus_spec, namespaces=tuple(namespaces), filenames=tuple(filenames))
+    return Corpus(corpus_spec=corpus_spec, namespaces=FrozenMapping(namespaces), filenames=frozenset(filenames))
 
 
 def _sorted_paths(spec_files: list[SpecFile]) -> tuple[RootRelativePath, ...]:

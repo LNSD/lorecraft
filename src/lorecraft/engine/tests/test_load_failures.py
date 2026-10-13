@@ -4,6 +4,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas.name import CorpusSpecName
@@ -56,7 +57,11 @@ _UTF8: Final[Utf8Failure] = Utf8Failure(line=3, offset=47, invalid=b'\xe9', reas
 def _model(*failures: LoadFailure) -> WorkspaceModel:
     """A model that holds nothing but the failures it listed."""
     return WorkspaceModel(
-        corpora=(), skills_dirs=(), skill_locations=(), outside_symlinks=(), load_failures=tuple(failures)
+        corpora=FrozenMapping({}),
+        skills_dirs=frozenset(),
+        skill_locations=FrozenMapping({}),
+        outside_symlinks=FrozenMapping({}),
+        load_failures=tuple(failures),
     )
 
 

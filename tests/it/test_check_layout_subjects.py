@@ -49,8 +49,8 @@ def _layout_subjects(database: Database) -> tuple[Subject, ...]:
     Args:
         database: Database over the snapshot whose skill layout is checked.
     """
-    subjects: list[Subject] = list(database.model().outside_symlinks)
-    for location in database.model().skill_locations:
+    subjects: list[Subject] = list(database.model().sorted_outside_symlinks)
+    for location in database.model().sorted_skill_locations:
         subjects.extend(database.skill_resources(location).outside_symlinks)
     return tuple(subjects)
 

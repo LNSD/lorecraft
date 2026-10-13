@@ -563,7 +563,7 @@ def _outside_symlink(database: Database) -> OutsideSymlink:
     Args:
         database: The database over a snapshot whose skills directory holds one entry linked outside the repository.
     """
-    outside_symlinks = database.model().outside_symlinks
+    outside_symlinks = database.model().sorted_outside_symlinks
     assert len(outside_symlinks) == 1, 'the snapshot holds one entry linked outside the repository'
     return outside_symlinks[0]
 

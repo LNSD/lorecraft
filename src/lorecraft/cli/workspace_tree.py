@@ -157,8 +157,8 @@ def render_text(root: Path, model: WorkspaceModel) -> str:
         The lines, newline-separated, without a trailing newline.
     """
     sections = (
-        _corpora_section(model.corpora),
-        _skills_dirs_section(model.skills_dirs),
+        _corpora_section(model.sorted_corpora),
+        _skills_dirs_section(model.sorted_skills_dirs),
         _skills_section(model),
     )
     lines = [str(root)]
@@ -176,10 +176,10 @@ def render_json(root: Path, model: WorkspaceModel) -> str:
         model: Corpora, agent skills directories and skills to encode, one key per section.
     """
     corpora: list[_CorpusJson] = []
-    for corpus in model.corpora:
+    for corpus in model.sorted_corpora:
         corpora.append(_json_corpus(corpus))
     skills_dirs: list[_AgentSkillsDirJson] = []
-    for skills_dir in model.skills_dirs:
+    for skills_dir in model.sorted_skills_dirs:
         skills_dirs.append(
             _AgentSkillsDirJson(
                 agent=skills_dir.agent, path=str(skills_dir.path), resolves_to=str(skills_dir.resolves_to)

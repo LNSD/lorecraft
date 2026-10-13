@@ -8,6 +8,7 @@ from jsonschema.exceptions import SchemaError
 from pydantic import ValidationError
 
 from lorecraft.core.error import Error
+from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.repo import CorpusListError
@@ -487,7 +488,13 @@ class TestReportLoadFailure:
 class TestExitOnLoadFailure:
     def test_exit_on_load_failure_with_no_failure_returns(self) -> None:
         #: Given
-        model = WorkspaceModel(corpora=(), skills_dirs=(), skill_locations=(), outside_symlinks=(), load_failures=())
+        model = WorkspaceModel(
+            corpora=FrozenMapping({}),
+            skills_dirs=frozenset(),
+            skill_locations=FrozenMapping({}),
+            outside_symlinks=FrozenMapping({}),
+            load_failures=(),
+        )
 
         #: When
         exit_on_load_failure(model)
@@ -502,7 +509,11 @@ class TestExitOnLoadFailure:
         first = LoadFailure(RootRelativePath.parse('docs/__meta__'), UnlistableDirectory(_REFUSAL))
         second = LoadFailure(RootRelativePath.parse('docs'), UnlistableDirectory(_REFUSAL))
         model = WorkspaceModel(
-            corpora=(), skills_dirs=(), skill_locations=(), outside_symlinks=(), load_failures=(first, second)
+            corpora=FrozenMapping({}),
+            skills_dirs=frozenset(),
+            skill_locations=FrozenMapping({}),
+            outside_symlinks=FrozenMapping({}),
+            load_failures=(first, second),
         )
 
         #: When
@@ -520,7 +531,13 @@ class TestExitOnLoadFailure:
 class TestExitOnUnlistableDirectory:
     def test_exit_on_unlistable_directory_with_no_failure_returns(self, capsys: pytest.CaptureFixture[str]) -> None:
         #: Given
-        model = WorkspaceModel(corpora=(), skills_dirs=(), skill_locations=(), outside_symlinks=(), load_failures=())
+        model = WorkspaceModel(
+            corpora=FrozenMapping({}),
+            skills_dirs=frozenset(),
+            skill_locations=FrozenMapping({}),
+            outside_symlinks=FrozenMapping({}),
+            load_failures=(),
+        )
 
         #: When
         returned = exit_on_unlistable_directory(model)
@@ -535,7 +552,11 @@ class TestExitOnUnlistableDirectory:
         #: Given
         failure = LoadFailure(_PATH, EmptyStructureSpec())
         model = WorkspaceModel(
-            corpora=(), skills_dirs=(), skill_locations=(), outside_symlinks=(), load_failures=(failure,)
+            corpora=FrozenMapping({}),
+            skills_dirs=frozenset(),
+            skill_locations=FrozenMapping({}),
+            outside_symlinks=FrozenMapping({}),
+            load_failures=(failure,),
         )
 
         #: When
@@ -552,7 +573,11 @@ class TestExitOnUnlistableDirectory:
         other = LoadFailure(_PATH, EmptyStructureSpec())
         unlistable = LoadFailure(RootRelativePath.parse('docs/__meta__'), UnlistableDirectory(_REFUSAL))
         model = WorkspaceModel(
-            corpora=(), skills_dirs=(), skill_locations=(), outside_symlinks=(), load_failures=(other, unlistable)
+            corpora=FrozenMapping({}),
+            skills_dirs=frozenset(),
+            skill_locations=FrozenMapping({}),
+            outside_symlinks=FrozenMapping({}),
+            load_failures=(other, unlistable),
         )
 
         #: When

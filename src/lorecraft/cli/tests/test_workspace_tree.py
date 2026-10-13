@@ -8,6 +8,7 @@ import pytest
 
 from lorecraft.agents import AgentName
 from lorecraft.cli.workspace_tree import render_json, render_text
+from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
@@ -26,16 +27,21 @@ def _code_model() -> WorkspaceModel:
     code = CorpusName.parse('code')
     corpus_spec = CorpusSpec(name=CorpusSpecName(code), files=(_path('docs/__meta__/code.md'),), structure=None)
     python = CorpusNamespace(
-        namespace=AspectNamespace.parse('python'),
         files=(_path('docs/__meta__/code-python.md'), _path('docs/__meta__/code-python.structure.json')),
         structure=None,
     )
     corpus = Corpus(
         corpus_spec=corpus_spec,
-        namespaces=(python,),
-        filenames=(AspectFilename.parse('logging'), AspectFilename.parse('python-typing')),
+        namespaces=FrozenMapping({AspectNamespace.parse('python'): python}),
+        filenames=frozenset({AspectFilename.parse('logging'), AspectFilename.parse('python-typing')}),
     )
-    return WorkspaceModel(corpora=(corpus,), skills_dirs=(), skill_locations=(), outside_symlinks=(), load_failures=())
+    return WorkspaceModel(
+        corpora=FrozenMapping({code: corpus}),
+        skills_dirs=frozenset(),
+        skill_locations=FrozenMapping({}),
+        outside_symlinks=FrozenMapping({}),
+        load_failures=(),
+    )
 
 
 # The JSON document `render_json` encodes `_code_model` as, rooted at `/work`.
@@ -71,20 +77,30 @@ _CODE_MODEL_DOCUMENT: Final[dict[str, object]] = {
 
 
 def _empty_model() -> WorkspaceModel:
-    return WorkspaceModel(corpora=(), skills_dirs=(), skill_locations=(), outside_symlinks=(), load_failures=())
+    return WorkspaceModel(
+        corpora=FrozenMapping({}),
+        skills_dirs=frozenset(),
+        skill_locations=FrozenMapping({}),
+        outside_symlinks=FrozenMapping({}),
+        load_failures=(),
+    )
 
 
 def _skills_model() -> WorkspaceModel:
     """No corpus; two agents reading one resolved skills directory, one of them through a link, and two skills."""
     universal = ResolvedPath(_path('.agents/skills'))
+    commit = _regular_skill('.agents/skills/commit')
+    review = _regular_skill('.agents/skills/review')
     return WorkspaceModel(
-        corpora=(),
-        skills_dirs=(
-            SkillsDir(agent=AgentName('claude-code'), path=_path('.claude/skills'), resolves_to=universal),
-            SkillsDir(agent=AgentName('codex'), path=universal, resolves_to=universal),
+        corpora=FrozenMapping({}),
+        skills_dirs=frozenset(
+            {
+                SkillsDir(agent=AgentName('claude-code'), path=_path('.claude/skills'), resolves_to=universal),
+                SkillsDir(agent=AgentName('codex'), path=universal, resolves_to=universal),
+            }
         ),
-        skill_locations=(_regular_skill('.agents/skills/commit'), _regular_skill('.agents/skills/review')),
-        outside_symlinks=(),
+        skill_locations=FrozenMapping({commit.ref: commit, review.ref: review}),
+        outside_symlinks=FrozenMapping({}),
         load_failures=(),
     )
 

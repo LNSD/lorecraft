@@ -14,6 +14,7 @@ frontmatter schema, leaves the document ungoverned for that kind whatever the na
 from dataclasses import dataclass
 
 from lorecraft.agents import AgentName
+from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
@@ -168,19 +169,17 @@ def namespace_order_key(namespace: AspectNamespace) -> tuple[int, str]:
 
 @dataclass(frozen=True, slots=True)
 class CorpusNamespace:
-    """A namespace spec as its corpus holds it: the namespace, without the corpus, and the spec's files.
+    """A namespace spec as its corpus holds it: the spec's files and structure, without its corpus or its namespace.
 
-    The `Corpus` holding the record supplies the corpus, so the record cannot name another one;
-    `Corpus.namespace_specs` builds the `NamespaceSpec` from both.
+    The `Corpus` holding the record supplies the corpus and keys the record by its namespace, so the record cannot
+    name another corpus or another namespace; `Corpus.namespace_specs` builds the `NamespaceSpec` from all three.
 
     Attributes:
-        namespace: The namespace, the specification name after its corpus.
         files: Every root-relative file at the spec's specification name (prose and JSON), sorted; may be prose only.
         structure: The structure specification, the `FailedStructure` standing in its place when the spec's
             `.structure.json` could not be read or used, or None when the spec has no such file.
     """
 
-    namespace: AspectNamespace
     files: tuple[RootRelativePath, ...]
     structure: StructureSpec | FailedStructure | None
 
@@ -190,18 +189,19 @@ class Corpus:
     """One corpus: its spec, the namespaces narrowing it, and the filenames of its documents.
 
     The corpus is the one its spec names. Its namespace specs and its documents are built from the parts the corpus
-    does not fix, a namespace and a filename, so none of them can belong to another corpus. Either part may be passed
-    in any order: the corpus lists namespace specs broad to narrow and documents by filename.
+    does not fix, a namespace and a filename, so none of them can belong to another corpus. A namespace is held
+    once and so is a filename, whatever order they were given in: the corpus lists namespace specs broad to narrow
+    and documents by filename.
 
     Attributes:
         corpus_spec: The corpus spec; always present (discovery is spec-first), possibly prose only.
-        namespaces: The namespace specs narrowing the corpus spec, each without its corpus, in any order.
-        filenames: Stems of the Markdown files directly inside docs/<name>/, in any order.
+        namespaces: The namespace specs narrowing the corpus spec, each without its corpus, by namespace.
+        filenames: Stems of the Markdown files directly inside docs/<name>/.
     """
 
     corpus_spec: CorpusSpec
-    namespaces: tuple[CorpusNamespace, ...]
-    filenames: tuple[AspectFilename, ...]
+    namespaces: FrozenMapping[AspectNamespace, CorpusNamespace]
+    filenames: frozenset[AspectFilename]
 
     @property
     def name(self) -> CorpusName:
@@ -211,12 +211,10 @@ class Corpus:
     @property
     def namespace_specs(self) -> tuple[NamespaceSpec, ...]:
         """The specs narrowing the corpus spec, one per namespace, broad to narrow by (segment count, value)."""
-        broad_to_narrow = sorted(
-            self.namespaces, key=lambda corpus_namespace: namespace_order_key(corpus_namespace.namespace)
-        )
         namespace_specs: list[NamespaceSpec] = []
-        for corpus_namespace in broad_to_narrow:
-            name = NamespaceSpecName(self.name, corpus_namespace.namespace)
+        for namespace in sorted(self.namespaces, key=namespace_order_key):
+            corpus_namespace = self.namespaces[namespace]
+            name = NamespaceSpecName(self.name, namespace)
             namespace_specs.append(NamespaceSpec(name, corpus_namespace.files, corpus_namespace.structure))
         return tuple(namespace_specs)
 
@@ -252,18 +250,22 @@ class Corpus:
 class WorkspaceModel:
     """Immutable snapshot of structure and config; holds no root path and no document content.
 
+    Every collection but `load_failures` holds each of its members once and has no order of its own: the `sorted_*`
+    properties list them in the order a consumer reads them in. A mapping's key is its value's own name, ref or
+    path, and construction rejects a key that is not.
+
     Attributes:
-        corpora: Every corpus, sorted by name.
+        corpora: Every corpus, by name.
         skills_dirs: Every project skills directory an agent reads that the repository has, one record per
-            agent and directory, sorted by agent then path. Two agents reading one resolved directory are two
-            records with the same ``resolves_to``.
+            agent and directory. Two agents reading one resolved directory are two records with the same
+            ``resolves_to``.
         skill_locations: The location of every skill directly inside the directories those resolve to,
-            each once, sorted by directory; ``skills()`` lists the refs alone, and ``skill_agents`` says which
+            by the skill's ref; ``skills()`` lists the refs alone, and ``skill_agents`` says which
             agents read one. A skill belongs to no corpus, so no spec governs it and ``documents()`` does not
             list it. The locations, not the refs, record where each link leads, so two models differ when a
             link is retargeted even though every ref is the same.
         outside_symlinks: Every skills directory an agent declares, entry in a resolved skills directory, and
-            `SKILL.md` of such an entry, whose symlink chain leaves the repository, sorted by path, each once.
+            `SKILL.md` of such an entry, whose symlink chain leaves the repository, by path.
             None of them is a skills directory or a skill of the model; a symlink inside a skill is in its
             resource listing.
         load_failures: Every unit of the declaration that could not be read or used, each once, in the order the
@@ -272,11 +274,48 @@ class WorkspaceModel:
             listed. Nothing a failure touches is in the model beyond that record; every other unit is loaded.
     """
 
-    corpora: tuple[Corpus, ...]
-    skills_dirs: tuple[SkillsDir, ...]
-    skill_locations: tuple[SkillLocation, ...]
-    outside_symlinks: tuple[OutsideSymlink, ...]
+    corpora: FrozenMapping[CorpusName, Corpus]
+    skills_dirs: frozenset[SkillsDir]
+    skill_locations: FrozenMapping[SkillRef, SkillLocation]
+    outside_symlinks: FrozenMapping[RootRelativePath, OutsideSymlink]
     load_failures: tuple[LoadFailure, ...]
+
+    def __post_init__(self) -> None:
+        """Keep a key from naming something other than its value, which the lookups read the key alone to answer.
+
+        Raises:
+            ValueError: If a key of `corpora`, `skill_locations` or `outside_symlinks` is not its value's own name,
+                ref or path.
+        """
+        for name, corpus in self.corpora.items():
+            if name != corpus.name:
+                raise ValueError(f'corpora key {name} holds the corpus {corpus.name}')
+        for ref, location in self.skill_locations.items():
+            if ref != location.ref:
+                raise ValueError(f'skill_locations key {ref.directory} holds the skill {location.ref.directory}')
+        for path, outside in self.outside_symlinks.items():
+            if path != outside.path:
+                raise ValueError(f'outside_symlinks key {path} holds the symlink at {outside.path}')
+
+    @property
+    def sorted_corpora(self) -> tuple[Corpus, ...]:
+        """Every corpus, sorted by name."""
+        return tuple(self.corpora[name] for name in sorted(self.corpora, key=str))
+
+    @property
+    def sorted_skills_dirs(self) -> tuple[SkillsDir, ...]:
+        """Every skills directory, sorted by agent then path."""
+        return tuple(sorted(self.skills_dirs, key=lambda skills_dir: (str(skills_dir.agent), skills_dir.path)))
+
+    @property
+    def sorted_skill_locations(self) -> tuple[SkillLocation, ...]:
+        """Every skill's location, sorted by ref, which is by directory."""
+        return tuple(self.skill_locations[ref] for ref in sorted(self.skill_locations))
+
+    @property
+    def sorted_outside_symlinks(self) -> tuple[OutsideSymlink, ...]:
+        """Every symlink leading outside the repository, sorted by path."""
+        return tuple(self.outside_symlinks[path] for path in sorted(self.outside_symlinks))
 
     def find_corpus(self, name: CorpusName) -> Corpus | None:
         """The corpus with this name, or None when the model has none.
@@ -284,15 +323,12 @@ class WorkspaceModel:
         Args:
             name: Corpus directory name under docs/.
         """
-        for corpus in self.corpora:
-            if corpus.name == name:
-                return corpus
-        return None
+        return self.corpora.get(name)
 
     def documents(self) -> tuple[DocumentRef, ...]:
         """Every ref, corpus order then filename order."""
         refs: list[DocumentRef] = []
-        for corpus in self.corpora:
+        for corpus in self.sorted_corpora:
             refs.extend(corpus.documents)
         return tuple(refs)
 
@@ -309,10 +345,7 @@ class WorkspaceModel:
 
     def skills(self) -> tuple[SkillRef, ...]:
         """Every ref of a skill in the agents' skills directories, in directory order."""
-        refs: list[SkillRef] = []
-        for location in self.skill_locations:
-            refs.append(location.ref)
-        return tuple(refs)
+        return tuple(sorted(self.skill_locations))
 
     def find_skill_location(self, directory: RootRelativePath) -> SkillLocation | None:
         """The location of the skill whose ref's `directory` equals this root-relative path, or None.
@@ -321,10 +354,7 @@ class WorkspaceModel:
             directory: Skill directory to look up, `<resolved skills directory>/<entry>`, compared whole and
                 lexically: an entry that is a link is found by its own name, never by the directory it leads to.
         """
-        for location in self.skill_locations:
-            if location.ref.directory == directory:
-                return location
-        return None
+        return self.skill_locations.get(SkillRef(directory))
 
     def has_skills_dir(self, resolved_path: ResolvedPath) -> bool:
         """True when a skills directory the model lists leads to this resolved path.
@@ -348,7 +378,7 @@ class WorkspaceModel:
             Every such skill's location, in the model's order, or `()` when the directory holds none.
         """
         locations: list[SkillLocation] = []
-        for location in self.skill_locations:
+        for location in self.sorted_skill_locations:
             if location.ref.directory.parent == resolved_path:
                 locations.append(location)
         return tuple(locations)
@@ -360,10 +390,7 @@ class WorkspaceModel:
             path: Where an agent reaches the symlink, root-relative, compared whole and lexically against each
                 outside symlink's `path`: a link is found by its own name, never by where it leads.
         """
-        for outside in self.outside_symlinks:
-            if outside.path == path:
-                return True
-        return False
+        return path in self.outside_symlinks
 
     def locate_skill_files(self, path: ResolvedPath) -> tuple[SkillLocation, ...]:
         """The locations of the skills whose `SKILL.md` leads to this resolved file.
@@ -376,7 +403,7 @@ class WorkspaceModel:
             `SKILL.md` links lead to one file are both returned.
         """
         locations: list[SkillLocation] = []
-        for location in self.skill_locations:
+        for location in self.sorted_skill_locations:
             if location.file_resolves_to == path:
                 locations.append(location)
         return tuple(locations)
@@ -391,7 +418,7 @@ class WorkspaceModel:
             The agents in name order, each once, or ``()`` when no skills directory leads there.
         """
         agents: list[AgentName] = []
-        for skills_dir in self.skills_dirs:
+        for skills_dir in self.sorted_skills_dirs:
             if skills_dir.resolves_to == ref.directory.parent and skills_dir.agent not in agents:
                 agents.append(skills_dir.agent)
         return tuple(agents)
