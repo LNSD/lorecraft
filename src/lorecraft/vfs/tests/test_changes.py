@@ -13,7 +13,7 @@ from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 
-from ..changes import Change, ChangeKind, ChangeSet, diff
+from ..changes import ChangeKind, ChangeSet, diff
 from ..scan_root import ScanRoot
 from ..snapshot import (
     DirectoryRecord,
@@ -93,7 +93,7 @@ class TestDiff:
         #: Given
         old = Snapshot.from_tree({'docs': {'a.md': b'a'}})
         new = Snapshot.from_tree({'docs': {'a.md': b'a'}})
-        expected: ChangeSet = frozenset()
+        expected: ChangeSet = FrozenMapping({})
 
         #: When
         changes = diff(old, new)
@@ -106,7 +106,7 @@ class TestDiff:
         old = Snapshot.from_tree({'docs': {'a.md': b'a'}})
         # A distinct bytes object with the same content: a touch, or a save that wrote the same text.
         new = Snapshot.from_tree({'docs': {'a.md': bytes(bytearray(b'a'))}})
-        expected: ChangeSet = frozenset()
+        expected: ChangeSet = FrozenMapping({})
 
         #: When
         changes = diff(old, new)
@@ -118,7 +118,7 @@ class TestDiff:
         #: Given
         old = _docs_link('a.md', 'b.md')
         new = _docs_link('a.md', 'b.md')
-        expected: ChangeSet = frozenset()
+        expected: ChangeSet = FrozenMapping({})
 
         #: When
         changes = diff(old, new)
@@ -131,7 +131,7 @@ class TestDiff:
         records = {'docs': DirectoryRecord(listed=True)}
         old = _snapshot(records, scope=(ScanRoot(RootRelativePath.parse('docs'), depth=UnsignedInt(0)),))
         new = _snapshot(records, scope=(ScanRoot(RootRelativePath.parse('docs'), depth=UnsignedInt(1)),))
-        expected: ChangeSet = frozenset()
+        expected: ChangeSet = FrozenMapping({})
 
         #: When
         changes = diff(old, new)
@@ -143,7 +143,7 @@ class TestDiff:
         #: Given
         old = _snapshot({'docs': DirectoryRecord(listed=True)})
         new = _snapshot({'.': DirectoryRecord(listed=True), 'docs': DirectoryRecord(listed=True)})
-        expected: ChangeSet = frozenset()
+        expected: ChangeSet = FrozenMapping({})
 
         #: When
         changes = diff(old, new)
@@ -155,7 +155,7 @@ class TestDiff:
         #: Given
         old = _snapshot({'docs': DirectoryRecord(listed=True), 'docs/code': DirectoryRecord()})
         new = _snapshot({'docs': DirectoryRecord(listed=True), 'docs/code': DirectoryRecord(listed=True)})
-        expected: ChangeSet = frozenset()
+        expected: ChangeSet = FrozenMapping({})
 
         #: When
         changes = diff(old, new)
@@ -167,7 +167,7 @@ class TestDiff:
         #: Given
         old = _snapshot({'docs': DirectoryRecord(listed=True), 'docs/pipe': OtherRecord()})
         new = _snapshot({'docs': DirectoryRecord(listed=True), 'docs/pipe': OtherRecord()})
-        expected: ChangeSet = frozenset()
+        expected: ChangeSet = FrozenMapping({})
 
         #: When
         changes = diff(old, new)
@@ -184,7 +184,7 @@ class TestDiff:
         changes = diff(old, new)
 
         #: Then
-        assert changes == {Change(RootRelativePath.parse('docs'), ChangeKind.MODIFIED)}, 'a refusal lost is a change'
+        assert changes == {RootRelativePath.parse('docs'): ChangeKind.MODIFIED}, 'a refusal lost is a change'
 
     def test_diff_with_a_directory_that_can_no_longer_be_listed_returns_it_modified(self) -> None:
         #: Given
@@ -195,7 +195,7 @@ class TestDiff:
         changes = diff(old, new)
 
         #: Then
-        assert changes == {Change(RootRelativePath.parse('docs'), ChangeKind.MODIFIED)}, 'a refusal gained is a change'
+        assert changes == {RootRelativePath.parse('docs'): ChangeKind.MODIFIED}, 'a refusal gained is a change'
 
     def test_diff_with_a_file_that_can_no_longer_be_read_returns_it_modified(self) -> None:
         #: Given
@@ -206,7 +206,7 @@ class TestDiff:
         changes = diff(old, new)
 
         #: Then
-        assert changes == {Change(RootRelativePath.parse('docs/a.md'), ChangeKind.MODIFIED)}
+        assert changes == {RootRelativePath.parse('docs/a.md'): ChangeKind.MODIFIED}
 
     def test_diff_with_the_same_refusal_returns_empty(self) -> None:
         #: Given
@@ -217,13 +217,13 @@ class TestDiff:
         changes = diff(old, new)
 
         #: Then
-        assert changes == set(), 'a directory that is refused both times is unchanged, whatever flags it holds'
+        assert changes == {}, 'a directory that is refused both times is unchanged, whatever flags it holds'
 
     def test_diff_with_a_new_file_returns_it_added(self) -> None:
         #: Given
         old = Snapshot.from_tree({'docs': {'a.md': b'a'}})
         new = Snapshot.from_tree({'docs': {'a.md': b'a', 'b.md': b'b'}})
-        expected = frozenset({Change(RootRelativePath.parse('docs/b.md'), ChangeKind.ADDED)})
+        expected = {RootRelativePath.parse('docs/b.md'): ChangeKind.ADDED}
 
         #: When
         changes = diff(old, new)
@@ -235,7 +235,7 @@ class TestDiff:
         #: Given
         old = Snapshot.from_tree({'docs': {'a.md': b'a', 'b.md': b'b'}})
         new = Snapshot.from_tree({'docs': {'a.md': b'a'}})
-        expected = frozenset({Change(RootRelativePath.parse('docs/b.md'), ChangeKind.DELETED)})
+        expected = {RootRelativePath.parse('docs/b.md'): ChangeKind.DELETED}
 
         #: When
         changes = diff(old, new)
@@ -247,7 +247,7 @@ class TestDiff:
         #: Given
         old = Snapshot.from_tree({'docs': {'a.md': b'a'}})
         new = Snapshot.from_tree({'docs': {'a.md': b'changed'}})
-        expected = frozenset({Change(RootRelativePath.parse('docs/a.md'), ChangeKind.MODIFIED)})
+        expected = {RootRelativePath.parse('docs/a.md'): ChangeKind.MODIFIED}
 
         #: When
         changes = diff(old, new)
@@ -259,7 +259,7 @@ class TestDiff:
         #: Given
         old = Snapshot.from_tree({'docs': {'a.md': b'a'}})
         new = _docs_link('a.md', 'b.md')
-        expected = frozenset({Change(RootRelativePath.parse('docs/a.md'), ChangeKind.DELETED)})
+        expected = {RootRelativePath.parse('docs/a.md'): ChangeKind.DELETED}
 
         #: When
         changes = diff(old, new)
@@ -271,12 +271,10 @@ class TestDiff:
         #: Given
         old = Snapshot.from_tree({'docs': {'code': {'a.md': b'a'}}})
         new = _docs_link('code', '../elsewhere')
-        expected = frozenset(
-            {
-                Change(RootRelativePath.parse('docs/code'), ChangeKind.DELETED),
-                Change(RootRelativePath.parse('docs/code/a.md'), ChangeKind.DELETED),
-            }
-        )
+        expected = {
+            RootRelativePath.parse('docs/code'): ChangeKind.DELETED,
+            RootRelativePath.parse('docs/code/a.md'): ChangeKind.DELETED,
+        }
 
         #: When
         changes = diff(old, new)
@@ -288,13 +286,11 @@ class TestDiff:
         #: Given
         old = Snapshot.from_tree({'docs': {'a.md': b'a'}})
         new = Snapshot.from_tree({'docs': {'a.md': b'a', 'code': {'b.md': b'b', 'c.md': b'c'}}})
-        expected = frozenset(
-            {
-                Change(RootRelativePath.parse('docs/code'), ChangeKind.ADDED),
-                Change(RootRelativePath.parse('docs/code/b.md'), ChangeKind.ADDED),
-                Change(RootRelativePath.parse('docs/code/c.md'), ChangeKind.ADDED),
-            }
-        )
+        expected = {
+            RootRelativePath.parse('docs/code'): ChangeKind.ADDED,
+            RootRelativePath.parse('docs/code/b.md'): ChangeKind.ADDED,
+            RootRelativePath.parse('docs/code/c.md'): ChangeKind.ADDED,
+        }
 
         #: When
         changes = diff(old, new)
@@ -306,12 +302,10 @@ class TestDiff:
         #: Given
         old = Snapshot.from_tree({'docs': {'a.md': b'same'}})
         new = Snapshot.from_tree({'docs': {'b.md': b'same'}})
-        expected = frozenset(
-            {
-                Change(RootRelativePath.parse('docs/a.md'), ChangeKind.DELETED),
-                Change(RootRelativePath.parse('docs/b.md'), ChangeKind.ADDED),
-            }
-        )
+        expected = {
+            RootRelativePath.parse('docs/a.md'): ChangeKind.DELETED,
+            RootRelativePath.parse('docs/b.md'): ChangeKind.ADDED,
+        }
 
         #: When
         changes = diff(old, new)
@@ -323,7 +317,7 @@ class TestDiff:
         #: Given
         old = _docs_link('a.md', 'b.md')
         new = _docs_link('a.md', 'c.md')
-        expected = frozenset({Change(RootRelativePath.parse('docs/a.md'), ChangeKind.MODIFIED)})
+        expected = {RootRelativePath.parse('docs/a.md'): ChangeKind.MODIFIED}
 
         #: When
         changes = diff(old, new)
@@ -337,7 +331,7 @@ class TestDiff:
         # listed at its resolved path, and no listing of `skills` names it.
         old = _linked_skill({'skills/review': DirectoryRecord(listed=True)})
         new = _linked_skill({})
-        expected = frozenset({Change(RootRelativePath.parse('skills/review'), ChangeKind.DELETED)})
+        expected = {RootRelativePath.parse('skills/review'): ChangeKind.DELETED}
 
         #: When
         changes = diff(old, new)
@@ -349,7 +343,7 @@ class TestDiff:
         #: Given
         old = _linked_skill({})
         new = _linked_skill({'skills/review': DirectoryRecord(listed=True)})
-        expected = frozenset({Change(RootRelativePath.parse('skills/review'), ChangeKind.ADDED)})
+        expected = {RootRelativePath.parse('skills/review'): ChangeKind.ADDED}
 
         #: When
         changes = diff(old, new)
@@ -361,7 +355,7 @@ class TestDiff:
         #: Given
         old = _linked_skill_file(b'old')
         new = _linked_skill_file(b'new')
-        expected = frozenset({Change(RootRelativePath.parse('REVIEW.md'), ChangeKind.MODIFIED)})
+        expected = {RootRelativePath.parse('REVIEW.md'): ChangeKind.MODIFIED}
 
         #: When
         changes = diff(old, new)
@@ -384,12 +378,10 @@ class TestDiff:
         new = _snapshot(
             {'skills': DirectoryRecord(listed=True), 'skills/x': SymlinkRecord(PurePosixPath('../c/tmp/../d'))}
         )
-        expected = frozenset(
-            {
-                Change(RootRelativePath.parse('c/tmp'), ChangeKind.DELETED),
-                Change(RootRelativePath.parse('c/d'), ChangeKind.DELETED),
-            }
-        )
+        expected = {
+            RootRelativePath.parse('c/tmp'): ChangeKind.DELETED,
+            RootRelativePath.parse('c/d'): ChangeKind.DELETED,
+        }
 
         #: When
         changes = diff(old, new)

@@ -8,7 +8,7 @@ declaration whether a scan of it reads a path; which directories matter is the p
 this package's.
 """
 
-from .changes import Change, ChangeKind, ChangeSet, diff
+from .changes import ChangeKind, ChangeSet, diff
 from .disk import (
     ChangedSnapshotEntryError,
     Declaration,
@@ -127,7 +127,6 @@ __all__: list[str] = [
     'RecordedDirResolveError',
     'RecordedFileResolveError',
     'ChangeKind',
-    'Change',
     'ChangeSet',
     'diff',
 ]

@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Final, Protocol, assert_never
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import ROOT, RootRelativePath
 
 from .scan_root import ScanRoot
@@ -224,4 +225,5 @@ def find_linked_scan_root(scan_root: ScanRoot, link: RootRelativePath, directory
     if not scan_root.follow_links or not scan_root.is_covering(link):
         return None
     # The directory holding the link is `listing_level` levels down, and entering the link costs one more.
-    return scan_root.find_root_below(directory, levels=scan_root.listing_level(link) + 1)
+    levels_to_directory = NonZeroUnsignedInt(scan_root.listing_level(link).value + 1)
+    return scan_root.find_root_below(directory, levels=levels_to_directory)

@@ -10,7 +10,7 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.num import UnsignedInt
+from lorecraft.core.num import NegativeIntError, NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
 
 from ..scan_root import ScanRoot
@@ -82,7 +82,7 @@ class TestScanRoot:
         level = scan_root.listing_level(path)
 
         #: Then
-        assert level == 0, 'docs/ itself lists docs/a.md, so its listing is no level below docs/'
+        assert level == UnsignedInt(0), 'docs/ itself lists docs/a.md, so its listing is no level below docs/'
 
     def test_listing_level_with_an_entry_two_levels_below_returns_two(self) -> None:
         #: Given
@@ -93,7 +93,30 @@ class TestScanRoot:
         level = scan_root.listing_level(path)
 
         #: Then
-        assert level == 2, 'docs/feat/deep lists the entry, two levels below docs/, whatever the depth'
+        assert level == UnsignedInt(2), 'docs/feat/deep lists the entry, two levels below docs/, whatever the depth'
+
+    def test_listing_level_with_a_path_outside_the_directory_raises_negative_int_error(self) -> None:
+        #: Given
+        scan_root = ScanRoot(DOCS / 'feat', depth=UnsignedInt(1))
+        path = _path('docs/a.md')
+
+        #: When
+        with pytest.raises(NegativeIntError) as exc_info:
+            scan_root.listing_level(path)
+
+        #: Then
+        assert exc_info.value.value == -1, 'docs/a.md is listed by docs/, one level above docs/feat'
+
+    def test_listing_level_with_the_directory_itself_raises_negative_int_error(self) -> None:
+        #: Given
+        scan_root = ScanRoot(DOCS, depth=UnsignedInt(1))
+
+        #: When
+        with pytest.raises(NegativeIntError) as exc_info:
+            scan_root.listing_level(DOCS)
+
+        #: Then
+        assert exc_info.value.value == -1, 'docs is listed by the root, one level above docs/'
 
     def test_is_covering_at_depth_one_with_a_directory_one_level_below_returns_true(self) -> None:
         #: Given
@@ -214,7 +237,7 @@ class TestScanRootFindRootBelow:
         directory = _path('docs/feat/deep')
 
         #: When
-        lowered = scan_root.find_root_below(directory, levels=2)
+        lowered = scan_root.find_root_below(directory, levels=NonZeroUnsignedInt(2))
 
         #: Then
         assert lowered == ScanRoot(directory, depth=UnsignedInt(1)), 'two levels down from depth 3, one level is left'
@@ -225,7 +248,7 @@ class TestScanRootFindRootBelow:
         directory = _path('docs/feat')
 
         #: When
-        lowered = scan_root.find_root_below(directory, levels=1)
+        lowered = scan_root.find_root_below(directory, levels=NonZeroUnsignedInt(1))
 
         #: Then
         assert lowered == ScanRoot(directory, depth=UnsignedInt(0)), (
@@ -238,7 +261,7 @@ class TestScanRootFindRootBelow:
         directory = _path('docs/feat')
 
         #: When
-        lowered = scan_root.find_root_below(directory, levels=1)
+        lowered = scan_root.find_root_below(directory, levels=NonZeroUnsignedInt(1))
 
         #: Then
         assert lowered is None, 'depth 0 names docs/feat and never enters it'
@@ -249,7 +272,7 @@ class TestScanRootFindRootBelow:
         directory = _path('docs/feat/deep/deeper')
 
         #: When
-        lowered = scan_root.find_root_below(directory, levels=3)
+        lowered = scan_root.find_root_below(directory, levels=NonZeroUnsignedInt(3))
 
         #: Then
         assert lowered == ScanRoot(directory, depth=None), 'no depth limit stays no limit however far down'
@@ -260,7 +283,7 @@ class TestScanRootFindRootBelow:
         directory = _path('shared/feat')
 
         #: When
-        lowered = scan_root.find_root_below(directory, levels=1)
+        lowered = scan_root.find_root_below(directory, levels=NonZeroUnsignedInt(1))
 
         #: Then
         assert lowered == ScanRoot(directory, depth=None, follow_links=True), 'the link policy is kept'
