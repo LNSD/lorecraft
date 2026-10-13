@@ -10,7 +10,8 @@ The block is read as basic YAML, which decodes to exactly what JSON can hold: bl
 are strings, block and flow sequences, and scalars. A quoted or block scalar is a string. A plain scalar is null,
 a boolean, an integer or a float when its whole text is one in YAML 1.2's core schema, such as `~`, `true`, `12` or
 `1.5`, and a string otherwise, so `yes`, `2026-10-05` and `1:30` are strings. A directive, a document marker, an
-anchor, an alias, a merge key, a tag and a key that is not a string are refused, on their line, as a block that is
+anchor, an alias, a merge key, a tag, an explicit or empty key, a key that is not a string, a flow collection
+that spreads over lines and a block scalar's indentation indicator are refused, on their line, as a block that is
 not YAML: none is needed to write a document's metadata, an alias can make a collection hold itself, a tag builds
 values JSON has no counterpart for, and JSON names every key with a string.
 """
@@ -20,6 +21,7 @@ import re
 import sys
 from collections.abc import Iterator
 from dataclasses import dataclass
+from enum import Enum
 from typing import Final, Never, assert_never
 
 from ruamel.yaml import YAML
@@ -38,8 +40,9 @@ from ruamel.yaml.parser import ParserError
 from ruamel.yaml.reader import Reader, ReaderError
 from ruamel.yaml.resolver import VersionedResolver
 from ruamel.yaml.scanner import Scanner, ScannerError
-from ruamel.yaml.tokens import ScalarToken
+from ruamel.yaml.tokens import ScalarToken, Token
 
+from lorecraft.core.error import Error
 from lorecraft.core.mapping import Frozen, FrozenMapping
 
 from .position import LineNumber
@@ -71,6 +74,9 @@ patterns are tried first. The core schema's `.inf` and `.nan` are left out: JSON
 
 _MERGE_KEY: Final[str] = '<<'
 """The plain key YAML 1.1 reads as a merge: the entries of the mapping an alias names join the mapping."""
+
+_NOT_ALLOWED: Final[str] = 'which frontmatter does not allow'
+"""How the problem of a refused construct ends: `found <construct>, which frontmatter does not allow`."""
 
 _SPACE_CHARACTERS: Final[str] = '\0 \t\r\n\x85\u2028\u2029'
 """The characters that end a plain scalar: the end of the text, a space or tab, or a line break."""
@@ -185,6 +191,170 @@ type _Entry = tuple[FrontmatterKey, Frozen]
 """One pair of a mapping as it is written: the key, with its line, and the decoded value."""
 
 
+class _RecordedConstruct(Enum):
+    """The constructs the scanner records without stopping, each with how the problem names it."""
+
+    EXPLICIT_KEY = 'an explicit key'
+    EMPTY_KEY = 'an empty key'
+    INDENTATION_INDICATOR = 'a block scalar indentation indicator'
+    SPREAD_FLOW_COLLECTION = 'a flow collection spread over lines'
+
+
+@dataclass(frozen=True, slots=True)
+class _RecordedRefusal:
+    """A construct frontmatter leaves out, which the scanner met and recorded without stopping.
+
+    Attributes:
+        construct: Which construct it is.
+        mark: Where it is written.
+    """
+
+    construct: _RecordedConstruct
+    mark: StreamMark
+
+    @property
+    def problem(self) -> str:
+        """The problem as `FM002` words it, `found <construct>, which frontmatter does not allow`."""
+        return f'found {self.construct.value}, {_NOT_ALLOWED}'
+
+
+class _RefusedConstructError(Error):
+    """What the constructs refused where the block is read have in common. It is never raised itself.
+
+    `decode_frontmatter` catches this class to place the construct against the ones the scanner recorded; each
+    subclass is raised for one construct and words its own problem.
+
+    Attributes:
+        mark: Where the construct is written.
+        problem: The problem as `FM002` words it.
+    """
+
+    mark: StreamMark
+    problem: str
+
+    def __init__(self, mark: StreamMark, problem: str) -> None:
+        self.mark = mark
+        self.problem = problem
+        super().__init__(problem)
+
+
+class _RefusedDirectiveError(_RefusedConstructError):
+    """The block holds a directive, a `%` line.
+
+    Attributes:
+        name: The `%` and the name that follows it.
+    """
+
+    name: str
+
+    def __init__(self, name: str, mark: StreamMark) -> None:
+        self.name = name
+        super().__init__(mark, f'found the directive {name}, {_NOT_ALLOWED}')
+
+
+class _RefusedDocumentMarkerError(_RefusedConstructError):
+    """The block writes a `---` or `...` marker, though it is the body of one document.
+
+    Attributes:
+        marker: The three characters of the marker.
+    """
+
+    marker: str
+
+    def __init__(self, marker: str, mark: StreamMark) -> None:
+        self.marker = marker
+        super().__init__(mark, f'found the document marker {marker}, {_NOT_ALLOWED}')
+
+
+class _RefusedAliasError(_RefusedConstructError):
+    """A value is an alias.
+
+    Attributes:
+        anchor: The anchor's name, without the `*`.
+    """
+
+    anchor: str
+
+    def __init__(self, anchor: str, mark: StreamMark) -> None:
+        self.anchor = anchor
+        super().__init__(mark, f'found the alias *{anchor}, {_NOT_ALLOWED}')
+
+
+class _RefusedAnchorError(_RefusedConstructError):
+    """A value carries an anchor.
+
+    Attributes:
+        anchor: The anchor's name, without the `&`.
+    """
+
+    anchor: str
+
+    def __init__(self, anchor: str, mark: StreamMark) -> None:
+        self.anchor = anchor
+        super().__init__(mark, f'found the anchor &{anchor}, {_NOT_ALLOWED}')
+
+
+class _RefusedTagError(_RefusedConstructError):
+    """A value carries a tag, the non-specific `!` included.
+
+    Attributes:
+        tag: The tag as the block writes it.
+    """
+
+    tag: str
+
+    def __init__(self, tag: str, mark: StreamMark) -> None:
+        self.tag = tag
+        super().__init__(mark, f'found the tag {tag!r}, {_NOT_ALLOWED}')
+
+
+class _RefusedMergeKeyError(_RefusedConstructError):
+    """A mapping writes the plain key `<<`, which YAML 1.1 reads as a merge."""
+
+    def __init__(self, mark: StreamMark) -> None:
+        super().__init__(mark, f'found the merge key {_MERGE_KEY}, {_NOT_ALLOWED}')
+
+
+class _RefusedCollectionKeyError(_RefusedConstructError):
+    """A mapping's key is a collection, not a string."""
+
+    def __init__(self, mark: StreamMark) -> None:
+        super().__init__(mark, 'found a key that is not a string')
+
+
+class _RefusedNonStringKeyError(_RefusedConstructError):
+    """A mapping's key is a scalar that decodes to null, a boolean or a number, not a string.
+
+    Attributes:
+        key: The key as written, which is empty for a key written as nothing at all.
+    """
+
+    key: str
+
+    def __init__(self, key: str, mark: StreamMark) -> None:
+        self.key = key
+        # A key written as nothing at all reads as null, and has no text to name.
+        if key:
+            super().__init__(mark, f'found the key {key}, which is not a string')
+        else:
+            super().__init__(mark, 'found a key that is not a string')
+
+
+class _RefusedEscapeError(_RefusedConstructError):
+    """A double-quoted escape names a code point above `U+10FFFF`, which `chr` cannot build.
+
+    Attributes:
+        source: The failure `chr` raised.
+    """
+
+    source: ValueError | OverflowError
+
+    def __init__(self, mark: StreamMark, *, source: ValueError | OverflowError) -> None:
+        self.source = source
+        super().__init__(mark, 'found an escape sequence that names no Unicode character')
+        self.__cause__ = source
+
+
 def decode_frontmatter(block: str) -> FrontmatterNode:
     """Decode the YAML between a document's `---` delimiters into its node. Pure: raises nothing.
 
@@ -197,21 +367,42 @@ def decode_frontmatter(block: str) -> FrontmatterNode:
     Args:
         block: The lines between the delimiters, line endings kept; the first of them is document line 2.
     """
+    stream = _EventStream(block)
     try:
-        return _read_document(_EventStream(block))
+        node = _read_document(stream)
     except ReaderError as exc:
         # The reader checks every character as it is built, so a control character fails before the first event.
         line = LineNumber.from_int(block.count('\n', 0, exc.position) + _FIRST_BLOCK_LINE)
         return InvalidYamlFrontmatter(problem=exc.reason, line=line)
+    except _RefusedConstructError as exc:
+        # The read stopped at a construct this module refuses. The scanner reads ahead of the parser, so it may
+        # have recorded one written above it, which is the one the block is reported for.
+        refusal = stream.first_refusal()
+        if refusal is not None and refusal.mark.index <= exc.mark.index:
+            return _invalid_refusal(refusal)
+        return _invalid_refusal(exc)
     except MarkedYAMLError as exc:
-        # The parser's own errors, and every refusal of what basic YAML leaves out, which this module raises as one.
+        # Every other `MarkedYAMLError` is ruamel.yaml's own. The scanner reads ahead of the parser, so a construct
+        # it recorded is written above whatever the parser or the scanner failed on.
+        refusal = stream.first_refusal()
+        if refusal is not None:
+            return _invalid_refusal(refusal)
         return _invalid_yaml(exc)
     except RecursionError:
         # The value is read with one call per level of nesting, so only a deeply nested block reaches the
         # interpreter's limit. By the time this clause runs the stack has unwound to this frame, so there is room
         # to go on, and the half-read parser is dropped. The line is left out, because the depth reading stops at
-        # depends on the interpreter's recursion limit and on how deep the caller's stack already was.
+        # depends on the interpreter's recursion limit and on how deep the caller's stack already was. A construct
+        # the scanner recorded above the depth is reported instead, on its line.
+        refusal = stream.first_refusal()
+        if refusal is not None:
+            return _invalid_refusal(refusal)
         return InvalidYamlFrontmatter(problem='found collections nested too deeply to parse', line=None)
+    # The block was read to its end, so every construct the scanner recorded is written above the end.
+    refusal = stream.first_refusal()
+    if refusal is not None:
+        return _invalid_refusal(refusal)
+    return node
 
 
 def reads_back_as_string(text: str) -> bool:
@@ -238,8 +429,8 @@ class _EventStream:
 
     The events come from ruamel.yaml's pure-Python reader, scanner and parser. The value is built from them by this
     module, never by ruamel.yaml's loader or constructor, so no tag ruamel.yaml resolves and no type it constructs
-    is ever involved. They are read lazily so that a refusal early in the block is reported before a syntax error
-    further down, as the parser reaches them.
+    is ever involved. They are read lazily, so a block that fails stops being read where it fails, and the constructs
+    the scanner recorded by then are the ones written above the failure.
     """
 
     def __init__(self, block: str) -> None:
@@ -260,6 +451,7 @@ class _EventStream:
         self._block = block
         self._events: Iterator[Event] = iter(yaml.parse(block))
         self._peeked: Event | None = None
+        self._yaml = yaml
 
     def peek_event(self) -> Event:
         """The next event, left unread.
@@ -271,6 +463,11 @@ class _EventStream:
         if self._peeked is None:
             self._peeked = next(self._events)
         return self._peeked
+
+    def first_refusal(self) -> _RecordedRefusal | None:
+        """The first construct the scanner has recorded, in the order the block writes them, or `None`."""
+        refusals: list[_RecordedRefusal] = self._yaml.scanner.refusals
+        return refusals[0] if refusals else None
 
     def get_event(self) -> Event:
         """The next event, read.
@@ -352,33 +549,50 @@ class _BasicYamlScanner(Scanner):
 
     A directive and a document marker are refused at their indicator, before anything after it is read, so the
     block's own text never reaches ruamel.yaml's directive scanner, whose version number conversion raises a plain
-    `ValueError` for more digits than Python converts to an `int`, 4300 by default. Those refusals are a
-    `MarkedYAMLError` of lorecraft's own, not a `ScannerError`: `decode_frontmatter` reports them as they are
-    worded, where it rewords the scanner's problems.
+    `ValueError` for more digits than Python converts to an `int`, 4300 by default. Those refusals are
+    errors of lorecraft's own, not a `ScannerError`: `decode_frontmatter` reports them as they are worded, where
+    it rewords the scanner's problems.
+
+    An explicit key, an empty key, a flow collection spread over lines and a block scalar's indentation indicator
+    are not refused where the scanner meets them. It records each in `refusals`, in the order the block writes them,
+    for `decode_frontmatter` to report once the read ends or fails. The scanner reads ahead of the parser, so
+    raising at once would report a construct written below a tag or an anchor before the tag or the anchor. It
+    holds `_flow_start`, where the outermost open flow collection begins, to tell a collection spread over lines.
 
     A double-quoted `\U` escape above `U+10FFFF` is the one other place a plain Python exception escapes: `chr`
     raises a `ValueError`, or an `OverflowError` for one too large for a C `int`. It is raised here as a
-    `ScannerError` on the escape's line, which `decode_frontmatter` turns into invalid YAML.
+    refusal of its own on the escape's line, with the `chr` failure as its source, which `decode_frontmatter`
+    turns into invalid YAML.
     """
+
+    def __init__(self, loader: object = None) -> None:
+        """Start scanning outside any flow collection, with nothing recorded.
+
+        Args:
+            loader: The object ruamel.yaml's entry point passes in, which holds the reader.
+        """
+        super().__init__(loader)
+        self._flow_start: StreamMark | None = None
+        self.refusals: list[_RecordedRefusal] = []
 
     def fetch_directive(self) -> Never:
         """Refuse a directive, a `%` line, naming it by the `%` and the name that follows it.
 
         Raises:
-            MarkedYAMLError: Always: frontmatter holds no directive.
+            _RefusedDirectiveError: Always: frontmatter holds no directive.
         """
         start_mark = self.reader.get_mark()
         length = 1
         while self.reader.peek(length) not in _DIRECTIVE_NAME_END_CHARACTERS:
             length += 1
-        problem = f'found the directive {self.reader.prefix(length)}, which frontmatter does not allow'
-        raise MarkedYAMLError(problem=problem, problem_mark=start_mark)
+        raise _RefusedDirectiveError(self.reader.prefix(length), start_mark)
 
     def fetch_document_start(self) -> Never:
         """Refuse a `---` marker written inside the block.
 
         Raises:
-            MarkedYAMLError: Always: the block is the body of one document, whose delimiters are not part of it.
+            _RefusedDocumentMarkerError: Always: the block is the body of one document, whose delimiters are not part
+                of it.
         """
         self._refuse_document_marker()
 
@@ -386,7 +600,8 @@ class _BasicYamlScanner(Scanner):
         """Refuse a `...` marker written inside the block.
 
         Raises:
-            MarkedYAMLError: Always: the block is the body of one document, whose delimiters are not part of it.
+            _RefusedDocumentMarkerError: Always: the block is the body of one document, whose delimiters are not part
+                of it.
         """
         self._refuse_document_marker()
 
@@ -394,11 +609,59 @@ class _BasicYamlScanner(Scanner):
         """Refuse the three-character marker the reader is on.
 
         Raises:
-            MarkedYAMLError: Always: the marker is not allowed inside the block.
+            _RefusedDocumentMarkerError: Always: the marker is not allowed inside the block.
         """
-        start_mark = self.reader.get_mark()
-        problem = f'found the document marker {self.reader.prefix(3)}, which frontmatter does not allow'
-        raise MarkedYAMLError(problem=problem, problem_mark=start_mark)
+        raise _RefusedDocumentMarkerError(self.reader.prefix(3), self.reader.get_mark())
+
+    def fetch_key(self) -> None:
+        """Fetch a `?` that starts a key, and record it as an explicit key where a node may start."""
+        # The scanner's flow context takes every `?` for a key. A `?` that follows a scalar, as in `[what?]` and
+        # `[what ? x]`, is part of a plain scalar in YAML 1.2, and the scanner has stopped allowing a node by then,
+        # so it is left to the parser. After `[`, `{`, `,` or the start of a block line, a node may start.
+        if self.allow_simple_key:
+            self.refusals.append(_RecordedRefusal(_RecordedConstruct.EXPLICIT_KEY, self.reader.get_mark()))
+        super().fetch_key()
+
+    def fetch_value(self) -> None:
+        """Fetch a `:`, and record it as an empty key when no key was written before it."""
+        # The scanner saves the start of every scalar that may be a simple key, and `:` finds it. With none saved,
+        # and a key allowed here, the key is written as nothing. Where a key is not allowed, as after `a: b`, the
+        # scanner fails with its own problem, which is a syntax error of the value, not an empty key.
+        if self.flow_level not in self.possible_simple_keys and (self.flow_level or self.allow_simple_key):
+            self.refusals.append(_RecordedRefusal(_RecordedConstruct.EMPTY_KEY, self.reader.get_mark()))
+        super().fetch_value()
+
+    def fetch_flow_collection_start(self, TokenClass: type[Token], to_push: str) -> None:
+        """Fetch a `[` or a `{`, remembering where the outermost flow collection opens.
+
+        Args:
+            TokenClass: The token to build, a sequence's or a mapping's start.
+            to_push: The character the flow context records.
+        """
+        if self._flow_start is None:
+            self._flow_start = self.reader.get_mark()
+        super().fetch_flow_collection_start(TokenClass, to_push)
+
+    def fetch_flow_collection_end(self, TokenClass: type[Token]) -> None:
+        """Fetch a `]` or a `}`, forgetting where the outermost flow collection opened once it closes.
+
+        Args:
+            TokenClass: The token to build, a sequence's or a mapping's end.
+        """
+        super().fetch_flow_collection_end(TokenClass)
+        if not self.flow_level:
+            self._flow_start = None
+
+    def scan_block_scalar_indicators(self, start_mark: StreamMark) -> tuple[bool | None, int | None]:
+        """Scan a block scalar's chomping and indentation indicators, recording an indentation indicator.
+
+        Args:
+            start_mark: Where the scalar starts, for the scanner's own error messages.
+        """
+        chomping, increment = super().scan_block_scalar_indicators(start_mark)
+        if increment is not None:
+            self.refusals.append(_RecordedRefusal(_RecordedConstruct.INDENTATION_INDICATOR, start_mark))
+        return chomping, increment
 
     def scan_flow_scalar_breaks(self, double: bool, start_mark: StreamMark) -> list[str]:
         """Scan the line breaks and blank lines inside a quoted scalar, refusing a marker that starts a line.
@@ -408,7 +671,7 @@ class _BasicYamlScanner(Scanner):
             start_mark: Where the scalar starts, for the scanner's own error messages.
 
         Raises:
-            MarkedYAMLError: A line of the scalar starts with a `---` or `...` marker.
+            _RefusedDocumentMarkerError: A line of the scalar starts with a `---` or `...` marker.
         """
         # ruamel.yaml refuses a marker on a continuation line itself, in its own words, and the format refuses
         # every marker the same way, so the loop is its own with that one check changed.
@@ -452,7 +715,8 @@ class _BasicYamlScanner(Scanner):
             start_mark: Where the scalar starts, for the scanner's own error messages.
 
         Raises:
-            ScannerError: An escape names no Unicode character, or the text is not valid YAML.
+            _RefusedEscapeError: An escape names no Unicode character.
+            ScannerError: The text is not valid YAML.
         """
         try:
             return super().scan_flow_scalar_non_spaces(double, start_mark)
@@ -462,13 +726,13 @@ class _BasicYamlScanner(Scanner):
             # fit a C int, an OverflowError on the interpreters that convert the argument first. Nothing else in
             # this method raises either. The scanner stops on the escape's digits, so its current mark is on the
             # escape's line.
-            problem = 'found an escape sequence that names no Unicode character'
-            raise ScannerError(None, None, problem, self.reader.get_mark()) from exc
+            raise _RefusedEscapeError(self.reader.get_mark(), source=exc) from exc
 
     def scan_to_next_token(self) -> None:
         r"""Skip spaces, comments and line breaks to the next token; a tab is no whitespace, in a flow collection too.
 
-        A tab is a character that cannot start a token, so `[a,\tb]` is refused.
+        A tab is a character that cannot start a token, so `[a,\tb]` is refused. Where the next token is on a later
+        line than the one the flow collection it is in opened on, the collection is recorded as a refusal.
         """
         # ruamel.yaml also skips a tab inside a flow collection, as YAML 1.2 allows, which PyYAML refuses.
         if self.reader.index == 0 and self.reader.peek() == '\ufeff':
@@ -485,6 +749,14 @@ class _BasicYamlScanner(Scanner):
                     self.allow_simple_key = True
             else:
                 found = True
+        # The next token is the first thing the collection holds on a line below the one it opened on, or the end of
+        # the block, where an unclosed one stops. A construct written between the opening and the line break, such as
+        # the tag of `a: [b, !x c,` / `  d]`, was recorded or met before this point, so it is reported first, on the
+        # same line.
+        if self._flow_start is not None and self.reader.line != self._flow_start.line:
+            # This runs for every token below the opening line, and the collection is refused once.
+            if not any(refusal.mark is self._flow_start for refusal in self.refusals):
+                self.refusals.append(_RecordedRefusal(_RecordedConstruct.SPREAD_FLOW_COLLECTION, self._flow_start))
 
     def scan_plain(self) -> ScalarToken:
         """Scan a plain scalar, which ends at a `:` before a flow indicator inside a flow collection."""
@@ -521,6 +793,28 @@ class _BasicYamlScanner(Scanner):
         return ScalarToken(''.join(chunks), True, start_mark, end_mark)
 
 
+def _invalid_refusal(refusal: _RecordedRefusal | _RefusedConstructError) -> InvalidYamlFrontmatter:
+    """The facts about a block that writes a construct frontmatter leaves out: the problem, and its line.
+
+    Args:
+        refusal: The construct, as the scanner recorded it or as the read stopped on it.
+    """
+    return InvalidYamlFrontmatter(problem=refusal.problem, line=_document_line(refusal.mark.line))
+
+
+def _mark_of(event: Event) -> StreamMark:
+    """Where an event starts.
+
+    Args:
+        event: An event the parser emitted.
+    """
+    mark = event.start_mark
+    if mark is None:
+        # An event's mark is optional only in its constructor's signature: the parser marks every event it emits.
+        raise AssertionError('unreachable: ruamel.yaml marks every event it parses')
+    return mark
+
+
 def _read_document(parser: _EventStream) -> Frontmatter | NonMappingFrontmatter:
     """Read the block's one document, if any, and decode it.
 
@@ -531,7 +825,8 @@ def _read_document(parser: _EventStream) -> Frontmatter | NonMappingFrontmatter:
         parser: The block's parser, before its first event is read.
 
     Raises:
-        MarkedYAMLError: The block is not valid YAML or uses what basic YAML leaves out.
+        MarkedYAMLError: The block is not valid YAML.
+        _RefusedConstructError: The block uses what basic YAML leaves out; the subclass names what.
     """
     parser.get_event()  # The stream's start.
     if parser.check_event(StreamEndEvent):
@@ -558,22 +853,21 @@ def _peek_node_start(parser: _EventStream) -> ScalarEvent | SequenceStartEvent |
         parser: The parser, whose next event starts a value.
 
     Raises:
-        MarkedYAMLError: The value is an alias, or carries an anchor or a tag, marked where it is written.
+        _RefusedAliasError: The value is an alias, marked where it is written.
+        _RefusedAnchorError: The value carries an anchor, marked where it is written.
+        _RefusedTagError: The value carries a tag, marked where it is written.
     """
     event = parser.peek_event()
     if isinstance(event, AliasEvent):
-        problem = f'found the alias *{event.anchor}, which frontmatter does not allow'
-        raise MarkedYAMLError(problem=problem, problem_mark=event.start_mark)
+        raise _RefusedAliasError(event.anchor, _mark_of(event))
     if not isinstance(event, ScalarEvent | SequenceStartEvent | MappingStartEvent):
         # Only an end event or a document event is left, and the parser never gives one where a value starts.
         raise AssertionError(f'unreachable: {type(event).__name__} where a value starts')
     if event.anchor is not None:
-        problem = f'found the anchor &{event.anchor}, which frontmatter does not allow'
-        raise MarkedYAMLError(problem=problem, problem_mark=event.start_mark)
+        raise _RefusedAnchorError(event.anchor, _mark_of(event))
     # The parser gives an event a tag only when one is written in the block, the non-specific `!` included.
     if event.tag is not None:
-        problem = f'found the tag {parser.written_tag(event)!r}, which frontmatter does not allow'
-        raise MarkedYAMLError(problem=problem, problem_mark=event.start_mark)
+        raise _RefusedTagError(parser.written_tag(event), _mark_of(event))
     return event
 
 
@@ -584,7 +878,8 @@ def _read_value(parser: _EventStream) -> Frozen:
         parser: The parser, whose next event starts the value.
 
     Raises:
-        MarkedYAMLError: The value is not valid YAML or uses what basic YAML leaves out.
+        MarkedYAMLError: The value is not valid YAML.
+        _RefusedConstructError: The value uses what basic YAML leaves out; the subclass names what.
     """
     event = _peek_node_start(parser)
     if isinstance(event, MappingStartEvent):
@@ -602,8 +897,9 @@ def _read_mapping(parser: _EventStream) -> list[_Entry]:
         parser: The parser, whose next event starts the mapping.
 
     Raises:
-        MarkedYAMLError: A key is not a string, or the mapping is not valid YAML or uses what basic YAML
-            leaves out.
+        MarkedYAMLError: The mapping is not valid YAML.
+        _RefusedConstructError: A key is not a string, or the mapping uses what basic YAML leaves out; the subclass
+            names what.
     """
     parser.get_event()  # The mapping's start.
     entries: list[_Entry] = []
@@ -622,7 +918,8 @@ def _read_sequence(parser: _EventStream) -> tuple[Frozen, ...]:
         parser: The parser, whose next event starts the sequence.
 
     Raises:
-        MarkedYAMLError: An item is not valid YAML or uses what basic YAML leaves out.
+        MarkedYAMLError: An item is not valid YAML.
+        _RefusedConstructError: An item uses what basic YAML leaves out; the subclass names what.
     """
     parser.get_event()  # The sequence's start.
     items: list[Frozen] = []
@@ -639,25 +936,24 @@ def _read_key(parser: _EventStream) -> FrontmatterKey:
         parser: The parser, whose next event starts the key.
 
     Raises:
-        MarkedYAMLError: The key is a collection, or a scalar that decodes to something other than a string,
-            or uses what basic YAML leaves out.
+        _RefusedCollectionKeyError: The key is a collection.
+        _RefusedNonStringKeyError: The key is a scalar that decodes to something other than a string.
+        _RefusedMergeKeyError: The key is the plain merge key.
+        _RefusedAliasError: The key is an alias.
+        _RefusedAnchorError: The key carries an anchor.
+        _RefusedTagError: The key carries a tag.
     """
     event = _peek_node_start(parser)
     if not isinstance(event, ScalarEvent):
-        raise MarkedYAMLError(problem='found a key that is not a string', problem_mark=event.start_mark)
+        raise _RefusedCollectionKeyError(_mark_of(event))
     parser.get_event()
     name = _scalar_value(event)
+    mark = _mark_of(event)
     if not isinstance(name, str):
-        raise MarkedYAMLError(problem=_non_string_key_problem(event), problem_mark=event.start_mark)
-    mark = event.start_mark
+        raise _RefusedNonStringKeyError(event.value, mark)
     if event.style is None and name == _MERGE_KEY:
         # A plain `<<` is YAML 1.1's merge key, which pulls in the entries of the mapping an alias names.
-        raise MarkedYAMLError(
-            problem=f'found the merge key {_MERGE_KEY}, which frontmatter does not allow', problem_mark=mark
-        )
-    if mark is None:
-        # An event's mark is optional only in its constructor's signature: the parser marks every event it emits.
-        raise AssertionError('unreachable: ruamel.yaml marks every event it parses')
+        raise _RefusedMergeKeyError(mark)
     return FrontmatterKey(name=name, line=_document_line(mark.line))
 
 
@@ -718,18 +1014,6 @@ def _keys(entries: list[_Entry]) -> tuple[FrontmatterKey, ...]:
     for key, _value in entries:
         keys.append(key)
     return tuple(keys)
-
-
-def _non_string_key_problem(key_event: ScalarEvent) -> str:
-    """What a reader is told about a scalar key that does not decode to a string, naming the key as written.
-
-    Args:
-        key_event: The key's event.
-    """
-    # A key written as nothing at all reads as null, and has no text to name.
-    if key_event.value:
-        return f'found the key {key_event.value}, which is not a string'
-    return 'found a key that is not a string'
 
 
 def _document_line(block_line: int) -> LineNumber:

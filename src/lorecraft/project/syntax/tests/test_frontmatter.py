@@ -113,17 +113,21 @@ class TestDecodeFrontmatter:
             problem='found the key null, which is not a string', line=LineNumber.from_int(3)
         ), 'a key YAML reads as null is refused on its line, named as written'
 
-    def test_decode_frontmatter_with_an_empty_key_returns_invalid_yaml_on_its_line(self) -> None:
+    def test_decode_frontmatter_with_an_explicit_empty_key_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
-        block = 'name: guide\n?\n: nothing\n'
+        block = dedent("""\
+            name: guide
+            ?
+            : nothing
+            """)
 
         #: When
         node = decode_frontmatter(block)
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='found a key that is not a string', line=LineNumber.from_int(3)
-        ), 'a key written as nothing is null, and has no text to name'
+            problem='found an explicit key, which frontmatter does not allow', line=LineNumber.from_int(3)
+        ), 'the `?` that starts a key is refused on its line, whatever it holds'
 
     def test_decode_frontmatter_with_a_date_key_returns_it_as_a_string_key(self) -> None:
         #: Given
@@ -437,14 +441,18 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_invalid_yaml_returns_the_parsers_problem_and_line(self) -> None:
         #: Given
-        block = 'name: [unclosed\n'
+        block = dedent("""\
+            name: guide
+            description: a
+              b: c
+            """)
 
         #: When
         node = decode_frontmatter(block)
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="expected ',' or ']', but got '<stream end>'", line=LineNumber.from_int(3)
+            problem='mapping values are not allowed here', line=LineNumber.from_int(4)
         ), 'the parser names the problem, and the document line it stopped on follows the opening delimiter'
 
     def test_decode_frontmatter_with_a_control_character_returns_invalid_yaml_on_its_line(self) -> None:
@@ -566,7 +574,7 @@ class TestDecodeFrontmatter:
     ) -> None:
         #: Given
         block = dedent("""\
-            tags: [a,
+            name: guide
             %b]
             """)
 
@@ -685,6 +693,23 @@ class TestDecodeFrontmatter:
         assert node == InvalidYamlFrontmatter(problem='found collections nested too deeply to parse', line=None), (
             'block mappings nested past the stack are a finding with no line, not a crash'
         )
+
+    def test_decode_frontmatter_with_an_explicit_key_above_nesting_too_deep_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        # the scanner recorded the `?` before the stack ran out, and it is written above the depth
+        depth = sys.getrecursionlimit()
+        nested = ''.join(f'{" " * level}nested:\n' for level in range(depth))
+        block = f'name: guide\n? a\n{nested}{" " * depth}a: b\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found an explicit key, which frontmatter does not allow', line=LineNumber.from_int(3)
+        ), 'the construct written above the nesting is the finding, not the depth'
 
     def test_decode_frontmatter_with_an_integer_too_long_to_read_returns_it_as_a_string(self) -> None:
         #: Given
@@ -922,7 +947,7 @@ class TestDecodeFrontmatter:
             problem="expected <block end>, but found '<block mapping start>'", line=LineNumber.from_int(4)
         ), 'a line indented to no level of the block is reported on that line'
 
-    def test_decode_frontmatter_with_an_unclosed_flow_collection_returns_invalid_yaml_on_the_line_it_stops_at(
+    def test_decode_frontmatter_with_an_unclosed_flow_collection_returns_invalid_yaml_on_the_line_it_opens(
         self,
     ) -> None:
         #: Given
@@ -937,8 +962,9 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="expected ',' or ']', but got ':'", line=LineNumber.from_int(4)
-        ), 'a flow collection left open runs on until a line that cannot continue it, which is reported'
+            problem='found a flow collection spread over lines, which frontmatter does not allow',
+            line=LineNumber.from_int(3),
+        ), 'a flow collection left open is spread over lines, and is reported where it opens'
 
     def test_decode_frontmatter_with_a_second_colon_in_a_plain_value_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
@@ -1007,8 +1033,8 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="expected <block end>, but found ':'", line=LineNumber.from_int(3)
-        ), 'a `:` with no key before it is not YAML 1.1, and is reported on its line'
+            problem='found an empty key, which frontmatter does not allow', line=LineNumber.from_int(3)
+        ), 'a `:` with no key before it is an empty key, and is reported on its line'
 
     def test_decode_frontmatter_with_an_unindented_top_level_block_scalar_returns_invalid_yaml_on_its_line(
         self,
@@ -1016,7 +1042,7 @@ class TestDecodeFrontmatter:
         #: Given
         block = dedent("""\
             >
-            ?
+            text
             """)
 
         #: When
@@ -1024,7 +1050,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="expected '<document start>', but found '<block mapping start>'", line=LineNumber.from_int(3)
+            problem="expected '<document start>', but found '<scalar>'", line=LineNumber.from_int(3)
         ), 'a top-level block scalar must be indented, so the line after it is reported'
 
     def test_decode_frontmatter_with_a_nested_block_scalar_after_a_short_blank_line_returns_its_text(self) -> None:
@@ -1136,6 +1162,147 @@ class TestDecodeFrontmatter:
         assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
         assert node.data == FrozenMapping({'a': 'b&c', 'b': '2*3', 'c': 'wow!', 'd': '&x *y !z'}), (
             'an anchor, an alias or a tag starts a node; inside a value the character is text'
+        )
+
+    def test_decode_frontmatter_with_a_question_mark_ending_a_plain_scalar_in_a_flow_sequence_is_no_explicit_key(
+        self,
+    ) -> None:
+        #: Given
+        block = 'a: [what?]\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="expected ',' or ']', but got '?'", line=LineNumber.from_int(2)
+        ), 'a `?` inside a plain scalar is no explicit key, so it is the parser that stops there, not a refusal'
+
+    def test_decode_frontmatter_with_a_spaced_question_mark_in_a_flow_sequence_is_no_explicit_key(self) -> None:
+        #: Given
+        block = 'a: [what ? x]\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="expected ',' or ']', but got '?'", line=LineNumber.from_int(2)
+        ), 'a `?` after a scalar is no explicit key, so it is the parser that stops there'
+
+    def test_decode_frontmatter_with_a_question_mark_alone_in_a_flow_sequence_returns_an_explicit_key(self) -> None:
+        #: Given
+        block = 'a: [?]\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found an explicit key, which frontmatter does not allow', line=LineNumber.from_int(2)
+        ), 'a `?` where a node may start is an explicit key, whatever follows it'
+
+    def test_decode_frontmatter_with_an_explicit_key_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = dedent("""\
+            name: a
+            ? b
+            : c
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found an explicit key, which frontmatter does not allow', line=LineNumber.from_int(3)
+        ), 'the `?` that starts a key is refused on its line, with the key it starts'
+
+    def test_decode_frontmatter_with_a_flow_collection_spread_over_lines_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = dedent("""\
+            name: guide
+            tags: [a,
+              b]
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found a flow collection spread over lines, which frontmatter does not allow',
+            line=LineNumber.from_int(3),
+        ), 'a flow collection is one line, so one that continues below is refused where it opens'
+
+    def test_decode_frontmatter_with_an_indentation_indicator_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = dedent("""\
+            name: guide
+            d: |2
+                x
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found a block scalar indentation indicator, which frontmatter does not allow',
+            line=LineNumber.from_int(3),
+        ), 'the indentation a block scalar is written at is read from its text, so an indicator is refused on its line'
+
+    def test_decode_frontmatter_with_a_question_mark_or_an_empty_quoted_key_returns_them_as_string_keys(self) -> None:
+        #: Given
+        block = dedent("""\
+            why?: a
+            '': b
+            c: d?
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
+        assert node.data == FrozenMapping({'why?': 'a', '': 'b', 'c': 'd?'}), (
+            'a `?` inside a plain scalar is text, and a quoted empty key is a string'
+        )
+
+    def test_decode_frontmatter_with_flow_collections_of_scalars_on_one_line_returns_them(self) -> None:
+        #: Given
+        block = dedent("""\
+            tags: [a, "b c"]
+            size: {w: 1, h: 2}
+            none: []
+            empty: {}
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
+        assert node.data == FrozenMapping(
+            {'tags': ('a', 'b c'), 'size': FrozenMapping({'w': 1, 'h': 2}), 'none': (), 'empty': FrozenMapping({})}
+        ), 'a flow collection of scalars on one line is accepted, empty or not'
+
+    def test_decode_frontmatter_with_chomping_indicators_returns_them(self) -> None:
+        #: Given
+        block = dedent("""\
+            keep: |+
+              x
+            strip: >-
+              y
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
+        assert node.data == FrozenMapping({'keep': 'x\n', 'strip': 'y'}), (
+            'a chomping indicator is accepted, and only an indentation indicator is refused'
         )
 
     def test_decode_frontmatter_with_a_yaml_list_returns_non_mapping(self) -> None:

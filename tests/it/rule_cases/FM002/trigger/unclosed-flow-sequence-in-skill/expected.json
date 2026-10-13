@@ -1,7 +1,7 @@
 [
   {
     "path": ".agents/skills/setup/SKILL.md",
-    "line": 4,
+    "line": 3,
     "severity": "error",
     "code": "FM002"
   }
