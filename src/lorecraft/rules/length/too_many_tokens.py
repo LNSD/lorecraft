@@ -8,6 +8,7 @@ from lorecraft.project.context import DocumentContext
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
+from lorecraft.rules.overrun import Overrun, find_overrun
 from lorecraft.rules.subject import DocumentRule, Facet
 
 from .__ruleset__ import GROUP_ID, spec_note
@@ -77,8 +78,7 @@ class TooManyTokens(DocumentRule):
     Attributes:
         spec: The structure specification that sets the exceeded budget; never `None`, since a specification sets
             every budget.
-        token_count: The tokens in the document's whole file.
-        budget: The budget it exceeds, in tokens.
+        overrun: The tokens in the document's whole file against the budget they exceed.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 1)
@@ -88,16 +88,15 @@ class TooManyTokens(DocumentRule):
     GOVERNED_BY: ClassVar[Facet] = Facet.BUDGET
 
     spec: RootRelativePath
-    token_count: int
-    budget: int
+    overrun: Overrun
 
     def message(self) -> str:
         """Name the tokens found against the budget they exceed."""
-        return f'too many tokens ({self.token_count} > {self.budget})'
+        return f'too many tokens ({self.overrun.count} > {self.overrun.cap})'
 
     def labels(self) -> tuple[Label, ...]:
         """Say how far past the budget the document runs, on the line the occurrence is reported at."""
-        return (Label(Here(self.line), f'tokens over the budget: {self.token_count - self.budget}'),)
+        return (Label(Here(self.line), f'tokens over the budget: {self.overrun.excess}'),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Point at the specification that sets the budget, say how to cut tokens, and how they are counted."""
@@ -119,16 +118,18 @@ class TooManyTokens(DocumentRule):
         Args:
             subject: The document, governed by at least one budget.
         """
-        budgeted_specs = [spec for spec in subject.specifications().structure_specs() if spec.tokens is not None]
-        if not budgeted_specs:
+        budgets = [
+            (structure_spec.path, structure_spec.tokens)
+            for structure_spec in subject.specifications().structure_specs()
+            if structure_spec.tokens is not None
+        ]
+        if not budgets:
             # Counting tokens is the costly step, so a document no budget governs is never counted.
             return ()
-        token_count = subject.tokens().value
+        token_count = subject.tokens()
         occurrences: list[Self] = []
-        for structure_spec in budgeted_specs:
-            budget = structure_spec.tokens
-            if budget is not None and token_count > budget.value:
-                occurrences.append(
-                    cls(spec=structure_spec.path, line=_FIRST_LINE, token_count=token_count, budget=budget.value)
-                )
+        for spec_path, budget in budgets:
+            overrun = find_overrun(token_count, budget)
+            if overrun is not None:
+                occurrences.append(cls(spec=spec_path, line=_FIRST_LINE, overrun=overrun))
         return tuple(occurrences)

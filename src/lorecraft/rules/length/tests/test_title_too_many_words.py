@@ -8,6 +8,7 @@ from typing import Final
 
 import pytest
 
+from lib.overruns import overrun
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
@@ -48,7 +49,7 @@ class TestTitleTooManyWords:
 
         #: Then
         assert occurrences == (
-            TitleTooManyWords(spec=CORPUS_SPEC, line=LineNumber.from_int(1), word_count=8, cap=5),
+            TitleTooManyWords(spec=CORPUS_SPEC, line=LineNumber.from_int(1), overrun=overrun(8, 5)),
         ), 'a title over its cap is one occurrence, at its heading, naming the specification that sets the cap'
 
     def test_check_with_a_title_at_its_cap_reports_nothing(self) -> None:
@@ -105,7 +106,7 @@ class TestTitleTooManyWords:
 
         #: Then
         assert occurrences == (
-            TitleTooManyWords(spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), word_count=8, cap=6),
+            TitleTooManyWords(spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), overrun=overrun(8, 6)),
         ), 'a cap is the specification that sets it, so it is reported under the namespace, not the corpus'
 
     def test_check_with_a_title_over_only_the_namespace_cap_reports_that_cap(self) -> None:
@@ -122,7 +123,7 @@ class TestTitleTooManyWords:
 
         #: Then
         assert occurrences == (
-            TitleTooManyWords(spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), word_count=8, cap=6),
+            TitleTooManyWords(spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), overrun=overrun(8, 6)),
         ), 'a namespace cap does not replace the corpus one, so the title is held to it on its own'
 
     def test_check_with_a_title_over_both_caps_reports_each_in_order(self) -> None:
@@ -139,13 +140,13 @@ class TestTitleTooManyWords:
 
         #: Then
         assert occurrences == (
-            TitleTooManyWords(spec=CORPUS_SPEC, line=LineNumber.from_int(1), word_count=8, cap=7),
-            TitleTooManyWords(spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), word_count=8, cap=5),
+            TitleTooManyWords(spec=CORPUS_SPEC, line=LineNumber.from_int(1), overrun=overrun(8, 7)),
+            TitleTooManyWords(spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), overrun=overrun(8, 5)),
         ), 'each specification applies on its own, so the title is reported once for each cap, in order'
 
     def test_message_with_an_occurrence_names_the_words_and_the_cap(self) -> None:
         #: Given
-        occurrence = TitleTooManyWords(spec=CORPUS_SPEC, line=LineNumber.from_int(1), word_count=8, cap=5)
+        occurrence = TitleTooManyWords(spec=CORPUS_SPEC, line=LineNumber.from_int(1), overrun=overrun(8, 5))
 
         #: When
         message = occurrence.message()
@@ -155,7 +156,7 @@ class TestTitleTooManyWords:
 
     def test_labels_with_an_occurrence_say_how_many_words_it_runs_over_the_cap(self) -> None:
         #: Given
-        occurrence = TitleTooManyWords(spec=CORPUS_SPEC, line=LineNumber.from_int(1), word_count=8, cap=5)
+        occurrence = TitleTooManyWords(spec=CORPUS_SPEC, line=LineNumber.from_int(1), overrun=overrun(8, 5))
 
         #: When
         labels = occurrence.labels()
@@ -167,7 +168,7 @@ class TestTitleTooManyWords:
 
     def test_children_with_an_occurrence_point_at_the_spec_then_say_what_a_title_holds(self) -> None:
         #: Given
-        occurrence = TitleTooManyWords(spec=CORPUS_SPEC, line=LineNumber.from_int(1), word_count=8, cap=5)
+        occurrence = TitleTooManyWords(spec=CORPUS_SPEC, line=LineNumber.from_int(1), overrun=overrun(8, 5))
 
         #: When
         children = occurrence.children()

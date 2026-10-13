@@ -8,6 +8,7 @@ from typing import Final
 
 import pytest
 
+from lib.overruns import overrun
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
@@ -47,7 +48,7 @@ class TestTitleTooLong:
         occurrences = TitleTooLong.check(subject)
 
         #: Then
-        assert occurrences == (TitleTooLong(spec=CORPUS_SPEC, line=LineNumber.from_int(1), char_count=39, cap=30),), (
+        assert occurrences == (TitleTooLong(spec=CORPUS_SPEC, line=LineNumber.from_int(1), overrun=overrun(39, 30)),), (
             'a title over its cap is one occurrence, at its heading, naming the specification that sets the cap'
         )
 
@@ -105,7 +106,7 @@ class TestTitleTooLong:
 
         #: Then
         assert occurrences == (
-            TitleTooLong(spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), char_count=39, cap=35),
+            TitleTooLong(spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), overrun=overrun(39, 35)),
         ), 'a cap is the specification that sets it, so it is reported under the namespace, not the corpus'
 
     def test_check_with_a_title_over_only_the_namespace_cap_reports_that_cap(self) -> None:
@@ -122,7 +123,7 @@ class TestTitleTooLong:
 
         #: Then
         assert occurrences == (
-            TitleTooLong(spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), char_count=39, cap=35),
+            TitleTooLong(spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), overrun=overrun(39, 35)),
         ), 'a namespace cap does not replace the corpus one, so the title is held to it on its own'
 
     def test_check_with_a_title_over_both_caps_reports_each_in_order(self) -> None:
@@ -139,8 +140,8 @@ class TestTitleTooLong:
 
         #: Then
         assert occurrences == (
-            TitleTooLong(spec=CORPUS_SPEC, line=LineNumber.from_int(1), char_count=39, cap=38),
-            TitleTooLong(spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), char_count=39, cap=30),
+            TitleTooLong(spec=CORPUS_SPEC, line=LineNumber.from_int(1), overrun=overrun(39, 38)),
+            TitleTooLong(spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), overrun=overrun(39, 30)),
         ), 'each specification applies on its own, so the title is reported once for each cap, in order'
 
     def test_check_with_markup_and_a_multibyte_character_counts_the_code_points_of_the_text(self) -> None:
@@ -152,13 +153,13 @@ class TestTitleTooLong:
         occurrences = TitleTooLong.check(subject)
 
         #: Then
-        assert occurrences == (TitleTooLong(spec=CORPUS_SPEC, line=LineNumber.from_int(1), char_count=18, cap=17),), (
+        assert occurrences == (TitleTooLong(spec=CORPUS_SPEC, line=LineNumber.from_int(1), overrun=overrun(18, 17)),), (
             "the title's characters are the code points of its text, its inline markup stripped"
         )
 
     def test_message_with_an_occurrence_names_the_characters_and_the_cap(self) -> None:
         #: Given
-        occurrence = TitleTooLong(spec=CORPUS_SPEC, line=LineNumber.from_int(1), char_count=39, cap=30)
+        occurrence = TitleTooLong(spec=CORPUS_SPEC, line=LineNumber.from_int(1), overrun=overrun(39, 30))
 
         #: When
         message = occurrence.message()
@@ -170,7 +171,7 @@ class TestTitleTooLong:
 
     def test_labels_with_an_occurrence_say_how_many_characters_it_runs_over_the_cap(self) -> None:
         #: Given
-        occurrence = TitleTooLong(spec=CORPUS_SPEC, line=LineNumber.from_int(1), char_count=39, cap=30)
+        occurrence = TitleTooLong(spec=CORPUS_SPEC, line=LineNumber.from_int(1), overrun=overrun(39, 30))
 
         #: When
         labels = occurrence.labels()
@@ -182,7 +183,7 @@ class TestTitleTooLong:
 
     def test_children_with_an_occurrence_point_at_the_spec_then_help_then_say_how_characters_are_counted(self) -> None:
         #: Given
-        occurrence = TitleTooLong(spec=CORPUS_SPEC, line=LineNumber.from_int(1), char_count=39, cap=30)
+        occurrence = TitleTooLong(spec=CORPUS_SPEC, line=LineNumber.from_int(1), overrun=overrun(39, 30))
 
         #: When
         children = occurrence.children()

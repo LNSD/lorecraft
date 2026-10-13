@@ -3,11 +3,13 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
+from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
 from lorecraft.project.syntax import find_title
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.location import Here, Label, Note, Subdiagnostic
+from lorecraft.rules.overrun import Overrun, find_overrun
 from lorecraft.rules.subject import DocumentRule, Facet
 
 from .__ruleset__ import GROUP_ID, TITLE_HELP, spec_note
@@ -59,8 +61,7 @@ class TitleTooLong(DocumentRule):
 
     Attributes:
         spec: The structure specification that sets the exceeded cap.
-        char_count: The characters of the title's text.
-        cap: The cap it exceeds, in characters.
+        overrun: The characters of the title's text against the cap they exceed.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 5)
@@ -70,16 +71,15 @@ class TitleTooLong(DocumentRule):
     GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
 
     spec: RootRelativePath
-    char_count: int
-    cap: int
+    overrun: Overrun
 
     def message(self) -> str:
         """Name the title's characters against the cap they exceed."""
-        return f'too many characters in the title ({self.char_count} > {self.cap})'
+        return f'too many characters in the title ({self.overrun.count} > {self.overrun.cap})'
 
     def labels(self) -> tuple[Label, ...]:
         """Say how many characters the title runs past its cap, at the title."""
-        return (Label(Here(self.line), f'characters over the cap: {self.char_count - self.cap}'),)
+        return (Label(Here(self.line), f'characters over the cap: {self.overrun.excess}'),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Point at the specification that sets the cap, say what a title holds, and how its characters are counted."""
@@ -105,13 +105,13 @@ class TitleTooLong(DocumentRule):
             return ()
         # The parse holds the title's text with its inline markup stripped, and `len` counts its Unicode code
         # points: neither its bytes nor the letters a reader sees, so an emoji built of several counts each of them.
-        char_count = len(title.text)
+        char_count = UnsignedInt(len(title.text))
         occurrences: list[Self] = []
         for structure_spec in subject.specifications().structure_specs():
             title_checks = structure_spec.title
             if title_checks is None or title_checks.chars is None:
                 continue
-            cap = title_checks.chars.value
-            if char_count > cap:
-                occurrences.append(cls(spec=structure_spec.path, line=title.line, char_count=char_count, cap=cap))
+            overrun = find_overrun(char_count, title_checks.chars)
+            if overrun is not None:
+                occurrences.append(cls(spec=structure_spec.path, line=title.line, overrun=overrun))
         return tuple(occurrences)

@@ -7,6 +7,7 @@ from typing import Final
 import pytest
 from syrupy.assertion import SnapshotAssertion
 
+from lib.overruns import overrun
 from lib.snapshot import TextSnapshotExtension
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
@@ -96,7 +97,7 @@ def _every_kind_of_report() -> tuple[RunReport, ...]:
     outside = OutsideSymlink(leaves_at=RootExit(review, PurePosixPath('/home/alex/review')))
     a = _document('code', 'a')
     duplicate_name = DuplicateKey(spec=_CODE_SPEC, line=_line(3), key='name', first_line=_line(2), kept_line=_line(3))
-    over_budget = TooManyTokens(spec=_CODE_SPEC, line=_line(1), token_count=2400, budget=2000)
+    over_budget = TooManyTokens(spec=_CODE_SPEC, line=_line(1), overrun=overrun(2400, 2000))
     return (
         CheckedSubject(
             check,

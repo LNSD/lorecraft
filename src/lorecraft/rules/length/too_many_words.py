@@ -3,11 +3,13 @@
 from dataclasses import dataclass
 from typing import ClassVar, Final, Self, assert_never
 
+from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
 from lorecraft.project.schemas import AnyRunAlignment, NamedAlignment, UnalignedSection
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
+from lorecraft.rules.overrun import Overrun, find_overrun
 from lorecraft.rules.subject import DocumentRule, Facet
 
 from .__ruleset__ import GROUP_ID, spec_note
@@ -93,8 +95,7 @@ class TooManyWords(DocumentRule):
     Attributes:
         spec: The structure specification that sets the exceeded cap.
         section: The heading text of the section, which the occurrence is reported at.
-        word_count: The prose words in the section, its subsections included.
-        cap: The cap it exceeds, in words.
+        overrun: The prose words in the section, its subsections included, against the cap they exceed.
         cap_source: Whether the cap is the section's own entry's or that of the `any` run it falls in.
     """
 
@@ -108,18 +109,22 @@ class TooManyWords(DocumentRule):
 
     spec: RootRelativePath
     section: str
-    word_count: int
-    cap: int
+    overrun: Overrun
     cap_source: CapSource
 
     def message(self) -> str:
         """Name the section's words found against the cap they exceed."""
-        return f'too many words in the section ({self.word_count} > {self.cap})'
+        return f'too many words in the section ({self.overrun.count} > {self.overrun.cap})'
 
     def labels(self) -> tuple[Label, ...]:
         """Say how far past its cap the section runs, at its heading."""
-        over = self.word_count - self.cap
-        return (Label(Here(self.line), f'`{self.section}` holds {self.word_count} prose words, {over} over its cap'),)
+        overrun = self.overrun
+        return (
+            Label(
+                Here(self.line),
+                f'`{self.section}` holds {overrun.count} prose words, {overrun.excess} over its cap',
+            ),
+        )
 
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Point at the specification that sets the cap, say how to shorten the section, and whose cap it is."""
@@ -161,14 +166,16 @@ class TooManyWords(DocumentRule):
                     case _:
                         assert_never(aligned)
                 section = aligned.section
-                if cap is not None and section.words > cap.value:
+                if cap is None:
+                    continue
+                overrun = find_overrun(UnsignedInt(section.words), cap)
+                if overrun is not None:
                     occurrences.append(
                         cls(
                             spec=alignment.spec,
                             line=section.line,
                             section=section.text,
-                            word_count=section.words,
-                            cap=cap.value,
+                            overrun=overrun,
                             cap_source=cap_source,
                         )
                     )
