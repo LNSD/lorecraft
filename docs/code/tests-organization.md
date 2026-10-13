@@ -264,7 +264,9 @@ A rule code proves it fires, and proves it stays quiet, on a repository on disk.
 
 A repository that holds symlinks declares them in a `links.json` beside `root/`, each link's path and its target,
 and the test creates them: a copy of the tests, such as mutation testing runs, cannot carry a checked-in link that
-dangles or leaves the repository.
+dangles or leaves the repository. A code that reports what the operating system refuses declares the paths to lock in a
+`locked.json` beside `root/`, a list of paths in it that the test gives no permission before the run and restores
+after; the case is skipped for the superuser, who ignores permissions.
 
 The parametrized tests of `tests/it/test_rule_cases.py`, the one suite exempt from
 [tests-functions](tests-functions.md#5-one-test-per-case)'s one test per case, run the checker over every case and

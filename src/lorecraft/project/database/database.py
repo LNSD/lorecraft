@@ -188,7 +188,8 @@ from lorecraft.project.syntax import (
 )
 from lorecraft.project.workspace import Governance, WorkspaceModel, load_model
 from lorecraft.vfs import (
-    FileReadError,
+    FILE_READ_FAILURES,
+    RefusedRecord,
     ResolvedPath,
     ScopeIndex,
     Snapshot,
@@ -341,7 +342,7 @@ class Database:
         """
         try:
             text = self._fs.read_text(path)
-        except (TextDecodeError, FileReadError, UnrecordedFileError):
+        except (TextDecodeError, *FILE_READ_FAILURES, UnrecordedFileError):
             return None
         lines = split_lines(text)
         if lines:
@@ -803,6 +804,10 @@ class Database:
         return parsed
 
     # Not queries: each is answered from the snapshot on every call and never cached.
+
+    def refusals(self) -> dict[RootRelativePath, RefusedRecord]:
+        """Every access the operating system refused the scan and the snapshot kept, keyed by path in path order."""
+        return self._snapshot.refusals()
 
     def find_file(self, path: RootRelativePath) -> ResolvedPath | None:
         """The file `path` leads to in the snapshot, every recorded link on the way followed; never cached.

@@ -7,8 +7,12 @@ workspace, builds the rule table from the rules and the selection, and hands the
 table to the runner, beside the report of each unit of the declaration that failed to load; what comes back is
 rendered by `diagnostics` and decides the exit code. Every `Error` escaping that flow is reported here and exits 2; a
 file that does not decode and a unit that failed to load are diagnostics, not errors, and a run that reports one exits
-1. A selection that holds an alias code, or names a rule its level leaves off, is warned of on stderr, and the run
-goes on.
+1. A unit the operating system refuses while the snapshot is taken is one of them: the snapshot keeps each directory
+it cannot list, each entry on a followed chain it cannot inspect and each structure file it cannot read, and the
+model records the ones it loads as load failures. The run stops, as the scan always did, at a refusal the snapshot
+does not keep, such as a document, and at one it keeps that no load failure reports, such as a directory no meta
+spec names. A selection that holds an alias code, or names a rule its level leaves off, is warned
+of on stderr, and the run goes on.
 
 It lives apart from `commands/check.py` so that importing the command, which `--help` and `--version` do, does not
 import the rules engine: the command imports this module only when it runs.
@@ -23,7 +27,8 @@ from lorecraft import rules
 from lorecraft.core.error import Error
 from lorecraft.engine import check_subjects, report_load_failures
 from lorecraft.project.database import Database
-from lorecraft.project.layout import SNAPSHOT_SCOPE
+from lorecraft.project.layout import DECLARATION, SNAPSHOT_SCOPE
+from lorecraft.project.workspace import reject_unreported_refusals
 from lorecraft.rules.declaration import Severity
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.report import RunReport
@@ -68,11 +73,14 @@ def run_check(
         # Root discovery follows symlinks and the snapshot, under `docs/`, does not, so a linked `docs/__meta__/`
         # passes the first and is empty in the second. `open` refuses it, before a run over no documents can report
         # success.
-        database = Database.open(take_snapshot(establish_root(root), SNAPSHOT_SCOPE))
+        database = Database.open(take_snapshot(establish_root(root), SNAPSHOT_SCOPE, declaration=DECLARATION))
         # With no corpus and no meta spec known, nothing can be checked, so this stops before any subject is selected.
         # Every other failure the model recorded is reported below, as a diagnostic.
         model = database.model()
         exit_on_unlistable_directory(model)
+        # The snapshot kept what the scan could not list, read or inspect, and the model reports the ones it loads.
+        # One that nothing reports would pass unseen where the scan used to stop, so the first of them stops the run.
+        reject_unreported_refusals(database.refusals(), model)
         subjects = select_workspace(database)
         table = RuleTable.from_registry(registry, parsed.selection)
         reports = (*report_load_failures(model), *check_subjects(database, subjects, table))

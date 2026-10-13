@@ -17,7 +17,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import PurePosixPath
-from typing import NewType
+from typing import Final, NewType
 
 from lorecraft.core.error import Error
 from lorecraft.core.path import PathComponent, RootRelativePath
@@ -251,6 +251,160 @@ class FileResolveError(Error):
         self.__cause__ = source
 
 
+# The snapshot's own answers. A snapshot keeps the refusal the scan classified and never the operating system's
+# failure, so each answer is a variant of its own beside the disk's, and a handler of the view names both.
+
+
+class RecordedDirListError(Error):
+    """The snapshot recorded that the scan could not list a directory.
+
+    Attributes:
+        path: The root-relative directory that could not be listed.
+        refusal: Why the operating system refused the listing.
+    """
+
+    path: RootRelativePath
+    refusal: OsRefusal
+
+    def __init__(self, path: RootRelativePath, refusal: OsRefusal) -> None:
+        self.path = path
+        self.refusal = refusal
+        super().__init__(f'cannot list directory {path}: {refusal.value}')
+
+
+class RecordedFileReadError(Error):
+    """The snapshot recorded that the scan could not read a file.
+
+    Attributes:
+        path: The root-relative file that could not be read.
+        refusal: Why the operating system refused the read.
+    """
+
+    path: RootRelativePath
+    refusal: OsRefusal
+
+    def __init__(self, path: RootRelativePath, refusal: OsRefusal) -> None:
+        self.path = path
+        self.refusal = refusal
+        super().__init__(f'cannot read file {path}: {refusal.value}')
+
+
+class RecordedEntryInspectError(Error):
+    """The snapshot recorded that the scan could not inspect an entry.
+
+    Attributes:
+        path: The root-relative path whose entry could not be inspected.
+        refusal: Why the operating system refused the inspection.
+    """
+
+    path: RootRelativePath
+    refusal: OsRefusal
+
+    def __init__(self, path: RootRelativePath, refusal: OsRefusal) -> None:
+        self.path = path
+        self.refusal = refusal
+        super().__init__(f'cannot inspect entry {path}: {refusal.value}')
+
+
+class RecordedDirListPathError(Error):
+    """A directory cannot be listed because the snapshot recorded that the scan could not inspect an entry on the way.
+
+    Attributes:
+        path: The root-relative directory that could not be listed.
+        refusal: Why the operating system refused the inspection.
+        source: The recorded inspection that was refused.
+    """
+
+    path: RootRelativePath
+    refusal: OsRefusal
+    source: RecordedEntryInspectError
+
+    def __init__(self, path: RootRelativePath, refusal: OsRefusal, *, source: RecordedEntryInspectError) -> None:
+        self.path = path
+        self.refusal = refusal
+        self.source = source
+        super().__init__(f'cannot list directory {path}: {refusal.value}')
+        self.__cause__ = source
+
+
+class RecordedFileReadPathError(Error):
+    """A file cannot be read because the snapshot recorded that the scan could not inspect an entry on the way.
+
+    Attributes:
+        path: The root-relative file that could not be read.
+        refusal: Why the operating system refused the inspection.
+        source: The recorded inspection that was refused.
+    """
+
+    path: RootRelativePath
+    refusal: OsRefusal
+    source: RecordedEntryInspectError
+
+    def __init__(self, path: RootRelativePath, refusal: OsRefusal, *, source: RecordedEntryInspectError) -> None:
+        self.path = path
+        self.refusal = refusal
+        self.source = source
+        super().__init__(f'cannot read file {path}: {refusal.value}')
+        self.__cause__ = source
+
+
+class RecordedDirResolveError(Error):
+    """A path cannot be resolved to a directory because the scan could not inspect an entry on the way.
+
+    Attributes:
+        path: The root-relative path whose symlink chain could not be followed.
+        refusal: Why the operating system refused the inspection.
+        source: The recorded inspection that was refused.
+    """
+
+    path: RootRelativePath
+    refusal: OsRefusal
+    source: RecordedEntryInspectError
+
+    def __init__(self, path: RootRelativePath, refusal: OsRefusal, *, source: RecordedEntryInspectError) -> None:
+        self.path = path
+        self.refusal = refusal
+        self.source = source
+        super().__init__(f'cannot resolve directory {path}: {refusal.value}')
+        self.__cause__ = source
+
+
+class RecordedFileResolveError(Error):
+    """A path cannot be resolved to a file because the scan could not inspect an entry on the way.
+
+    Attributes:
+        path: The root-relative path whose symlink chain could not be followed.
+        refusal: Why the operating system refused the inspection.
+        source: The recorded inspection that was refused.
+    """
+
+    path: RootRelativePath
+    refusal: OsRefusal
+    source: RecordedEntryInspectError
+
+    def __init__(self, path: RootRelativePath, refusal: OsRefusal, *, source: RecordedEntryInspectError) -> None:
+        self.path = path
+        self.refusal = refusal
+        self.source = source
+        super().__init__(f'cannot resolve file {path}: {refusal.value}')
+        self.__cause__ = source
+
+
+# Every way each operation of the view fails, on disk or from a snapshot, for a `source` that wraps the operation.
+type DirListFailure = DirListError | RecordedDirListError | RecordedDirListPathError
+type FileReadFailure = FileReadError | RecordedFileReadError | RecordedFileReadPathError
+type DirResolveFailure = DirResolveError | RecordedDirResolveError
+type FileResolveFailure = FileResolveError | RecordedFileResolveError
+type EntryInspectFailure = EntryInspectError | RecordedEntryInspectError
+
+# The same sets as classes, for an `except`, which takes classes and not a union.
+DIR_LIST_FAILURES: Final = (DirListError, RecordedDirListError, RecordedDirListPathError)
+FILE_READ_FAILURES: Final = (FileReadError, RecordedFileReadError, RecordedFileReadPathError)
+DIR_RESOLVE_FAILURES: Final = (DirResolveError, RecordedDirResolveError)
+FILE_RESOLVE_FAILURES: Final = (FileResolveError, RecordedFileResolveError)
+ENTRY_INSPECT_FAILURES: Final = (EntryInspectError, RecordedEntryInspectError)
+
+
 def decode_text(path: RootRelativePath, data: bytes) -> str:
     """Decode a file's bytes as UTF-8; the one decode every implementation shares.
 
@@ -293,7 +447,10 @@ class FileSystem(ABC):
             The entries in name order, or `()` when the path is missing or leads to no directory.
 
         Raises:
-            DirListError: If the directory exists but cannot be read.
+            DirListError: If the directory exists but cannot be read, on disk.
+            RecordedDirListError: If a snapshot recorded that the scan could not list it.
+            RecordedDirListPathError: If a snapshot recorded that the scan could not inspect an entry on the way
+                to it.
         """
 
     @abstractmethod
@@ -306,6 +463,9 @@ class FileSystem(ABC):
         Raises:
             TextDecodeError: If the bytes are not UTF-8.
             FileReadError: If the file is missing or cannot be read, on disk.
+            RecordedFileReadError: If a snapshot recorded that the scan could not read it.
+            RecordedFileReadPathError: If a snapshot recorded that the scan could not inspect an entry on the way
+                to it.
             UnrecordedFileError: If the path leads to no file a snapshot recorded.
         """
 
@@ -324,7 +484,9 @@ class FileSystem(ABC):
             no directory.
 
         Raises:
-            EntryInspectError: If the entry exists but cannot be inspected.
+            EntryInspectError: If the entry exists but cannot be inspected, on disk.
+            RecordedEntryInspectError: If a snapshot recorded that the scan could not inspect it, or an entry on the
+                way to it.
         """
 
     @abstractmethod
@@ -349,6 +511,7 @@ class FileSystem(ABC):
         Raises:
             DirResolveError: If the operating system refuses the lookup, such as a permission error on a
                 component, and the chain does not lead outside the root.
+            RecordedDirResolveError: If a snapshot recorded that the scan could not inspect an entry on the way.
         """
 
     @abstractmethod
@@ -370,6 +533,7 @@ class FileSystem(ABC):
         Raises:
             FileResolveError: If the operating system refuses the lookup, such as a permission error on a
                 component, and the chain does not lead outside the root.
+            RecordedFileResolveError: If a snapshot recorded that the scan could not inspect an entry on the way.
         """
 
     @abstractmethod
@@ -392,4 +556,5 @@ class FileSystem(ABC):
         Raises:
             EntryInspectError: If the operating system refuses to inspect an entry on the way or read a link's
                 target, on disk.
+            RecordedEntryInspectError: If a snapshot recorded that the scan could not inspect an entry on the way.
         """

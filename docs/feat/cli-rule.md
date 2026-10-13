@@ -76,7 +76,9 @@ LC004    unusable-structure-file   error  A structure file follows the structure
 OUT004   empty-section             deny   A section holds no content, under a structure specification that forbids empty sections.
 ```
 
-The `LC002` page covers unreadable structure files, corpus and skills directories, skill entries and `SKILL.md` files.
+The `LC002` page covers unreadable structure files, unlistable corpus and skills directories, skill entries
+that cannot be listed or resolved, and `SKILL.md` links that cannot be followed. A regular `SKILL.md` whose
+contents cannot be read still stops `check` with exit `2`.
 The `LC003` page covers format errors and a file that states no rule. The `LC004` page explains each kind of
 unusable rule with its fix.
 

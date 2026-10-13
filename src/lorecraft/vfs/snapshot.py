@@ -16,7 +16,23 @@ from lorecraft.core.path import ROOT, PathComponent, RootRelativePath
 
 from .root_expansion import ResolvedDirectory, ResolvedFile, find_destination
 from .scan_root import ScanRoot
-from .view import DirEntry, EntryKind, FileSystem, ResolvedPath, RootExit, UnrecordedFileError, decode_text
+from .view import (
+    DirEntry,
+    EntryKind,
+    FileSystem,
+    OsRefusal,
+    RecordedDirListError,
+    RecordedDirListPathError,
+    RecordedDirResolveError,
+    RecordedEntryInspectError,
+    RecordedFileReadError,
+    RecordedFileReadPathError,
+    RecordedFileResolveError,
+    ResolvedPath,
+    RootExit,
+    UnrecordedFileError,
+    decode_text,
+)
 
 type FileTree = Mapping[str, bytes | FileTree]
 """A directory's contents as `Snapshot.from_tree` takes them: each key one entry's name, mapped to a file's bytes
@@ -95,7 +111,65 @@ class OtherRecord:
         return EntryKind.OTHER
 
 
-type EntryRecord = DirectoryRecord | FileRecord | SymlinkRecord | OtherRecord
+# The refusals below are what `take_snapshot` keeps, given a declaration, instead of stopping at the refusal. The view
+# raises each to whoever asks for the path, as the disk would have.
+
+
+@dataclass(frozen=True, slots=True)
+class RefusedListing:
+    """A directory the scan could not list: no listing, so none of its entries is known.
+
+    Attributes:
+        refusal: Why the operating system refused the listing.
+        climbed: As `DirectoryRecord.climbed`: whether a `..` climbed out of the directory, which the scan can do
+            in a directory it cannot list.
+    """
+
+    refusal: OsRefusal
+    climbed: bool = False
+
+    @property
+    def kind(self) -> EntryKind:
+        """DIRECTORY: what the scan knew it was, from the listing of its parent or from the walk that reached it."""
+        return EntryKind.DIRECTORY
+
+
+@dataclass(frozen=True, slots=True)
+class RefusedRead:
+    """A regular file the scan listed and could not read: an entry with no bytes.
+
+    Attributes:
+        refusal: Why the operating system refused the read.
+    """
+
+    refusal: OsRefusal
+
+    @property
+    def kind(self) -> EntryKind:
+        """FILE, the kind a listing of the parent gave the entry."""
+        return EntryKind.FILE
+
+
+@dataclass(frozen=True, slots=True)
+class RefusedInspect:
+    """An entry on the way to a scan root or along the chain of a followed link that the scan could not inspect.
+
+    Attributes:
+        refusal: Why the operating system refused the inspection.
+    """
+
+    refusal: OsRefusal
+
+    @property
+    def kind(self) -> EntryKind:
+        """OTHER, as no kind of it was read; the view raises the refusal before it answers with a kind."""
+        return EntryKind.OTHER
+
+
+type RefusedRecord = RefusedListing | RefusedRead | RefusedInspect
+"""What the operating system refused the scan at one path, kept instead of stopping the scan."""
+
+type EntryRecord = DirectoryRecord | FileRecord | SymlinkRecord | OtherRecord | RefusedRecord
 """What a snapshot recorded at one path: one record per path, so a path never has two kinds."""
 
 
@@ -129,7 +203,10 @@ class Snapshot:
             or along the chain of a recorded link, and every directory a `..` climbed out of on such a way. A file a
             followed link leads to may sit in a directory the scan did not list. The scan walks every recorded link's
             chain for the record, also under a root that does not follow links. The root is recorded only when
-            listed. A snapshot built by `from_tree` records listed directories and files alone.
+            listed. A snapshot built by `from_tree` records listed directories and files alone. A scan given a
+            declaration also records, at the resolved path, each access the operating system refused it and
+            that the declaration names, as a `RefusedListing`, a `RefusedRead` or a `RefusedInspect`, instead of
+            stopping; none of them is read through, and the view raises the refusal to whoever asks.
         scope: The scan roots `take_snapshot` was given, in the order given and unmerged. Empty when nothing
             was scanned, as for a snapshot built by `from_tree` or by hand, and then no path is in scope.
     """
@@ -165,20 +242,42 @@ class Snapshot:
             match record:
                 case SymlinkRecord(target=target):
                     targets[path] = target
-                case DirectoryRecord() | FileRecord() | OtherRecord():
+                case (
+                    DirectoryRecord()
+                    | FileRecord()
+                    | OtherRecord()
+                    | RefusedListing()
+                    | RefusedRead()
+                    | RefusedInspect()
+                ):
                     pass
                 case _:
                     assert_never(record)
         return dict(sorted(targets.items()))
+
+    def refusals(self) -> dict[RootRelativePath, RefusedRecord]:
+        """Every refusal the scan kept, keyed by the path it was refused at, in path order."""
+        refused: dict[RootRelativePath, RefusedRecord] = {}
+        for path, record in self.records.items():
+            match record:
+                case RefusedListing() | RefusedRead() | RefusedInspect():
+                    refused[path] = record
+                case DirectoryRecord() | FileRecord() | SymlinkRecord() | OtherRecord():
+                    pass
+                case _:
+                    assert_never(record)
+        return dict(sorted(refused.items()))
 
     def climbed_directories(self) -> tuple[RootRelativePath, ...]:
         """Every directory a `..` climbed out of, in path order; what the scope query lets a `..` climb out of."""
         climbed: list[RootRelativePath] = []
         for path, record in self.records.items():
             match record:
-                case DirectoryRecord(climbed=True):
+                case DirectoryRecord(climbed=True) | RefusedListing(climbed=True):
                     climbed.append(path)
                 case DirectoryRecord() | FileRecord() | SymlinkRecord() | OtherRecord():
+                    pass
+                case RefusedListing() | RefusedRead() | RefusedInspect():
                     pass
                 case _:
                     assert_never(record)
@@ -226,11 +325,19 @@ class VirtualFileSystem(FileSystem):
         self._snapshot = snapshot
         self._listings = _derive_listings(snapshot.records)
         self._files: dict[RootRelativePath, bytes] = {}
+        self._refusals = snapshot.refusals()
         for path, record in snapshot.records.items():
             match record:
                 case FileRecord(data=data):
                     self._files[path] = data
-                case DirectoryRecord() | SymlinkRecord() | OtherRecord():
+                case (
+                    DirectoryRecord()
+                    | SymlinkRecord()
+                    | OtherRecord()
+                    | RefusedListing()
+                    | RefusedRead()
+                    | RefusedInspect()
+                ):
                     pass  # no bytes to read
                 case _:
                     assert_never(record)
@@ -255,10 +362,21 @@ class VirtualFileSystem(FileSystem):
         Returns:
             The entries in name order, or `()` for a missing, non-directory, unentered or out-of-scope
             path, and for a link the snapshot cannot follow to a listed directory.
+
+        Raises:
+            RecordedDirListError: If the snapshot recorded that the scan could not list the directory.
+            RecordedDirListPathError: If the snapshot recorded that the scan could not inspect an entry on the
+                way to it.
         """
-        directory = self.find_dir(path)
+        try:
+            directory = self._find_resolved_directory(path)
+        except RecordedEntryInspectError as exc:
+            raise RecordedDirListPathError(path, exc.refusal, source=exc) from exc
         if directory is None:
             return ()
+        refused = self._refusals.get(directory)
+        if isinstance(refused, RefusedListing):
+            raise RecordedDirListError(path, refused.refusal)
         return self._listings.get(directory, ())
 
     def read_text(self, path: RootRelativePath) -> str:
@@ -273,11 +391,20 @@ class VirtualFileSystem(FileSystem):
 
         Raises:
             TextDecodeError: If the bytes are not UTF-8.
+            RecordedFileReadError: If the snapshot recorded that the scan could not read the file.
+            RecordedFileReadPathError: If the snapshot recorded that the scan could not inspect an entry on the
+                way to it.
             UnrecordedFileError: If `path` leads to no regular file in the snapshot.
         """
-        resolved_path = self.find_file(path)
+        try:
+            resolved_path = self._find_resolved_file(path)
+        except RecordedEntryInspectError as exc:
+            raise RecordedFileReadPathError(path, exc.refusal, source=exc) from exc
         if resolved_path is None:
             raise UnrecordedFileError(path)
+        refused = self._refusals.get(resolved_path)
+        if isinstance(refused, RefusedRead):
+            raise RecordedFileReadError(path, refused.refusal)
         return decode_text(path, self._files[resolved_path])
 
     def find_entry_kind(self, path: RootRelativePath) -> EntryKind | None:
@@ -293,10 +420,14 @@ class VirtualFileSystem(FileSystem):
             The kind the entry's record gives it, or DIRECTORY for an ancestor of a record that no record names.
             `None` for a path the snapshot recorded nothing at, and where the parent leads to no directory it
             knows of.
+
+        Raises:
+            RecordedEntryInspectError: If the snapshot recorded that the scan could not inspect the entry, or an
+                entry on the way to it.
         """
         if path == ROOT:
             return EntryKind.DIRECTORY
-        parent = self.find_dir(path.parent)
+        parent = self._find_resolved_directory(path.parent)
         if parent is None:
             return None
         return self._entries.find_kind(parent / path.name)
@@ -312,16 +443,15 @@ class VirtualFileSystem(FileSystem):
             dangling or looping link, a file on the way or at the end) and also wherever the chain leaves
             what the snapshot recorded: above the root, an absolute target (one outside the root, since
             `take_snapshot` spells every target under it relative), or a directory outside the scope.
+
+        Raises:
+            RecordedDirResolveError: If the snapshot recorded that the scan could not inspect an entry on the
+                way to `path`, as the disk refuses the lookup.
         """
-        leads_to = self._find_destination(path)
-        match leads_to:
-            case ResolvedDirectory(path=directory):
-                # Resolved: the walk ends at a path it reached through no symlink.
-                return ResolvedPath(directory)
-            case ResolvedFile() | RootExit() | None:
-                return None
-            case _:
-                assert_never(leads_to)
+        try:
+            return self._find_resolved_directory(path)
+        except RecordedEntryInspectError as exc:
+            raise RecordedDirResolveError(path, exc.refusal, source=exc) from exc
 
     def find_file(self, path: RootRelativePath) -> ResolvedPath | None:
         """Follow the recorded links in `path` and return the recorded file it leads to; see `FileSystem`.
@@ -333,16 +463,15 @@ class VirtualFileSystem(FileSystem):
             The resolved file, root-relative, or `None` where `find_dir` lists, and also for a directory. A file
             the scan did not read, such as one a link the scan did not follow leads to, has no record, so the walk
             finds nothing there.
+
+        Raises:
+            RecordedFileResolveError: If the snapshot recorded that the scan could not inspect an entry on the
+                way to `path`, as the disk refuses the lookup.
         """
-        leads_to = self._find_destination(path)
-        match leads_to:
-            case ResolvedFile(path=file):
-                # Resolved: the walk ends at a path it reached through no symlink.
-                return ResolvedPath(file)
-            case ResolvedDirectory() | RootExit() | None:
-                return None
-            case _:
-                assert_never(leads_to)
+        try:
+            return self._find_resolved_file(path)
+        except RecordedEntryInspectError as exc:
+            raise RecordedFileResolveError(path, exc.refusal, source=exc) from exc
 
     def find_root_exit(self, path: RootRelativePath) -> RootExit | None:
         """Where the recorded links in `path` lead out of the root; see `FileSystem.find_root_exit`.
@@ -350,12 +479,56 @@ class VirtualFileSystem(FileSystem):
         Args:
             path: The root-relative path to walk; only links the snapshot recorded are followed, and nothing
                 outside the root is read, since the snapshot holds nothing there.
+
+        Raises:
+            RecordedEntryInspectError: If the snapshot recorded that the scan could not inspect an entry on the
+                way to `path`.
         """
         leads_to = self._find_destination(path)
         match leads_to:
             case RootExit():
                 return leads_to
             case ResolvedDirectory() | ResolvedFile() | None:
+                return None
+            case _:
+                assert_never(leads_to)
+
+    def _find_resolved_directory(self, path: RootRelativePath) -> ResolvedPath | None:
+        """The resolved directory `path` leads to; the answer of `find_dir` before it names a refusal its own way.
+
+        Args:
+            path: The root-relative path to walk through the recorded links.
+
+        Raises:
+            RecordedEntryInspectError: If the snapshot recorded that the scan could not inspect an entry on the
+                way to `path`; `find_dir` raises the error of its own family instead.
+        """
+        leads_to = self._find_destination(path)
+        match leads_to:
+            case ResolvedDirectory(path=directory):
+                # Resolved: the walk ends at a path it reached through no symlink.
+                return ResolvedPath(directory)
+            case ResolvedFile() | RootExit() | None:
+                return None
+            case _:
+                assert_never(leads_to)
+
+    def _find_resolved_file(self, path: RootRelativePath) -> ResolvedPath | None:
+        """The resolved file `path` leads to; the answer of `find_file` before it names a refusal its own way.
+
+        Args:
+            path: The root-relative path to walk through the recorded links.
+
+        Raises:
+            RecordedEntryInspectError: If the snapshot recorded that the scan could not inspect an entry on the
+                way to `path`; `find_file` raises the error of its own family instead.
+        """
+        leads_to = self._find_destination(path)
+        match leads_to:
+            case ResolvedFile(path=file):
+                # Resolved: the walk ends at a path it reached through no symlink.
+                return ResolvedPath(file)
+            case ResolvedDirectory() | RootExit() | None:
                 return None
             case _:
                 assert_never(leads_to)
@@ -391,7 +564,15 @@ def _derive_listings(records: Mapping[RootRelativePath, EntryRecord]) -> dict[Ro
         match record:
             case DirectoryRecord(listed=True):
                 found[path] = []
-            case DirectoryRecord() | FileRecord() | SymlinkRecord() | OtherRecord():
+            case (
+                DirectoryRecord()
+                | FileRecord()
+                | SymlinkRecord()
+                | OtherRecord()
+                | RefusedListing()
+                | RefusedRead()
+                | RefusedInspect()
+            ):
                 pass  # nothing listed there
             case _:
                 assert_never(record)
@@ -428,8 +609,12 @@ class _SnapshotEntries:
         """
         self._targets = snapshot.symlink_targets()
         self._kinds: dict[RootRelativePath, EntryKind] = {}
+        # An entry the scan could not inspect has no kind: `find_kind` raises its refusal before it answers one.
+        self._uninspectable: dict[RootRelativePath, OsRefusal] = {}
         for path, record in snapshot.records.items():
             self._kinds[path] = record.kind
+            if isinstance(record, RefusedInspect):
+                self._uninspectable[path] = record.refusal
         # Every record sits at a resolved path, so each ancestor of one is a directory, recorded or not, and so is
         # the root.
         for path in snapshot.records:
@@ -447,7 +632,13 @@ class _SnapshotEntries:
             The kind the record at `path` gives it; DIRECTORY for the root and for an ancestor of a record that no
             record names, such as the directory holding a symlink met on the way to a scope root; or `None` where
             the snapshot recorded nothing, such as inside a directory the scan did not enter or outside the scope.
+
+        Raises:
+            RecordedEntryInspectError: If the snapshot recorded that the scan could not inspect the entry.
         """
+        refusal = self._uninspectable.get(path)
+        if refusal is not None:
+            raise RecordedEntryInspectError(path, refusal)
         return self._kinds.get(path)
 
     def find_link_target(self, path: RootRelativePath) -> PurePosixPath | None:

@@ -7,6 +7,8 @@ every answer leaves it root-relative again.
 import errno
 import os
 import stat
+from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import assert_never
 
@@ -22,7 +24,17 @@ from .root_expansion import (
     find_listed_scan_root,
 )
 from .scan_root import ScanRoot
-from .snapshot import DirectoryRecord, EntryRecord, FileRecord, OtherRecord, Snapshot, SymlinkRecord
+from .snapshot import (
+    DirectoryRecord,
+    EntryRecord,
+    FileRecord,
+    OtherRecord,
+    RefusedInspect,
+    RefusedListing,
+    RefusedRead,
+    Snapshot,
+    SymlinkRecord,
+)
 from .view import (
     DirEntry,
     DirListError,
@@ -385,7 +397,23 @@ class ChangedSnapshotEntryError(Error):
         )
 
 
-def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
+@dataclass(frozen=True, slots=True)
+class Declaration:
+    """What the scan is told the caller reads for its own sake, so that a refusal there is kept, not raised.
+
+    A scan reads more than the caller asks of it: a directory below a skill, a document, a file a link leads to.
+    A refusal on any of that stops the scan. A caller that loads a model from the snapshot reports a refusal on
+    what it declares, and it names that here, by what only it knows: which regular files it reads.
+
+    Attributes:
+        is_file: Whether the regular file at a resolved path is one the declaration names, such as a structure
+            file. Not asked for a directory or a link, which no name decides.
+    """
+
+    is_file: Callable[[RootRelativePath], bool]
+
+
+def take_snapshot(root: Path, scope: tuple[ScanRoot, ...], *, declaration: Declaration | None = None) -> Snapshot:
     """Read every listing down to each root's depth, every FILE entry's bytes and every symlink's target, once.
 
     A root with no depth limit is listed all the way down. A missing scope root is simply absent. A file or
@@ -412,18 +440,27 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
     there instead of looping, at any depth. Such a link to an ancestor still has the scan list that ancestor's
     whole subtree, as deep as the root reaches.
 
+    Without a `declaration` every refusal of the operating system stops the scan. With one, the scan keeps a
+    refusal in the snapshot, at the path it was refused at, instead of raising it, and goes on: a directory it
+    cannot list, an entry on the way to a link-following root or along the chain of a link it follows, and a
+    regular file `declaration.is_file` names. What the view then answers for that path is the refusal, as it
+    would have been on disk. Everything else still stops the scan: a file `declaration` does not name, such as a
+    document; an entry on a chain under a root that does not follow links, which is walked for the record alone;
+    and a symlink whose target cannot be read, so that the snapshot never has a link it cannot resolve.
+
     Args:
         root: The workspace root on disk; nothing outside it is read.
         scope: The directories to read, each with its own depth and link policy; empty yields an empty snapshot.
             Overlapping roots are merged, a directory listed again only when a root asks for more under it. The
             snapshot records it as given, unmerged, so that it answers which paths are in scope by itself.
+        declaration: What the caller reads for its own sake and reports a refusal of; `None` keeps no refusal.
 
     Raises:
-        SnapshotDirListError: If a directory in scope cannot be listed.
+        SnapshotDirListError: If a directory in scope cannot be listed, and no `declaration` is given.
         SnapshotEntryInspectError: If an entry on the way to a scope root, or along the chain of a recorded link,
-            cannot be inspected.
+            cannot be inspected, and no `declaration` is given or the chain is walked for the record alone.
         SnapshotFileReadError: If a file in scope, or one a followed link leads to, cannot be read for a reason
-            other than having vanished.
+            other than having vanished, and no `declaration` names it.
         SnapshotLinkReadError: If a symlink's target cannot be read for a reason other than having vanished.
         ChangedSnapshotEntryError: If the tree changes under the scan so that it finds one path as two kinds.
     """
@@ -438,7 +475,14 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
     # Each directory still to list, as a root at its resolved path: the depth left there, and the link policy.
     pending: list[ScanRoot] = []
     for scan_root in scope:
-        listed_root = find_listed_scan_root(scan_root, on_disk)
+        try:
+            listed_root = find_listed_scan_root(scan_root, on_disk)
+        except SnapshotEntryInspectError as exc:
+            # Only a root that follows links reads through what is on the way, and so only its refusal is kept.
+            if declaration is None or not scan_root.follow_links:
+                raise
+            recorder.record(exc.path, RefusedInspect(exc.refusal))
+            continue
         if listed_root is not None:
             pending.append(listed_root)
         if not scan_root.follow_links:
@@ -455,7 +499,10 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
         try:
             entries = _find_listing(root, directory)
         except OSError as exc:
-            raise SnapshotDirListError(directory, OsRefusal.from_error(exc), source=exc) from exc
+            if declaration is None:
+                raise SnapshotDirListError(directory, OsRefusal.from_error(exc), source=exc) from exc
+            recorder.record(directory, RefusedListing(OsRefusal.from_error(exc)))
+            continue
         if entries is None:
             continue  # vanished after its parent was listed; see the docstring
         if follow_links:
@@ -473,7 +520,13 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
                     if entered_root is not None:  # None when no depth is left: the entry is listed, never entered
                         pending.append(entered_root)
                 case EntryKind.FILE:
-                    data = _find_file_bytes(root, path)
+                    try:
+                        data = _find_file_bytes(root, path)
+                    except SnapshotFileReadError as exc:
+                        if declaration is None or not declaration.is_file(path):
+                            raise
+                        recorder.record(path, RefusedRead(exc.refusal))
+                        continue
                     if data is None:
                         continue  # vanished after the listing; see the docstring
                     recorder.record(path, FileRecord(data))
@@ -483,7 +536,7 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...]) -> Snapshot:
                         continue  # vanished after the listing; see the docstring
                     recorder.record(path, SymlinkRecord(target))
                     if follow_links:
-                        _follow_listed_link(root, listed_root, path, on_disk, recorder, pending)
+                        _follow_listed_link(root, listed_root, path, on_disk, recorder, pending, declaration)
                     else:
                         _record_chain(path, on_disk)
                 case EntryKind.OTHER:
@@ -517,6 +570,7 @@ class _SnapshotRecorder:
     - Two directory records merge into one holding every flag either set, since each says one way the scan
       reached the directory.
     - A file read again, or a link read again, keeps the last read; on a still tree the two reads agree.
+    - A refusal merges with the directory record of the same path into the refusal, and two of one kind keep the first.
     - Two records of different kinds mean the tree changed under the scan, and so does a record below a path
       recorded as no directory, since every record sits at a resolved path. Recording either raises.
     """
@@ -573,6 +627,13 @@ def _merge_records(path: RootRelativePath, recorded: EntryRecord, found: EntryRe
             return DirectoryRecord(listed=recorded.listed or found.listed, climbed=recorded.climbed or found.climbed)
         case (FileRecord(), FileRecord()) | (SymlinkRecord(), SymlinkRecord()) | (OtherRecord(), OtherRecord()):
             return found  # read again: on a still tree the two reads agree, and the last is kept
+        # A directory that cannot be listed is one the scan reached some other way too, and keeps what that said.
+        case RefusedListing(), DirectoryRecord() | RefusedListing():
+            return RefusedListing(recorded.refusal, climbed=recorded.climbed or found.climbed)
+        case DirectoryRecord(), RefusedListing():
+            return RefusedListing(found.refusal, climbed=recorded.climbed or found.climbed)
+        case (RefusedRead(), RefusedRead()) | (RefusedInspect(), RefusedInspect()):
+            return recorded  # refused again: the same refusal on a still tree, and the first is kept
         case _:
             raise ChangedSnapshotEntryError(path, recorded=recorded.kind, found=found.kind)
 
@@ -666,6 +727,7 @@ def _follow_listed_link(
     on_disk: _DiskEntries,
     recorder: _SnapshotRecorder,
     pending: list[ScanRoot],
+    declaration: Declaration | None,
 ) -> None:
     """Go where one listed symlink leads, under a scope root that follows links.
 
@@ -680,15 +742,24 @@ def _follow_listed_link(
         on_disk: The scan's view of the disk, recording each link met along the chain.
         recorder: The scan's records so far; a record is added when the link leads to a regular file.
         pending: Directories still to list; mutated when the link leads to a directory the scan lists.
+        declaration: What the caller reports a refusal of, or `None`; with one, a component of the chain that
+            cannot be inspected is kept in `recorder` and the link leads nowhere.
 
     Raises:
-        SnapshotEntryInspectError: If a component of the chain exists but cannot be inspected.
+        SnapshotEntryInspectError: If a component of the chain exists but cannot be inspected, and no
+            `declaration` is given.
         SnapshotLinkReadError: If a link of the chain exists but its target cannot be read.
         SnapshotFileReadError: If the file the chain leads to exists but cannot be read.
         ChangedSnapshotEntryError: If a path of the chain, or the file it leads to, is found as another kind
             than the scan recorded.
     """
-    leads_to = find_destination(link, on_disk, follow_links=True)
+    try:
+        leads_to = find_destination(link, on_disk, follow_links=True)
+    except SnapshotEntryInspectError as exc:
+        if declaration is None:
+            raise
+        recorder.record(exc.path, RefusedInspect(exc.refusal))
+        return
     match leads_to:
         case ResolvedDirectory(path=directory):
             linked_root = find_linked_scan_root(listed_root, link, directory)

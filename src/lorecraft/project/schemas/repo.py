@@ -11,7 +11,14 @@ so every handler below re-raises without logging.
 
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
-from lorecraft.vfs import EntryKind, FileReadError, FileSystem, TextDecodeError, UnrecordedFileError
+from lorecraft.vfs import (
+    FILE_READ_FAILURES,
+    EntryKind,
+    FileReadFailure,
+    FileSystem,
+    TextDecodeError,
+    UnrecordedFileError,
+)
 
 from .name import SpecName
 from .spec_file import SpecFileType, spec_filename
@@ -27,9 +34,9 @@ class StructureSchemaReadError(Error):
     """
 
     name: SpecName
-    source: FileReadError | UnrecordedFileError | TextDecodeError
+    source: FileReadFailure | UnrecordedFileError | TextDecodeError
 
-    def __init__(self, name: SpecName, *, source: FileReadError | UnrecordedFileError | TextDecodeError) -> None:
+    def __init__(self, name: SpecName, *, source: FileReadFailure | UnrecordedFileError | TextDecodeError) -> None:
         self.name = name
         self.source = source
         super().__init__(f'cannot read the structure schema {name}')
@@ -56,7 +63,8 @@ class Repository:
         with a file whose name is not a specification filename. A missing directory lists as nothing.
 
         Raises:
-            DirListError: If the directory exists but cannot be listed.
+            DirListError: If the directory exists but cannot be listed, on disk.
+            RecordedDirListError: If a snapshot recorded that the directory could not be listed.
         """
         # A failure to list is the listing's own, with the directory as its path: this layer adds nothing to it.
         entries = self._fs.list_dir(self._specs_dir)
@@ -77,5 +85,5 @@ class Repository:
         path = self._specs_dir / spec_filename(name, SpecFileType.STRUCTURE)
         try:
             return StructureSchema(self._fs.read_text(path))
-        except (FileReadError, UnrecordedFileError, TextDecodeError) as exc:
+        except (*FILE_READ_FAILURES, UnrecordedFileError, TextDecodeError) as exc:
             raise StructureSchemaReadError(name, source=exc) from exc
