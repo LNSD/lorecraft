@@ -53,8 +53,36 @@ from .diagnostic_parts import (
     primary_line,
 )
 
-# The decoded lines of every file a diagnostic of the run excerpts, by path, without their line breaks.
-type SourceLines = Mapping[RootRelativePath, tuple[str, ...]]
+
+@dataclass(frozen=True, slots=True)
+class SourceText:
+    """The decoded lines of one file, without their line breaks, read by one-based line number.
+
+    Attributes:
+        lines: The lines of the file, the first at index 0.
+    """
+
+    lines: tuple[str, ...]
+
+    def has_line(self, number: LineNumber) -> bool:
+        """True when the file runs to that line.
+
+        Args:
+            number: The line to look for.
+        """
+        return number.number <= len(self.lines)
+
+    def line(self, number: LineNumber) -> str:
+        """The text of a line, which the file must run to.
+
+        Args:
+            number: The line to read, which `has_line` confirmed.
+        """
+        return self.lines[number.number - 1]
+
+
+# The source text of every file a diagnostic of the run excerpts, by path.
+type SourceLines = Mapping[RootRelativePath, SourceText]
 
 # A tab in a source line is drawn as this many spaces, so an underline sits under the text it labels.
 _TAB_WIDTH: Final[int] = 4
@@ -228,8 +256,8 @@ def _has_source(mark: LineMark, sources: SourceLines) -> bool:
         mark: The mark to excerpt.
         sources: The lines of each file that can be excerpted.
     """
-    lines = sources.get(mark.path)
-    return lines is not None and mark.line.number <= len(lines)
+    source = sources.get(mark.path)
+    return source is not None and source.has_line(mark.line)
 
 
 def _gutter_width(marks: list[Mark], sources: SourceLines) -> int:
@@ -253,7 +281,7 @@ def _gutter_width(marks: list[Mark], sources: SourceLines) -> int:
 
 def _excerpt_lines(
     marks: list[LineMark],
-    source: tuple[str, ...],
+    source: SourceText,
     width: int,
     severity: Severity,
     style: TextStyle,
@@ -279,11 +307,12 @@ def _excerpt_lines(
         if previous is not None:
             hidden = number - previous - 1
             if hidden == 1:
-                lines.append(_source_line(previous + 1, source, width, style, glyphs))
+                lines.append(_source_line(LineNumber.from_int(previous + 1), source, width, style, glyphs))
             elif hidden > 1:
                 lines.append(_paint(style, f'{glyphs.elision:>{width}} {glyphs.gutter}', fg='blue', bold=True))
-        lines.append(_source_line(number, source, width, style, glyphs))
-        text = source[number - 1].expandtabs(_TAB_WIDTH).rstrip()
+        line = line_marks[0].line
+        lines.append(_source_line(line, source, width, style, glyphs))
+        text = source.line(line).expandtabs(_TAB_WIDTH).rstrip()
         # The line the diagnostic is reported at is underlined before any other line's label.
         for mark in sorted(line_marks, key=lambda mark: not mark.primary):
             lines.append(_underline(mark, text, width, severity, style, glyphs))
@@ -291,18 +320,18 @@ def _excerpt_lines(
     return lines
 
 
-def _source_line(number: int, source: tuple[str, ...], width: int, style: TextStyle, glyphs: _Glyphs) -> str:
+def _source_line(number: LineNumber, source: SourceText, width: int, style: TextStyle, glyphs: _Glyphs) -> str:
     """One numbered line of the source, in the gutter.
 
     Args:
-        number: The one-based number of the line.
-        source: The lines of the file.
+        number: The line to draw.
+        source: The text of the file.
         width: The columns the line numbers take.
         style: How to draw.
         glyphs: The characters to draw with.
     """
-    gutter = _paint(style, f'{number:>{width}} {glyphs.gutter}', fg='blue', bold=True)
-    return f'{gutter} {source[number - 1].expandtabs(_TAB_WIDTH)}'.rstrip()
+    gutter = _paint(style, f'{number.number:>{width}} {glyphs.gutter}', fg='blue', bold=True)
+    return f'{gutter} {source.line(number).expandtabs(_TAB_WIDTH)}'.rstrip()
 
 
 def _underline(mark: LineMark, text: str, width: int, severity: Severity, style: TextStyle, glyphs: _Glyphs) -> str:

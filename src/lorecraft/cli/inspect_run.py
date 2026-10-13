@@ -19,29 +19,16 @@ from .output import ExitStatus, OutputFormat
 from .workspace_tree import render_json, render_text
 
 
-def run_inspect(root: Path, output_format: OutputFormat | None, as_json: bool) -> None:
+def run_inspect(root: Path, output_format: OutputFormat) -> None:
     """Print the workspace model of `root`; the body of `lorecraft inspect`.
 
     Args:
         root: The workspace root, already resolved by the command's argument.
-        output_format: The `--format` option; `None` when it was not given.
-        as_json: Whether the deprecated `--json` alias was given.
+        output_format: How to print the model, already resolved from `--format` and the `--json` alias.
 
     Raises:
-        typer.BadParameter: If both `--format` and `--json` are given.
         typer.Exit: With code 2 when the scan or the load fails.
     """
-    # `--json` is kept so scripts written before `--format` keep working. `--format` defaults to `None` so a
-    # given one can be told from an absent one, and giving both is refused rather than one silently winning.
-    if as_json:
-        if output_format is not None:
-            raise typer.BadParameter(
-                'give `--format json` alone; `--json` is its deprecated alias', param_hint="'--json'"
-            )
-        output_format = OutputFormat.JSON
-    if output_format is None:
-        output_format = OutputFormat.TEXT
-
     try:
         # Under `docs/` the snapshot never reads through a symlink, so a linked `docs/` or `docs/__meta__/`
         # would draw a model with no corpora. `open` refuses it instead of printing it as if the root declared

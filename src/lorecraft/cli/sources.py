@@ -11,7 +11,7 @@ from lorecraft.project.database import Database
 from lorecraft.rules.report import RunReport
 
 from .diagnostic_parts import LineMark, WholeFileMark, diagnostic_marks, ordered_diagnostics
-from .diagnostic_text import SourceLines
+from .diagnostic_text import SourceLines, SourceText
 
 
 def read_sources(database: Database, reports: tuple[RunReport, ...]) -> SourceLines:
@@ -35,9 +35,9 @@ def read_sources(database: Database, reports: tuple[RunReport, ...]) -> SourceLi
                 case _:
                     assert_never(mark)
 
-    sources: dict[RootRelativePath, tuple[str, ...]] = {}
+    sources: dict[RootRelativePath, SourceText] = {}
     for path in paths:
         lines = database.source_lines(path)
         if lines is not None:
-            sources[path] = lines
+            sources[path] = SourceText(lines)
     return sources
