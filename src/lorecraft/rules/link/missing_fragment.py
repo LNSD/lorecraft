@@ -1,11 +1,17 @@
 """`LINK002`: a link to a heading of the same Markdown file names a heading the file does not have."""
 
 from dataclasses import dataclass
-from typing import ClassVar, Self
+from typing import ClassVar, Self, assert_never
 from urllib.parse import unquote
 
 from lorecraft.project.context import MarkdownContext
-from lorecraft.project.syntax import Anchor
+from lorecraft.project.syntax import (
+    AbsoluteDestination,
+    Anchor,
+    ExternalDestination,
+    FragmentDestination,
+    RelativeDestination,
+)
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.location import Note, Subdiagnostic
 from lorecraft.rules.subject import MarkdownRule
@@ -98,10 +104,15 @@ class MissingFragment(MarkdownRule):
         has_headings = len(parsed.anchors) > 0
         occurrences: list[Self] = []
         for link in parsed.links:
-            if not link.url.startswith('#'):
-                continue
-            fragment = link.url.removeprefix('#')
-            # A bare `#` names no heading at all, so it names no missing one either.
+            destination = link.to_destination()
+            match destination:
+                case FragmentDestination():
+                    fragment = destination.fragment
+                case ExternalDestination() | AbsoluteDestination() | RelativeDestination():
+                    continue
+                case _:
+                    assert_never(destination)
+            # A bare `#` names no heading at all, so it names no missing one either; nor does a query alone.
             if fragment == '':
                 continue
             # `None` is a fragment no heading can have, such as one holding a space, so it is missing whatever the

@@ -1,10 +1,16 @@
 """`LINK001`: a link in a Markdown file starts at a filesystem root."""
 
 from dataclasses import dataclass
-from typing import ClassVar, Self
+from typing import ClassVar, Self, assert_never
 from urllib.parse import unquote
 
 from lorecraft.project.context import MarkdownContext
+from lorecraft.project.syntax import (
+    AbsoluteDestination,
+    ExternalDestination,
+    FragmentDestination,
+    RelativeDestination,
+)
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.location import Help, Subdiagnostic
 from lorecraft.rules.subject import MarkdownRule
@@ -19,7 +25,8 @@ class AbsoluteLink(MarkdownRule):
 
     ## What it does
 
-    Checks for links and images whose destination starts with `/`, in every Markdown file the checks read: a
+    Checks for links and images whose destination starts with `/`, as written or once percent-decoded, so
+    `%2Fetc/x.md` is reported too, in every Markdown file the checks read: a
     document whose corpus states a structure specification, a skill's `SKILL.md` and each Markdown file inside the
     skill. No specification key states the rule: every such file is held to it.
 
@@ -87,6 +94,12 @@ class AbsoluteLink(MarkdownRule):
         """
         occurrences: list[Self] = []
         for link in subject.parse().links:
-            if link.url.startswith('/'):
-                occurrences.append(cls(line=link.line, url=link.url))
+            destination = link.to_destination()
+            match destination:
+                case AbsoluteDestination():
+                    occurrences.append(cls(line=link.line, url=link.url))
+                case ExternalDestination() | FragmentDestination() | RelativeDestination():
+                    pass
+                case _:
+                    assert_never(destination)
         return tuple(occurrences)

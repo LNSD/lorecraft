@@ -11,7 +11,8 @@ A link in a Markdown file starts at a filesystem root.
 
 ## What it does
 
-Checks for links and images whose destination starts with `/`, in every Markdown file the checks read: a
+Checks for links and images whose destination starts with `/`, as written or once percent-decoded, so
+`%2Fetc/x.md` is reported too, in every Markdown file the checks read: a
 document whose corpus states a structure specification, a skill's `SKILL.md` and each Markdown file inside the
 skill. No specification key states the rule: every such file is held to it.
 

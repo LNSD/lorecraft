@@ -22,7 +22,15 @@ from .frontmatter import (
 )
 from .heading import Heading, HeadingLevel, SectionHeading, find_sections, find_title
 from .lines import count_lines, split_lines
-from .link import Link
+from .link import (
+    AbsoluteDestination,
+    ExternalDestination,
+    FragmentDestination,
+    Link,
+    LinkDestination,
+    NormalisedLinkPath,
+    RelativeDestination,
+)
 from .position import LineNumber
 from .tokens import count_tokens
 from .words import count_words
@@ -44,6 +52,12 @@ __all__: list[str] = [
     'find_sections',
     'find_title',
     'Link',
+    'LinkDestination',
+    'ExternalDestination',
+    'AbsoluteDestination',
+    'FragmentDestination',
+    'RelativeDestination',
+    'NormalisedLinkPath',
     'Anchor',
     'InvalidAnchorError',
     'LineNumber',
