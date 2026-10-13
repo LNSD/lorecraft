@@ -73,7 +73,12 @@ skill_directory.mkdir(parents=True)
 # ✅ Good — the body is the case; the frontmatter takes a clean default, and the snapshot pins the finding
 #: Given
 expected = snapshot.use_extension(TextSnapshotExtension)
-workspace = Workspace(skills=[Skill('review', body='# Review\n\nRead [the steps](/steps.md).\n')])
+body = dedent("""\
+    # Review
+
+    Read [the steps](/steps.md).
+    """)
+workspace = Workspace(skills=[Skill('review', body=body)])
 root = workspace.write(tmp_path, faker)
 arguments = ('check', '--root', str(root))
 
