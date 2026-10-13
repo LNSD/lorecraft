@@ -25,7 +25,7 @@ import typer
 
 from lorecraft import rules
 from lorecraft.core.error import Error
-from lorecraft.engine import check_subjects, report_load_failures
+from lorecraft.engine import UnlistableRoot, check_subjects, report_load_failures
 from lorecraft.project.database import Database
 from lorecraft.project.layout import DECLARATION, SNAPSHOT_SCOPE
 from lorecraft.project.workspace import reject_unreported_refusals
@@ -37,7 +37,7 @@ from lorecraft.vfs import take_snapshot
 
 from .diagnostic_text import render_text
 from .diagnostics import render_coverage, render_json, render_prefix_summary, render_short, render_summary
-from .failure import exit_on_unlistable_directory, report_failure
+from .failure import report_failure, report_load_failure
 from .output import ColorChoice, DiagnosticFormat, ExitStatus
 from .root import establish_root
 from .rule_arguments import SelectorValue
@@ -77,13 +77,22 @@ def run_check(
         # With no corpus and no meta spec known, nothing can be checked, so this stops before any subject is selected.
         # Every other failure the model recorded is reported below, as a diagnostic.
         model = database.model()
-        exit_on_unlistable_directory(model)
+        load_failures = report_load_failures(model)
+        match load_failures:
+            case UnlistableRoot(failure=failure):
+                report_load_failure(failure)
+                raise typer.Exit(code=ExitStatus.FAILURE)
+            case tuple() as load_failure_reports:
+                # This arm only binds the reports the run goes on with.
+                pass
+            case _:
+                assert_never(load_failures)
         # The snapshot kept what the scan could not list, read or inspect, and the model reports the ones it loads.
         # One that nothing reports would pass unseen where the scan used to stop, so the first of them stops the run.
         reject_unreported_refusals(database.refusals(), model)
         subjects = select_workspace(database)
         table = RuleTable.from_registry(registry, parsed.selection)
-        reports = (*report_load_failures(model), *check_subjects(database, subjects, table))
+        reports = (*load_failure_reports, *check_subjects(database, subjects, table))
     except Error as exc:
         report_failure(exc)
         raise typer.Exit(code=ExitStatus.FAILURE) from exc

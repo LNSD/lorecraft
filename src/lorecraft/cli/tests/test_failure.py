@@ -74,7 +74,7 @@ from lorecraft.vfs import (
     Utf8Failure,
 )
 
-from ..failure import exit_on_load_failure, exit_on_unlistable_directory, report_failure, report_load_failure
+from ..failure import exit_on_load_failure, report_failure, report_load_failure
 from ..output import ExitStatus
 
 
@@ -524,68 +524,4 @@ class TestExitOnLoadFailure:
         assert exc_info.value.exit_code == ExitStatus.FAILURE, 'the run exits as an error did'
         assert capsys.readouterr().err == 'error: cannot list directory docs/__meta__: permission denied\n', (
             'only the first failure is reported, as only the first error was raised'
-        )
-
-
-@pytest.mark.unit
-class TestExitOnUnlistableDirectory:
-    def test_exit_on_unlistable_directory_with_no_failure_returns(self, capsys: pytest.CaptureFixture[str]) -> None:
-        #: Given
-        model = WorkspaceModel(
-            corpora=FrozenMapping({}),
-            skills_dirs=frozenset(),
-            skill_locations=FrozenMapping({}),
-            outside_symlinks=FrozenMapping({}),
-            load_failures=(),
-        )
-
-        #: When
-        returned = exit_on_unlistable_directory(model)
-
-        #: Then
-        assert returned is None, 'a model that recorded nothing is no reason to stop'
-        assert capsys.readouterr().err == '', 'and nothing is written'
-
-    def test_exit_on_unlistable_directory_with_a_failure_of_another_unit_returns(
-        self, capsys: pytest.CaptureFixture[str]
-    ) -> None:
-        #: Given
-        failure = LoadFailure(_PATH, EmptyStructureSpec())
-        model = WorkspaceModel(
-            corpora=FrozenMapping({}),
-            skills_dirs=frozenset(),
-            skill_locations=FrozenMapping({}),
-            outside_symlinks=FrozenMapping({}),
-            load_failures=(failure,),
-        )
-
-        #: When
-        returned = exit_on_unlistable_directory(model)
-
-        #: Then
-        assert returned is None, 'such a failure is a diagnostic of the run, not a reason to stop it'
-        assert capsys.readouterr().err == '', 'and the command writes nothing for it'
-
-    def test_exit_on_unlistable_directory_with_one_among_other_failures_reports_it_and_exits_two(
-        self, capsys: pytest.CaptureFixture[str]
-    ) -> None:
-        #: Given
-        other = LoadFailure(_PATH, EmptyStructureSpec())
-        unlistable = LoadFailure(RootRelativePath.parse('docs/__meta__'), UnlistableDirectory(_REFUSAL))
-        model = WorkspaceModel(
-            corpora=FrozenMapping({}),
-            skills_dirs=frozenset(),
-            skill_locations=FrozenMapping({}),
-            outside_symlinks=FrozenMapping({}),
-            load_failures=(other, unlistable),
-        )
-
-        #: When
-        with pytest.raises(typer.Exit) as exc_info:
-            exit_on_unlistable_directory(model)
-
-        #: Then
-        assert exc_info.value.exit_code == ExitStatus.FAILURE, 'nothing can be checked, so the run is an error'
-        assert capsys.readouterr().err == 'error: cannot list directory docs/__meta__: permission denied\n', (
-            'the directory is printed as a failure, as it is when the root cannot be found'
         )
