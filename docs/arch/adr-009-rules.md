@@ -39,7 +39,8 @@ shorter still: the checker reports errors and warnings, and they act on them.
 | **Rulebook** | The reference manual of the engine's rules, one page per code, generated from the rules' classes |
 | **Alias code** | An upstream linter's code for a rule Lorecraft absorbed, such as `MD040`. A rule's code is always Lorecraft's; an alias code only points to it |
 | **Removed rule** | A retired code, with the release that removed it and its replacement. Never has an occurrence |
-| **Engine condition** | A condition the engine reports before any rule runs, such as an undecodable file: declared like a rule, with no level |
+| **Engine condition** | A condition the engine reports before any rule runs, such as an undecodable file: declared like a rule, with no level, and one per kind of fix |
+| **Cause** | One case of an engine condition, such as which rule of a structure file cannot be applied: a type in the condition's closed union, held as data of its occurrence |
 | **Subject** | What is checked: a document, a skill, a skill resource or a layout entry |
 | **Context** | The read-only view of one decoded subject a rule asks for the facts it reads, each a query of the database |
 | **Facet** | What part of a document a meta spec governs, which a rule over a document or the frontmatter is gated on |
@@ -117,12 +118,15 @@ class EmptySection(DocumentRule):
   rejects one that reports another's. That needs no type parameter anywhere in the engine.
 - **The message is rendered from the fields.** The corpus, the field and the section travel as data, not as
   text inside a message (FR-011), so the machine-readable output and a persisted result hold structured values.
-- **One class, one message template.** `message()` does not branch on a condition. Two conditions a writer
-  fixes differently are two classes and two codes (FR-012), the established linters' granularity, which identify
+- **One rule, one message template.** A rule's `message()` does not branch on a condition. Two conditions a writer
+  fixes differently are two rule classes and two codes (FR-012), the established linters' granularity, which identify
   a rule by its violation type. The prefix is the coarse handle: a level set on a prefix covers its whole group,
-  and one set on a code tunes one condition.
+  and one set on a code tunes one condition. An engine condition is the one exception, stated under
+  [Codes, Groups and Life Cycle](#codes-groups-and-life-cycle).
 - **The docstring is the documentation**, in fixed sections: *What it does*, *Why is this bad?*, *Example*,
-  *Use instead*, and optionally *Known problems* and, for a rule with an alias, *Deviations from upstream*. Nothing
+  *Use instead*, and optionally *Known problems* and, for a rule with an alias, *Deviations from upstream*. An
+  engine condition with several causes replaces *Example* and *Use instead* with one section per cause, each with
+  its example and its fix, so no case goes without the guidance a code of its own would have given it. Nothing
   about a rule is written in a second place.
 - **Every rule has a default level** (FR-023), on its class. Until a configuration sets levels, it is the level
   every run uses.
@@ -150,6 +154,14 @@ instance is one occurrence of it.
   stable since, a fixed severity and a docstring, registered by `@rule`, so it has a rulebook page and its own test
   cases. It has no level and no `check`: the engine finds it before any rule runs, and no selection or
   configuration can turn it off.
+- **An engine condition's code splits by kind of fix, not by case.** A code earns its place when a reader looks it
+  up, selects it, configures it or suppresses it; an engine condition can only be looked up, so a second code pays
+  only for a different kind of fix, such as restoring access to a path rather than correcting a structure file.
+  The cases one kind of fix covers are its causes: a closed union of frozen dataclasses held in a `cause` field,
+  and `message()`, the labels and the notes `match` on it, closed by `assert_never`, so an unhandled cause fails
+  the type check. The message names the cause and what differs in it, such as the operation refused, the OS reason
+  or the rule of the structure file that cannot be applied, as the established linters do with one code for every
+  file they cannot read.
 - **Every code is Lorecraft's, and an upstream code is an alias code.** A rule ported from another linter keeps a
   Lorecraft code in the group of its mechanism, and lists the upstream codes it answers to in `ALIASES`, each
   naming its linter. A condition that several linters check is one rule with several alias codes, never several
@@ -255,12 +267,19 @@ that uses Lorecraft, and every word of it is generated from the rules' classes.
   field. Linters that take this shape do so because a rule's options carry the user's specification, so the rule
   must be one. Here the meta spec is data the rule reads, a rule takes no options, and the prefix already gives the
   coarse handle. The coarse code would only cost a page that explains several fixes, conditions that cannot be
-  configured apart, and the kind field [python-typing](../code/python-typing.md) rules out.
+  configured apart, and the kind field [python-typing](../code/python-typing.md) rules out. An engine condition
+  takes this shape, with a closed union of cause types in place of a kind field: it cannot be configured, so the
+  only cost left is the page, which one section per cause pays.
+- **One code per engine condition case.** Each way an input can be unusable gets its own code. Not chosen for the
+  engine's group: the codes outnumber the kinds of fix several times over, and a code nobody can select, configure
+  or suppress buys only a rulebook page that one section per cause gives as well.
 
 ## Consequences
 
 - **Every rule took a new identity.** Dotted identifiers became codes, and the release notes carry the mapping.
 - **More files, each smaller.** A module per rule replaced v0.2's check modules.
+- **The engine's group stays small.** Its codes count kinds of fix, so a new way for an input to be unusable is a
+  cause, a rulebook section and a test case, and takes a code only when its fix is of a new kind.
 - **Adding, renaming or retiring a rule regenerates the rulebook and the index**, and the generation check holds
   both to the registry.
 
@@ -277,9 +296,12 @@ Before committing code, verify:
 
 - [ ] A new rule is one class in one module of its group's directory, registered by `@rule`, with a code, a name, a
   default level, the release it is stable since, and a `check` classmethod returning `tuple[Self, ...]`
-- [ ] A rule's docstring holds *What it does*, *Why is this bad?*, *Example* and *Use instead*, and nothing about the
-  rule is written in a second place
-- [ ] `message()` never branches; a condition fixed differently is another class and another code
+- [ ] A rule's docstring holds *What it does*, *Why is this bad?*, *Example* and *Use instead*, an engine condition
+  with several causes holds one section per cause in place of the last two, and nothing about the rule is written
+  in a second place
+- [ ] A rule's `message()` never branches; a condition fixed differently is another class and another code
+- [ ] An engine condition has one code per kind of fix; its cases are a closed union of cause types, matched with
+  `assert_never`, and each cause has a test asserting its message
 - [ ] A rule over a document declares the facet it reads in `GOVERNED_BY`
 - [ ] A code is never reused: a retired rule becomes a `RemovedRule` in the same file
 - [ ] A ported rule keeps a Lorecraft code in the group of its mechanism and lists upstream codes in `ALIASES`
