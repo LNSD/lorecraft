@@ -35,6 +35,7 @@ from ..spec_file import SpecFileType, StructureSpecFile, spec_filename
 from ..structure import (
     AdjacentAnyRunsError,
     AnySections,
+    CharCappedTitleChecks,
     EmptyStructureSpecError,
     ForbiddenOutlineSectionError,
     ForeignFrontmatterDialectError,
@@ -42,15 +43,16 @@ from ..structure import (
     FrontmatterSchemaIdError,
     InvalidFrontmatterSchemaError,
     InvalidTitlePatternError,
+    PatternedTitleChecks,
     RepeatedForbiddenSectionError,
     RepeatedOutlineSectionError,
     SectionEntry,
     StructureSchema,
     StructureSpec,
     StructureSpecDecodeError,
-    TitleChecks,
     TitlePattern,
     UntypedFrontmatterSchemaError,
+    WordCappedTitleChecks,
 )
 
 SPECS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__')
@@ -112,7 +114,7 @@ class TestStructureSpecParse:
         #: Then
         assert structure_spec == StructureSpec(
             file=SPEC_FILE,
-            title=TitleChecks(words=NonZeroUnsignedInt(8), chars=NonZeroUnsignedInt(60), pattern=None),
+            title=WordCappedTitleChecks(words=NonZeroUnsignedInt(8), chars=NonZeroUnsignedInt(60)),
             forbid_empty_sections=True,
             outline=(
                 AnySections(words=NonZeroUnsignedInt(350)),
@@ -545,7 +547,7 @@ class TestStructureSpecParse:
         structure_spec = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert structure_spec.title == TitleChecks(words=NonZeroUnsignedInt(8), chars=None, pattern=None), (
+        assert structure_spec.title == WordCappedTitleChecks(words=NonZeroUnsignedInt(8)), (
             'a cap on the title is a rule, so a file stating only it is usable'
         )
 
@@ -601,7 +603,7 @@ class TestStructureSpecParse:
         structure_spec = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert structure_spec.title == TitleChecks(words=None, chars=NonZeroUnsignedInt(60), pattern=None), (
+        assert structure_spec.title == CharCappedTitleChecks(chars=NonZeroUnsignedInt(60)), (
             "a cap on the title's characters is a rule, so a file stating only it is usable"
         )
 
@@ -680,9 +682,9 @@ class TestStructureSpecParse:
         structure_spec = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert structure_spec.title == TitleChecks(
-            words=None, chars=None, pattern=TitlePattern(re.compile('^[A-Z]'))
-        ), 'a pattern on the title is a rule, so a file stating only it is usable, and it is held compiled'
+        assert structure_spec.title == PatternedTitleChecks(pattern=TitlePattern(re.compile('^[A-Z]'))), (
+            'a pattern on the title is a rule, so a file stating only it is usable, and it is held compiled'
+        )
 
     def test_parse_with_a_title_word_cap_and_pattern_returns_a_structure_spec_with_both(self) -> None:
         #: Given
@@ -692,8 +694,8 @@ class TestStructureSpecParse:
         structure_spec = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert structure_spec.title == TitleChecks(
-            words=NonZeroUnsignedInt(8), chars=None, pattern=TitlePattern(re.compile('^[A-Z]'))
+        assert structure_spec.title == PatternedTitleChecks(
+            pattern=TitlePattern(re.compile('^[A-Z]')), words=NonZeroUnsignedInt(8)
         ), 'a cap and a pattern are independent, and the title carries both'
 
     def test_parse_with_a_title_pattern_that_does_not_compile_raises_invalid_title_pattern_error(self) -> None:
@@ -962,27 +964,6 @@ class TestStructureSpecConstruction:
 
         #: Then
         assert exc_info.value.path == file.path, 'a specification stating no rule would check nothing'
-
-    def test_construction_with_a_title_stating_no_check_alone_raises_empty_structure_spec_error(self) -> None:
-        #: Given
-        file = SPEC_FILE
-
-        #: When
-        with pytest.raises(EmptyStructureSpecError) as exc_info:
-            StructureSpec(
-                file=file,
-                title=TitleChecks(words=None, chars=None, pattern=None),
-                forbid_empty_sections=False,
-                outline=(),
-                forbidden=(),
-                tokens=None,
-                frontmatter=None,
-            )
-
-        #: Then
-        assert exc_info.value.path == file.path, (
-            'the title is checked whatever the specification states, so a title with no check states no rule'
-        )
 
     def test_construction_with_a_section_named_twice_raises_repeated_outline_section_error(self) -> None:
         #: Given

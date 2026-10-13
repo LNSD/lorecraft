@@ -87,6 +87,7 @@ from .spec_file import (
 from .structure import (
     AdjacentAnyRunsError,
     AnySections,
+    CharCappedTitleChecks,
     EmptyStructureSpecError,
     ForbiddenOutlineSectionError,
     ForeignFrontmatterDialectError,
@@ -95,6 +96,7 @@ from .structure import (
     InvalidFrontmatterSchemaError,
     InvalidTitlePatternError,
     OutlineEntry,
+    PatternedTitleChecks,
     RepeatedForbiddenSectionError,
     RepeatedOutlineSectionError,
     SectionEntry,
@@ -104,6 +106,7 @@ from .structure import (
     TitleChecks,
     TitlePattern,
     UntypedFrontmatterSchemaError,
+    WordCappedTitleChecks,
 )
 from .structure_file import StructureFile
 
@@ -128,6 +131,9 @@ __all__: list[str] = [
     'FrontmatterSchema',
     'StructureFile',
     'TitleChecks',
+    'PatternedTitleChecks',
+    'WordCappedTitleChecks',
+    'CharCappedTitleChecks',
     'TitlePattern',
     'OutlineEntry',
     'SectionEntry',
