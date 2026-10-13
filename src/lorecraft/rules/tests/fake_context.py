@@ -17,7 +17,7 @@ from typing import Final
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.corpus import CorpusName
@@ -76,7 +76,7 @@ def structure_spec_path(name: str) -> RootRelativePath:
         EmptyAspectNamespaceError: If a hyphen is followed by no namespace.
         InvalidAspectNamespaceCharacterError: If a character of the namespace token falls outside kebab case.
     """
-    return SPECS_DIR / spec_filename(parse_spec_name(name), SpecFileType.STRUCTURE)
+    return SPECS_DIR / PathComponent.parse(spec_filename(parse_spec_name(name), SpecFileType.STRUCTURE))
 
 
 def heading_in(text: str, heading_text: str) -> Heading:
@@ -134,8 +134,8 @@ def _files(spec_name: SpecName) -> tuple[RootRelativePath, ...]:
         spec_name: The specification name.
     """
     return (
-        SPECS_DIR / spec_filename(spec_name, SpecFileType.PROSE),
-        SPECS_DIR / spec_filename(spec_name, SpecFileType.STRUCTURE),
+        SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.PROSE)),
+        SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.STRUCTURE)),
     )
 
 
@@ -159,7 +159,9 @@ def _decode_structure(spec_name: SpecName, structure: str) -> StructureSpec:
         ForbiddenOutlineSectionError: If it forbids a section its own outline names.
         AdjacentAnyRunsError: If its outline places two `any` runs side by side.
     """
-    file = StructureSpecFile(path=SPECS_DIR / spec_filename(spec_name, SpecFileType.STRUCTURE), name=spec_name)
+    file = StructureSpecFile(
+        path=SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.STRUCTURE)), name=spec_name
+    )
     return StructureSpec.parse(file, StructureSchema(structure))
 
 
@@ -321,7 +323,7 @@ class FakeSkillContext:
 
     def link_base(self) -> SkillRoot:
         """The skill directory, under the skills directory, at the name the test listed it under."""
-        return SkillRoot(_SKILLS_DIRECTORY / self._directory_name)
+        return SkillRoot(_SKILLS_DIRECTORY / PathComponent.parse(self._directory_name))
 
     def link_targets(self) -> Mapping[PurePosixPath, LinkTarget]:
         """None: a fake skill holds no link target."""

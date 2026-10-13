@@ -5,7 +5,7 @@ from typing import Final
 import pytest
 
 from lorecraft.core.mapping import FrozenMapping
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas.name import CorpusSpecName
 from lorecraft.project.schemas.section_name import SectionName
@@ -413,7 +413,7 @@ class TestReportLoadFailures:
     ) -> None:
         #: Given
         condition = UnresolvableSkillFile(_ON_THE_WAY, _REFUSAL)
-        path = _ENTRY / 'SKILL.md'
+        path = _ENTRY / PathComponent.parse('SKILL.md')
 
         #: When
         occurrence = _condition_of(condition, path)
@@ -427,8 +427,8 @@ class TestReportLoadFailures:
         self,
     ) -> None:
         #: Given
-        condition = UninspectableSkillFile(_ENTRY / 'SKILL.md', _ON_THE_WAY, _REFUSAL)
-        path = _ENTRY / 'SKILL.md'
+        condition = UninspectableSkillFile(_ENTRY / PathComponent.parse('SKILL.md'), _ON_THE_WAY, _REFUSAL)
+        path = _ENTRY / PathComponent.parse('SKILL.md')
 
         #: When
         occurrence = _condition_of(condition, path)

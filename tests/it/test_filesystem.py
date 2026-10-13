@@ -679,7 +679,7 @@ class TestDiskFileSystemFindEntryKind:
     ) -> None:
         #: Given
         filesystem = DiskFileSystem(tmp_path)
-        inside = RootRelativePath.parse(unreadable_dir.name) / 'inner'
+        inside = RootRelativePath.parse(unreadable_dir.name) / PathComponent.parse('inner')
 
         #: When
         with pytest.raises(EntryInspectError) as exc_info:
@@ -841,7 +841,7 @@ class TestDiskFileSystemFindDir:
     ) -> None:
         #: Given
         filesystem = DiskFileSystem(tmp_path)
-        inside_locked = RootRelativePath.parse(unreadable_dir.name) / 'skills'
+        inside_locked = RootRelativePath.parse(unreadable_dir.name) / PathComponent.parse('skills')
 
         #: When
         with pytest.raises(DirResolveError) as exc_info:
@@ -976,7 +976,7 @@ class TestDiskFileSystemFindFile:
     ) -> None:
         #: Given
         filesystem = DiskFileSystem(tmp_path)
-        inside_locked = RootRelativePath.parse(unreadable_dir.name) / 'SKILL.md'
+        inside_locked = RootRelativePath.parse(unreadable_dir.name) / PathComponent.parse('SKILL.md')
 
         #: When
         with pytest.raises(FileResolveError) as exc_info:
@@ -1148,7 +1148,10 @@ class TestTakeSnapshot:
         (tmp_path / 'docs' / 'code' / 'sub').mkdir(parents=True)
         (tmp_path / 'docs' / 'code' / 'sub' / 'x.md').write_bytes(b'# X\n')
         # the shallow root is scanned first, so the deeper one must list docs/code again
-        scope = (ScanRoot(DOCS_DIR, depth=UnsignedInt(2)), ScanRoot(DOCS_DIR / 'code', depth=UnsignedInt(0)))
+        scope = (
+            ScanRoot(DOCS_DIR, depth=UnsignedInt(2)),
+            ScanRoot(DOCS_DIR / PathComponent.parse('code'), depth=UnsignedInt(0)),
+        )
 
         #: When
         snapshot = take_snapshot(tmp_path, scope)
@@ -1168,9 +1171,9 @@ class TestTakeSnapshot:
         #: Given
         (tmp_path / 'docs' / 'code').mkdir(parents=True)
         scope = (
-            ScanRoot(DOCS_DIR / 'code', depth=UnsignedInt(0)),
+            ScanRoot(DOCS_DIR / PathComponent.parse('code'), depth=UnsignedInt(0)),
             ScanRoot(DOCS_DIR, depth=UnsignedInt(1)),
-            ScanRoot(DOCS_DIR / 'code', depth=UnsignedInt(0)),
+            ScanRoot(DOCS_DIR / PathComponent.parse('code'), depth=UnsignedInt(0)),
         )
 
         #: When
@@ -1712,7 +1715,7 @@ class TestTakeSnapshot:
         self, tmp_path: Path, unreadable_dir: Path
     ) -> None:
         #: Given
-        inside_locked = RootRelativePath.parse(unreadable_dir.name) / 'inner'
+        inside_locked = RootRelativePath.parse(unreadable_dir.name) / PathComponent.parse('inner')
         scope = (ScanRoot(inside_locked, depth=UnsignedInt(0)),)
 
         #: When
@@ -1730,7 +1733,9 @@ class TestTakeSnapshot:
         self, tmp_path: Path, unsearchable_dir_with_a_link: Path
     ) -> None:
         #: Given
-        link = RootRelativePath.parse(unsearchable_dir_with_a_link.relative_to(tmp_path).as_posix()) / 'linked.md'
+        link = RootRelativePath.parse(unsearchable_dir_with_a_link.relative_to(tmp_path).as_posix()) / PathComponent(
+            'linked.md'
+        )
         scope = (ScanRoot(link.parent, depth=UnsignedInt(0)),)
 
         #: When
@@ -3148,7 +3153,7 @@ class TestIsInScopeMatchesSnapshot:
         index = ScopeIndex(snapshot)
 
         #: When
-        declared = index.is_in_scope(directory / 'absent.md')
+        declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
 
         #: Then
         assert (declared, listed) == (True, True), 'docs/ is a root: declared in the scope, and listed'
@@ -3161,7 +3166,7 @@ class TestIsInScopeMatchesSnapshot:
         index = ScopeIndex(snapshot)
 
         #: When
-        declared = index.is_in_scope(directory / 'absent.md')
+        declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
 
         #: Then
         assert (declared, listed) == (True, True), (
@@ -3176,7 +3181,7 @@ class TestIsInScopeMatchesSnapshot:
         index = ScopeIndex(snapshot)
 
         #: When
-        declared = index.is_in_scope(directory / 'absent.md')
+        declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
 
         #: Then
         assert (declared, listed) == (False, False), (
@@ -3193,7 +3198,7 @@ class TestIsInScopeMatchesSnapshot:
         index = ScopeIndex(snapshot)
 
         #: When
-        declared = index.is_in_scope(directory / 'absent.md')
+        declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
 
         #: Then
         assert (declared, listed) == (False, False), (
@@ -3210,7 +3215,7 @@ class TestIsInScopeMatchesSnapshot:
         index = ScopeIndex(snapshot)
 
         #: When
-        declared = index.is_in_scope(directory / 'absent.md')
+        declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
 
         #: Then
         assert (declared, listed) == (True, True), (
@@ -3225,7 +3230,7 @@ class TestIsInScopeMatchesSnapshot:
         index = ScopeIndex(snapshot)
 
         #: When
-        declared = index.is_in_scope(directory / 'absent.md')
+        declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
 
         #: Then
         assert (declared, listed) == (True, True), 'the skills root follows .agents/skills/y to skills/y and lists it'
@@ -3240,7 +3245,7 @@ class TestIsInScopeMatchesSnapshot:
         index = ScopeIndex(snapshot)
 
         #: When
-        declared = index.is_in_scope(directory / 'absent.md')
+        declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
 
         #: Then
         assert (declared, listed) == (True, True), (
@@ -3255,7 +3260,7 @@ class TestIsInScopeMatchesSnapshot:
         index = ScopeIndex(snapshot)
 
         #: When
-        declared = index.is_in_scope(directory / 'absent.md')
+        declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
 
         #: Then
         assert (declared, listed) == (True, True), (
@@ -3272,7 +3277,7 @@ class TestIsInScopeMatchesSnapshot:
         index = ScopeIndex(snapshot)
 
         #: When
-        declared = index.is_in_scope(directory / 'absent.md')
+        declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
 
         #: Then
         assert (declared, listed) == (True, True), '.claude/skills leads to .agents/skills, whose skill x is listed'
@@ -3285,7 +3290,7 @@ class TestIsInScopeMatchesSnapshot:
         index = ScopeIndex(snapshot)
 
         #: When
-        declared = index.is_in_scope(directory / 'absent.md')
+        declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
 
         #: Then
         assert (declared, listed) == (True, True), (
@@ -3300,7 +3305,7 @@ class TestIsInScopeMatchesSnapshot:
         index = ScopeIndex(snapshot)
 
         #: When
-        declared = index.is_in_scope(directory / 'absent.md')
+        declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
 
         #: Then
         assert (declared, listed) == (False, False), 'src/ is in no root: outside the scope, and unlisted'

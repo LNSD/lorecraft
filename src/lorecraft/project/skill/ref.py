@@ -20,7 +20,7 @@ location.
 from dataclasses import dataclass
 from typing import Final, Self
 
-from lorecraft.agents import SKILL_ENTRY_FILENAME
+from lorecraft.agents import SKILL_ENTRY, SKILL_ENTRY_FILENAME
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.layout import DOCUMENT_SUFFIX
 from lorecraft.vfs import ResolvedPath
@@ -58,17 +58,13 @@ class SkillRelativePath:
         """The path with POSIX separators, spelled from the skill's directory, such as `references/a.md`."""
         return str(self.value)
 
-    def __truediv__(self, name: str | PathComponent) -> 'SkillRelativePath':
-        """This path joined with `name`, checked again: a `..` or an absolute `name` is rejected.
+    def __truediv__(self, other: PathComponent | RootRelativePath) -> 'SkillRelativePath':
+        """This path joined with `other`, so the result stays inside the skill.
 
         Args:
-            name: Component, or `/`-separated components, to append below this path. A `PathComponent` names
-                a child of this path, so joining one is never rejected.
-
-        Raises:
-            RootRelativePathError: If the joined path is absolute or holds a `..` component.
+            other: A `PathComponent` names one child of this path; a `RootRelativePath` names a descendant below it.
         """
-        return SkillRelativePath(self.value / name)
+        return SkillRelativePath(self.value / other)
 
     @property
     def name(self) -> PathComponent | None:
@@ -87,7 +83,7 @@ class SkillRelativePath:
         return RootRelativePath(directory.value / self.value.value)
 
 
-_SKILL_ENTRY: Final[SkillRelativePath] = SkillRelativePath.parse(SKILL_ENTRY_FILENAME)
+_SKILL_ENTRY_PATH: Final[SkillRelativePath] = SkillRelativePath.parse(SKILL_ENTRY_FILENAME)
 """The skill's own top-level `SKILL.md`, spelled from the skill's directory."""
 
 
@@ -111,7 +107,7 @@ class SkillRef:
     @property
     def path(self) -> RootRelativePath:
         """Root-relative ``<directory>/SKILL.md``; the report path in findings."""
-        return self.directory / SKILL_ENTRY_FILENAME
+        return self.directory / SKILL_ENTRY
 
     def find_resource(self, path: SkillRelativePath) -> 'SkillResourceRef | None':
         """The resource of this skill an agent reaches at `path`, or `None` when a file there is no resource.
@@ -127,7 +123,7 @@ class SkillRef:
         name = path.name
         if name is None or not name.value.endswith(DOCUMENT_SUFFIX):
             return None
-        if path == _SKILL_ENTRY:
+        if path == _SKILL_ENTRY_PATH:
             return None
         return SkillResourceRef(self, path)
 

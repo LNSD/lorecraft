@@ -2,7 +2,7 @@
 
 import pytest
 
-from lorecraft.core.path import RootRelativePath, RootRelativePathError
+from lorecraft.core.path import PathComponent, RootRelativePath, RootRelativePathError
 
 from ..ref import SkillRef, SkillRelativePath, SkillResourceRef
 
@@ -44,21 +44,10 @@ class TestSkillRelativePath:
         directory = SkillRelativePath.parse('references')
 
         #: When
-        joined = directory / 'a.md'
+        joined = directory / PathComponent.parse('a.md')
 
         #: Then
         assert joined == SkillRelativePath.parse('references/a.md'), 'a name joins below the path'
-
-    def test_truediv_with_a_parent_component_raises_root_relative_path_error(self) -> None:
-        #: Given
-        directory = SkillRelativePath.parse('references')
-
-        #: When
-        with pytest.raises(RootRelativePathError) as exc_info:
-            directory / '../../x.md'
-
-        #: Then
-        assert '..' in str(exc_info.value), 'a join is checked again, so it cannot climb out of the skill'
 
     def test_under_with_a_skill_directory_returns_the_root_relative_path(self) -> None:
         #: Given

@@ -2286,7 +2286,10 @@ def _broken_in_skill(path: str, line: int, url: str) -> RuleDiagnostic:
         url: The link's destination, as the parser encodes it.
     """
     occurrence = BrokenLink(
-        line=LineNumber.from_int(line), url=url, base=SkillRoot(REVIEW.directory), target=REVIEW.directory / url
+        line=LineNumber.from_int(line),
+        url=url,
+        base=SkillRoot(REVIEW.directory),
+        target=REVIEW.directory / RootRelativePath.parse(url),
     )
     return RuleDiagnostic(RootRelativePath.parse(path), occurrence, Severity.ERROR)
 

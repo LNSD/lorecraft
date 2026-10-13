@@ -7,7 +7,7 @@ location every finding reports.
 
 from dataclasses import dataclass
 
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX
@@ -28,4 +28,7 @@ class DocumentRef:
     @property
     def path(self) -> RootRelativePath:
         """Root-relative ``docs/<corpus>/<filename>.md``; the report path in findings."""
-        return DOCS_DIR / str(self.corpus) / f'{self.filename}{DOCUMENT_SUFFIX}'
+        # A corpus name is validated snake case and a filename stem a validated aspect name, so both are components.
+        return (
+            DOCS_DIR / PathComponent.parse(str(self.corpus)) / PathComponent.parse(f'{self.filename}{DOCUMENT_SUFFIX}')
+        )

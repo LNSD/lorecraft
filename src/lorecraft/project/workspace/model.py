@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 from lorecraft.agents import AgentName
 from lorecraft.core.mapping import FrozenMapping
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.ref import DocumentRef
@@ -229,7 +229,8 @@ class Corpus:
     @property
     def directory(self) -> RootRelativePath:
         """Root-relative ``docs/<name>``, the directory the corpus's documents sit directly inside."""
-        return DOCS_DIR / str(self.name)
+        # A corpus name is validated snake case, so it is a valid component.
+        return DOCS_DIR / PathComponent.parse(str(self.name))
 
     def governance(self, filename: AspectFilename) -> Governance:
         """Corpus spec, then every namespace spec that matches, broad to narrow. Pure.

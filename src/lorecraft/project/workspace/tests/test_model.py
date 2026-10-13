@@ -12,7 +12,7 @@ import pytest
 
 from lorecraft.agents import AgentName
 from lorecraft.core.mapping import FrozenMapping
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.ref import DocumentRef
@@ -97,10 +97,10 @@ def _spec_files(
         structure: Whether the structure file forbids empty sections.
     """
     spec_name = parse_spec_name(name)
-    files = [SPECS_DIR / spec_filename(spec_name, SpecFileType.PROSE)]
+    files = [SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.PROSE))]
     structure_spec: StructureSpec | None = None
     if frontmatter or structure:
-        path = SPECS_DIR / spec_filename(spec_name, SpecFileType.STRUCTURE)
+        path = SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.STRUCTURE))
         frontmatter_schema: FrontmatterSchema | None = None
         if frontmatter:
             frontmatter_schema = FrontmatterSchema(path=path, schema=FrozenMapping({'type': 'object'}))
@@ -155,7 +155,7 @@ class TestGovernance:
         schemas = governance.frontmatter_schemas()
 
         #: Then
-        assert tuple(schema.path for schema in schemas) == (SPECS_DIR / 'code.structure.json',), (
+        assert tuple(schema.path for schema in schemas) == (SPECS_DIR / PathComponent.parse('code.structure.json'),), (
             'the corpus frontmatter schema is the only one when the corpus spec governs alone'
         )
 
@@ -176,9 +176,9 @@ class TestGovernance:
 
         #: Then
         assert tuple(schema.path for schema in schemas) == (
-            SPECS_DIR / 'code.structure.json',
-            SPECS_DIR / 'code-python.structure.json',
-            SPECS_DIR / 'code-python-errors.structure.json',
+            SPECS_DIR / PathComponent.parse('code.structure.json'),
+            SPECS_DIR / PathComponent.parse('code-python.structure.json'),
+            SPECS_DIR / PathComponent.parse('code-python-errors.structure.json'),
         ), 'the frontmatter schemas follow the corpus, python and python-errors specs, broad to narrow'
 
     def test_frontmatter_schemas_with_a_namespace_equal_to_the_filename_includes_the_namespace_schema(self) -> None:
@@ -194,8 +194,8 @@ class TestGovernance:
 
         #: Then
         assert tuple(schema.path for schema in schemas) == (
-            SPECS_DIR / 'code.structure.json',
-            SPECS_DIR / 'code-python.structure.json',
+            SPECS_DIR / PathComponent.parse('code.structure.json'),
+            SPECS_DIR / PathComponent.parse('code-python.structure.json'),
         ), 'the namespace schema follows the corpus schema when the namespace equals the filename'
 
     def test_frontmatter_schemas_with_a_namespace_that_is_only_a_prefix_excludes_the_namespace_schema(self) -> None:
@@ -210,7 +210,7 @@ class TestGovernance:
         schemas = governance.frontmatter_schemas()
 
         #: Then
-        assert tuple(schema.path for schema in schemas) == (SPECS_DIR / 'code.structure.json',), (
+        assert tuple(schema.path for schema in schemas) == (SPECS_DIR / PathComponent.parse('code.structure.json'),), (
             'the python namespace schema does not apply to pythonic, only the corpus schema does'
         )
 
@@ -258,7 +258,7 @@ class TestGovernance:
         schemas = governance.frontmatter_schemas()
 
         #: Then
-        assert tuple(schema.path for schema in schemas) == (SPECS_DIR / 'code.structure.json',), (
+        assert tuple(schema.path for schema in schemas) == (SPECS_DIR / PathComponent.parse('code.structure.json'),), (
             'a namespace structure stating no frontmatter schema adds none, so only the corpus schema applies'
         )
 
@@ -275,8 +275,8 @@ class TestGovernance:
 
         #: Then
         assert tuple(structure_spec.path for structure_spec in structure_specs) == (
-            SPECS_DIR / 'code.structure.json',
-            SPECS_DIR / 'code-python.structure.json',
+            SPECS_DIR / PathComponent.parse('code.structure.json'),
+            SPECS_DIR / PathComponent.parse('code-python.structure.json'),
         ), 'the structure specifications follow the corpus and python specs, broad to narrow'
 
     def test_structure_specs_with_a_corpus_spec_without_a_structure_returns_no_structures(self) -> None:
@@ -308,7 +308,7 @@ class TestGovernance:
 
         #: Then
         assert tuple(structure_spec.path for structure_spec in structure_specs) == (
-            SPECS_DIR / 'code.structure.json',
+            SPECS_DIR / PathComponent.parse('code.structure.json'),
         ), 'a namespace spec without a structure file adds nothing, so only the corpus structure applies'
 
     def test_structure_specs_with_a_corpus_structure_stating_only_frontmatter_returns_both_structures(self) -> None:
@@ -325,8 +325,8 @@ class TestGovernance:
 
         #: Then
         assert tuple(structure_spec.path for structure_spec in structure_specs) == (
-            SPECS_DIR / 'code.structure.json',
-            SPECS_DIR / 'code-python.structure.json',
+            SPECS_DIR / PathComponent.parse('code.structure.json'),
+            SPECS_DIR / PathComponent.parse('code-python.structure.json'),
         ), 'a structure file is a base whatever rule it states, as a tokens-only file is, so the namespace applies'
 
     def test_outline_specs_with_an_outline_in_the_namespace_alone_returns_the_namespace_structure(self) -> None:
@@ -343,7 +343,7 @@ class TestGovernance:
 
         #: Then
         assert tuple(structure_spec.path for structure_spec in outline_specs) == (
-            SPECS_DIR / 'code-python.structure.json',
+            SPECS_DIR / PathComponent.parse('code-python.structure.json'),
         ), 'the corpus structure states no outline, so only the namespace structure is matched against one'
 
     def test_outline_specs_with_no_structure_stating_an_outline_returns_no_structures(self) -> None:
@@ -634,7 +634,9 @@ def _regular_skill(directory: str) -> SkillLocation:
     path = RootRelativePath.parse(directory)
     # No link on the way, so the directory and its `SKILL.md` are their own resolved paths.
     return SkillLocation(
-        SkillRef(path), resolves_to=ResolvedPath(path), file_resolves_to=ResolvedPath(path / 'SKILL.md')
+        SkillRef(path),
+        resolves_to=ResolvedPath(path),
+        file_resolves_to=ResolvedPath(path / PathComponent.parse('SKILL.md')),
     )
 
 
@@ -972,7 +974,7 @@ class TestWorkspaceModel:
         model = replace(skills_model, outside_symlinks=FrozenMapping({outside.path: outside}))
 
         #: When
-        found = model.has_outside_symlink(entry / 'SKILL.md')
+        found = model.has_outside_symlink(entry / PathComponent.parse('SKILL.md'))
 
         #: Then
         assert not found, 'a path is compared whole: one below a symlink leading outside is not that symlink'

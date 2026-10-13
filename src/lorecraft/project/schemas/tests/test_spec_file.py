@@ -4,7 +4,7 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectNamespace, InvalidAspectNamespaceCharacterError
 from lorecraft.project.corpus import CorpusName, InvalidCorpusNameCharacterError, ReservedCorpusNameError
 
@@ -30,7 +30,7 @@ CODE: Final[CorpusName] = CorpusName.parse('code')
 class TestParseSpecFile:
     def test_parse_spec_file_with_a_corpus_prose_file_returns_a_prose_spec_file(self) -> None:
         #: Given
-        path = META / 'code.md'
+        path = META / PathComponent.parse('code.md')
 
         #: When
         spec_file = parse_spec_file(path)
@@ -42,7 +42,7 @@ class TestParseSpecFile:
 
     def test_parse_spec_file_with_a_corpus_structure_file_returns_a_structure_spec_file(self) -> None:
         #: Given
-        path = META / 'code.structure.json'
+        path = META / PathComponent.parse('code.structure.json')
 
         #: When
         spec_file = parse_spec_file(path)
@@ -55,7 +55,7 @@ class TestParseSpecFile:
     def test_parse_spec_file_with_a_header_file_raises_unknown_spec_file_type_error(self) -> None:
         #: Given
         # the frontmatter schema moved into the structure specification, so no file type claims *.header.json
-        path = META / 'code.header.json'
+        path = META / PathComponent.parse('code.header.json')
 
         #: When
         with pytest.raises(UnknownSpecFileTypeError) as exc_info:
@@ -66,7 +66,7 @@ class TestParseSpecFile:
 
     def test_parse_spec_file_with_a_nested_namespace_structure_file_returns_a_structure_spec_file(self) -> None:
         #: Given
-        path = META / 'code-python-errors.structure.json'
+        path = META / PathComponent.parse('code-python-errors.structure.json')
 
         #: When
         spec_file = parse_spec_file(path)
@@ -78,7 +78,7 @@ class TestParseSpecFile:
 
     def test_parse_spec_file_with_a_dotted_structure_stem_raises_dotted_spec_stem_error(self) -> None:
         #: Given
-        path = META / 'feat.component.structure.json'
+        path = META / PathComponent.parse('feat.component.structure.json')
 
         #: When
         with pytest.raises(DottedSpecStemError) as exc_info:
@@ -91,7 +91,7 @@ class TestParseSpecFile:
 
     def test_parse_spec_file_with_dotted_prose_raises_dotted_spec_stem_error(self) -> None:
         #: Given
-        path = META / 'feat.feature.md'
+        path = META / PathComponent.parse('feat.feature.md')
 
         #: When
         with pytest.raises(DottedSpecStemError) as exc_info:
@@ -102,7 +102,7 @@ class TestParseSpecFile:
 
     def test_parse_spec_file_with_another_suffix_raises_not_a_spec_file_error(self) -> None:
         #: Given
-        path = META / 'notes.txt'
+        path = META / PathComponent.parse('notes.txt')
 
         #: When
         with pytest.raises(NotASpecFileError) as exc_info:
@@ -114,7 +114,7 @@ class TestParseSpecFile:
 
     def test_parse_spec_file_with_json_without_a_token_raises_not_a_spec_file_error(self) -> None:
         #: Given
-        path = META / 'notes.json'
+        path = META / PathComponent.parse('notes.json')
 
         #: When
         with pytest.raises(NotASpecFileError) as exc_info:
@@ -127,7 +127,7 @@ class TestParseSpecFile:
 
     def test_parse_spec_file_with_json_without_a_stem_raises_not_a_spec_file_error(self) -> None:
         #: Given
-        path = META / '.structure.json'
+        path = META / PathComponent.parse('.structure.json')
 
         #: When
         with pytest.raises(NotASpecFileError) as exc_info:
@@ -140,7 +140,7 @@ class TestParseSpecFile:
 
     def test_parse_spec_file_with_json_with_an_empty_token_raises_not_a_spec_file_error(self) -> None:
         #: Given
-        path = META / 'code..json'
+        path = META / PathComponent.parse('code..json')
 
         #: When
         with pytest.raises(NotASpecFileError) as exc_info:
@@ -153,7 +153,7 @@ class TestParseSpecFile:
 
     def test_parse_spec_file_with_prose_without_a_stem_raises_not_a_spec_file_error(self) -> None:
         #: Given
-        path = META / '.md'
+        path = META / PathComponent.parse('.md')
 
         #: When
         with pytest.raises(NotASpecFileError) as exc_info:
@@ -166,7 +166,7 @@ class TestParseSpecFile:
 
     def test_parse_spec_file_with_an_unknown_token_raises_unknown_spec_file_type_error(self) -> None:
         #: Given
-        path = META / 'code.headers.json'
+        path = META / PathComponent.parse('code.headers.json')
 
         #: When
         with pytest.raises(UnknownSpecFileTypeError) as exc_info:
@@ -179,7 +179,7 @@ class TestParseSpecFile:
     def test_parse_spec_file_with_a_budget_file_raises_unknown_spec_file_type_error(self) -> None:
         #: Given
         # word caps are part of the structure dialect, so no file type claims *.budget.json
-        path = META / 'code.budget.json'
+        path = META / PathComponent.parse('code.budget.json')
 
         #: When
         with pytest.raises(UnknownSpecFileTypeError) as exc_info:
@@ -190,7 +190,7 @@ class TestParseSpecFile:
 
     def test_parse_spec_file_with_prose_at_a_non_stem_raises_not_a_spec_stem_error(self) -> None:
         #: Given
-        path = META / 'README.md'
+        path = META / PathComponent.parse('README.md')
 
         #: When
         with pytest.raises(NotASpecStemError) as exc_info:
@@ -207,7 +207,7 @@ class TestParseSpecFile:
 
     def test_parse_spec_file_with_prose_at_the_reserved_name_raises_not_a_spec_stem_error(self) -> None:
         #: Given
-        path = META / '__meta__.md'
+        path = META / PathComponent.parse('__meta__.md')
 
         #: When
         with pytest.raises(NotASpecStemError) as exc_info:
@@ -220,7 +220,7 @@ class TestParseSpecFile:
 
     def test_parse_spec_file_with_json_at_the_reserved_name_raises_invalid_spec_stem_error(self) -> None:
         #: Given
-        path = META / '__meta__-python.structure.json'
+        path = META / PathComponent.parse('__meta__-python.structure.json')
 
         #: When
         with pytest.raises(InvalidSpecStemError) as exc_info:
@@ -233,7 +233,7 @@ class TestParseSpecFile:
 
     def test_parse_spec_file_with_json_at_a_non_stem_raises_invalid_spec_stem_error(self) -> None:
         #: Given
-        path = META / 'README.structure.json'
+        path = META / PathComponent.parse('README.structure.json')
 
         #: When
         with pytest.raises(InvalidSpecStemError) as exc_info:
@@ -250,7 +250,7 @@ class TestParseSpecFile:
 
     def test_parse_spec_file_with_an_uppercase_namespace_raises_invalid_spec_stem_error(self) -> None:
         #: Given
-        path = META / 'code-Python.md'
+        path = META / PathComponent.parse('code-Python.md')
 
         #: When
         with pytest.raises(InvalidSpecStemError) as exc_info:
@@ -289,7 +289,7 @@ class TestSpecFilenames:
 
     def test_spec_filename_with_a_parsed_prose_file_writes_the_filename_it_was_parsed_from(self) -> None:
         #: Given
-        spec_file = parse_spec_file(META / 'code-python.md')
+        spec_file = parse_spec_file(META / PathComponent.parse('code-python.md'))
 
         #: When
         filename = spec_filename(spec_file.name, spec_file.type)
@@ -299,7 +299,7 @@ class TestSpecFilenames:
 
     def test_spec_filename_with_a_parsed_structure_file_writes_the_filename_it_was_parsed_from(self) -> None:
         #: Given
-        spec_file = parse_spec_file(META / 'code-python.structure.json')
+        spec_file = parse_spec_file(META / PathComponent.parse('code-python.structure.json'))
 
         #: When
         filename = spec_filename(spec_file.name, spec_file.type)

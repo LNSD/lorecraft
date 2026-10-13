@@ -20,7 +20,7 @@ from pathlib import PurePosixPath
 from typing import Final, Protocol, assert_never
 
 from lorecraft.core.num import NonZeroUnsignedInt
-from lorecraft.core.path import ROOT, RootRelativePath
+from lorecraft.core.path import ROOT, PathComponent, RootRelativePath
 
 from .scan_root import ScanRoot
 from .view import EntryKind, RootExit
@@ -148,7 +148,8 @@ def find_destination(
                 return None
             resolved = resolved.parent
             continue
-        candidate = resolved / part
+        # A part of a root-relative path or of a link target is never empty, `.` or `..` (handled above), nor holds `/`.
+        candidate = resolved / PathComponent.parse(part)
         kind = entries.find_kind(candidate)
         match kind:
             case EntryKind.DIRECTORY:

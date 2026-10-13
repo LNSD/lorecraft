@@ -10,7 +10,7 @@ import pytest
 
 from lorecraft.core.error import Error
 from lorecraft.core.mapping import FrozenMapping
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.vfs import Snapshot, SymlinkRecord, VirtualFileSystem
 
 from ..layout import DOCS_DIR, SPECS_DIR, LinkedLayoutError, reject_linked_layout
@@ -87,7 +87,7 @@ class TestRejectLinkedLayout:
 
     def test_reject_linked_layout_with_a_linked_corpus_directory_returns_without_raising(self) -> None:
         #: Given
-        fs = _view_with_link(DOCS_DIR / 'rules', 'code')
+        fs = _view_with_link(DOCS_DIR / PathComponent.parse('rules'), 'code')
 
         #: When
         outcome = reject_linked_layout(fs)

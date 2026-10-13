@@ -9,7 +9,7 @@ import pytest
 from lorecraft.agents import AgentName
 from lorecraft.cli.workspace_tree import render_json, render_text
 from lorecraft.core.mapping import FrozenMapping
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas import CorpusSpecName
@@ -114,7 +114,9 @@ def _regular_skill(directory: str) -> SkillLocation:
     path = _path(directory)
     # No link on the way, so the directory and its `SKILL.md` are their own resolved paths.
     return SkillLocation(
-        SkillRef(path), resolves_to=ResolvedPath(path), file_resolves_to=ResolvedPath(path / 'SKILL.md')
+        SkillRef(path),
+        resolves_to=ResolvedPath(path),
+        file_resolves_to=ResolvedPath(path / PathComponent.parse('SKILL.md')),
     )
 
 

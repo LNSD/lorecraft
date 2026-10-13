@@ -8,7 +8,7 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.syntax import Frontmatter, LineNumber, parse_frontmatter
 
 from ..frontmatter_problem import FieldGuidance, JsonType, MissingFieldProblem, UnknownFieldProblem, WrongTypeProblem
@@ -53,7 +53,9 @@ def _frontmatter_schema(spec_name: str, text: str) -> FrontmatterSchema:
         text: The structure specification's JSON; it states a frontmatter schema.
     """
     name = parse_spec_name(spec_name)
-    file = StructureSpecFile(path=SPECS_DIR / spec_filename(name, SpecFileType.STRUCTURE), name=name)
+    file = StructureSpecFile(
+        path=SPECS_DIR / PathComponent.parse(spec_filename(name, SpecFileType.STRUCTURE)), name=name
+    )
     frontmatter = StructureSpec.parse(file, StructureSchema(text)).frontmatter
     assert frontmatter is not None, f'{file.path} states a frontmatter schema'
     return frontmatter
