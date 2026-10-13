@@ -380,20 +380,55 @@ class TitlePattern:
 
 
 @dataclass(frozen=True, slots=True)
-class TitleChecks:
-    """The checks a structure specification holds a document's H1 title to, beyond its being there.
-
-    Each is optional and independent of the others.
+class PatternedTitleChecks:
+    """Title checks that include a pattern, with or without either cap.
 
     Attributes:
         words: The most words the title's text may hold, or None for no cap.
         chars: The most characters the title's text may hold, or None for no cap.
-        pattern: The pattern the title's text must match, or None for any text.
+        pattern: The pattern the title's text must match.
     """
 
-    words: NonZeroUnsignedInt | None
-    chars: NonZeroUnsignedInt | None
-    pattern: TitlePattern | None
+    pattern: TitlePattern
+    words: NonZeroUnsignedInt | None = None
+    chars: NonZeroUnsignedInt | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class WordCappedTitleChecks:
+    """Title checks that include a word cap and no pattern, with or without a character cap.
+
+    Attributes:
+        words: The most words the title's text may hold.
+        chars: The most characters the title's text may hold, or None for no cap.
+        pattern: Always None: a title that states a pattern is a `PatternedTitleChecks`.
+    """
+
+    words: NonZeroUnsignedInt
+    chars: NonZeroUnsignedInt | None = None
+    pattern: None = None
+
+
+@dataclass(frozen=True, slots=True)
+class CharCappedTitleChecks:
+    """Title checks that state a character cap and nothing else.
+
+    Attributes:
+        words: Always None: a title that states a word cap is a `WordCappedTitleChecks` or a `PatternedTitleChecks`.
+        chars: The most characters the title's text may hold.
+        pattern: Always None: a title that states a pattern is a `PatternedTitleChecks`.
+    """
+
+    chars: NonZeroUnsignedInt
+    words: None = None
+    pattern: None = None
+
+
+# The checks a structure specification holds a document's H1 title to, beyond its being there. Each check is optional
+# and independent of the others, but at least one is set: every case that sets one is a record of its own, so a
+# `title` that states no check cannot be built. Every record carries `words`, `chars` and `pattern`, so a reader
+# asks each of them without telling the records apart.
+type TitleChecks = PatternedTitleChecks | WordCappedTitleChecks | CharCappedTitleChecks
 
 
 @dataclass(frozen=True, slots=True)
@@ -845,13 +880,10 @@ class StructureSpec:
             ForbiddenOutlineSectionError: If it forbids a section its own outline names.
             AdjacentAnyRunsError: If its outline places two `any` runs side by side.
         """
-        # The title is held to one H1 opening the document whatever the specification states, so `title` states a
-        # rule of its own only through a check it holds.
-        states_no_title_check = self.title is None or (
-            self.title.words is None and self.title.chars is None and self.title.pattern is None
-        )
+        # The title is held to one H1 opening the document whatever the specification states. A `title` always holds
+        # a check (every `TitleChecks` record sets one), so a `title` alone states a rule.
         states_no_rule = (
-            states_no_title_check
+            self.title is None
             and not self.forbid_empty_sections
             and self.tokens is None
             and self.frontmatter is None
@@ -973,9 +1005,14 @@ def _title_checks(path: RootRelativePath, title: StructureFileTitle | None) -> T
     """
     if title is None:
         return None
-    if title.pattern is None:
-        return TitleChecks(words=title.words, chars=title.chars, pattern=None)
-    return TitleChecks(words=title.words, chars=title.chars, pattern=TitlePattern.parse(title.pattern, path=path))
+    if title.pattern is not None:
+        pattern = TitlePattern.parse(title.pattern, path=path)
+        return PatternedTitleChecks(pattern=pattern, words=title.words, chars=title.chars)
+    if title.words is not None:
+        return WordCappedTitleChecks(words=title.words, chars=title.chars)
+    if title.chars is not None:
+        return CharCappedTitleChecks(chars=title.chars)
+    raise AssertionError('unreachable: `StructureFileTitle` refuses a `title` that states no check')
 
 
 def _frontmatter_schema(path: RootRelativePath, schema: dict[str, JsonValue] | None) -> FrontmatterSchema | None:
