@@ -3,12 +3,13 @@
 from dataclasses import dataclass
 from typing import ClassVar, Final, Self, assert_never
 
-from lorecraft.core.num import NonZeroUnsignedInt, Overrun, UnsignedInt, find_overrun
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.project.context import SkillContext
 from lorecraft.project.schemas import field_line
 from lorecraft.project.syntax import Frontmatter, InvalidYamlFrontmatter, MissingFrontmatter, NonMappingFrontmatter
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
+from lorecraft.rules.overrun import Overrun, find_overrun
 from lorecraft.rules.subject import SkillRule
 
 from .__ruleset__ import GROUP_ID, allowed_tools_note

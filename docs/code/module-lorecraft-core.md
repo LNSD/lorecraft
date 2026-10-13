@@ -29,6 +29,11 @@ for. The rest of the project specializes it. It never specializes the rest of th
 - The error base that every failure family derives from, and the errors raised by this package's own code.
 - A small generic helper that more than one package would otherwise write again.
 
+### `num`
+
+`lorecraft.core.num` holds only the numbers that are generic over the domain, the way a standard library holds
+integers and ranges. A number type tied to a domain concept lives with that domain, built from the generic ones.
+
 ## Belongs Elsewhere
 
 A standard library is specialized by the code that uses it, never the other way round. Code that specializes a
@@ -41,6 +46,7 @@ generic building block for one domain belongs in the package that owns that doma
 | Specializes it for an agent or a directory an agent reads | `lorecraft.agents` |
 | Specializes it for the disk, even only to check that a path exists | `lorecraft.vfs` |
 | Specializes it for the command line, its output or its exit codes | `lorecraft.cli` |
+| Specializes it for what a check reports, such as a count past a rule's cap | `lorecraft.rules` |
 | Specializes the error base for another package's operation | Beside the code that raises it |
 
 ## Invariants
@@ -79,6 +85,26 @@ def is_document_path(path: WorkspacePath) -> bool:
     return path.parts[-1].endswith(MARKDOWN_SUFFIX)
 ```
 
+```python
+# ❌ Bad — a number that only the shelving code means anything by is declared in `core.num`, the standard
+# library, so the base every package imports changes whenever shelving does
+@dataclass(frozen=True, slots=True)
+class ShelfSlot:
+    row: UnsignedInt
+    column: UnsignedInt
+```
+
+```python
+# ✅ Good — `core.num` keeps the generic numbers; the shelving package declares its own value, built from them
+from lorecraft.core.num import UnsignedInt
+
+
+@dataclass(frozen=True, slots=True)
+class ShelfSlot:
+    row: UnsignedInt
+    column: UnsignedInt
+```
+
 ## Checklist
 
 Before committing code, verify:
@@ -87,7 +113,8 @@ Before committing code, verify:
       meta spec, a skill, an agent, a check or the disk
 - [ ] Nothing added imports a package that builds on `lorecraft.core`, performs I/O, or keeps state between calls
 - [ ] A new value type is immutable and validates when it is constructed
-- [ ] Nothing added specializes a building block for one domain; that specialization lives in the domain's package
+- [ ] Nothing added specializes a building block, a number type included, for one domain; that specialization lives
+      in the domain's package
 - [ ] An error declared here is the base, or is raised by `lorecraft.core`'s own code
 - [ ] Nothing is re-exported from `lorecraft.core`'s `__init__.py`; callers import the submodule that declares it
 

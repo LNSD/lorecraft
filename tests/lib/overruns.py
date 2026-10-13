@@ -1,6 +1,7 @@
 """A count past its cap, spelled in plain integers for the cases that expect one."""
 
-from lorecraft.core.num import NonZeroUnsignedInt, Overrun, UnsignedInt
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
+from lorecraft.rules.overrun import Overrun
 
 
 def overrun(count: int, cap: int) -> Overrun:
