@@ -238,22 +238,6 @@ class TestDecodeFrontmatter:
             ),
         ), 'a plain `=` key means nothing special, so it is a string key listed with its line'
 
-    def test_decode_frontmatter_with_a_merge_key_returns_it_as_a_string_key(self) -> None:
-        #: Given
-        block = 'name: review\n<<: {license: MIT}\n'
-
-        #: When
-        node = decode_frontmatter(block)
-
-        #: Then
-        assert node == Frontmatter(
-            data=FrozenMapping({'name': 'review', '<<': FrozenMapping({'license': 'MIT'})}),
-            keys=(
-                FrontmatterKey('name', LineNumber.from_int(2)),
-                FrontmatterKey('<<', LineNumber.from_int(3)),
-            ),
-        ), 'a plain `<<` merges nothing, so it is a string key holding its value, left to the schema to judge'
-
     def test_decode_frontmatter_with_an_anchor_on_a_scalar_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
         block = 'type: rule\nname: &name guide\n'
@@ -394,6 +378,36 @@ class TestDecodeFrontmatter:
         assert node == InvalidYamlFrontmatter(
             problem="found the tag '!', which frontmatter does not allow", line=LineNumber.from_int(3)
         ), 'the non-specific tag `!`, which makes a plain scalar a string, is refused like any other'
+
+    def test_decode_frontmatter_with_a_tag_of_three_bangs_names_the_tag_as_written(self) -> None:
+        #: Given
+        block = dedent("""\
+            name: guide
+            count: !!!str 3
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="found the tag '!!!str', which frontmatter does not allow", line=LineNumber.from_int(3)
+        ), 'the parser reads the third bang into the handle, but the diagnostic quotes what the block writes'
+
+    def test_decode_frontmatter_with_a_tag_in_a_flow_sequence_names_it_without_the_comma(self) -> None:
+        #: Given
+        block = dedent("""\
+            name: guide
+            tags: [!x, b]
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="found the tag '!x', which frontmatter does not allow", line=LineNumber.from_int(3)
+        ), 'a flow indicator ends the tag, so the comma that follows it is not part of the name'
 
     def test_decode_frontmatter_with_a_tag_on_a_key_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
@@ -1058,6 +1072,71 @@ class TestDecodeFrontmatter:
         #: Then
         assert isinstance(node, Frontmatter), f'a blank line indented less than the text is accepted, got {node!r}'
         assert node.data == FrozenMapping({'a': '\nx\n'}), 'the scalar is a blank line and the text'
+
+    def test_decode_frontmatter_with_a_merge_key_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = dedent("""\
+            name: review
+            <<: {license: MIT}
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found the merge key <<, which frontmatter does not allow', line=LineNumber.from_int(3)
+        ), 'a plain `<<` key is YAML 1.1 merge syntax, refused whatever value follows it'
+
+    def test_decode_frontmatter_with_a_merge_key_of_an_alias_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = dedent("""\
+            name: review
+            <<: *base
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found the merge key <<, which frontmatter does not allow', line=LineNumber.from_int(3)
+        ), 'the merge key is the first construct on the line, so it is the one reported'
+
+    def test_decode_frontmatter_with_a_quoted_merge_key_or_a_merge_value_returns_it_as_text(self) -> None:
+        #: Given
+        block = dedent("""\
+            name: review
+            "<<": a
+            other: <<
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
+        assert node.data == FrozenMapping({'name': 'review', '<<': 'a', 'other': '<<'}), (
+            'only a plain `<<` key merges: a quoted one, and a `<<` value, are text'
+        )
+
+    def test_decode_frontmatter_with_anchor_alias_and_tag_characters_inside_text_returns_it_as_text(self) -> None:
+        #: Given
+        block = dedent("""\
+            a: b&c
+            b: 2*3
+            c: wow!
+            d: "&x *y !z"
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
+        assert node.data == FrozenMapping({'a': 'b&c', 'b': '2*3', 'c': 'wow!', 'd': '&x *y !z'}), (
+            'an anchor, an alias or a tag starts a node; inside a value the character is text'
+        )
 
     def test_decode_frontmatter_with_a_yaml_list_returns_non_mapping(self) -> None:
         #: Given
