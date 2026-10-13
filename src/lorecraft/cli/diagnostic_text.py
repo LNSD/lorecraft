@@ -43,7 +43,9 @@ from lorecraft.rules.report import Diagnostic, RunReport
 
 from .diagnostic_parts import (
     FilePlace,
+    LineMark,
     Mark,
+    WholeFileMark,
     child_kind,
     diagnostic_marks,
     format_place,
@@ -142,13 +144,19 @@ def _diagnostic_lines(diagnostic: Diagnostic, sources: SourceLines, style: TextS
         )
 
         # A label whose source is not at hand is told under the place it is in, with no excerpt.
-        excerpted: list[Mark] = []
+        excerpted: list[LineMark] = []
         for mark in group:
-            if _has_source(mark, sources):
-                excerpted.append(mark)
-            elif mark.text:
-                equals = _paint(style, '=', fg='blue', bold=True)
-                lines.append(f'{lead}{equals} at {format_place(FilePlace(mark.path, mark.line))}: {mark.text}')
+            match mark:
+                case LineMark() if _has_source(mark, sources):
+                    excerpted.append(mark)
+                case LineMark() | WholeFileMark() if mark.text:
+                    equals = _paint(style, '=', fg='blue', bold=True)
+                    lines.append(f'{lead}{equals} at {format_place(mark.place)}: {mark.text}')
+                case LineMark() | WholeFileMark():
+                    # An unlabelled mark with no source says nothing beyond the place already named above.
+                    pass
+                case _:
+                    assert_never(mark)
         if excerpted:
             lines.append(blank_gutter)
             lines.extend(_excerpt_lines(excerpted, sources[path], width, diagnostic.severity, style, glyphs))
@@ -187,9 +195,13 @@ def _line_order(mark: Mark) -> int:
     Args:
         mark: The mark to place.
     """
-    if mark.line is None:
-        return 0
-    return mark.line.number
+    match mark:
+        case WholeFileMark():
+            return 0
+        case LineMark():
+            return mark.line.number
+        case _:
+            assert_never(mark)
 
 
 def _first_line(group: list[Mark]) -> LineNumber | None:
@@ -199,20 +211,23 @@ def _first_line(group: list[Mark]) -> LineNumber | None:
         group: The marks of one file, in line order.
     """
     for mark in group:
-        if mark.line is not None:
-            return mark.line
+        match mark:
+            case LineMark():
+                return mark.line
+            case WholeFileMark():
+                pass
+            case _:
+                assert_never(mark)
     return None
 
 
-def _has_source(mark: Mark, sources: SourceLines) -> bool:
+def _has_source(mark: LineMark, sources: SourceLines) -> bool:
     """True when the line a mark points at can be excerpted.
 
     Args:
         mark: The mark to excerpt.
         sources: The lines of each file that can be excerpted.
     """
-    if mark.line is None:
-        return False
     lines = sources.get(mark.path)
     return lines is not None and mark.line.number <= len(lines)
 
@@ -226,13 +241,18 @@ def _gutter_width(marks: list[Mark], sources: SourceLines) -> int:
     """
     width = 1
     for mark in marks:
-        if mark.line is not None and _has_source(mark, sources):
-            width = max(width, len(str(mark.line.number)))
+        match mark:
+            case LineMark() if _has_source(mark, sources):
+                width = max(width, len(str(mark.line.number)))
+            case LineMark() | WholeFileMark():
+                pass
+            case _:
+                assert_never(mark)
     return width
 
 
 def _excerpt_lines(
-    marks: list[Mark],
+    marks: list[LineMark],
     source: tuple[str, ...],
     width: int,
     severity: Severity,
@@ -249,10 +269,9 @@ def _excerpt_lines(
         style: How to draw.
         glyphs: The characters to draw with.
     """
-    marks_by_line: dict[int, list[Mark]] = {}
+    marks_by_line: dict[int, list[LineMark]] = {}
     for mark in marks:
-        if mark.line is not None:
-            marks_by_line.setdefault(mark.line.number, []).append(mark)
+        marks_by_line.setdefault(mark.line.number, []).append(mark)
 
     lines: list[str] = []
     previous: int | None = None
@@ -286,7 +305,7 @@ def _source_line(number: int, source: tuple[str, ...], width: int, style: TextSt
     return f'{gutter} {source[number - 1].expandtabs(_TAB_WIDTH)}'.rstrip()
 
 
-def _underline(mark: Mark, text: str, width: int, severity: Severity, style: TextStyle, glyphs: _Glyphs) -> str:
+def _underline(mark: LineMark, text: str, width: int, severity: Severity, style: TextStyle, glyphs: _Glyphs) -> str:
     """The line under a source line that underlines the text of it and says what the mark labels.
 
     The underline spans the line's text, from its first character that is not a blank to its last; a blank line is

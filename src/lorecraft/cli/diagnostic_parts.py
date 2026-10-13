@@ -37,21 +37,47 @@ class FilePlace:
 
 
 @dataclass(frozen=True, slots=True)
-class Mark:
-    """A place a diagnostic points at, drawn on the source in text output.
+class LineMark:
+    """A line a diagnostic points at, drawn on the source in text output.
 
     Attributes:
         path: The file the mark is in.
-        line: The line it points at, or None when it points at the whole of the file.
-        text: What the mark says about the place; empty for a place a help or note points at, or the primary line
-            of a diagnostic whose rule gives it no label.
+        line: The line it points at.
+        text: What the mark says about the line; empty for a line a help or note points at, or the primary line of a
+            diagnostic whose rule gives it no label.
         primary: True for the line the diagnostic is reported at, which text output underlines apart from the others.
     """
 
     path: RootRelativePath
-    line: LineNumber | None
+    line: LineNumber
     text: str
     primary: bool
+
+    @property
+    def place(self) -> FilePlace:
+        """The file and line the mark is on."""
+        return FilePlace(self.path, self.line)
+
+
+@dataclass(frozen=True, slots=True)
+class WholeFileMark:
+    """A whole file a diagnostic points at, named in text output but never excerpted, so it is never the primary line.
+
+    Attributes:
+        path: The file the mark points at.
+        text: What the mark says about the file; empty for a file a help or note points at.
+    """
+
+    path: RootRelativePath
+    text: str
+
+    @property
+    def place(self) -> FilePlace:
+        """The file the mark is on, with no line."""
+        return FilePlace(self.path, None)
+
+
+type Mark = LineMark | WholeFileMark
 
 
 def ordered_diagnostics(reports: tuple[RunReport, ...]) -> list[Diagnostic]:
@@ -153,19 +179,47 @@ def diagnostic_marks(diagnostic: Diagnostic) -> list[Mark]:
     reported_at = primary_line(diagnostic)
 
     marks: list[Mark] = []
+    primary_marked = False
     for label in occurrence.labels():
         at = place(subject, label.at)
-        is_primary = at.path == subject and at.line is not None and at.line == reported_at
-        marks.append(Mark(at.path, at.line, label.text, is_primary))
-    if reported_at is not None and not any(mark.primary for mark in marks):
-        marks.insert(0, Mark(subject, reported_at, '', True))
+        if at.line is None:
+            marks.append(WholeFileMark(at.path, label.text))
+            continue
+        is_primary = at.path == subject and at.line == reported_at
+        primary_marked = primary_marked or is_primary
+        marks.append(LineMark(at.path, at.line, label.text, is_primary))
+    if reported_at is not None and not primary_marked:
+        marks.insert(0, LineMark(subject, reported_at, '', True))
 
     for child in occurrence.children():
         at = child_place(subject, child)
         if at is None:
             continue
         # A whole file is already pointed at by any mark in it.
-        if any(mark.path == at.path and (at.line is None or mark.line == at.line) for mark in marks):
+        if any(_already_points_at(mark, at) for mark in marks):
             continue
-        marks.append(Mark(at.path, at.line, '', False))
+        if at.line is None:
+            marks.append(WholeFileMark(at.path, ''))
+        else:
+            marks.append(LineMark(at.path, at.line, '', False))
     return marks
+
+
+def _already_points_at(mark: Mark, at: FilePlace) -> bool:
+    """True when a mark already points at a place: the same line of its file, or any mark at all for a whole file.
+
+    Args:
+        mark: A mark of the diagnostic.
+        at: The place a help or note points at.
+    """
+    if mark.path != at.path:
+        return False
+    if at.line is None:
+        return True
+    match mark:
+        case LineMark():
+            return mark.line == at.line
+        case WholeFileMark():
+            return False
+        case _:
+            assert_never(mark)

@@ -6,9 +6,20 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
+from lorecraft.rules.declaration import Severity
+from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
 from lorecraft.rules.location import Elsewhere, Help, Here
+from lorecraft.rules.report import RuleDiagnostic
 
-from ..diagnostic_parts import FilePlace, child_place, format_place, place
+from ..diagnostic_parts import (
+    FilePlace,
+    LineMark,
+    WholeFileMark,
+    child_place,
+    diagnostic_marks,
+    format_place,
+    place,
+)
 
 _SUBJECT: Final[RootRelativePath] = RootRelativePath.parse('docs/code/a.md')
 _SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
@@ -86,3 +97,37 @@ class TestFormatPlace:
 
         #: Then
         assert text == 'docs/__meta__/code.structure.json', 'a whole file is printed as its path alone'
+
+
+@pytest.mark.unit
+class TestDiagnosticMarks:
+    def test_diagnostic_marks_with_labels_and_children_marks_lines_and_whole_files_apart(self) -> None:
+        #: Given
+        occurrence = DuplicateKey(spec=_SPEC, line=_line(3), key='name', first_line=_line(2), kept_line=_line(1))
+        diagnostic = RuleDiagnostic(_SUBJECT, occurrence, Severity.ERROR)
+
+        #: When
+        marks = diagnostic_marks(diagnostic)
+
+        #: Then
+        assert marks == [
+            LineMark(_SUBJECT, _line(3), 'written again here', primary=True),
+            LineMark(_SUBJECT, _line(2), 'first written here', primary=False),
+            WholeFileMark(_SPEC, ''),
+            LineMark(_SUBJECT, _line(1), '', primary=False),
+        ], 'the labels, then each place a note names; only the reported line is primary'
+
+    def test_diagnostic_marks_with_a_note_at_a_line_already_marked_adds_nothing(self) -> None:
+        #: Given
+        occurrence = DuplicateKey(spec=_SPEC, line=_line(3), key='name', first_line=_line(2), kept_line=_line(2))
+        diagnostic = RuleDiagnostic(_SUBJECT, occurrence, Severity.ERROR)
+
+        #: When
+        marks = diagnostic_marks(diagnostic)
+
+        #: Then
+        assert marks == [
+            LineMark(_SUBJECT, _line(3), 'written again here', primary=True),
+            LineMark(_SUBJECT, _line(2), 'first written here', primary=False),
+            WholeFileMark(_SPEC, ''),
+        ], 'the kept line is the first one, which is already marked'
