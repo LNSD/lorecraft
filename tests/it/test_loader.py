@@ -16,6 +16,7 @@ from typing import Final
 import pytest
 
 from lorecraft.agents import AgentName
+from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
@@ -295,7 +296,7 @@ class TestLoadWorkspaceAmp:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert tuple(corpus.name for corpus in model.corpora) == (CODE, FEAT), (
+        assert tuple(corpus.name for corpus in model.sorted_corpora) == (CODE, FEAT), (
             'only directories with a spec at their name are corpora; blog/ and schemas/ have none'
         )
         assert _document_paths(model) == (
@@ -355,7 +356,7 @@ class TestLoadWorkspaceMono:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert tuple(corpus.name for corpus in model.corpora) == (CODE,), (
+        assert tuple(corpus.name for corpus in model.sorted_corpora) == (CODE,), (
             'a corpus spec without docs/<corpus>/ creates no corpus'
         )
 
@@ -389,7 +390,7 @@ class TestLoadWorkspaceTools:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert tuple(corpus.name for corpus in model.corpora) == (CODE,), 'docs/schemas/ has no spec'
+        assert tuple(corpus.name for corpus in model.sorted_corpora) == (CODE,), 'docs/schemas/ has no spec'
         assert _document_paths(model) == ('docs/code/logging.md',), 'only the code corpus is listed'
 
 
@@ -405,7 +406,7 @@ class TestLoadWorkspaceAmpup:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert model.corpora == (), 'a namespace spec creates no corpus on its own'
+        assert model.sorted_corpora == (), 'a namespace spec creates no corpus on its own'
         assert model.documents() == (), 'the Markdown under docs/code/ and docs/features/ is not listed'
 
 
@@ -421,7 +422,7 @@ class TestLoadWorkspaceLorecraft:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert tuple(corpus.name for corpus in model.corpora) == (CODE, FEAT), 'docs/assets/ has no spec'
+        assert tuple(corpus.name for corpus in model.sorted_corpora) == (CODE, FEAT), 'docs/assets/ has no spec'
         assert _document_paths(model) == (
             'docs/code/logging.md',
             'docs/code/python-typing.md',
@@ -457,7 +458,9 @@ class TestLoadWorkspaceEdgeCases:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert [corpus.name for corpus in model.corpora] == [CorpusName.parse('code')], 'only the real corpus loads'
+        assert [corpus.name for corpus in model.sorted_corpora] == [CorpusName.parse('code')], (
+            'only the real corpus loads'
+        )
 
     def test_load_workspace_with_a_namespace_spec_alone_sorting_first_still_loads_the_later_corpora(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -470,7 +473,7 @@ class TestLoadWorkspaceEdgeCases:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert tuple(corpus.name for corpus in model.corpora) == (CODE,), (
+        assert tuple(corpus.name for corpus in model.sorted_corpora) == (CODE,), (
             'skipping a corpus with no spec of its own still loads every corpus after it'
         )
 
@@ -485,7 +488,7 @@ class TestLoadWorkspaceEdgeCases:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert tuple(corpus.name for corpus in model.corpora) == (CODE,), (
+        assert tuple(corpus.name for corpus in model.sorted_corpora) == (CODE,), (
             'skipping a corpus with no directory still loads every corpus after it'
         )
 
@@ -541,7 +544,7 @@ class TestLoadWorkspaceEdgeCases:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert model.corpora == (), 'a file at a dotted stem does not establish a corpus'
+        assert model.sorted_corpora == (), 'a file at a dotted stem does not establish a corpus'
 
     def test_load_workspace_with_an_invalid_namespace_token_leaves_it_out(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -565,7 +568,9 @@ class TestLoadWorkspaceEdgeCases:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert tuple(corpus.name for corpus in model.corpora) == (CODE,), 'the misnamed JSON file makes no corpus'
+        assert tuple(corpus.name for corpus in model.sorted_corpora) == (CODE,), (
+            'the misnamed JSON file makes no corpus'
+        )
 
     def test_load_workspace_with_a_header_file_leaves_it_out(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -695,7 +700,7 @@ class TestLoadWorkspaceEdgeCases:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert tuple(corpus.name for corpus in model.corpora) == (CODE,), 'the symlinked directory is no corpus'
+        assert tuple(corpus.name for corpus in model.sorted_corpora) == (CODE,), 'the symlinked directory is no corpus'
 
     def test_load_workspace_with_no_docs_directory_builds_an_empty_model(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -710,7 +715,11 @@ class TestLoadWorkspaceEdgeCases:
         #: Then
         assert not missing_docs.exists(), 'the case turns on docs/ being absent'
         assert model == WorkspaceModel(
-            corpora=(), skills_dirs=(), skill_locations=(), outside_symlinks=(), load_failures=()
+            corpora=FrozenMapping({}),
+            skills_dirs=frozenset(),
+            skill_locations=FrozenMapping({}),
+            outside_symlinks=FrozenMapping({}),
+            load_failures=(),
         ), 'a root without docs/ is an empty workspace'
 
 
@@ -749,7 +758,7 @@ class TestLoadWorkspaceSkills:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert model.outside_symlinks == (
+        assert model.sorted_outside_symlinks == (
             _outside('.agents/skills/review/SKILL.md', outside / 'x.md'),
             _outside('.agents/skills/x', outside / 'x'),
             _outside('.claude/skills', outside),
@@ -775,7 +784,7 @@ class TestLoadWorkspaceSkills:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert model.skill_locations == (), 'neither leads to a skill inside the repository'
+        assert model.sorted_skill_locations == (), 'neither leads to a skill inside the repository'
 
     def test_load_workspace_with_one_skills_directory_an_entry_of_another_records_a_shared_link_once(
         self,
@@ -797,7 +806,7 @@ class TestLoadWorkspaceSkills:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert model.outside_symlinks == (_outside('.agents/skills/SKILL.md', outside / 'x.md'),), (
+        assert model.sorted_outside_symlinks == (_outside('.agents/skills/SKILL.md', outside / 'x.md'),), (
             "the link is both the outer directory's entry SKILL.md and an entry of the inner one, and recorded once"
         )
 
@@ -812,7 +821,7 @@ class TestLoadWorkspaceSkills:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert model.skill_locations == (
+        assert model.sorted_skill_locations == (
             _skill_location('.agents/skills/commit'),
             _skill_location('.agents/skills/review'),
         ), 'every skill is listed, sorted by directory'
@@ -840,7 +849,7 @@ class TestLoadWorkspaceSkills:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert model.skills_dirs == (
+        assert model.sorted_skills_dirs == (
             SkillsDir(agent=CODEX, path=UNIVERSAL_SKILLS_DIR, resolves_to=ResolvedPath(UNIVERSAL_SKILLS_DIR)),
         ), 'only the agent whose skills directory the repository has is recorded'
 
@@ -856,7 +865,7 @@ class TestLoadWorkspaceSkills:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert model.skills_dirs == (
+        assert model.sorted_skills_dirs == (
             SkillsDir(agent=CLAUDE, path=CLAUDE_SKILLS_DIR, resolves_to=ResolvedPath(UNIVERSAL_SKILLS_DIR)),
             SkillsDir(agent=CODEX, path=UNIVERSAL_SKILLS_DIR, resolves_to=ResolvedPath(UNIVERSAL_SKILLS_DIR)),
         ), 'each agent keeps its own record, and both name the one resolved directory'
@@ -872,7 +881,7 @@ class TestLoadWorkspaceSkills:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert model.skill_locations == (
+        assert model.sorted_skill_locations == (
             _skill_location('.agents/skills/review'),
             _skill_location('.claude/skills/commit'),
         ), 'every agent directory is read, and the refs sort across them'
@@ -891,7 +900,7 @@ class TestLoadWorkspaceSkills:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert model.skill_locations == (
+        assert model.sorted_skill_locations == (
             _skill_location('.agents/skills/alpha'),
             _skill_location('.agents/skills/claude/inner'),
             _skill_location('.agents/skills/zeta'),
@@ -909,7 +918,7 @@ class TestLoadWorkspaceSkills:
 
         #: Then
         assert not missing_skills_dir.exists(), 'the case turns on the skills directories being absent'
-        assert model.skills_dirs == (), 'an agent whose skills directory is absent is not recorded'
+        assert model.sorted_skills_dirs == (), 'an agent whose skills directory is absent is not recorded'
 
 
 @pytest.mark.it
@@ -925,7 +934,7 @@ class TestLoadModel:
         model = load_model(VirtualFileSystem(snapshot))
 
         #: Then
-        assert model.skill_locations == (_skill_location('.agents/skills/review'),), (
+        assert model.sorted_skill_locations == (_skill_location('.agents/skills/review'),), (
             'the snapshot scope covers the skills directories, and the linked directory adds no second ref'
         )
 
@@ -942,7 +951,7 @@ class TestLoadModel:
         model = load_model(VirtualFileSystem(snapshot))
 
         #: Then
-        assert model.skill_locations == (
+        assert model.sorted_skill_locations == (
             _linked_skill_location('.agents/skills/review', 'skills/review', 'skills/review/SKILL.md'),
         ), 'the scan follows the link, so the snapshot lists the skill the disk view lists'
 
@@ -957,7 +966,7 @@ class TestLoadModel:
         model = load_model(VirtualFileSystem(snapshot))
 
         #: Then
-        assert model.skill_locations == (
+        assert model.sorted_skill_locations == (
             _linked_skill_location('.agents/skills/review', '.agents/skills/review', 'shared/REVIEW.md'),
         ), 'the scan reads through the linked SKILL.md, so the snapshot lists the skill the disk view lists'
 
@@ -974,7 +983,7 @@ class TestLoadModel:
         model = load_model(VirtualFileSystem(snapshot))
 
         #: Then
-        assert model.skill_locations == (_skill_location('skills/review'),), (
+        assert model.sorted_skill_locations == (_skill_location('skills/review'),), (
             'a skills directory linked to one no agent declares is read where it leads'
         )
 
@@ -989,7 +998,7 @@ class TestLoadModel:
         model = load_model(fs)
 
         #: Then
-        assert model.skill_locations == (
+        assert model.sorted_skill_locations == (
             _linked_skill_location('.agents/skills/review', 'skills/review', 'skills/review/SKILL.md'),
         ), 'the disk view follows the link, and the ref names the entry under the skills directory'
 
@@ -1342,7 +1351,7 @@ class TestLoadWorkspaceFailures:
             LoadFailure(SPECS_DIR, UnlistableDirectory(refusal)),
             LoadFailure(RootRelativePath.parse('docs'), UnlistableDirectory(refusal)),
         ), 'each directory that cannot be listed is a failure at its own path, the specification directory first'
-        assert model.corpora == (), 'and no corpus is known from either'
+        assert model.sorted_corpora == (), 'and no corpus is known from either'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
     def test_load_workspace_with_an_unlistable_specification_directory_records_it(
@@ -1364,7 +1373,7 @@ class TestLoadWorkspaceFailures:
         assert model.load_failures == (LoadFailure(SPECS_DIR, UnlistableDirectory(OsRefusal.PERMISSION_DENIED)),), (
             'the specification directory is recorded as a value'
         )
-        assert model.corpora == (), 'and with no specification no corpus is known'
+        assert model.sorted_corpora == (), 'and with no specification no corpus is known'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
     def test_load_workspace_with_an_unlistable_skills_directory_records_it_and_loads_the_other_skills(
@@ -1389,7 +1398,9 @@ class TestLoadWorkspaceFailures:
                 UNIVERSAL_SKILLS_DIR, UnlistableSkillsDirectory(UNIVERSAL_SKILLS_DIR, OsRefusal.PERMISSION_DENIED)
             ),
         ), 'the skills directory is recorded with its path and the refusal'
-        assert model.skill_locations == (_skill_location('.claude/skills/review'),), 'the other directory is listed'
+        assert model.sorted_skill_locations == (_skill_location('.claude/skills/review'),), (
+            'the other directory is listed'
+        )
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
     def test_load_workspace_with_a_skills_directory_that_cannot_be_resolved_records_it_once(
@@ -1414,7 +1425,7 @@ class TestLoadWorkspaceFailures:
         assert model.load_failures == (
             LoadFailure(CLAUDE_SKILLS_DIR, UnresolvableSkillsDirectory(OsRefusal.PERMISSION_DENIED)),
         ), 'the link that cannot be followed is recorded at the path the agent declares it'
-        assert model.skill_locations == (_skill_location('.agents/skills/commit'),), 'the other skills load'
+        assert model.sorted_skill_locations == (_skill_location('.agents/skills/commit'),), 'the other skills load'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
     def test_load_workspace_with_a_skill_entry_that_cannot_be_resolved_records_it_and_lists_the_other_entries(
@@ -1441,7 +1452,7 @@ class TestLoadWorkspaceFailures:
                 RootRelativePath.parse('.agents/skills/broken'), UnresolvableSkillEntry(OsRefusal.PERMISSION_DENIED)
             ),
         ), 'the entry is recorded with its path and the refusal'
-        assert model.skill_locations == (
+        assert model.sorted_skill_locations == (
             _skill_location('.agents/skills/audit'),
             _skill_location('.agents/skills/commit'),
         ), 'the entries on both sides of it are listed'
@@ -1474,7 +1485,7 @@ class TestLoadWorkspaceFailures:
                 ),
             ),
         ), 'the SKILL.md is recorded with its path and the refusal'
-        assert model.skill_locations == (_skill_location('.agents/skills/commit'),), 'the other skill is listed'
+        assert model.sorted_skill_locations == (_skill_location('.agents/skills/commit'),), 'the other skill is listed'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
     def test_load_workspace_with_an_unlistable_skill_directory_records_it_and_lists_the_other_skills(
@@ -1500,7 +1511,7 @@ class TestLoadWorkspaceFailures:
                 UnlistableSkillDirectory(RootRelativePath.parse('.agents/skills/review'), OsRefusal.PERMISSION_DENIED),
             ),
         ), 'the skill directory is recorded with its path and the refusal'
-        assert model.skill_locations == (_skill_location('.agents/skills/commit'),), 'the other skill is listed'
+        assert model.sorted_skill_locations == (_skill_location('.agents/skills/commit'),), 'the other skill is listed'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
     def test_load_workspace_with_two_skill_entries_linked_to_one_unlistable_directory_records_each_entry(

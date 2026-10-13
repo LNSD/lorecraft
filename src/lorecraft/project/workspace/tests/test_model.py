@@ -67,7 +67,11 @@ def _namespace_spec(name: str, *, frontmatter: bool = True, structure: bool = Fa
     return NamespaceSpec(name=spec_name, files=files, structure=structure_spec)
 
 
-def _code_namespace(namespace: str, *, frontmatter: bool = True, structure: bool = False) -> CorpusNamespace:
+type _NamespaceEntry = tuple[AspectNamespace, CorpusNamespace]
+"""A namespace of a corpus and the record the corpus holds for it, as `Corpus.namespaces` keys it."""
+
+
+def _code_namespace(namespace: str, *, frontmatter: bool = True, structure: bool = False) -> _NamespaceEntry:
     """A namespace of the `code` corpus, with the files `_namespace_spec` gives `code-<namespace>`.
 
     Args:
@@ -76,7 +80,7 @@ def _code_namespace(namespace: str, *, frontmatter: bool = True, structure: bool
         structure: Whether the structure file forbids empty sections.
     """
     files, structure_spec = _spec_files(f'code-{namespace}', frontmatter=frontmatter, structure=structure)
-    return CorpusNamespace(namespace=AspectNamespace.parse(namespace), files=files, structure=structure_spec)
+    return AspectNamespace.parse(namespace), CorpusNamespace(files=files, structure=structure_spec)
 
 
 def _spec_files(
@@ -127,14 +131,14 @@ def _ref(corpus: str, filename: str) -> DocumentRef:
     return DocumentRef(CorpusName.parse(corpus), AspectFilename.parse(filename))
 
 
-def _code_corpus(corpus_spec: CorpusSpec, namespaces: tuple[CorpusNamespace, ...]) -> Corpus:
+def _code_corpus(corpus_spec: CorpusSpec, namespaces: tuple[_NamespaceEntry, ...]) -> Corpus:
     """The corpus `code`, with its corpus spec and its namespaces, and no document.
 
     Args:
         corpus_spec: The spec of the `code` corpus.
         namespaces: The namespace specs narrowing it, each without its corpus.
     """
-    return Corpus(corpus_spec=corpus_spec, namespaces=namespaces, filenames=())
+    return Corpus(corpus_spec=corpus_spec, namespaces=FrozenMapping(dict(namespaces)), filenames=frozenset())
 
 
 @pytest.mark.unit
@@ -328,8 +332,8 @@ class TestGovernance:
     def test_outline_specs_with_an_outline_in_the_namespace_alone_returns_the_namespace_structure(self) -> None:
         #: Given
         corpus_spec = _corpus_spec('code', structure=True)
-        python = _code_namespace('python', structure=True)
-        namespaces = (replace(python, structure=_outlined(python.structure)),)
+        python_namespace, python = _code_namespace('python', structure=True)
+        namespaces = ((python_namespace, replace(python, structure=_outlined(python.structure))),)
         filename = AspectFilename.parse('python-typing')
         corpus = _code_corpus(corpus_spec, namespaces)
         governance = corpus.governance(filename)
@@ -361,7 +365,7 @@ class TestGovernance:
 class TestCorpus:
     def test_name_of_a_corpus_returns_the_corpus_its_spec_names(self) -> None:
         #: Given
-        corpus = Corpus(corpus_spec=_corpus_spec('code'), namespaces=(), filenames=())
+        corpus = _code_corpus(_corpus_spec('code'), ())
 
         #: When
         name = corpus.name
@@ -371,8 +375,8 @@ class TestCorpus:
 
     def test_documents_of_a_corpus_returns_a_ref_in_it_per_filename(self) -> None:
         #: Given
-        filenames = (AspectFilename.parse('logging'), AspectFilename.parse('python-typing'))
-        corpus = Corpus(corpus_spec=_corpus_spec('code'), namespaces=(), filenames=filenames)
+        filenames = frozenset({AspectFilename.parse('logging'), AspectFilename.parse('python-typing')})
+        corpus = Corpus(corpus_spec=_corpus_spec('code'), namespaces=FrozenMapping({}), filenames=filenames)
 
         #: When
         documents = corpus.documents
@@ -384,8 +388,8 @@ class TestCorpus:
 
     def test_documents_with_filenames_out_of_order_returns_them_sorted_by_filename(self) -> None:
         #: Given
-        filenames = (AspectFilename.parse('python-typing'), AspectFilename.parse('logging'))
-        corpus = Corpus(corpus_spec=_corpus_spec('code'), namespaces=(), filenames=filenames)
+        filenames = frozenset({AspectFilename.parse('python-typing'), AspectFilename.parse('logging')})
+        corpus = Corpus(corpus_spec=_corpus_spec('code'), namespaces=FrozenMapping({}), filenames=filenames)
 
         #: When
         documents = corpus.documents
@@ -395,9 +399,20 @@ class TestCorpus:
             'the corpus lists its documents by filename, whatever order it was given them in'
         )
 
+    def test_corpus_built_from_one_filename_given_twice_holds_one_document(self) -> None:
+        #: Given
+        filenames = frozenset([AspectFilename.parse('logging'), AspectFilename.parse('logging')])
+        corpus = Corpus(corpus_spec=_corpus_spec('code'), namespaces=FrozenMapping({}), filenames=filenames)
+
+        #: When
+        documents = corpus.documents
+
+        #: Then
+        assert documents == (_ref('code', 'logging'),), 'a filename is a document once, however often it is given'
+
     def test_directory_of_a_corpus_returns_its_directory_under_docs(self) -> None:
         #: Given
-        corpus = Corpus(corpus_spec=_corpus_spec('code'), namespaces=(), filenames=())
+        corpus = _code_corpus(_corpus_spec('code'), ())
 
         #: When
         directory = corpus.directory
@@ -516,7 +531,7 @@ class TestCorpus:
     def test_namespace_specs_with_a_narrower_namespace_before_a_broader_one_returns_them_broad_to_narrow(self) -> None:
         #: Given
         namespaces = (_code_namespace('python-errors'), _code_namespace('python'))
-        corpus = Corpus(corpus_spec=_corpus_spec('code'), namespaces=namespaces, filenames=())
+        corpus = _code_corpus(_corpus_spec('code'), namespaces)
 
         #: When
         namespace_specs = corpus.namespace_specs
@@ -529,7 +544,7 @@ class TestCorpus:
     def test_namespace_specs_with_sibling_namespaces_out_of_value_order_returns_them_by_value(self) -> None:
         #: Given
         namespaces = (_code_namespace('python'), _code_namespace('pattern'))
-        corpus = Corpus(corpus_spec=_corpus_spec('code'), namespaces=namespaces, filenames=())
+        corpus = _code_corpus(_corpus_spec('code'), namespaces)
 
         #: When
         namespace_specs = corpus.namespace_specs
@@ -593,16 +608,20 @@ def two_corpora_model() -> WorkspaceModel:
     """Corpora ``code`` (two documents) and ``feat`` (one document)."""
     code = Corpus(
         corpus_spec=_corpus_spec('code'),
-        namespaces=(),
-        filenames=(AspectFilename.parse('logging'), AspectFilename.parse('python-typing')),
+        namespaces=FrozenMapping({}),
+        filenames=frozenset({AspectFilename.parse('logging'), AspectFilename.parse('python-typing')}),
     )
     feat = Corpus(
         corpus_spec=_corpus_spec('feat'),
-        namespaces=(),
-        filenames=(AspectFilename.parse('cli-check'),),
+        namespaces=FrozenMapping({}),
+        filenames=frozenset({AspectFilename.parse('cli-check')}),
     )
     return WorkspaceModel(
-        corpora=(code, feat), skills_dirs=(), skill_locations=(), outside_symlinks=(), load_failures=()
+        corpora=FrozenMapping({code.name: code, feat.name: feat}),
+        skills_dirs=frozenset(),
+        skill_locations=FrozenMapping({}),
+        outside_symlinks=FrozenMapping({}),
+        load_failures=(),
     )
 
 
@@ -645,21 +664,69 @@ def skills_model() -> WorkspaceModel:
     """
     universal = ResolvedPath(RootRelativePath.parse('.agents/skills'))
     return WorkspaceModel(
-        corpora=(),
-        skills_dirs=(
-            SkillsDir(
-                agent=AgentName('claude-code'), path=RootRelativePath.parse('.claude/skills'), resolves_to=universal
-            ),
-            SkillsDir(agent=AgentName('codex'), path=universal, resolves_to=universal),
+        corpora=FrozenMapping({}),
+        skills_dirs=frozenset(
+            {
+                SkillsDir(
+                    agent=AgentName('claude-code'),
+                    path=RootRelativePath.parse('.claude/skills'),
+                    resolves_to=universal,
+                ),
+                SkillsDir(agent=AgentName('codex'), path=universal, resolves_to=universal),
+            }
         ),
-        skill_locations=(AUDIT, REVIEW, REVIEW_ALIAS),
-        outside_symlinks=(),
+        skill_locations=FrozenMapping({location.ref: location for location in (AUDIT, REVIEW, REVIEW_ALIAS)}),
+        outside_symlinks=FrozenMapping({}),
         load_failures=(),
     )
 
 
 @pytest.mark.unit
 class TestWorkspaceModel:
+    def test_construction_with_a_corpus_under_another_corpus_name_raises_value_error(
+        self, two_corpora_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        code = two_corpora_model.corpora[CODE]
+
+        #: When
+        with pytest.raises(ValueError) as exc_info:
+            replace(two_corpora_model, corpora=FrozenMapping({FEAT: code}))
+
+        #: Then
+        assert str(FEAT) in str(exc_info.value), 'the error names the key the corpus was filed under'
+        assert str(CODE) in str(exc_info.value), 'the error names the corpus the key holds'
+
+    def test_construction_with_a_skill_under_another_skill_ref_raises_value_error(
+        self, skills_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        locations = FrozenMapping({REVIEW.ref: AUDIT})
+
+        #: When
+        with pytest.raises(ValueError) as exc_info:
+            replace(skills_model, skill_locations=locations)
+
+        #: Then
+        assert str(REVIEW.ref.directory) in str(exc_info.value), 'the error names the key the skill was filed under'
+        assert str(AUDIT.ref.directory) in str(exc_info.value), 'the error names the skill the key holds'
+
+    def test_construction_with_a_symlink_under_another_path_raises_value_error(
+        self, skills_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        entry = RootRelativePath.parse('.agents/skills/x')
+        other = RootRelativePath.parse('.agents/skills/y')
+        outside = OutsideSymlink(entry, RootExit(entry, PurePosixPath('/opt/team-skills/x')))
+
+        #: When
+        with pytest.raises(ValueError) as exc_info:
+            replace(skills_model, outside_symlinks=FrozenMapping({other: outside}))
+
+        #: Then
+        assert str(other) in str(exc_info.value), 'the error names the key the symlink was filed under'
+        assert str(entry) in str(exc_info.value), 'the error names the path the symlink is at'
+
     def test_find_corpus_with_a_listed_name_returns_that_corpus(self, two_corpora_model: WorkspaceModel) -> None:
         #: Given
         name = FEAT
@@ -765,7 +832,10 @@ class TestWorkspaceModel:
             resolves_to=ResolvedPath(RootRelativePath.parse('skills/review')),
             file_resolves_to=ResolvedPath(RootRelativePath.parse('skills/review/SKILL.md')),
         )
-        other = replace(skills_model, skill_locations=(retargeted, REVIEW, REVIEW_ALIAS))
+        other = replace(
+            skills_model,
+            skill_locations=FrozenMapping({location.ref: location for location in (retargeted, REVIEW, REVIEW_ALIAS)}),
+        )
 
         #: When
         equal = other == skills_model
@@ -870,7 +940,7 @@ class TestWorkspaceModel:
         self, skills_model: WorkspaceModel
     ) -> None:
         #: Given
-        model = replace(skills_model, skill_locations=())
+        model = replace(skills_model, skill_locations=FrozenMapping({}))
         resolved_path = ResolvedPath(RootRelativePath.parse('.agents/skills'))
 
         #: When
@@ -885,7 +955,7 @@ class TestWorkspaceModel:
         #: Given
         entry = RootRelativePath.parse('.agents/skills/x')
         outside = OutsideSymlink(entry, RootExit(entry, PurePosixPath('/opt/team-skills/x')))
-        model = replace(skills_model, outside_symlinks=(outside,))
+        model = replace(skills_model, outside_symlinks=FrozenMapping({outside.path: outside}))
 
         #: When
         found = model.has_outside_symlink(entry)
@@ -899,7 +969,7 @@ class TestWorkspaceModel:
         #: Given
         entry = RootRelativePath.parse('.agents/skills/x')
         outside = OutsideSymlink(entry, RootExit(entry, PurePosixPath('/opt/team-skills/x')))
-        model = replace(skills_model, outside_symlinks=(outside,))
+        model = replace(skills_model, outside_symlinks=FrozenMapping({outside.path: outside}))
 
         #: When
         found = model.has_outside_symlink(entry / 'SKILL.md')
