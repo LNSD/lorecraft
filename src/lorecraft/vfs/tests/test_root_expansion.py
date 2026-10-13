@@ -22,7 +22,7 @@ from ..root_expansion import (
     find_listed_scan_root,
 )
 from ..scan_root import ScanRoot
-from ..view import EntryKind, RootExit
+from ..view import EntryKind, ResolvedPath, RootExit
 
 
 def _path(raw: str) -> RootRelativePath:
@@ -110,7 +110,7 @@ class TestFindDestination:
         leads_to = find_destination(path, tree, follow_links=False)
 
         #: Then
-        assert leads_to == ResolvedDirectory(_path('docs/code')), 'a directory leads to itself'
+        assert leads_to == ResolvedDirectory(ResolvedPath(_path('docs/code'))), 'a directory leads to itself'
 
     def test_find_destination_with_a_regular_file_returns_it_as_a_file(self) -> None:
         #: Given
@@ -120,7 +120,7 @@ class TestFindDestination:
         leads_to = find_destination(path, tree, follow_links=False)
 
         #: Then
-        assert leads_to == ResolvedFile(_path('docs/a.md')), 'a regular file at the end ends the walk'
+        assert leads_to == ResolvedFile(ResolvedPath(_path('docs/a.md'))), 'a regular file at the end ends the walk'
 
     def test_find_destination_through_a_file_component_returns_none(self) -> None:
         #: Given
@@ -160,7 +160,7 @@ class TestFindDestination:
         leads_to = find_destination(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to == ResolvedDirectory(_path('skills/a')), 'the link splices its target in'
+        assert leads_to == ResolvedDirectory(ResolvedPath(_path('skills/a'))), 'the link splices its target in'
 
     def test_find_destination_not_following_links_with_a_link_on_the_way_returns_none(self) -> None:
         #: Given
@@ -246,7 +246,7 @@ class TestFindDestination:
         leads_to = find_destination(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to == ResolvedDirectory(_path('b')), 'the directory a link sits in is known'
+        assert leads_to == ResolvedDirectory(ResolvedPath(_path('b'))), 'the directory a link sits in is known'
 
     def test_find_destination_with_a_target_climbing_out_of_a_directory_stepped_into_returns_where_it_leads(
         self,
@@ -258,7 +258,7 @@ class TestFindDestination:
         leads_to = find_destination(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to == ResolvedDirectory(_path('a/alpha')), (
+        assert leads_to == ResolvedDirectory(ResolvedPath(_path('a/alpha'))), (
             'a `..` after a resolved directory stepped into by name is its parent'
         )
 
@@ -273,7 +273,7 @@ class TestFindDestination:
         leads_to = find_destination(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to == ResolvedDirectory(_path('b/alpha')), (
+        assert leads_to == ResolvedDirectory(ResolvedPath(_path('b/alpha'))), (
             'each `..` climbs out of the resolved directory the walk is in, however it got there'
         )
 
@@ -285,7 +285,7 @@ class TestFindDestination:
         leads_to = find_destination(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to == ResolvedDirectory(_path('.')), 'the root is a directory a chain may end at'
+        assert leads_to == ResolvedDirectory(ResolvedPath(_path('.'))), 'the root is a directory a chain may end at'
 
     def test_find_destination_with_a_climb_above_the_root_through_a_stepped_into_directory_returns_the_exit(
         self,
@@ -309,7 +309,7 @@ class TestFindDestination:
         leads_to = find_destination(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to == ResolvedDirectory(_path('b')), (
+        assert leads_to == ResolvedDirectory(ResolvedPath(_path('b'))), (
             'a `..` after a link is the parent of where the link leads, as the kernel resolves it'
         )
 
@@ -435,7 +435,7 @@ class TestFindLinkedScanRoot:
         #: Given
         scan_root = ScanRoot(_path('skills'), depth=UnsignedInt(2), follow_links=True)
         link = _path('skills/a')
-        directory = _path('shared/a')
+        directory = ResolvedPath(_path('shared/a'))
         #: When
         linked_root = find_linked_scan_root(scan_root, link, directory)
 
@@ -448,7 +448,7 @@ class TestFindLinkedScanRoot:
         #: Given
         scan_root = ScanRoot(_path('skills'), depth=UnsignedInt(2), follow_links=True)
         link = _path('skills/a/b')
-        directory = _path('shared/b')
+        directory = ResolvedPath(_path('shared/b'))
         #: When
         linked_root = find_linked_scan_root(scan_root, link, directory)
 
@@ -461,7 +461,7 @@ class TestFindLinkedScanRoot:
         #: Given
         scan_root = ScanRoot(_path('skills'), depth=UnsignedInt(0), follow_links=True)
         link = _path('skills/a')
-        directory = _path('shared/a')
+        directory = ResolvedPath(_path('shared/a'))
         #: When
         linked_root = find_linked_scan_root(scan_root, link, directory)
 
@@ -472,7 +472,7 @@ class TestFindLinkedScanRoot:
         #: Given
         scan_root = ScanRoot(_path('skills'), depth=UnsignedInt(2))
         link = _path('skills/a')
-        directory = _path('shared/a')
+        directory = ResolvedPath(_path('shared/a'))
         #: When
         linked_root = find_linked_scan_root(scan_root, link, directory)
 
@@ -483,7 +483,7 @@ class TestFindLinkedScanRoot:
         #: Given
         scan_root = ScanRoot(_path('skills'), depth=UnsignedInt(2), follow_links=True)
         link = _path('docs/a')
-        directory = _path('shared/a')
+        directory = ResolvedPath(_path('shared/a'))
         #: When
         linked_root = find_linked_scan_root(scan_root, link, directory)
 
@@ -494,7 +494,7 @@ class TestFindLinkedScanRoot:
         #: Given
         scan_root = ScanRoot(_path('skills'), depth=None, follow_links=True)
         link = _path('skills/a/references/deep/shared')
-        directory = _path('shared/references')
+        directory = ResolvedPath(_path('shared/references'))
         #: When
         linked_root = find_linked_scan_root(scan_root, link, directory)
 
@@ -509,7 +509,7 @@ class TestFindLinkedScanRoot:
         #: Given
         scan_root = ScanRoot(_path('skills'), depth=None, follow_links=True)
         link = _path('skills/a/up')
-        directory = _path('skills')
+        directory = ResolvedPath(_path('skills'))
         #: When
         linked_root = find_linked_scan_root(scan_root, link, directory)
 

@@ -23,7 +23,7 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import ROOT, PathComponent, RootRelativePath
 
 from .scan_root import ScanRoot
-from .view import EntryKind, RootExit
+from .view import EntryKind, ResolvedPath, RootExit
 
 MAX_LINKS: Final[int] = 40
 """Links followed before a chain counts as a loop; Linux's MAXSYMLINKS, past which the disk reports ELOOP.
@@ -84,7 +84,7 @@ class ResolvedDirectory:
         path: The directory's resolved path, root-relative: with no symlink on the way to it or at it.
     """
 
-    path: RootRelativePath
+    path: ResolvedPath
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,7 +95,7 @@ class ResolvedFile:
         path: The file's resolved path, root-relative: with no symlink on the way to it or at it.
     """
 
-    path: RootRelativePath
+    path: ResolvedPath
 
 
 def find_destination(
@@ -132,7 +132,8 @@ def find_destination(
         Exception: Whatever `entries` raises: the disk lookup's `SnapshotEntryInspectError`,
             `SnapshotLinkReadError` and `ChangedSnapshotEntryError`; the snapshot lookups raise nothing.
     """
-    resolved = ROOT
+    # The walk only ever moves from a resolved directory to a directory it found there, so each step is resolved too.
+    resolved = ResolvedPath(ROOT)
     remaining = list(path.parts)
     links_followed = 0
     last_link: RootExit | None = None  # the link followed last, as the exit it would be
@@ -146,18 +147,19 @@ def find_destination(
             # Records the climb in the scan; only the scope query ever answers no, for a directory it only guessed.
             if not entries.may_climb_out_of(resolved):
                 return None
-            resolved = resolved.parent
+            # The parent of a directory with no symlink on the way to it has none either.
+            resolved = ResolvedPath(resolved.parent)
             continue
         # A part of a root-relative path or of a link target is never empty, `.` or `..` (handled above), nor holds `/`.
         candidate = resolved / PathComponent.parse(part)
         kind = entries.find_kind(candidate)
         match kind:
             case EntryKind.DIRECTORY:
-                resolved = candidate
+                resolved = ResolvedPath(candidate)  # a directory, not a link, so nothing on the way is a symlink
             case EntryKind.FILE:
                 if remaining:
                     return None  # a file is no directory to step into
-                return ResolvedFile(candidate)
+                return ResolvedFile(ResolvedPath(candidate))  # a regular file, not a link
             case EntryKind.OTHER | None:
                 return None  # nothing is there, or nothing the scan reads
             case EntryKind.SYMLINK:
@@ -206,7 +208,7 @@ def find_listed_scan_root(scan_root: ScanRoot, entries: EntryLookup) -> ScanRoot
             assert_never(leads_to)
 
 
-def find_linked_scan_root(scan_root: ScanRoot, link: RootRelativePath, directory: RootRelativePath) -> ScanRoot | None:
+def find_linked_scan_root(scan_root: ScanRoot, link: RootRelativePath, directory: ResolvedPath) -> ScanRoot | None:
     """The root the scan of `scan_root` adds by following `link` to the resolved `directory` it leads to.
 
     A link is followed only where a root that follows links lists it. It uses up one level of depth, as a

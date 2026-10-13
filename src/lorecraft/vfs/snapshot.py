@@ -507,8 +507,7 @@ class VirtualFileSystem(FileSystem):
         leads_to = self._find_destination(path)
         match leads_to:
             case ResolvedDirectory(path=directory):
-                # Resolved: the walk ends at a path it reached through no symlink.
-                return ResolvedPath(directory)
+                return directory
             case ResolvedFile() | RootExit() | None:
                 return None
             case _:
@@ -527,8 +526,7 @@ class VirtualFileSystem(FileSystem):
         leads_to = self._find_destination(path)
         match leads_to:
             case ResolvedFile(path=file):
-                # Resolved: the walk ends at a path it reached through no symlink.
-                return ResolvedPath(file)
+                return file
             case ResolvedDirectory() | RootExit() | None:
                 return None
             case _:

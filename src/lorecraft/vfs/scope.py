@@ -33,7 +33,7 @@ from .root_expansion import (
 )
 from .scan_root import ScanRoot
 from .snapshot import Snapshot
-from .view import EntryKind, RootExit
+from .view import EntryKind, ResolvedPath, RootExit
 
 
 class ScopeIndex:
@@ -181,7 +181,7 @@ def _listed_scan_roots(scope: tuple[ScanRoot, ...], recorded: _RecordedLinks) ->
             listed_roots.append(listed_root)
 
     # Where each recorded link leads, walked once rather than once for every root that lists it.
-    linked_directories: dict[RootRelativePath, RootRelativePath] = {}
+    linked_directories: dict[RootRelativePath, ResolvedPath] = {}
     for link in recorded.paths():
         leads_to = find_destination(link, recorded, follow_links=True)
         match leads_to:
