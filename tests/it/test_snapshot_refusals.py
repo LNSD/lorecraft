@@ -49,7 +49,18 @@ SCOPE: Final[tuple[ScanRoot, ...]] = (
 )
 """A shape of the layout's: `docs/` one level down, links left alone, and skills at any depth, links followed."""
 
-DECLARATION: Final[Declaration] = Declaration(is_file=lambda path: path.name.endswith('.structure.json'))
+
+def _is_structure_file(path: RootRelativePath) -> bool:
+    """Whether `path` names a structure file; the root has no name, so it is none.
+
+    Args:
+        path: The root-relative path to test; only its final filename is checked, and the root is excluded.
+    """
+    name = path.name
+    return name is not None and name.value.endswith('.structure.json')
+
+
+DECLARATION: Final[Declaration] = Declaration(is_file=_is_structure_file)
 """Names the structure files, as the layout does, and nothing else."""
 
 runner = CliRunner()

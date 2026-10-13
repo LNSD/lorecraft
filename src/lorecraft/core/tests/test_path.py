@@ -198,6 +198,26 @@ class TestRootRelativePath:
         #: Then
         assert child == RootRelativePath.parse('docs/code'), 'a component joins as the one name it holds'
 
+    def test_name_of_a_nested_path_returns_the_last_component(self) -> None:
+        #: Given
+        nested = RootRelativePath.parse('docs/code/a.md')
+
+        #: When
+        name = nested.name
+
+        #: Then
+        assert name == PathComponent('a.md'), 'the name is the last component, as a validated component'
+
+    def test_name_of_the_root_returns_none(self) -> None:
+        #: Given
+        root = RootRelativePath.parse('.')
+
+        #: When
+        name = root.name
+
+        #: Then
+        assert name is None, 'the root has no name'
+
     def test_parent_of_the_root_returns_the_root(self) -> None:
         #: Given
         root = RootRelativePath.parse('.')

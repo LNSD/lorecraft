@@ -235,13 +235,16 @@ def _is_skill_name(name: str) -> bool:
 def _link_notes(expectation: DirectoryNameExpected) -> tuple[Note, ...]:
     """The note naming where a listed skill directory leads, when it is a link to a directory named otherwise.
 
-    The target is named by its root-relative path, so the root, whose own name is empty, reads as such.
+    The target is named by its root-relative path, so the root, which has no name, reads as such.
 
     Args:
         expectation: The skill's listed directory name, and where it leads when it is a link.
     """
     link_target = expectation.link_target
-    if link_target is None or link_target.name == expectation.directory_name:
+    if link_target is None:
+        return ()
+    name = link_target.name
+    if name is not None and name.value == expectation.directory_name:
         return ()
     if link_target == ROOT:
         return (Note(f'{expectation.directory_name!r} is a link to the repository root'),)

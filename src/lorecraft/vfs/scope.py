@@ -78,7 +78,9 @@ class ScopeIndex:
         walked = find_destination(path.parent, self._recorded, follow_links=True)
         match walked:
             case ResolvedDirectory(path=directory):
-                entry = directory / path.name
+                name = path.name
+                # The root has no name and is its own parent, so its entry is the directory itself.
+                entry = directory if name is None else directory / name
             case ResolvedFile():
                 raise AssertionError('unreachable: the recorded lookup never answers FILE')
             case RootExit() | None:

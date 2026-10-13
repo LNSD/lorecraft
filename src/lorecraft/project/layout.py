@@ -64,7 +64,8 @@ def _is_declared_file(path: RootRelativePath) -> bool:
     Args:
         path: The root-relative, resolved path of a regular file the scan reads.
     """
-    return path.parent == SPECS_DIR and path.name.endswith(STRUCTURE_FILE_SUFFIX)
+    name = path.name
+    return path.parent == SPECS_DIR and name is not None and name.value.endswith(STRUCTURE_FILE_SUFFIX)
 
 
 DECLARATION: Final[Declaration] = Declaration(is_file=_is_declared_file)

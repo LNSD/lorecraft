@@ -269,10 +269,14 @@ def _split_filename(path: RootRelativePath) -> tuple[str, SpecFileType]:
         path: Root-relative path of the file; only its final name is read, and `path` is carried into any error.
 
     Raises:
-        NotASpecFileError: If no pattern claims the name at a non-empty stem and it is not `<stem>.<token>.json`.
+        NotASpecFileError: If `path` is the root, which has no filename, or no pattern claims the name at a
+            non-empty stem and it is not `<stem>.<token>.json`.
         UnknownSpecFileTypeError: If no `SpecFileType` claims a `<stem>.<token>.json` name.
     """
-    filename = path.name
+    name = path.name
+    if name is None:
+        raise NotASpecFileError(path)  # the root has no filename
+    filename = name.value
 
     # The first type whose pattern matches claims the file, so no pattern's suffix may end another's: a `*.json`
     # declared before `*.structure.json` would claim every structure specification at a dotted stem.
