@@ -286,6 +286,66 @@ class TestSyntaxEventParity:
         #: Then
         assert same, 'literal and folded block scalars read as the same events'
 
+    def test_event_stream_with_comments_and_blank_lines_matches_pyyaml(self) -> None:
+        #: Given
+        block = '# head\na: 1 # tail\n\n# between\nb: 2\n'
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, 'comments and blank lines read as the same events, on the same lines'
+
+    def test_event_stream_with_an_explicit_key_matches_pyyaml(self) -> None:
+        #: Given
+        block = '? a\n: b\n? [c]\n: d\n'
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, 'a key written with `?` reads as the same events'
+
+    def test_event_stream_with_empty_values_matches_pyyaml(self) -> None:
+        #: Given
+        block = 'a:\nb: ~\nc: null\nd: ""\n'
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, 'a value written as nothing reads as the same events'
+
+    def test_event_stream_with_an_anchor_and_an_alias_matches_pyyaml(self) -> None:
+        #: Given
+        block = 'a: &x 1\nb: *x\n'
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, 'an anchor and its alias read as the same events, with the same anchor name'
+
+    def test_event_stream_with_tags_matches_pyyaml(self) -> None:
+        #: Given
+        block = 'a: !!str 1\nb: !local 2\nc: !<tag:example.org,2026:t> 3\n'
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, 'a shorthand, a local and a verbatim tag read as the same events, with the same tag'
+
+    def test_event_stream_with_a_tag_of_three_bangs_matches_pyyaml(self) -> None:
+        #: Given
+        block = 'a: !!!str b\n'
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, 'a handle of two bangs followed by `!str` reads as the same tag'
+
     def test_event_stream_with_directives_matches_pyyaml(self) -> None:
         #: Given
         block = '%YAML 1.1\n%TAG !e! tag:example.org,2026:\n---\na: !e!t 1\n'
@@ -295,6 +355,26 @@ class TestSyntaxEventParity:
 
         #: Then
         assert same, 'a YAML and a TAG directive read as the same events'
+
+    def test_event_stream_with_a_yaml_directive_of_minor_version_0_matches_pyyaml(self) -> None:
+        #: Given
+        block = '%YAML 1.0\n---\na: 1\n'
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, 'a version ruamel.yaml refuses to store is read, as PyYAML reads it'
+
+    def test_event_stream_with_a_yaml_directive_of_minor_version_3_matches_pyyaml(self) -> None:
+        #: Given
+        block = '%YAML 1.3\n---\na: 1\n'
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, 'a version ruamel.yaml refuses to store is read, as PyYAML reads it'
 
     def test_event_stream_with_explicit_document_markers_matches_pyyaml(self) -> None:
         #: Given
@@ -315,6 +395,96 @@ class TestSyntaxEventParity:
 
         #: Then
         assert same, 'a second document reads as the same events'
+
+    def test_event_stream_with_crlf_line_endings_matches_pyyaml(self) -> None:
+        #: Given
+        block = 'a: 1\r\nb:\r\n  - 2\r\n'
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, 'a CRLF line ending counts as one line break'
+
+    def test_event_stream_with_a_byte_order_mark_matches_pyyaml(self) -> None:
+        #: Given
+        block = '\ufeffa: 1\n'
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, 'a byte order mark before the first key is skipped'
+
+    def test_event_stream_with_line_separators_between_keys_matches_pyyaml(self) -> None:
+        #: Given
+        block = 'a: 1\u2028b: 2\u0085c: 3\n'
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, 'a Unicode line separator and a next line character each end a line, and each is counted'
+
+    def test_event_stream_with_a_colon_before_a_flow_indicator_matches_pyyaml(self) -> None:
+        #: Given
+        block = 'a: {c:[d, e], f: g}\nb: [h:, i]\n'
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, 'a colon before a flow indicator ends the scalar, so `c` and `h` are keys'
+
+    def test_event_stream_with_explicit_empty_keys_matches_pyyaml(self) -> None:
+        #: Given
+        block = '? \n: x\n? [a]\n: y\n'
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, 'a key written as `?` and nothing reads as the same events'
+
+    def test_event_stream_with_non_ascii_text_matches_pyyaml(self) -> None:
+        #: Given
+        block = 'título: café ☕\n'
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, 'non-ASCII keys and values read as the same events'
+
+    def test_event_stream_with_a_scalar_document_matches_pyyaml(self) -> None:
+        #: Given
+        block = 'just text\n'
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, 'a document that is one scalar reads as the same events'
+
+    def test_event_stream_with_an_empty_block_matches_pyyaml(self) -> None:
+        #: Given
+        block = ''
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, 'an empty block reads as the same events'
+
+    def test_event_stream_with_a_comment_only_block_matches_pyyaml(self) -> None:
+        #: Given
+        block = '# nothing\n'
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, 'a block of one comment reads as the same events'
 
 
 @pytest.mark.it
@@ -651,4 +821,48 @@ class TestSecondDocumentParity:
         #: Then
         assert reported == ('found a second document, which frontmatter does not allow', 2), (
             'blank lines between the directive and the `---` do not move the line'
+        )
+
+
+@pytest.mark.it
+class TestEmptyValueParity:
+    def test_decode_frontmatter_with_an_empty_value_before_blank_lines_returns_each_key_on_its_line(self) -> None:
+        #: Given
+        # ruamel.yaml marks the empty value of `kind:` on line 4, the next token, and PyYAML on line 1.
+        block = 'name: guide\nkind:\n\n\ntype: rule\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a value written as nothing is null, got {node!r}'
+        assert node.data == FrozenMapping({'name': 'guide', 'kind': None, 'type': 'rule'}), 'the value is null'
+        assert [key.line.number for key in node.keys] == [2, 3, 6], 'only a key marks a line, so none moved'
+
+    def test_decode_frontmatter_with_a_tag_on_an_empty_value_reports_the_tag_line_pyyaml_marks(self) -> None:
+        #: Given
+        block = 'name: guide\nkind: !!str\n\n\ntype: rule\n'
+        tag_events = [event for event in pyyaml_events(block) if event[0] == 'ScalarEvent' and event[4] is not None]
+
+        #: When
+        reported = frontmatter_error(block)
+
+        #: Then
+        assert tag_events[0][5] == 1, 'PyYAML marks the empty value on its tag, not on the next token'
+        assert reported == ("found the tag '!!str', which frontmatter does not allow", 1), (
+            'the refusal is on the tag line, which is where the empty value starts'
+        )
+
+    def test_decode_frontmatter_with_an_anchor_on_an_empty_value_reports_the_anchor_line_pyyaml_marks(self) -> None:
+        #: Given
+        block = 'name: guide\nkind: &k\n\n\ntype: rule\n'
+        anchor_events = [event for event in pyyaml_events(block) if event[0] == 'ScalarEvent' and event[3] is not None]
+
+        #: When
+        reported = frontmatter_error(block)
+
+        #: Then
+        assert anchor_events[0][5] == 1, 'PyYAML marks the empty value on its anchor, not on the next token'
+        assert reported == ('found the anchor &k, which frontmatter does not allow', 1), (
+            'the refusal is on the anchor line, which is where the empty value starts'
         )
