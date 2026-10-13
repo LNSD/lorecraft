@@ -26,7 +26,10 @@ from ..position import LineNumber
 class TestDecodeFrontmatter:
     def test_decode_frontmatter_with_a_mapping_returns_its_data(self) -> None:
         #: Given
-        block = 'name: guide\ntype: rule\n'
+        block = dedent("""\
+            name: guide
+            type: rule
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -37,7 +40,11 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_a_mapping_returns_each_key_on_its_document_line(self) -> None:
         #: Given
-        block = 'name: guide\n\ntype: rule\n'
+        block = dedent("""\
+            name: guide
+
+            type: rule
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -65,7 +72,10 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_quoted_keys_returns_each_key_by_its_decoded_name(self) -> None:
         #: Given
-        block = '"name": guide\n\'type\': rule\n'
+        block = dedent("""\
+            "name": guide
+            'type': rule
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -79,7 +89,10 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_an_int_key_returns_invalid_yaml_naming_it_on_its_line(self) -> None:
         #: Given
-        block = 'name: guide\n1: one\n'
+        block = dedent("""\
+            name: guide
+            1: one
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -91,7 +104,10 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_a_bool_key_returns_invalid_yaml_naming_it_on_its_line(self) -> None:
         #: Given
-        block = 'name: guide\ntrue: yes\n'
+        block = dedent("""\
+            name: guide
+            true: yes
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -103,7 +119,10 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_a_null_key_returns_invalid_yaml_naming_it_on_its_line(self) -> None:
         #: Given
-        block = 'name: guide\nnull: nothing\n'
+        block = dedent("""\
+            name: guide
+            null: nothing
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -131,7 +150,10 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_a_date_key_returns_it_as_a_string_key(self) -> None:
         #: Given
-        block = 'name: guide\n2026-10-04: launch\n'
+        block = dedent("""\
+            name: guide
+            2026-10-04: launch
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -147,7 +169,12 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_a_non_string_key_in_a_list_item_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
-        block = 'name: guide\ntags:\n  - label: a\n    2: b\n'
+        block = dedent("""\
+            name: guide
+            tags:
+              - label: a
+                2: b
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -159,7 +186,10 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_a_non_string_key_in_a_flow_mapping_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
-        block = 'name: guide\nmeta: {owner: me, 3.5: x}\n'
+        block = dedent("""\
+            name: guide
+            meta: {owner: me, 3.5: x}
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -171,7 +201,10 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_a_list_written_as_a_key_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
-        block = 'name: guide\n[a, b]: x\n'
+        block = dedent("""\
+            name: guide
+            [a, b]: x
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -183,7 +216,10 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_a_quoted_numeric_key_returns_it_as_a_string_key(self) -> None:
         #: Given
-        block = "name: guide\n'1': one\n"
+        block = dedent("""\
+            name: guide
+            '1': one
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -196,7 +232,11 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_a_key_repeated_with_the_same_value_lists_every_occurrence(self) -> None:
         #: Given
-        block = 'name: guide\ntype: rule\nname: guide\n'
+        block = dedent("""\
+            name: guide
+            type: rule
+            name: guide
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -211,7 +251,11 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_a_key_repeated_with_another_value_keeps_the_last_value(self) -> None:
         #: Given
-        block = 'name: guide\ntype: rule\nname: other\n'
+        block = dedent("""\
+            name: guide
+            type: rule
+            name: other
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -228,7 +272,10 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_an_equals_key_returns_it_as_a_string_key(self) -> None:
         #: Given
-        block = 'name: guide\n=: 1\n'
+        block = dedent("""\
+            name: guide
+            =: 1
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -244,7 +291,10 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_an_anchor_on_a_scalar_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
-        block = 'type: rule\nname: &name guide\n'
+        block = dedent("""\
+            type: rule
+            name: &name guide
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -269,7 +319,10 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_an_alias_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
-        block = 'name: guide\nsee: *guide\n'
+        block = dedent("""\
+            name: guide
+            see: *guide
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -281,7 +334,10 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_a_str_tag_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
-        block = 'name: guide\ndescription: !!str 2024-01-01\n'
+        block = dedent("""\
+            name: guide
+            description: !!str 2024-01-01
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -294,7 +350,10 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_a_pairs_tag_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
-        block = 'name: guide\nsteps: !!pairs [first: 1, second: 2]\n'
+        block = dedent("""\
+            name: guide
+            steps: !!pairs [first: 1, second: 2]
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -307,7 +366,10 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_an_omap_tag_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
-        block = 'name: guide\nsteps: !!omap [first: 1, second: 2]\n'
+        block = dedent("""\
+            name: guide
+            steps: !!omap [first: 1, second: 2]
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -322,7 +384,11 @@ class TestDecodeFrontmatter:
         #: Given
         # YAML writes a set as a mapping whose keys have no values, so without the refusal the node is a mapping
         # but the value is not
-        block = '!!set\n? guide\n? rule\n'
+        block = dedent("""\
+            !!set
+            ? guide
+            ? rule
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -335,7 +401,10 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_a_binary_tag_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
-        block = 'name: guide\nicon: !!binary aGk=\n'
+        block = dedent("""\
+            name: guide
+            icon: !!binary aGk=
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -348,7 +417,10 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_a_local_tag_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
-        block = 'name: guide\nowner: !team docs\n'
+        block = dedent("""\
+            name: guide
+            owner: !team docs
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -360,7 +432,10 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_a_verbatim_tag_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
-        block = 'name: guide\nowner: !<tag:example.com,2026:team> docs\n'
+        block = dedent("""\
+            name: guide
+            owner: !<tag:example.com,2026:team> docs
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -373,7 +448,10 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_the_non_specific_tag_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
-        block = 'name: guide\ncount: ! 3\n'
+        block = dedent("""\
+            name: guide
+            count: ! 3
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -415,7 +493,10 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_a_tag_on_a_key_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
-        block = 'type: rule\n!!str name: guide\n'
+        block = dedent("""\
+            type: rule
+            !!str name: guide
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -428,7 +509,12 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_a_tag_nested_in_a_list_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
-        block = 'name: guide\ntags:\n  - docs\n  - !!int 3\n'
+        block = dedent("""\
+            name: guide
+            tags:
+              - docs
+              - !!int 3
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -559,7 +645,11 @@ class TestDecodeFrontmatter:
         #: Given
         # one digit more than the interpreter converts to an int, read from it rather than assumed to be 4300
         digits = '1' * (sys.get_int_max_str_digits() + 1)
-        block = f'%YAML 1.{digits}\nname: guide\n'
+        directive = f'%YAML 1.{digits}\n'
+        document = dedent("""\
+            name: guide
+            """)
+        block = directive + document
 
         #: When
         node = decode_frontmatter(block)
@@ -666,7 +756,9 @@ class TestDecodeFrontmatter:
         #: Given
         # the second `[` is refused where it stands, so no depth of flow collections can reach the stack's limit
         depth = sys.getrecursionlimit()
-        block = f'name: guide\ndescription: {"[" * depth}{"]" * depth}\n'
+        name_line = 'name: guide\n'
+        description_line = f'description: {"[" * depth}{"]" * depth}\n'
+        block = name_line + description_line
 
         #: When
         node = decode_frontmatter(block)
@@ -715,7 +807,9 @@ class TestDecodeFrontmatter:
         #: Given
         # one digit more than the interpreter converts to an int, read from it rather than assumed to be 4300
         digits = '1' * (sys.get_int_max_str_digits() + 1)
-        block = f'name: guide\ncount: {digits}\n'
+        name_line = 'name: guide\n'
+        count_line = f'count: {digits}\n'
+        block = name_line + count_line
 
         #: When
         node = decode_frontmatter(block)
@@ -728,7 +822,10 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_a_float_too_large_returns_it_as_a_string(self) -> None:
         #: Given
-        block = 'name: guide\nweight: 1e999\n'
+        block = dedent("""\
+            name: guide
+            weight: 1e999
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -741,7 +838,20 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_core_schema_scalars_returns_their_json_values(self) -> None:
         #: Given
-        block = 'a: ~\nb: null\nc:\nd: true\ne: FALSE\nf: 12\ng: -012\nh: 0o12\ni: 0x1F\nj: -1.5\nk: 1e3\nl: .5\n'
+        block = dedent("""\
+            a: ~
+            b: null
+            c:
+            d: true
+            e: FALSE
+            f: 12
+            g: -012
+            h: 0o12
+            i: 0x1F
+            j: -1.5
+            k: 1e3
+            l: .5
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -767,7 +877,16 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_scalars_only_yaml_1_1_resolves_returns_them_as_strings(self) -> None:
         #: Given
-        block = 'a: yes\nb: on\nc: 2026-10-05\nd: 1:30\ne: 0b101\nf: 1_000\ng: .inf\nh: .nan\n'
+        block = dedent("""\
+            a: yes
+            b: on
+            c: 2026-10-05
+            d: 1:30
+            e: 0b101
+            f: 1_000
+            g: .inf
+            h: .nan
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -789,7 +908,14 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_quoted_and_block_scalars_returns_them_as_strings(self) -> None:
         #: Given
-        block = 'a: "12"\nb: \'true\'\nc: |\n  12\nd: >\n  null\n'
+        block = dedent("""\
+            a: "12"
+            b: 'true'
+            c: |
+              12
+            d: >
+              null
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -1441,7 +1567,10 @@ class TestDecodeFrontmatter:
 
     def test_hash_with_two_equal_nested_frontmatters_returns_the_same_hash(self) -> None:
         #: Given
-        block = 'name: guide\nmeta: {see: [a, b]}\n'
+        block = dedent("""\
+            name: guide
+            meta: {see: [a, b]}
+            """)
         first = decode_frontmatter(block)
         second = decode_frontmatter(block)
 
