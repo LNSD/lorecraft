@@ -25,6 +25,7 @@ from lorecraft.project.skill import (
 from lorecraft.project.syntax import LineNumber
 from lorecraft.project.syntax import Link as MarkdownLink
 from lorecraft.vfs import (
+    ByteOffset,
     DirectoryRecord,
     FileRecord,
     OtherRecord,
@@ -32,6 +33,7 @@ from lorecraft.vfs import (
     Snapshot,
     SymlinkRecord,
     Utf8Failure,
+    Utf8Line,
     Utf8Reason,
     take_snapshot,
 )
@@ -411,8 +413,8 @@ class TestDatabaseSkillResources:
 
         #: Then
         failure = Utf8Failure(
-            line=1,
-            offset=3,
+            line=Utf8Line(1),
+            offset=ByteOffset(3),
             invalid=b'\xe9',
             reason=Utf8Reason.INVALID_CONTINUATION_BYTE,
         )

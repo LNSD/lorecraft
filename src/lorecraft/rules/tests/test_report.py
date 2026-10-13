@@ -16,7 +16,7 @@ from lorecraft.rules.tests.sample_rules.token_count.sample_condition import Samp
 from lorecraft.rules.tests.sample_rules.valid.outline.empty_line import EmptyLine
 from lorecraft.rules.tests.sample_rules.valid.trailing_space import TrailingSpace
 from lorecraft.rules.tests.sample_rules.valid.uppercase_entry import UppercaseEntry
-from lorecraft.vfs import Utf8Failure, Utf8Reason
+from lorecraft.vfs import ByteOffset, Utf8Failure, Utf8Line, Utf8Reason
 
 from ..report import (
     CheckedLayoutEntry,
@@ -32,8 +32,8 @@ from ..report import (
 
 def _failure(line: int) -> Utf8Failure:
     return Utf8Failure(
-        line=line,
-        offset=31,
+        line=Utf8Line(line),
+        offset=ByteOffset(31),
         invalid=b'\xe9',
         reason=Utf8Reason.INVALID_CONTINUATION_BYTE,
     )

@@ -103,11 +103,13 @@ from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.subject import DocumentRule, Facet
 from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import (
+    ByteOffset,
     EntryRecord,
     ResolvedPath,
     Snapshot,
     SymlinkRecord,
     Utf8Failure,
+    Utf8Line,
     Utf8Reason,
     VirtualFileSystem,
     take_snapshot,
@@ -129,12 +131,12 @@ CODE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.
 """The corpus structure specification."""
 
 _CAFE_TITLE_FAILURE: Final[Utf8Failure] = Utf8Failure(
-    line=1, offset=5, invalid=b'\xe9', reason=Utf8Reason.INVALID_CONTINUATION_BYTE
+    line=Utf8Line(1), offset=ByteOffset(5), invalid=b'\xe9', reason=Utf8Reason.INVALID_CONTINUATION_BYTE
 )
 """Where `# Caf\xe9\n` stops being UTF-8: the Latin-1 `é`, on the first line, followed by a line feed."""
 
 _CAFE_NAME_FAILURE: Final[Utf8Failure] = Utf8Failure(
-    line=2, offset=13, invalid=b'\xe9', reason=Utf8Reason.INVALID_CONTINUATION_BYTE
+    line=Utf8Line(2), offset=ByteOffset(13), invalid=b'\xe9', reason=Utf8Reason.INVALID_CONTINUATION_BYTE
 )
 """Where `---\nname: caf\xe9\n---\n` stops being UTF-8: the Latin-1 `é` in the frontmatter's second line."""
 
