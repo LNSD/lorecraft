@@ -2,9 +2,9 @@
 
 from dataclasses import dataclass
 
-from .agents_md import AgentsMdFiles
+from .agents_md import ProjectAgentsMdFiles, UserAgentsMdFiles
 from .name import AgentName
-from .skills import SkillsDirs
+from .skills import ProjectSkillsDirs, UserSkillsDirs
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,7 +24,7 @@ class Agent:
     """
 
     name: AgentName
-    project_skills_dirs: SkillsDirs
-    user_skills_dirs: SkillsDirs
-    project_agents_md_files: AgentsMdFiles
-    user_agents_md_files: AgentsMdFiles
+    project_skills_dirs: ProjectSkillsDirs
+    user_skills_dirs: UserSkillsDirs
+    project_agents_md_files: ProjectAgentsMdFiles
+    user_agents_md_files: UserAgentsMdFiles

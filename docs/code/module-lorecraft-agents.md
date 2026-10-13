@@ -38,10 +38,11 @@ directory.
 
 ## Invariants
 
-- `lorecraft.agents` imports no other Lorecraft package, and reads no environment variable, home directory or
-  disk.
-- A path it states is pure and relative to the root of its scope: the repository for the project scope, the home
-  directory for the user scope.
+- `lorecraft.agents` imports `lorecraft.core` and no other Lorecraft package, and reads no environment variable,
+  home directory or disk.
+- A path it states is a `lorecraft.core.path.RootRelativePath`, validated when it is declared, and relative to
+  the root of its scope: the repository for the project scope, the home directory for the user scope. The two
+  scopes have distinct types, `ProjectPath` and `UserPath`, so one cannot stand in for the other.
 - Every record is immutable data.
 - Another layer reaches an agent only by iterating the registry and reading the agent's record. It never names
   one agent or one agent's constant, so adding an agent edits only this package.
@@ -57,7 +58,7 @@ def project_skills_dirs(root: Path) -> tuple[PurePosixPath, ...]:
 
 ```python
 # ✅ Good — the agent states where it reads; the project model records the directories a repository has
-CODEX_SKILL_DIRS: Final[tuple[PurePosixPath, ...]] = (PurePosixPath('.codex/skills'),)
+CODEX_SKILL_DIRS: Final[ProjectSkillsDirs] = (ProjectPath(RootRelativePath.parse('.codex/skills')),)
 ```
 
 ```python
@@ -76,8 +77,8 @@ skills_dirs = [(agent, skills_dir) for agent in all_agents() for skills_dir in a
 
 Before committing code, verify:
 
-- [ ] Nothing added to `lorecraft.agents` imports another Lorecraft package or reads the disk or the environment
-- [ ] Every path stated is a pure path relative to the root of its scope
+- [ ] Nothing added to `lorecraft.agents` imports a Lorecraft package other than `lorecraft.core`, or reads the disk or the environment
+- [ ] Every path stated is a `ProjectPath` or a `UserPath` over a `RootRelativePath`, relative to the root of its scope
 - [ ] No code outside `lorecraft.agents` names an individual agent or one agent's constant
 - [ ] A new agent is one package beside the others and one record in the registry
 

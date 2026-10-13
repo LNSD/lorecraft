@@ -4,10 +4,11 @@ An agent reads skills in two scopes, and both are declared. The project scope is
 repository, holding the skills the repository carries. The user scope is the directories under the user's
 home directory, holding the user's own skills, read in every repository.
 
-A directory is spelled as a pure path, relative to the root of its scope: the repository root for the project
-scope, the home directory for the user one. It names a place and reads nothing: resolving it against a
-repository or a home directory belongs to whoever holds one. Where an agent lets an environment variable move
-its home configuration directory, the default location is what is declared.
+A directory is spelled as a ``RootRelativePath``, relative to the root of its scope: the repository root for the
+project scope, the home directory for the user one. It is validated when it is declared, and names a place and
+reads nothing: resolving it against a repository or a home directory belongs to whoever holds one. Where an
+agent lets an environment variable move its home configuration directory, the default location is what is
+declared.
 
 A skill is ``<skills directory>/<skill name>/SKILL.md``: a directory directly inside a skills directory, named
 for the skill, holding the entry document an agent enters it through. Nothing else is a skill: not a directory
@@ -16,17 +17,24 @@ specification fixes the entry document's filename, https://agentskills.io/specif
 here and no agent states its own.
 """
 
-from pathlib import PurePosixPath
 from typing import Final
 
-type SkillsDirs = tuple[PurePosixPath, ...]
-"""The skills directories one agent reads in one scope, in order of preference: the universal directory first
-when the agent reads it."""
+from lorecraft.core.path import RootRelativePath
 
-UNIVERSAL_PROJECT_SKILLS_DIR: Final[PurePosixPath] = PurePosixPath('.agents/skills')
+from .scope import ProjectPath, UserPath
+
+type ProjectSkillsDirs = tuple[ProjectPath, ...]
+"""The project skills directories one agent reads, in order of preference: the universal directory first when
+the agent reads it."""
+
+type UserSkillsDirs = tuple[UserPath, ...]
+"""The user skills directories one agent reads, in order of preference: the universal directory first when the
+agent reads it."""
+
+UNIVERSAL_PROJECT_SKILLS_DIR: Final[ProjectPath] = ProjectPath(RootRelativePath.parse('.agents/skills'))
 """The canonical project skills directory, shared by every agent that reads it as it is."""
 
-UNIVERSAL_USER_SKILLS_DIR: Final[PurePosixPath] = PurePosixPath('.agents/skills')
+UNIVERSAL_USER_SKILLS_DIR: Final[UserPath] = UserPath(RootRelativePath.parse('.agents/skills'))
 """The canonical user skills directory, ``~/.agents/skills``, shared by every agent that reads it as it is."""
 
 SKILL_ENTRY_FILENAME: Final[str] = 'SKILL.md'

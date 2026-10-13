@@ -450,8 +450,7 @@ def _load_skills_dirs(
     skills_dirs: list[SkillsDir] = []
     outside: dict[RootRelativePath, OutsideSymlink] = {}
     for agent in iter_agents():
-        for declared in agent.project_skills_dirs:
-            path = RootRelativePath(declared)
+        for path in agent.project_skills_dirs:
             try:
                 resolves_to = skills.find_skills_dir(path)
                 if resolves_to is None:
