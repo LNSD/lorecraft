@@ -1,10 +1,11 @@
 """`OUT005`: a section a structure specification forbids appears in the document."""
 
 from dataclasses import dataclass
-from typing import ClassVar, Self
+from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
+from lorecraft.project.schemas import AnyRunAlignment, NamedAlignment, UnalignedSection
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.location import Help, Subdiagnostic
 from lorecraft.rules.subject import DocumentRule, Facet
@@ -102,7 +103,13 @@ class ForbiddenSection(DocumentRule):
         occurrences: list[Self] = []
         for alignment in subject.outline_alignment():
             for aligned in alignment.sections:
-                if aligned.forbidden:
-                    section = aligned.section
-                    occurrences.append(cls(spec=alignment.spec, line=section.line, section=section.text))
+                match aligned:
+                    case NamedAlignment():
+                        pass  # an outline never names a forbidden section
+                    case AnyRunAlignment() | UnalignedSection():
+                        if aligned.forbidden:
+                            section = aligned.section
+                            occurrences.append(cls(spec=alignment.spec, line=section.line, section=section.text))
+                    case _:
+                        assert_never(aligned)
         return tuple(occurrences)

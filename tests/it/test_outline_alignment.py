@@ -17,7 +17,14 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, DocumentText
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.schemas import AnySections, OutlineAlignmentSpec, SectionEntry, StructureSpec, align_outlines
+from lorecraft.project.schemas import (
+    AnyRunAlignment,
+    NamedAlignment,
+    OutlineAlignmentSpec,
+    StructureSpec,
+    UnalignedSection,
+    align_outlines,
+)
 from lorecraft.project.syntax import Heading, ParsedDocument
 from lorecraft.project.workspace import WorkspaceModel
 from lorecraft.vfs import Snapshot, VirtualFileSystem
@@ -129,11 +136,11 @@ class TestOutlineAlignment:
         #: When
         alignment = database.outline_alignment(source)
         specs = [spec.spec for spec in alignment]
-        entries = [aligned.entry for aligned in alignment[0].sections]
+        kinds = [type(aligned) for aligned in alignment[0].sections]
 
         #: Then
         assert specs == [CORPUS_SPEC], 'the one governing specification is aligned'
-        assert [type(entry) for entry in entries] == [SectionEntry, AnySections, SectionEntry], (
+        assert kinds == [NamedAlignment, AnyRunAlignment, NamedAlignment], (
             'the sections are read from the parse: `Rule` and `Checklist` by name, `Aside` by the `any` run'
         )
 
@@ -162,14 +169,14 @@ class TestOutlineAlignment:
         alignment = database.outline_alignment(source)
         specs = [spec.spec for spec in alignment]
         corpus_sections = alignment[0].sections
-        entries = [aligned.entry for aligned in corpus_sections]
-        forbidden = [aligned.forbidden for aligned in corpus_sections]
+        kinds = [type(aligned) for aligned in corpus_sections]
+        forbidden = [aligned.forbidden for aligned in corpus_sections if isinstance(aligned, UnalignedSection)]
 
         #: Then
         assert specs == [CORPUS_SPEC, NAMESPACE_SPEC], (
             'a specification that states no outline is aligned too, for the sections it forbids'
         )
-        assert entries == [None, None, None], 'it has no entry to align to'
+        assert kinds == [UnalignedSection] * 3, 'it has no entry to align to'
         assert forbidden == [False, True, False], 'it still marks the section it forbids'
 
     def test_outline_alignment_with_no_structure_specification_holds_none(self) -> None:

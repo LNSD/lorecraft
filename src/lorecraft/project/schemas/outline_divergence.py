@@ -12,7 +12,7 @@ from typing import assert_never
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import Heading, LineNumber
 
-from .outline_alignment import AlignedSection, OutlineAlignmentSpec
+from .outline_alignment import AlignedSection, AnyRunAlignment, NamedAlignment, OutlineAlignmentSpec, UnalignedSection
 from .section_name import SectionName
 from .structure import AnySections, OutlineEntry, SectionEntry
 
@@ -164,6 +164,21 @@ def match_outlines(alignments: tuple[OutlineAlignmentSpec, ...], line_count: int
     return tuple(specs)
 
 
+def _is_named(aligned: AlignedSection) -> bool:
+    """Whether an outline entry names the section, as opposed to an `any` run covering it or nothing.
+
+    Args:
+        aligned: The section whose alignment kind determines whether an outline entry names it.
+    """
+    match aligned:
+        case NamedAlignment():
+            return True
+        case AnyRunAlignment() | UnalignedSection():
+            return False
+        case _:
+            assert_never(aligned)
+
+
 def _first_divergence(
     outline: tuple[OutlineEntry, ...], aligned: tuple[AlignedSection, ...], document_end: DocumentEnd
 ) -> OutlineDivergence | None:
@@ -186,9 +201,9 @@ def _first_divergence(
     for entry in outline:
         match entry:
             case AnySections():
-                # The run stops at a section the outline names: that section belongs to the entry naming it,
+                # The `any` run stops at a section the outline names: that section belongs to the entry naming it,
                 # wherever in the outline that entry falls.
-                while at < len(aligned) and not aligned[at].is_named:
+                while at < len(aligned) and not _is_named(aligned[at]):
                     at += 1
             case SectionEntry():
                 if at < len(aligned) and entry.names(aligned[at].section):
@@ -204,7 +219,7 @@ def _first_divergence(
         # A leftover the outline names is a section written out of turn; one it does not name is a section written
         # past the point where the document should have ended.
         left = aligned[at].section
-        if aligned[at].is_named:
+        if _is_named(aligned[at]):
             earlier = next((a.section for a in aligned[:at] if a.section.text == left.text), None)
             return MisplacedSection(section=left, placement=LeftOver(earlier=earlier))
         last_matched = aligned[at - 1].section if at > 0 else None
@@ -238,6 +253,6 @@ def _divergence_at_entry(
     # The expected section is held later, so a section stands in its place.
     found = aligned[at]
     expected = ExpectedSection(name=entry.name, written_at=held)
-    if found.is_named:
+    if _is_named(found):
         return MisplacedSection(section=found.section, placement=expected)
     return UnlistedSection(section=found.section, placement=expected)

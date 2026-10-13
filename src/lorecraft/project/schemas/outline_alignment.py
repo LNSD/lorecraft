@@ -1,10 +1,11 @@
 """Which outline entry each of a document's sections falls in, for each structure specification that governs it.
 
 A section is aligned to the entry that names it, wherever in the outline that entry sits, or else to the `any` run it
-falls in: the first run after the entry naming the last named section before it. A section no entry names and no run
-follows is aligned to nothing. The alignment is a fact of the document and its specifications, whether or not the
-document follows the outline: `match_outlines` finds where it stops following it by reading the alignment, and every
-rule that needs an outline entry of a section reads it too, so no two of them place a section differently.
+falls in: the first `any` run after the entry naming the last named section before it. A section no entry names and
+no `any` run follows is aligned to nothing. The alignment is a fact of the document and its specifications, whether
+or not the document follows the outline: `match_outlines` finds where it stops following it by reading the
+alignment, and every rule that needs an outline entry of a section reads it too, so no two of them place a section
+differently.
 """
 
 from dataclasses import dataclass
@@ -18,31 +19,91 @@ from .structure import AnySections, OutlineEntry, SectionEntry, StructureSpec
 
 
 @dataclass(frozen=True, slots=True)
-class AlignedSection:
-    """One H2 section of a document, and the outline entry it falls in.
+class NamedAlignment:
+    """One H2 section of a document, and the `SectionEntry` that names it.
+
+    A named section is never forbidden: a structure specification refuses to forbid a section its own outline names.
 
     Attributes:
         section: The section's H2 heading.
-        entry: The `SectionEntry` that names the section; or the `AnySections` run it falls in, when no entry names
-            it; or `None` when no entry names it and no run follows the last named section before it.
-        forbidden: Whether the specification lists the section's heading text under `forbidden`. An outline never
-            names a forbidden section, so such a section is aligned to a run, or to nothing.
+        entry: The `SectionEntry` whose name is the section's heading text.
     """
 
     section: Heading
-    entry: OutlineEntry | None
+    entry: SectionEntry
+
+    def __post_init__(self) -> None:
+        """Refuse a heading that is no H2 section, or an entry that names another section.
+
+        Raises:
+            ValueError: If `section` is not an H2, or `entry` does not name it.
+        """
+        _require_section_level(self.section)
+        if not self.entry.names(self.section):
+            raise ValueError(f'entry `{self.entry.name}` does not name section `{self.section.text}`')
+
+
+@dataclass(frozen=True, slots=True)
+class AnyRunAlignment:
+    """One H2 section of a document that no entry names, and the `any` run it falls in.
+
+    Attributes:
+        section: The section's H2 heading.
+        run: The `AnySections` run it falls in: the first one after the entry naming the last named section before it.
+        forbidden: Whether the specification lists the section's heading text under `forbidden`. An outline never
+            names a forbidden section, so such a section falls in an `any` run or in nothing.
+    """
+
+    section: Heading
+    run: AnySections
     forbidden: bool
 
-    @property
-    def is_named(self) -> bool:
-        """Whether an outline entry names the section, as opposed to a run covering it or nothing."""
-        match self.entry:
-            case SectionEntry():
-                return True
-            case AnySections() | None:
-                return False
-            case _:
-                assert_never(self.entry)
+    def __post_init__(self) -> None:
+        """Refuse a heading that is no H2 section.
+
+        Raises:
+            ValueError: If `section` is not an H2.
+        """
+        _require_section_level(self.section)
+
+
+@dataclass(frozen=True, slots=True)
+class UnalignedSection:
+    """One H2 section of a document that no entry names and no `any` run follows the last named section before.
+
+    Attributes:
+        section: The section's H2 heading.
+        forbidden: Whether the specification lists the section's heading text under `forbidden`.
+    """
+
+    section: Heading
+    forbidden: bool
+
+    def __post_init__(self) -> None:
+        """Refuse a heading that is no H2 section.
+
+        Raises:
+            ValueError: If `section` is not an H2.
+        """
+        _require_section_level(self.section)
+
+
+# One H2 section of a document, and the outline entry it falls in: the entry that names it, the `any` run it falls in,
+# or nothing.
+type AlignedSection = NamedAlignment | AnyRunAlignment | UnalignedSection
+
+
+def _require_section_level(section: Heading) -> None:
+    """Refuse a heading that is no H2, which an outline never aligns.
+
+    Args:
+        section: The heading an alignment is built for.
+
+    Raises:
+        ValueError: If `section` is not an H2.
+    """
+    if section.level != SECTION_LEVEL:
+        raise ValueError(f'section `{section.text}` is an H{section.level}, not an H{SECTION_LEVEL}')
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,7 +162,7 @@ def align_outlines(
 
 
 def _align_sections(structure_spec: StructureSpec, sections: tuple[Heading, ...]) -> tuple[AlignedSection, ...]:
-    """Align each section to the entry of the specification's outline that names it, or the run it falls in.
+    """Align each section to the entry of the specification's outline that names it, or the `any` run it falls in.
 
     Args:
         structure_spec: The structure specification whose `outline` and `forbidden` names the sections are held to.
@@ -112,14 +173,18 @@ def _align_sections(structure_spec: StructureSpec, sections: tuple[Heading, ...]
     last_named_at = -1  # the outline index of the last named section passed; -1 before any
     aligned: list[AlignedSection] = []
     for section in sections:
-        entry: OutlineEntry | None
-        entry_at = _find_section_index(outline, section)
-        if entry_at is None:
-            entry = _find_run(outline, after=last_named_at)
-        else:
+        named = _find_named_entry(outline, section)
+        if named is not None:
+            entry_at, entry = named
             last_named_at = entry_at
-            entry = outline[entry_at]
-        aligned.append(AlignedSection(section=section, entry=entry, forbidden=_is_forbidden(forbidden, section)))
+            aligned.append(NamedAlignment(section=section, entry=entry))
+            continue
+        is_forbidden = _is_forbidden(forbidden, section)
+        run = _find_run(outline, after=last_named_at)
+        if run is None:
+            aligned.append(UnalignedSection(section=section, forbidden=is_forbidden))
+        else:
+            aligned.append(AnyRunAlignment(section=section, run=run, forbidden=is_forbidden))
     return tuple(aligned)
 
 
@@ -133,8 +198,8 @@ def _is_forbidden(forbidden: tuple[SectionName, ...], section: Heading) -> bool:
     return any(name.names(section) for name in forbidden)
 
 
-def _find_section_index(outline: tuple[OutlineEntry, ...], section: Heading) -> int | None:
-    """Where in the outline the section entry naming `section` sits, or `None` when no entry names it. Raises nothing.
+def _find_named_entry(outline: tuple[OutlineEntry, ...], section: Heading) -> tuple[int, SectionEntry] | None:
+    """The section entry naming `section` and where it sits in the outline, or `None` when none does. Raises nothing.
 
     Args:
         outline: The entries to search, in outline order.
@@ -144,9 +209,9 @@ def _find_section_index(outline: tuple[OutlineEntry, ...], section: Heading) -> 
         match entry:
             case SectionEntry():
                 if entry.names(section):
-                    return index
+                    return index, entry
             case AnySections():
-                pass  # a run names no section
+                pass  # an `any` run names no section
             case _:
                 assert_never(entry)
     return None
