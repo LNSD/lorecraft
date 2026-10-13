@@ -30,6 +30,7 @@ from lorecraft.project.syntax import Frontmatter, Heading, LineNumber, count_tok
 from lorecraft.project.syntax import Link as MarkdownLink
 from lorecraft.project.workspace import EmptyStructureSpec, FailedStructure, LoadFailure
 from lorecraft.vfs import (
+    ByteOffset,
     DirectoryRecord,
     EntryRecord,
     FileRecord,
@@ -37,6 +38,7 @@ from lorecraft.vfs import (
     Snapshot,
     SymlinkRecord,
     Utf8Failure,
+    Utf8Line,
     Utf8Reason,
 )
 
@@ -371,8 +373,8 @@ class TestDatabase:
 
         #: Then
         failure = Utf8Failure(
-            line=2,
-            offset=13,
+            line=Utf8Line(2),
+            offset=ByteOffset(13),
             invalid=b'\xff',
             reason=Utf8Reason.INVALID_START_BYTE,
         )
@@ -543,8 +545,8 @@ class TestDatabase:
 
         #: Then
         failure = Utf8Failure(
-            line=2,
-            offset=13,
+            line=Utf8Line(2),
+            offset=ByteOffset(13),
             invalid=b'\xe9',
             reason=Utf8Reason.INVALID_CONTINUATION_BYTE,
         )

@@ -8,7 +8,19 @@ keeps it.
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Self
+from typing import NewType, Self
+
+Utf8Line = NewType('Utf8Line', int)
+"""A line number in a file's bytes, counted by line feeds, at least 1; `Utf8Failure` enforces it at construction.
+
+Only keeps the line apart from a `ByteOffset`: `Utf8Line(0)` constructs, and `Utf8Failure` refuses it.
+"""
+
+ByteOffset = NewType('ByteOffset', int)
+"""An offset into a file's bytes, from 0, never negative; `Utf8Failure` enforces it at construction.
+
+Only keeps the offset apart from a `Utf8Line`: `ByteOffset(-1)` constructs, and `Utf8Failure` refuses it.
+"""
 
 
 class Utf8Reason(Enum):
@@ -51,8 +63,8 @@ class Utf8Failure:
         reason: Why the decoder rejected them.
     """
 
-    line: int
-    offset: int
+    line: Utf8Line
+    offset: ByteOffset
     invalid: bytes
     reason: Utf8Reason
 
@@ -73,8 +85,8 @@ class Utf8Failure:
             error: The failure of decoding a file's bytes as UTF-8.
         """
         return cls(
-            line=error.object.count(b'\n', 0, error.start) + 1,
-            offset=error.start,
+            line=Utf8Line(error.object.count(b'\n', 0, error.start) + 1),
+            offset=ByteOffset(error.start),
             invalid=error.object[error.start : error.end],
             reason=Utf8Reason(error.reason),
         )

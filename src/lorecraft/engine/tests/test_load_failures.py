@@ -43,7 +43,7 @@ from lorecraft.rules.engine import invalid_utf8, malformed_structure_file, unrea
 from lorecraft.rules.engine.__ruleset__ import RefusedOperation
 from lorecraft.rules.engine.unreadable_path import NotARegularFile, Refused
 from lorecraft.rules.report import LoadFailureReport
-from lorecraft.vfs import OsRefusal, Utf8Failure, Utf8Reason
+from lorecraft.vfs import ByteOffset, OsRefusal, Utf8Failure, Utf8Line, Utf8Reason
 
 from ..load_failures import UnlistableRoot, report_load_failures
 
@@ -51,7 +51,9 @@ _PATH: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.stru
 _ENTRY: Final[RootRelativePath] = RootRelativePath.parse('.claude/skills/review')
 _ON_THE_WAY: Final[RootRelativePath] = RootRelativePath.parse('shared/skills')
 _REFUSAL: Final[OsRefusal] = OsRefusal.PERMISSION_DENIED
-_UTF8: Final[Utf8Failure] = Utf8Failure(line=3, offset=47, invalid=b'\xe9', reason=Utf8Reason.INVALID_CONTINUATION_BYTE)
+_UTF8: Final[Utf8Failure] = Utf8Failure(
+    line=Utf8Line(3), offset=ByteOffset(47), invalid=b'\xe9', reason=Utf8Reason.INVALID_CONTINUATION_BYTE
+)
 
 
 def _model(*failures: LoadFailure) -> WorkspaceModel:

@@ -30,7 +30,7 @@ from lorecraft.rules.report import (
     UndecodableSubject,
 )
 from lorecraft.rules.subject import Facet
-from lorecraft.vfs import RootExit, Utf8Failure, Utf8Reason
+from lorecraft.vfs import ByteOffset, RootExit, Utf8Failure, Utf8Line, Utf8Reason
 
 from ..diagnostic_text import SourceLines, SourceText, TextStyle, render_text
 from ..diagnostics import render_coverage, render_json, render_prefix_summary, render_short, render_summary
@@ -67,8 +67,8 @@ def _line(number: int) -> LineNumber:
 
 def _latin_failure() -> Utf8Failure:
     return Utf8Failure(
-        line=4,
-        offset=31,
+        line=Utf8Line(4),
+        offset=ByteOffset(31),
         invalid=b'\xe9',
         reason=Utf8Reason.INVALID_CONTINUATION_BYTE,
     )
