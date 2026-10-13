@@ -86,7 +86,7 @@ from lorecraft.rules.link.absolute_link import AbsoluteLink
 from lorecraft.rules.link.broken_link import BrokenLink
 from lorecraft.rules.link.escaping_link import EscapingLink
 from lorecraft.rules.link.missing_fragment import MissingFragment
-from lorecraft.rules.outline.empty_section import EmptySection
+from lorecraft.rules.outline.empty_section import EmptySection, OtherSection
 from lorecraft.rules.outline.extra_title import ExtraTitle
 from lorecraft.rules.outline.forbidden_section import ForbiddenSection
 from lorecraft.rules.outline.invalid_title import InvalidTitle
@@ -1597,7 +1597,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = EmptySection(spec=CODE_SPEC, line=LineNumber.from_int(3), section='Install', role=None)
+        occurrence = EmptySection(spec=CODE_SPEC, line=LineNumber.from_int(3), section='Install', role=OtherSection())
         assert reports == (
             CheckedSubject(
                 GUIDE,
