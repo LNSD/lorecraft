@@ -14,6 +14,7 @@ from typing import assert_never
 
 from lorecraft.core.error import Error
 from lorecraft.core.mapping import FrozenMapping
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 
 from .root_expansion import (
@@ -516,7 +517,7 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...], *, declaration: Decla
             match entry.kind:
                 case EntryKind.DIRECTORY:
                     recorder.record(path, DirectoryRecord())
-                    entered_root = listed_root.find_root_below(path, levels=1)
+                    entered_root = listed_root.find_root_below(path, levels=NonZeroUnsignedInt(1))
                     if entered_root is not None:  # None when no depth is left: the entry is listed, never entered
                         pending.append(entered_root)
                 case EntryKind.FILE:

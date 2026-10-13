@@ -20,7 +20,6 @@ from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.vfs import (
-    Change,
     ChangeKind,
     DirectoryRecord,
     DirEntry,
@@ -2865,7 +2864,7 @@ class TestDiffOfFollowingSnapshots:
         changes = diff(old, new)
 
         #: Then
-        assert changes == frozenset({Change(RootRelativePath.parse('skills/review'), ChangeKind.DELETED)}), (
+        assert changes == {RootRelativePath.parse('skills/review'): ChangeKind.DELETED}, (
             'the directory the link led to is gone, and no listing of its parent was there to say so'
         )
 

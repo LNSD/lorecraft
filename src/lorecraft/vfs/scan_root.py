@@ -12,7 +12,7 @@ another, and never decide anything from its depth themselves.
 
 from dataclasses import dataclass
 
-from lorecraft.core.num import UnsignedInt
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
 
 
@@ -54,27 +54,30 @@ class ScanRoot:
             return False
         if self.depth is None:
             return True
-        return self.listing_level(path) <= self.depth.value
+        return self.listing_level(path).value <= self.depth.value
 
-    def listing_level(self, path: RootRelativePath) -> int:
+    def listing_level(self, path: RootRelativePath) -> UnsignedInt:
         """How many levels below `directory` the directory listing `path` sits; 0 for an entry of `directory`.
 
         Args:
             path: A root-relative entry under `directory`, taken as written.
-        """
-        return len(path.parent.parts) - len(self.directory.parts)
 
-    def find_root_below(self, directory: RootRelativePath, *, levels: int) -> 'ScanRoot | None':
+        Raises:
+            NegativeIntError: If `path` is `directory` itself or lies outside it, so no listing of `directory` or
+                of a directory below it lists it.
+        """
+        return UnsignedInt(len(path.parent.parts) - len(self.directory.parts))
+
+    def find_root_below(self, directory: RootRelativePath, *, levels: NonZeroUnsignedInt) -> 'ScanRoot | None':
         """The root that lists `directory` with the depth this root has left `levels` levels down.
 
-        The scan lists a DIRECTORY entry of `self.directory` as `find_root_below(entry, levels=1)`, and a directory a
-        link leads to with the depth left one level below the link. An unlimited depth stays unlimited
-        however far down, and the link policy is kept.
+        The scan lists a DIRECTORY entry of `self.directory` as `find_root_below(entry, levels=NonZeroUnsignedInt(1))`,
+        and a directory a link leads to with the depth left one level below the link. An unlimited depth stays
+        unlimited however far down, and the link policy is kept.
 
         Args:
             directory: The resolved directory the returned root lists.
-            levels: How many levels below `self.directory` that directory is listed, as the scan counts them;
-                at least 1.
+            levels: How many levels below `self.directory` that directory is listed, as the scan counts them.
 
         Returns:
             The root at `directory`, or `None` when this root's depth runs out before `levels`: the scan
@@ -82,7 +85,7 @@ class ScanRoot:
         """
         if self.depth is None:
             return ScanRoot(directory, None, follow_links=self.follow_links)
-        depth_left = self.depth.value - levels
+        depth_left = self.depth.value - levels.value
         if depth_left < 0:
             return None
         return ScanRoot(directory, UnsignedInt(depth_left), follow_links=self.follow_links)
