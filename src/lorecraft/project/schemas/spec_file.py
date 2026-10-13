@@ -19,7 +19,12 @@ from typing import Final, assert_never
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import EmptyAspectNamespaceError, InvalidAspectNamespaceCharacterError
-from lorecraft.project.corpus import CorpusName, EmptyCorpusNameError, InvalidCorpusNameCharacterError
+from lorecraft.project.corpus import (
+    CorpusName,
+    EmptyCorpusNameError,
+    InvalidCorpusNameCharacterError,
+    ReservedCorpusNameError,
+)
 
 from .name import SpecName, parse_spec_name
 
@@ -133,10 +138,13 @@ class NotASpecStemError(Error):
     """
 
     path: RootRelativePath
-    source: EmptyCorpusNameError | InvalidCorpusNameCharacterError
+    source: EmptyCorpusNameError | InvalidCorpusNameCharacterError | ReservedCorpusNameError
 
     def __init__(
-        self, path: RootRelativePath, *, source: EmptyCorpusNameError | InvalidCorpusNameCharacterError
+        self,
+        path: RootRelativePath,
+        *,
+        source: EmptyCorpusNameError | InvalidCorpusNameCharacterError | ReservedCorpusNameError,
     ) -> None:
         self.path = path
         self.source = source
@@ -173,6 +181,7 @@ class InvalidSpecStemError(Error):
     source: (
         EmptyCorpusNameError
         | InvalidCorpusNameCharacterError
+        | ReservedCorpusNameError
         | EmptyAspectNamespaceError
         | InvalidAspectNamespaceCharacterError
     )
@@ -184,6 +193,7 @@ class InvalidSpecStemError(Error):
         source: (
             EmptyCorpusNameError
             | InvalidCorpusNameCharacterError
+            | ReservedCorpusNameError
             | EmptyAspectNamespaceError
             | InvalidAspectNamespaceCharacterError
         ),
@@ -206,7 +216,7 @@ def parse_spec_file(path: RootRelativePath) -> SpecFile:
     Raises:
         NotASpecFileError: If no pattern claims the name at a non-empty stem and it is not `<stem>.<token>.json`.
         UnknownSpecFileTypeError: If no `SpecFileType` claims a `<stem>.<token>.json` name.
-        NotASpecStemError: If a prose file's stem does not start with a valid corpus name.
+        NotASpecStemError: If a prose file's stem does not start with a valid, unreserved corpus name.
         DottedSpecStemError: If the stem holds a dot.
         InvalidSpecStemError: If any other stem token does not parse.
     """
@@ -219,9 +229,10 @@ def parse_spec_file(path: RootRelativePath) -> SpecFile:
 
     try:
         name = parse_spec_name(stem)
-    except (EmptyCorpusNameError, InvalidCorpusNameCharacterError) as exc:
-        # A prose file whose first token is not a corpus name (README.md) is not a misnamed spec, it is simply
-        # not a spec; a JSON file at such a stem can only be a misnaming.
+    except (EmptyCorpusNameError, InvalidCorpusNameCharacterError, ReservedCorpusNameError) as exc:
+        # A prose file whose first token is not a corpus name (README.md, or `__meta__.md`, the specification
+        # directory's own name) is not a misnamed spec, it is simply not a spec; a JSON file at such a stem can
+        # only be a misnaming.
         match file_type:
             case SpecFileType.PROSE:
                 raise NotASpecStemError(path, source=exc) from exc

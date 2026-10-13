@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from typing import assert_never
 
 from lorecraft.agents import SKILL_ENTRY_FILENAME, iter_agents
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import (
     AspectFilename,
     AspectNamespace,
@@ -162,14 +162,10 @@ def load_workspace(
     corpora: list[Corpus] = []
     for corpus_name in sorted(groups, key=str):
         files = groups[corpus_name]
-        if str(corpus_name) == SPECS_DIR.name:
-            # `__meta__` is a valid corpus name, so a stray `__meta__.md` would otherwise turn the
-            # specification directory into a corpus whose documents are the specifications themselves.
-            continue
         if not files.spec:
             # A namespace spec narrows a corpus spec; without one there is nothing to narrow.
             continue
-        if str(corpus_name) not in corpus_directories:
+        if PathComponent.parse(str(corpus_name)) not in corpus_directories:
             # A corpus is a regular directory under docs/; a missing or linked one has no documents to list.
             continue
         filenames = _list_document_filenames(documents, corpus_name, failures)
@@ -222,8 +218,8 @@ def _list_spec_paths(schemas: SchemaRepository, failures: list[LoadFailure]) -> 
         return []
 
 
-def _list_corpus_directories(documents: DocumentRepository, failures: list[LoadFailure]) -> tuple[str, ...]:
-    """The names of the regular directories under docs/, or `()` when docs/ cannot be listed, which is then recorded.
+def _list_corpus_directories(documents: DocumentRepository, failures: list[LoadFailure]) -> frozenset[PathComponent]:
+    """The names of the regular directories under docs/, or none when docs/ cannot be listed, which is then recorded.
 
     Args:
         documents: Repository docs/ is listed from.
@@ -233,7 +229,7 @@ def _list_corpus_directories(documents: DocumentRepository, failures: list[LoadF
         return documents.list_corpus_directories()
     except DIR_LIST_FAILURES as exc:
         failures.append(LoadFailure(exc.path, UnlistableDirectory(exc.refusal)))
-        return ()
+        return frozenset()
 
 
 def _group_spec_files(spec_paths: list[RootRelativePath]) -> dict[CorpusName, _CorpusFiles]:

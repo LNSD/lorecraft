@@ -58,6 +58,7 @@ def parse_spec_name(raw: str) -> SpecName:
     Raises:
         EmptyCorpusNameError: If the corpus token is empty.
         InvalidCorpusNameCharacterError: If a character of the corpus token falls outside lowercase snake case.
+        ReservedCorpusNameError: If the corpus token is `__meta__`.
         EmptyAspectNamespaceError: If a hyphen is followed by no namespace.
         InvalidAspectNamespaceCharacterError: If a character of the namespace token falls outside kebab case.
     """

@@ -6,7 +6,7 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectNamespace, InvalidAspectNamespaceCharacterError
-from lorecraft.project.corpus import CorpusName, InvalidCorpusNameCharacterError
+from lorecraft.project.corpus import CorpusName, InvalidCorpusNameCharacterError, ReservedCorpusNameError
 
 from ..name import CorpusSpecName, NamespaceSpecName
 from ..spec_file import (
@@ -204,6 +204,32 @@ class TestParseSpecFile:
             f'README is not a corpus name for its uppercase letters, got {type(exc_info.value.source).__name__}'
         )
         assert str(path) in str(exc_info.value), f'the message names the prose file, got {exc_info.value}'
+
+    def test_parse_spec_file_with_prose_at_the_reserved_name_raises_not_a_spec_stem_error(self) -> None:
+        #: Given
+        path = META / '__meta__.md'
+
+        #: When
+        with pytest.raises(NotASpecStemError) as exc_info:
+            parse_spec_file(path)
+
+        #: Then
+        assert isinstance(exc_info.value.source, ReservedCorpusNameError), (
+            f'the specification directory is no corpus, got {type(exc_info.value.source).__name__}'
+        )
+
+    def test_parse_spec_file_with_json_at_the_reserved_name_raises_invalid_spec_stem_error(self) -> None:
+        #: Given
+        path = META / '__meta__-python.structure.json'
+
+        #: When
+        with pytest.raises(InvalidSpecStemError) as exc_info:
+            parse_spec_file(path)
+
+        #: Then
+        assert isinstance(exc_info.value.source, ReservedCorpusNameError), (
+            f'the specification directory is no corpus, got {type(exc_info.value.source).__name__}'
+        )
 
     def test_parse_spec_file_with_json_at_a_non_stem_raises_invalid_spec_stem_error(self) -> None:
         #: Given

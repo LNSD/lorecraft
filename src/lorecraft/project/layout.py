@@ -9,10 +9,11 @@ from lorecraft.agents import iter_agents
 from lorecraft.core.error import Error
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.corpus import RESERVED_CORPUS_NAME
 from lorecraft.vfs import Declaration, EntryKind, FileSystem, ScanRoot
 
 DOCS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs')
-SPECS_DIR: Final[RootRelativePath] = DOCS_DIR / '__meta__'
+SPECS_DIR: Final[RootRelativePath] = DOCS_DIR / RESERVED_CORPUS_NAME
 DOCUMENT_SUFFIX: Final[str] = '.md'
 STRUCTURE_FILE_SUFFIX: Final[str] = '.structure.json'
 

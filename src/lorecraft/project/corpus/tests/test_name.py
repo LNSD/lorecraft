@@ -4,7 +4,7 @@ import pytest
 
 from lorecraft.core.error import Error
 
-from ..name import CorpusName, EmptyCorpusNameError, InvalidCorpusNameCharacterError
+from ..name import CorpusName, EmptyCorpusNameError, InvalidCorpusNameCharacterError, ReservedCorpusNameError
 
 
 @pytest.mark.unit
@@ -104,6 +104,29 @@ class TestCorpusName:
             'the error identifies the hyphen as the invalid character'
         )
         assert repr(invalid_name) in str(exc_info.value), 'the message safely displays the name with a hyphen'
+
+    def test_parse_with_the_specification_directory_name_raises_reserved_corpus_name_error(self) -> None:
+        #: Given
+        reserved_name = '__meta__'
+
+        #: When
+        with pytest.raises(ReservedCorpusNameError) as exc_info:
+            CorpusName.parse(reserved_name)
+
+        #: Then
+        assert type(exc_info.value).__bases__ == (Error,), 'the variant derives from Error directly, not a family'
+        assert exc_info.value.name == reserved_name, 'the error retains the name rejected as reserved'
+        assert repr(reserved_name) in str(exc_info.value), 'the message safely displays the reserved name'
+
+    def test_parse_with_a_name_that_only_starts_like_the_reserved_one_returns_value_object(self) -> None:
+        #: Given
+        valid_name = '__meta__x'
+
+        #: When
+        corpus = CorpusName.parse(valid_name)
+
+        #: Then
+        assert corpus.value == valid_name, 'only the specification directory name itself is reserved'
 
     def test_parse_with_a_leading_uppercase_letter_raises_character_error_at_position_zero(self) -> None:
         #: Given
