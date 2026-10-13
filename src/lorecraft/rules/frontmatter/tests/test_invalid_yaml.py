@@ -34,7 +34,7 @@ def _stopped_at_line_3() -> InvalidYaml:
 
 @pytest.mark.unit
 class TestInvalidYaml:
-    def test_check_with_a_block_that_is_not_yaml_reports_it_at_the_line_the_parser_names(self) -> None:
+    def test_check_with_a_block_that_is_not_yaml_reports_it_at_the_line_of_the_value(self) -> None:
         #: Given
         text = '---\nname: setup\ndescription: Setup: install the toolkit\n---\n# Setup\n'
         subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
@@ -46,10 +46,11 @@ class TestInvalidYaml:
         assert occurrences == (
             InvalidYaml(
                 spec=SPEC,
-                problem='mapping values are not allowed here',
+                problem='this value holds `: `',
                 stopped_at=LineNumber.from_int(3),
+                help='Quote the value: `description: "Setup: install the toolkit"`',
             ),
-        ), 'the occurrence is on the line the YAML parser stopped on, with its words'
+        ), 'the occurrence is on the line of the value, with the words and the help of its kind'
 
     def test_check_with_no_line_known_reports_it_on_line_1(self) -> None:
         #: Given

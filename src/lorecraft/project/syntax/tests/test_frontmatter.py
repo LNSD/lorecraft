@@ -599,7 +599,7 @@ class TestDecodeFrontmatter:
             line=LineNumber.from_int(5),
         ), 'a tag at any depth is refused, on the line of the item that carries it'
 
-    def test_decode_frontmatter_with_invalid_yaml_returns_the_parsers_problem_and_line(self) -> None:
+    def test_decode_frontmatter_with_a_key_indented_under_a_text_value_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
         block = dedent("""\
             name: guide
@@ -612,8 +612,10 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='mapping values are not allowed here', line=LineNumber.from_int(4)
-        ), 'the parser names the problem, and the document line it stopped on follows the opening delimiter'
+            problem='this value holds `: `',
+            help='Quote the value: `b: "c"`',
+            line=LineNumber.from_int(4),
+        ), 'a key indented under a text value is reported on the indented line, with the key it sits under'
 
     def test_decode_frontmatter_with_a_control_character_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
@@ -654,7 +656,8 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='found an escape sequence that names no Unicode character', line=LineNumber.from_int(4)
+            problem='found an escape that names no Unicode character, which frontmatter does not allow',
+            line=LineNumber.from_int(4),
         ), 'an escape that names no character is a finding on its own line, not a crash'
 
     def test_decode_frontmatter_with_an_escape_just_beyond_unicode_returns_invalid_yaml_on_its_line(self) -> None:
@@ -667,7 +670,8 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='found an escape sequence that names no Unicode character', line=LineNumber.from_int(3)
+            problem='found an escape that names no Unicode character, which frontmatter does not allow',
+            line=LineNumber.from_int(3),
         ), 'an escape one above the last code point is a finding on its line, not a crash'
 
     def test_decode_frontmatter_with_a_yaml_directive_returns_invalid_yaml_on_its_line(self) -> None:
@@ -1144,7 +1148,9 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="expected <block end>, but found '<block mapping start>'", line=LineNumber.from_int(4)
+            problem="this line's indentation matches no key or item above it",
+            help='Indent it like the keys or items it belongs with',
+            line=LineNumber.from_int(4),
         ), 'a line indented to no level of the block is reported on that line'
 
     def test_decode_frontmatter_with_an_unclosed_flow_collection_returns_invalid_yaml_on_the_line_it_opens(
@@ -1178,7 +1184,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='mapping values are not allowed here', line=LineNumber.from_int(3)
+            problem='this value holds `: `', help='Quote the value: `a: "b: c"`', line=LineNumber.from_int(3)
         ), 'a `: ` inside a plain value is reported on the line holding it'
 
     def test_decode_frontmatter_with_an_unclosed_quote_returns_invalid_yaml_on_its_line(self) -> None:
@@ -1193,9 +1199,11 @@ class TestDecodeFrontmatter:
         node = decode_frontmatter(block)
 
         #: Then
-        assert node == InvalidYamlFrontmatter(problem='found unexpected end of stream', line=LineNumber.from_int(5)), (
-            'a quoted scalar left open is reported where the block ends'
-        )
+        assert node == InvalidYamlFrontmatter(
+            problem='this quote is never closed',
+            help='Close it on the line it continues to, or remove it',
+            line=LineNumber.from_int(3),
+        ), 'a quoted scalar left open is reported on the line its quote opens on'
 
     def test_decode_frontmatter_with_a_tab_indent_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
@@ -1206,7 +1214,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="found character '\\t' that cannot start any token", line=LineNumber.from_int(3)
+            problem='the block cannot be read from this line on', line=LineNumber.from_int(3)
         ), 'a tab where indentation is expected is reported on its line'
 
     def test_decode_frontmatter_with_a_tab_in_a_flow_collection_returns_invalid_yaml_on_its_line(self) -> None:
@@ -1218,7 +1226,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="found character '\\t' that cannot start any token", line=LineNumber.from_int(3)
+            problem='the block cannot be read from this line on', line=LineNumber.from_int(3)
         ), 'a tab is not whitespace in a flow collection either'
 
     def test_decode_frontmatter_with_a_key_written_as_nothing_returns_invalid_yaml_on_its_line(self) -> None:
@@ -1250,7 +1258,8 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="expected '<document start>', but found '<scalar>'", line=LineNumber.from_int(3)
+            problem='the block cannot be read from this line on',
+            line=LineNumber.from_int(3),
         ), 'a top-level block scalar must be indented, so the line after it is reported'
 
     def test_decode_frontmatter_with_a_nested_block_scalar_after_a_short_blank_line_returns_its_text(self) -> None:
@@ -1375,7 +1384,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="expected ',' or ']', but got '?'", line=LineNumber.from_int(2)
+            problem='the block cannot be read from this line on', line=LineNumber.from_int(2)
         ), 'a `?` inside a plain scalar is no explicit key, so it is the parser that stops there, not a refusal'
 
     def test_decode_frontmatter_with_a_spaced_question_mark_in_a_flow_sequence_is_no_explicit_key(self) -> None:
@@ -1387,7 +1396,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem="expected ',' or ']', but got '?'", line=LineNumber.from_int(2)
+            problem='the block cannot be read from this line on', line=LineNumber.from_int(2)
         ), 'a `?` after a scalar is no explicit key, so it is the parser that stops there'
 
     def test_decode_frontmatter_with_a_question_mark_alone_in_a_flow_sequence_returns_invalid_yaml_on_its_line(
@@ -1598,6 +1607,44 @@ class TestDecodeFrontmatter:
         assert node.data == FrozenMapping({'people': (FrozenMapping({'name': 'a', 'url': 'b'}), ('c', 'd'))}), (
             'a block mapping and a flow sequence are accepted as items of a block sequence'
         )
+
+    def test_decode_frontmatter_with_text_after_a_closing_quote_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'name: "a" b\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='text follows the closing quote',
+            help='Put the whole value inside the quotes',
+            line=LineNumber.from_int(2),
+        ), 'text written after a closing quote is reported on its line'
+
+    def test_decode_frontmatter_with_text_after_a_flow_collection_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'a: [b, c] d\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='the block cannot be read from this line on', line=LineNumber.from_int(2)
+        ), 'an error no kind of the table matches is reported on the parser line, with no help'
+
+    def test_decode_frontmatter_with_a_stray_flow_close_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'a: ]\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='the block cannot be read from this line on', line=LineNumber.from_int(2)
+        ), 'an error no kind of the table matches is reported on the parser line, with no help'
 
     def test_decode_frontmatter_with_a_yaml_list_returns_non_mapping(self) -> None:
         #: Given
